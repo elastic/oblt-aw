@@ -1,0 +1,18 @@
+# Dependency review routing
+
+This folder documents routing and conventions for dependency update PR analysis.
+
+## Entrypoint route
+
+`oblt-aw.yml` dispatches to `dependency-review.yml` when:
+
+- event is `pull_request`
+- action is one of `opened`, `synchronize`, `reopened`
+- PR author is one of: `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`
+
+## Behavior extensions
+
+The dependency review workflow adds repository-specific instructions to:
+
+- include CVE-focused changelog/internal-change analysis
+- apply label `ai:merge-ready` when the review concludes with no risk, no breaking changes, and passing ecosystem checks
