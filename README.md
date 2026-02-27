@@ -51,6 +51,13 @@ This repository currently manages the **Resource not accessible by integration**
    - implements the triage plan
    - opens/updates PR with required changes and review assignment
 
+And includes an event-driven **Dependency Review** agentic workflow:
+
+4. **Dependency Review (Dependabot/Renovate PRs)**
+  - analyzes dependency update PRs across ecosystems
+  - extends analysis with CVE/changelog/internal-change impact assessment
+  - adds `ai:merge-ready` when analysis is fully successful (no risk, no breaking changes, ecosystem checks pass)
+
 ---
 
 ## Repository organization
@@ -60,10 +67,13 @@ This repository currently manages the **Resource not accessible by integration**
 ├── .github/
 │   ├── workflows/
 │   │   ├── oblt-aw.yml
+│   │   ├── dependency-review.yml
 │   │   ├── resource-not-accessible-by-integration-detector.yml
 │   │   ├── resource-not-accessible-by-integration-triage.yml
 │   │   └── resource-not-accessible-by-integration-fixer.yml
 │   └── workflow-routing/
+│       ├── dependency-review/
+│       │   └── README.md
 │       └── resource-not-accessible-by-integration/
 │           └── README.md
 ├── catalog-info.yaml
@@ -95,6 +105,7 @@ This repository currently manages the **Resource not accessible by integration**
 - `schedule` or `workflow_dispatch` → detector workflow
 - `issues` + `opened` → triage workflow
 - `issues` + `labeled` + labels (`ai:fix-ready` and `triage/resource-not-accessible-by-integration`) → fixer workflow
+- `pull_request` + (`opened` / `synchronize` / `reopened`) + author (`dependabot[bot]` / `renovate[bot]`) → dependency review workflow
 - unsupported event/action combinations fail fast in `unsupported-trigger`
 
 This design ensures consumers integrate once and keep trigger-based behavior centralized.
@@ -110,6 +121,7 @@ flowchart TD
   B -->|schedule / workflow_dispatch| C[Detector Reusable Workflow]
   B -->|issues.opened| D[Triage Reusable Workflow]
   B -->|issues.labeled + required labels| E[Fixer Reusable Workflow]
+  B -->|pull_request.opened + bot author| F[Dependency Review Reusable Workflow]
   B -->|unsupported trigger| X[Fail Fast Job]
 
   C --> C1[Analyze recent workflow runs]
@@ -123,6 +135,11 @@ flowchart TD
   E1 --> E2[Implement fix in code/workflows]
   E2 --> E3[Create Draft PR]
   E3 --> E4[Open for review when validated]
+
+  F --> F1[Classify dependency updates]
+  F1 --> F2[Analyze changelog + CVE/internal changes]
+  F2 --> F3[Comment risk and compatibility analysis]
+  F3 --> F4[Apply labels, including ai:merge-ready when fully safe]
 
   C2 -.issues.opened.-> D
   D3 -.issues.labeled.-> E

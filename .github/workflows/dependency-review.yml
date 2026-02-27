@@ -1,0 +1,31 @@
+name: Dependency Review
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  run:
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
+    with:
+      allowed-bot-users: "dependabot[bot],renovate[bot],Dependabot,Renovate"
+      additional-instructions: |
+        Expand the analysis with a CVE-focused assessment based on changelog and release-note content for each updated dependency.
+
+        Required additions for each dependency:
+        - Identify vulnerability-related entries (CVE IDs, GHSA advisories, security fixes, patched classes/functions/modules).
+        - Analyze internal implementation changes in the new version that can affect vulnerability exposure (authn/authz logic, crypto/TLS handling, deserialization/parsing, input validation/sanitization, dependency graph updates, default security settings, sandboxing/isolation, permission scopes).
+        - Explain whether the internal changes reduce, preserve, or increase risk for this repository usage.
+        - Explicitly call out any potential regressions or newly introduced attack surface.
+
+        Labeling rule extension:
+        - If the dependency analyzer result is fully successful (no risk detected, no breaking changes, and ecosystem checks pass), add label `ai:merge-ready`.
+        - If those conditions are not all satisfied, do not add `ai:merge-ready`.
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
