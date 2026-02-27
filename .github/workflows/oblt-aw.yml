@@ -1,0 +1,52 @@
+name: OBLT AW Entrypoint
+
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: false
+
+permissions:
+  actions: read
+  contents: write
+  discussions: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  resource-not-accessible-by-integration-detector:
+    if: >-
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    uses: ./.github/workflows/resource-not-accessible-by-integration-detector.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  resource-not-accessible-by-integration-triage:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'opened'
+    uses: ./.github/workflows/resource-not-accessible-by-integration-triage.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  resource-not-accessible-by-integration-fixer:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'ai:fix-ready' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'triage/resource-not-accessible-by-integration')
+    uses: ./.github/workflows/resource-not-accessible-by-integration-fixer.yml
+    secrets: inherit
+
+  unsupported-trigger:
+    if: >-
+      !(
+        contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) ||
+        (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action))
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Unsupported trigger
+        run: |
+          echo "This entrypoint does not support event '${{ github.event_name }}' with action '${{ github.event.action }}'."
+          exit 1
