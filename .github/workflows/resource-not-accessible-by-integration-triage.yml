@@ -1,0 +1,201 @@
+name: Resource not accessible by Integration Issue Triage
+on:
+  workflow_call:
+    inputs:
+      target-repositories:
+        description: JSON array with allowed repositories. [] allows all repositories.
+        required: false
+        type: string
+        default: "[]"
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+  discussions: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  run:
+    if: >-
+      fromJSON(inputs.target-repositories)[0] == null ||
+      contains(fromJSON(inputs.target-repositories), github.repository)
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    with:
+      additional-instructions: |
+        Your task is to triage newly opened issues in this repository and determine if they are related to "Resource not accessible by integration" errors in GitHub Actions workflows.
+
+        **Triage Steps:**
+        1. Review the issue title and body for any mention of "Resource not accessible by integration" or related error messages
+        2. If the issue mentions this error, check if it includes details about affected workflows, branches, or steps
+        3. Use the GitHub API to cross-reference any mentioned workflow runs or logs for evidence of the error
+        4. If the issue is confirmed to be related to this error, label it with `triage/resource-not-accessible-by-integration`
+        5. If the resolution plan is generated successfully, add the final label `ai:fix-ready` so the fixer workflow knows it can start working on the issue
+        6. If the issue is not related, apply appropriate labels (e.g., `triage/other`, `triage/needs-info`) based on the content
+
+        **Labeling Criteria:**
+        - Label as `triage/resource-not-accessible-by-integration` if there is clear evidence linking the issue to the specific error in GitHub Actions
+        - Label as `ai:fix-ready` only after the resolution plan has been successfully generated and posted to the issue
+        - Label as `triage/other` if the issue is unrelated to GitHub Actions errors
+        - Label as `triage/needs-info` if there is insufficient information to determine relevance
+
+        **Generate Resolution Plan:**
+        When an issue is confirmed to be related to "Resource not accessible by integration" error, append a comprehensive resolution plan to the issue. The plan should analyze the specific error context and provide actionable steps to resolve the permission problem.
+
+        **Plan Structure:**
+
+        ## Resolution Plan
+
+        ### Root Cause Analysis
+        Based on the error details, identify:
+        - Which resource/action is being blocked (e.g., creating issues, updating pull requests, writing to discussions)
+        - The workflow step or action that triggered the error
+        - Current permission configuration in the workflow file
+        - The token being used (GITHUB_TOKEN, PAT, or other)
+
+        ### Recommended Solutions (prioritized)
+
+        **Solution 1: Update Workflow Permissions**
+        - Identify missing permissions in the workflow YAML file
+        - Add specific permissions to the `permissions:` block
+        - Example:
+          ```yaml
+          permissions:
+            contents: write      # if modifying repository content
+            issues: write        # if creating/updating issues
+            pull-requests: write # if creating/updating PRs
+            discussions: write   # if posting to discussions
+          ```
+        - Explain why each permission is needed based on the workflow's actions
+
+        **Solution 2: Verify Repository Settings**
+        - Check repository Settings → Actions → General → Workflow permissions
+        - Ensure "Read and write permissions" is selected (if appropriate)
+        - Or use "Read repository contents permission" with explicit permissions in workflow
+        - Verify "Allow GitHub Actions to create and approve pull requests" is enabled (if needed)
+
+        **Solution 3: Use Enhanced Token (if GITHUB_TOKEN is insufficient)**
+        - Identify if workflow needs access beyond GITHUB_TOKEN scope
+        - Options:
+          a) Create a token policy using this documentation: https://docs.elastic.dev/platform-engineering-productivity/services/ephemeral-tokens/github-actions
+          b) Use a GitHub App token with appropriate permissions
+          c) Use organization-level secrets for shared tokens
+        - Provide specific token scope requirements
+        - Show how to configure in workflow:
+          ```yaml
+          - uses: actions/checkout@v4
+            with:
+              token: <enhanced-token-from-secret>
+          ```
+
+        **Solution 4: Action-Specific Configuration**
+        - If using third-party actions (e.g., create-issue, comment-pr actions)
+        - Verify action has proper token configuration
+        - Example:
+          ```yaml
+          - uses: actions/create-issue@v1
+            with:
+              token: <github-token>
+          ```
+
+        ### Implementation Steps
+        1. **Backup current workflow**: Create a backup branch with current workflow configuration
+        2. **Apply recommended solution**: Implement Solution 1 (or higher priority solution based on analysis)
+        3. **Update workflow file**: Modify `.github/workflows/[workflow-name].yml` with necessary changes
+        4. **Commit changes**: Create a PR with descriptive commit message
+        5. **Test in PR**: Trigger workflow in PR context to verify fix
+
+        ### Testing and Validation Plan
+
+        **Automated Test Cases:**
+        Create a test workflow to validate the fix:
+
+        ```yaml
+        name: Test Resource Access Permissions
+        on:
+          workflow_dispatch:
+          pull_request:
+
+        permissions:
+          # Copy the updated permissions here
+
+        jobs:
+          test-permissions:
+            runs-on: ubuntu-latest
+            steps:
+              - name: Test Issue Creation
+                uses: actions/github-script@v7
+                with:
+                  script: |
+                    // Test creating an issue
+                    try {
+                      const issue = await github.rest.issues.create({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        title: '[Test] Permission Validation',
+                        body: 'This is a test issue to validate permissions. Please close.',
+                        labels: ['test']
+                      });
+                      console.log('✓ Issue creation successful:', issue.data.html_url);
+                      
+                      // Close the test issue
+                      await github.rest.issues.update({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: issue.data.number,
+                        state: 'closed'
+                      });
+                    } catch (error) {
+                      console.error('✗ Issue creation failed:', error.message);
+                      throw error;
+                    }
+
+              - name: Test PR Comment (if applicable)
+                if: github.event_name == 'pull_request'
+                uses: actions/github-script@v7
+                with:
+                  script: |
+                    try {
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: context.issue.number,
+                        body: '✓ Permission test: Comment creation successful'
+                      });
+                      console.log('✓ Comment creation successful');
+                    } catch (error) {
+                      console.error('✗ Comment creation failed:', error.message);
+                      throw error;
+                    }
+        ```
+
+        **Manual Validation Steps:**
+        1. Trigger the original workflow that was failing
+        2. Monitor workflow logs for the previously failing step
+        3. Verify no "Resource not accessible by integration" errors appear
+        4. Confirm the intended action completes successfully (issue created, PR updated, etc.)
+        5. Check repository audit log to verify action was performed with correct permissions
+
+        **Rollback Plan:**
+        If the fix causes issues:
+        1. Revert the PR with permission changes
+        2. Restore from backup branch
+        3. Re-analyze error with additional context
+        4. Try alternative solution from the prioritized list
+
+        ### Success Criteria
+        - [ ] No "Resource not accessible by integration" errors in workflow logs
+        - [ ] Affected workflow step completes successfully
+        - [ ] Automated test workflow passes
+        - [ ] No unintended side effects or security concerns
+        - [ ] Documentation updated with new permission requirements
+
+        ### Additional Resources
+        - [GitHub Actions Permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
+        - [Workflow Permission Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
+        - [Troubleshooting Permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

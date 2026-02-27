@@ -4,11 +4,11 @@
 apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
-  name: buildkite-pipeline-oblt-agentic-workflows
-  description: Buildkite Pipeline for oblt-agentic-workflows
+  name: buildkite-pipeline-oblt-aw
+  description: Buildkite Pipeline for oblt-aw
   links:
     - title: Pipeline
-      url: https://buildkite.com/elastic/oblt-agentic-workflows
+      url: https://buildkite.com/elastic/oblt-aw
 
 spec:
   type: buildkite-pipeline
@@ -18,10 +18,10 @@ spec:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
     metadata:
-      name: oblt-agentic-workflows
+      name: oblt-aw
       description: Agentic Workflows for Observability
     spec:
-      repository: elastic/oblt-agentic-workflows
+      repository: elastic/oblt-aw
       pipeline_file: ".buildkite/pipeline.yml"
       provider_settings:
         build_pull_request_forks: true

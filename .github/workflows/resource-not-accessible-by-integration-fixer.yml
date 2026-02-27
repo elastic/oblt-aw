@@ -1,0 +1,64 @@
+name: Resource not accessible by Integration Issue Fixer
+on:
+  workflow_call:
+    inputs:
+      target-repositories:
+        description: JSON array with allowed repositories. [] allows all repositories.
+        required: false
+        type: string
+        default: "[]"
+
+permissions:
+  actions: read
+  contents: write
+  issues: read
+  pull-requests: write
+
+jobs:
+  run:
+    if: >-
+      github.event.label.name == 'ai:fix-ready' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'triage/resource-not-accessible-by-integration') &&
+      (
+        fromJSON(inputs.target-repositories)[0] == null ||
+        contains(fromJSON(inputs.target-repositories), github.repository)
+      )
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
+    with:
+      additional-instructions: |
+        Your task is to fix issues labeled for the "Resource not accessible by integration" problem.
+
+        **Execution Preconditions:**
+        - Proceed only when the issue has both labels:
+          - `ai:fix-ready`
+          - `triage/resource-not-accessible-by-integration`
+        - The issue must already contain a triage-generated resolution plan.
+
+        **Implementation Workflow (sequential and methodical):**
+        1. Read the resolution plan from the issue and extract ordered tasks.
+        2. Execute the plan strictly step by step, without skipping steps.
+        3. For each step, document what changed and why in commit messages and PR description.
+        4. Apply least-privilege permissions changes only (no over-broad permission grants).
+        5. Run validation/tests described in the plan and confirm the specific error/warning is resolved.
+
+        **Pull Request Requirements:**
+        - Create a pull request in `Draft` state first.
+        - PR title should reference fixing "Resource not accessible by integration".
+        - PR body must include:
+          - link to the source issue
+          - checklist of plan steps completed
+          - evidence of successful tests/validation
+          - explicit confirmation that the target error/warning is fixed
+
+        **Draft to Open Transition:**
+        - Keep PR as `Draft` until all plan steps are fully implemented and validation passes.
+        - Once implementation and tests are successful, convert the PR from `Draft` to `Open` (Ready for review).
+
+        **Review Assignment:**
+        - Request review from the GitHub team `elastic/observablt-ci`.
+        - Wait for approval before any merge action.
+
+        **Merge Policy:**
+        - Do not merge automatically.
+        - Do not perform merge operations in this workflow.
+    secrets: inherit

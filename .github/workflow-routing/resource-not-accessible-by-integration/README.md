@@ -1,0 +1,23 @@
+# Resource not accessible by integration
+
+This folder groups routing/configuration guidance for the reusable workflows in this domain.
+
+## Entry point
+
+Use `.github/workflows/oblt-aw.yml` as the only reusable workflow reference from target repositories.
+
+## Repository filters
+
+Repository filters are defined in each specialized reusable workflow via `workflow_call` input `target-repositories`.
+
+Behavior:
+
+- `[]` means allow all repositories.
+- non-empty list means only repositories included in that list are allowed.
+- repository values use `{owner}/{repo}` format.
+
+## Routed workflows
+
+- schedule / workflow_dispatch -> `resource-not-accessible-by-integration-detector.yml`
+- issues opened -> `resource-not-accessible-by-integration-triage.yml`
+- issues labeled with `ai:fix-ready` and `triage/resource-not-accessible-by-integration` -> `resource-not-accessible-by-integration-fixer.yml`
