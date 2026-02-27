@@ -80,8 +80,8 @@ jobs:
         **Solution 3: Use Enhanced Token (if GITHUB_TOKEN is insufficient)**
         - Identify if workflow needs access beyond GITHUB_TOKEN scope
         - Options:
-          a) Use a GitHub App token with appropriate permissions
-          b) Use a PAT (Personal Access Token) stored in repository secrets
+          a) Create a token policy using this documentation: https://docs.elastic.dev/platform-engineering-productivity/services/ephemeral-tokens/github-actions
+          b) Use a GitHub App token with appropriate permissions
           c) Use organization-level secrets for shared tokens
         - Provide specific token scope requirements
         - Show how to configure in workflow:
