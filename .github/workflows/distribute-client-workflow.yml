@@ -149,7 +149,8 @@ jobs:
 
             - Removed file: `.github/workflows/oblt-aw.yml`
 
-      - name: Report PR result
+      - name: Record PR result
+        if: always()
         env:
           TARGET_REPOSITORY: ${{ matrix.target.repository }}
           PULL_REQUEST_URL_INSTALL: ${{ steps.cpr.outputs.pull-request-url }}
@@ -157,10 +158,38 @@ jobs:
           PULL_REQUEST_URL_REMOVE: ${{ steps.cpr-remove.outputs.pull-request-url }}
           PULL_REQUEST_OPERATION_REMOVE: ${{ steps.cpr-remove.outputs.pull-request-operation }}
         run: |
+          set -euo pipefail
+
           if [[ -n "$PULL_REQUEST_URL_INSTALL" ]]; then
-            echo "[$TARGET_REPOSITORY] PR $PULL_REQUEST_OPERATION_INSTALL: $PULL_REQUEST_URL_INSTALL"
+            printf '%s|%s|%s\n' "$TARGET_REPOSITORY" "$PULL_REQUEST_OPERATION_INSTALL" "$PULL_REQUEST_URL_INSTALL"
           elif [[ -n "$PULL_REQUEST_URL_REMOVE" ]]; then
-            echo "[$TARGET_REPOSITORY] PR $PULL_REQUEST_OPERATION_REMOVE: $PULL_REQUEST_URL_REMOVE"
+            printf '%s|%s|%s\n' "$TARGET_REPOSITORY" "$PULL_REQUEST_OPERATION_REMOVE" "$PULL_REQUEST_URL_REMOVE"
           else
-            echo "[$TARGET_REPOSITORY] No changes detected; PR not created."
-          fi
+            printf '%s|skipped|-\n' "$TARGET_REPOSITORY"
+          fi > pr-result.txt
+
+      - name: Upload PR result artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-result-${{ strategy.job-index }}
+          path: pr-result.txt
+
+  summarize:
+    needs: create-prs
+    if: ${{ always() && needs.create-prs.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v6
+
+      - name: Download all PR result artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pr-result-*
+          merge-multiple: true
+          path: pr-results
+
+      - name: Emit consolidated annotation and summary
+        run: bash scripts/summarize_pr_results.sh
