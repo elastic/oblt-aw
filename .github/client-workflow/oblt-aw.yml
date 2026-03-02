@@ -19,4 +19,5 @@ permissions:
 jobs:
   run:
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main
-    secrets: inherit
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
