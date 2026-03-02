@@ -1,6 +1,8 @@
-name: OBLT AW Entrypoint
+name: Observability Agentic Workflow Entrypoint
 
 on:
+  schedule:
+    - cron: "0 6 * * *"
   workflow_call:
     secrets:
       COPILOT_GITHUB_TOKEN:
