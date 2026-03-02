@@ -141,8 +141,8 @@ flowchart TD
   F2 --> F3[Comment risk and compatibility analysis]
   F3 --> F4[Apply labels, including ai:merge-ready when fully safe]
 
-  C2 -.issues.opened.-> D
-  D3 -.issues.labeled.-> E
+  C2 -. issues.opened .-> D
+  D3 -. issues.labeled .-> E
 ```
 
 ---
