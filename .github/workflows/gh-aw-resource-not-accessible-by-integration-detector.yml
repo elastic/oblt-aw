@@ -12,6 +12,7 @@ on:
         required: true
 
 permissions:
+  actions: read
   contents: read
   issues: write
   pull-requests: read
