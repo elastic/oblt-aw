@@ -66,7 +66,7 @@ And includes an event-driven **Dependency Review** agentic workflow:
 .
 ├── active-repositories.json
 ├── .github/
-│   ├── remote-workflow/
+│   ├── remote-workflow-template/
 │   │   └── oblt-aw.yml
 │   ├── workflows/
 │   │   ├── oblt-aw-ingress.yml
@@ -164,7 +164,7 @@ This keeps consumers decoupled from specialized workflow file names and internal
 To scale adoption without manually adding workflows in each target repository, this repo now includes a distribution mechanism:
 
 - Source client workflow template:
-  - `.github/remote-workflow/oblt-aw.yml`
+  - `.github/remote-workflow-template/oblt-aw.yml`
 - Target repository inventory:
   - `active-repositories.json`
 - PR distribution workflow:
@@ -174,7 +174,7 @@ How it works:
 
 1. `distribute-client-workflow.yml` runs on push to `main` only when one of these files changes:
   - `active-repositories.json`
-  - `.github/remote-workflow/oblt-aw.yml`
+  - `.github/remote-workflow-template/oblt-aw.yml`
 2. It uses `elastic/oblt-actions/github/changed-files@v1` to gate target preparation.
 3. It reads repositories from `active-repositories.json` and compares them with the previous revision.
 4. For repositories present in the current list, it creates/updates:
