@@ -1,0 +1,13 @@
+{
+    "repositories": [
+        "oblt-aw",
+        "oblt-cli",
+        "oblt-framework",
+        "oblt-infra",
+        "oblt-robot",
+        "observability-github-secrets",
+        "observability-github-settings",
+        "observability-robots",
+        "observability-test-environments"
+    ]
+}

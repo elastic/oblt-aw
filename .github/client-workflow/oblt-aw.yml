@@ -1,0 +1,22 @@
+name: Observability Agentic Workflow Entrypoint
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+  issues:
+    types: [opened, labeled]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  actions: read
+  contents: write
+  discussions: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  run:
+    uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main
+    secrets: inherit

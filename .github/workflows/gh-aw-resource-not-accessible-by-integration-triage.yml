@@ -197,5 +197,4 @@ jobs:
         - [GitHub Actions Permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
         - [Workflow Permission Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
         - [Troubleshooting Permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+    secrets: inherit

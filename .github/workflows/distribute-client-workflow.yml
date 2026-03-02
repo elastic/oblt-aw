@@ -1,0 +1,166 @@
+name: Distribute Client Workflow
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - active-repositories.json
+      - .github/client-workflow/oblt-aw.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: distribute-client-workflow
+  cancel-in-progress: false
+
+jobs:
+  prepare-targets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      targets: ${{ steps.targets.outputs.targets }}
+      has_targets: ${{ steps.targets.outputs.has_targets }}
+      install_count: ${{ steps.targets.outputs.install_count }}
+      remove_count: ${{ steps.targets.outputs.remove_count }}
+      total_count: ${{ steps.targets.outputs.total_count }}
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect relevant file changes
+        id: changed-files
+        uses: elastic/oblt-actions/github/changed-files@v1
+        with:
+          base-ref: ${{ github.event.before }}
+          ref: ${{ github.sha }}
+          filter: '["active-repositories.json",".github/client-workflow/oblt-aw.yml"]'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build target operations matrix
+        id: targets
+        env:
+          CHANGED_FILES_COUNT: ${{ steps.changed-files.outputs.count }}
+          BASE_REF: ${{ github.event.before }}
+        run: python scripts/build_target_operations.py
+
+      - name: Write target operations summary
+        env:
+          INSTALL_COUNT: ${{ steps.targets.outputs.install_count }}
+          REMOVE_COUNT: ${{ steps.targets.outputs.remove_count }}
+          TOTAL_COUNT: ${{ steps.targets.outputs.total_count }}
+          CHANGED_FILES_COUNT: ${{ steps.changed-files.outputs.count }}
+        run: |
+          {
+            echo "## Distribution target summary"
+            echo
+            echo "- Relevant changed files: ${CHANGED_FILES_COUNT}"
+            echo "- Install/update targets: ${INSTALL_COUNT}"
+            echo "- Removal targets: ${REMOVE_COUNT}"
+            echo "- Total target operations: ${TOTAL_COUNT}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  create-prs:
+    needs: prepare-targets
+    if: ${{ needs.prepare-targets.outputs.has_targets == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.prepare-targets.outputs.targets) }}
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Create ephemeral GitHub token
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ vars.OBLT_AW_TOKEN_POLICY }}
+
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.target.repository }}
+          token: ${{ steps.create-token.outputs.token }}
+          path: target
+
+      - name: Sync client workflow into target repository
+        if: ${{ matrix.target.operation == 'install' }}
+        env:
+          SOURCE_WORKFLOW_PATH: source/.github/client-workflow/oblt-aw.yml
+          TARGET_WORKFLOW_PATH: target/.github/workflows/oblt-aw.yml
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$(dirname "$TARGET_WORKFLOW_PATH")"
+          cp "$GITHUB_WORKSPACE/$SOURCE_WORKFLOW_PATH" "$TARGET_WORKFLOW_PATH"
+
+      - name: Remove client workflow from target repository
+        if: ${{ matrix.target.operation == 'remove' }}
+        env:
+          TARGET_WORKFLOW_PATH: target/.github/workflows/oblt-aw.yml
+        run: |
+          set -euo pipefail
+
+          rm -f "$TARGET_WORKFLOW_PATH"
+
+      - name: Create or update installation PR in target repository
+        if: ${{ matrix.target.operation == 'install' }}
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.create-token.outputs.token }}
+          path: target
+          branch: oblt-aw/sync-client-workflow
+          commit-message: Add Observability Agentic Workflow Entrypoint
+          title: Add Observability Agentic Workflow Entrypoint
+          body: |
+            This PR installs/updates the shared client workflow managed by elastic/oblt-aw.
+
+            - Source: `.github/client-workflow/oblt-aw.yml`
+            - Entrypoint: `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`
+
+      - name: Create or update removal PR in target repository
+        if: ${{ matrix.target.operation == 'remove' }}
+        id: cpr-remove
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.create-token.outputs.token }}
+          path: target
+          branch: oblt-aw/remove-client-workflow
+          commit-message: Remove Observability Agentic Workflow Entrypoint
+          title: Remove Observability Agentic Workflow Entrypoint
+          body: |
+            This PR removes the shared client workflow because the repository is no longer listed in `active-repositories.json`.
+
+            - Removed file: `.github/workflows/oblt-aw.yml`
+
+      - name: Report PR result
+        env:
+          TARGET_REPOSITORY: ${{ matrix.target.repository }}
+          PULL_REQUEST_URL_INSTALL: ${{ steps.cpr.outputs.pull-request-url }}
+          PULL_REQUEST_OPERATION_INSTALL: ${{ steps.cpr.outputs.pull-request-operation }}
+          PULL_REQUEST_URL_REMOVE: ${{ steps.cpr-remove.outputs.pull-request-url }}
+          PULL_REQUEST_OPERATION_REMOVE: ${{ steps.cpr-remove.outputs.pull-request-operation }}
+        run: |
+          if [[ -n "$PULL_REQUEST_URL_INSTALL" ]]; then
+            echo "[$TARGET_REPOSITORY] PR $PULL_REQUEST_OPERATION_INSTALL: $PULL_REQUEST_URL_INSTALL"
+          elif [[ -n "$PULL_REQUEST_URL_REMOVE" ]]; then
+            echo "[$TARGET_REPOSITORY] PR $PULL_REQUEST_OPERATION_REMOVE: $PULL_REQUEST_URL_REMOVE"
+          else
+            echo "[$TARGET_REPOSITORY] No changes detected; PR not created."
+          fi

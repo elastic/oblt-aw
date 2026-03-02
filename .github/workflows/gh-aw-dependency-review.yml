@@ -27,5 +27,4 @@ jobs:
         Labeling rule extension:
         - If the dependency analyzer result is fully successful (no risk detected, no breaking changes, and ecosystem checks pass), add label `ai:merge-ready`.
         - If those conditions are not all satisfied, do not add `ai:merge-ready`.
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+    secrets: inherit
