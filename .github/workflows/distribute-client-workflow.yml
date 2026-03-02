@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - active-repositories.json
-      - .github/client-workflow/oblt-aw.yml
+      - .github/remote-workflow/oblt-aw.yml
 
 permissions:
   contents: read
@@ -37,7 +37,7 @@ jobs:
         with:
           base-ref: ${{ github.event.before }}
           ref: ${{ github.sha }}
-          filter: '["active-repositories.json",".github/client-workflow/oblt-aw.yml"]'
+          filter: '["active-repositories.json",".github/remote-workflow/oblt-aw.yml"]'
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -101,7 +101,7 @@ jobs:
       - name: Sync client workflow into target repository
         if: ${{ matrix.target.operation == 'install' }}
         env:
-          SOURCE_WORKFLOW_PATH: source/.github/client-workflow/oblt-aw.yml
+          SOURCE_WORKFLOW_PATH: source/.github/remote-workflow/oblt-aw.yml
           TARGET_WORKFLOW_PATH: target/.github/workflows/oblt-aw.yml
         run: |
           set -euo pipefail
@@ -131,7 +131,7 @@ jobs:
           body: |
             This PR installs/updates the shared client workflow managed by elastic/oblt-aw.
 
-            - Source: `.github/client-workflow/oblt-aw.yml`
+            - Source: `.github/remote-workflow/oblt-aw.yml`
             - Entrypoint: `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`
 
       - name: Create or update removal PR in target repository
