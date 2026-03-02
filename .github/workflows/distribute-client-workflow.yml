@@ -92,7 +92,7 @@ jobs:
           token-policy: token-policy-63405ab45244
 
       - name: Checkout target repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ matrix.target.repository }}
           token: ${{ steps.create-token.outputs.token }}
