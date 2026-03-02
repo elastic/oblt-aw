@@ -121,7 +121,7 @@ jobs:
       - name: Create or update installation PR in target repository
         if: ${{ matrix.target.operation == 'install' }}
         id: cpr
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           token: ${{ steps.create-token.outputs.token }}
           path: target
@@ -137,7 +137,7 @@ jobs:
       - name: Create or update removal PR in target repository
         if: ${{ matrix.target.operation == 'remove' }}
         id: cpr-remove
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           token: ${{ steps.create-token.outputs.token }}
           path: target
