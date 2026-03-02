@@ -81,7 +81,7 @@ jobs:
         target: ${{ fromJSON(needs.prepare-targets.outputs.targets) }}
     steps:
       - name: Checkout source repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: source
 
