@@ -7,6 +7,10 @@ on:
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
+  issues:
+    types: [opened, labeled]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 permissions:
   actions: read
