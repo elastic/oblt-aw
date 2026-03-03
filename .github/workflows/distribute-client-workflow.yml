@@ -118,6 +118,20 @@ jobs:
 
           rm -f "$TARGET_WORKFLOW_PATH"
 
+      - name: Create required labels in target repository
+        if: ${{ matrix.target.operation == 'install' }}
+        env:
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+          TARGET_REPOSITORY: ${{ matrix.target.repository }}
+        run: |
+          set -euo pipefail
+
+          gh label create 'triage/resource-not-accessible-by-integration' --repo "$TARGET_REPOSITORY" --color 'd93f0b' --description 'Issue related to Resource not accessible by integration error in GitHub Actions' --force
+          gh label create 'triage/other' --repo "$TARGET_REPOSITORY" --color 'e4e669' --description 'Issue triaged as unrelated to known error patterns' --force
+          gh label create 'triage/needs-info' --repo "$TARGET_REPOSITORY" --color 'e4e669' --description 'Issue needs more information to be triaged' --force
+          gh label create 'ai:fix-ready' --repo "$TARGET_REPOSITORY" --color '0075ca' --description 'Issue has been triaged and is ready for automated fixing' --force
+          gh label create 'ai:merge-ready' --repo "$TARGET_REPOSITORY" --color '0075ca' --description 'Pull request dependency review passed with no risk, ready to merge' --force
+
       - name: Create or update installation PR in target repository
         if: ${{ matrix.target.operation == 'install' }}
         id: cpr
