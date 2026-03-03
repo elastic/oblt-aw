@@ -53,7 +53,7 @@ This repository currently manages the **Resource not accessible by integration**
 
 And includes an event-driven **Dependency Review** agentic workflow:
 
-4. **Dependency Review (Dependabot/Renovate PRs)**
+4. **Dependency Review (Dependabot/Renovate/updatecli PRs)**
   - analyzes dependency update PRs across ecosystems
   - extends analysis with CVE/changelog/internal-change impact assessment
   - adds `ai:merge-ready` when analysis is fully successful (no risk, no breaking changes, ecosystem checks pass)
@@ -109,7 +109,7 @@ And includes an event-driven **Dependency Review** agentic workflow:
 - `schedule` or `workflow_dispatch` → detector workflow
 - `issues` + `opened` → triage workflow
 - `issues` + `labeled` + labels (`ai:fix-ready` and `triage/resource-not-accessible-by-integration`) → fixer workflow
-- `pull_request` + (`opened` / `synchronize` / `reopened`) + author (`dependabot[bot]` / `renovate[bot]`) → dependency review workflow
+- `pull_request` + (`opened` / `synchronize` / `reopened`) + author (`dependabot[bot]` / `renovate[bot]` / `elastic-vault-github-plugin-prod[bot]`) → dependency review workflow
 - unsupported event/action combinations fail fast in `unsupported-trigger`
 
 This design ensures consumers integrate once and keep trigger-based behavior centralized.

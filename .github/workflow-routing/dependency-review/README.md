@@ -8,7 +8,7 @@ This folder documents routing and conventions for dependency update PR analysis.
 
 - event is `pull_request`
 - action is one of `opened`, `synchronize`, `reopened`
-- PR author is one of: `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`
+- PR author is one of: `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`, `elastic-vault-github-plugin-prod[bot]`
 
 ## Behavior extensions
 
