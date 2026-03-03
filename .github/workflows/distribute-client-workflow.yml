@@ -37,7 +37,7 @@ jobs:
         with:
           base-ref: ${{ github.event.before }}
           ref: ${{ github.sha }}
-          filter: '["active-repositories.json",".github/remote-workflow-template/oblt-aw.yml"]'
+          filter: '["*active-repositories.json","*.github/remote-workflow-template/oblt-aw.yml"]'
 
       - name: Setup Python
         uses: actions/setup-python@v5
