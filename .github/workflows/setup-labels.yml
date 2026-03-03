@@ -9,13 +9,18 @@ on:
       - .github/workflows/setup-labels.yml
 
 permissions:
+  contents: read
   issues: write
+  id-token: write
 
 jobs:
   setup-labels:
     runs-on: ubuntu-latest
     steps:
-      - name: Create required labels
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Create required labels in this repository
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
@@ -66,3 +71,26 @@ jobs:
                 }
               }
             }
+
+      - name: Create ephemeral GitHub token
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: token-policy-63405ab45244
+
+      - name: Create required labels in active repositories
+        env:
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          repos=$(jq -r '.repositories[] | "elastic/" + .' active-repositories.json)
+
+          for repo in $repos; do
+            echo "Creating labels in ${repo}..."
+            gh label create 'triage/resource-not-accessible-by-integration' --repo "$repo" --color 'd93f0b' --description 'Issue related to Resource not accessible by integration error in GitHub Actions' --force
+            gh label create 'triage/other' --repo "$repo" --color 'e4e669' --description 'Issue triaged as unrelated to known error patterns' --force
+            gh label create 'triage/needs-info' --repo "$repo" --color 'e4e669' --description 'Issue needs more information to be triaged' --force
+            gh label create 'ai:fix-ready' --repo "$repo" --color '0075ca' --description 'Issue has been triaged and is ready for automated fixing' --force
+            gh label create 'ai:merge-ready' --repo "$repo" --color '0075ca' --description 'Pull request dependency review passed with no risk, ready to merge' --force
+          done
