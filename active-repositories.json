@@ -1,13 +1,13 @@
 {
     "repositories": [
-        "elastic/oblt-aw",
-        "elastic/oblt-cli",
-        "elastic/oblt-framework",
-        "elastic/oblt-infra",
-        "elastic/oblt-robot",
-        "elastic/observability-github-secrets",
-        "elastic/observability-github-settings",
-        "elastic/observability-robots",
-        "elastic/observability-test-environments"
+        "oblt-aw",
+        "oblt-cli",
+        "oblt-framework",
+        "oblt-infra",
+        "oblt-robot",
+        "observability-github-secrets",
+        "observability-github-settings",
+        "observability-robots",
+        "observability-test-environments"
     ]
 }
