@@ -89,7 +89,7 @@ jobs:
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
         with:
-          token-policy: token-policy-63405ab45244
+          token-policy: ${{ vars.OBLT_AW_TOKEN_POLICY }}
 
       - name: Checkout target repository
         uses: actions/checkout@v6

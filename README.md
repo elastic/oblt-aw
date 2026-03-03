@@ -206,6 +206,18 @@ Reference: https://docs.elastic.dev/platform-engineering-productivity/services/e
 - The specialized workflows (`detector`, `triage`, `fixer`) define optional `target-repositories` filters for direct invocation scenarios.
 - The main entrypoint currently routes by trigger/action and does not expose those filter inputs.
 - Permissions are explicitly declared per workflow to align with least-privilege operation.
+- Repository entries in `active-repositories.json` must use the full `owner/repo` format (e.g., `elastic/oblt-aw`).
+
+### `COPILOT_GITHUB_TOKEN` requirement
+
+The agentic workflows use the GitHub Copilot CLI for AI-powered analysis. This requires a GitHub token with Copilot access:
+
+- **Fine-Grained PAT**: must have the **Copilot Requests** (read) permission enabled.
+- **Classic PAT**: must have the `copilot` scope.
+
+This token must be available as an organization or repository secret named `COPILOT_GITHUB_TOKEN` in every repository that uses the client workflow (`oblt-aw.yml`), including this repository for its own scheduled runs.
+
+Without a valid `COPILOT_GITHUB_TOKEN`, the Copilot CLI will fail with `Error: Authentication failed`.
 
 ---
 
