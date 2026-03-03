@@ -28,14 +28,14 @@ jobs:
         fromJSON('["dependabot[bot]","renovate[bot]","Dependabot","Renovate"]'),
         github.event.pull_request.user.login
       )
-    uses: ./.github/workflows/dependency-review.yml
+    uses: ./.github/workflows/gh-aw-dependency-review.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   resource-not-accessible-by-integration-detector:
     if: >-
       contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
-    uses: ./.github/workflows/resource-not-accessible-by-integration-detector.yml
+    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -43,7 +43,7 @@ jobs:
     if: >-
       github.event_name == 'issues' &&
       github.event.action == 'opened'
-    uses: ./.github/workflows/resource-not-accessible-by-integration-triage.yml
+    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -53,7 +53,7 @@ jobs:
       github.event.action == 'labeled' &&
       github.event.label.name == 'ai:fix-ready' &&
       contains(join(github.event.issue.labels.*.name, ','), 'triage/resource-not-accessible-by-integration')
-    uses: ./.github/workflows/resource-not-accessible-by-integration-fixer.yml
+    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
     secrets: inherit
 
   unsupported-trigger:
