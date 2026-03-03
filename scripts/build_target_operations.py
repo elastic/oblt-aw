@@ -53,10 +53,15 @@ def read_previous_repositories(base_ref: str) -> list[str]:
         return []
 
 
+def parse_bool(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def main() -> int:
     changed_files_count = int(os.getenv("CHANGED_FILES_COUNT", "0"))
+    force_distribution = parse_bool(os.getenv("FORCE_DISTRIBUTION", "false"))
 
-    if changed_files_count == 0:
+    if changed_files_count == 0 and not force_distribution:
         write_outputs(
             {
                 "targets": "[]",
