@@ -86,5 +86,4 @@ jobs:
         [Any patterns or suggestions for resolution]
         ```
       title-prefix: "[AI Detector][Resource not accessible by Integration]"
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+    secrets: inherit

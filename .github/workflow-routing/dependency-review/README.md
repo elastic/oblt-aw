@@ -4,11 +4,11 @@ This folder documents routing and conventions for dependency update PR analysis.
 
 ## Entrypoint route
 
-`oblt-aw.yml` dispatches to `dependency-review.yml` when:
+`oblt-aw-ingress.yml` dispatches to `gh-aw-dependency-review.yml` when:
 
 - event is `pull_request`
 - action is one of `opened`, `synchronize`, `reopened`
-- PR author is one of: `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`
+- PR author is one of: `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`, `elastic-vault-github-plugin-prod[bot]`
 
 ## Behavior extensions
 
