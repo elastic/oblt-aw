@@ -121,6 +121,8 @@ jobs:
       - name: Create or update installation PR in target repository
         if: ${{ matrix.target.operation == 'install' }}
         id: cpr
+        env:
+          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           token: ${{ steps.create-token.outputs.token }}
@@ -134,9 +136,14 @@ jobs:
             - Source: `.github/remote-workflow-template/oblt-aw.yml`
             - Entrypoint: `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`
 
+            ---
+            Created by [workflow run](${{ env.JOB_URL }})
+
       - name: Create or update removal PR in target repository
         if: ${{ matrix.target.operation == 'remove' }}
         id: cpr-remove
+        env:
+          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           token: ${{ steps.create-token.outputs.token }}
@@ -148,6 +155,9 @@ jobs:
             This PR removes the shared client workflow because the repository is no longer listed in `active-repositories.json`.
 
             - Removed file: `.github/workflows/oblt-aw.yml`
+
+            ---
+            Created by [workflow run](${{ env.JOB_URL }})
 
       - name: Record PR result
         if: always()
