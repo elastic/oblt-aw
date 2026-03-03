@@ -1,0 +1,68 @@
+name: Setup Labels
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/setup-labels.yml
+
+permissions:
+  issues: write
+
+jobs:
+  setup-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create required labels
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const labels = [
+              {
+                name: 'triage/resource-not-accessible-by-integration',
+                color: 'd93f0b',
+                description: 'Issue related to Resource not accessible by integration error in GitHub Actions',
+              },
+              {
+                name: 'triage/other',
+                color: 'e4e669',
+                description: 'Issue triaged as unrelated to known error patterns',
+              },
+              {
+                name: 'triage/needs-info',
+                color: 'e4e669',
+                description: 'Issue needs more information to be triaged',
+              },
+              {
+                name: 'ai:fix-ready',
+                color: '0075ca',
+                description: 'Issue has been triaged and is ready for automated fixing',
+              },
+              {
+                name: 'ai:merge-ready',
+                color: '0075ca',
+                description: 'Pull request dependency review passed with no risk, ready to merge',
+              },
+            ];
+
+            for (const label of labels) {
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                  color: label.color,
+                  description: label.description,
+                });
+                core.info(`Created label: ${label.name}`);
+              } catch (error) {
+                if (error.status === 422) {
+                  core.info(`Label already exists: ${label.name}`);
+                } else {
+                  core.error(`Failed to create label ${label.name}: ${error.message}`);
+                  throw error;
+                }
+              }
+            }
