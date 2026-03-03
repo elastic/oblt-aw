@@ -16,7 +16,7 @@ In consumer repositories, wiring multiple automation workflows directly creates 
 
 `oblt-aw` solves this by exposing one reusable orchestrator:
 
-- `.github/workflows/oblt-aw.yml`
+- `.github/workflows/oblt-aw-ingress.yml`
 
 That orchestrator routes execution to a specific specialized workflow based on GitHub event context.
 
@@ -64,13 +64,17 @@ And includes an event-driven **Dependency Review** agentic workflow:
 
 ```text
 .
+├── active-repositories.json
 ├── .github/
+│   ├── remote-workflow-template/
+│   │   └── oblt-aw.yml
 │   ├── workflows/
-│   │   ├── oblt-aw.yml
-│   │   ├── dependency-review.yml
-│   │   ├── resource-not-accessible-by-integration-detector.yml
-│   │   ├── resource-not-accessible-by-integration-triage.yml
-│   │   └── resource-not-accessible-by-integration-fixer.yml
+│   │   ├── oblt-aw-ingress.yml
+│   │   ├── distribute-client-workflow.yml
+│   │   ├── gh-aw-dependency-review.yml
+│   │   ├── gh-aw-resource-not-accessible-by-integration-detector.yml
+│   │   ├── gh-aw-resource-not-accessible-by-integration-triage.yml
+│   │   └── gh-aw-resource-not-accessible-by-integration-fixer.yml
 │   └── workflow-routing/
 │       ├── dependency-review/
 │       │   └── README.md
@@ -100,7 +104,7 @@ And includes an event-driven **Dependency Review** agentic workflow:
 
 ## Entrypoint routing behavior
 
-`oblt-aw.yml` is invoked via `workflow_call` and routes internally:
+`oblt-aw-ingress.yml` is invoked via `workflow_call` and routes internally:
 
 - `schedule` or `workflow_dispatch` → detector workflow
 - `issues` + `opened` → triage workflow
@@ -116,7 +120,7 @@ This design ensures consumers integrate once and keep trigger-based behavior cen
 
 ```mermaid
 flowchart TD
-  A[Target Repository Workflow] --> B[Reusable Entrypoint<br/>oblt-aw.yml]
+  A[Target Repository Workflow] --> B[Reusable Entrypoint<br/>oblt-aw-ingress.yml]
 
   B -->|schedule / workflow_dispatch| C[Detector Reusable Workflow]
   B -->|issues.opened| D[Triage Reusable Workflow]
@@ -151,9 +155,49 @@ flowchart TD
 
 Target repositories should reference only:
 
-- `elastic/oblt-aw/.github/workflows/oblt-aw.yml@main`
+- `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`
 
 This keeps consumers decoupled from specialized workflow file names and internal orchestration logic.
+
+## Fleet rollout to many repositories
+
+To scale adoption without manually adding workflows in each target repository, this repo now includes a distribution mechanism:
+
+- Source client workflow template:
+  - `.github/remote-workflow-template/oblt-aw.yml`
+- Target repository inventory:
+  - `active-repositories.json`
+- PR distribution workflow:
+  - `.github/workflows/distribute-client-workflow.yml`
+
+How it works:
+
+1. `distribute-client-workflow.yml` runs on push to `main` only when one of these files changes:
+  - `active-repositories.json`
+  - `.github/remote-workflow-template/oblt-aw.yml`
+2. It uses `elastic/oblt-actions/github/changed-files@v1` to gate target preparation.
+3. It reads repositories from `active-repositories.json` and compares them with the previous revision.
+4. For repositories present in the current list, it creates/updates:
+  - `.github/workflows/oblt-aw.yml`
+5. For repositories removed from the list, it opens a PR that removes:
+  - `.github/workflows/oblt-aw.yml`
+6. It opens a PR (or updates the branch if one already exists) in each affected repository.
+
+### Token policy requirement
+
+The distribution workflow generates the GitHub token at runtime using:
+
+- `elastic/oblt-actions/github/create-token@v1`
+
+Set repository variable `OBLT_AW_TOKEN_POLICY` with the token policy name.
+
+The resulting ephemeral token must have permissions required to:
+
+- clone target repositories
+- push a branch
+- create pull requests
+
+Reference: https://docs.elastic.dev/platform-engineering-productivity/services/ephemeral-tokens/github-actions
 
 ---
 
@@ -170,7 +214,7 @@ This keeps consumers decoupled from specialized workflow file names and internal
 When adding a new agentic capability:
 
 1. Create a new reusable workflow under `.github/workflows/` for that capability.
-2. Add routing condition(s) in `oblt-aw.yml` to dispatch to it.
+2. Add routing condition(s) in `oblt-aw-ingress.yml` to dispatch to it.
 3. Add/update documentation under `.github/workflow-routing/<domain>/`.
 4. Keep consumer repositories unchanged whenever possible (single-entrypoint contract).
 
