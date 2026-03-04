@@ -7,6 +7,13 @@ on:
     paths:
       - active-repositories.json
       - .github/remote-workflow-template/oblt-aw.yml
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Force distribution even when no relevant files changed
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -33,6 +40,7 @@ jobs:
 
       - name: Detect relevant file changes
         id: changed-files
+        if: ${{ github.event_name == 'push' }}
         uses: elastic/oblt-actions/github/changed-files@v1
         with:
           base-ref: ${{ github.event.before }}
@@ -47,8 +55,9 @@ jobs:
       - name: Build target operations matrix
         id: targets
         env:
-          CHANGED_FILES_COUNT: ${{ steps.changed-files.outputs.count }}
+          CHANGED_FILES_COUNT: ${{ steps.changed-files.outputs.count || 0 }}
           BASE_REF: ${{ github.event.before }}
+          FORCE_DISTRIBUTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force || 'false' }}
         run: python scripts/build_target_operations.py
 
       - name: Write target operations summary
@@ -56,12 +65,14 @@ jobs:
           INSTALL_COUNT: ${{ steps.targets.outputs.install_count }}
           REMOVE_COUNT: ${{ steps.targets.outputs.remove_count }}
           TOTAL_COUNT: ${{ steps.targets.outputs.total_count }}
-          CHANGED_FILES_COUNT: ${{ steps.changed-files.outputs.count }}
+          CHANGED_FILES_COUNT: ${{ steps.changed-files.outputs.count || 0 }}
+          FORCE_DISTRIBUTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force || 'false' }}
         run: |
           {
             echo "## Distribution target summary"
             echo
             echo "- Relevant changed files: ${CHANGED_FILES_COUNT}"
+            echo "- Force distribution: ${FORCE_DISTRIBUTION}"
             echo "- Install/update targets: ${INSTALL_COUNT}"
             echo "- Removal targets: ${REMOVE_COUNT}"
             echo "- Total target operations: ${TOTAL_COUNT}"

@@ -176,13 +176,16 @@ How it works:
 1. `distribute-client-workflow.yml` runs on push to `main` only when one of these files changes:
   - `active-repositories.json`
   - `.github/remote-workflow-template/oblt-aw.yml`
-2. It uses `elastic/oblt-actions/github/changed-files@v1` to gate target preparation.
-3. It reads repositories from `active-repositories.json` and compares them with the previous revision.
-4. For repositories present in the current list, it creates/updates:
+2. It can also be run manually via `workflow_dispatch` with optional input:
+  - `force` (`true`/`false`, default `false`)
+  - When `force=true`, distribution runs even if no relevant files changed.
+3. It uses `elastic/oblt-actions/github/changed-files@v1` to gate target preparation for `push` events.
+4. It reads repositories from `active-repositories.json` and compares them with the previous revision.
+5. For repositories present in the current list, it creates/updates:
   - `.github/workflows/oblt-aw.yml`
-5. For repositories removed from the list, it opens a PR that removes:
+6. For repositories removed from the list, it opens a PR that removes:
   - `.github/workflows/oblt-aw.yml`
-6. It opens a PR (or updates the branch if one already exists) in each affected repository.
+7. It opens a PR (or updates the branch if one already exists) in each affected repository.
 
 ### Token policy requirement
 
