@@ -6,71 +6,69 @@ on:
     branches:
       - main
     paths:
+      - active-repositories.json
+      - active-labels.json
       - .github/workflows/setup-labels.yml
-
-permissions:
-  contents: read
-  issues: write
-  id-token: write
+      - scripts/build_setup_labels_matrix.py
+      - scripts/setup_labels.py
+      - scripts/summarize_results.py
 
 jobs:
-  setup-labels:
+  prepare-repositories:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      repositories: ${{ steps.build-matrix.outputs.repositories }}
+      has_repositories: ${{ steps.build-matrix.outputs.has_repositories }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Create required labels in this repository
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      - name: Detect relevant file changes
+        if: ${{ github.event_name == 'push' }}
+        id: changed-files
+        uses: elastic/oblt-actions/github/changed-files@v1
         with:
-          script: |
-            const labels = [
-              {
-                name: 'triage/resource-not-accessible-by-integration',
-                color: 'd93f0b',
-                description: 'Issue related to Resource not accessible by integration error in GitHub Actions',
-              },
-              {
-                name: 'triage/other',
-                color: 'e4e669',
-                description: 'Issue triaged as unrelated to known error patterns',
-              },
-              {
-                name: 'triage/needs-info',
-                color: 'e4e669',
-                description: 'Issue needs more information to be triaged',
-              },
-              {
-                name: 'ai:fix-ready',
-                color: '0075ca',
-                description: 'Issue has been triaged and is ready for automated fixing',
-              },
-              {
-                name: 'ai:merge-ready',
-                color: '0075ca',
-                description: 'Pull request dependency review passed with no risk, ready to merge',
-              },
-            ];
+          base-ref: ${{ github.event.before }}
+          ref: ${{ github.sha }}
+          filter: '["*active-repositories.json","*active-labels.json","*.github/workflows/setup-labels.yml","*scripts/build_setup_labels_matrix.py","*scripts/setup_labels.py","*scripts/summarize_results.py"]'
 
-            for (const label of labels) {
-              try {
-                await github.rest.issues.createLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  name: label.name,
-                  color: label.color,
-                  description: label.description,
-                });
-                core.info(`Created label: ${label.name}`);
-              } catch (error) {
-                if (error.status === 422) {
-                  core.info(`Label already exists: ${label.name}`);
-                } else {
-                  core.error(`Failed to create label ${label.name}: ${error.message}`);
-                  throw error;
-                }
-              }
-            }
+      - name: Build repositories matrix
+        id: build-matrix
+        env:
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: python3 scripts/build_setup_labels_matrix.py
+
+      - name: Write setup-labels input summary
+        env:
+          CHANGED_FILES_COUNT: ${{ steps.changed-files.outputs.count || 'N/A' }}
+          HAS_REPOSITORIES: ${{ steps.build-matrix.outputs.has_repositories }}
+          REPOSITORIES_JSON: ${{ steps.build-matrix.outputs.repositories }}
+        run: |
+          {
+            echo "## Setup labels input summary"
+            echo
+            echo "- Relevant changed files: ${CHANGED_FILES_COUNT}"
+            echo "- Has repositories to process: ${HAS_REPOSITORIES}"
+            echo "- Matrix repositories: ${REPOSITORIES_JSON}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  setup-labels:
+    needs: prepare-repositories
+    if: ${{ needs.prepare-repositories.outputs.has_repositories == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        repository: ${{ fromJSON(needs.prepare-repositories.outputs.repositories) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Create ephemeral GitHub token
         id: create-token
@@ -78,19 +76,45 @@ jobs:
         with:
           token-policy: token-policy-63405ab45244
 
-      - name: Create required labels in active repositories
+      - name: Create required labels in repository
+        id: setup-labels
         env:
           GH_TOKEN: ${{ steps.create-token.outputs.token }}
-        run: |
-          set -euo pipefail
+          TARGET_REPOSITORY: ${{ matrix.repository }}
+          SETUP_LABELS_REPORT_PATH: setup-labels-report.json
+        run: python3 scripts/setup_labels.py
 
-          repos=$(jq -r '.repositories[] | "elastic/" + .' active-repositories.json)
+      - name: Upload setup labels report artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: setup-label-report-${{ strategy.job-index }}
+          path: setup-labels-report.json
+          if-no-files-found: ignore
 
-          for repo in $repos; do
-            echo "Creating labels in ${repo}..."
-            gh label create 'triage/resource-not-accessible-by-integration' --repo "$repo" --color 'd93f0b' --description 'Issue related to Resource not accessible by integration error in GitHub Actions' --force
-            gh label create 'triage/other' --repo "$repo" --color 'e4e669' --description 'Issue triaged as unrelated to known error patterns' --force
-            gh label create 'triage/needs-info' --repo "$repo" --color 'e4e669' --description 'Issue needs more information to be triaged' --force
-            gh label create 'ai:fix-ready' --repo "$repo" --color '0075ca' --description 'Issue has been triaged and is ready for automated fixing' --force
-            gh label create 'ai:merge-ready' --repo "$repo" --color '0075ca' --description 'Pull request dependency review passed with no risk, ready to merge' --force
-          done
+  summarize-setup-labels:
+    needs:
+      - prepare-repositories
+      - setup-labels
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download setup labels report artifacts
+        if: ${{ needs.prepare-repositories.outputs.has_repositories == 'true' }}
+        uses: actions/download-artifact@v8
+        with:
+          pattern: setup-label-report-*
+          merge-multiple: true
+          path: setup-label-results
+
+      - name: Emit setup labels annotation and summary
+        env:
+          SETUP_LABELS_RESULTS_DIR: setup-label-results
+          SETUP_LABELS_HAS_REPOSITORIES: ${{ needs.prepare-repositories.outputs.has_repositories }}
+          SETUP_LABELS_JOB_RESULT: ${{ needs.setup-labels.result }}
+        run: python3 scripts/summarize_results.py --mode labels

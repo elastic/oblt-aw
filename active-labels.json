@@ -1,0 +1,29 @@
+{
+    "labels": [
+        {
+            "name": "triage/resource-not-accessible-by-integration",
+            "color": "d93f0b",
+            "description": "Issue related to Resource not accessible by integration error in GitHub Actions"
+        },
+        {
+            "name": "triage/other",
+            "color": "e4e669",
+            "description": "Issue triaged as unrelated to known error patterns"
+        },
+        {
+            "name": "triage/needs-info",
+            "color": "e4e669",
+            "description": "Issue needs more information to be triaged"
+        },
+        {
+            "name": "ai:fix-ready",
+            "color": "0075ca",
+            "description": "Issue has been triaged and is ready for automated fixing"
+        },
+        {
+            "name": "ai:merge-ready",
+            "color": "0075ca",
+            "description": "Pull request dependency review passed with no risk, ready to merge"
+        }
+    ]
+}

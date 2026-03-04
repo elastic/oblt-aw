@@ -64,6 +64,7 @@ And includes an event-driven **Dependency Review** agentic workflow:
 
 ```text
 .
+├── active-labels.json
 ├── active-repositories.json
 ├── .github/
 │   ├── remote-workflow-template/

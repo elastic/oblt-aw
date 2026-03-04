@@ -4,15 +4,7 @@ import pathlib
 import subprocess
 import sys
 
-
-def write_outputs(values: dict[str, str]) -> None:
-    github_output = os.getenv("GITHUB_OUTPUT")
-    if not github_output:
-        raise SystemExit("GITHUB_OUTPUT is not set")
-
-    with open(github_output, "a", encoding="utf-8") as output_file:
-        for key, value in values.items():
-            output_file.write(f"{key}={value}\n")
+from lib.workflow_common import write_github_outputs
 
 
 def parse_repositories(content: str) -> list[str]:
@@ -57,7 +49,7 @@ def main() -> int:
     changed_files_count = int(os.getenv("CHANGED_FILES_COUNT", "0"))
 
     if changed_files_count == 0:
-        write_outputs(
+        write_github_outputs(
             {
                 "targets": "[]",
                 "has_targets": "false",
@@ -84,7 +76,7 @@ def main() -> int:
     remove_count = len(removed_repositories)
     total_count = len(operations)
 
-    write_outputs(
+    write_github_outputs(
         {
             "targets": json.dumps(operations),
             "has_targets": "true" if total_count > 0 else "false",

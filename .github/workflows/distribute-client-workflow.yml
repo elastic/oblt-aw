@@ -202,4 +202,4 @@ jobs:
           path: pr-results
 
       - name: Emit consolidated annotation and summary
-        run: bash scripts/summarize_pr_results.sh
+        run: python3 scripts/summarize_results.py --mode pr
