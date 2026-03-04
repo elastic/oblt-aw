@@ -178,6 +178,7 @@ jobs:
           PULL_REQUEST_OPERATION_INSTALL: ${{ steps.cpr.outputs.pull-request-operation }}
           PULL_REQUEST_URL_REMOVE: ${{ steps.cpr-remove.outputs.pull-request-url }}
           PULL_REQUEST_OPERATION_REMOVE: ${{ steps.cpr-remove.outputs.pull-request-operation }}
+          JOB_INDEX: ${{ strategy.job-index }}
         run: |
           set -euo pipefail
 
@@ -187,14 +188,14 @@ jobs:
             printf '%s|%s|%s\n' "$TARGET_REPOSITORY" "$PULL_REQUEST_OPERATION_REMOVE" "$PULL_REQUEST_URL_REMOVE"
           else
             printf '%s|skipped|-\n' "$TARGET_REPOSITORY"
-          fi > pr-result.txt
+          fi > "pr-result-${JOB_INDEX}.txt"
 
       - name: Upload PR result artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: pr-result-${{ strategy.job-index }}
-          path: pr-result.txt
+          path: pr-result-${{ strategy.job-index }}.txt
 
   summarize:
     needs: create-prs
