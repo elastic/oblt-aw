@@ -18,6 +18,6 @@ permissions:
 
 jobs:
   run:
-    uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main
+    uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main # ratchet:exclude
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
