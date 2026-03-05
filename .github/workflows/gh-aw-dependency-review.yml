@@ -15,7 +15,7 @@ jobs:
   run:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
     with:
-      allowed-bot-users: "dependabot[bot],renovate[bot],Dependabot,Renovate"
+      allowed-bot-users: "dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-vault-github-plugin-prod[bot]"
       additional-instructions: |
         Expand the analysis with a CVE-focused assessment based on changelog and release-note content for each updated dependency.
 
