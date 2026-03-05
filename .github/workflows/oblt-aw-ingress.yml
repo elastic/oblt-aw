@@ -1,4 +1,4 @@
-name: Observability Agentic Workflow Entrypoint
+name: Observability Agentic Workflow Ingress
 
 on:
   schedule:
