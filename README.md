@@ -56,7 +56,7 @@ And includes an event-driven **Dependency Review** agentic workflow:
 4. **Dependency Review (Dependabot/Renovate/updatecli PRs)**
   - analyzes dependency update PRs across ecosystems
   - extends analysis with CVE/changelog/internal-change impact assessment
-  - adds `ai:merge-ready` when analysis is fully successful (no risk, no breaking changes, ecosystem checks pass)
+  - adds `oblt-aw/ai/merge-ready` when analysis is fully successful (no risk, no breaking changes, ecosystem checks pass)
 
 ---
 
@@ -108,7 +108,7 @@ And includes an event-driven **Dependency Review** agentic workflow:
 
 - `schedule` or `workflow_dispatch` → detector workflow
 - `issues` + `opened` → triage workflow
-- `issues` + `labeled` + labels (`ai:fix-ready` and `triage/resource-not-accessible-by-integration`) → fixer workflow
+- `issues` + `labeled` + labels (`oblt-aw/ai/fix-ready` and `oblt-aw/triage/resource-not-accessible-by-integration`) → fixer workflow
 - `pull_request` + (`opened` / `synchronize` / `reopened`) + author (`dependabot[bot]` / `renovate[bot]` / `elastic-vault-github-plugin-prod[bot]`) → dependency review workflow
 - unsupported event/action combinations fail fast in `unsupported-trigger`
 
@@ -133,7 +133,7 @@ flowchart TD
 
   D --> D1[Classify issue relevance]
   D1 --> D2[Generate resolution plan]
-  D2 --> D3[Apply labels: triage/* and ai:fix-ready]
+  D2 --> D3[Apply labels: oblt-aw/triage/* and oblt-aw/ai/fix-ready]
 
   E --> E1[Read triage plan]
   E1 --> E2[Implement fix in code/workflows]
@@ -143,7 +143,7 @@ flowchart TD
   F --> F1[Classify dependency updates]
   F1 --> F2[Analyze changelog + CVE/internal changes]
   F2 --> F3[Comment risk and compatibility analysis]
-  F3 --> F4[Apply labels, including ai:merge-ready when fully safe]
+  F3 --> F4[Apply labels, including oblt-aw/ai/merge-ready when fully safe]
 
   C2 -.->|issues.opened| D
   D3 -.->|issues.labeled| E

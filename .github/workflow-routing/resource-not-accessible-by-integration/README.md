@@ -20,4 +20,4 @@ Behavior:
 
 - schedule / workflow_dispatch -> `gh-aw-resource-not-accessible-by-integration-detector.yml`
 - issues opened -> `gh-aw-resource-not-accessible-by-integration-triage.yml`
-- issues labeled with `ai:fix-ready` and `triage/resource-not-accessible-by-integration` -> `gh-aw-resource-not-accessible-by-integration-fixer.yml`
+- issues labeled with `oblt-aw/ai/fix-ready` and `oblt-aw/triage/resource-not-accessible-by-integration` -> `gh-aw-resource-not-accessible-by-integration-fixer.yml`
