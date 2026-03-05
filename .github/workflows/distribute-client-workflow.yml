@@ -142,7 +142,7 @@ jobs:
           commit-message: Add Observability Agentic Workflow Entrypoint
           title: Add Observability Agentic Workflow Entrypoint
           body: |
-            This PR installs/updates the shared client workflow managed by elastic/oblt-aw.
+            This PR installs/updates the Observability Agentic Workflow managed remotely by elastic/oblt-aw.
 
             - Source: `.github/remote-workflow-template/oblt-aw.yml`
             - Entrypoint: `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`
@@ -163,7 +163,7 @@ jobs:
           commit-message: Remove Observability Agentic Workflow Entrypoint
           title: Remove Observability Agentic Workflow Entrypoint
           body: |
-            This PR removes the shared client workflow because the repository is no longer listed in `active-repositories.json`.
+            This PR removes the Observability Agentic Workflow managed remotely by elastic/oblt-aw because the repository is no longer admitted.
 
             - Removed file: `.github/workflows/oblt-aw.yml`
 
