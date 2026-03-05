@@ -26,6 +26,6 @@ jobs:
         - Explicitly call out any potential regressions or newly introduced attack surface.
 
         Labeling rule extension:
-        - If the dependency analyzer result is fully successful (no risk detected, no breaking changes, and ecosystem checks pass), add label `ai:merge-ready`.
-        - If those conditions are not all satisfied, do not add `ai:merge-ready`.
+        - If the dependency analyzer result is fully successful (no risk detected, no breaking changes, and ecosystem checks pass), add label `oblt-aw/ai/merge-ready`.
+        - If those conditions are not all satisfied, do not add `oblt-aw/ai/merge-ready`.
     secrets: inherit

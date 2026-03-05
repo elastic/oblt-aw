@@ -18,8 +18,8 @@ permissions:
 jobs:
   run:
     if: >-
-      github.event.label.name == 'ai:fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'triage/resource-not-accessible-by-integration') &&
+      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/resource-not-accessible-by-integration') &&
       (
         fromJSON(inputs.target-repositories)[0] == null ||
         contains(fromJSON(inputs.target-repositories), github.repository)
@@ -31,8 +31,8 @@ jobs:
 
         **Execution Preconditions:**
         - Proceed only when the issue has both labels:
-          - `ai:fix-ready`
-          - `triage/resource-not-accessible-by-integration`
+          - `oblt-aw/ai/fix-ready`
+          - `oblt-aw/triage/resource-not-accessible-by-integration`
         - The issue must already contain a triage-generated resolution plan.
 
         **Implementation Workflow (sequential and methodical):**

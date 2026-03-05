@@ -15,4 +15,4 @@ This folder documents routing and conventions for dependency update PR analysis.
 The dependency review workflow adds repository-specific instructions to:
 
 - include CVE-focused changelog/internal-change analysis
-- apply label `ai:merge-ready` when the review concludes with no risk, no breaking changes, and passing ecosystem checks
+- apply label `oblt-aw/ai/merge-ready` when the review concludes with no risk, no breaking changes, and passing ecosystem checks
