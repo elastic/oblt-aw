@@ -28,6 +28,11 @@ jobs:
       additional-instructions: |
         Your task is to triage newly opened issues in this repository and determine if they are related to "Resource not accessible by integration" errors in GitHub Actions workflows.
 
+        **Strict No-Output Rule (MUST be enforced first):**
+        - If the issue does NOT match the "Resource not accessible by integration" criteria after completing all triage steps, do NOT create any issue, do NOT post any comment, do NOT send any notification, and do NOT produce any output whatsoever.
+        - Silence is the correct and expected outcome when there is nothing to report.
+        - This rule is unconditional: do not create "nothing found" issues, "no matches" comments, acknowledgement messages, or any other artifact when the issue does not meet the criteria.
+
         **Triage Steps:**
         1. Review the issue title and body for any mention of "Resource not accessible by integration" or related error messages
         2. If the issue mentions this error, check if it includes details about affected workflows, branches, or steps

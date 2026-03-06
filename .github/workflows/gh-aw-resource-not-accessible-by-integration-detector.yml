@@ -27,6 +27,11 @@ jobs:
       additional-instructions: |
         Your task is to detect and report "Resource not accessible by integration" errors/warnings in GitHub Actions workflow execution logs across all branches in this repository.
 
+        **Strict No-Output Rule (MUST be enforced first):**
+        - If NO occurrences of the target error are found after completing all detection steps, do NOT create any issue, do NOT post any comment, do NOT send any notification, and do NOT produce any output whatsoever.
+        - Silence is the correct and expected outcome when there is nothing to report.
+        - This rule is unconditional: do not create "nothing found" issues, "no matches" comments, acknowledgement messages, or any other artifact when there are zero findings.
+
         **Detection Scope:**
         - Search through all workflow runs (successful, failed, or in-progress) across all branches
         - **Time Range**: Focus on workflow execution logs from the last 24 hours
