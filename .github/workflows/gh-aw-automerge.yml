@@ -1,0 +1,190 @@
+name: Automerge
+on:
+  workflow_call:
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable automerge on qualifying PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGE_READY_LABEL: "oblt-aw/ai/merge-ready"
+          ALLOWED_ACTOR: "elastic-vault-github-plugin-prod[bot]"
+        run: |
+          set -euo pipefail
+
+          echo "Fetching open PRs with label '${MERGE_READY_LABEL}'..."
+
+          # Fetch all open PRs that carry the label, paginating as needed
+          page=1
+          per_page=50
+          qualifying_prs=()
+
+          while true; do
+            batch=$(gh api \
+              --method GET \
+              "/repos/${GITHUB_REPOSITORY}/pulls" \
+              --field state=open \
+              --field per_page="${per_page}" \
+              --field page="${page}" \
+              --jq '.[] | {
+                number: .number,
+                author: .user.login,
+                head_repo: (.head.repo.full_name // ""),
+                base_repo: (.base.repo.full_name // ""),
+                head_ref: .head.ref,
+                base_ref: .base.ref,
+                labels: [.labels[].name],
+                auto_merge_enabled: (.auto_merge != null),
+                draft: .draft
+              }')
+
+            if [ -z "$batch" ]; then
+              break
+            fi
+
+            while IFS= read -r pr_json; do
+              pr_number=$(echo "$pr_json" | jq -r '.number')
+
+              # --- Gate 1: authored by the allowed actor ---
+              author=$(echo "$pr_json" | jq -r '.author')
+              if [ "$author" != "$ALLOWED_ACTOR" ]; then
+                echo "PR #${pr_number}: skipped — author '${author}' is not '${ALLOWED_ACTOR}'"
+                continue
+              fi
+
+              # --- Gate 2: carries the merge-ready label ---
+              has_label=$(echo "$pr_json" | jq -r --arg label "$MERGE_READY_LABEL" \
+                'if (.labels | index($label)) != null then "true" else "false" end')
+              if [ "$has_label" != "true" ]; then
+                echo "PR #${pr_number}: skipped — missing label '${MERGE_READY_LABEL}'"
+                continue
+              fi
+
+              # --- Gate 3: not a draft ---
+              is_draft=$(echo "$pr_json" | jq -r '.draft')
+              if [ "$is_draft" = "true" ]; then
+                echo "PR #${pr_number}: skipped — PR is in draft state"
+                continue
+              fi
+
+              # --- Gate 4: upstream branch (head repo != base repo would be a fork; we want same repo) ---
+              head_repo=$(echo "$pr_json" | jq -r '.head_repo')
+              base_repo=$(echo "$pr_json" | jq -r '.base_repo')
+              if [ "$head_repo" != "$base_repo" ]; then
+                echo "PR #${pr_number}: skipped — head repo '${head_repo}' differs from base repo '${base_repo}' (fork PR)"
+                continue
+              fi
+
+              # --- Gate 5: not a reserved/protected base branch fork pattern ---
+              # Upstream branch means the head branch lives in the same repo
+              # (already validated above). Additional check: head ref must not
+              # equal the base ref (degenerate case).
+              head_ref=$(echo "$pr_json" | jq -r '.head_ref')
+              base_ref=$(echo "$pr_json" | jq -r '.base_ref')
+              if [ "$head_ref" = "$base_ref" ]; then
+                echo "PR #${pr_number}: skipped — head ref equals base ref ('${head_ref}')"
+                continue
+              fi
+
+              # --- Gate 6: all required checks passing ---
+              # Fetch all check-runs for the PR head SHA
+              pr_sha=$(gh api \
+                "/repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" \
+                --jq '.head.sha')
+
+              check_status=$(gh api \
+                "/repos/${GITHUB_REPOSITORY}/commits/${pr_sha}/check-runs" \
+                --jq '
+                  .check_runs as $all |
+                  ($all | length) as $total |
+                  ($all | map(select(.status == "completed")) | length) as $completed |
+                  ($all | map(select(
+                    .status == "completed" and
+                    .conclusion != "success" and
+                    .conclusion != "skipped" and
+                    .conclusion != "neutral"
+                  )) | length) as $failed_count |
+                  if $total == 0 then "no_checks"
+                  elif $completed < $total then "pending"
+                  elif $failed_count > 0 then "failing"
+                  else "passing"
+                  end
+                ')
+
+              if [ "$check_status" = "failing" ]; then
+                echo "PR #${pr_number}: skipped — one or more required checks are failing"
+                continue
+              fi
+
+              if [ "$check_status" = "no_checks" ]; then
+                echo "PR #${pr_number}: skipped — no check-runs found on this commit"
+                continue
+              fi
+
+              if [ "$check_status" = "pending" ]; then
+                echo "PR #${pr_number}: skipped — checks are still running"
+                continue
+              fi
+
+              # --- Gate 7: approved by github-actions[bot] (GITHUB_TOKEN actor) ---
+              approved_by_actions=$(gh api \
+                "/repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/reviews" \
+                --jq '[.[] | select(.state == "APPROVED" and .user.login == "github-actions[bot]")] | length > 0')
+
+              if [ "$approved_by_actions" != "true" ]; then
+                echo "PR #${pr_number}: skipped — no APPROVED review from github-actions[bot]"
+                continue
+              fi
+
+              qualifying_prs+=("$pr_number")
+            done < <(echo "$batch" | jq -c '.')
+
+            count=$(echo "$batch" | grep -c '^{' || true)
+            if [ "$count" -lt "$per_page" ]; then
+              break
+            fi
+
+            page=$((page + 1))
+          done
+
+          if [ ${#qualifying_prs[@]} -eq 0 ]; then
+            echo "No qualifying PRs found — nothing to do."
+            exit 0
+          fi
+
+          echo "Found ${#qualifying_prs[@]} qualifying PR(s): ${qualifying_prs[*]}"
+
+          failed=0
+          for pr_number in "${qualifying_prs[@]}"; do
+            auto_merge_enabled=$(gh api \
+              "/repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" \
+              --jq '.auto_merge != null')
+
+            if [ "$auto_merge_enabled" = "true" ]; then
+              echo "PR #${pr_number}: automerge already enabled — skipping"
+              continue
+            fi
+
+            echo "PR #${pr_number}: enabling automerge (squash)..."
+            if gh pr merge "${pr_number}" \
+                --repo "${GITHUB_REPOSITORY}" \
+                --auto \
+                --squash; then
+              echo "PR #${pr_number}: automerge enabled successfully"
+            else
+              echo "::warning::PR #${pr_number}: failed to enable automerge"
+              failed=$((failed + 1))
+            fi
+          done
+
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::${failed} PR(s) could not have automerge enabled"
+            exit 1
+          fi

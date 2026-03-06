@@ -58,6 +58,17 @@ And includes an event-driven **Dependency Review** agentic workflow:
   - extends analysis with CVE/changelog/internal-change impact assessment
   - adds `oblt-aw/ai/merge-ready` when analysis is fully successful (no risk, no breaking changes, ecosystem checks pass)
 
+And an event-driven and scheduled **Automerge** workflow:
+
+5. **Automerge**
+  - triggers on schedule, PR lifecycle events, and PR review approval events
+  - evaluates every open PR authored by `elastic-vault-github-plugin-prod[bot]` against a strict set of mandatory requirements:
+    - PR carries the label `oblt-aw/ai/merge-ready`
+    - PR is approved by `github-actions[bot]` (default `GITHUB_TOKEN`)
+    - PR originates from an upstream branch (not a fork)
+    - All required checks have passed
+  - enables GitHub's native automerge (`--squash`) on every qualifying PR using the default `GITHUB_TOKEN`
+
 ---
 
 ## Repository organization
@@ -71,11 +82,14 @@ And includes an event-driven **Dependency Review** agentic workflow:
 │   ├── workflows/
 │   │   ├── oblt-aw-ingress.yml
 │   │   ├── distribute-client-workflow.yml
+│   │   ├── gh-aw-automerge.yml
 │   │   ├── gh-aw-dependency-review.yml
 │   │   ├── gh-aw-resource-not-accessible-by-integration-detector.yml
 │   │   ├── gh-aw-resource-not-accessible-by-integration-triage.yml
 │   │   └── gh-aw-resource-not-accessible-by-integration-fixer.yml
 │   └── workflow-routing/
+│       ├── automerge/
+│       │   └── README.md
 │       ├── dependency-review/
 │       │   └── README.md
 │       └── resource-not-accessible-by-integration/
