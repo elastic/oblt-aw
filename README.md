@@ -58,6 +58,13 @@ And includes an event-driven **Dependency Review** agentic workflow:
   - extends analysis with CVE/changelog/internal-change impact assessment
   - adds `oblt-aw/ai/merge-ready` when analysis is fully successful (no risk, no breaking changes, ecosystem checks pass)
 
+And includes a scheduled/manual **Agent Suggestions** workflow:
+
+5. **Agent Suggestions**
+  - analyzes current repository workflows and downstream usage patterns
+  - proposes net-new agentic workflows only when there is clear evidence of uncovered needs
+  - creates time-bounded recommendation issues with rich analysis and implementation benefits
+
 ---
 
 ## Repository organization
@@ -71,11 +78,14 @@ And includes an event-driven **Dependency Review** agentic workflow:
 │   ├── workflows/
 │   │   ├── oblt-aw-ingress.yml
 │   │   ├── distribute-client-workflow.yml
+│   │   ├── gh-aw-agent-suggestions.yml
 │   │   ├── gh-aw-dependency-review.yml
 │   │   ├── gh-aw-resource-not-accessible-by-integration-detector.yml
 │   │   ├── gh-aw-resource-not-accessible-by-integration-triage.yml
 │   │   └── gh-aw-resource-not-accessible-by-integration-fixer.yml
 │   └── workflow-routing/
+│       ├── agent-suggestions/
+│       │   └── README.md
 │       ├── dependency-review/
 │       │   └── README.md
 │       └── resource-not-accessible-by-integration/
@@ -106,10 +116,10 @@ And includes an event-driven **Dependency Review** agentic workflow:
 
 `oblt-aw-ingress.yml` is invoked via `workflow_call` and routes internally:
 
-- `schedule` or `workflow_dispatch` → detector workflow
+- `schedule` or `workflow_dispatch` → detector workflow and agent suggestions workflow (`.github/workflow-routing/resource-not-accessible-by-integration/README.md`, `.github/workflow-routing/agent-suggestions/README.md`)
 - `issues` + `opened` → triage workflow
 - `issues` + `labeled` + labels (`oblt-aw/ai/fix-ready` and `oblt-aw/triage/resource-not-accessible-by-integration`) → fixer workflow
-- `pull_request` + (`opened` / `synchronize` / `reopened`) + author (`dependabot[bot]` / `renovate[bot]` / `elastic-vault-github-plugin-prod[bot]`) → dependency review workflow
+- `pull_request` + (`opened` / `synchronize` / `reopened`) + author (`dependabot[bot]` / `renovate[bot]` / `elastic-vault-github-plugin-prod[bot]`) → dependency review workflow (`.github/workflow-routing/dependency-review/README.md`)
 - unsupported event/action combinations fail fast in `unsupported-trigger`
 
 This design ensures consumers integrate once and keep trigger-based behavior centralized.
@@ -123,6 +133,7 @@ flowchart TD
   A[Target Repository Workflow] --> B[Reusable Entrypoint<br/>oblt-aw-ingress.yml]
 
   B -->|schedule / workflow_dispatch| C[Detector Reusable Workflow]
+  B -->|schedule / workflow_dispatch| G[Agent Suggestions Reusable Workflow]
   B -->|issues.opened| D[Triage Reusable Workflow]
   B -->|issues.labeled + required labels| E[Fixer Reusable Workflow]
   B -->|pull_request.opened + bot author| F[Dependency Review Reusable Workflow]
