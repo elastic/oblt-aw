@@ -9,12 +9,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-permissions:
-  actions: read
-
 jobs:
   run-aw:
     permissions:
+      actions: read
       contents: write
       discussions: write
       issues: write
