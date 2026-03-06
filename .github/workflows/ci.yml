@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── YAML lint ─────────────────────────────────────────────────────────────
+  yaml-lint:
+    name: YAML lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Run yamllint
+        uses: ibiqlik/action-yamllint@2bbba5f48069d7e5d06fa8df5de72e96d9f88d2f # v3
+        with:
+          config_file: .yamllint.yml
+
+  # ── Shell lint ────────────────────────────────────────────────────────────
+  shell-lint:
+    name: Shell lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # v2
+        with:
+          scandir: ./scripts
+          severity: warning
+
+  # ── Python lint & type-check ──────────────────────────────────────────────
+  python-lint:
+    name: Python lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5
+        with:
+          python-version: "3.13"
+
+      - name: Install ruff
+        run: pip install ruff==0.11.2
+
+      - name: Run ruff lint
+        run: ruff check scripts/
+
+      - name: Run ruff format check
+        run: ruff format --check scripts/
+
+  python-typecheck:
+    name: Python type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5
+        with:
+          python-version: "3.13"
+
+      - name: Install mypy
+        run: pip install mypy==1.15.0
+
+      - name: Run mypy
+        run: mypy --strict scripts/
+
+  # ── Python unit tests ─────────────────────────────────────────────────────
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5
+        with:
+          python-version: "3.13"
+
+      - name: Install pytest
+        run: pip install pytest==8.3.5
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+  # ── OpenSSF Scorecard ─────────────────────────────────────────────────────
+  scorecard:
+    name: OpenSSF Scorecard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Scorecard needs write permissions to upload SARIF results
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard analysis
+        uses: ossf/scorecard-action@f49aabe0b5af0936a0987cfb85d86b75731b0186 # v2.4.1
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: false
+
+      - name: Upload Scorecard results to GitHub Security
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3
+        with:
+          sarif_file: scorecard-results.sarif
+
+  # ── Gate: all checks must pass ────────────────────────────────────────────
+  required:
+    name: All checks passed
+    if: always()
+    needs:
+      - yaml-lint
+      - shell-lint
+      - python-lint
+      - python-typecheck
+      - python-tests
+      - scorecard
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check all jobs succeeded
+        run: |
+          results='${{ toJSON(needs) }}'
+          if echo "$results" | grep -q '"result": "failure"'; then
+            echo "One or more required jobs failed."
+            exit 1
+          fi
+          echo "All checks passed."
