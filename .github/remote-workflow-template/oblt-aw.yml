@@ -9,6 +9,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  actions: read
+
 jobs:
   run-aw:
     permissions:
