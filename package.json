@@ -4,8 +4,7 @@
     "version": "1.0.0",
     "type": "commonjs",
     "scripts": {
-        "test": "tsx --test tests/unit/*.test.ts",
-        "precommit": "PIP_NO_BUILD_ISOLATION=1 CURL_CA_BUNDLE= REQUESTS_CA_BUNDLE= PYTHONHTTPSVERIFY=0 pre-commit run --all-files"
+        "test": "tsx --test tests/unit/*.test.ts"
     },
     "devDependencies": {
         "tsx": "^4.20.5"

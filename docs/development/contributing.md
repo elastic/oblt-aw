@@ -47,11 +47,7 @@ npm ci
 pre-commit run --all-files
 ```
 
-If you get `SSL: CERTIFICATE_VERIFY_FAILED` or setuptools FutureWarning when installing shellcheck-py:
-
-1. Upgrade setuptools: `pip install --upgrade "setuptools>=70.1"`
-2. Clear cache: `pre-commit clean`
-3. Run with: `npm run precommit` (uses `PIP_NO_BUILD_ISOLATION=1` and optional SSL bypass)
+> **macOS Python.org installer:** If you see `SSL: CERTIFICATE_VERIFY_FAILED` when pre-commit installs hooks, this is the classic Python.org macOS certificate issue. Run the bundled installer: `/Applications/Python 3.xx/Install Certificates.command`
 
 ### Python tests
 
