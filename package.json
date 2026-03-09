@@ -1,0 +1,12 @@
+{
+    "name": "oblt-aw-automerge-tests",
+    "private": true,
+    "version": "1.0.0",
+    "type": "commonjs",
+    "scripts": {
+        "test": "tsx --test tests/unit/*.test.ts"
+    },
+    "devDependencies": {
+        "tsx": "^4.20.5"
+    }
+}
