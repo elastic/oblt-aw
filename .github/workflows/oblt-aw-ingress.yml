@@ -4,9 +4,22 @@ on:
   schedule:
     - cron: "0 6 * * *"
   workflow_call:
+    inputs:
+      capability:
+        description: "Specific capability to invoke on workflow_dispatch. Supported: autodoc"
+        required: false
+        type: string
+        default: ""
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
+  workflow_dispatch:
+    inputs:
+      capability:
+        description: "Specific capability to invoke. Supported: autodoc"
+        required: false
+        type: string
+        default: ""
   issues:
     types: [opened, labeled]
   pull_request:
@@ -34,10 +47,18 @@ jobs:
 
   resource-not-accessible-by-integration-detector:
     if: >-
-      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.capability != 'autodoc')
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  autodoc:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.capability == 'autodoc'
+    uses: ./.github/workflows/gh-aw-autodoc.yml
+    secrets: inherit
 
   resource-not-accessible-by-integration-triage:
     if: >-

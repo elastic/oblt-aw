@@ -1,0 +1,50 @@
+name: Automated Documentation Analysis and Improvement
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  run:
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
+    with:
+      additional-instructions: |
+        Your task is to analyze ALL documentation in this repository, identify gaps and areas for improvement, and open a single focused pull request with concrete improvements.
+
+        Do NOT search for open issues. Instead, perform a direct documentation audit of this repository.
+
+        **What to look for (in priority order):**
+        1. **Undocumented or partially documented code** — features, scripts, workflows, or configuration files that are not covered (or only partially covered) in the repository's documentation; for each gap found, add or expand the relevant documentation files (README, guides, etc.) to describe purpose, parameters, behavior, and usage examples
+        2. **Empty or missing files** — files that exist but contain no meaningful content
+        3. **Missing sections** — key README sections absent such as purpose, usage, inputs, outputs, examples, or contributing guidance
+        4. **Outdated content** — references to components, configurations, or capabilities no longer present or not yet documented
+        5. **Incomplete descriptions** — sections that exist but lack meaningful detail (stubs, TODOs, placeholder text)
+        6. **Broken cross-references** — links to files, workflows, or sections that do not exist in the repository
+        7. **Inconsistencies** — documentation that contradicts the actual source files in the repository
+
+        **Pull Request Requirements:**
+        - Create the pull request as a `Draft` initially.
+        - Title: `docs: Documentation analysis and improvement`
+        - Body must include:
+          - Summary of files analyzed
+          - List of issues found (with file paths and concise descriptions)
+          - List of changes made (with rationale for each change)
+        - Convert from `Draft` to `Open` (ready for review) only when all changes are implemented and internally consistent.
+
+        **Constraints:**
+        - Do not modify source code, workflow logic, scripts, or data files — only documentation files.
+        - Do not create new workflow YAML files.
+        - Prefer targeted, high-confidence improvements over speculative rewrites.
+        - All changes must be grounded in actual repository content — do not invent capability descriptions.
+        - Do not add placeholder text or TODOs as improvements.
+
+        **Review and Merge Policy:**
+        - Do not merge the pull request.
+    secrets: inherit

@@ -71,11 +71,14 @@ And includes an event-driven **Dependency Review** agentic workflow:
 │   ├── workflows/
 │   │   ├── oblt-aw-ingress.yml
 │   │   ├── distribute-client-workflow.yml
+│   │   ├── gh-aw-autodoc.yml
 │   │   ├── gh-aw-dependency-review.yml
 │   │   ├── gh-aw-resource-not-accessible-by-integration-detector.yml
 │   │   ├── gh-aw-resource-not-accessible-by-integration-triage.yml
 │   │   └── gh-aw-resource-not-accessible-by-integration-fixer.yml
 │   └── workflow-routing/
+│       ├── autodoc/
+│       │   └── README.md
 │       ├── dependency-review/
 │       │   └── README.md
 │       └── resource-not-accessible-by-integration/
@@ -106,7 +109,9 @@ And includes an event-driven **Dependency Review** agentic workflow:
 
 `oblt-aw-ingress.yml` is invoked via `workflow_call` and routes internally:
 
-- `schedule` or `workflow_dispatch` → detector workflow
+- `schedule` → detector workflow
+- `workflow_dispatch` + `capability=autodoc` → autodoc workflow
+- `workflow_dispatch` + empty/unsupported `capability` → detector workflow
 - `issues` + `opened` → triage workflow
 - `issues` + `labeled` + labels (`oblt-aw/ai/fix-ready` and `oblt-aw/triage/resource-not-accessible-by-integration`) → fixer workflow
 - `pull_request` + (`opened` / `synchronize` / `reopened`) + author (`dependabot[bot]` / `renovate[bot]` / `elastic-vault-github-plugin-prod[bot]`) → dependency review workflow
@@ -122,7 +127,9 @@ This design ensures consumers integrate once and keep trigger-based behavior cen
 flowchart TD
   A[Target Repository Workflow] --> B[Reusable Entrypoint<br/>oblt-aw-ingress.yml]
 
-  B -->|schedule / workflow_dispatch| C[Detector Reusable Workflow]
+  B -->|schedule| C[Detector Reusable Workflow]
+  B -->|workflow_dispatch + capability=autodoc| G[Autodoc Reusable Workflow]
+  B -->|workflow_dispatch + capability empty/unsupported| C
   B -->|issues.opened| D[Triage Reusable Workflow]
   B -->|issues.labeled + required labels| E[Fixer Reusable Workflow]
   B -->|pull_request.opened + bot author| F[Dependency Review Reusable Workflow]
