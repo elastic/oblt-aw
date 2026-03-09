@@ -1,0 +1,34 @@
+name: Agent Suggestions
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  run:
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main
+    with:
+      title-prefix: "[oblt-aw][agent-suggestions]"
+      additional-instructions: |
+        Additional requirements for this repository:
+
+        - If there are no net-new recommendations, or if recommendations only suggest workflows/features already in use in this repository, call `noop` and do not create any issue.
+        - If a report issue is created, include `agentic-workflow` in issue labels.
+        - If a report issue is created, set issue expiration to exactly `24h` and ensure it is auto-closed after that period.
+        - Add detailed analysis for every recommendation, including:
+          - Current pain points and supporting evidence
+          - Why existing workflows do not fully cover the gap
+          - Expected benefits of implementation (engineering productivity, review quality, cycle time, risk reduction)
+          - Potential trade-offs and rollout considerations
+
+        When calling `create_issue`, ensure the output includes:
+        - `labels`: contains `agentic-workflow`
+        - `expires`: `24h`
+    secrets: inherit
