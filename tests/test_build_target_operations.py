@@ -9,7 +9,6 @@ the file-system (beyond tmp files created by tmp_path), or git.
 from __future__ import annotations
 
 import json
-import os
 import pathlib
 import sys
 
@@ -99,7 +98,9 @@ class TestParseBool:
 
 
 class TestWriteOutputs:
-    def test_writes_key_value_pairs(self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_writes_key_value_pairs(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         output_file = tmp_path / "github_output"
         output_file.touch()
         monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
@@ -160,7 +161,11 @@ class TestMain:
         content = output_file.read_text()
         assert "has_targets=true" in content
         targets = json.loads(
-            next(line.split("=", 1)[1] for line in content.splitlines() if line.startswith("targets="))
+            next(
+                line.split("=", 1)[1]
+                for line in content.splitlines()
+                if line.startswith("targets=")
+            )
         )
         repos = {t["repository"] for t in targets}
         assert repos == {"elastic/foo", "elastic/bar"}
@@ -170,7 +175,9 @@ class TestMain:
     def test_force_distribution(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
-        output_file = self._setup_env(monkeypatch, tmp_path, changed_files_count=0, force="true")
+        output_file = self._setup_env(
+            monkeypatch, tmp_path, changed_files_count=0, force="true"
+        )
         rc = bto.main()
         assert rc == 0
         content = output_file.read_text()
@@ -180,15 +187,23 @@ class TestMain:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
         """When BASE_REF resolves to a previous list with extra repos, those appear as 'remove'."""
-        output_file = self._setup_env(monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/bar"])
+        output_file = self._setup_env(
+            monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/bar"]
+        )
 
         # Patch read_previous_repositories to simulate a previous state with an extra repo.
-        monkeypatch.setattr(bto, "read_previous_repositories", lambda _: ["elastic/bar", "elastic/gone"])
+        monkeypatch.setattr(
+            bto, "read_previous_repositories", lambda _: ["elastic/bar", "elastic/gone"]
+        )
 
         rc = bto.main()
         assert rc == 0
         content = output_file.read_text()
-        targets_raw = next(line.split("=", 1)[1] for line in content.splitlines() if line.startswith("targets="))
+        targets_raw = next(
+            line.split("=", 1)[1]
+            for line in content.splitlines()
+            if line.startswith("targets=")
+        )
         targets = json.loads(targets_raw)
 
         ops_by_repo = {t["repository"]: t["operation"] for t in targets}

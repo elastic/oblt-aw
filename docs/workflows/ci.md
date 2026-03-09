@@ -14,7 +14,7 @@ This workflow runs quality checks and tests on every pull request targeting `mai
 
 | Job               | Purpose                                                                 |
 |-------------------|-------------------------------------------------------------------------|
-| `pre-commit`      | Runs all pre-commit hooks (YAML, shell, Python lint/format, mypy, ratchet) |
+| `pre-commit`      | Runs all pre-commit hooks (YAML, shell, Python lint/format, mypy)            |
 | `python-tests`    | Runs pytest on `tests/`                                                 |
 | `typescript-tests`| Runs `npm test` (tsx) on `tests/unit/*.test.ts`                         |
 | `scorecard`       | OpenSSF Scorecard security analysis; uploads SARIF to GitHub Security   |
@@ -28,7 +28,7 @@ The `pre-commit` job uses `elastic/oblt-actions/pre-commit@v1`, which runs all h
 - **Shell**: ShellCheck on shell scripts
 - **Python**: ruff (lint + format), mypy (strict) on `scripts/`
 - **General**: trailing whitespace, EOF, YAML/JSON checks, merge conflict detection, line endings
-- **Action pinning**: ratchet-check for workflow action SHA pinning
+- **Action pinning**: Enforced by workflow design (trusted actions use tags; untrusted use SHA). Ratchet is not used because sethvargo/ratchet lacks `.pre-commit-hooks.yaml` and our policy uses tags for trusted namespaces.
 
 On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 

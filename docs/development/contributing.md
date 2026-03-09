@@ -47,6 +47,12 @@ npm ci
 pre-commit run --all-files
 ```
 
+If you get `SSL: CERTIFICATE_VERIFY_FAILED` or setuptools FutureWarning when installing shellcheck-py:
+
+1. Upgrade setuptools: `pip install --upgrade "setuptools>=70.1"`
+2. Clear cache: `pre-commit clean`
+3. Run with: `npm run precommit` (uses `PIP_NO_BUILD_ISOLATION=1` and optional SSL bypass)
+
 ### Python tests
 
 ```bash
@@ -79,7 +85,6 @@ The following hooks run on commit (and in CI via the pre-commit job):
 | ruff-format     | `scripts/**/*.py`        | Python formatting                |
 | mypy            | `scripts/**/*.py`        | Python type-checking (strict)    |
 | pre-commit-hooks| Various                  | Trailing whitespace, EOF, etc.   |
-| ratchet-check   | `.github/workflows/*.yml`| Workflow action SHA pinning      |
 
 ## CI Workflow
 
