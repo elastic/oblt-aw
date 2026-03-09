@@ -2,26 +2,9 @@ name: Observability Agentic Workflow Ingress
 
 on:
   workflow_call:
-    inputs:
-      capability:
-        description: "Specific capability to invoke on workflow_dispatch. Supported: autodoc"
-        required: false
-        type: string
-        default: ""
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
-  workflow_dispatch:
-    inputs:
-      capability:
-        description: "Specific capability to invoke. Supported: autodoc"
-        required: false
-        type: string
-        default: ""
-  issues:
-    types: [opened, labeled]
-  pull_request:
-    types: [opened, synchronize, reopened]
 
 permissions:
   actions: read
@@ -33,10 +16,16 @@ permissions:
 jobs:
   agent-suggestions:
     if: >-
-      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+      contains(fromJSON('["schedule"]'), github.event_name)
     uses: ./.github/workflows/gh-aw-agent-suggestions.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  autodoc:
+    if: >-
+      contains(fromJSON('["schedule"]'), github.event_name)
+    uses: ./.github/workflows/gh-aw-autodoc.yml
+    secrets: inherit
 
   dependency-review:
     if: >-
@@ -52,24 +41,8 @@ jobs:
 
   resource-not-accessible-by-integration-detector:
     if: >-
-      github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && inputs.capability != 'autodoc')
+      contains(fromJSON('["schedule"]'), github.event_name)
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  autodoc:
-    if: >-
-      github.event_name == 'workflow_dispatch' &&
-      inputs.capability == 'autodoc'
-    uses: ./.github/workflows/gh-aw-autodoc.yml
-    secrets: inherit
-
-  resource-not-accessible-by-integration-triage:
-    if: >-
-      github.event_name == 'issues' &&
-      github.event.action == 'opened'
-    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -82,10 +55,18 @@ jobs:
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
     secrets: inherit
 
+  resource-not-accessible-by-integration-triage:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'opened'
+    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
   unsupported-trigger:
     if: >-
       !(
-        contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) ||
+        contains(fromJSON('["schedule","workflow_call"]'), github.event_name) ||
         (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action)) ||
         (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action))
       )
