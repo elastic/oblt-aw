@@ -1,103 +1,53 @@
+---
 name: CI
 
+# Trigger on PRs targeting main (opened, updated, reopened).
 on:
   pull_request:
     branches:
       - main
     types: [opened, synchronize, reopened]
 
-permissions:
-  contents: read
-
+# Avoid workflow-root permissions; define at job scope only.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # ── YAML lint ─────────────────────────────────────────────────────────────
-  yaml-lint:
-    name: YAML lint
+  pre-commit:
+    name: Pre-commit
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
-      - name: Run yamllint
-        uses: ibiqlik/action-yamllint@2bbba5f48069d7e5d06fa8df5de72e96d9f88d2f # v3
-        with:
-          config_file: .yamllint.yml
-
-  # ── Shell lint ────────────────────────────────────────────────────────────
-  shell-lint:
-    name: Shell lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
-      - name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # v2
-        with:
-          scandir: ./scripts
-          severity: warning
-
-  # ── Python lint & type-check ──────────────────────────────────────────────
-  python-lint:
-    name: Python lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
-      - name: Set up Python
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5
+      - name: Run pre-commit
+        uses: elastic/oblt-actions/pre-commit@v1
         with:
           python-version: "3.13"
 
-      - name: Install ruff
-        run: pip install ruff==0.11.2
-
-      - name: Run ruff lint
-        run: ruff check scripts/
-
-      - name: Run ruff format check
-        run: ruff format --check scripts/
-
-  python-typecheck:
-    name: Python type-check
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
-      - name: Set up Python
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5
-        with:
-          python-version: "3.13"
-
-      - name: Install mypy
-        run: pip install mypy==1.15.0
-
-      - name: Run mypy
-        run: mypy --strict scripts/
-
-  # ── Python unit tests ─────────────────────────────────────────────────────
   python-tests:
     name: Python tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
+
+      - name: Cache pip packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('**/*.py', '**/pyproject.toml', '**/requirements*.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
 
       - name: Install pytest
         run: pip install pytest==8.3.5
@@ -105,53 +55,80 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v --tb=short
 
-  # ── OpenSSF Scorecard ─────────────────────────────────────────────────────
+  typescript-tests:
+    name: TypeScript tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
   scorecard:
     name: OpenSSF Scorecard
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Scorecard needs write permissions to upload SARIF results
     permissions:
       contents: read
       security-events: write
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
 
       - name: Run Scorecard analysis
-        uses: ossf/scorecard-action@f49aabe0b5af0936a0987cfb85d86b75731b0186 # v2.4.1
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a  # v2.4.3
         with:
           results_file: scorecard-results.sarif
           results_format: sarif
           publish_results: false
 
       - name: Upload Scorecard results to GitHub Security
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3
+        uses: github/codeql-action/upload-sarif@820e3160e279568db735cee8ed8f8e77a6da7818  # v3.32.6
         with:
           sarif_file: scorecard-results.sarif
 
-  # ── Gate: all checks must pass ────────────────────────────────────────────
   required:
     name: All checks passed
     if: always()
     needs:
-      - yaml-lint
-      - shell-lint
-      - python-lint
-      - python-typecheck
+      - pre-commit
       - python-tests
+      - typescript-tests
       - scorecard
     runs-on: ubuntu-latest
     timeout-minutes: 1
+    permissions:
+      contents: read
     steps:
-      - name: Check all jobs succeeded
+      - name: Check dependent jobs
+        id: check
+        uses: elastic/oblt-actions/check-dependent-jobs@v1
+        with:
+          jobs: ${{ toJSON(needs) }}
+
+      - name: Fail if any job failed
+        if: steps.check.outputs.status == 'failure'
         run: |
-          results='${{ toJSON(needs) }}'
-          if echo "$results" | grep -q '"result": "failure"'; then
-            echo "One or more required jobs failed."
-            exit 1
-          fi
-          echo "All checks passed."
+          set -euo pipefail
+          echo "One or more required jobs failed."
+          exit 1
+
+      - name: All checks passed
+        if: steps.check.outputs.status == 'success'
+        run: echo "All checks passed."
