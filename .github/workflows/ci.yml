@@ -8,6 +8,10 @@ on:
       - main
     types: [opened, synchronize, reopened]
 
+permissions:
+  actions: read
+  contents: read
+
 # Avoid workflow-root permissions; define at job scope only.
 concurrency:
   group: ci-${{ github.ref }}
