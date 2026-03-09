@@ -58,6 +58,9 @@ jobs:
         - **Frequency**: How many times this error has occurred recently
         - **Status**: Whether the workflow run failed or completed with warnings
 
+        **When no findings (No-Op):**
+        When no occurrences of "Resource not accessible by integration" are detected in the last 24 hours, call the `noop` tool with a message explaining the outcome (e.g., "No action needed: no occurrences detected in workflow logs"). Do not create issues for no-op outcomes.
+
         **Issue Creation Requirements:**
         - Issue title MUST start with: `[AI Detector][Resource not accessible by Integration]`
         - Follow the title prefix with a brief description of the scope (e.g., "Detected in 5 workflows across 3 branches")

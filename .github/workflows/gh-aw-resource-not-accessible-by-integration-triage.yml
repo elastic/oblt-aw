@@ -47,6 +47,13 @@ jobs:
         - Label as `oblt-aw/triage/other` if the issue is unrelated to GitHub Actions errors
         - Label as `oblt-aw/triage/needs-info` if there is insufficient information to determine relevance
 
+        **When no action is needed (No-Op):**
+        When your analysis concludes that no triage action is required (e.g., issue is unrelated, insufficient info, duplicate, or out of scope), you MUST call the `noop` tool with a message explaining why. Use the format:
+        ```
+        {"noop": {"message": "No action needed: [brief explanation]"}}
+        ```
+        Do not create issues or post comments for no-op outcomes. The noop primitive provides transparency without creating GitHub artifacts.
+
         **Generate Resolution Plan:**
         When an issue is confirmed to be related to "Resource not accessible by integration" error, append a comprehensive resolution plan to the issue. The plan should analyze the specific error context and provide actionable steps to resolve the permission problem.
 
