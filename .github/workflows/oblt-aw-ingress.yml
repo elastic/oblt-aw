@@ -1,8 +1,6 @@
 name: Observability Agentic Workflow Ingress
 
 on:
-  schedule:
-    - cron: "0 6 * * *"
   workflow_call:
     inputs:
       capability:
@@ -33,6 +31,13 @@ permissions:
   pull-requests: write
 
 jobs:
+  agent-suggestions:
+    if: >-
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    uses: ./.github/workflows/gh-aw-agent-suggestions.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
   dependency-review:
     if: >-
       github.event_name == 'pull_request' &&

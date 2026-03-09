@@ -58,6 +58,13 @@ And includes an event-driven **Dependency Review** agentic workflow:
   - extends analysis with CVE/changelog/internal-change impact assessment
   - adds `oblt-aw/ai/merge-ready` when analysis is fully successful (no risk, no breaking changes, ecosystem checks pass)
 
+And includes a scheduled/manual **Agent Suggestions** workflow:
+
+5. **Agent Suggestions**
+  - analyzes current repository workflows and downstream usage patterns
+  - proposes net-new agentic workflows only when there is clear evidence of uncovered needs
+  - creates time-bounded recommendation issues with rich analysis and implementation benefits
+
 ---
 
 ## Repository organization
@@ -72,12 +79,14 @@ And includes an event-driven **Dependency Review** agentic workflow:
 │   │   ├── oblt-aw-ingress.yml
 │   │   ├── distribute-client-workflow.yml
 │   │   ├── gh-aw-autodoc.yml
+│   │   ├── gh-aw-agent-suggestions.yml
 │   │   ├── gh-aw-dependency-review.yml
 │   │   ├── gh-aw-resource-not-accessible-by-integration-detector.yml
 │   │   ├── gh-aw-resource-not-accessible-by-integration-triage.yml
 │   │   └── gh-aw-resource-not-accessible-by-integration-fixer.yml
 │   └── workflow-routing/
 │       ├── autodoc/
+│       ├── agent-suggestions/
 │       │   └── README.md
 │       ├── dependency-review/
 │       │   └── README.md
@@ -114,7 +123,7 @@ And includes an event-driven **Dependency Review** agentic workflow:
 - `workflow_dispatch` + empty/unsupported `capability` → detector workflow
 - `issues` + `opened` → triage workflow
 - `issues` + `labeled` + labels (`oblt-aw/ai/fix-ready` and `oblt-aw/triage/resource-not-accessible-by-integration`) → fixer workflow
-- `pull_request` + (`opened` / `synchronize` / `reopened`) + author (`dependabot[bot]` / `renovate[bot]` / `elastic-vault-github-plugin-prod[bot]`) → dependency review workflow
+- `pull_request` + (`opened` / `synchronize` / `reopened`) + author (`dependabot[bot]` / `renovate[bot]` / `elastic-vault-github-plugin-prod[bot]`) → dependency review workflow (`.github/workflow-routing/dependency-review/README.md`)
 - unsupported event/action combinations fail fast in `unsupported-trigger`
 
 This design ensures consumers integrate once and keep trigger-based behavior centralized.

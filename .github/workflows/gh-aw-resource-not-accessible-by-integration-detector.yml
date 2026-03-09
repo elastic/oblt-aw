@@ -27,6 +27,11 @@ jobs:
       additional-instructions: |
         Your task is to detect and report "Resource not accessible by integration" errors/warnings in GitHub Actions workflow execution logs across all branches in this repository.
 
+        **Strict No-Output Rule (MUST be enforced first):**
+        - If NO occurrences of the target error are found after completing all detection steps, do NOT create any issue, do NOT post any comment, do NOT send any notification, and do NOT produce any output whatsoever.
+        - Silence is the correct and expected outcome when there is nothing to report.
+        - This rule is unconditional: do not create "nothing found" issues, "no matches" comments, acknowledgement messages, or any other artifact when there are zero findings.
+
         **Detection Scope:**
         - Search through all workflow runs (successful, failed, or in-progress) across all branches
         - **Time Range**: Focus on workflow execution logs from the last 24 hours
@@ -52,6 +57,9 @@ jobs:
         - **Error Context**: Surrounding log lines showing the full error message and context
         - **Frequency**: How many times this error has occurred recently
         - **Status**: Whether the workflow run failed or completed with warnings
+
+        **When no findings (No-Op):**
+        When no occurrences of "Resource not accessible by integration" are detected in the last 24 hours, call the `noop` tool with a message explaining the outcome (e.g., "No action needed: no occurrences detected in workflow logs"). Do not create issues for no-op outcomes.
 
         **Issue Creation Requirements:**
         - Issue title MUST start with: `[AI Detector][Resource not accessible by Integration]`
