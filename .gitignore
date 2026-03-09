@@ -1,5 +1,21 @@
+# Python
 __pycache__/
 *.py[cod]
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+
+# Node dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test artifacts
+coverage/
+
+# macOS
+.DS_Store

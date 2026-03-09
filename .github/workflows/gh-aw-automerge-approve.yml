@@ -1,0 +1,36 @@
+name: Automerge Approver
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        description: "Pull request number to evaluate and approve"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+  discussions: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  run:
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr-by-id.lock.yml@v0
+    with:
+      target-pr-number: ${{ inputs.pr-number }}
+      prompt: |
+        Evaluate this PR for automerge eligibility.
+
+        Approve the PR only when all of these gates are true:
+        - PR author is exactly `elastic-vault-github-plugin-prod[bot]`
+        - PR has label `oblt-aw/ai/merge-ready`
+        - PR is not draft
+        - PR is not from a fork (head repo equals base repo)
+        - Head ref is different from base ref
+        - All check-runs on the PR head commit are complete and none are failing
+
+        If any gate is false, do not approve and do not request changes.
+        Keep output minimal.
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ github.token }}

@@ -1,16 +1,10 @@
 name: Observability Agentic Workflow Ingress
 
 on:
-  schedule:
-    - cron: "0 6 * * *"
   workflow_call:
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
-  issues:
-    types: [opened, labeled]
-  pull_request:
-    types: [opened, synchronize, reopened]
 
 permissions:
   actions: read
@@ -20,6 +14,19 @@ permissions:
   pull-requests: write
 
 jobs:
+  agent-suggestions:
+    if: >-
+      contains(fromJSON('["schedule"]'), github.event_name)
+    uses: ./.github/workflows/gh-aw-agent-suggestions.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  autodoc:
+    if: >-
+      contains(fromJSON('["schedule"]'), github.event_name)
+    uses: ./.github/workflows/gh-aw-autodoc.yml
+    secrets: inherit
+
   dependency-review:
     if: >-
       github.event_name == 'pull_request' &&
@@ -34,16 +41,8 @@ jobs:
 
   resource-not-accessible-by-integration-detector:
     if: >-
-      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+      contains(fromJSON('["schedule"]'), github.event_name)
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  resource-not-accessible-by-integration-triage:
-    if: >-
-      github.event_name == 'issues' &&
-      github.event.action == 'opened'
-    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -56,12 +55,37 @@ jobs:
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
     secrets: inherit
 
+  automerge:
+    if: >-
+      (
+        github.event_name == 'schedule'
+      ) || (
+        github.event_name == 'pull_request' &&
+        contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
+        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+      ) || (
+        github.event_name == 'pull_request_review' &&
+        github.event.action == 'submitted' &&
+        github.event.review.state == 'approved' &&
+        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+      )
+    uses: ./.github/workflows/gh-aw-automerge.yml
+
+  resource-not-accessible-by-integration-triage:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'opened'
+    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
   unsupported-trigger:
     if: >-
       !(
-        contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) ||
+        contains(fromJSON('["schedule","workflow_call"]'), github.event_name) ||
         (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action)) ||
-        (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action))
+        (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action)) ||
+        (github.event_name == 'pull_request_review' && github.event.action == 'submitted')
       )
     runs-on: ubuntu-latest
     steps:
