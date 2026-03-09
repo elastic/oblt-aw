@@ -55,6 +55,22 @@ jobs:
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
     secrets: inherit
 
+  automerge:
+    if: >-
+      (
+        github.event_name == 'schedule'
+      ) || (
+        github.event_name == 'pull_request' &&
+        contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
+        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+      ) || (
+        github.event_name == 'pull_request_review' &&
+        github.event.action == 'submitted' &&
+        github.event.review.state == 'approved' &&
+        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+      )
+    uses: ./.github/workflows/gh-aw-automerge.yml
+
   resource-not-accessible-by-integration-triage:
     if: >-
       github.event_name == 'issues' &&
@@ -68,7 +84,8 @@ jobs:
       !(
         contains(fromJSON('["schedule","workflow_call"]'), github.event_name) ||
         (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action)) ||
-        (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action))
+        (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action)) ||
+        (github.event_name == 'pull_request_review' && github.event.action == 'submitted')
       )
     runs-on: ubuntu-latest
     steps:
