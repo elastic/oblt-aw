@@ -152,7 +152,7 @@ jobs:
                         labels: ['test']
                       });
                       console.log('✓ Issue creation successful:', issue.data.html_url);
-                      
+
                       // Close the test issue
                       await github.rest.issues.update({
                         owner: context.repo.owner,

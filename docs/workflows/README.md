@@ -6,6 +6,7 @@ This section provides one document per workflow file in `.github/workflows/` and
 
 ## Usage
 
+- CI workflow: `docs/workflows/ci.md`
 - Ingress orchestrator: `docs/workflows/oblt-aw-ingress.md`
 - Dependency review workflow: `docs/workflows/gh-aw-dependency-review.md`
 - Resource Not Accessible by Integration detector workflow: `docs/workflows/gh-aw-resource-not-accessible-by-integration-detector.md`
