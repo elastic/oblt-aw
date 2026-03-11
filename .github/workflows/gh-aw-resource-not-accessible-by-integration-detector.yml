@@ -1,12 +1,6 @@
 name: Resource Not Accessible by Integration Detector
 on:
   workflow_call:
-    inputs:
-      target-repositories:
-        description: JSON array with allowed repositories. [] allows all repositories.
-        required: false
-        type: string
-        default: "[]"
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -18,80 +12,53 @@ permissions:
   pull-requests: read
 
 jobs:
-  run:
-    if: >-
-      fromJSON(inputs.target-repositories)[0] == null ||
-      contains(fromJSON(inputs.target-repositories), github.repository)
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-bug-hunter.lock.yml@main
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      workflows: ${{ steps.list.outputs.workflows }}
+    steps:
+      - id: list
+        run: |
+          workflows=$(gh api repos/${{ github.repository }}/actions/workflows \
+            --jq '[.workflows[].path | split("/")[-1]] | tojson')
+          echo "workflows=$workflows" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  search:
+    needs: discover
+    if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
+    strategy:
+      matrix:
+        workflow: ${{ fromJSON(needs.discover.outputs.workflows) }}
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight
     with:
+      workflow: ${{ matrix.workflow }}
+      search-terms: "Resource not accessible by integration"
+      days: 1
+      conclusion: "any"
+      title-prefix: "[AI Detector][Resource not accessible by Integration]"
       additional-instructions: |
-        Your task is to detect and report "Resource not accessible by integration" errors/warnings in GitHub Actions workflow execution logs across all branches in this repository.
+        **Error Context:**
+        You are analyzing preflight search results for the exact phrase "Resource not accessible by integration" in GitHub Actions workflow logs. This error typically indicates permission or token scope issues when workflows access protected resources (e.g., secrets, environments, or repository settings).
 
         **Strict No-Output Rule (MUST be enforced first):**
-        - If NO occurrences of the target error are found after completing all detection steps, do NOT create any issue, do NOT post any comment, do NOT send any notification, and do NOT produce any output whatsoever.
-        - Silence is the correct and expected outcome when there is nothing to report.
-        - This rule is unconditional: do not create "nothing found" issues, "no matches" comments, acknowledgement messages, or any other artifact when there are zero findings.
+        - If NO occurrences of the target error exist in the search results, call `noop` — do NOT create any issue, comment, or notification.
+        - Silence is the correct outcome when there is nothing to report.
 
-        **Detection Scope:**
-        - Search through all workflow runs (successful, failed, or in-progress) across all branches
-        - **Time Range**: Focus on workflow execution logs from the last 24 hours
-        - Look for the error message: "Resource not accessible by integration"
-        - Check both workflow logs and job step outputs for this error
-        - Include warnings and errors related to this message
+        **Required Information to Include in Reports:**
+        For each detected occurrence, ensure the issue body includes:
+        - **Workflow Name/File**: The workflow that generated the error
+        - **Workflow Run URL**: Direct link (https://github.com/{owner}/{repo}/actions/runs/{run_id})
+        - **Branch Name**: Where the workflow was executed
+        - **Job/Step Name**: Specific job and step where the error occurred
+        - **Error Context**: Surrounding log lines from the search results
+        - **Frequency**: How many times this error occurred across the searched runs
 
-        **Investigation Steps:**
-        1. Use the GitHub API to fetch recent workflow runs for all branches from the last 24 hours
-        2. Analyze workflow logs for occurrences of the target error message
-        3. Collect context around each error occurrence (before/after log lines)
-        4. Identify patterns: which workflows, branches, or steps are most affected
-
-        **Required Information to Collect:**
-        For each detected error, gather:
-        - **Workflow Name**: The name of the workflow that generated the error
-        - **Workflow File**: The path to the workflow YAML file (e.g., `.github/workflows/ci.yml`)
-        - **Workflow Run URL**: Direct link to the failed/warning workflow run (format: `https://github.com/{owner}/{repo}/actions/runs/{run_id}`)
-        - **Branch Name**: The branch where the workflow was executed
-        - **Job Name**: The specific job that encountered the error
-        - **Step Name**: The exact step where the error occurred
-        - **Timestamp**: When the error occurred
-        - **Error Context**: Surrounding log lines showing the full error message and context
-        - **Frequency**: How many times this error has occurred recently
-        - **Status**: Whether the workflow run failed or completed with warnings
-
-        **When no findings (No-Op):**
-        When no occurrences of "Resource not accessible by integration" are detected in the last 24 hours, call the `noop` tool with a message explaining the outcome (e.g., "No action needed: no occurrences detected in workflow logs"). Do not create issues for no-op outcomes.
-
-        **Issue Creation Requirements:**
-        - Issue title MUST start with: `[AI Detector][Resource not accessible by Integration]`
-        - Follow the title prefix with a brief description of the scope (e.g., "Detected in 5 workflows across 3 branches")
-        - In the issue body, organize findings by workflow or branch
-        - Include markdown tables or lists to present the collected information clearly
+        **Issue Organization:**
+        - Organize findings by workflow or branch
+        - Use markdown tables or lists for clarity
         - Add direct links to all affected workflow runs
-        - If multiple occurrences are found, group them logically and prioritize by frequency/severity
-        - Include recommendations for fixing or investigating further if patterns are identified
-
-        **Example Issue Format:**
-        ```
-        ## Summary
-        Detected {N} occurrences of "Resource not accessible by integration" error across {M} workflows.
-
-        ## Affected Workflows
-
-        ### Workflow: CI
-        - **File**: `.github/workflows/ci.yml`
-        - **Occurrences**: 3
-        - **Branches**: main, develop
-        - **Latest Run**: [#12345](workflow-run-url) - 2026-02-27 12:34:56 UTC
-
-        **Error Details:**
-        ```
-        [error context from logs]
-        ```
-
-        [Repeat for each affected workflow]
-
-        ## Recommendations
-        [Any patterns or suggestions for resolution]
-        ```
-      title-prefix: "[AI Detector][Resource not accessible by Integration]"
+        - Group related occurrences and prioritize by frequency/severity
+        - Include recommendations for fixing (e.g., token permissions, environment access) when patterns are identifiable
     secrets: inherit
