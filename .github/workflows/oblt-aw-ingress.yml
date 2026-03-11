@@ -28,6 +28,22 @@ jobs:
     uses: ./.github/workflows/gh-aw-autodoc.yml
     secrets: inherit
 
+  automerge:
+    if: >-
+      (
+        github.event_name == 'schedule'
+      ) || (
+        github.event_name == 'pull_request' &&
+        contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
+        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+      ) || (
+        github.event_name == 'pull_request_review' &&
+        github.event.action == 'submitted' &&
+        github.event.review.state == 'approved' &&
+        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+      )
+    uses: ./.github/workflows/gh-aw-automerge.yml
+
   dependency-review:
     if: >-
       github.event_name == 'pull_request' &&
