@@ -72,4 +72,6 @@ jobs:
         - Add direct links to all affected workflow runs
         - Group related occurrences and prioritize by frequency/severity
         - Include recommendations for fixing (e.g., token permissions, environment access) when patterns are identifiable
+
+        **Assignment:** When creating the issue, assign it to the elastic/observablt-ci GitHub team. If the platform does not support team assignees for issues, @mention the elastic/observablt-ci team in the issue body.
     secrets: inherit
