@@ -8,6 +8,8 @@ on:
     types: [opened, labeled]
   pull_request:
     types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
 
 permissions:
   actions: read
@@ -16,6 +18,7 @@ jobs:
   run-aw:
     permissions:
       actions: read
+      checks: read
       contents: write
       discussions: write
       issues: write

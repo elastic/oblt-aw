@@ -8,6 +8,7 @@ on:
 
 permissions:
   actions: read
+  checks: read
   contents: write
   discussions: write
   issues: write
@@ -68,7 +69,8 @@ jobs:
       !(
         contains(fromJSON('["schedule","workflow_call"]'), github.event_name) ||
         (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action)) ||
-        (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action))
+        (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action)) ||
+        (github.event_name == 'pull_request_review' && github.event.action == 'submitted')
       )
     runs-on: ubuntu-latest
     steps:
