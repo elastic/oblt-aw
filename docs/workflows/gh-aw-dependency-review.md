@@ -20,9 +20,10 @@ The job `run` calls:
 Configured inputs include:
 
 - `allowed-bot-users`: `dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-vault-github-plugin-prod[bot]`
+- `classification-labels`: `oblt-aw/ai/merge-ready`
 - `additional-instructions`: CVE-focused and internal-change impact analysis instructions.
 
-Labeling extension configured in instructions:
+Labeling semantics (in additional-instructions):
 
 - add `oblt-aw/ai/merge-ready` only when analysis is fully successful.
 
