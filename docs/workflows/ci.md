@@ -27,6 +27,7 @@ The `pre-commit` job uses `elastic/oblt-actions/pre-commit@v1`, which runs all h
 - **YAML**: yamllint with `.yamllint.yml`
 - **Shell**: ShellCheck on shell scripts
 - **Python**: ruff (lint + format), mypy (strict) on `scripts/`
+- **License**: Apache 2.0 headers and NOTICE sync (`scripts/update_license_files.py`)
 - **General**: trailing whitespace, EOF, YAML/JSON checks, merge conflict detection, line endings
 - **Action pinning**: Enforced by workflow design (trusted actions use tags; untrusted use SHA). Ratchet is not used because sethvargo/ratchet lacks `.pre-commit-hooks.yaml` and our policy uses tags for trusted namespaces.
 

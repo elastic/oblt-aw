@@ -61,6 +61,22 @@ pytest tests/ -v --tb=short
 npm test
 ```
 
+### License automation
+
+Update license headers and NOTICE files:
+
+```bash
+make update-license
+# or: python3 scripts/update_license_files.py
+```
+
+Verify without modifying (useful for CI):
+
+```bash
+make update-license-check
+# or: python3 scripts/update_license_files.py --check
+```
+
 ### Individual tools
 
 - **YAML lint**: `yamllint .` (uses `.yamllint.yml`)
@@ -80,6 +96,7 @@ The following hooks run on commit (and in CI via the pre-commit job):
 | ruff            | `scripts/**/*.py`        | Python lint (with `--fix`)       |
 | ruff-format     | `scripts/**/*.py`        | Python formatting                |
 | mypy            | `scripts/**/*.py`        | Python type-checking (strict)    |
+| update-license-files | Scripts, workflows, tests, NOTICE | Apache 2.0 headers, NOTICE sync |
 | pre-commit-hooks| Various                  | Trailing whitespace, EOF, etc.   |
 
 ## CI Workflow

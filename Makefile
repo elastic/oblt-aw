@@ -13,24 +13,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-version: 2
+.PHONY: update-license update-license-check
 
-updates:
-  - package-ecosystem: "github-actions"
-    directories:
-      - "/"
-      - "/.github/workflows/*"
-    schedule:
-      interval: "weekly"
-      day: "sunday"
-      time: "22:00"
+## Update license headers and NOTICE.txt
+update-license:
+	python3 scripts/update_license_files.py
 
-  - package-ecosystem: pre-commit
-    directory: "/"
-    schedule:
-      interval: 'weekly'
-      day: 'sunday'
-      time: '22:00'
-    open-pull-requests-limit: 5
-    labels:
-      - 'changelog:dependencies'
+## Verify license files; exit 1 if updates needed
+update-license-check:
+	python3 scripts/update_license_files.py --check
