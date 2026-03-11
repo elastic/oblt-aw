@@ -1,0 +1,16 @@
+---
+extends: default
+
+rules:
+  # Allow longer lines in workflow files and documentation
+  line-length:
+    max: 120
+    level: warning
+
+  # GitHub Actions use "on" as a keyword
+  truthy:
+    allowed-values: ["true", "false", "on"]
+
+  # Permit the blank line at the end of block sequences
+  empty-lines:
+    max: 2
