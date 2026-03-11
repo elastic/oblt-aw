@@ -46,6 +46,17 @@ jobs:
         - If NO occurrences of the target error exist in the search results, call `noop` — do NOT create any issue, comment, or notification.
         - Silence is the correct outcome when there is nothing to report.
 
+        **Specific noop calls:**
+        Call `noop` in these scenarios. Use the format:
+        ```
+        {"noop": {"message": "No action needed: [brief explanation]"}}
+        ```
+        - Zero matches in the search results: `{"noop": {"message": "No action needed: no occurrences of 'Resource not accessible by integration' detected in workflow logs"}}`
+        - Matches are benign or informational with no action needed: `{"noop": {"message": "No action needed: [describe why matches are non-actionable]"}}`
+        - All matched issues are already tracked by existing open issues: `{"noop": {"message": "No action needed: findings already covered by issue #[N]"}}`
+        - Evidence insufficient to identify root cause or actionable pattern: `{"noop": {"message": "No action needed: insufficient evidence for actionable triage"}}`
+        Do not create issues or post comments for no-op outcomes. The noop tool provides transparency without creating GitHub artifacts.
+
         **Required Information to Include in Reports:**
         For each detected occurrence, ensure the issue body includes:
         - **Workflow Name/File**: The workflow that generated the error
