@@ -17,6 +17,8 @@ If `capability` is empty or unsupported on `workflow_dispatch`, ingress falls ba
 
 ## Notes
 
-- `gh-aw-autodoc.yml` wraps the upstream reusable workflow `.github/workflows/gh-aw-docs-patrol.lock.yml` from `elastic/ai-github-actions`.
+- `gh-aw-autodoc.yml` uses two upstream workflows from `elastic/ai-github-actions`:
+  - `gh-aw-docs-patrol.lock.yml` — detects code changes that require documentation updates and creates an issue with findings
+  - `gh-aw-create-pr-from-issue.lock.yml` — implements the findings and opens a PR (only when an issue was created)
 - It is intended to analyze repository documentation and open a focused documentation PR.
 - It must not merge PRs automatically.
