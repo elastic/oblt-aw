@@ -49,4 +49,8 @@ jobs:
           - Workflows using the dependency are testable in PR context (pull_request or pull_request_target trigger), OR the dependency is dev-only (e.g. pre-commit, linters) with no production impact.
         - Treat "low risk" as sufficient when the above criteria are met. Minor behavioral changes (e.g. ignore-pattern handling, formatting) that do not affect this repo's usage do NOT disqualify the label.
         - Do NOT add `oblt-aw/ai/merge-ready` only when: CVEs/security fixes exist, breaking changes affect this repo, ecosystem checks fail, or workflows are untestable and the dependency has production impact.
+
+        Label application (mandatory):
+        - When ALL criteria for `oblt-aw/ai/merge-ready` are met, you MUST call `add_labels` with that label. Do not only recommend it in the comment; apply it via the add_labels tool.
+        - The comment's "Labels Applied" section must reflect labels you actually applied via add_labels, not merely recommended. If you applied a label, say so; if you did not apply any, say "No labels applied."
     secrets: inherit
