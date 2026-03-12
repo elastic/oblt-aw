@@ -23,7 +23,9 @@ def parse_repositories(content: str) -> list[str]:
     elif isinstance(data, list):
         repositories = data
     else:
-        raise SystemExit("active-repositories.json must be a list or an object containing `repositories`")
+        raise SystemExit(
+            "active-repositories.json must be a list or an object containing `repositories`"
+        )
 
     if not isinstance(repositories, list):
         raise SystemExit("`repositories` must be a list")
@@ -31,7 +33,9 @@ def parse_repositories(content: str) -> list[str]:
     normalized = []
     for item in repositories:
         if not isinstance(item, str) or "/" not in item:
-            raise SystemExit(f"Invalid repository entry: {item!r}. Expected 'owner/repo'")
+            raise SystemExit(
+                f"Invalid repository entry: {item!r}. Expected 'owner/repo'"
+            )
         normalized.append(item.strip())
 
     return sorted(set(normalized))
@@ -74,16 +78,24 @@ def main() -> int:
         return 0
 
     config_path = pathlib.Path("active-repositories.json")
-    current_content = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    current_content = (
+        config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    )
     current_repositories = parse_repositories(current_content)
 
     base_ref = os.getenv("BASE_REF", "").strip()
     previous_repositories = read_previous_repositories(base_ref)
 
-    operations = [{"repository": repo, "operation": "install"} for repo in current_repositories]
+    operations = [
+        {"repository": repo, "operation": "install"} for repo in current_repositories
+    ]
 
-    removed_repositories = sorted(set(previous_repositories) - set(current_repositories))
-    operations.extend({"repository": repo, "operation": "remove"} for repo in removed_repositories)
+    removed_repositories = sorted(
+        set(previous_repositories) - set(current_repositories)
+    )
+    operations.extend(
+        {"repository": repo, "operation": "remove"} for repo in removed_repositories
+    )
 
     install_count = len(current_repositories)
     remove_count = len(removed_repositories)
