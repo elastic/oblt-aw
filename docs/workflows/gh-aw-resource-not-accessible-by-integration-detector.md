@@ -4,7 +4,7 @@
 
 Source file: `.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml`
 
-This reusable workflow detects `Resource not accessible by integration` occurrences in workflow logs and creates issue output through the locked bug-hunter workflow.
+This reusable workflow detects `Resource not accessible by integration` occurrences in workflow logs and creates issue output through the log-searching-agent workflow. It discovers all workflows in the repository and runs the agent per workflow via a matrix strategy.
 
 ## Prerequisites
 
@@ -13,20 +13,20 @@ This reusable workflow detects `Resource not accessible by integration` occurren
 
 ## Usage
 
-The job `run` calls:
+The workflow uses two jobs:
 
-- `elastic/ai-github-actions/.github/workflows/gh-aw-bug-hunter.lock.yml@main`
+1. **discover** — Lists all workflow file names via the GitHub API.
+2. **search** — Matrix job that calls `gh-aw-log-searching-agent` per workflow:
+   - `elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight`
 
-Repository filter behavior is controlled by input `target-repositories`:
+The detector runs in each repository that invokes it (via ingress schedule or workflow_dispatch).
 
-- `[]` allows all repositories.
-- non-empty arrays allow only listed repositories.
+Configured parameters:
 
-Configured instructions define:
-
-- log scan scope (last 24 hours, all branches)
-- required error metadata collection
-- issue title prefix: `[AI Detector][Resource not accessible by Integration]`
+- **Lookback**: 1 day (aligned with daily schedule trigger)
+- **Search term**: `Resource not accessible by integration`
+- **Conclusion filter**: `any` (success, failure, cancelled)
+- **Issue title prefix**: `[AI Detector][Resource not accessible by Integration]`
 
 ## Configuration
 
@@ -41,9 +41,9 @@ Permissions:
 
 `workflow_call` contract:
 
-- Input: `target-repositories` (string JSON array, default `[]`)
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
 
 ## References
 
 - Routing rules: `docs/routing/resource-not-accessible-by-integration-routing.md`
+- Log-searching-agent proposal: [elastic/ai-github-actions#548](https://github.com/elastic/ai-github-actions/pull/548#issuecomment-3997493806)
