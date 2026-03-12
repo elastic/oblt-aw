@@ -21,12 +21,10 @@ Routing rules from ingress:
   - issue contains label `oblt-aw/triage/resource-not-accessible-by-integration`
   -> fixer
 
-Repository filter behavior for detector/triage/fixer when called directly:
+Repository filter behavior when called directly:
 
-- input `target-repositories` exists on each workflow.
-- default is `[]`.
-- `[]` means allow all repositories.
-- otherwise only repositories in the JSON array are allowed.
+- **Detector**: Runs in each repository that invokes it (no filter).
+- **Triage/Fixer**: input `target-repositories` exists; default `[]` allows all; non-empty array restricts to listed repositories.
 
 ## References
 

@@ -25,7 +25,7 @@ Configured inputs include:
 
 Labeling semantics (in additional-instructions):
 
-- add `oblt-aw/ai/merge-ready` only when analysis is fully successful.
+- add `oblt-aw/ai/merge-ready` when: no CVE/GHSA/security fixes, no breaking changes affecting this repo, ecosystem checks pass, and workflows are testable or dependency is dev-only. "Low risk" is sufficient when criteria are met; minor behavioral changes that don't affect repo usage do not disqualify.
 
 ## Configuration
 
