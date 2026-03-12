@@ -23,21 +23,24 @@ on:
 permissions:
   actions: read
   contents: write
+  discussions: write
   issues: write
   pull-requests: write
 
 jobs:
-  run:
+  # Step 1: Detect docs drift from recent code changes and create an issue with findings
+  audit:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
     with:
       lookback-window: 1 day ago
+      title-prefix: "[autodoc]"
       additional-instructions: |
-        Your task is to analyze ALL documentation in this repository, identify gaps and areas for improvement, and open a single focused pull request with concrete improvements.
+        Your task is to analyze ALL documentation in this repository, identify gaps and areas for improvement, and file an issue with concrete findings.
 
         Do NOT search for open issues. Instead, perform a direct documentation audit of this repository.
 
         **What to look for (in priority order):**
-        1. **Undocumented or partially documented code** — features, scripts, workflows, or configuration files that are not covered (or only partially covered) in the repository's documentation; for each gap found, add or expand the relevant documentation files (README, guides, etc.) to describe purpose, parameters, behavior, and usage examples
+        1. **Undocumented or partially documented code** — features, scripts, workflows, or configuration files that are not covered (or only partially covered) in the repository's documentation; for each gap found, specify which files to add or expand to describe purpose, parameters, behavior, and usage examples
         2. **Empty or missing files** — files that exist but contain no meaningful content
         3. **Missing sections** — key README sections absent such as purpose, usage, inputs, outputs, examples, or contributing guidance
         4. **Outdated content** — references to components, configurations, or capabilities no longer present or not yet documented
@@ -45,8 +48,23 @@ jobs:
         6. **Broken cross-references** — links to files, workflows, or sections that do not exist in the repository
         7. **Inconsistencies** — documentation that contradicts the actual source files in the repository
 
+        **Issue format:** For each finding, include a clear, actionable checklist of specific documentation changes to make. Each item should reference file paths and describe the change needed.
+
+        **Assignment:** When creating the issue, assign it to the elastic/observablt-ci GitHub team. If the platform does not support team assignees for issues, @mention the elastic/observablt-ci team in the issue body.
+    secrets: inherit
+
+  # Step 2: Create a PR implementing the audit findings (only when an issue was created)
+  fix:
+    needs: audit
+    if: needs.audit.outputs.created_issue_number != ''
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
+    with:
+      target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
+      draft-prs: true
+      additional-instructions: |
+        Your task is to implement the documentation improvements described in the issue.
+
         **Pull Request Requirements:**
-        - Create the pull request as a `Draft` initially.
         - Title: `docs: Documentation analysis and improvement`
         - Body must include:
           - Summary of files analyzed
@@ -61,7 +79,5 @@ jobs:
         - All changes must be grounded in actual repository content — do not invent capability descriptions.
         - Do not add placeholder text or TODOs as improvements.
 
-        **Review and Merge Policy:**
-        - Do not merge the pull request.
-        - Once the pull request is converted to `Open`, request a review from the `elastic/observablt-robots` team.
+        **Reviewers:** When creating the pull request, request review from the elastic/observablt-ci team.
     secrets: inherit
