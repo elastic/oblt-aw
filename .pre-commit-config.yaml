@@ -1,7 +1,7 @@
 repos:
   # ── YAML linting ──────────────────────────────────────────────────────────
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.37.0
+    rev: v1.38.0
     hooks:
       - id: yamllint
         args: [--config-file, .yamllint.yml]
@@ -14,7 +14,7 @@ repos:
 
   # ── Python linting & formatting ───────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.2
+    rev: v0.15.5
     hooks:
       - id: ruff
         args: [--fix]
@@ -22,7 +22,7 @@ repos:
 
   # ── Python type-checking ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+    rev: v1.19.1
     hooks:
       - id: mypy
         files: ^scripts/
@@ -30,7 +30,7 @@ repos:
 
   # ── General file hygiene ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
