@@ -14,6 +14,8 @@ This section provides one document per workflow file in `.github/workflows/` and
 - Resource Not Accessible by Integration fixer workflow: `docs/workflows/gh-aw-resource-not-accessible-by-integration-fixer.md`
 - Distribution workflow: `docs/workflows/distribute-client-workflow.md`
 - Client workflow template: `docs/workflows/oblt-aw-client-template.md`
+- Dashboard sync workflow: `docs/workflows/sync-control-plane-dashboard.md`
+- Dashboard config sync (ingress job): `docs/routing/dashboard-config-sync-routing.md`
 
 ## References
 
