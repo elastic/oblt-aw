@@ -15,7 +15,35 @@ permissions:
   actions: read
 
 jobs:
+  check-dashboard:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+    outputs:
+      enabled_workflows: ${{ steps.parse.outputs.enabled_workflows }}
+    steps:
+      - name: Fetch dashboard issue and parse enabled workflows
+        id: parse
+        run: |
+          set -euo pipefail
+          ALL='["agent-suggestions","autodoc","automerge","dependency-review","resource-not-accessible-by-integration-detector","resource-not-accessible-by-integration-triage","resource-not-accessible-by-integration-fixer"]'
+          BODY=$(gh api "repos/${{ github.repository }}/issues?labels=oblt-aw/dashboard&state=open" \
+            --jq 'if length > 0 then .[0].body else empty end' -q . 2>/dev/null || echo "")
+          if [[ -z "$BODY" ]]; then
+            echo "enabled_workflows=$ALL" >> "$GITHUB_OUTPUT"
+            echo "No dashboard issue found, defaulting to all workflows enabled"
+            exit 0
+          fi
+          ENABLED=$(echo "$BODY" | grep -oP '(?<=^- \[x\] <!-- oblt-aw:)[a-z0-9-]+' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          if [[ -z "$ENABLED" || "$ENABLED" == "[]" ]]; then
+            echo "enabled_workflows=$ALL" >> "$GITHUB_OUTPUT"
+            echo "No checkboxes checked, defaulting to all workflows enabled"
+          else
+            echo "enabled_workflows=$ENABLED" >> "$GITHUB_OUTPUT"
+          fi
+
   run-aw:
+    needs: check-dashboard
     permissions:
       actions: read
       checks: read
@@ -24,5 +52,7 @@ jobs:
       issues: write
       pull-requests: write
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main # ratchet:exclude
+    with:
+      enabled_workflows: ${{ needs.check-dashboard.outputs.enabled_workflows }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
