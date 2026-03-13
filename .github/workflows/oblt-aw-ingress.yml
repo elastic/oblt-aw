@@ -2,6 +2,11 @@ name: Observability Agentic Workflow Ingress
 
 on:
   workflow_call:
+    inputs:
+      repository:
+        description: Caller repository (owner/repo) for config lookup
+        required: false
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
@@ -15,76 +20,162 @@ permissions:
   pull-requests: write
 
 jobs:
+  resolve-config:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled_workflows: ${{ steps.resolve.outputs.enabled_workflows }}
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.repository || github.repository }}
+
+      - name: Resolve enabled workflows from config
+        id: resolve
+        run: |
+          set -euo pipefail
+          ALL_IDS='["agent-suggestions","autodoc","automerge","dependency-review","resource-not-accessible-by-integration-detector","resource-not-accessible-by-integration-triage","resource-not-accessible-by-integration-fixer"]'
+          if [[ -f .github/oblt-aw-config.json ]]; then
+            enabled=$(jq -c '.enabled_workflows // empty' .github/oblt-aw-config.json 2>/dev/null || echo '[]')
+            if [[ -z "$enabled" || "$enabled" == 'null' ]]; then
+              echo "enabled_workflows=$ALL_IDS" >> "$GITHUB_OUTPUT"
+            else
+              echo "enabled_workflows=$enabled" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "enabled_workflows=$ALL_IDS" >> "$GITHUB_OUTPUT"
+          fi
+
   agent-suggestions:
+    needs: resolve-config
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name)
+      contains(fromJSON('["schedule"]'), github.event_name) &&
+      contains(fromJSON(needs.resolve-config.outputs.enabled_workflows), 'agent-suggestions')
     uses: ./.github/workflows/gh-aw-agent-suggestions.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   autodoc:
+    needs: resolve-config
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name)
+      contains(fromJSON('["schedule"]'), github.event_name) &&
+      contains(fromJSON(needs.resolve-config.outputs.enabled_workflows), 'autodoc')
     uses: ./.github/workflows/gh-aw-autodoc.yml
     secrets: inherit
 
   automerge:
+    needs: resolve-config
     if: >-
       (
-        github.event_name == 'schedule'
-      ) || (
-        github.event_name == 'pull_request' &&
-        contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
-      ) || (
-        github.event_name == 'pull_request_review' &&
-        github.event.action == 'submitted' &&
-        github.event.review.state == 'approved' &&
-        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
-      )
+        (
+          github.event_name == 'schedule'
+        ) || (
+          github.event_name == 'pull_request' &&
+          contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
+          github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+        ) || (
+          github.event_name == 'pull_request_review' &&
+          github.event.action == 'submitted' &&
+          github.event.review.state == 'approved' &&
+          github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+        )
+      ) &&
+      contains(fromJSON(needs.resolve-config.outputs.enabled_workflows), 'automerge')
     uses: ./.github/workflows/gh-aw-automerge.yml
 
   dependency-review:
+    needs: resolve-config
     if: >-
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
       contains(
         fromJSON('["dependabot[bot]","renovate[bot]","Dependabot","Renovate","elastic-vault-github-plugin-prod[bot]"]'),
         github.event.pull_request.user.login
-      )
+      ) &&
+      contains(fromJSON(needs.resolve-config.outputs.enabled_workflows), 'dependency-review')
     uses: ./.github/workflows/gh-aw-dependency-review.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   resource-not-accessible-by-integration-detector:
+    needs: resolve-config
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name)
+      contains(fromJSON('["schedule"]'), github.event_name) &&
+      contains(fromJSON(needs.resolve-config.outputs.enabled_workflows), 'resource-not-accessible-by-integration-detector')
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   resource-not-accessible-by-integration-fixer:
+    needs: resolve-config
     if: >-
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/resource-not-accessible-by-integration')
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/resource-not-accessible-by-integration') &&
+      contains(fromJSON(needs.resolve-config.outputs.enabled_workflows), 'resource-not-accessible-by-integration-fixer')
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
     secrets: inherit
 
   resource-not-accessible-by-integration-triage:
+    needs: resolve-config
     if: >-
       github.event_name == 'issues' &&
-      github.event.action == 'opened'
+      github.event.action == 'opened' &&
+      contains(fromJSON(needs.resolve-config.outputs.enabled_workflows), 'resource-not-accessible-by-integration-triage')
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  dashboard-config-sync:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'edited' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/dashboard')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.repository || github.repository }}
+
+      - name: Parse dashboard issue and write config
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          set -euo pipefail
+          mkdir -p .github
+          ids=()
+          while IFS= read -r id; do
+            [[ -n "$id" ]] && ids+=("$id")
+          done < <(echo "$ISSUE_BODY" | grep -oP '^- \[x\] <!-- oblt-aw:\K[a-z0-9-]+' || true)
+          json_ids=$(printf '"%s",' "${ids[@]}")
+          json_ids="${json_ids%,}"
+          echo "{\"enabled_workflows\": [${json_ids}]}" > .github/oblt-aw-config.json
+
+      - name: Create pull request for config update
+        env:
+          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
+        with:
+          branch: oblt-aw/dashboard-config-sync
+          commit-message: Sync oblt-aw dashboard config from Control Plane Dashboard issue
+          title: Sync oblt-aw dashboard config
+          body: |
+            Updates `.github/oblt-aw-config.json` from the Control Plane Dashboard issue checkbox state.
+
+            ---
+            Created by [workflow run](${{ env.JOB_URL }})
+
+            Related issue: https://github.com/elastic/observability-robots/issues/3732
 
   unsupported-trigger:
     if: >-
       !(
         contains(fromJSON('["schedule","workflow_call"]'), github.event_name) ||
-        (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action)) ||
+        (github.event_name == 'issues' && contains(fromJSON('["opened","labeled","edited"]'), github.event.action)) ||
         (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action)) ||
         (github.event_name == 'pull_request_review' && github.event.action == 'submitted')
       )

@@ -24,5 +24,7 @@ jobs:
       issues: write
       pull-requests: write
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main # ratchet:exclude
+    with:
+      repository: ${{ github.repository }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

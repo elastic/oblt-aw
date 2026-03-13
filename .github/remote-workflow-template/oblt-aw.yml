@@ -5,7 +5,7 @@ on:
     - cron: "0 6 * * *"
   workflow_dispatch:
   issues:
-    types: [opened, labeled]
+    types: [opened, labeled, edited]
   pull_request:
     types: [opened, synchronize, reopened]
   pull_request_review:
@@ -24,5 +24,7 @@ jobs:
       issues: write
       pull-requests: write
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main # ratchet:exclude
+    with:
+      repository: ${{ github.repository }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
