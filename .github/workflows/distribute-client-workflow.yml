@@ -7,6 +7,8 @@ on:
     paths:
       - active-repositories.json
       - .github/remote-workflow-template/oblt-aw.yml
+      - workflow-registry.json
+      - .github/workflows/sync-control-plane-dashboard.yml
   workflow_dispatch:
     inputs:
       force:
@@ -45,7 +47,7 @@ jobs:
         with:
           base-ref: ${{ github.event.before }}
           ref: ${{ github.sha }}
-          filter: '["*active-repositories.json","*.github/remote-workflow-template/oblt-aw.yml"]'
+          filter: '["*active-repositories.json","*.github/remote-workflow-template/oblt-aw.yml","*workflow-registry.json","*.github/workflows/sync-control-plane-dashboard.yml"]'
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -196,6 +198,20 @@ jobs:
         with:
           name: pr-result-${{ strategy.job-index }}
           path: pr-result-${{ strategy.job-index }}.txt
+
+  trigger-sync-control-plane-dashboard:
+    needs: [create-prs, summarize]
+    if: ${{ needs.create-prs.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Trigger sync-control-plane-dashboard workflow
+        run: gh workflow run sync-control-plane-dashboard.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   summarize:
     needs: create-prs
