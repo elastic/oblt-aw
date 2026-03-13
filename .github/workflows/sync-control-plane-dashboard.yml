@@ -1,0 +1,47 @@
+name: Sync Control Plane Dashboard
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - workflow-registry.json
+      - active-repositories.json
+      - .github/workflows/sync-control-plane-dashboard.yml
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-control-plane-dashboard
+  cancel-in-progress: false
+
+jobs:
+  sync-dashboards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v6
+
+      - name: Create ephemeral GitHub token
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: token-policy-63405ab45244
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Sync dashboard issues to active repositories
+        env:
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+        run: python scripts/sync_control_plane_dashboard.py
