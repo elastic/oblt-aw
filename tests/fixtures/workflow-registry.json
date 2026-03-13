@@ -1,0 +1,11 @@
+{
+  "workflows": [
+    {
+      "id": "agent-suggestions",
+      "name": "Agent Suggestions",
+      "description": "Suggests agentic workflows.",
+      "maturity": "stable",
+      "default_enabled": true
+    }
+  ]
+}
