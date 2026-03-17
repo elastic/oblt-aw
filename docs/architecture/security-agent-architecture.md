@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the architecture for proactive security bug hunting and remediation in oblt-aw. The design follows the detector–triage–fixer pattern established by the resource-not-accessible-by-integration workflows, adapted for code-scanning use cases.
+This document defines the architecture for proactive security bug hunting and remediation in oblt-aw. The design follows the detector–triage–fixer pattern, adapted for code-scanning use cases.
 
 **Goal**: Move from reactive security reviews to continuous, automated security hardening of GitHub Actions and shell scripts.
 
@@ -14,7 +14,7 @@ This document defines the architecture for proactive security bug hunting and re
 
 ### Detector–Triage–Fixer Flow
 
-The security agent pipeline mirrors the resource-not-accessible-by-integration pattern:
+The security agent pipeline follows this flow:
 
 1. **Detector** — Scheduled or manually triggered. Scans code (shell scripts, workflow YAML) for security vulnerabilities. Creates issues with structured findings.
 2. **Triage** — Triggered on `issues` + `opened`. Classifies security issues, generates resolution plans, and labels fix-ready items.
@@ -33,9 +33,9 @@ flowchart TD
   H --> I[Draft PR]
 ```
 
-### Key Difference from Resource-Not-Accessible
+### Detector Implementation
 
-The resource-not-accessible detector uses `gh-aw-log-searching-agent` to search workflow **logs** for error strings. The security detector must scan **code** (shell scripts, workflow YAML). No equivalent code-scanning agent exists in elastic/ai-github-actions today. The security detector will therefore:
+The security detector must scan **code** (shell scripts, workflow YAML). No equivalent code-scanning agent exists in elastic/ai-github-actions today. The security detector will therefore:
 
 - Run static analysis tools (shellcheck, grep/semgrep) in a custom job.
 - Aggregate findings and create issues via API or agent invocation.
@@ -122,6 +122,3 @@ Per triage, the resolution plan must include:
 - [elastic/oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) — token exposure via CLI args
 - [elastic/oblt-actions#495](https://github.com/elastic/oblt-actions/issues/495) — GH_TOKEN env injection
 - [GitHub Actions security hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
-- [Resource-not-accessible detector](docs/workflows/gh-aw-resource-not-accessible-by-integration-detector.md)
-- [Resource-not-accessible triage](docs/workflows/gh-aw-resource-not-accessible-by-integration-triage.md)
-- [Resource-not-accessible fixer](docs/workflows/gh-aw-resource-not-accessible-by-integration-fixer.md)
