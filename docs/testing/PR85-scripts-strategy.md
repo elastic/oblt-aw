@@ -16,7 +16,7 @@ Unit tests for the Python scripts introduced in [PR 85](https://github.com/elast
 
 ## Risk Areas Addressed
 
-1. **Checkbox parsing** — Same format as TS `parseDashboardBody`; tests mirror TS cases (all checked, all unchecked, mixed, malformed, long IDs).
+1. **Checkbox parsing** — Tests cover all checked, all unchecked, mixed state, malformed lines, long IDs.
 2. **Maturity badges** — All known values (stable, early-adoption, experimental) and unknown fallback.
 3. **Dashboard body building** — Defaults, user state preservation, default_enabled behavior.
 4. **Repository parsing** — List/dict formats, deduplication, validation, error paths.
