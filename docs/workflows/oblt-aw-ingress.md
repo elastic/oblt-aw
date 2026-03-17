@@ -26,6 +26,8 @@ Routing jobs:
 - `resource-not-accessible-by-integration-detector`
 - `resource-not-accessible-by-integration-triage`
 - `resource-not-accessible-by-integration-fixer`
+- `security-triage`
+- `security-fixer`
 - `unsupported-trigger`
 
 ## Configuration

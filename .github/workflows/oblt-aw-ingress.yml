@@ -80,6 +80,23 @@ jobs:
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
+  security-triage:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'opened'
+    uses: ./.github/workflows/gh-aw-security-triage.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  security-fixer:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')
+    uses: ./.github/workflows/gh-aw-security-fixer.yml
+    secrets: inherit
+
   unsupported-trigger:
     if: >-
       !(
