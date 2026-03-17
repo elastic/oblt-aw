@@ -20,15 +20,15 @@ Triggers:
   - `workflow-registry.json`
   - `active-repositories.json`
   - `.github/workflows/sync-control-plane-dashboard.yml`
-- `schedule` (daily, e.g. 06:00 UTC)
 - `workflow_dispatch`
 
 Execution:
 
-1. For each repository in `active-repositories.json`:
+1. **prepare-repos job:** Builds repos matrix from `active-repositories.json` via `scripts/build_repos_matrix.py`; outputs JSON for matrix strategy
+2. **sync-dashboard job:** Matrix job (one job per repo); each invokes `scripts/sync_control_plane_dashboard.py --repo <owner/repo>`:
    - Search for existing open issue with label `oblt-aw/dashboard`
    - Create or update the issue with title `[OBLT AW] Control Plane Dashboard`, body from registry (header, maturity badges, checkboxes, descriptions)
-   - Pin the issue when possible (up to 3 pins per repo; if limit reached, log and continue)
+   - Pin the issue via `gh issue pin` (if limit of 3 pins reached, log and continue)
 
 ## Configuration
 
@@ -46,4 +46,4 @@ Concurrency:
 
 - `docs/operations/control-plane-dashboard.md` — user instructions
 - `docs/operations/control-plane-dashboard-format.md` — dashboard issue format
-- `docs/plans/issue-3732-control-plane-dashboard.md` — implementation plan
+- [Issue #3732 comment (implementation plan)](https://github.com/elastic/observability-robots/issues/3732#issuecomment-4054356635)

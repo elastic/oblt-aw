@@ -28,6 +28,8 @@ Routing jobs:
 - `resource-not-accessible-by-integration-fixer`
 - `unsupported-trigger`
 
+Each workflow job is gated by the `enabled_workflows` input (from the client's `check-dashboard` job). If empty or absent, all workflows are enabled (backward compatibility).
+
 ## Configuration
 
 Top-level permissions:
@@ -42,16 +44,20 @@ Top-level permissions:
 
 Interface exposed through `workflow_call`:
 
+- Input: `enabled_workflows` (JSON array of workflow IDs; from client's `check-dashboard` job; empty = all enabled)
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## Examples
 
-Minimal consumer reference:
+Minimal consumer reference (client template has `check-dashboard` job that outputs `enabled_workflows`):
 
 ```yaml
 jobs:
   run-aw:
+    needs: check-dashboard
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main
+    with:
+      enabled_workflows: ${{ needs.check-dashboard.outputs.enabled_workflows }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 ```

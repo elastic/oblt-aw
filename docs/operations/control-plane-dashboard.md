@@ -31,7 +31,7 @@ The Control Plane Dashboard is a single GitHub Issue in your repository that lis
 3. **Check** the checkbox next to the workflow (change `- [ ]` to `- [x]`)
 4. Save or submit the edit
 
-The config sync workflow runs when you edit the issue. It parses the checkbox state and updates `.github/oblt-aw-config.json` in your repository. The workflow will be added to `enabled_workflows` and will run on the next trigger.
+There is no config file. When the client workflow runs, a `check-dashboard` job reads the dashboard issue at runtime and passes `enabled_workflows` to the ingress. The workflow will run on the next trigger (e.g. `schedule`, `workflow_dispatch`, `pull_request`).
 
 ### Disabling a Workflow
 
@@ -40,25 +40,24 @@ The config sync workflow runs when you edit the issue. It parses the checkbox st
 3. **Uncheck** the checkbox next to the workflow (change `- [x]` to `- [ ]`)
 4. Save or submit the edit
 
-The config sync removes the workflow from `enabled_workflows`. The workflow will no longer run for your repository until you enable it again.
+The `check-dashboard` job excludes the workflow from `enabled_workflows` at runtime. The workflow will no longer run for your repository until you enable it again.
 
 ---
 
-## What Happens When You Edit
+## What Happens at Runtime
 
-1. **You edit the issue** — Check or uncheck one or more workflow checkboxes
-2. **GitHub fires `issues.edited`** — The event includes the updated issue body
-3. **Ingress routes to `dashboard-config-sync`** — Because the issue has label `oblt-aw/dashboard`
-4. **Config sync parses the body** — Extracts which workflows are checked
-5. **Config file is updated** — `.github/oblt-aw-config.json` is written with `{"enabled_workflows": ["id1", "id2", ...]}`
-6. **Ingress respects the config** — On future triggers, only workflows in `enabled_workflows` run
+1. **You edit the issue** — Check or uncheck one or more workflow checkboxes (no immediate action; no PRs)
+2. **Client runs** — On the next trigger (schedule, workflow_dispatch, pull_request, etc.), the client workflow starts
+3. **check-dashboard job runs first** — Fetches the dashboard issue via API, parses checkboxes (`- [x] <!-- oblt-aw:workflow-id -->`), outputs `enabled_workflows` as JSON array
+4. **Ingress receives input** — The `run-aw` job passes `enabled_workflows` to the ingress
+5. **Ingress gates execution** — Only workflows listed in `enabled_workflows` run (or all if empty for backward compatibility)
 
 ---
 
 ## Default Behavior
 
-- **If `.github/oblt-aw-config.json` does not exist:** All workflows are enabled (backward compatibility)
-- **If the config exists:** Only workflows listed in `enabled_workflows` run
+- **If no dashboard exists or no checkboxes are checked:** All workflows are enabled (backward compatibility)
+- **If the dashboard exists:** Only workflows with checked checkboxes run
 
 ---
 
@@ -92,4 +91,3 @@ If the sync workflow could not pin it automatically (e.g. you already have 3 pin
 - `docs/operations/control-plane-dashboard-format.md` — Dashboard issue format and checkbox syntax
 - `docs/operations/workflow-maturity.md` — Maturity level definitions
 - `docs/architecture/overview.md` — Control Plane Dashboard architecture
-- `docs/routing/dashboard-config-sync-routing.md` — Routing rules for config sync

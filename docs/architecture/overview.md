@@ -39,21 +39,21 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 ### Config Flow
 
 1. **Dashboard sync** (`sync-control-plane-dashboard`): Reads `workflow-registry.json` and `active-repositories.json`; creates or updates the dashboard issue in each target repository; pins the issue when possible
-2. **User edit:** Users check or uncheck workflow checkboxes in the dashboard issue
-3. **Config sync** (`dashboard-config-sync`): Triggered by `issues.edited` when the edited issue has label `oblt-aw/dashboard`; parses checkbox state and writes `.github/oblt-aw-config.json`
-4. **Ingress gating:** The ingress reads `oblt-aw-config.json` and runs only workflows listed in `enabled_workflows`
+2. **User edit:** Users check or uncheck workflow checkboxes in the dashboard issue (no config file; no PRs on checkbox edits)
+3. **Runtime check** (`check-dashboard`): When the client runs, a `check-dashboard` job runs **before** calling the ingress; fetches the dashboard issue via API, parses checkboxes (`- [x] <!-- oblt-aw:workflow-id -->`), outputs `enabled_workflows` as JSON array
+4. **Ingress gating:** The ingress receives `enabled_workflows` as input from the client; runs only workflows listed in it (or all if empty for backward compatibility)
 
 ### Opt-in / Opt-out
 
-- **Default:** If `.github/oblt-aw-config.json` does not exist, all workflows are enabled (backward compatibility)
-- **Opt-in:** Check the checkbox next to a workflow in the dashboard; config sync adds it to `enabled_workflows`
-- **Opt-out:** Uncheck the checkbox; config sync removes it from `enabled_workflows`
+- **Default:** If no dashboard exists or no checkboxes are checked, all workflows are enabled (backward compatibility)
+- **Opt-in:** Check the checkbox next to a workflow in the dashboard; `check-dashboard` includes it in `enabled_workflows` at runtime
+- **Opt-out:** Uncheck the checkbox; `check-dashboard` excludes it from `enabled_workflows` at runtime
 
 ### References
 
 - `docs/operations/control-plane-dashboard.md` — user instructions
 - `docs/operations/control-plane-dashboard-format.md` — dashboard issue format
-- `docs/plans/issue-3732-control-plane-dashboard.md` — implementation plan
+- [Issue #3732 comment (implementation plan)](https://github.com/elastic/observability-robots/issues/3732#issuecomment-4054356635) — canonical plan
 
 ---
 
@@ -65,21 +65,24 @@ Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
 - `schedule` or `workflow_dispatch` -> resource-not-accessible detector
 - `issues` + `opened` -> resource-not-accessible triage
 - `issues` + `labeled` + required labels -> resource-not-accessible fixer
-- `issues` + `edited` + label `oblt-aw/dashboard` -> dashboard-config-sync
 - unsupported event/action combinations -> `unsupported-trigger` fail-fast job
+
+*Note: Dashboard opt-in/opt-out is read at runtime by the client's `check-dashboard` job before calling the ingress; there is no `issues.edited` trigger.*
 
 ## Examples
 
 ```mermaid
 flowchart TD
-  A[Consumer Repository] --> B[oblt-aw-ingress]
-  B --> C[Dependency Review]
-  B --> D[Resource Not Accessible by Integration Detector]
-  B --> E[Resource Not Accessible by Integration Triage]
-  B --> F[Resource Not Accessible by Integration Fixer]
-  B --> G[Dashboard Config Sync]
-  B --> X[Unsupported Trigger]
+  A[Consumer Repository] --> B[check-dashboard]
+  B --> C[oblt-aw-ingress]
+  C --> D[Dependency Review]
+  C --> E[Resource Not Accessible by Integration Detector]
+  C --> F[Resource Not Accessible by Integration Triage]
+  C --> G[Resource Not Accessible by Integration Fixer]
+  C --> X[Unsupported Trigger]
 ```
+
+*The client runs `check-dashboard` first to read the dashboard issue and pass `enabled_workflows` to the ingress; each workflow job is gated by that input.*
 
 ## References
 
