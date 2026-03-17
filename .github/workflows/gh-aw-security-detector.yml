@@ -1,0 +1,56 @@
+---
+name: Security Detector
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  fetch-ai-github-actions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch elastic/ai-github-actions
+        id: fetch
+        run: |
+          git clone --depth 1 https://github.com/elastic/ai-github-actions.git /tmp/ai-github-actions
+          echo "Available workflows in ai-github-actions:"
+          ls -la /tmp/ai-github-actions/.github/workflows/ 2>/dev/null || echo "No workflows dir"
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+  scan:
+    needs: fetch-ai-github-actions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y shellcheck
+
+      - name: Run security scan
+        id: scan
+        run: |
+          chmod +x .github/scripts/security-scan.sh
+          .github/scripts/security-scan.sh . 2>/dev/null | tee findings.txt || true
+          count=$(wc -l < findings.txt 2>/dev/null || echo 0)
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Create issues from findings
+        if: steps.scan.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          chmod +x .github/scripts/create-security-issues.sh
+          .github/scripts/create-security-issues.sh findings.txt
