@@ -74,7 +74,7 @@ def build_dashboard_body(
     lines = [
         "## Control Plane Dashboard",
         "",
-        "Use this dashboard to enable or disable agentic workflows for this repository. "
+        "Use this dashboard to enable or disable agentic workflows for this repository. ",
         "Check a workflow to enable it; uncheck to disable.",
         "",
         "### Workflows",
