@@ -16,6 +16,7 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
     with:
       allowed-bot-users: "dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-vault-github-plugin-prod[bot]"
+      classification-labels: "oblt-aw/ai/merge-ready"
       additional-instructions: |
         Expand the analysis with a CVE-focused assessment based on changelog and release-note content for each updated dependency.
 
@@ -26,6 +27,15 @@ jobs:
         - Explicitly call out any potential regressions or newly introduced attack surface.
 
         Labeling rule extension:
-        - If the dependency analyzer result is fully successful (no risk detected, no breaking changes, and ecosystem checks pass), add label `oblt-aw/ai/merge-ready`.
-        - If those conditions are not all satisfied, do not add `oblt-aw/ai/merge-ready`.
+        - Apply `oblt-aw/ai/merge-ready` when ALL of the following are true:
+          - No CVE, GHSA, or security-fix entries in the changelog/release notes for the updated version.
+          - No breaking changes to APIs, inputs, or features used by this repository.
+          - Ecosystem checks pass (commit verified for Actions, pin format acceptable for Buildkite, etc.).
+          - Workflows using the dependency are testable in PR context (pull_request or pull_request_target trigger), OR the dependency is dev-only (e.g. pre-commit, linters) with no production impact.
+        - Treat "low risk" as sufficient when the above criteria are met. Minor behavioral changes (e.g. ignore-pattern handling, formatting) that do not affect this repo's usage do NOT disqualify the label.
+        - Do NOT add `oblt-aw/ai/merge-ready` only when: CVEs/security fixes exist, breaking changes affect this repo, ecosystem checks fail, or workflows are untestable and the dependency has production impact.
+
+        Label application (mandatory):
+        - When ALL criteria for `oblt-aw/ai/merge-ready` are met, you MUST call `add_labels` with that label. Do not only recommend it in the comment; apply it via the add_labels tool.
+        - The comment's "Labels Applied" section must reflect labels you actually applied via add_labels, not merely recommended. If you applied a label, say so; if you did not apply any, say "No labels applied."
     secrets: inherit

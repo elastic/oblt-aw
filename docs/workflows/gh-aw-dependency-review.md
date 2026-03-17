@@ -20,11 +20,13 @@ The job `run` calls:
 Configured inputs include:
 
 - `allowed-bot-users`: `dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-vault-github-plugin-prod[bot]`
+- `classification-labels`: `oblt-aw/ai/merge-ready`
 - `additional-instructions`: CVE-focused and internal-change impact analysis instructions.
 
-Labeling extension configured in instructions:
+Labeling semantics (in additional-instructions):
 
-- add `oblt-aw/ai/merge-ready` only when analysis is fully successful.
+- add `oblt-aw/ai/merge-ready` when: no CVE/GHSA/security fixes, no breaking changes affecting this repo, ecosystem checks pass, and workflows are testable or dependency is dev-only. "Low risk" is sufficient when criteria are met; minor behavioral changes that don't affect repo usage do not disqualify.
+- Label application: when all criteria are met, the agent MUST call `add_labels` with that label (not only recommend in the comment). The comment's "Labels Applied" section must reflect labels actually applied via `add_labels`; if none were applied, it must say "No labels applied."
 
 ## Configuration
 
