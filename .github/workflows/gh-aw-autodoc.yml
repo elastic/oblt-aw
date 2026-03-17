@@ -18,7 +18,7 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
     with:
       lookback-window: 1 day ago
-      title-prefix: "[autodoc]"
+      title-prefix: "[oblt-aw][autodoc]"
       additional-instructions: |
         Your task is to analyze ALL documentation in this repository, identify gaps and areas for improvement, and file an issue with concrete findings.
 
