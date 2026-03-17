@@ -8,8 +8,6 @@ on:
       - workflow-registry.json
       - active-repositories.json
       - .github/workflows/sync-control-plane-dashboard.yml
-  schedule:
-    - cron: "0 6 * * *"
   workflow_dispatch:
 
 permissions:
