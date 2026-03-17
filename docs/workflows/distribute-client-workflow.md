@@ -29,6 +29,18 @@ Core behavior:
 - opens or updates PRs using `peter-evans/create-pull-request`
 - emits consolidated summary via `scripts/summarize_pr_results.sh`
 
+### Input and output contracts
+
+- Target config input accepts either:
+  - a list of `owner/repo` strings
+  - an object with `repositories: [owner/repo, ...]`
+- The target builder step exposes:
+  - `targets` (JSON matrix entries with `repository` and `operation`)
+  - `has_targets` (`true`/`false`)
+  - `install_count`, `remove_count`, `total_count`
+- Removal operations are computed by comparing current config against the version at `BASE_REF`.
+- PR result artifacts are emitted as `repo|op|url` lines and consumed by the summarize step.
+
 ## Configuration
 
 Top-level permissions:

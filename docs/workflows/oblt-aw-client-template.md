@@ -17,6 +17,7 @@ Triggers:
 - `workflow_dispatch`
 - `issues` (`opened`, `labeled`)
 - `pull_request` (`opened`, `synchronize`, `reopened`)
+- `pull_request_review` (`submitted`)
 
 Delegation:
 
@@ -31,6 +32,7 @@ Top-level permissions:
 Job-level permissions:
 
 - `actions: read`
+- `checks: read`
 - `contents: write`
 - `discussions: write`
 - `issues: write`
