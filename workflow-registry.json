@@ -4,48 +4,34 @@
       "id": "agent-suggestions",
       "name": "Agent Suggestions",
       "description": "Suggests agentic workflows and improvements for the repository based on analysis of current setup.",
-      "maturity": "stable",
+      "maturity": "early-adoption",
       "default_enabled": true
     },
     {
       "id": "autodoc",
       "name": "Automated Documentation",
       "description": "Analyzes documentation for gaps, outdated content, and inconsistencies; creates issues and PRs to improve docs.",
-      "maturity": "stable",
+      "maturity": "early-adoption",
       "default_enabled": true
     },
     {
       "id": "automerge",
       "name": "Automerge",
       "description": "Enables auto-merge for approved dependency-update PRs that meet merge-ready criteria.",
-      "maturity": "stable",
+      "maturity": "early-adoption",
       "default_enabled": true
     },
     {
       "id": "dependency-review",
       "name": "Dependency Review",
       "description": "Analyzes dependency-update PRs from bots, applies merge-ready labels when criteria are met.",
-      "maturity": "stable",
-      "default_enabled": true
-    },
-    {
-      "id": "resource-not-accessible-by-integration-detector",
-      "name": "Resource Not Accessible Detector",
-      "description": "Detects 'Resource not accessible by integration' occurrences in workflow logs and creates triage issues.",
       "maturity": "early-adoption",
       "default_enabled": true
     },
     {
-      "id": "resource-not-accessible-by-integration-triage",
-      "name": "Resource Not Accessible Triage",
-      "description": "Triages newly opened issues for the Resource Not Accessible by Integration problem class.",
-      "maturity": "early-adoption",
-      "default_enabled": true
-    },
-    {
-      "id": "resource-not-accessible-by-integration-fixer",
-      "name": "Resource Not Accessible Fixer",
-      "description": "Executes fixes for issues labeled ready to fix in the Resource Not Accessible by Integration flow.",
+      "id": "resource-not-accessible-by-integration",
+      "name": "Resource Not Accessible by Integration",
+      "description": "Detects 'Resource not accessible by integration' occurrences in workflow logs, creates triage issues, triages newly opened issues, and executes fixes for issues labeled ready to fix.",
       "maturity": "early-adoption",
       "default_enabled": true
     }
