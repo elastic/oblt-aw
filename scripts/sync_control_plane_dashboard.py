@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """
-Sync Control Plane Dashboard issues across repositories in active-repositories.json.
+Sync Control Plane Dashboard issue for a single repository.
 
-For each repository:
 1. Search for open issue with label oblt-aw/dashboard
 2. Build body from workflow-registry.json (header, maturity badges, checkboxes)
 3. Create (POST) or update (PATCH) issue with title "[OBLT AW] Control Plane Dashboard"
 4. Pin issue via gh issue pin; if pin fails (e.g. 3 already pinned), log and continue
+
+Invoked per-repo by the sync-control-plane-dashboard workflow matrix.
 
 Related issue: https://github.com/elastic/observability-robots/issues/3732
 """
 
 from __future__ import annotations
 
+import argparse
+from typing import Any, cast
 import json
 import logging
 import os
@@ -39,29 +42,6 @@ def setup_logging() -> None:
     )
 
 
-def parse_repositories(content: str) -> list[str]:
-    """Parse active-repositories.json content into a list of owner/repo strings."""
-    data = json.loads(content) if content else {"repositories": []}
-    if isinstance(data, dict):
-        repositories = data.get("repositories", [])
-    elif isinstance(data, list):
-        repositories = data
-    else:
-        raise SystemExit(
-            "active-repositories.json must be a list or object with 'repositories'"
-        )
-    if not isinstance(repositories, list):
-        raise SystemExit("'repositories' must be a list")
-    normalized = []
-    for item in repositories:
-        if not isinstance(item, str) or "/" not in item:
-            raise SystemExit(
-                f"Invalid repository entry: {item!r}. Expected 'owner/repo'"
-            )
-        normalized.append(item.strip())
-    return sorted(set(normalized))
-
-
 def parse_checkbox_state(body: str | None) -> dict[str, bool]:
     """Extract workflow-id -> enabled from issue body using checkbox pattern."""
     state: dict[str, bool] = {}
@@ -86,7 +66,7 @@ def maturity_badge(maturity: str) -> str:
 
 
 def build_dashboard_body(
-    workflows: list[dict],
+    workflows: list[dict[str, Any]],
     existing_body: str | None,
 ) -> str:
     """Build dashboard issue body from workflow registry, preserving user checkbox state."""
@@ -132,8 +112,8 @@ def gh_api(
     path: str,
     token: str,
     *,
-    data: dict | None = None,
-) -> dict | list:
+    data: dict[str, Any] | None = None,
+) -> dict[str, Any] | list[Any]:
     """Call GitHub REST API via gh CLI."""
     cmd = ["gh", "api", "-X", method, path, "-H", "Accept: application/vnd.github+json"]
     env = {**os.environ, "GH_TOKEN": token}
@@ -147,7 +127,10 @@ def gh_api(
             if result.returncode != 0:
                 logger.error("gh api failed: %s", result.stderr)
                 raise RuntimeError(f"gh api failed: {result.stderr}")
-            return json.loads(result.stdout) if result.stdout.strip() else {}
+            result_data: dict[str, Any] = (
+                json.loads(result.stdout) if result.stdout.strip() else {}
+            )
+            return result_data
         finally:
             Path(f.name).unlink(missing_ok=True)
     else:
@@ -155,10 +138,13 @@ def gh_api(
         if result.returncode != 0:
             logger.error("gh api failed: %s", result.stderr)
             raise RuntimeError(f"gh api failed: {result.stderr}")
-        return json.loads(result.stdout) if result.stdout.strip() else []
+        raw: dict[str, Any] | list[Any] = (
+            json.loads(result.stdout) if result.stdout.strip() else []
+        )
+        return raw
 
 
-def find_dashboard_issue(owner: str, repo: str, token: str) -> dict | None:
+def find_dashboard_issue(owner: str, repo: str, token: str) -> dict[str, Any] | None:
     """Find open issue with label oblt-aw/dashboard. Returns first match or None."""
     labels_param = quote(DASHBOARD_LABEL, safe="")
     path = f"/repos/{owner}/{repo}/issues?labels={labels_param}&state=open&per_page=5"
@@ -167,28 +153,28 @@ def find_dashboard_issue(owner: str, repo: str, token: str) -> dict | None:
         return None
     for issue in issues:
         if issue.get("pull_request") is None and issue.get("title") == DASHBOARD_TITLE:
-            return issue
+            return dict(issue)
     return None
 
 
-def create_issue(owner: str, repo: str, token: str, body: str) -> dict:
+def create_issue(owner: str, repo: str, token: str, body: str) -> dict[str, Any]:
     """Create dashboard issue."""
     path = f"/repos/{owner}/{repo}/issues"
-    data = {
+    data: dict[str, Any] = {
         "title": DASHBOARD_TITLE,
         "body": body,
         "labels": [DASHBOARD_LABEL],
     }
-    return gh_api("POST", path, token, data=data)
+    return cast(dict[str, Any], gh_api("POST", path, token, data=data))
 
 
 def update_issue(
     owner: str, repo: str, issue_number: int, token: str, body: str
-) -> dict:
+) -> dict[str, Any]:
     """Update dashboard issue body."""
     path = f"/repos/{owner}/{repo}/issues/{issue_number}"
-    data = {"body": body}
-    return gh_api("PATCH", path, token, data=data)
+    data: dict[str, Any] = {"body": body}
+    return cast(dict[str, Any], gh_api("PATCH", path, token, data=data))
 
 
 def pin_issue(owner: str, repo: str, issue_number: int, token: str) -> bool:
@@ -214,7 +200,7 @@ def pin_issue(owner: str, repo: str, issue_number: int, token: str) -> bool:
 def sync_repo(
     repo: str,
     token: str,
-    workflows: list[dict],
+    workflows: list[dict[str, Any]],
 ) -> None:
     """Sync dashboard issue for one repository."""
     owner, _, repo_name = repo.partition("/")
@@ -236,10 +222,23 @@ def sync_repo(
 
 def main() -> int:
     """Entry point."""
+    parser = argparse.ArgumentParser(
+        description="Sync Control Plane Dashboard issue for a single repository"
+    )
+    parser.add_argument(
+        "--repo",
+        metavar="OWNER/REPO",
+        required=True,
+        help="Repository to sync (e.g. elastic/oblt-aw)",
+    )
+    args = parser.parse_args()
+
     setup_logging()
+    if "/" not in args.repo:
+        logger.error("Invalid repo format: %s. Expected owner/repo", args.repo)
+        return 1
     root = Path(__file__).resolve().parent.parent
     registry_path = root / "workflow-registry.json"
-    active_path = root / "active-repositories.json"
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     if not token:
         logger.error("GH_TOKEN or GITHUB_TOKEN must be set")
@@ -247,22 +246,16 @@ def main() -> int:
     if not registry_path.exists():
         logger.error("workflow-registry.json not found at %s", registry_path)
         return 1
-    if not active_path.exists():
-        logger.error("active-repositories.json not found at %s", active_path)
-        return 1
     registry = json.loads(registry_path.read_text())
     workflows = registry.get("workflows", [])
     if not workflows:
         logger.warning("No workflows in registry")
-    repos = parse_repositories(active_path.read_text())
-    if not repos:
-        logger.warning("No repositories in active-repositories.json")
-        return 0
-    for repo in repos:
-        try:
-            sync_repo(repo, token, workflows)
-        except Exception as e:
-            logger.exception("Failed to sync %s: %s", repo, e)
+
+    try:
+        sync_repo(args.repo, token, workflows)
+    except Exception as e:
+        logger.exception("Failed to sync %s: %s", args.repo, e)
+        return 1
     return 0
 
 

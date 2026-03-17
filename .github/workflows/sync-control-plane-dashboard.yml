@@ -18,9 +18,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sync-dashboards:
+  prepare-repos:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
+    outputs:
+      repos: ${{ steps.matrix.outputs.repos }}
+      has_repos: ${{ steps.matrix.outputs.has_repos }}
+      repos_count: ${{ steps.matrix.outputs.repos_count }}
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Build repos matrix
+        id: matrix
+        run: python scripts/build_repos_matrix.py
+
+      - name: Write repos summary
+        env:
+          REPOS_COUNT: ${{ steps.matrix.outputs.repos_count }}
+        run: |
+          echo "## Sync target summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Repositories to sync: ${REPOS_COUNT}" >> "$GITHUB_STEP_SUMMARY"
+
+  sync-dashboard:
+    needs: prepare-repos
+    if: ${{ needs.prepare-repos.outputs.has_repos == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+    matrix:
+      target: ${{ fromJSON(needs.prepare-repos.outputs.repos) }}
     permissions:
       id-token: write
       contents: read
@@ -39,7 +73,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Sync dashboard issues to active repositories
+      - name: Sync dashboard for ${{ matrix.target.repository }}
         env:
           GH_TOKEN: ${{ steps.create-token.outputs.token }}
-        run: python scripts/sync_control_plane_dashboard.py
+          TARGET_REPO: ${{ matrix.target.repository }}
+        run: python scripts/sync_control_plane_dashboard.py --repo "$TARGET_REPO"
