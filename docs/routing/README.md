@@ -8,6 +8,7 @@ This section contains the routing rules for event-to-workflow dispatch.
 
 - Dependency review routing: `docs/routing/dependency-review-routing.md`
 - Resource-not-accessible-by-integration routing: `docs/routing/resource-not-accessible-by-integration-routing.md`
+- Security routing: `docs/routing/security-routing.md`
 
 ## References
 
