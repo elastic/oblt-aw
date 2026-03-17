@@ -8,7 +8,7 @@ This document defines the structure and format of the OBLT AW Control Plane Dash
 
 ## Overview
 
-The Control Plane Dashboard is a single GitHub Issue per repository that lists all available agentic workflows. Users can enable or disable each workflow by checking or unchecking task list items. When the issue is edited, GitHub fires an `issues` event with `edited`, which triggers the dashboard config sync to parse the checkbox state and persist it to `.github/oblt-aw-config.json`.
+The Control Plane Dashboard is a single GitHub Issue per repository that lists all available agentic workflows. Users can enable or disable each workflow by checking or unchecking task list items. When the client workflow runs, a `check-dashboard` job fetches the dashboard issue (labeled `oblt-aw/dashboard`), parses the checkbox state, and outputs `enabled_workflows` as a JSON array. That output is passed to the ingress, which conditionally runs only workflows whose IDs appear in `enabled_workflows`. There is no config file (no `.github/oblt-aw-config.json`), no PRs when users toggle checkboxes, and no `issues.edited` trigger—the dashboard is read at runtime each time the client runs. If no dashboard exists or no checkboxes are checked, all workflows are enabled by default.
 
 ---
 
@@ -38,7 +38,7 @@ Use this dashboard to enable or disable agentic workflows for this repository. C
 
 - **Enable a workflow:** Check the checkbox next to the workflow.
 - **Disable a workflow:** Uncheck the checkbox.
-- Changes are applied when the config sync workflow runs (triggered by editing this issue).
+- Changes take effect on the next client run (dashboard is read at runtime).
 ```
 
 ---
@@ -111,10 +111,10 @@ To extract enabled workflows from the issue body:
 
 The dashboard MUST include clear instructions. Recommended text:
 
-- **Enable a workflow:** Check the checkbox next to the workflow. The config sync will add it to `enabled_workflows` in `.github/oblt-aw-config.json`.
-- **Disable a workflow:** Uncheck the checkbox. The config sync will remove it from `enabled_workflows`.
-- **When changes apply:** Editing the issue triggers the config sync workflow. A PR may be created to update `.github/oblt-aw-config.json`, or the config may be committed directly depending on implementation.
-- **Default behavior:** If `.github/oblt-aw-config.json` does not exist, all workflows are enabled (backward compatibility).
+- **Enable a workflow:** Check the checkbox next to the workflow. The next time the client runs, the `check-dashboard` job will include it in `enabled_workflows`.
+- **Disable a workflow:** Uncheck the checkbox. The next run will exclude it from `enabled_workflows`.
+- **When changes apply:** Changes take effect on the next client run. The dashboard is read at runtime; there is no config file and no PRs when you toggle checkboxes.
+- **Default behavior:** If no dashboard exists or no checkboxes are checked, all workflows are enabled.
 
 ---
 
