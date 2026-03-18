@@ -8,10 +8,11 @@ build_dashboard_body) in isolation, without touching the network or gh CLI.
 from __future__ import annotations
 
 import sys
+import pathlib
 
 
 # Make the scripts/ package importable without installation.
-sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent / "scripts"))
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
 
 import sync_control_plane_dashboard as scpd  # noqa: E402
 
