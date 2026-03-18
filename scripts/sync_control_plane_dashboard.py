@@ -28,7 +28,7 @@ from urllib.parse import quote
 
 DASHBOARD_LABEL = "oblt-aw/dashboard"
 DASHBOARD_TITLE = "[OBLT AW] Control Plane Dashboard"
-CHECKBOX_PATTERN = re.compile(r"^- \[([ x])\] <!-- oblt-aw:([a-z0-9-]+) -->")
+CHECKBOX_PATTERN = re.compile(r"- \[([ x])\] <!-- oblt-aw:([a-z0-9-]+) -->")
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def parse_checkbox_state(body: str | None) -> dict[str, bool]:
     if not body:
         return state
     for line in body.splitlines():
-        m = CHECKBOX_PATTERN.match(line.strip())
+        m = CHECKBOX_PATTERN.search(line)
         if m:
             checked, workflow_id = m.groups()
             state[workflow_id] = checked.strip().lower() == "x"
