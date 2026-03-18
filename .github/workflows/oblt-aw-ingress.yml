@@ -2,6 +2,12 @@ name: Observability Agentic Workflow Ingress
 
 on:
   workflow_call:
+    inputs:
+      enabled_workflows:
+        description: JSON array of enabled workflow IDs from dashboard issue
+        required: false
+        type: string
+        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
@@ -17,31 +23,36 @@ permissions:
 jobs:
   agent-suggestions:
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name)
+      contains(fromJSON('["schedule"]'), github.event_name) &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'agent-suggestions'))
     uses: ./.github/workflows/gh-aw-agent-suggestions.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   autodoc:
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name)
+      contains(fromJSON('["schedule"]'), github.event_name) &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'autodoc'))
     uses: ./.github/workflows/gh-aw-autodoc.yml
     secrets: inherit
 
   automerge:
     if: >-
       (
-        github.event_name == 'schedule'
-      ) || (
-        github.event_name == 'pull_request' &&
-        contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
-      ) || (
-        github.event_name == 'pull_request_review' &&
-        github.event.action == 'submitted' &&
-        github.event.review.state == 'approved' &&
-        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
-      )
+        (
+          github.event_name == 'schedule'
+        ) || (
+          github.event_name == 'pull_request' &&
+          contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
+          github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+        ) || (
+          github.event_name == 'pull_request_review' &&
+          github.event.action == 'submitted' &&
+          github.event.review.state == 'approved' &&
+          github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+        )
+      ) &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'automerge'))
     uses: ./.github/workflows/gh-aw-automerge.yml
 
   dependency-review:
@@ -51,14 +62,16 @@ jobs:
       contains(
         fromJSON('["dependabot[bot]","renovate[bot]","Dependabot","Renovate","elastic-vault-github-plugin-prod[bot]"]'),
         github.event.pull_request.user.login
-      )
+      ) &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'dependency-review'))
     uses: ./.github/workflows/gh-aw-dependency-review.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   resource-not-accessible-by-integration-detector:
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name)
+      contains(fromJSON('["schedule"]'), github.event_name) &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -68,14 +81,16 @@ jobs:
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/resource-not-accessible-by-integration')
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/resource-not-accessible-by-integration') &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
     secrets: inherit
 
   resource-not-accessible-by-integration-triage:
     if: >-
       github.event_name == 'issues' &&
-      github.event.action == 'opened'
+      github.event.action == 'opened' &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

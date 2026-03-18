@@ -4,7 +4,7 @@
 
 Source file: `.github/workflows/ci.yml`
 
-This workflow runs quality checks and tests on every pull request targeting `main`. It enforces linting, formatting, type-checking, and tests for both Python and TypeScript code.
+This workflow runs quality checks and tests on every pull request targeting `main`. It enforces pre-commit checks and Python tests, and runs TypeScript tests via `npm test`.
 
 ## Triggers
 
@@ -45,6 +45,7 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 - Dependencies: `npm ci` (from `package-lock.json`)
 - Command: `npm test` → `tsx --test tests/unit/*.test.ts`
 - npm cache enabled via `actions/setup-node`
+- Note: CI currently runs TypeScript tests only; dedicated TypeScript lint/format/type-check jobs are not part of this workflow.
 
 ## Scorecard
 
