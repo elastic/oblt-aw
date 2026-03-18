@@ -21,7 +21,11 @@ Configured inputs include:
 
 - `allowed-bot-users`: `dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-vault-github-plugin-prod[bot]`
 - `classification-labels`: `oblt-aw/ai/merge-ready`
-- `additional-instructions`: CVE-focused and internal-change impact analysis instructions.
+- `additional-instructions`: Noop-when-not-applicable rules, CVE-focused and internal-change impact analysis instructions.
+
+Noop semantics (in additional-instructions):
+
+- When the PR has no dependency updates to review (no version bumps, no lockfile changes indicating dependency updates, or changes outside supported ecosystems), the agent MUST call `noop` and must NOT add any comment to the PR.
 
 Labeling semantics (in additional-instructions):
 
