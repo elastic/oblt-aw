@@ -19,41 +19,7 @@ import pathlib
 import subprocess
 import sys
 
-
-def write_outputs(values: dict[str, str]) -> None:
-    github_output = os.getenv("GITHUB_OUTPUT")
-    if not github_output:
-        raise SystemExit("GITHUB_OUTPUT is not set")
-
-    with open(github_output, "a", encoding="utf-8") as output_file:
-        for key, value in values.items():
-            output_file.write(f"{key}={value}\n")
-
-
-def parse_repositories(content: str) -> list[str]:
-    data = json.loads(content) if content else {"repositories": []}
-
-    if isinstance(data, dict):
-        repositories = data.get("repositories", [])
-    elif isinstance(data, list):
-        repositories = data
-    else:
-        raise SystemExit(
-            "active-repositories.json must be a list or an object containing `repositories`"
-        )
-
-    if not isinstance(repositories, list):
-        raise SystemExit("`repositories` must be a list")
-
-    normalized = []
-    for item in repositories:
-        if not isinstance(item, str) or "/" not in item:
-            raise SystemExit(
-                f"Invalid repository entry: {item!r}. Expected 'owner/repo'"
-            )
-        normalized.append(item.strip())
-
-    return sorted(set(normalized))
+from common import parse_repositories, write_outputs
 
 
 def read_previous_repositories(base_ref: str) -> list[str]:
