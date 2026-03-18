@@ -115,7 +115,7 @@ The dashboard MUST include clear instructions. Recommended text:
 - **Enable a workflow:** Check the checkbox next to the workflow. The `check-dashboard` job will include it in `enabled_workflows` at runtime.
 - **Disable a workflow:** Uncheck the checkbox. The `check-dashboard` job will exclude it from `enabled_workflows` at runtime.
 - **When changes apply:** The dashboard is read at runtime when the client runs. No config file; no PRs on checkbox edits.
-- **Default behavior:** If no dashboard exists or no checkboxes are checked, all workflows are enabled (backward compatibility).
+- **Default behavior:** No dashboard → all workflows activated; dashboard exists with all unchecked → all workflows deactivated; dashboard exists with some checked → only checked workflows executed.
 
 ---
 

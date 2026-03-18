@@ -50,14 +50,17 @@ The `check-dashboard` job excludes the workflow from `enabled_workflows` at runt
 2. **Client runs** — On the next trigger (schedule, workflow_dispatch, pull_request, etc.), the client workflow starts
 3. **check-dashboard job runs first** — Fetches the dashboard issue via API, parses checkboxes (`- [x] <!-- oblt-aw:workflow-id -->`), outputs `enabled_workflows` as JSON array
 4. **Ingress receives input** — The `run-aw` job passes `enabled_workflows` to the ingress
-5. **Ingress gates execution** — Only workflows listed in `enabled_workflows` run (or all if empty for backward compatibility)
+5. **Ingress gates execution** — Only workflows listed in `enabled_workflows` run; see [Default Behavior](#default-behavior) for semantics when no dashboard exists vs. dashboard with checkboxes
 
 ---
 
 ## Default Behavior
 
-- **If no dashboard exists or no checkboxes are checked:** All workflows are enabled (backward compatibility)
-- **If the dashboard exists:** Only workflows with checked checkboxes run
+| Dashboard state | Result |
+|-----------------|--------|
+| **No dashboard exists** | All workflows are activated by default |
+| **Dashboard exists, all checkboxes unchecked** | All workflows are deactivated |
+| **Dashboard exists, some checkboxes checked** | Only checked workflows are executed |
 
 ---
 
