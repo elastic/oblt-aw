@@ -23,9 +23,7 @@ Supported triggers in this workflow file:
 Routing jobs:
 
 - `dependency-review`
-- `resource-not-accessible-by-integration-detector`
-- `resource-not-accessible-by-integration-triage`
-- `resource-not-accessible-by-integration-fixer`
+- `resource-not-accessible-by-integration-detector`, `resource-not-accessible-by-integration-triage`, `resource-not-accessible-by-integration-fixer` (unified `enabled_workflow`: `resource-not-accessible-by-integration`)
 - `unsupported-trigger`
 
 ## Configuration
