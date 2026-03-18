@@ -30,7 +30,37 @@ permissions:
   actions: read
 
 jobs:
+  check-dashboard:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+    outputs:
+      enabled_workflows: ${{ steps.parse.outputs.enabled_workflows }}
+    steps:
+      - name: Fetch dashboard issue and parse enabled workflows
+        id: parse
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BODY=$(gh api "repos/${{ github.repository }}/issues?labels=oblt-aw/dashboard&state=open" \
+            --jq 'if length > 0 then .[0].body else empty end' 2>/dev/null || echo "")
+          if [[ -z "$BODY" ]]; then
+            # Empty string: ingress treats '' as "run all workflows"
+            echo "enabled_workflows=" >> "$GITHUB_OUTPUT"
+            echo "No dashboard issue found, defaulting to all workflows enabled"
+            exit 0
+          fi
+          ENABLED=$(echo "$BODY" | grep -oP '(?<=- \[x\] <!-- oblt-aw:)[a-z0-9-]+' || true | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          if [[ -z "$ENABLED" || "$ENABLED" == "[]" ]]; then
+            echo "enabled_workflows=[]" >> "$GITHUB_OUTPUT"
+            echo "Dashboard exists but no checkboxes checked, no workflows will run"
+          else
+            echo "enabled_workflows=$ENABLED" >> "$GITHUB_OUTPUT"
+          fi
+
   run-aw:
+    needs: check-dashboard
     permissions:
       actions: read
       checks: read
@@ -39,5 +69,7 @@ jobs:
       issues: write
       pull-requests: write
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main # ratchet:exclude
+    with:
+      enabled_workflows: ${{ needs.check-dashboard.outputs.enabled_workflows }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
