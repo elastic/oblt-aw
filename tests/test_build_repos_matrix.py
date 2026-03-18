@@ -73,7 +73,7 @@ class TestParseRepositories:
 
     def test_repositories_not_a_list_raises(self) -> None:
         content = json.dumps({"repositories": "elastic/foo"})
-        with pytest.raises(SystemExit, match="'repositories' must be a list"):
+        with pytest.raises(SystemExit, match=r"`repositories` must be a list"):
             brm.parse_repositories(content)
 
 
