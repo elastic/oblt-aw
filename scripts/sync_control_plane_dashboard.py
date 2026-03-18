@@ -2,10 +2,13 @@
 """
 Sync Control Plane Dashboard issue for a single repository.
 
-1. Search for open issue with label oblt-aw/dashboard
+1. Search for open issue with label oblt-aw/dashboard (by label only, any title)
 2. Build body from workflow-registry.json (header, maturity badges, checkboxes)
 3. Create (POST) or update (PATCH) issue with title "[oblt-aw] Control Plane Dashboard"
 4. Pin issue via gh issue pin; if pin fails (e.g. 3 already pinned), log and continue
+
+On every run: title and table format are updated to current spec; user's enabled
+state (☑/☐) is preserved from the existing body.
 
 Invoked per-repo by the sync-control-plane-dashboard workflow matrix.
 
@@ -28,8 +31,9 @@ from urllib.parse import quote
 
 DASHBOARD_LABEL = "oblt-aw/dashboard"
 DASHBOARD_TITLE = "[oblt-aw] Control Plane Dashboard"
-LEGACY_DASHBOARD_TITLE = "[OBLT AW] Control Plane Dashboard"
-CHECKBOX_PATTERN = re.compile(r"(?:- )?\[([ x])\] <!-- oblt-aw:([a-z0-9-]+) -->")
+# Unicode ☐/☑ render correctly in table cells (task list syntax does not)
+CHECKBOX_ENABLED = re.compile(r"☑ <!-- oblt-aw:([a-z0-9-]+) -->")
+CHECKBOX_DISABLED = re.compile(r"☐ <!-- oblt-aw:([a-z0-9-]+) -->")
 
 logger = logging.getLogger(__name__)
 
@@ -44,15 +48,18 @@ def setup_logging() -> None:
 
 
 def parse_checkbox_state(body: str | None) -> dict[str, bool]:
-    """Extract workflow-id -> enabled from issue body using checkbox pattern."""
+    """Extract workflow-id -> enabled from issue body using ☑/☐ (Unicode ballot box)."""
     state: dict[str, bool] = {}
     if not body:
         return state
     for line in body.splitlines():
-        m = CHECKBOX_PATTERN.search(line)
+        m = CHECKBOX_ENABLED.search(line)
         if m:
-            checked, workflow_id = m.groups()
-            state[workflow_id] = checked.strip().lower() == "x"
+            state[m.group(1)] = True
+            continue
+        m = CHECKBOX_DISABLED.search(line)
+        if m:
+            state[m.group(1)] = False
     return state
 
 
@@ -70,7 +77,11 @@ def build_dashboard_body(
     workflows: list[dict[str, Any]],
     existing_body: str | None,
 ) -> str:
-    """Build dashboard issue body from workflow registry, preserving user checkbox state."""
+    """Build dashboard issue body from workflow registry.
+
+    Preserves user's enabled/disabled state (☑/☐) from existing_body; uses
+    default_enabled from registry for workflows not yet present in the body.
+    """
     parsed = parse_checkbox_state(existing_body)
     lines = [
         "## Control Plane Dashboard",
@@ -90,7 +101,7 @@ def build_dashboard_body(
         desc = wf.get("description", "")
         default = wf.get("default_enabled", True)
         enabled = parsed.get(wf_id, default)
-        checkbox = "[x]" if enabled else "[ ]"
+        checkbox = "☑" if enabled else "☐"
         badge = maturity_badge(maturity)
         lines.append(
             f"| {name} | {badge} | {checkbox} <!-- oblt-aw:{wf_id} --> | {desc} |"
@@ -100,8 +111,8 @@ def build_dashboard_body(
             "",
             "### Instructions",
             "",
-            "- **Enable a workflow:** Check the checkbox next to the workflow.",
-            "- **Disable a workflow:** Uncheck the checkbox.",
+            "- **Enable a workflow:** Change ☐ to ☑ in the Enabled column.",
+            "- **Disable a workflow:** Change ☑ to ☐ in the Enabled column.",
             "- Changes are applied when the config sync workflow runs (triggered by editing this issue).",
         ]
     )
@@ -146,17 +157,18 @@ def gh_api(
 
 
 def find_dashboard_issue(owner: str, repo: str, token: str) -> dict[str, Any] | None:
-    """Find open issue with label oblt-aw/dashboard. Returns first match or None."""
+    """Find open issue with label oblt-aw/dashboard. Returns first match or None.
+
+    Matches by label only (not title) so existing dashboards are always found and
+    updated with current title and table format, preserving user's enabled state.
+    """
     labels_param = quote(DASHBOARD_LABEL, safe="")
     path = f"/repos/{owner}/{repo}/issues?labels={labels_param}&state=open&per_page=5"
     issues = gh_api("GET", path, token)
     if not isinstance(issues, list):
         return None
     for issue in issues:
-        if issue.get("pull_request") is None and issue.get("title") in (
-            DASHBOARD_TITLE,
-            LEGACY_DASHBOARD_TITLE,
-        ):
+        if issue.get("pull_request") is None:
             return dict(issue)
     return None
 
@@ -175,7 +187,7 @@ def create_issue(owner: str, repo: str, token: str, body: str) -> dict[str, Any]
 def update_issue(
     owner: str, repo: str, issue_number: int, token: str, body: str
 ) -> dict[str, Any]:
-    """Update dashboard issue body and title (migrates legacy title if needed)."""
+    """Update dashboard issue body and title."""
     path = f"/repos/{owner}/{repo}/issues/{issue_number}"
     data: dict[str, Any] = {"body": body, "title": DASHBOARD_TITLE}
     return cast(dict[str, Any], gh_api("PATCH", path, token, data=data))

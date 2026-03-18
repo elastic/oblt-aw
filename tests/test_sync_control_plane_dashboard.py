@@ -25,9 +25,9 @@ class TestParseCheckboxState:
 
     def test_returns_all_checked_workflows_when_all_enabled(self) -> None:
         body = """
-[x] <!-- oblt-aw:dependency-review -->
-[x] <!-- oblt-aw:agent-suggestions -->
-[x] <!-- oblt-aw:autodoc -->
+☑ <!-- oblt-aw:dependency-review -->
+☑ <!-- oblt-aw:agent-suggestions -->
+☑ <!-- oblt-aw:autodoc -->
 """
         result = scpd.parse_checkbox_state(body)
         assert result == {
@@ -38,8 +38,8 @@ class TestParseCheckboxState:
 
     def test_returns_all_unchecked_when_none_enabled(self) -> None:
         body = """
-[ ] <!-- oblt-aw:dependency-review -->
-[ ] <!-- oblt-aw:agent-suggestions -->
+☐ <!-- oblt-aw:dependency-review -->
+☐ <!-- oblt-aw:agent-suggestions -->
 """
         result = scpd.parse_checkbox_state(body)
         assert result == {
@@ -49,9 +49,9 @@ class TestParseCheckboxState:
 
     def test_returns_only_checked_workflows_for_mixed_state(self) -> None:
         body = """
-[x] <!-- oblt-aw:dependency-review -->
-[ ] <!-- oblt-aw:agent-suggestions -->
-[x] <!-- oblt-aw:autodoc -->
+☑ <!-- oblt-aw:dependency-review -->
+☐ <!-- oblt-aw:agent-suggestions -->
+☑ <!-- oblt-aw:autodoc -->
 """
         result = scpd.parse_checkbox_state(body)
         assert result == {
@@ -66,23 +66,21 @@ class TestParseCheckboxState:
 
     def test_ignores_malformed_lines_without_oblt_aw_comment(self) -> None:
         body = """
-[x] some other text
-[ ] <!-- oblt-aw:valid-id -->
+☑ some other text
+☐ <!-- oblt-aw:valid-id -->
 """
         result = scpd.parse_checkbox_state(body)
         assert result == {"valid-id": False}
 
     def test_handles_long_workflow_ids(self) -> None:
-        body = "[x] <!-- oblt-aw:resource-not-accessible-by-integration-detector -->"
+        body = "☑ <!-- oblt-aw:resource-not-accessible-by-integration-detector -->"
         result = scpd.parse_checkbox_state(body)
         assert result == {"resource-not-accessible-by-integration-detector": True}
 
-    def test_parses_legacy_format_with_dash_for_backward_compatibility(self) -> None:
-        body = (
-            "- [x] <!-- oblt-aw:legacy-wf -->\n- [ ] <!-- oblt-aw:legacy-unchecked -->"
-        )
+    def test_parses_unicode_checkbox_format(self) -> None:
+        body = "☑ <!-- oblt-aw:enabled-wf -->\n☐ <!-- oblt-aw:disabled-wf -->"
         result = scpd.parse_checkbox_state(body)
-        assert result == {"legacy-wf": True, "legacy-unchecked": False}
+        assert result == {"enabled-wf": True, "disabled-wf": False}
 
 
 # ── maturity_badge ────────────────────────────────────────────────────────────
@@ -119,7 +117,7 @@ class TestBuildDashboardBody:
         body = scpd.build_dashboard_body(workflows, None)
         assert "## Control Plane Dashboard" in body
         assert "oblt-aw:agent-suggestions" in body
-        assert "[x]" in body
+        assert "☑" in body
         assert "🟢 stable" in body
 
     def test_preserves_user_checkbox_state_from_existing_body(self) -> None:
@@ -127,7 +125,7 @@ class TestBuildDashboardBody:
             {"id": "wf-a", "name": "A", "description": "Desc", "default_enabled": True},
             {"id": "wf-b", "name": "B", "description": "Desc", "default_enabled": True},
         ]
-        existing = "[ ] <!-- oblt-aw:wf-a -->\n[x] <!-- oblt-aw:wf-b -->"
+        existing = "☐ <!-- oblt-aw:wf-a -->\n☑ <!-- oblt-aw:wf-b -->"
         body = scpd.build_dashboard_body(workflows, existing)
         assert "<!-- oblt-aw:wf-a -->" in body
         assert "<!-- oblt-aw:wf-b -->" in body
@@ -135,8 +133,8 @@ class TestBuildDashboardBody:
         lines = body.split("\n")
         wf_a_line = next(line for line in lines if "oblt-aw:wf-a" in line)
         wf_b_line = next(line for line in lines if "oblt-aw:wf-b" in line)
-        assert "[ ]" in wf_a_line
-        assert "[x]" in wf_b_line
+        assert "☐" in wf_a_line
+        assert "☑" in wf_b_line
 
     def test_uses_default_enabled_when_workflow_not_in_existing_body(self) -> None:
         workflows = [
@@ -150,7 +148,7 @@ class TestBuildDashboardBody:
         body = scpd.build_dashboard_body(workflows, None)
         lines = body.split("\n")
         wf_line = next(line for line in lines if "oblt-aw:new-wf" in line)
-        assert "[ ]" in wf_line
+        assert "☐" in wf_line
 
     def test_includes_instructions_section(self) -> None:
         workflows = [
