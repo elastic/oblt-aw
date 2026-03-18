@@ -17,22 +17,30 @@ The Control Plane Dashboard is a single GitHub Issue per repository that lists a
 The dashboard issue body MUST follow this structure:
 
 1. **Intro** — Short description of the dashboard and how to use it
-2. **Workflow table** — Summary table with columns: Workflow | Maturity | Enabled | Description
-3. **Instructions for users** — How to enable/disable workflows and what happens when they do
+2. **Workflow table** — Summary table with columns: Workflow | Maturity | Description
+3. **Enable/Disable list** — Task list with interactive checkboxes (`- [ ]` / `- [x]`)
+4. **Instructions for users** — How to enable/disable workflows and what happens when they do
 
 ### Example Structure
 
 ```markdown
 ## Control Plane Dashboard
 
-Use this dashboard to enable or disable agentic workflows for this repository. Check a workflow to enable it; uncheck to disable.
+Use this dashboard to enable or disable agentic workflows for this repository. Click the checkboxes below to toggle workflows on or off.
 
 ### Workflows
 
-| Workflow | Maturity | Enabled | Description |
-|----------|----------|---------|-------------|
-| dependency-review | stable | ☑ <!-- oblt-aw:dependency-review --> | Reviews dependency changes in PRs |
-| agent-suggestions | early-adoption | ☐ <!-- oblt-aw:agent-suggestions --> | Suggests agent actions |
+| Workflow | Maturity | Description |
+|----------|----------|-------------|
+| dependency-review | 🟢 stable | Reviews dependency changes in PRs |
+| agent-suggestions | 🟡 early-adoption | Suggests agent actions |
+
+### Enable / Disable
+
+Click a checkbox to enable or disable a workflow:
+
+- [x] <!-- oblt-aw:dependency-review --> dependency-review
+- [ ] <!-- oblt-aw:agent-suggestions --> agent-suggestions
 
 ### Instructions
 
@@ -47,51 +55,52 @@ Use this dashboard to enable or disable agentic workflows for this repository. C
 
 ### Parseable Pattern
 
-Task list syntax (`- [ ]` / `- [x]`) does not render as checkboxes inside Markdown table cells (GitHub limitation). Use Unicode ballot box symbols instead:
+Use GitHub task list syntax in a **list** (not in a table). Task lists in list context render as **interactive checkboxes** that users can click to toggle:
 
 ```
-☐ <!-- oblt-aw:workflow-id -->
+- [ ] <!-- oblt-aw:workflow-id --> workflow-name
 ```
 
 or, when enabled:
 
 ```
-☑ <!-- oblt-aw:workflow-id -->
+- [x] <!-- oblt-aw:workflow-id --> workflow-name
 ```
 
 Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e.g., `dependency-review`, `agent-suggestions`).
+
+**Important:** Task list syntax does NOT render as checkboxes inside table cells (GitHub limitation). The checkboxes MUST be in a list section.
 
 ### Rules
 
 | Rule | Requirement |
 |------|-------------|
-| **Checkbox syntax** | `☐` (U+2610, unchecked) or `☑` (U+2611, checked) — renders correctly in table cells |
+| **Checkbox syntax** | `- [ ]` (unchecked) or `- [x]` (checked) — task list in list context |
 | **HTML comment** | MUST appear on the **same line** as the checkbox, immediately after it |
 | **Comment format** | `<!-- oblt-aw:workflow-id -->` — no spaces around the colon |
 | **workflow-id** | Lowercase, hyphen-separated; must match an entry in `workflow-registry.json` |
 
 ### Why This Format
 
-- **Reliable parsing:** The HTML comment is invisible in the rendered issue but preserved when users check/uncheck. Parsers can use the regex `<!-- oblt-aw:([a-z0-9-]+) -->` to extract workflow IDs and associate them with the preceding checkbox state on the same line.
-- **User edits:** When users toggle checkboxes, they change ☐ to ☑ or vice versa. The comment stays intact, so the workflow ID remains associated with the correct checkbox.
+- **Interactive:** Task lists in list context render as clickable checkboxes in GitHub Issues.
+- **Reliable parsing:** The HTML comment is invisible in the rendered issue but preserved when users check/uncheck. Parsers extract workflow IDs from the preceding checkbox state on the same line.
+- **User edits:** When users click a checkbox, GitHub updates `[ ]` to `[x]` or vice versa. The comment stays intact.
 
 ### Parsing Algorithm
 
 To extract enabled workflows from the issue body:
 
 1. Split the body into lines.
-2. For each line containing `☑ <!-- oblt-aw:([a-z0-9-]+) -->` (enabled) or `☐ <!-- oblt-aw:([a-z0-9-]+) -->` (disabled):
-   - Capture group 1: checkbox state (` ` = unchecked, `x` = checked)
-   - Capture group 2: workflow ID
-3. If state is `x`, add the workflow ID to `enabled_workflows`.
-4. Output `{"enabled_workflows": ["id1", "id2", ...]}`.
+2. For each line containing `- [x] <!-- oblt-aw:([a-z0-9-]+) -->` (enabled):
+   - Capture the workflow ID and add it to `enabled_workflows`.
+3. Output `{"enabled_workflows": ["id1", "id2", ...]}`.
 
 ### Example Lines
 
 | Line | Parsed as |
 |------|-----------|
-| `☑ <!-- oblt-aw:dependency-review -->` | `dependency-review` enabled |
-| `☐ <!-- oblt-aw:agent-suggestions -->` | `agent-suggestions` disabled |
+| `- [x] <!-- oblt-aw:dependency-review --> dependency-review` | `dependency-review` enabled |
+| `- [ ] <!-- oblt-aw:agent-suggestions --> agent-suggestions` | `agent-suggestions` disabled |
 
 ---
 
@@ -101,8 +110,9 @@ To extract enabled workflows from the issue body:
 |--------|-------------|
 | **Workflow** | Human-readable name or ID of the workflow |
 | **Maturity** | `stable`, `early-adoption`, or `experimental` (from `workflow-registry.json`) |
-| **Enabled** | Checkbox with `<!-- oblt-aw:workflow-id -->` on the same line |
 | **Description** | Short description from `workflow-registry.json` |
+
+The **Enable/Disable** section below the table contains a list with task list checkboxes (`- [ ]` / `- [x]`) and `<!-- oblt-aw:workflow-id -->` on each line.
 
 ---
 

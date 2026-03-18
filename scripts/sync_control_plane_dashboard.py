@@ -8,7 +8,8 @@ Sync Control Plane Dashboard issue for a single repository.
 4. Pin issue via gh issue pin; if pin fails (e.g. 3 already pinned), log and continue
 
 On every run: title and table format are updated to current spec; user's enabled
-state (☑/☐) is preserved from the existing body.
+state is preserved. Checkboxes use task list syntax (- [ ] / - [x]) in a list
+section so they render as interactive (clickable) in GitHub.
 
 Invoked per-repo by the sync-control-plane-dashboard workflow matrix.
 
@@ -31,9 +32,10 @@ from urllib.parse import quote
 
 DASHBOARD_LABEL = "oblt-aw/dashboard"
 DASHBOARD_TITLE = "[oblt-aw] Control Plane Dashboard"
-# Unicode ☐/☑ render correctly in table cells (task list syntax does not)
-CHECKBOX_ENABLED = re.compile(r"☑ <!-- oblt-aw:([a-z0-9-]+) -->")
-CHECKBOX_DISABLED = re.compile(r"☐ <!-- oblt-aw:([a-z0-9-]+) -->")
+# Task list - [x] / - [ ] in list context = interactive checkboxes
+# Also parse ☑/☐ (Unicode) for migration from existing dashboards
+CHECKBOX_ENABLED = re.compile(r"(?:- \[x\]|☑) <!-- oblt-aw:([a-z0-9-]+) -->")
+CHECKBOX_DISABLED = re.compile(r"(?:- \[ \]|☐) <!-- oblt-aw:([a-z0-9-]+) -->")
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,10 @@ def setup_logging() -> None:
 
 
 def parse_checkbox_state(body: str | None) -> dict[str, bool]:
-    """Extract workflow-id -> enabled from issue body using ☑/☐ (Unicode ballot box)."""
+    """Extract workflow-id -> enabled from issue body.
+
+    Supports task list (- [x] / - [ ]) and Unicode (☑/☐) for migration.
+    """
     state: dict[str, bool] = {}
     if not body:
         return state
@@ -87,33 +92,44 @@ def build_dashboard_body(
         "## Control Plane Dashboard",
         "",
         "Use this dashboard to enable or disable agentic workflows for this repository. ",
-        "Check a workflow to enable it; uncheck to disable.",
+        "Click the checkboxes below to toggle workflows on or off.",
         "",
         "### Workflows",
         "",
-        "| Workflow | Maturity | Enabled | Description |",
-        "|----------|----------|--------|-------------|",
+        "| Workflow | Maturity | Description |",
+        "|----------|----------|-------------|",
     ]
     for wf in workflows:
         wf_id = wf["id"]
         name = wf.get("name", wf_id)
         maturity = wf.get("maturity", "experimental")
         desc = wf.get("description", "")
+        badge = maturity_badge(maturity)
+        lines.append(f"| {name} | {badge} | {desc} |")
+    lines.extend(
+        [
+            "",
+            "### Enable / Disable",
+            "",
+            "Click a checkbox to enable or disable a workflow:",
+            "",
+        ]
+    )
+    for wf in workflows:
+        wf_id = wf["id"]
+        name = wf.get("name", wf_id)
         default = wf.get("default_enabled", True)
         enabled = parsed.get(wf_id, default)
-        checkbox = "☑" if enabled else "☐"
-        badge = maturity_badge(maturity)
-        lines.append(
-            f"| {name} | {badge} | {checkbox} <!-- oblt-aw:{wf_id} --> | {desc} |"
-        )
+        checkbox = "- [x]" if enabled else "- [ ]"
+        lines.append(f"{checkbox} <!-- oblt-aw:{wf_id} --> {name}")
     lines.extend(
         [
             "",
             "### Instructions",
             "",
-            "- **Enable a workflow:** Change ☐ to ☑ in the Enabled column.",
-            "- **Disable a workflow:** Change ☑ to ☐ in the Enabled column.",
-            "- Changes are applied when the config sync workflow runs (triggered by editing this issue).",
+            "- **Enable a workflow:** Check the checkbox next to the workflow.",
+            "- **Disable a workflow:** Uncheck the checkbox.",
+            "- Changes are applied at runtime when the client runs.",
         ]
     )
     return "\n".join(lines)
