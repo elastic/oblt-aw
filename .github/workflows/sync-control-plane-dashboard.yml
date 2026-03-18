@@ -66,7 +66,7 @@ jobs:
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
         with:
-          token-policy: token-policy-63405ab45244
+          token-policy: token-policy-8b60ba56dd3f
 
       - name: Setup Python
         uses: actions/setup-python@v6
