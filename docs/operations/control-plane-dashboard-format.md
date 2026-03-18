@@ -76,6 +76,7 @@ Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e
 | Rule | Requirement |
 |------|-------------|
 | **Checkbox syntax** | `- [ ]` (unchecked) or `- [x]` (checked) — task list in list context |
+| **Line position** | MUST be at the **start of a line** (parsers use `^` anchor to avoid false positives in prose/code blocks) |
 | **HTML comment** | MUST appear on the **same line** as the checkbox, immediately after it |
 | **Comment format** | `<!-- oblt-aw:workflow-id -->` — no spaces around the colon |
 | **workflow-id** | Lowercase, hyphen-separated; must match an entry in `workflow-registry.json` |
@@ -91,7 +92,7 @@ Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e
 To extract enabled workflows from the issue body:
 
 1. Split the body into lines.
-2. For each line containing `- [x] <!-- oblt-aw:([a-z0-9-]+) -->` (enabled):
+2. For each line matching `^- [x] <!-- oblt-aw:([a-z0-9-]+) -->` (enabled; `^` anchors to line start):
    - Capture the workflow ID and add it to `enabled_workflows`.
 3. Output `{"enabled_workflows": ["id1", "id2", ...]}`.
 
