@@ -34,6 +34,7 @@ Use this dashboard to enable or disable agentic workflows for this repository. C
 |----------|----------|-------------|
 | dependency-review | 🟢 stable | Reviews dependency changes in PRs |
 | agent-suggestions | 🟡 early-adoption | Suggests agent actions |
+| some-workflow | 🟠 experimental | In development; behavior may change |
 
 ### Enable / Disable
 
@@ -41,6 +42,7 @@ Click a checkbox to enable or disable a workflow:
 
 - [x] <!-- oblt-aw:dependency-review --> dependency-review
 - [ ] <!-- oblt-aw:agent-suggestions --> agent-suggestions
+- [ ] <!-- oblt-aw:some-workflow --> some-workflow
 
 ### Instructions
 
