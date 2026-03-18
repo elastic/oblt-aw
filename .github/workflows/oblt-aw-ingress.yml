@@ -70,7 +70,7 @@ jobs:
   resource-not-accessible-by-integration-detector:
     if: >-
       contains(fromJSON('["schedule"]'), github.event_name) &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration-detector'))
+      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -81,7 +81,7 @@ jobs:
       github.event.action == 'labeled' &&
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/resource-not-accessible-by-integration') &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration-fixer'))
+      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
     secrets: inherit
 
@@ -89,7 +89,7 @@ jobs:
     if: >-
       github.event_name == 'issues' &&
       github.event.action == 'opened' &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration-triage'))
+      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
