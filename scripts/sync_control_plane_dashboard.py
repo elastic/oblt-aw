@@ -4,7 +4,7 @@ Sync Control Plane Dashboard issue for a single repository.
 
 1. Search for open issue with label oblt-aw/dashboard
 2. Build body from workflow-registry.json (header, maturity badges, checkboxes)
-3. Create (POST) or update (PATCH) issue with title "[OBLT AW] Control Plane Dashboard"
+3. Create (POST) or update (PATCH) issue with title "[oblt-aw] Control Plane Dashboard"
 4. Pin issue via gh issue pin; if pin fails (e.g. 3 already pinned), log and continue
 
 Invoked per-repo by the sync-control-plane-dashboard workflow matrix.
@@ -27,8 +27,9 @@ from pathlib import Path
 from urllib.parse import quote
 
 DASHBOARD_LABEL = "oblt-aw/dashboard"
-DASHBOARD_TITLE = "[OBLT AW] Control Plane Dashboard"
-CHECKBOX_PATTERN = re.compile(r"- \[([ x])\] <!-- oblt-aw:([a-z0-9-]+) -->")
+DASHBOARD_TITLE = "[oblt-aw] Control Plane Dashboard"
+LEGACY_DASHBOARD_TITLE = "[OBLT AW] Control Plane Dashboard"
+CHECKBOX_PATTERN = re.compile(r"(?:- )?\[([ x])\] <!-- oblt-aw:([a-z0-9-]+) -->")
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ def build_dashboard_body(
         "",
         "### Workflows",
         "",
-        "| Workflow | Maturity | Opt-in | Description |",
+        "| Workflow | Maturity | Enabled | Description |",
         "|----------|----------|--------|-------------|",
     ]
     for wf in workflows:
@@ -89,7 +90,7 @@ def build_dashboard_body(
         desc = wf.get("description", "")
         default = wf.get("default_enabled", True)
         enabled = parsed.get(wf_id, default)
-        checkbox = "- [x]" if enabled else "- [ ]"
+        checkbox = "[x]" if enabled else "[ ]"
         badge = maturity_badge(maturity)
         lines.append(
             f"| {name} | {badge} | {checkbox} <!-- oblt-aw:{wf_id} --> | {desc} |"
@@ -152,7 +153,10 @@ def find_dashboard_issue(owner: str, repo: str, token: str) -> dict[str, Any] | 
     if not isinstance(issues, list):
         return None
     for issue in issues:
-        if issue.get("pull_request") is None and issue.get("title") == DASHBOARD_TITLE:
+        if issue.get("pull_request") is None and issue.get("title") in (
+            DASHBOARD_TITLE,
+            LEGACY_DASHBOARD_TITLE,
+        ):
             return dict(issue)
     return None
 
@@ -171,9 +175,9 @@ def create_issue(owner: str, repo: str, token: str, body: str) -> dict[str, Any]
 def update_issue(
     owner: str, repo: str, issue_number: int, token: str, body: str
 ) -> dict[str, Any]:
-    """Update dashboard issue body."""
+    """Update dashboard issue body and title (migrates legacy title if needed)."""
     path = f"/repos/{owner}/{repo}/issues/{issue_number}"
-    data: dict[str, Any] = {"body": body}
+    data: dict[str, Any] = {"body": body, "title": DASHBOARD_TITLE}
     return cast(dict[str, Any], gh_api("PATCH", path, token, data=data))
 
 

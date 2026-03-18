@@ -17,7 +17,7 @@ The Control Plane Dashboard is a single GitHub Issue per repository that lists a
 The dashboard issue body MUST follow this structure:
 
 1. **Intro** — Short description of the dashboard and how to use it
-2. **Workflow table** — Summary table with columns: Workflow | Maturity | Opt-in | Description
+2. **Workflow table** — Summary table with columns: Workflow | Maturity | Enabled | Description
 3. **Instructions for users** — How to enable/disable workflows and what happens when they do
 
 ### Example Structure
@@ -29,10 +29,10 @@ Use this dashboard to enable or disable agentic workflows for this repository. C
 
 ### Workflows
 
-| Workflow | Maturity | Opt-in | Description |
-|----------|----------|--------|-------------|
-| dependency-review | stable | - [x] <!-- oblt-aw:dependency-review --> | Reviews dependency changes in PRs |
-| agent-suggestions | early-adoption | - [ ] <!-- oblt-aw:agent-suggestions --> | Suggests agent actions |
+| Workflow | Maturity | Enabled | Description |
+|----------|----------|---------|-------------|
+| dependency-review | stable | [x] <!-- oblt-aw:dependency-review --> | Reviews dependency changes in PRs |
+| agent-suggestions | early-adoption | [ ] <!-- oblt-aw:agent-suggestions --> | Suggests agent actions |
 
 ### Instructions
 
@@ -47,16 +47,16 @@ Use this dashboard to enable or disable agentic workflows for this repository. C
 
 ### Parseable Pattern
 
-Each opt-in checkbox MUST use this format on a single line:
+Each enabled checkbox MUST use this format on a single line:
 
 ```
-- [ ] <!-- oblt-aw:workflow-id -->
+[ ] <!-- oblt-aw:workflow-id -->
 ```
 
 or, when enabled:
 
 ```
-- [x] <!-- oblt-aw:workflow-id -->
+[x] <!-- oblt-aw:workflow-id -->
 ```
 
 Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e.g., `dependency-review`, `agent-suggestions`).
@@ -65,7 +65,7 @@ Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e
 
 | Rule | Requirement |
 |------|-------------|
-| **Checkbox syntax** | GitHub task list: `- [ ]` (unchecked) or `- [x]` (checked) |
+| **Checkbox syntax** | `[ ]` (unchecked) or `[x]` (checked) — no list marker prefix |
 | **HTML comment** | MUST appear on the **same line** as the checkbox, immediately after it |
 | **Comment format** | `<!-- oblt-aw:workflow-id -->` — no spaces around the colon |
 | **workflow-id** | Lowercase, hyphen-separated; must match an entry in `workflow-registry.json` |
@@ -80,7 +80,7 @@ Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e
 To extract enabled workflows from the issue body:
 
 1. Split the body into lines.
-2. For each line containing `- \[([ x])\] <!-- oblt-aw:([a-z0-9-]+) -->` (e.g. inside a table cell):
+2. For each line containing `(?:- )?\[([ x])\] <!-- oblt-aw:([a-z0-9-]+) -->` (e.g. inside a table cell; optional `- ` for backward compatibility):
    - Capture group 1: checkbox state (` ` = unchecked, `x` = checked)
    - Capture group 2: workflow ID
 3. If state is `x`, add the workflow ID to `enabled_workflows`.
@@ -90,9 +90,9 @@ To extract enabled workflows from the issue body:
 
 | Line | Parsed as |
 |------|-----------|
-| `- [x] <!-- oblt-aw:dependency-review -->` | `dependency-review` enabled |
-| `- [ ] <!-- oblt-aw:agent-suggestions -->` | `agent-suggestions` disabled |
-| `- [x] <!-- oblt-aw:resource-not-accessible-by-integration-detector -->` | `resource-not-accessible-by-integration-detector` enabled |
+| `[x] <!-- oblt-aw:dependency-review -->` | `dependency-review` enabled |
+| `[ ] <!-- oblt-aw:agent-suggestions -->` | `agent-suggestions` disabled |
+| `[x] <!-- oblt-aw:resource-not-accessible-by-integration-detector -->` | `resource-not-accessible-by-integration-detector` enabled |
 
 ---
 
@@ -102,7 +102,7 @@ To extract enabled workflows from the issue body:
 |--------|-------------|
 | **Workflow** | Human-readable name or ID of the workflow |
 | **Maturity** | `stable`, `early-adoption`, or `experimental` (from `workflow-registry.json`) |
-| **Opt-in** | Checkbox with `<!-- oblt-aw:workflow-id -->` on the same line |
+| **Enabled** | Checkbox with `<!-- oblt-aw:workflow-id -->` on the same line |
 | **Description** | Short description from `workflow-registry.json` |
 
 ---
