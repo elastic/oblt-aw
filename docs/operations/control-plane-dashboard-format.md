@@ -81,7 +81,7 @@ Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e
 To extract enabled workflows from the issue body:
 
 1. Split the body into lines.
-2. For each line matching `^- \[([ x])\] <!-- oblt-aw:([a-z0-9-]+) -->`:
+2. For each line containing `- \[([ x])\] <!-- oblt-aw:([a-z0-9-]+) -->` (e.g. inside a table cell):
    - Capture group 1: checkbox state (` ` = unchecked, `x` = checked)
    - Capture group 2: workflow ID
 3. If state is `x`, add the workflow ID to `enabled_workflows`.
