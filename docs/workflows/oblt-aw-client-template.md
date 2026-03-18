@@ -17,10 +17,12 @@ Triggers:
 - `workflow_dispatch`
 - `issues` (`opened`, `labeled`)
 - `pull_request` (`opened`, `synchronize`, `reopened`)
+- `pull_request_review` (`submitted`)
 
-Delegation:
+Execution flow:
 
-- job `run-aw` calls `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`
+1. **check-dashboard job** (runs first, in target repo with default `GITHUB_TOKEN`): Fetches the Control Plane Dashboard issue via API, parses checkboxes (`- [x] <!-- oblt-aw:workflow-id -->`), outputs `enabled_workflows` as JSON array. Permissions: `issues: read`. Behavior: no dashboard → all workflows; dashboard with all unchecked → none; dashboard with some checked → only those.
+2. **run-aw job** (`needs: check-dashboard`): Passes `enabled_workflows` to the ingress; calls `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`
 
 ## Configuration
 
@@ -31,6 +33,7 @@ Top-level permissions:
 Job-level permissions:
 
 - `actions: read`
+- `checks: read`
 - `contents: write`
 - `discussions: write`
 - `issues: write`
