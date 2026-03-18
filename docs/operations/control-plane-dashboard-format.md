@@ -38,7 +38,7 @@ Use this dashboard to enable or disable agentic workflows for this repository. C
 
 - **Enable a workflow:** Check the checkbox next to the workflow.
 - **Disable a workflow:** Uncheck the checkbox.
-- Changes take effect on the next client run (dashboard is read at runtime).
+- Changes are applied at runtime when the client runs; the `check-dashboard` job reads this issue and passes `enabled_workflows` to the ingress.
 ```
 
 ---
@@ -80,7 +80,7 @@ Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e
 To extract enabled workflows from the issue body:
 
 1. Split the body into lines.
-2. For each line matching `^- \[([ x])\] <!-- oblt-aw:([a-z0-9-]+) -->`:
+2. For each line containing `- \[([ x])\] <!-- oblt-aw:([a-z0-9-]+) -->` (e.g. inside a table cell):
    - Capture group 1: checkbox state (` ` = unchecked, `x` = checked)
    - Capture group 2: workflow ID
 3. If state is `x`, add the workflow ID to `enabled_workflows`.
@@ -111,13 +111,14 @@ To extract enabled workflows from the issue body:
 
 The dashboard MUST include clear instructions. Recommended text:
 
-- **Enable a workflow:** Check the checkbox next to the workflow. The next time the client runs, the `check-dashboard` job will include it in `enabled_workflows`.
-- **Disable a workflow:** Uncheck the checkbox. The next run will exclude it from `enabled_workflows`.
-- **When changes apply:** Changes take effect on the next client run. The dashboard is read at runtime; there is no config file and no PRs when you toggle checkboxes.
-- **Default behavior:** If no dashboard exists or no checkboxes are checked, all workflows are enabled.
+- **Enable a workflow:** Check the checkbox next to the workflow. The `check-dashboard` job will include it in `enabled_workflows` at runtime.
+- **Disable a workflow:** Uncheck the checkbox. The `check-dashboard` job will exclude it from `enabled_workflows` at runtime.
+- **When changes apply:** The dashboard is read at runtime when the client runs. No config file; no PRs on checkbox edits.
+- **Default behavior:** No dashboard → all workflows activated; dashboard exists with all unchecked → all workflows deactivated; dashboard exists with some checked → only checked workflows executed.
 
 ---
 
 ## Reference
 
-- **Implementation plan:** `docs/plans/issue-3732-control-plane-dashboard.md`
+- **Renovate Dependency Dashboard:** [docs.renovatebot.com/key-concepts/dashboard](https://docs.renovatebot.com/key-concepts/dashboard/) — single issue per repo, dynamic Markdown checkboxes
+- **Implementation plan:** [Issue #3732 comment](https://github.com/elastic/observability-robots/issues/3732#issuecomment-4054356635)
