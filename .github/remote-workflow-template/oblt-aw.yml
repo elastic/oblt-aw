@@ -24,10 +24,12 @@ jobs:
     steps:
       - name: Fetch dashboard issue and parse enabled workflows
         id: parse
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           BODY=$(gh api "repos/${{ github.repository }}/issues?labels=oblt-aw/dashboard&state=open" \
-            --jq 'if length > 0 then .[0].body else empty end' -q . 2>/dev/null || echo "")
+            --jq 'if length > 0 then .[0].body else empty end' 2>/dev/null || echo "")
           if [[ -z "$BODY" ]]; then
             # Empty string: ingress treats '' as "run all workflows"
             echo "enabled_workflows=" >> "$GITHUB_OUTPUT"
