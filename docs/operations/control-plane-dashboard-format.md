@@ -2,13 +2,13 @@
 
 **Related issue:** https://github.com/elastic/observability-robots/issues/3732
 
-This document defines the structure and format of the OBLT AW Control Plane Dashboard issue. The format enables reliable parsing when users edit checkboxes to opt in or opt out of agentic workflows, following a Renovate Dependency Dashboard–style UX.
+This document defines the structure and format of the OBLT AW Control Plane Dashboard issue. The format enables reliable parsing when users edit checkboxes to opt in or opt out of agentic workflows.
 
 ---
 
 ## Overview
 
-The Control Plane Dashboard is a single GitHub Issue per repository that lists all available agentic workflows. Users can enable or disable each workflow by checking or unchecking task list items. There is no config file; the dashboard is read at runtime when the client runs. A `check-dashboard` job fetches the issue, parses the checkbox state, and passes `enabled_workflows` to the ingress.
+The Control Plane Dashboard is a single GitHub Issue per repository that lists all available agentic workflows. Users can enable or disable each workflow by checking or unchecking task list items. When the client workflow runs, a `check-dashboard` job fetches the dashboard issue (labeled `oblt-aw/dashboard`), parses the checkbox state, and outputs `enabled_workflows` as a JSON array. That output is passed to the ingress, which conditionally runs only workflows whose IDs appear in `enabled_workflows`. There is no config file (no `.github/oblt-aw-config.json`), no PRs when users toggle checkboxes, and no `issues.edited` trigger—the dashboard is read at runtime each time the client runs. If no dashboard exists or no checkboxes are checked, all workflows are enabled by default.
 
 ---
 
@@ -74,7 +74,6 @@ Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e
 
 - **Reliable parsing:** The HTML comment is invisible in the rendered issue but preserved when users check/uncheck. Parsers can use the regex `<!-- oblt-aw:([a-z0-9-]+) -->` to extract workflow IDs and associate them with the preceding checkbox state on the same line.
 - **User edits:** When users toggle checkboxes, GitHub only changes `[ ]` to `[x]` or vice versa. The comment stays intact, so the workflow ID remains associated with the correct checkbox.
-- **Renovate-style:** Mirrors Renovate Dependency Dashboard patterns where checkboxes trigger actions and the platform supports dynamic Markdown task lists.
 
 ### Parsing Algorithm
 
