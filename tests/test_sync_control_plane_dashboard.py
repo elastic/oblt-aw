@@ -20,7 +20,7 @@ import sync_control_plane_dashboard as scpd  # noqa: E402
 
 
 class TestParseCheckboxState:
-    """Mirrors parseDashboardBody.test.ts behavior for checkbox parsing."""
+    """Tests checkbox parsing behavior for dashboard bodies."""
 
     def test_returns_all_checked_workflows_when_all_enabled(self) -> None:
         body = """
