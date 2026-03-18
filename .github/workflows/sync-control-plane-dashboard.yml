@@ -53,8 +53,8 @@ jobs:
     timeout-minutes: 10
     strategy:
       fail-fast: false
-    matrix:
-      target: ${{ fromJSON(needs.prepare-repos.outputs.repos) }}
+      matrix:
+        include: ${{ fromJSON(needs.prepare-repos.outputs.repos) }}
     permissions:
       id-token: write
       contents: read
@@ -73,8 +73,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Sync dashboard for ${{ matrix.target.repository }}
+      - name: Sync dashboard for ${{ matrix.repository }}
         env:
           GH_TOKEN: ${{ steps.create-token.outputs.token }}
-          TARGET_REPO: ${{ matrix.target.repository }}
+          TARGET_REPO: ${{ matrix.repository }}
         run: python scripts/sync_control_plane_dashboard.py --repo "$TARGET_REPO"
