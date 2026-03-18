@@ -77,10 +77,10 @@ class TestParseCheckboxState:
         result = scpd.parse_checkbox_state(body)
         assert result == {"resource-not-accessible-by-integration-detector": True}
 
-    def test_parses_unicode_checkbox_format_for_migration(self) -> None:
-        body = "☑ <!-- oblt-aw:enabled-wf -->\n☐ <!-- oblt-aw:disabled-wf -->"
+    def test_ignores_pattern_in_middle_of_line(self) -> None:
+        body = "See - [x] <!-- oblt-aw:not-at-start --> for details"
         result = scpd.parse_checkbox_state(body)
-        assert result == {"enabled-wf": True, "disabled-wf": False}
+        assert result == {}
 
 
 # ── maturity_badge ────────────────────────────────────────────────────────────

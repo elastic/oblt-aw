@@ -33,9 +33,8 @@ from urllib.parse import quote
 DASHBOARD_LABEL = "oblt-aw/dashboard"
 DASHBOARD_TITLE = "[oblt-aw] Control Plane Dashboard"
 # Task list - [x] / - [ ] in list context = interactive checkboxes
-# Also parse ☑/☐ (Unicode) for migration from existing dashboards
-CHECKBOX_ENABLED = re.compile(r"(?:- \[x\]|☑) <!-- oblt-aw:([a-z0-9-]+) -->")
-CHECKBOX_DISABLED = re.compile(r"(?:- \[ \]|☐) <!-- oblt-aw:([a-z0-9-]+) -->")
+CHECKBOX_ENABLED = re.compile(r"^- \[x\] <!-- oblt-aw:([a-z0-9-]+) -->")
+CHECKBOX_DISABLED = re.compile(r"^- \[ \] <!-- oblt-aw:([a-z0-9-]+) -->")
 
 logger = logging.getLogger(__name__)
 
@@ -50,10 +49,7 @@ def setup_logging() -> None:
 
 
 def parse_checkbox_state(body: str | None) -> dict[str, bool]:
-    """Extract workflow-id -> enabled from issue body.
-
-    Supports task list (- [x] / - [ ]) and Unicode (☑/☐) for migration.
-    """
+    """Extract workflow-id -> enabled from issue body using task list (- [x] / - [ ])."""
     state: dict[str, bool] = {}
     if not body:
         return state
@@ -84,7 +80,7 @@ def build_dashboard_body(
 ) -> str:
     """Build dashboard issue body from workflow registry.
 
-    Preserves user's enabled/disabled state (☑/☐) from existing_body; uses
+    Preserves user's enabled/disabled state from existing_body; uses
     default_enabled from registry for workflows not yet present in the body.
     """
     parsed = parse_checkbox_state(existing_body)
