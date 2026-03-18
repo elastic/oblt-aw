@@ -22,6 +22,8 @@ Triggers:
   - `.github/workflows/sync-control-plane-dashboard.yml`
 - `workflow_dispatch`
 
+*Note: Editing the dashboard issue does not trigger this workflow. Dashboard opt-in/opt-out is read at runtime by the client's `check-dashboard` job; there is no `issues.edited` trigger.*
+
 Execution:
 
 1. **prepare-repos job:** Builds repos matrix from `active-repositories.json` via `scripts/build_repos_matrix.py`; outputs JSON for matrix strategy
