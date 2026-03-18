@@ -15,7 +15,7 @@ This reusable workflow detects `Resource not accessible by integration` occurren
 
 The workflow uses two jobs:
 
-1. **discover** — Lists all workflow file names via the GitHub API.
+1. **discover** — Lists all workflow numeric IDs via the GitHub API (avoids 404 when the API expects exact workflow file names).
 2. **search** — Matrix job that calls `gh-aw-log-searching-agent` per workflow:
    - `elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight`
 
