@@ -7,6 +7,7 @@ on:
         description: JSON array of enabled workflow IDs from dashboard issue
         required: false
         type: string
+        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
