@@ -1,13 +1,12 @@
 name: Observability Agentic Workflow Ingress
 
-# Normalize enabled_workflows for fromJSON: accept JSON array (e.g. '["id"]') or
-# bare workflow ID (e.g. 'agent-suggestions'). Bare IDs can occur when
-# GITHUB_OUTPUT corrupts JSON; see oblt-aw.yml delimiter format.
+# enabled_workflows: '' (dashboard absent) or JSON array. Contract: only these formats.
+# Defensive: wrap malformed input (e.g. bare ID from GITHUB_OUTPUT corruption) so fromJSON does not fail.
 on:
   workflow_call:
     inputs:
       enabled_workflows:
-        description: JSON array of enabled workflow IDs from dashboard issue
+        description: Empty string (dashboard absent) or JSON array (e.g. [] or ["id"])
         required: false
         type: string
         default: ''
