@@ -1,5 +1,8 @@
 name: Observability Agentic Workflow Ingress
 
+# Normalize enabled_workflows for fromJSON: accept JSON array (e.g. '["id"]') or
+# bare workflow ID (e.g. 'agent-suggestions'). Bare IDs can occur when
+# GITHUB_OUTPUT corrupts JSON; see oblt-aw.yml delimiter format.
 on:
   workflow_call:
     inputs:
@@ -24,7 +27,7 @@ jobs:
   agent-suggestions:
     if: >-
       contains(fromJSON('["schedule"]'), github.event_name) &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'agent-suggestions'))
+      (inputs.enabled_workflows == '' || contains(fromJSON((startsWith(inputs.enabled_workflows, '[') && inputs.enabled_workflows) || format('["{0}"]', inputs.enabled_workflows)), 'agent-suggestions'))
     uses: ./.github/workflows/gh-aw-agent-suggestions.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -32,7 +35,7 @@ jobs:
   autodoc:
     if: >-
       contains(fromJSON('["schedule"]'), github.event_name) &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'autodoc'))
+      (inputs.enabled_workflows == '' || contains(fromJSON((startsWith(inputs.enabled_workflows, '[') && inputs.enabled_workflows) || format('["{0}"]', inputs.enabled_workflows)), 'autodoc'))
     uses: ./.github/workflows/gh-aw-autodoc.yml
     secrets: inherit
 
@@ -52,7 +55,7 @@ jobs:
           github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
         )
       ) &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'automerge'))
+      (inputs.enabled_workflows == '' || contains(fromJSON((startsWith(inputs.enabled_workflows, '[') && inputs.enabled_workflows) || format('["{0}"]', inputs.enabled_workflows)), 'automerge'))
     uses: ./.github/workflows/gh-aw-automerge.yml
 
   dependency-review:
@@ -63,7 +66,7 @@ jobs:
         fromJSON('["dependabot[bot]","renovate[bot]","Dependabot","Renovate","elastic-vault-github-plugin-prod[bot]"]'),
         github.event.pull_request.user.login
       ) &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'dependency-review'))
+      (inputs.enabled_workflows == '' || contains(fromJSON((startsWith(inputs.enabled_workflows, '[') && inputs.enabled_workflows) || format('["{0}"]', inputs.enabled_workflows)), 'dependency-review'))
     uses: ./.github/workflows/gh-aw-dependency-review.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -71,7 +74,7 @@ jobs:
   resource-not-accessible-by-integration-detector:
     if: >-
       contains(fromJSON('["schedule"]'), github.event_name) &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration'))
+      (inputs.enabled_workflows == '' || contains(fromJSON((startsWith(inputs.enabled_workflows, '[') && inputs.enabled_workflows) || format('["{0}"]', inputs.enabled_workflows)), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -82,7 +85,7 @@ jobs:
       github.event.action == 'labeled' &&
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/resource-not-accessible-by-integration') &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration'))
+      (inputs.enabled_workflows == '' || contains(fromJSON((startsWith(inputs.enabled_workflows, '[') && inputs.enabled_workflows) || format('["{0}"]', inputs.enabled_workflows)), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
     secrets: inherit
 
@@ -90,7 +93,7 @@ jobs:
     if: >-
       github.event_name == 'issues' &&
       github.event.action == 'opened' &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(inputs.enabled_workflows), 'resource-not-accessible-by-integration'))
+      (inputs.enabled_workflows == '' || contains(fromJSON((startsWith(inputs.enabled_workflows, '[') && inputs.enabled_workflows) || format('["{0}"]', inputs.enabled_workflows)), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
