@@ -28,20 +28,28 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Use delimiter format for GITHUB_OUTPUT to avoid "Invalid format" when value
+          # contains JSON brackets (e.g. ["autodoc"]) — see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
+          DELIM=$(dd if=/dev/urandom bs=15 count=1 status=none | base64 | tr -d '\n')
+          write_output() {
+            echo "enabled_workflows<<$DELIM" >> "$GITHUB_OUTPUT"
+            printf '%s\n' "$1" >> "$GITHUB_OUTPUT"
+            echo "$DELIM" >> "$GITHUB_OUTPUT"
+          }
           BODY=$(gh api "repos/${{ github.repository }}/issues?labels=oblt-aw/dashboard&state=open" \
             --jq 'if length > 0 then .[0].body else empty end' 2>/dev/null || echo "")
           if [[ -z "$BODY" ]]; then
             # Empty string: ingress treats '' as "run all workflows"
-            echo "enabled_workflows=" >> "$GITHUB_OUTPUT"
+            write_output ""
             echo "No dashboard issue found, defaulting to all workflows enabled"
             exit 0
           fi
           ENABLED=$(echo "$BODY" | grep -oP '(?m)^- \[x\] <!-- oblt-aw:\K[a-z0-9-]+' || true | jq -R -s -c 'split("\n") | map(select(length > 0))')
           if [[ -z "$ENABLED" || "$ENABLED" == "[]" ]]; then
-            echo "enabled_workflows=[]" >> "$GITHUB_OUTPUT"
+            write_output "[]"
             echo "Dashboard exists but no checkboxes checked, no workflows will run"
           else
-            echo "enabled_workflows=$ENABLED" >> "$GITHUB_OUTPUT"
+            write_output "$ENABLED"
           fi
 
   run-aw:
