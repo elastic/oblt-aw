@@ -26,7 +26,7 @@ Routing jobs:
 - `resource-not-accessible-by-integration-detector`, `resource-not-accessible-by-integration-triage`, `resource-not-accessible-by-integration-fixer` (unified `enabled_workflow`: `resource-not-accessible-by-integration`)
 - `unsupported-trigger`
 
-Each workflow job is gated by the `enabled_workflows` input (from the client's `check-dashboard` job). The input is a JSON string (`type: string`), not a YAML list. Semantics: empty string (no dashboard) → all workflows enabled; `'[]'` (dashboard exists, all unchecked) → none enabled; non-empty JSON array string (e.g. `'["dependency-review"]'`) → only listed workflows run.
+Each workflow job is gated by the `enabled_workflows` input (from the client's `check-dashboard` job). Accepted formats only: empty string (dashboard absent) → all workflows enabled; JSON array `[]` or `["id",...]` → only listed workflows run. Bare workflow IDs are not accepted.
 
 ## Configuration
 
@@ -42,7 +42,7 @@ Top-level permissions:
 
 Interface exposed through `workflow_call`:
 
-- Input: `enabled_workflows` (string; JSON array serialized as text, e.g. `'["dependency-review"]'` or a job output; parsed with `fromJSON(...)`. Do not pass a YAML list. Empty string = all enabled, `'[]'` = none, non-empty = only listed IDs)
+- Input: `enabled_workflows` (string; empty = all enabled, JSON array = only listed IDs. Accepted: `''` (dashboard absent) or `[]` / `["id"]` / `["a","b"]`. Bare workflow IDs are not accepted; use delimiter format in callers.)
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## Examples
