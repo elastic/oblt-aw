@@ -29,7 +29,7 @@ Execution:
 1. **prepare-repos job:** Builds repos matrix from `active-repositories.json` via `scripts/build_repos_matrix.py`; outputs JSON for matrix strategy
 2. **sync-dashboard job:** Matrix job (one job per repo); each invokes `scripts/sync_control_plane_dashboard.py --repo <owner/repo>`:
    - Search for existing open issue with label `oblt-aw/dashboard`
-   - Create or update the issue with title `[OBLT AW] Control Plane Dashboard`, body from registry (header, maturity badges, checkboxes, descriptions)
+   - Create or update the issue with title `[oblt-aw] Control Plane Dashboard`, body from registry (header, maturity badges, checkboxes, descriptions)
    - Pin the issue via `gh issue pin` (if limit of 3 pins reached, log and continue)
 
 ## Configuration
