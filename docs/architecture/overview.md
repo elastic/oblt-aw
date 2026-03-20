@@ -63,8 +63,8 @@ Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
 
 - `pull_request` + action in `opened|synchronize|reopened` + bot author in allowlist -> dependency review
 - `schedule` or `workflow_dispatch` -> resource-not-accessible detector
-- `issues` + `opened` -> resource-not-accessible triage
-- `issues` + `labeled` + required labels -> resource-not-accessible fixer
+- `issues` + (`opened` with label `oblt-aw/detector/res-not-accessible-by-integration` OR `labeled` with that label) -> resource-not-accessible triage
+- `issues` + `labeled` + required labels (`oblt-aw/ai/fix-ready` and `oblt-aw/triage/res-not-accessible-by-integration`) -> resource-not-accessible fixer
 - unsupported event/action combinations -> `unsupported-trigger` fail-fast job
 
 *Note: Dashboard opt-in/opt-out is read at runtime by the client's `check-dashboard` job before calling the ingress; there is no `issues.edited` trigger.*
