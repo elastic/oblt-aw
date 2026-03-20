@@ -6,7 +6,7 @@ This document defines the ruleset used by the oblt-aw security detector to ident
 
 **Scope**: GitHub Actions YAML, shell scripts invoked by workflows, and related configuration.
 
-**PoC focus**: Token and secret exposure via command-line arguments (see [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500)).
+**Initial ruleset focus**: Token and secret exposure via command-line arguments (see [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500)).
 
 ---
 
@@ -28,9 +28,9 @@ This document defines the ruleset used by the oblt-aw security detector to ident
 
 ---
 
-## PoC Rules (Token and Secret Exposure)
+## Rules: Token and Secret Exposure
 
-These rules are implemented in the initial security detector PoC.
+The security detector implements the following rules for this category.
 
 ### Rule SEC-001: Token or Secret in `run:` Arguments
 
