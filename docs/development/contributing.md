@@ -79,6 +79,8 @@ make update-license-check
 
 License headers are not applied to `*.yml` or `*.yaml` files (including GitHub Actions workflows).
 
+The `update-license-files` hook uses `always_run: true` in `.pre-commit-config.yaml` so the script runs on every pre-commit invocation and rescans all header targets (not only when certain file types are staged).
+
 ### Individual tools
 
 - **YAML lint**: `yamllint .` (uses `.yamllint.yml`)

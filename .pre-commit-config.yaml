@@ -36,6 +36,8 @@ repos:
         entry: python3 scripts/update_license_files.py
         language: system
         pass_filenames: false
+        # Repo-wide scan; run even when no staged files match hook filters
+        always_run: true
 
   # ── General file hygiene ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
