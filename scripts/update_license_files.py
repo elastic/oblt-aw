@@ -59,15 +59,13 @@ def _build_header(comment_prefix: str) -> str:
 APACHE2_HEADER_HASH = _build_header("#")
 
 # Files/patterns that must have the Apache 2.0 header
+# Note: YAML workflow and config files are excluded; GitHub Actions YAML does not
+# carry per-file Apache headers in this repository.
 HEADER_GLOBS = [
     "scripts/*.py",
     "scripts/*.sh",
     "scripts/*.ts",
     "tests/**/*.ts",
-    ".github/workflows/*.yml",
-    ".github/remote-workflow-template/*.yml",
-    ".github/dependabot.yml",
-    "catalog-info.yaml",
 ]
 
 # Exclude empty files and generated/vendor
@@ -159,11 +157,7 @@ def add_or_update_header(path: Path) -> str | None:
         return None
 
     # Insert header
-    if body.startswith("---"):
-        # YAML with document start: put header before ---
-        new_body = header.rstrip() + "\n\n" + body
-    else:
-        new_body = header.rstrip() + "\n\n" + body
+    new_body = header.rstrip() + "\n\n" + body
 
     result = prefix + new_body
     if result != text:
