@@ -26,7 +26,7 @@ Configured parameters:
 - **Lookback**: 1 day (aligned with daily schedule trigger)
 - **Search term**: `Resource not accessible by integration`
 - **Conclusion filter**: `any` (success, failure, cancelled)
-- **Issue title prefix**: `[AI Detector][Resource not accessible by Integration]`
+- **Issue title prefix**: `[oblt-aw][resource-not-accessible-by-integration]`
 
 ## Configuration
 

@@ -39,7 +39,7 @@ jobs:
       search-terms: "Resource not accessible by integration"
       days: 1
       conclusion: "any"
-      title-prefix: "[AI Detector][Resource not accessible by Integration]"
+      title-prefix: "[oblt-aw][resource-not-accessible-by-integration]"
       additional-instructions: |
         **Error Context:**
         You are analyzing preflight search results for the exact phrase "Resource not accessible by integration" in GitHub Actions workflow logs. This error typically indicates permission or token scope issues when workflows access protected resources (e.g., secrets, environments, or repository settings).
