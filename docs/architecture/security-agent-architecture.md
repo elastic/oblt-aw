@@ -65,7 +65,7 @@ For the initial PoC (oblt-actions#500), focus on:
 
 ### Required Secret
 
-- `COPILOT_GITHUB_TOKEN` — Required for detector and triage (issue creation, API access).
+- `COPILOT_GITHUB_TOKEN` — Required for detector, triage, and fixer (issue/PR creation and updates, API access).
 
 ### Inputs
 
