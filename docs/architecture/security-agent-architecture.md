@@ -113,7 +113,7 @@ Per triage, the resolution plan must include:
 
 ## References
 
-- [Implementation plan: issue #3758](docs/plans/issue-3758-security-agentic-workflows-plan.md)
+- [Implementation plan: issue #3758](https://github.com/elastic/oblt-actions/issues/3758)
 - [Architecture overview](overview.md)
 - [elastic/oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) — token exposure via CLI args
 - [elastic/oblt-actions#495](https://github.com/elastic/oblt-actions/issues/495) — GH_TOKEN env injection
