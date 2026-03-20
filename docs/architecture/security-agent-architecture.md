@@ -16,21 +16,19 @@ This document defines the architecture for proactive security bug hunting and re
 
 The security agent pipeline follows this flow:
 
-1. **Detector** — Scheduled or manually triggered. Scans code (shell scripts, workflow YAML) for security vulnerabilities. Creates issues with structured findings.
-2. **Triage** — Triggered on `issues` + `opened`. Classifies security issues, generates resolution plans, and labels fix-ready items.
-3. **Fixer** — Triggered on `issues` + `labeled` when both `oblt-aw/ai/fix-ready` and a security triage label are present. Implements fixes per triage plan and opens draft PRs.
+1. **Detector** — Scheduled or manually triggered. Scans code (shell scripts, workflow YAML) for security vulnerabilities. When it creates an issue for a finding, it must add the label `oblt-aw/detector/security` and include structured findings (for example title prefix `[oblt-aw][security]`).
+2. **Triage** — Triggered on issues labeled `oblt-aw/detector/security`. Classifies using `oblt-aw/triage/security`, `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`. Produces a resolution plan where applicable. When an issue is ready for automated fix, triage adds `oblt-aw/ai/fix-ready` (the fixer path requires this together with `oblt-aw/triage/security`).
+3. **Fixer** — Triggered on issues that have both `oblt-aw/triage/security` and `oblt-aw/ai/fix-ready`. Implements fixes per triage plan and opens draft PRs.
 
 ```mermaid
 flowchart TD
   A[Schedule / workflow_dispatch] --> B[Security Detector]
-  B --> C[Creates Issues]
-  C --> D[issues opened]
-  D --> E[Security Triage]
-  E --> F[Labels: oblt-aw/triage/security-*]
-  E --> G[oblt-aw/ai/fix-ready]
-  G --> H[Security Fixer]
-  F --> H
-  H --> I[Draft PR]
+  B --> C[Creates issue + label oblt-aw/detector/security]
+  C --> D[Security Triage]
+  D --> E["oblt-aw/triage/security, other, or needs-info"]
+  E --> F[oblt-aw/ai/fix-ready when ready to fix]
+  F --> G["Fixer: oblt-aw/triage/security AND oblt-aw/ai/fix-ready"]
+  G --> H[Draft PR]
 ```
 
 ### Detector Implementation
@@ -38,8 +36,8 @@ flowchart TD
 The security detector must scan **code** (shell scripts, workflow YAML). No equivalent code-scanning agent exists in elastic/ai-github-actions today. The security detector will therefore:
 
 - Run static analysis tools (shellcheck, grep/semgrep) in a custom job.
-- Aggregate findings and create issues via API or agent invocation.
-- Reuse `gh-aw-issue-triage` and `gh-aw-issue-fixer` for triage and fixer stages.
+- Aggregate findings and create issues via API or agent invocation; every issue opened for a finding must include the label `oblt-aw/detector/security`.
+- Reuse `gh-aw-issue-triage` and `gh-aw-issue-fixer` for triage and fixer stages (triage ingress must match issues with `oblt-aw/detector/security`).
 
 ## Tool Selection
 
@@ -62,8 +60,8 @@ For the initial PoC (oblt-actions#500), focus on:
 | Stage | ai-github-actions Workflow | Usage |
 |-------|----------------------------|-------|
 | **Detector** | None (code-scanning) | Custom job runs shellcheck + grep/semgrep; creates issues. If a code-scanning agent is added later, oblt-aw can migrate to it. |
-| **Triage** | `gh-aw-issue-triage.lock.yml` | Security-specific `additional-instructions`; labels `oblt-aw/triage/security-*`. |
-| **Fixer** | `gh-aw-issue-fixer.lock.yml` | Security-specific instructions; least-privilege and env-indirection patterns. |
+| **Triage** | `gh-aw-issue-triage.lock.yml` | Triggered only for issues labeled `oblt-aw/detector/security`; classifies with `oblt-aw/triage/security`, `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`; adds `oblt-aw/ai/fix-ready` when ready to fix. |
+| **Fixer** | `gh-aw-issue-fixer.lock.yml` | Triggered only when `oblt-aw/triage/security` and `oblt-aw/ai/fix-ready` are present; security-specific instructions; least-privilege and env-indirection patterns. |
 
 ### Required Secret
 
@@ -82,21 +80,19 @@ For the initial PoC (oblt-actions#500), focus on:
 **PoC deliverables**:
 
 1. Detector workflow that discovers shell scripts and workflow YAML, runs shellcheck and pattern checks for token exposure.
-2. Issues created with prefix `[oblt-aw][security]`.
-3. Triage labels: `oblt-aw/triage/security-secrets` (and related).
-4. Fixer produces draft PRs with env-indirection fixes.
+2. Issues created with prefix `[oblt-aw][security]` and label `oblt-aw/detector/security`.
+3. Triage runs for issues with `oblt-aw/detector/security`; classifies with `oblt-aw/triage/security`, `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`; adds `oblt-aw/ai/fix-ready` when ready to fix.
+4. Fixer runs for issues with `oblt-aw/triage/security` and `oblt-aw/ai/fix-ready`; produces draft PRs with env-indirection fixes.
 
 ## Labels
 
 | Label | Purpose |
 |-------|---------|
-| `oblt-aw/triage/security-injection` | Expression, command, or YAML injection |
-| `oblt-aw/triage/security-secrets` | Secret/token management (PoC focus) |
-| `oblt-aw/triage/security-supply-chain` | Supply chain (future) |
-| `oblt-aw/triage/security-least-privilege` | Least privilege (future) |
-| `oblt-aw/triage/other` | Unrelated to security |
-| `oblt-aw/triage/needs-info` | Insufficient information |
-| `oblt-aw/ai/fix-ready` | Triage complete; fixer may proceed |
+| `oblt-aw/detector/security` | Applied by the detector on every issue it opens for a finding; triage ingress uses this label |
+| `oblt-aw/triage/security` | Triage: valid security finding in scope for remediation |
+| `oblt-aw/triage/other` | Triage: not a security issue (or out of scope for this pipeline) |
+| `oblt-aw/triage/needs-info` | Triage: insufficient information to classify or fix |
+| `oblt-aw/ai/fix-ready` | Triage: ready for automated fix; fixer ingress requires this label together with `oblt-aw/triage/security` |
 
 ## Resolution Plan Structure (Triage Output)
 
@@ -109,7 +105,7 @@ Per triage, the resolution plan must include:
 
 ## Fixer Requirements
 
-- Requires both `oblt-aw/ai/fix-ready` and one of `oblt-aw/triage/security-*`.
+- Requires both `oblt-aw/triage/security` and `oblt-aw/ai/fix-ready`.
 - Draft PR first; convert to open after validation.
 - Request review from `elastic/observablt-ci`.
 - No auto-merge.
