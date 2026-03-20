@@ -1,7 +1,15 @@
 name: Observability Agentic Workflow Ingress
 
+# enabled_workflows: '' (dashboard absent) or JSON array. Contract: only these formats.
+# Defensive: wrap malformed input (e.g. bare ID from GITHUB_OUTPUT corruption) so fromJSON does not fail.
 on:
   workflow_call:
+    inputs:
+      enabled_workflows:
+        description: Empty string (dashboard absent) or JSON array (e.g. [] or ["id"])
+        required: false
+        type: string
+        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
@@ -15,67 +23,99 @@ permissions:
   pull-requests: write
 
 jobs:
+  normalize-enabled-workflows:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      ENABLED_WORKFLOWS_JSON: ${{ steps.normalize.outputs.json }}
+    steps:
+      - name: Normalize enabled_workflows for fromJSON
+        id: normalize
+        env:
+          NORMALIZED_JSON: ${{ (startsWith(inputs.enabled_workflows, '[') && inputs.enabled_workflows) || format('["{0}"]', inputs.enabled_workflows) }}
+        run: |
+          delim=$(openssl rand -hex 8)
+          echo "json<<$delim" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$NORMALIZED_JSON" >> "$GITHUB_OUTPUT"
+          echo "$delim" >> "$GITHUB_OUTPUT"
+
   agent-suggestions:
+    needs: normalize-enabled-workflows
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name)
+      contains(fromJSON('["schedule"]'), github.event_name) &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'agent-suggestions'))
     uses: ./.github/workflows/gh-aw-agent-suggestions.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   autodoc:
+    needs: normalize-enabled-workflows
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name)
+      contains(fromJSON('["schedule"]'), github.event_name) &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'autodoc'))
     uses: ./.github/workflows/gh-aw-autodoc.yml
     secrets: inherit
 
   automerge:
+    needs: normalize-enabled-workflows
     if: >-
       (
-        github.event_name == 'schedule'
-      ) || (
-        github.event_name == 'pull_request' &&
-        contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
-      ) || (
-        github.event_name == 'pull_request_review' &&
-        github.event.action == 'submitted' &&
-        github.event.review.state == 'approved' &&
-        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
-      )
+        (
+          github.event_name == 'schedule'
+        ) || (
+          github.event_name == 'pull_request' &&
+          contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
+          github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+        ) || (
+          github.event_name == 'pull_request_review' &&
+          github.event.action == 'submitted' &&
+          github.event.review.state == 'approved' &&
+          github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
+        )
+      ) &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'automerge'))
     uses: ./.github/workflows/gh-aw-automerge.yml
 
   dependency-review:
+    needs: normalize-enabled-workflows
     if: >-
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
       contains(
         fromJSON('["dependabot[bot]","renovate[bot]","Dependabot","Renovate","elastic-vault-github-plugin-prod[bot]"]'),
         github.event.pull_request.user.login
-      )
+      ) &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'dependency-review'))
     uses: ./.github/workflows/gh-aw-dependency-review.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   resource-not-accessible-by-integration-detector:
+    needs: normalize-enabled-workflows
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name)
+      contains(fromJSON('["schedule"]'), github.event_name) &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   resource-not-accessible-by-integration-fixer:
+    needs: normalize-enabled-workflows
     if: >-
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/resource-not-accessible-by-integration')
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/resource-not-accessible-by-integration') &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
     secrets: inherit
 
   resource-not-accessible-by-integration-triage:
+    needs: normalize-enabled-workflows
     if: >-
       github.event_name == 'issues' &&
-      github.event.action == 'opened'
+      github.event.action == 'opened' &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
