@@ -25,6 +25,38 @@ jobs:
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main
 ```
 
+## Control Plane Dashboard
+
+The Control Plane Dashboard provides a self-service UI for repository users to opt in or opt out of each agentic workflow. It follows a Renovate Dependency Dashboard–style UX.
+
+### Dashboard Issue
+
+- **Location:** A single GitHub Issue per repository, created and maintained by the control-plane
+- **Title:** `[oblt-aw] Control Plane Dashboard`
+- **Label:** `oblt-aw/dashboard` (used for identification and routing)
+- **Content:** Workflow list with maturity badges and checkboxes for opt-in/opt-out
+
+### Config Flow
+
+1. **Dashboard sync** (`sync-control-plane-dashboard`): Reads `workflow-registry.json` and `active-repositories.json`; creates or updates the dashboard issue in each target repository; pins the issue when possible
+2. **User edit:** Users check or uncheck workflow checkboxes in the dashboard issue (no config file; no PRs on checkbox edits)
+3. **Runtime check** (`check-dashboard`): When the client runs, a `check-dashboard` job runs **before** calling the ingress; fetches the dashboard issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:workflow-id -->` at line start in the Enable/Disable list), outputs `enabled_workflows` as JSON array
+4. **Ingress gating:** The ingress receives `enabled_workflows` as input from the client; empty string (no dashboard) → all workflows; empty array → none; non-empty array → only listed workflows
+
+### Opt-in / Opt-out
+
+- **No dashboard exists:** All workflows are activated by default
+- **Dashboard exists, all unchecked:** All workflows are deactivated
+- **Dashboard exists, some checked:** Only checked workflows are executed
+
+### References
+
+- `docs/operations/control-plane-dashboard.md` — user instructions
+- `docs/operations/control-plane-dashboard-format.md` — dashboard issue format
+- [Issue #3732 comment (implementation plan)](https://github.com/elastic/observability-robots/issues/3732#issuecomment-4054356635) — canonical plan
+
+---
+
 ## Routing Model
 
 Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
@@ -35,17 +67,22 @@ Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
 - `issues` + `labeled` + required labels -> resource-not-accessible fixer
 - unsupported event/action combinations -> `unsupported-trigger` fail-fast job
 
+*Note: Dashboard opt-in/opt-out is read at runtime by the client's `check-dashboard` job before calling the ingress; there is no `issues.edited` trigger.*
+
 ## Examples
 
 ```mermaid
 flowchart TD
-  A[Consumer Repository] --> B[oblt-aw-ingress]
-  B --> C[Dependency Review]
-  B --> D[Resource Not Accessible by Integration Detector]
-  B --> E[Resource Not Accessible by Integration Triage]
-  B --> F[Resource Not Accessible by Integration Fixer]
-  B --> X[Unsupported Trigger]
+  A[Consumer Repository] --> B[check-dashboard]
+  B --> C[oblt-aw-ingress]
+  C --> D[Dependency Review]
+  C --> E[Resource Not Accessible by Integration Detector]
+  C --> F[Resource Not Accessible by Integration Triage]
+  C --> G[Resource Not Accessible by Integration Fixer]
+  C --> X[Unsupported Trigger]
 ```
+
+*The client runs `check-dashboard` first to read the dashboard issue and pass `enabled_workflows` to the ingress; each workflow job is gated by that input.*
 
 ## References
 

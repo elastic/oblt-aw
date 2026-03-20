@@ -8,7 +8,7 @@ This section provides one document per workflow file in `.github/workflows/` and
 
 - CI workflow: `docs/workflows/ci.md`
 - Ingress orchestrator: `docs/workflows/oblt-aw-ingress.md`
-- Client entrypoint workflow: `docs/workflows/oblt-aw-client-template.md`
+- Client entrypoint workflow template: `docs/workflows/oblt-aw-client-template.md`
 - Agent suggestions workflow: `docs/workflows/gh-aw-agent-suggestions.md`
 - Autodoc workflow: `docs/workflows/gh-aw-autodoc.md`
 - Automerge workflow: `docs/workflows/gh-aw-automerge.md`
@@ -19,6 +19,7 @@ This section provides one document per workflow file in `.github/workflows/` and
 - Resource Not Accessible by Integration fixer workflow: `docs/workflows/gh-aw-resource-not-accessible-by-integration-fixer.md`
 - Security scanning ruleset: `docs/workflows/security-scanning-ruleset.md`
 - Distribution workflow: `docs/workflows/distribute-client-workflow.md`
+- Dashboard sync workflow: `docs/workflows/sync-control-plane-dashboard.md`
 
 ## References
 
