@@ -16,7 +16,7 @@ This document defines the architecture for proactive security bug hunting and re
 
 The security agent pipeline follows this flow:
 
-1. **Detector** — Scheduled or manually triggered. Scans code (shell scripts, workflow YAML) for security vulnerabilities. When it creates an issue for a finding, it must add the label `oblt-aw/detector/security` and include structured findings (for example title prefix `[oblt-aw][security]`).
+1. **Detector** — Scheduled or manually triggered. Scans code (shell scripts, workflow YAML) for security vulnerabilities. When it creates an issue (using the title prefix `[oblt-aw][security]`) for a finding, it must add the label `oblt-aw/detector/security` and include structured findings.
 2. **Triage** — Triggered on issues labeled `oblt-aw/detector/security`. Classifies using `oblt-aw/triage/security`, `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`. Produces a resolution plan where applicable. When an issue is ready for automated fix, triage adds `oblt-aw/ai/fix-ready` (the fixer path requires this together with `oblt-aw/triage/security`).
 3. **Fixer** — Triggered on issues that have both `oblt-aw/triage/security` and `oblt-aw/ai/fix-ready`. Implements fixes per triage plan and opens draft PRs.
 
