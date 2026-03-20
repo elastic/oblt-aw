@@ -62,7 +62,7 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
 
 - `pull_request` + action in `opened|synchronize|reopened` + bot author in allowlist -> dependency review
-- `schedule` or `workflow_dispatch` -> resource-not-accessible detector
+- `schedule` -> resource-not-accessible detector
 - `issues` + (`opened` with label `oblt-aw/detector/res-not-accessible-by-integration` OR `labeled` with that label) -> resource-not-accessible triage
 - `issues` + `labeled` + required labels (`oblt-aw/ai/fix-ready` and `oblt-aw/triage/res-not-accessible-by-integration`) -> resource-not-accessible fixer
 - unsupported event/action combinations -> `unsupported-trigger` fail-fast job
