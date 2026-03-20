@@ -14,7 +14,7 @@ Routed workflows:
 
 Routing rules from ingress:
 
-- `schedule` or `workflow_dispatch` -> detector
+- `schedule` -> detector
 - `issues` -> triage when:
   - `opened` and the issue already includes label `oblt-aw/detector/res-not-accessible-by-integration`, or
   - `labeled` and `github.event.label.name` is `oblt-aw/detector/res-not-accessible-by-integration`
