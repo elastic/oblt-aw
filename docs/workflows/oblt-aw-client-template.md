@@ -21,7 +21,7 @@ Triggers:
 
 Execution flow:
 
-1. **check-dashboard job** (runs first, in target repo with default `GITHUB_TOKEN`): Fetches the Control Plane Dashboard issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:workflow-id -->` at line start in the Enable/Disable list), outputs `enabled_workflows` as JSON array. Permissions: `issues: read`. Behavior: no dashboard → all workflows; dashboard with all unchecked → none; dashboard with some checked → only those.
+1. **check-dashboard job** (runs first, in target repo with default `GITHUB_TOKEN`): Looks up an open issue labeled `oblt-aw/dashboard`. If none exists, outputs an empty `enabled_workflows` string (ingress enables all workflows). If it exists, parses checkboxes (`^- [x] <!-- oblt-aw:workflow-id -->` at line start in the Enable/Disable list) and outputs `enabled_workflows` as a JSON array string: `[]` when nothing is checked, or `["id", ...]` for checked workflows only. Permissions: `issues: read`.
 2. **run-aw job** (`needs: check-dashboard`): Passes `enabled_workflows` to the ingress; calls `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`
 
 ## Configuration

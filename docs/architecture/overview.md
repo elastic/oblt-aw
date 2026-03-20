@@ -40,7 +40,7 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 
 1. **Dashboard sync** (`sync-control-plane-dashboard`): Reads `workflow-registry.json` and `active-repositories.json`; creates or updates the dashboard issue in each target repository; pins the issue when possible
 2. **User edit:** Users check or uncheck workflow checkboxes in the dashboard issue (no config file; no PRs on checkbox edits)
-3. **Runtime check** (`check-dashboard`): When the client runs, a `check-dashboard` job runs **before** calling the ingress; fetches the dashboard issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:workflow-id -->` at line start in the Enable/Disable list), outputs `enabled_workflows` as JSON array
+3. **Runtime check** (`check-dashboard`): When the client runs, a `check-dashboard` job runs **before** calling the ingress. If no open dashboard issue exists, it outputs an empty string for `enabled_workflows`. Otherwise it fetches the issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:workflow-id -->` at line start in the Enable/Disable list), and outputs `enabled_workflows` as a JSON array string (`[]` or `["id", ...]`).
 4. **Ingress gating:** The ingress receives `enabled_workflows` as input from the client; empty string (no dashboard) → all workflows; empty array → none; non-empty array → only listed workflows
 
 ### Opt-in / Opt-out
