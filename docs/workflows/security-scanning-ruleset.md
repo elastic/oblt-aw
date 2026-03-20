@@ -154,4 +154,4 @@ The following rule categories are reserved for future implementation. Definition
 - [elastic/oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) — token exposure via CLI args
 - [elastic/oblt-actions#495](https://github.com/elastic/oblt-actions/issues/495) — GH_TOKEN env injection
 - [elastic/oblt-actions#496](https://github.com/elastic/oblt-actions/issues/496), [#497](https://github.com/elastic/oblt-actions/issues/497) — binary integrity
-- Implementation plan: `docs/plans/issue-3758-security-agentic-workflows-plan.md`
+- Implementation plan: [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758)
