@@ -26,7 +26,7 @@ Routing jobs:
 - `resource-not-accessible-by-integration-detector`, `resource-not-accessible-by-integration-triage`, `resource-not-accessible-by-integration-fixer` (unified `enabled_workflow`: `resource-not-accessible-by-integration`)
 - `unsupported-trigger`
 
-Each workflow job is gated by the `enabled_workflows` input (from the client's `check-dashboard` job). Accepted formats only: empty string (dashboard absent) → all workflows enabled; JSON array `[]` or `["id",...]` → only listed workflows run. Bare workflow IDs are not accepted.
+Each workflow job is gated by the `enabled_workflows` input (from the client's `check-dashboard` job). Accepted formats only: empty string (no open dashboard issue) → all workflows enabled; JSON array string `[]` (dashboard exists, nothing checked) → no workflows; `["id",...]` → only listed workflows run. Bare workflow IDs are not accepted.
 
 ## Configuration
 
@@ -42,12 +42,12 @@ Top-level permissions:
 
 Interface exposed through `workflow_call`:
 
-- Input: `enabled_workflows` (string; empty = all enabled, JSON array = only listed IDs. Accepted: `''` (dashboard absent) or `[]` / `["id"]` / `["a","b"]`. Bare workflow IDs are not accepted; use delimiter format in callers.)
+- Input: `enabled_workflows` (string; `''` = no dashboard → all enabled; `[]` = dashboard present, none checked → none; `["id"]` / `["a","b"]` = only those IDs. Bare workflow IDs are not accepted; use delimiter format in callers.)
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## Examples
 
-Minimal consumer reference (client template has `check-dashboard` job that outputs `enabled_workflows` as a JSON array string):
+Minimal consumer reference (client template has `check-dashboard` job that outputs `enabled_workflows` as `''` or a JSON array string):
 
 ```yaml
 jobs:

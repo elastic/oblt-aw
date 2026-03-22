@@ -8,7 +8,7 @@ This document defines the structure and format of the OBLT AW Control Plane Dash
 
 ## Overview
 
-The Control Plane Dashboard is a single GitHub Issue per repository that lists all available agentic workflows. Users can enable or disable each workflow by checking or unchecking task list items. When the client workflow runs, a `check-dashboard` job fetches the dashboard issue (labeled `oblt-aw/dashboard`), parses the checkbox state, and outputs `enabled_workflows` as a JSON array. That output is passed to the ingress, which conditionally runs only workflows whose IDs appear in `enabled_workflows`. There is no config file (no `.github/oblt-aw-config.json`), no PRs when users toggle checkboxes, and no `issues.edited` trigger—the dashboard is read at runtime each time the client runs. If no dashboard exists or no checkboxes are checked, all workflows are enabled by default.
+The Control Plane Dashboard is a single GitHub Issue per repository that lists all available agentic workflows. Users can enable or disable each workflow by checking or unchecking task list items. When the client workflow runs, a `check-dashboard` job looks for an open issue labeled `oblt-aw/dashboard` and sets `enabled_workflows` for the ingress: **no such issue** → empty string (ingress enables **all** workflows by default); **dashboard exists** → a JSON array string—`[]` if **no** checkboxes are checked (no agentic workflows run), or `["id", ...]` for only the checked workflows. There is no config file (no `.github/oblt-aw-config.json`), no PRs when users toggle checkboxes, and no `issues.edited` trigger—the dashboard is read at runtime each time the client runs.
 
 ---
 
@@ -91,12 +91,14 @@ Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e
 
 ### Parsing Algorithm
 
-To extract enabled workflows from the issue body:
+To extract enabled workflows from the issue body (when a dashboard issue exists):
 
 1. Split the body into lines.
 2. For each line matching `^- [x] <!-- oblt-aw:([a-z0-9-]+) -->` (enabled; `^` anchors to line start):
-   - Capture the workflow ID and add it to `enabled_workflows`.
-3. Output `{"enabled_workflows": ["id1", "id2", ...]}`.
+   - Capture the workflow ID and add it to the enabled list.
+3. Emit a compact JSON array string of those IDs: `[]` if the list is empty, otherwise `["id1", "id2", ...]`. That string is what the `check-dashboard` job writes to the `enabled_workflows` output when the dashboard issue exists.
+
+**No open dashboard issue:** The job outputs an empty string for `enabled_workflows` (not `[]`). The ingress treats that as “all workflows enabled.”
 
 ### Example Lines
 

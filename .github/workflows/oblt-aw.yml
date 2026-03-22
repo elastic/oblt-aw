@@ -39,7 +39,7 @@ jobs:
             echo "$DELIM" >> "$GITHUB_OUTPUT"
           }
           BODY=$(gh api "repos/${{ github.repository }}/issues?labels=oblt-aw/dashboard&state=open" \
-            --jq 'if length > 0 then .[0].body else empty end' 2>/dev/null || echo "")
+            --jq 'if length > 0 then .[0].body else empty end')
           if [[ -z "$BODY" ]]; then
             write_output ""
             echo "No dashboard issue found, defaulting to all workflows enabled"

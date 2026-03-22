@@ -28,6 +28,17 @@ repos:
         files: ^scripts/
         args: [--strict]
 
+  # ── License headers and NOTICE ───────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: update-license-files
+        name: Update license headers and NOTICE
+        entry: python3 scripts/update_license_files.py
+        language: system
+        pass_filenames: false
+        # Repo-wide scan; run even when no staged files match hook filters
+        always_run: true
+
   # ── General file hygiene ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
