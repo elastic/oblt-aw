@@ -17,12 +17,16 @@ Supported triggers in this workflow file:
 
 - `schedule`
 - `workflow_call`
+- `workflow_dispatch` (top-level entrypoint manual runs; used by duplicate-issue-detector routing)
 - `issues` with `opened` and `labeled`
 - `pull_request` with `opened`, `synchronize`, `reopened`
+- `pull_request_review` with `submitted`
 
 Routing jobs:
 
 - `dependency-review`
+- `duplicate-issue-detector` (`enabled_workflow` id: `duplicate-issue-detector`; runs on `issues: opened` or `workflow_dispatch`)
+- `issue-triage` (`enabled_workflow` id: `issue-triage`; runs on `issues: opened`)
 - `resource-not-accessible-by-integration-detector`, `resource-not-accessible-by-integration-triage`, `resource-not-accessible-by-integration-fixer` (unified `enabled_workflow`: `resource-not-accessible-by-integration`)
 - `unsupported-trigger`
 

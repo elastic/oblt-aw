@@ -71,6 +71,28 @@ jobs:
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
+  duplicate-issue-detector:
+    needs: normalize-enabled-workflows
+    if: >-
+      (
+        (github.event_name == 'issues' && github.event.action == 'opened') ||
+        github.event_name == 'workflow_dispatch'
+      ) &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'duplicate-issue-detector'))
+    uses: ./.github/workflows/gh-aw-duplicate-issue-detector.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  issue-triage:
+    needs: normalize-enabled-workflows
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'opened' &&
+      (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'issue-triage'))
+    uses: ./.github/workflows/gh-aw-issue-triage.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
   resource-not-accessible-by-integration-detector:
     needs: dashboard-enabled-workflows
     if: >-
@@ -108,6 +130,7 @@ jobs:
     if: >-
       !(
         contains(fromJSON('["schedule","workflow_call"]'), github.event_name) ||
+        github.event_name == 'workflow_dispatch' ||
         (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action)) ||
         (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action)) ||
         (github.event_name == 'pull_request_review' && github.event.action == 'submitted')

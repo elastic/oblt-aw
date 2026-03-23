@@ -10,11 +10,11 @@ This workflow is the client-facing entrypoint template distributed to target rep
 
 ## Usage
 
-Triggers:
+Triggers (must stay aligned with `oblt-aw-ingress` so dashboard-gated jobs can run):
 
 - `schedule` (`0 6 * * *`)
-- `workflow_dispatch`
-- `issues` (`opened`, `labeled`)
+- `workflow_dispatch` (required for ingress routes that run only on manual entrypoint runs, e.g. duplicate-issue-detector)
+- `issues` (`opened`, `labeled`) — `opened` drives issue-triage and duplicate-issue-detector; `labeled` supports other flows
 - `pull_request` (`opened`, `synchronize`, `reopened`)
 - `pull_request_review` (`submitted`)
 
