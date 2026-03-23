@@ -7,7 +7,7 @@
 Entrypoint workflows:
 
 - `.github/workflows/oblt-aw-ingress.yml` (orchestration)
-- `.github/workflows/get_enabled_workflows.yml` (dashboard read; first stage inside ingress)
+- `.github/workflows/get-enabled-workflows.yml` (dashboard read; first stage inside ingress)
 
 Specialized workflows:
 
@@ -43,8 +43,8 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 
 1. **Dashboard sync** (`sync-control-plane-dashboard`): Reads `workflow-registry.json` and `active-repositories.json`; creates or updates the dashboard issue in each target repository; pins the issue when possible
 2. **User edit:** Users check or uncheck workflow checkboxes in the dashboard issue (no config file; no PRs on checkbox edits)
-3. **Runtime check** (`get_enabled_workflows`): When the client runs the ingress, this reusable workflow runs first. It parses the dashboard (or `EFFECTIVE_RAW` is empty when no issue exists) and emits normalized `enabled_workflows` as a compact JSON array string (`[]` or `["id", ...]`).
-4. **Ingress gating:** Routed jobs use `enabled_workflows` and `EFFECTIVE_RAW` from `get_enabled_workflows`; empty string (no dashboard) → all workflows; empty array → none; non-empty array → only listed workflows
+3. **Runtime check** (`get-enabled-workflows`): When the client runs the ingress, this reusable workflow runs first. It parses the dashboard (or `effective-raw` is empty when no issue exists) and emits normalized `enabled-workflows` as a compact JSON array string (`[]` or `["id", ...]`).
+4. **Ingress gating:** Routed jobs use `enabled-workflows` and `effective-raw` from `get-enabled-workflows`; empty string (no dashboard) → all workflows; empty array → none; non-empty array → only listed workflows
 
 ### Opt-in / Opt-out
 
@@ -74,14 +74,14 @@ Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
 - `issues` + `labeled` + required labels (`oblt-aw/ai/fix-ready` and `oblt-aw/triage/res-not-accessible-by-integration`) -> resource-not-accessible fixer
 - unsupported event/action combinations -> `unsupported-trigger` fail-fast job
 
-*Note: Dashboard opt-in/opt-out is read at runtime inside the ingress via `get_enabled_workflows`; there is no `issues.edited` trigger.*
+*Note: Dashboard opt-in/opt-out is read at runtime inside the ingress via `get-enabled-workflows`; there is no `issues.edited` trigger.*
 
 ## Examples
 
 ```mermaid
 flowchart TD
   A[Consumer Repository] --> C[oblt-aw-ingress]
-  C --> B[get_enabled_workflows]
+  C --> B[get-enabled-workflows]
   C --> D[Dependency Review]
   C --> E[Resource Not Accessible by Integration Detector]
   C --> F[Resource Not Accessible by Integration Triage]
@@ -89,7 +89,7 @@ flowchart TD
   C --> X[Unsupported Trigger]
 ```
 
-*The ingress calls `get_enabled_workflows` first to read the dashboard issue; each routed job is gated by the effective `enabled_workflows` value.*
+*The ingress calls `get-enabled-workflows` first to read the dashboard issue; each routed job is gated by the effective `enabled-workflows` value.*
 
 ## References
 

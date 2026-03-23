@@ -1,19 +1,19 @@
 name: Observability Agentic Workflow — Get enabled workflows
 
-# Reads the oblt-aw/dashboard issue and emits normalized enabled_workflows outputs for ingress gating (no downstream agentic jobs).
+# Reads the oblt-aw/dashboard issue and emits normalized outputs for ingress gating (no downstream agentic jobs).
 on:
   workflow_call:
     outputs:
-      enabled_workflows:
+      enabled-workflows:
         description: >-
           Normalized JSON array string ([] or ["id", ...]).
-          Use EFFECTIVE_RAW to distinguish no-dashboard ('') from dashboard with nothing checked.
-        value: ${{ jobs.read-dashboard.outputs.enabled_workflows }}
-      EFFECTIVE_RAW:
+          Use effective-raw to distinguish no-dashboard ('') from dashboard with nothing checked.
+        value: ${{ jobs['read-dashboard'].outputs['enabled-workflows'] }}
+      effective-raw:
         description: >-
           Pre-normalization string from the dashboard read ('', '[]', or '["id",...]');
           empty means no open dashboard issue (ingress enables all workflows).
-        value: ${{ jobs.read-dashboard.outputs.EFFECTIVE_RAW }}
+        value: ${{ jobs['read-dashboard'].outputs['effective-raw'] }}
   workflow_dispatch:
 
 permissions:
@@ -24,8 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      enabled_workflows: ${{ steps.run.outputs.enabled_workflows }}
-      EFFECTIVE_RAW: ${{ steps.run.outputs.effective_raw }}
+      enabled-workflows: ${{ steps.run.outputs['enabled-workflows'] }}
+      effective-raw: ${{ steps.run.outputs['effective-raw'] }}
     steps:
       - name: Fetch dashboard, parse, and normalize enabled workflows
         id: run
@@ -50,7 +50,7 @@ jobs:
           }
           write_enabled_workflows() {
             {
-              echo "enabled_workflows<<$DELIM"
+              echo "enabled-workflows<<$DELIM"
               printf '%s\n' "$1"
               echo "$DELIM"
             } >> "$GITHUB_OUTPUT"
@@ -74,7 +74,7 @@ jobs:
           write_enabled_workflows "$NORMALIZED_JSON"
           delim2=$(openssl rand -hex 8)
           {
-            echo "effective_raw<<$delim2"
+            echo "effective-raw<<$delim2"
             printf '%s' "$RAW"
             echo "$delim2"
           } >> "$GITHUB_OUTPUT"

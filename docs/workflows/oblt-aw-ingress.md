@@ -26,7 +26,7 @@ Routing jobs:
 - `resource-not-accessible-by-integration-detector`, `resource-not-accessible-by-integration-triage`, `resource-not-accessible-by-integration-fixer` (unified `enabled_workflow`: `resource-not-accessible-by-integration`)
 - `unsupported-trigger`
 
-The ingress runs `get_enabled_workflows.yml` first. Gating uses `EFFECTIVE_RAW` and `enabled_workflows`: `EFFECTIVE_RAW` empty (no open dashboard issue) → all workflows enabled; `EFFECTIVE_RAW` non-empty and normalized array `[]` → no workflows; non-empty array with IDs → only listed workflows run. Bare workflow IDs are not accepted.
+The ingress runs `get-enabled-workflows.yml` first. Gating uses `effective-raw` and `enabled-workflows`: `effective-raw` empty (no open dashboard issue) → all workflows enabled; `effective-raw` non-empty and normalized array `[]` → no workflows; non-empty array with IDs → only listed workflows run. Bare workflow IDs are not accepted.
 
 ## Configuration
 
