@@ -33,7 +33,7 @@
       "name": "Resource Not Accessible by Integration",
       "description": "Detects 'Resource not accessible by integration' occurrences in workflow logs, creates triage issues, triages newly opened issues, and executes fixes for issues labeled ready to fix.",
       "maturity": "early-adoption",
-      "default_enabled": true
+      "default_enabled": false
     }
   ]
 }
