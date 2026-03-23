@@ -19,9 +19,13 @@ Supported triggers in this workflow file:
 - `workflow_call`
 - `issues` with `opened` and `labeled`
 - `pull_request` with `opened`, `synchronize`, `reopened`
+- `pull_request_review` with `submitted` (approved)
 
 Routing jobs:
 
+- `agent-suggestions`
+- `autodoc`
+- `automerge`
 - `dependency-review`
 - `resource-not-accessible-by-integration-detector`, `resource-not-accessible-by-integration-triage`, `resource-not-accessible-by-integration-fixer` (unified `enabled_workflow`: `resource-not-accessible-by-integration`)
 - `unsupported-trigger`

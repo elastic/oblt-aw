@@ -10,6 +10,10 @@ Entrypoint workflow:
 
 Specialized workflows:
 
+- `.github/workflows/gh-aw-agent-suggestions.yml`
+- `.github/workflows/gh-aw-autodoc.yml`
+- `.github/workflows/gh-aw-automerge.yml`
+- `.github/workflows/gh-aw-automerge-approve.yml`
 - `.github/workflows/gh-aw-dependency-review.yml`
 - `.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml`
 - `.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml`
@@ -65,6 +69,11 @@ Any issue opened by OBLT AW workflows must use a title that starts with `[oblt-a
 
 Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
 
+- `schedule` -> agent-suggestions
+- `schedule` -> autodoc (`audit` step always runs; `fix` step runs only when `audit` creates an issue)
+- `schedule` -> automerge (scans all open PRs)
+- `pull_request` + action in `opened|synchronize|reopened` + PR author is `elastic-vault-github-plugin-prod[bot]` -> automerge
+- `pull_request_review` + action `submitted` + review state `approved` + PR author is `elastic-vault-github-plugin-prod[bot]` -> automerge
 - `pull_request` + action in `opened|synchronize|reopened` + bot author in allowlist -> dependency review
 - `schedule` -> resource-not-accessible detector
 - `issues` + (`opened` with label `oblt-aw/detector/res-not-accessible-by-integration` OR `labeled` with that label) -> resource-not-accessible triage
@@ -79,6 +88,10 @@ Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
 flowchart TD
   A[Consumer Repository] --> B[check-dashboard]
   B --> C[oblt-aw-ingress]
+  C --> AG[Agent Suggestions]
+  C --> AD[Autodoc audit]
+  AD -->|issue created| AF[Autodoc fix]
+  C --> AM[Automerge]
   C --> D[Dependency Review]
   C --> E[Resource Not Accessible by Integration Detector]
   C --> F[Resource Not Accessible by Integration Triage]

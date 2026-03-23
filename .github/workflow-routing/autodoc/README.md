@@ -6,19 +6,22 @@ This folder documents routing and operational notes for the documentation improv
 
 `oblt-aw-ingress.yml` dispatches to `gh-aw-autodoc.yml` when:
 
-- event is `workflow_dispatch`
-- input `capability` equals `autodoc`
+- event is `schedule`
 
-If `capability` is empty or unsupported on `workflow_dispatch`, ingress falls back to the detector workflow.
+No additional inputs or capability flags are required; scheduling is the only trigger.
 
 ## Routed workflow
 
-- `workflow_dispatch` + `capability=autodoc` -> `gh-aw-autodoc.yml`
+- `schedule` -> `gh-aw-autodoc.yml`
+
+## Workflow flow
+
+`gh-aw-autodoc.yml` runs an issue-first two-step flow:
+
+1. **`audit` (always runs):** Calls `gh-aw-docs-patrol.lock.yml` from `elastic/ai-github-actions`. Audits all repository documentation for gaps, outdated content, and inconsistencies; creates an issue with concrete findings when drift is detected. The issue title is prefixed with `[oblt-aw][autodoc]` and `@elastic/observablt-ci` is always mentioned.
+2. **`fix` (conditional):** Calls `gh-aw-create-pr-from-issue.lock.yml` from `elastic/ai-github-actions`. Runs only when `audit` created an issue (`audit` output `created_issue_number` is non-empty). Implements the audit findings and opens a draft PR for review; does **not** merge automatically.
 
 ## Notes
 
-- `gh-aw-autodoc.yml` uses two upstream workflows from `elastic/ai-github-actions`:
-  - `gh-aw-docs-patrol.lock.yml` — detects code changes that require documentation updates and creates an issue with findings
-  - `gh-aw-create-pr-from-issue.lock.yml` — implements the findings and opens a PR (only when an issue was created)
-- It is intended to analyze repository documentation and open a focused documentation PR.
-- It must not merge PRs automatically.
+- Only documentation files are modified by the `fix` step; source code, workflow logic, scripts, and data files are left untouched.
+- Draft PRs are opened by `fix`; they must be manually promoted to ready-for-review before merging.

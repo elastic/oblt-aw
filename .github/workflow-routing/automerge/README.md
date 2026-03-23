@@ -45,4 +45,15 @@ Automerge is enabled using `gh pr merge --auto --squash`. The merge is performed
 
 ## Permissions required
 
-The workflow uses the default `GITHUB_TOKEN` with `pull-requests: write`. No additional secrets are required.
+Both `gh-aw-automerge.yml` and `gh-aw-automerge-approve.yml` use the default `GITHUB_TOKEN` with the following scopes:
+
+| Scope | Level |
+|---|---|
+| `actions` | `read` |
+| `checks` | `read` |
+| `contents` | `write` |
+| `discussions` | `write` |
+| `issues` | `write` |
+| `pull-requests` | `write` |
+
+No additional secrets are required.
