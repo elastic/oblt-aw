@@ -72,23 +72,23 @@ jobs:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   duplicate-issue-detector:
-    needs: normalize-enabled-workflows
+    needs: dashboard-enabled-workflows
     if: >-
       (
         (github.event_name == 'issues' && github.event.action == 'opened') ||
         github.event_name == 'workflow_dispatch'
       ) &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'duplicate-issue-detector'))
+      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'duplicate-issue-detector'))
     uses: ./.github/workflows/gh-aw-duplicate-issue-detector.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   issue-triage:
-    needs: normalize-enabled-workflows
+    needs: dashboard-enabled-workflows
     if: >-
       github.event_name == 'issues' &&
       github.event.action == 'opened' &&
-      (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'issue-triage'))
+      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'issue-triage'))
     uses: ./.github/workflows/gh-aw-issue-triage.yml
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
