@@ -55,9 +55,11 @@ jobs:
               echo "$DELIM"
             } >> "$GITHUB_OUTPUT"
           }
-          BODY=$(gh api "repos/${{ github.repository }}/issues?labels=oblt-aw/dashboard&state=open" \
-            --jq 'if length > 0 then .[0].body else empty end' 2>/dev/null || echo "")
-          if [[ -z "$BODY" ]]; then
+          if ! BODY=$(gh api "repos/${{ github.repository }}/issues?labels=oblt-aw/dashboard&state=open" \
+            --jq 'if length > 0 then .[0].body else empty end'); then
+            echo "Error fetching dashboard issue via 'gh api'; defaulting to no workflows enabled" >&2
+            RAW="[]"
+          elif [[ -z "$BODY" ]]; then
             RAW=""
             echo "No dashboard issue found, defaulting to all workflows enabled"
           else
