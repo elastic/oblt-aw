@@ -20,8 +20,7 @@ Triggers:
 
 Execution flow:
 
-1. **check-dashboard job** (runs first, in target repo with default `GITHUB_TOKEN`): Looks up an open issue labeled `oblt-aw/dashboard`. If none exists, outputs an empty `enabled_workflows` string (ingress enables all workflows). If it exists, parses checkboxes (`^- [x] <!-- oblt-aw:workflow-id -->` at line start in the Enable/Disable list) and outputs `enabled_workflows` as a JSON array string: `[]` when nothing is checked, or `["id", ...]` for checked workflows only. Permissions: `issues: read`.
-2. **run-aw job** (`needs: check-dashboard`): Passes `enabled_workflows` to the ingress; calls `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`
+1. **run-aw job** calls `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`. The ingress runs `get_enabled_workflows` first (in the consumer repo context): it looks up an open issue labeled `oblt-aw/dashboard`, parses checkboxes (`^- [x] <!-- oblt-aw:workflow-id -->` at line start in the Enable/Disable list), and derives normalized `enabled_workflows` (always `[]` or `["id", ...]`). Use `EFFECTIVE_RAW`: empty means no dashboard issue → all workflows enabled; otherwise `[]` or `["id", ...]` from the issue. Consumers do not need to call `get_enabled_workflows` separately; the ingress invokes it.
 
 ## Configuration
 

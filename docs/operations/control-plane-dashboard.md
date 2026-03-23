@@ -31,7 +31,7 @@ The Control Plane Dashboard is a single GitHub Issue in your repository that lis
 3. **Check** the checkbox next to the workflow (click it)
 4. Save or submit the edit
 
-There is no config file. When the client workflow runs, a `check-dashboard` job reads the dashboard issue at runtime and passes `enabled_workflows` to the ingress. The workflow will run on the next trigger (e.g. `schedule`, `workflow_dispatch`, `pull_request`).
+There is no config file. When the client workflow runs, the ingress (`get_enabled_workflows`) reads the dashboard issue at runtime and applies `enabled_workflows` gating. The workflow will run on the next trigger (e.g. `schedule`, `workflow_dispatch`, `pull_request`).
 
 ### Disabling a Workflow
 
@@ -40,7 +40,7 @@ There is no config file. When the client workflow runs, a `check-dashboard` job 
 3. **Uncheck** the checkbox next to the workflow (click it)
 4. Save or submit the edit
 
-The `check-dashboard` job excludes the workflow from `enabled_workflows` at runtime. The workflow will no longer run for your repository until you enable it again.
+The ingress dashboard stage excludes the workflow from `enabled_workflows` at runtime. The workflow will no longer run for your repository until you enable it again.
 
 ---
 
@@ -48,8 +48,8 @@ The `check-dashboard` job excludes the workflow from `enabled_workflows` at runt
 
 1. **You edit the issue** — Check or uncheck one or more workflow checkboxes (no immediate action; no PRs)
 2. **Client runs** — On the next trigger (schedule, workflow_dispatch, pull_request, etc.), the client workflow starts
-3. **check-dashboard job runs first** — If there is no open dashboard issue, it outputs an empty `enabled_workflows` value (ingress enables all workflows). Otherwise it fetches the issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:workflow-id -->` at line start in the Enable/Disable list), and outputs `enabled_workflows` as a JSON array string (`[]` or `["id", ...]`).
-4. **Ingress receives input** — The `run-aw` job passes `enabled_workflows` to the ingress
+3. **`get_enabled_workflows` runs inside the ingress** — If there is no open dashboard issue, `EFFECTIVE_RAW` is empty and normalized `enabled_workflows` is `[]` (ingress enables all workflows). Otherwise it fetches the issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:workflow-id -->` at line start in the Enable/Disable list), and writes normalized `enabled_workflows` as a JSON array string (`[]` or `["id", ...]`).
+4. **Ingress gating** — The ingress uses `enabled_workflows` and `EFFECTIVE_RAW` from `get_enabled_workflows` to gate downstream jobs.
 5. **Ingress gates execution** — Empty string → all workflows; `[]` → none; non-empty array → only listed IDs. See [Default Behavior](#default-behavior).
 
 ---

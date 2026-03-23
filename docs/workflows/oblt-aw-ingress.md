@@ -26,7 +26,7 @@ Routing jobs:
 - `resource-not-accessible-by-integration-detector`, `resource-not-accessible-by-integration-triage`, `resource-not-accessible-by-integration-fixer` (unified `enabled_workflow`: `resource-not-accessible-by-integration`)
 - `unsupported-trigger`
 
-Each workflow job is gated by the `enabled_workflows` input (from the client's `check-dashboard` job). Accepted formats only: empty string (no open dashboard issue) → all workflows enabled; JSON array string `[]` (dashboard exists, nothing checked) → no workflows; `["id",...]` → only listed workflows run. Bare workflow IDs are not accepted.
+The ingress runs `get_enabled_workflows.yml` first. Gating uses `EFFECTIVE_RAW` and `enabled_workflows`: `EFFECTIVE_RAW` empty (no open dashboard issue) → all workflows enabled; `EFFECTIVE_RAW` non-empty and normalized array `[]` → no workflows; non-empty array with IDs → only listed workflows run. Bare workflow IDs are not accepted.
 
 ## Configuration
 
@@ -42,20 +42,16 @@ Top-level permissions:
 
 Interface exposed through `workflow_call`:
 
-- Input: `enabled_workflows` (string; `''` = no dashboard → all enabled; `[]` = dashboard present, none checked → none; `["id"]` / `["a","b"]` = only those IDs. Bare workflow IDs are not accepted; use delimiter format in callers.)
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## Examples
 
-Minimal consumer reference (client template has `check-dashboard` job that outputs `enabled_workflows` as `''` or a JSON array string):
+Minimal consumer reference (client template calls ingress only; dashboard read runs inside ingress):
 
 ```yaml
 jobs:
   run-aw:
-    needs: check-dashboard
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main
-    with:
-      enabled_workflows: ${{ needs.check-dashboard.outputs.enabled_workflows }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 ```
