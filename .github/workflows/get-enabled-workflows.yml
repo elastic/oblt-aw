@@ -75,6 +75,6 @@ jobs:
           delim2=$(openssl rand -hex 8)
           {
             echo "effective-raw<<$delim2"
-            printf '%s' "$RAW"
+            printf '%s\n' "$RAW"
             echo "$delim2"
           } >> "$GITHUB_OUTPUT"
