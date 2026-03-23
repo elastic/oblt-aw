@@ -35,9 +35,11 @@ jobs:
           NORMALIZED_JSON: ${{ (startsWith(inputs.enabled_workflows, '[') && inputs.enabled_workflows) || format('["{0}"]', inputs.enabled_workflows) }}
         run: |
           delim=$(openssl rand -hex 8)
-          echo "json<<$delim" >> "$GITHUB_OUTPUT"
-          printf '%s\n' "$NORMALIZED_JSON" >> "$GITHUB_OUTPUT"
-          echo "$delim" >> "$GITHUB_OUTPUT"
+          {
+            echo "json<<$delim"
+            printf '%s\n' "$NORMALIZED_JSON"
+            echo "$delim"
+          } >> "$GITHUB_OUTPUT"
 
   agent-suggestions:
     needs: normalize-enabled-workflows

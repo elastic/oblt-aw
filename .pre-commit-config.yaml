@@ -12,6 +12,12 @@ repos:
     hooks:
       - id: shellcheck
 
+  # ── GitHub Actions linting ────────────────────────────────────────────────
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.7
+    hooks:
+      - id: actionlint
+
   # ── Python linting & formatting ───────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.6
