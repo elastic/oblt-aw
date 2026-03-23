@@ -1,8 +1,10 @@
 ---
 name: Issue Triage
 on:
-  issues:
-    types: [opened]
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
 
 permissions:
   actions: read

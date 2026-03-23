@@ -4,28 +4,29 @@
 
 Source file: `.github/workflows/gh-aw-duplicate-issue-detector.yml`
 
-This workflow runs when a new issue is opened, or when invoked manually, and delegates execution to the locked duplicate-issue-detector reusable workflow in `elastic/ai-github-actions`.
+Reusable wrapper that calls the locked duplicate-issue-detector workflow in `elastic/ai-github-actions`. The client entrypoint (`oblt-aw` template) invokes `oblt-aw-ingress`, which runs this job when an issue is opened or when the entrypoint is manually dispatched, provided the workflow is enabled on the control-plane dashboard.
 
 ## Prerequisites
 
-- Repository secret: `COPILOT_GITHUB_TOKEN` (passed to the reusable workflow).
+- Triggered via `workflow_call` from `oblt-aw-ingress.yml`.
+- Required secret: `COPILOT_GITHUB_TOKEN`.
 
 ## Usage
 
-Triggers:
+Ingress routes here when:
 
-- `issues` with type `opened`
-- `workflow_dispatch` (manual runs)
+- `github.event_name == 'issues'` and `github.event.action == 'opened'`, or `github.event_name == 'workflow_dispatch'`, and
+- Dashboard gating allows `duplicate-issue-detector` (or no dashboard issue is present, so all workflows are enabled).
 
 The job `run` calls:
 
 - `elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main`
 
-Behavior, inputs, and agent instructions for the locked workflow are defined in the `elastic/ai-github-actions` repository; this repository only provides the event entrypoint and secret wiring.
+Behavior and agent instructions for the locked workflow are defined in `elastic/ai-github-actions`.
 
 ## Configuration
 
-Permissions declared in the workflow file:
+Permissions:
 
 - `contents: read`
 - `discussions: write`
@@ -34,14 +35,11 @@ Permissions declared in the workflow file:
 
 ## API / Interface
 
-Event entrypoint (not `workflow_call`):
+`workflow_call` contract:
 
-| Item | Value |
-|------|--------|
-| Triggers | `issues: opened`, `workflow_dispatch` |
-| Secrets | `COPILOT_GITHUB_TOKEN` → reusable workflow |
-| Reusable workflow | `gh-aw-duplicate-issue-detector.lock.yml@main` |
+- Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
 
 ## References
 
-- Upstream lock definition: `elastic/ai-github-actions` — `.github/workflows/gh-aw-duplicate-issue-detector.lock.yml`
+- Ingress routing: `docs/workflows/oblt-aw-ingress.md` — workflow id `duplicate-issue-detector` in `workflow-registry.json`
+- Upstream lock: `elastic/ai-github-actions` — `.github/workflows/gh-aw-duplicate-issue-detector.lock.yml`

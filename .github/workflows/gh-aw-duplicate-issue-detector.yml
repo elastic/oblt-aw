@@ -1,9 +1,10 @@
 ---
 name: Duplicate Issue Detector
 on:
-  issues:
-    types: [opened]
-  workflow_dispatch:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
 
 permissions:
   contents: read
