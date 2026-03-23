@@ -32,9 +32,25 @@ jobs:
       - name: Normalize enabled_workflows for fromJSON
         id: normalize
         env:
-          NORMALIZED_JSON: ${{ (startsWith(inputs.enabled_workflows, '[') && inputs.enabled_workflows) || format('["{0}"]', inputs.enabled_workflows) }}
+          RAW_INPUT: ${{ inputs.enabled_workflows }}
         run: |
+          set -euo pipefail
           delim=$(openssl rand -hex 8)
+          # Always emit a JSON array: valid [] / ["a","b"] passthrough; newline-separated IDs
+          # coerced; malformed bracket blobs from older clients repaired. Avoid
+          # format('["{0}"]', ...) — newlines in {0} are not JSON-escaped and break fromJSON.
+          NORMALIZED_JSON=$(
+            printf '%s' "$RAW_INPUT" | jq -R -s -c '
+              (gsub("^\\s+|\\s+$"; "")) as $t
+              | if ($t | length) == 0 then
+                  []
+                else
+                  ($t
+                   | try (fromjson | if type == "array" then . else error("not an array") end)
+                   catch ([ $t | scan("[a-z0-9-]+") ] | unique))
+                end
+            '
+          )
           {
             echo "json<<$delim"
             printf '%s\n' "$NORMALIZED_JSON"

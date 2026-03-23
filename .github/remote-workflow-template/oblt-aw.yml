@@ -47,14 +47,13 @@ jobs:
             echo "No dashboard issue found, defaulting to all workflows enabled"
             exit 0
           fi
-          ENABLED=$( (echo "$BODY" | grep -oP '(?m)^- \[x\] <!-- oblt-aw:\K[a-z0-9-]+' || true) | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          RAW=$(echo "$BODY" | grep -oP '(?m)^- \[x\] <!-- oblt-aw:\K[a-z0-9-]+' || true)
+          ENABLED=$(printf '%s\n' "$RAW" | jq -R -s -c 'split("\n") | map(select(length > 0))')
           if [[ -z "$ENABLED" || "$ENABLED" == "[]" ]]; then
             write_output "[]"
             echo "Dashboard exists but no checkboxes checked, no workflows will run"
-          elif [[ "$ENABLED" == "["* ]]; then
-            write_output "$ENABLED"
           else
-            write_output "[\"$ENABLED\"]"
+            write_output "$ENABLED"
           fi
 
   run-aw:
