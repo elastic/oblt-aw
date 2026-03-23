@@ -123,7 +123,7 @@ jobs:
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/resource-not-accessible-by-integration') &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration') &&
       (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
     secrets: inherit
@@ -132,7 +132,10 @@ jobs:
     needs: normalize-enabled-workflows
     if: >-
       github.event_name == 'issues' &&
-      github.event.action == 'opened' &&
+      (
+        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration')) ||
+        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration')
+      ) &&
       (inputs.enabled_workflows == '' || contains(fromJSON(needs.normalize-enabled-workflows.outputs.ENABLED_WORKFLOWS_JSON), 'resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
     secrets:
