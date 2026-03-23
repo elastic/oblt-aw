@@ -42,9 +42,11 @@ jobs:
         env:
           REPOS_COUNT: ${{ steps.matrix.outputs.repos_count }}
         run: |
-          echo "## Sync target summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Repositories to sync: ${REPOS_COUNT}" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Sync target summary"
+            echo ""
+            echo "- Repositories to sync: ${REPOS_COUNT}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   sync-dashboard:
     needs: prepare-repos
