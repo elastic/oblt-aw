@@ -55,6 +55,10 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 - `docs/operations/control-plane-dashboard-format.md` — dashboard issue format
 - [Issue #3732 comment (implementation plan)](https://github.com/elastic/observability-robots/issues/3732#issuecomment-4054356635) — canonical plan
 
+### Issues created by agentic workflows
+
+Any issue opened by OBLT AW workflows must use a title that starts with `[oblt-aw]`. Wrapper workflows pass a `title-prefix` (or equivalent) to upstream agentic jobs so new issues stay searchable and consistent; the dashboard issue title is `[oblt-aw] Control Plane Dashboard`.
+
 ---
 
 ## Routing Model
