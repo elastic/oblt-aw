@@ -8,20 +8,21 @@ on:
         description: >-
           Normalized JSON array string ([] or ["id", ...]).
           Use EFFECTIVE_RAW to distinguish no-dashboard ('') from dashboard with nothing checked.
-        value: ${{ jobs.resolve.outputs.enabled_workflows }}
+        value: ${{ jobs.read-dashboard.outputs.enabled_workflows }}
       EFFECTIVE_RAW:
         description: >-
           Pre-normalization string from the dashboard read ('', '[]', or '["id",...]');
           empty means no open dashboard issue (ingress enables all workflows).
-        value: ${{ jobs.resolve.outputs.EFFECTIVE_RAW }}
+        value: ${{ jobs.read-dashboard.outputs.EFFECTIVE_RAW }}
   workflow_dispatch:
 
+permissions:
+  issues: read
+
 jobs:
-  resolve:
+  read-dashboard:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions:
-      issues: read
     outputs:
       enabled_workflows: ${{ steps.run.outputs.enabled_workflows }}
       EFFECTIVE_RAW: ${{ steps.run.outputs.effective_raw }}
