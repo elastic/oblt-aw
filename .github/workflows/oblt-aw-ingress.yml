@@ -36,11 +36,10 @@ jobs:
         run: |
           set -euo pipefail
           delim=$(openssl rand -hex 8)
-          echo "json<<$delim" >> "$GITHUB_OUTPUT"
           # Always emit a JSON array: valid [] / ["a","b"] passthrough; newline-separated IDs
           # coerced; malformed bracket blobs from older clients repaired. Avoid
           # format('["{0}"]', ...) — newlines in {0} are not JSON-escaped and break fromJSON.
-          normalized=$(
+          NORMALIZED_JSON=$(
             printf '%s' "$RAW_INPUT" | jq -R -s -c '
               (gsub("^\\s+|\\s+$"; "")) as $t
               | if ($t | length) == 0 then
@@ -52,8 +51,11 @@ jobs:
                 end
             '
           )
-          printf '%s\n' "$normalized" >> "$GITHUB_OUTPUT"
-          echo "$delim" >> "$GITHUB_OUTPUT"
+          {
+            echo "json<<$delim"
+            printf '%s\n' "$NORMALIZED_JSON"
+            echo "$delim"
+          } >> "$GITHUB_OUTPUT"
 
   agent-suggestions:
     needs: normalize-enabled-workflows

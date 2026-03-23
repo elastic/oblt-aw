@@ -34,12 +34,14 @@ jobs:
           # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
           DELIM=$(dd if=/dev/urandom bs=15 count=1 status=none | base64 | tr -d '\n')
           write_output() {
-            echo "enabled_workflows<<$DELIM" >> "$GITHUB_OUTPUT"
-            printf '%s\n' "$1" >> "$GITHUB_OUTPUT"
-            echo "$DELIM" >> "$GITHUB_OUTPUT"
+            {
+              echo "enabled_workflows<<$DELIM"
+              printf '%s\n' "$1"
+              echo "$DELIM"
+            } >> "$GITHUB_OUTPUT"
           }
           BODY=$(gh api "repos/${{ github.repository }}/issues?labels=oblt-aw/dashboard&state=open" \
-            --jq 'if length > 0 then .[0].body else empty end' 2>/dev/null || echo "")
+            --jq 'if length > 0 then .[0].body else empty end')
           if [[ -z "$BODY" ]]; then
             write_output ""
             echo "No dashboard issue found, defaulting to all workflows enabled"
