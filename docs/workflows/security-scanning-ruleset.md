@@ -21,7 +21,7 @@ This document defines the ruleset used by the oblt-aw security detector to ident
 
 ### Classification Criteria
 
-- **Critical**: Secret or token passed as a command-line argument to any executable; secret interpolated into a shell command string.
+- **Critical**: Secret or token passed as a command-line argument to any executable.
 - **High**: `${{ secrets.* }}` or `${{ env.* }}` containing secrets used in `run:` inline command strings; env indirection not used where required.
 - **Medium**: Patterns that could lead to exposure under certain conditions; deprecated or weak secret handling.
 - **Low**: Missing least-privilege permissions; non-secret but security-relevant misconfigurations.
