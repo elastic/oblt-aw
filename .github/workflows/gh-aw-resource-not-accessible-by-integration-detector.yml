@@ -19,8 +19,10 @@ jobs:
     steps:
       - id: list
         run: |
+          # Use numeric workflow IDs (not path-derived filenames) to avoid 404 when
+          # the API expects the exact workflow file name (e.g. copilot.yml, not "copilot")
           workflows=$(gh api repos/${{ github.repository }}/actions/workflows \
-            --jq '[.workflows[].path | split("/")[-1]] | tojson')
+            --jq '[.workflows[].id | tostring] | tojson')
           echo "workflows=$workflows" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
@@ -37,7 +39,7 @@ jobs:
       search-terms: "Resource not accessible by integration"
       days: 1
       conclusion: "any"
-      title-prefix: "[AI Detector][Resource not accessible by Integration]"
+      title-prefix: "[oblt-aw][resource-not-accessible-by-integration]"
       additional-instructions: |
         **Error Context:**
         You are analyzing preflight search results for the exact phrase "Resource not accessible by integration" in GitHub Actions workflow logs. This error typically indicates permission or token scope issues when workflows access protected resources (e.g., secrets, environments, or repository settings).
@@ -72,6 +74,9 @@ jobs:
         - Add direct links to all affected workflow runs
         - Group related occurrences and prioritize by frequency/severity
         - Include recommendations for fixing (e.g., token permissions, environment access) when patterns are identifiable
+
+        **Detector label (required when creating an issue):**
+        - When you create an issue to report findings, you MUST add the label `oblt-aw/detector/res-not-accessible-by-integration` so ingress can route the issue to the triage workflow.
 
         **Assignment:** When creating the issue, assign it to the elastic/observablt-ci GitHub team. If the platform does not support team assignees for issues, @mention the elastic/observablt-ci team in the issue body.
     secrets: inherit
