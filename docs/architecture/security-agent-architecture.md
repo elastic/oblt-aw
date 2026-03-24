@@ -44,7 +44,7 @@ The security detector must scan **code** (shell scripts, workflow YAML, and depe
 | Tool / check | Purpose | Target artifacts | Focus area |
 |--------------|---------|------------------|------------|
 | **shellcheck** | Shell quoting, unsafe constructs; supports command-injection heuristics | `.sh`, `.bash` | Injection |
-| **grep / ripgrep** | Secret patterns, token-in-`run:`, logging of secrets | Workflows, scripts | Secret management |
+| **grep / ripgrep** | Secret patterns, token-in `run:`, logging of secrets | Workflows, scripts | Secret management |
 | **semgrep** (or equivalent) | Expression/YAML injection patterns, `${{ secrets.* }}` in `run:` | `.yml` workflows | Injection + secrets |
 | **Custom YAML walk** | `permissions:` analysis, unpinned `uses:`, risky triggers | `.github/workflows/**` | Least privilege + supply chain |
 | **npm audit** / **pip-audit** / **govulncheck** (when lockfiles exist) | Known CVEs in dependencies | `package-lock.json`, Python/Go locks | Supply chain |
