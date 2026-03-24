@@ -6,7 +6,7 @@ This document defines the ruleset used by the oblt-aw security detector to ident
 
 **Scope**: Workflow YAML (`.github/workflows/**`), shell scripts, dependency manifests when present, and patterns aligned with [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758).
 
-**Detector:** Implements every rule in this document (**SEC-001** through **SEC-044**), except where a rule explicitly defers to another workflow (for example dependency review at PR time). See **Implementation notes** at the end of this document. [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) illustrates token exposure patterns covered by SEC-001–SEC-003.
+**Detector:** Implements every SEC-0xx rule defined in this document (currently **SEC-001–SEC-003**, **SEC-010–SEC-012**, **SEC-020–SEC-022**, **SEC-030–SEC-035**, and **SEC-040–SEC-044**), except where a rule explicitly defers to another workflow (for example dependency review at PR time). See **Implementation notes** at the end of this document. [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) illustrates token exposure patterns covered by SEC-001–SEC-003.
 
 ---
 
