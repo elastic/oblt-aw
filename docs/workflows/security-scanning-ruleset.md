@@ -220,7 +220,7 @@ This document defines the ruleset used by the oblt-aw security detector to ident
 
 ### Rule SEC-035: Script Invokes Package Install Without Integrity Flags
 
-**Severity**: Low–Medium
+**Severity**: Low
 **Maps to**: Supply chain.
 
 **Description**: `pip install` without hashes, `npm install` without lockfile enforcement in CI scripts where `npm ci` is expected.
