@@ -25,7 +25,7 @@ flowchart TD
   A[Schedule / workflow_dispatch] --> B[Security Detector]
   B --> C[Creates issue + label oblt-aw/detector/security]
   C --> D[Security Triage]
-  D --> E["oblt-aw/triage/security-* , other, or needs-info"]
+  D --> E["oblt-aw/triage/security-*, other, or needs-info"]
   E --> F[oblt-aw/ai/fix-ready when ready to fix]
   F --> G["Fixer: oblt-aw/triage/security-* AND oblt-aw/ai/fix-ready"]
   G --> H[Draft PR]
