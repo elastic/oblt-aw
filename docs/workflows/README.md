@@ -4,6 +4,9 @@
 
 This section provides one document per workflow file in `.github/workflows/` and one for the distributed client template source file.
 
+- Security architecture: `docs/architecture/security-agent-architecture.md`
+- Security scanning ruleset: `docs/workflows/security-scanning-ruleset.md`
+
 ## Usage
 
 - CI workflow: `docs/workflows/ci.md`
