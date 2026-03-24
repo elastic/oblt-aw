@@ -1,0 +1,69 @@
+name: Security Issue Fixer
+on:
+  workflow_call:
+    inputs:
+      target-repositories:
+        description: JSON array with allowed repositories. [] allows all repositories.
+        required: false
+        type: string
+        default: "[]"
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  actions: read
+  contents: write
+  discussions: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  run:
+    if: >-
+      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
+      (
+        fromJSON(inputs.target-repositories)[0] == null ||
+        contains(fromJSON(inputs.target-repositories), github.repository)
+      )
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
+    with:
+      additional-instructions: |
+        Your task is to fix security issues labeled for remediation. This workflow uses agentic workflows from elastic/ai-github-actions.
+
+        **Execution Preconditions:**
+        - Proceed only when the issue has both labels:
+          - `oblt-aw/ai/fix-ready`
+          - At least one of `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`
+        - The issue must already contain a triage-generated resolution plan.
+
+        **Implementation Workflow (sequential and methodical):**
+        1. Read the resolution plan from the issue and extract ordered tasks.
+        2. Execute the plan strictly step by step, without skipping steps.
+        3. For each step, document what changed and why in commit messages and PR description.
+        4. **Least-privilege (MANDATORY):** Grant only the minimum permissions required. Never add broad scopes (e.g., avoid `contents: write` when `contents: read` suffices). Prefer job-level permissions over workflow-root permissions.
+        5. **Env-indirection (MANDATORY):** Never interpolate secrets or tokens directly in command strings. Always pass them via `env:` blocks (e.g. env: TOKEN: <secret-ref>; run: ./script.sh). Never interpolate secrets in run: command strings.
+        6. Run validation/tests described in the plan and confirm the vulnerability is remediated.
+
+        **Pull Request Requirements:**
+        - Create a pull request in `Draft` state first.
+        - PR title should reference fixing the security issue (e.g., "[oblt-aw][security] Fix token exposure in workflow X").
+        - PR body must include:
+          - link to the source issue
+          - checklist of plan steps completed
+          - evidence of successful tests/validation
+          - explicit confirmation that least-privilege and env-indirection patterns were applied
+
+        **Draft to Open Transition:**
+        - Keep PR as `Draft` until all plan steps are fully implemented and validation passes.
+        - Once implementation and tests are successful, convert the PR from `Draft` to `Open` (Ready for review).
+
+        **Review Assignment:**
+        - Request review from the GitHub team `elastic/observablt-ci`.
+        - Wait for approval before any merge action.
+
+        **Merge Policy:**
+        - Do not merge automatically.
+        - Do not perform merge operations in this workflow.
+    secrets: inherit

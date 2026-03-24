@@ -1,0 +1,50 @@
+---
+name: Security Detector
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y shellcheck jq
+
+      - name: Set up Node.js (npm audit for SEC-033 when lockfile present)
+        if: hashFiles('**/package-lock.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run security scan
+        id: scan
+        run: |
+          chmod +x .github/scripts/security-scan.sh
+          .github/scripts/security-scan.sh . 2>/dev/null | tee findings.txt || true
+          count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Create issues from findings
+        if: ${{ steps.scan.outputs.count != '0' }}
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          chmod +x .github/scripts/create-security-issues.sh
+          .github/scripts/create-security-issues.sh findings.txt

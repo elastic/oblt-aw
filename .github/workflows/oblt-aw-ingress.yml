@@ -80,10 +80,34 @@ jobs:
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
+  security-detector:
+    if: >-
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    uses: ./.github/workflows/gh-aw-security-detector.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  security-triage:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'opened'
+    uses: ./.github/workflows/gh-aw-security-triage.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  security-fixer:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')
+    uses: ./.github/workflows/gh-aw-security-fixer.yml
+    secrets: inherit
+
   unsupported-trigger:
     if: >-
       !(
-        contains(fromJSON('["schedule","workflow_call"]'), github.event_name) ||
+        contains(fromJSON('["schedule","workflow_dispatch","workflow_call"]'), github.event_name) ||
         (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action)) ||
         (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action)) ||
         (github.event_name == 'pull_request_review' && github.event.action == 'submitted')

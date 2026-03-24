@@ -4,6 +4,8 @@
 
 Entrypoint source: `.github/workflows/oblt-aw-ingress.yml`
 
+Security flows apply to **each repository** that installs the distributed client workflow and calls ingress (see `docs/workflows/oblt-aw-client-template.md`). Findings follow `docs/workflows/security-scanning-ruleset.md` (SEC-001–SEC-044) and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758).
+
 Routed workflows:
 
 - `.github/workflows/gh-aw-security-detector.yml`
