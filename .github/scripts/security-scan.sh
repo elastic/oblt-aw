@@ -113,10 +113,15 @@ if [ -d .github/workflows ]; then
 fi
 
 # --- SEC-033: npm audit (when Node lockfile and npm available) ---
-if [ -f package-lock.json ] && command -v npm >/dev/null 2>&1; then
-  audit_json=$(npm audit --json 2>/dev/null || true)
-  if echo "$audit_json" | jq -e '(.metadata.vulnerabilities.total // 0) > 0' >/dev/null 2>&1; then
-    total=$(echo "$audit_json" | jq -r '.metadata.vulnerabilities.total // 0')
-    emit "package-lock.json" "1" "SEC-033" "high" "npm audit reports ${total} vulnerability row(s); review advisories and update dependencies."
-  fi
+if command -v npm >/dev/null 2>&1; then
+  find . -path './.git' -prune -o -path './node_modules' -prune -o -path './vendor' -prune -o \
+    -type f -name 'package-lock.json' -print 2>/dev/null | while IFS= read -r lockfile; do
+      [ -f "$lockfile" ] || continue
+      lockdir=$(dirname "$lockfile")
+      audit_json=$(cd "$lockdir" && npm audit --json 2>/dev/null || true)
+      if echo "$audit_json" | jq -e '(.metadata.vulnerabilities.total // 0) > 0' >/dev/null 2>&1; then
+        total=$(echo "$audit_json" | jq -r '.metadata.vulnerabilities.total // 0')
+        emit "$lockfile" "1" "SEC-033" "high" "npm audit reports ${total} vulnerability row(s); review advisories and update dependencies."
+      fi
+    done
 fi
