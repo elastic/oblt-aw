@@ -25,7 +25,7 @@ Routing jobs:
 
 - `dependency-review`
 - `resource-not-accessible-by-integration-detector`
-- `security-detector`
+- `security-detector` (static checks per `docs/workflows/security-scanning-ruleset.md` in the caller repo)
 - `resource-not-accessible-by-integration-triage`
 - `resource-not-accessible-by-integration-fixer`
 - `unsupported-trigger`
