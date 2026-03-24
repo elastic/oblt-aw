@@ -21,10 +21,10 @@ This section provides one document per workflow file in `.github/workflows/` and
 - Resource Not Accessible by Integration triage workflow: `docs/workflows/gh-aw-resource-not-accessible-by-integration-triage.md`
 - Resource Not Accessible by Integration fixer workflow: `docs/workflows/gh-aw-resource-not-accessible-by-integration-fixer.md`
 - Security scanning ruleset: `docs/workflows/security-scanning-ruleset.md`
-- Security detector workflow: `docs/workflows/gh-aw-security-detector.md` (with Steps 3+)
-- Security triage workflow: `docs/workflows/gh-aw-security-triage.md` (with Steps 5+)
-- Security fixer workflow: `docs/workflows/gh-aw-security-fixer.md` (with Steps 6+)
-- Security routing: `docs/routing/security-routing.md` (with Steps 7+)
+- Security detector workflow: `docs/workflows/gh-aw-security-detector.md`
+- Security triage workflow: `docs/workflows/gh-aw-security-triage.md`
+- Security fixer workflow: `docs/workflows/gh-aw-security-fixer.md`
+- Security routing: `docs/routing/security-routing.md`
 - Distribution workflow: `docs/workflows/distribute-client-workflow.md`
 - Dashboard sync workflow: `docs/workflows/sync-control-plane-dashboard.md`
 
