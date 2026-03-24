@@ -4,9 +4,10 @@
 
 `oblt-aw` exposes a single reusable entrypoint workflow and routes execution to specialized workflows by GitHub event context.
 
-Entrypoint workflow:
+Entrypoint workflows:
 
-- `.github/workflows/oblt-aw-ingress.yml`
+- `.github/workflows/oblt-aw-ingress.yml` (orchestration)
+- `.github/workflows/get-enabled-workflows.yml` (dashboard read; first stage inside ingress)
 
 Specialized workflows:
 
@@ -23,6 +24,8 @@ Consumer repositories integrate once using:
 jobs:
   run-aw:
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 ```
 
 ## Control Plane Dashboard
@@ -40,8 +43,8 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 
 1. **Dashboard sync** (`sync-control-plane-dashboard`): Reads `workflow-registry.json` and `active-repositories.json`; creates or updates the dashboard issue in each target repository; pins the issue when possible
 2. **User edit:** Users check or uncheck workflow checkboxes in the dashboard issue (no config file; no PRs on checkbox edits)
-3. **Runtime check** (`check-dashboard`): When the client runs, a `check-dashboard` job runs **before** calling the ingress. If no open dashboard issue exists, it outputs an empty string for `enabled_workflows`. Otherwise it fetches the issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:workflow-id -->` at line start in the Enable/Disable list), and outputs `enabled_workflows` as a JSON array string (`[]` or `["id", ...]`).
-4. **Ingress gating:** The ingress receives `enabled_workflows` as input from the client; empty string (no dashboard) → all workflows; empty array → none; non-empty array → only listed workflows
+3. **Runtime check** (`get-enabled-workflows`): When the client runs the ingress, this reusable workflow runs first. It parses the dashboard (or `effective-raw` is empty when no issue exists) and emits normalized `enabled-workflows` as a compact JSON array string (`[]` or `["id", ...]`).
+4. **Ingress gating:** Routed jobs use `enabled-workflows` and `effective-raw` from `get-enabled-workflows`; empty string (no dashboard) → all workflows; empty array → none; non-empty array → only listed workflows
 
 ### Opt-in / Opt-out
 
@@ -71,14 +74,14 @@ Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
 - `issues` + `labeled` + required labels (`oblt-aw/ai/fix-ready` and `oblt-aw/triage/res-not-accessible-by-integration`) -> resource-not-accessible fixer
 - unsupported event/action combinations -> `unsupported-trigger` fail-fast job
 
-*Note: Dashboard opt-in/opt-out is read at runtime by the client's `check-dashboard` job before calling the ingress; there is no `issues.edited` trigger.*
+*Note: Dashboard opt-in/opt-out is read at runtime inside the ingress via `get-enabled-workflows`; there is no `issues.edited` trigger.*
 
 ## Examples
 
 ```mermaid
 flowchart TD
-  A[Consumer Repository] --> B[check-dashboard]
-  B --> C[oblt-aw-ingress]
+  A[Consumer Repository] --> C[oblt-aw-ingress]
+  C --> B[get-enabled-workflows]
   C --> D[Dependency Review]
   C --> E[Resource Not Accessible by Integration Detector]
   C --> F[Resource Not Accessible by Integration Triage]
@@ -86,7 +89,7 @@ flowchart TD
   C --> X[Unsupported Trigger]
 ```
 
-*The client runs `check-dashboard` first to read the dashboard issue and pass `enabled_workflows` to the ingress; each workflow job is gated by that input.*
+*The ingress calls `get-enabled-workflows` first to read the dashboard issue; each routed job is gated by the effective `enabled-workflows` value.*
 
 ## References
 

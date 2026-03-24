@@ -1,0 +1,82 @@
+name: Observability Agentic Workflow — Get enabled workflows
+
+# Reads the oblt-aw/dashboard issue and emits normalized outputs for ingress gating (no downstream agentic jobs).
+on:
+  workflow_call:
+    outputs:
+      enabled-workflows:
+        description: >-
+          Normalized JSON array string ([] or ["id", ...]).
+          Use effective-raw to distinguish no-dashboard ('') from dashboard with nothing checked.
+        value: ${{ jobs['read-dashboard'].outputs['enabled-workflows'] }}
+      effective-raw:
+        description: >-
+          Pre-normalization string from the dashboard read ('', '[]', or '["id",...]');
+          empty means no open dashboard issue (ingress enables all workflows).
+        value: ${{ jobs['read-dashboard'].outputs['effective-raw'] }}
+  workflow_dispatch:
+
+permissions:
+  issues: read
+
+jobs:
+  read-dashboard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      enabled-workflows: ${{ steps.run.outputs['enabled-workflows'] }}
+      effective-raw: ${{ steps.run.outputs['effective-raw'] }}
+    steps:
+      - name: Fetch dashboard, parse, and normalize enabled workflows
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Use delimiter format to avoid corruption when value contains brackets.
+          # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
+          DELIM=$(dd if=/dev/urandom bs=15 count=1 status=none | base64 | tr -d '\n')
+          normalize_enabled_workflows_json() {
+            printf '%s' "$1" | jq -R -s -c '
+              (gsub("^\\s+|\\s+$"; "")) as $t
+              | if ($t | length) == 0 then
+                  []
+                else
+                  ($t
+                   | try (fromjson | if type == "array" then . else error("not an array") end)
+                   catch ([ $t | scan("[a-z0-9-]+") ] | unique))
+                end
+            '
+          }
+          write_enabled_workflows() {
+            {
+              echo "enabled-workflows<<$DELIM"
+              printf '%s\n' "$1"
+              echo "$DELIM"
+            } >> "$GITHUB_OUTPUT"
+          }
+          if ! BODY=$(gh api "repos/${{ github.repository }}/issues?labels=oblt-aw/dashboard&state=open" \
+            --jq 'if length > 0 then .[0].body else empty end'); then
+            echo "Error fetching dashboard issue via 'gh api'; defaulting to no workflows enabled" >&2
+            RAW="[]"
+          elif [[ -z "$BODY" ]]; then
+            RAW=""
+            echo "No dashboard issue found, defaulting to all workflows enabled"
+          else
+            PARSED=$(echo "$BODY" | grep -oP '(?m)^- \[x\] <!-- oblt-aw:\K[a-z0-9-]+' || true)
+            ENABLED=$(printf '%s\n' "$PARSED" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            if [[ -z "$ENABLED" || "$ENABLED" == "[]" ]]; then
+              RAW="[]"
+              echo "Dashboard exists but no checkboxes checked, no workflows will run"
+            else
+              RAW="$ENABLED"
+            fi
+          fi
+          NORMALIZED_JSON=$(normalize_enabled_workflows_json "$RAW")
+          write_enabled_workflows "$NORMALIZED_JSON"
+          delim2=$(openssl rand -hex 8)
+          {
+            echo "effective-raw<<$delim2"
+            printf '%s\n' "$RAW"
+            echo "$delim2"
+          } >> "$GITHUB_OUTPUT"
