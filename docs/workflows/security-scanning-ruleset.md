@@ -55,7 +55,7 @@ This document defines the ruleset used by the oblt-aw security detector to ident
 
 **Description**: Secrets or tokens must not be passed as command-line arguments. Process arguments are visible in process listings (e.g., `ps`, `/proc`) and in logs.
 
-**Pattern**: Any `run:` block where `${{ secrets.* }}` (or secret-bearing `env`) is interpolated into the command string in a way that passes the secret as a argv token.
+**Pattern**: Any `run:` block where `${{ secrets.* }}` (or secret-bearing `env`) is interpolated into the command string in a way that passes the secret as an argv token.
 
 **Example (violation)**:
 
