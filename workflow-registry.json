@@ -1,0 +1,53 @@
+{
+  "workflows": [
+    {
+      "id": "agent-suggestions",
+      "name": "Agent Suggestions",
+      "description": "Suggests agentic workflows and improvements for the repository based on analysis of current setup.",
+      "maturity": "early-adoption",
+      "default_enabled": true
+    },
+    {
+      "id": "autodoc",
+      "name": "Automated Documentation",
+      "description": "Analyzes documentation for gaps, outdated content, and inconsistencies; creates issues and PRs to improve docs.",
+      "maturity": "early-adoption",
+      "default_enabled": true
+    },
+    {
+      "id": "automerge",
+      "name": "Automerge",
+      "description": "Enables auto-merge for approved dependency-update PRs that meet merge-ready criteria.",
+      "maturity": "early-adoption",
+      "default_enabled": true
+    },
+    {
+      "id": "dependency-review",
+      "name": "Dependency Review",
+      "description": "Analyzes dependency-update PRs from bots, applies merge-ready labels when criteria are met.",
+      "maturity": "early-adoption",
+      "default_enabled": true
+    },
+    {
+      "id": "duplicate-issue-detector",
+      "name": "Duplicate Issue Detector",
+      "description": "Detects potential duplicate issues when a new issue is opened or when the entrypoint is run manually.",
+      "maturity": "experimental",
+      "default_enabled": false
+    },
+    {
+      "id": "issue-triage",
+      "name": "Issue Triage",
+      "description": "Triages newly opened issues using the generic issue-triage agentic workflow.",
+      "maturity": "experimental",
+      "default_enabled": false
+    },
+    {
+      "id": "resource-not-accessible-by-integration",
+      "name": "Resource Not Accessible by Integration",
+      "description": "Detects 'Resource not accessible by integration' occurrences in workflow logs, creates triage issues, triages newly opened issues, and executes fixes for issues labeled ready to fix.",
+      "maturity": "early-adoption",
+      "default_enabled": false
+    }
+  ]
+}

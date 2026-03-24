@@ -139,6 +139,7 @@ jobs:
           token: ${{ steps.create-token.outputs.token }}
           path: target
           branch: oblt-aw/sync-client-workflow
+          labels: changelog:ci, oblt-aw/ai/merge-ready
           commit-message: Add Observability Agentic Workflow Entrypoint
           title: Add Observability Agentic Workflow Entrypoint
           body: |
@@ -160,6 +161,7 @@ jobs:
           token: ${{ steps.create-token.outputs.token }}
           path: target
           branch: oblt-aw/remove-client-workflow
+          labels: changelog:ci, oblt-aw/ai/merge-ready
           commit-message: Remove Observability Agentic Workflow Entrypoint
           title: Remove Observability Agentic Workflow Entrypoint
           body: |
