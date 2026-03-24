@@ -4,7 +4,7 @@
 
 Source file: `.github/workflows/gh-aw-security-fixer.yml`
 
-This reusable workflow executes issue-based fixes for security vulnerabilities. It calls `gh-aw-issue-fixer` from `elastic/ai-github-actions` with security-specific instructions. The upstream workflow is fetched from `elastic/ai-github-actions@main` at runtime.
+This reusable workflow executes issue-based fixes for security vulnerabilities. It calls `elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main` via `workflow_call` with security-specific instructions (no separate clone of `elastic/ai-github-actions`). Remediation scope follows the ruleset in `docs/workflows/security-scanning-ruleset.md` and triage resolution plans.
 
 ## Prerequisites
 
@@ -49,5 +49,5 @@ Permissions:
 
 ## References
 
-- Routing rules: `docs/routing/security-routing.md` (when Step 7 is implemented)
+- Routing rules: `docs/routing/security-routing.md`
 - Plan: `docs/plans/issue-3758-security-agentic-workflows-plan.md`
