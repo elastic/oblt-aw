@@ -15,10 +15,13 @@ This section provides one document per workflow file in `.github/workflows/` and
 - Automerge approver workflow: `docs/workflows/gh-aw-automerge-approve.md`
 - Dependency review workflow: `docs/workflows/gh-aw-dependency-review.md`
 - Resource Not Accessible by Integration detector workflow: `docs/workflows/gh-aw-resource-not-accessible-by-integration-detector.md`
+- Security scanning ruleset: `docs/workflows/security-scanning-ruleset.md`
+- Security detector workflow: `docs/workflows/gh-aw-security-detector.md`
 - Resource Not Accessible by Integration triage workflow: `docs/workflows/gh-aw-resource-not-accessible-by-integration-triage.md`
 - Resource Not Accessible by Integration fixer workflow: `docs/workflows/gh-aw-resource-not-accessible-by-integration-fixer.md`
 - Security triage workflow: `docs/workflows/gh-aw-security-triage.md`
 - Security fixer workflow: `docs/workflows/gh-aw-security-fixer.md`
+- Security routing: `docs/routing/security-routing.md`
 - Distribution workflow: `docs/workflows/distribute-client-workflow.md`
 
 ## References

@@ -16,6 +16,7 @@ This is the reusable orchestration entrypoint for `oblt-aw`. It routes to specia
 Supported triggers in this workflow file:
 
 - `schedule`
+- `workflow_dispatch`
 - `workflow_call`
 - `issues` with `opened` and `labeled`
 - `pull_request` with `opened`, `synchronize`, `reopened`
@@ -24,6 +25,7 @@ Routing jobs:
 
 - `dependency-review`
 - `resource-not-accessible-by-integration-detector`
+- `security-detector` (runs in each consumer repository that invokes ingress; see `docs/workflows/gh-aw-security-detector.md` and `docs/workflows/security-scanning-ruleset.md`)
 - `resource-not-accessible-by-integration-triage`
 - `resource-not-accessible-by-integration-fixer`
 - `security-triage`
