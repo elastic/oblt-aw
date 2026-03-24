@@ -4,9 +4,11 @@
 
 Source file: `.github/workflows/gh-aw-security-detector.yml`
 
-This reusable workflow scans repository code (shell scripts and workflow YAML) for security vulnerabilities and creates issues with structured findings. It implements the detector stage of the security agent pipeline described in `docs/architecture/security-agent-architecture.md`.
+This reusable workflow scans the **calling repository** (consumer of oblt-aw ingress) for security issues in shell scripts, workflow YAML, and—when tooling is available—dependency manifests. It implements the detector stage of the pipeline in `docs/architecture/security-agent-architecture.md`.
 
-Unlike the resource-not-accessible detector (which searches workflow logs via an agent), the security detector runs static analysis tools directly: shellcheck for shell scripts and grep-based pattern checks for token exposure in workflow files.
+Triage and fixer stages use **`gh-aw-issue-triage.lock.yml`** and **`gh-aw-issue-fixer.lock.yml`** from `elastic/ai-github-actions`; this workflow does **not** clone that repository.
+
+Unlike the resource-not-accessible detector (workflow logs via `gh-aw-log-searching-agent`), the security detector runs **static checks** aligned with `docs/workflows/security-scanning-ruleset.md` (SEC-001–SEC-044) and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758): injection, secret management, supply chain, and least privilege.
 
 ## Prerequisites
 
@@ -15,25 +17,28 @@ Unlike the resource-not-accessible detector (which searches workflow logs via an
 
 ## Usage
 
-The workflow uses two jobs:
+Single job **scan**:
 
-1. **fetch-ai-github-actions** — Fetches `elastic/ai-github-actions` to verify availability and discover workflow options used by triage and fixer stages.
-2. **scan** — Checks out the repository, runs the security scan script, and creates issues from findings:
-   - Discovers shell scripts (`*.sh`, `*.bash`) and workflow YAML (`.github/workflows/*.yml`)
-   - Runs shellcheck on shell scripts
-   - Runs pattern checks for `${{ secrets.* }}` in workflow files (SEC-002)
-   - Creates one issue per finding with title prefix `[oblt-aw][security]`
+1. Checks out the repository that invoked the workflow (`github.repository`).
+2. Installs **shellcheck** and **jq**.
+3. Optionally uses **actions/setup-node** when `package-lock.json` exists so **npm audit** can run for SEC-033.
+4. Runs `.github/scripts/security-scan.sh`, which emits findings as `file|line|rule|severity|message`.
+5. Runs `.github/scripts/create-security-issues.sh` to open issues with label `oblt-aw/detector/security` and title prefix `[oblt-aw][security]`.
 
-The detector runs in the repository that invokes it (via ingress schedule or workflow_dispatch).
+## Scan logic (summary)
 
-## Scan Logic
+| Rules | Mechanism |
+|-------|-----------|
+| SEC-001–003, SEC-021 | Workflow grep patterns for secrets / logging |
+| SEC-010 | `github.event.` usage in workflows |
+| SEC-011 | shellcheck on `*.sh` / `*.bash` |
+| SEC-030 | `uses:` refs not pinned to 40-char SHA (heuristic) |
+| SEC-032 | curl/wget in scripts without checksum/signature helpers in-file |
+| SEC-033 | `npm audit` when lockfile + npm available |
+| SEC-040 | Broad `permissions` / `write` usage (heuristic) |
+| SEC-043 | `pull_request_target` presence |
 
-The scan script (`.github/scripts/security-scan.sh`) implements:
-
-- **Shell scripts**: shellcheck with JSON output; findings reported as SHELLCHECK rule
-- **Workflow YAML**: grep for `${{ secrets.` pattern (SEC-002 — token exposure in command context)
-
-See `docs/workflows/security-scanning-ruleset.md` for full rule definitions and remediation guidance.
+Additional rules in the ruleset may be added to the scripts over time. **gh-aw-dependency-review** (ingress) complements SEC-033–SEC-035 at PR time.
 
 ## Configuration
 
@@ -52,7 +57,6 @@ Permissions:
 
 ## References
 
-- [Security agent architecture](architecture/security-agent-architecture.md)
+- [Security agent architecture](../architecture/security-agent-architecture.md)
 - [Security scanning ruleset](security-scanning-ruleset.md)
-- [Implementation plan: issue #3758](../plans/issue-3758-security-agentic-workflows-plan.md)
-- [elastic/oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) — token exposure via CLI args
+- [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758)
