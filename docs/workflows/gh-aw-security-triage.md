@@ -4,7 +4,7 @@
 
 Source file: `.github/workflows/gh-aw-security-triage.yml`
 
-This reusable workflow triages newly opened security-related issues and prepares fix-ready issues for the security fixer workflow. It classifies vulnerabilities in GitHub Actions workflows and shell scripts: injection, secret management, supply chain, and least privilege.
+This reusable workflow triages newly opened security-related issues and prepares fix-ready issues for the security fixer workflow. It classifies vulnerabilities in GitHub Actions workflows and shell scripts: injection, secret management, supply chain, and least privilege—matching `docs/workflows/security-scanning-ruleset.md` and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758). It runs in the **caller repository** (same as the detector).
 
 ## Prerequisites
 
@@ -55,4 +55,4 @@ The triage agent appends a resolution plan to confirmed security issues with:
 ## References
 
 - [GitHub Actions Security Hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
-- Routing rules: `docs/routing/security-routing.md` (when Step 7/8 are implemented)
+- Routing rules: `docs/routing/security-routing.md`
