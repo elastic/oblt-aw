@@ -23,8 +23,8 @@ Single job **scan**:
 2. Checks out **`elastic/oblt-aw`** at ref `oblt-aw-ref` (default `main`) into `_oblt-aw/` so host scripts exist on the runner; detector scripts are not copied into consumer repos.
 3. Installs **shellcheck** and **jq**.
 4. Optionally uses **actions/setup-node** when `target/**/package-lock.json` exists so **npm audit** can run for SEC-033.
-5. Runs `_oblt-aw/.github/scripts/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message`.
-6. Runs `_oblt-aw/.github/scripts/create-security-issues.sh` to open issues with label `oblt-aw/detector/security` and title prefix `[oblt-aw][security]` in **the caller** (`github.repository`).
+5. Runs `_oblt-aw/scripts/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message`.
+6. Runs `_oblt-aw/scripts/create-security-issues.sh` to open issues with label `oblt-aw/detector/security` and title prefix `[oblt-aw][security]` in **the caller** (`github.repository`).
 
 ## Host ref (`oblt-aw-ref`)
 

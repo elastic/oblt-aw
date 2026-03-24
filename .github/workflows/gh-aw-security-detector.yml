@@ -50,8 +50,8 @@ jobs:
       - name: Run security scan
         id: scan
         run: |
-          chmod +x _oblt-aw/.github/scripts/security-scan.sh
-          _oblt-aw/.github/scripts/security-scan.sh target 2>/dev/null | tee findings.txt || true
+          chmod +x _oblt-aw/scripts/security-scan.sh
+          _oblt-aw/scripts/security-scan.sh target 2>/dev/null | tee findings.txt || true
           count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
@@ -61,5 +61,5 @@ jobs:
           GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          chmod +x _oblt-aw/.github/scripts/create-security-issues.sh
-          _oblt-aw/.github/scripts/create-security-issues.sh findings.txt
+          chmod +x _oblt-aw/scripts/create-security-issues.sh
+          _oblt-aw/scripts/create-security-issues.sh findings.txt
