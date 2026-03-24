@@ -279,7 +279,7 @@ This document defines the ruleset used by the oblt-aw security detector to ident
 ## Implementation Notes
 
 - **Implementation:** Map each rule ID to a check in the detector scripts or job matrix. Complementary ingress workflows (for example `gh-aw-dependency-review`) may supplement dependency findings where SEC-033–SEC-035 reference PR-time review.
-- **False positives**: Expression-injection rules (SEC-010) may need triage tuning; use severity Medium until confidence improves.
+- **False positives**: Expression-injection rules (SEC-010) may need triage tuning; during early rollout, triage may temporarily down-rank individual findings to Medium until confidence improves, while SEC-010 remains defined as High severity.
 - **Dependency overlap**: For PR-time dependency review, prefer enabling `gh-aw-dependency-review` in ingress; SEC-033 remains for scheduled full-repo audits without a PR.
 
 ---
