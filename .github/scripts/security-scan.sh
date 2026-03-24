@@ -34,11 +34,44 @@ done
 # --- SEC-002 / SEC-001: secrets in workflow YAML (${{ secrets. }}) ---
 if [ -d .github/workflows ]; then
   # shellcheck disable=SC2016
-  grep -rn '\${{ secrets\.' .github/workflows 2>/dev/null | while IFS= read -r line; do
+  find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null | while IFS= read -r wf; do
+    awk '
+      BEGIN {
+        in_run = 0;
+        run_indent = -1;
+      }
+      {
+        line = $0;
+        # Determine indentation (number of leading spaces).
+        indent = match($0, /[^ ]/) - 1;
+        if (indent < 0) {
+          indent = 0;
+        }
+        trimmed = $0;
+        sub(/^[[:space:]]+/, "", trimmed);
+
+        # Detect start of a run: block (e.g., "run: |", "run: >" or "run: <cmd>").
+        if (trimmed ~ /^run:[[:space:]]*($|[|>])/ ) {
+          in_run = 1;
+          run_indent = indent;
+        } else if (in_run) {
+          # Heuristic end of run block: a non-empty, non-comment line
+          # with indentation <= run_indent.
+          if (trimmed !~ /^($|#)/ && indent <= run_indent) {
+            in_run = 0;
+          }
+        }
+
+        if (in_run && line ~ /\${{[[:space:]]*secrets\./) {
+          printf "%s:%d:%s\n", FILENAME, FNR, line;
+        }
+      }
+    ' "$wf"
+  done | while IFS= read -r line; do
     file=$(echo "$line" | cut -d: -f1)
     line_num=$(echo "$line" | cut -d: -f2)
     snippet=$(echo "$line" | cut -d: -f3- | head -c 200 | tr '|' ' ')
-    emit "$file" "$line_num" "SEC-002" "high" "Secret expression in workflow; ensure env: indirection, not argv/logs. Snippet: ${snippet}"
+    emit "$file" "$line_num" "SEC-002" "high" "Secret expression in workflow run: block; ensure env: indirection, not argv/logs. Snippet: ${snippet}"
   done || true
 fi
 
