@@ -2,6 +2,12 @@
 name: Security Detector
 on:
   workflow_call:
+    inputs:
+      oblt-aw-ref:
+        description: Git ref of elastic/oblt-aw to checkout for detector scripts (use the same ref as in uses elastic/oblt-aw/...@ref).
+        required: false
+        default: main
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -16,10 +22,19 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout calling repository
         uses: actions/checkout@v4
         with:
+          path: target
           fetch-depth: 0
+
+      - name: Checkout oblt-aw (detector scripts)
+        uses: actions/checkout@v4
+        with:
+          repository: elastic/oblt-aw
+          ref: ${{ inputs.oblt-aw-ref }}
+          path: _oblt-aw
+          token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
       - name: Install tools
         run: |
@@ -27,7 +42,7 @@ jobs:
           sudo apt-get install -y shellcheck jq
 
       - name: Set up Node.js (npm audit for SEC-033 when lockfile present)
-        if: hashFiles('**/package-lock.json') != ''
+        if: hashFiles('target/**/package-lock.json') != ''
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -35,8 +50,8 @@ jobs:
       - name: Run security scan
         id: scan
         run: |
-          chmod +x .github/scripts/security-scan.sh
-          .github/scripts/security-scan.sh . 2>/dev/null | tee findings.txt || true
+          chmod +x _oblt-aw/.github/scripts/security-scan.sh
+          _oblt-aw/.github/scripts/security-scan.sh target 2>/dev/null | tee findings.txt || true
           count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
@@ -46,5 +61,5 @@ jobs:
           GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          chmod +x .github/scripts/create-security-issues.sh
-          .github/scripts/create-security-issues.sh findings.txt
+          chmod +x _oblt-aw/.github/scripts/create-security-issues.sh
+          _oblt-aw/.github/scripts/create-security-issues.sh findings.txt

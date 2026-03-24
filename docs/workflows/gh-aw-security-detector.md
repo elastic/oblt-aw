@@ -19,11 +19,32 @@ Unlike the resource-not-accessible detector (workflow logs via `gh-aw-log-search
 
 Single job **scan**:
 
-1. Checks out the repository that invoked the workflow (`github.repository`).
-2. Installs **shellcheck** and **jq**.
-3. Optionally uses **actions/setup-node** when `package-lock.json` exists so **npm audit** can run for SEC-033.
-4. Runs `.github/scripts/security-scan.sh`, which emits findings as `file|line|rule|severity|message`.
-5. Runs `.github/scripts/create-security-issues.sh` to open issues with label `oblt-aw/detector/security` and title prefix `[oblt-aw][security]`.
+1. Checks out the **calling** repository into `target/` (the consumer workspace to scan).
+2. Checks out **`elastic/oblt-aw`** at ref `oblt-aw-ref` (default `main`) into `_oblt-aw/` so host scripts exist on the runner; detector scripts are not copied into consumer repos.
+3. Installs **shellcheck** and **jq**.
+4. Optionally uses **actions/setup-node** when `target/**/package-lock.json` exists so **npm audit** can run for SEC-033.
+5. Runs `_oblt-aw/.github/scripts/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message`.
+6. Runs `_oblt-aw/.github/scripts/create-security-issues.sh` to open issues with label `oblt-aw/detector/security` and title prefix `[oblt-aw][security]` in **the caller** (`github.repository`).
+
+## Host ref (`oblt-aw-ref`)
+
+In reusable workflows, `github.*` refers to the **caller**; there is no reliable way to infer the `elastic/oblt-aw` commit pinned on the `uses:` line. Pass **`oblt-aw-ref`** with the same ref you use in `uses: elastic/oblt-aw/.github/workflows/gh-aw-security-detector.yml@<ref>` (for example `main` or a release tag). The default `main` matches callers that pin `@main`.
+
+The **oblt-aw** checkout uses `COPILOT_GITHUB_TOKEN` so private repositories can be cloned when needed.
+
+**Consumer example** (pin the workflow and pass the same ref for scripts):
+
+```yaml
+jobs:
+  security-detector:
+    uses: elastic/oblt-aw/.github/workflows/gh-aw-security-detector.yml@v1.0.0
+    with:
+      oblt-aw-ref: v1.0.0
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+```
+
+If you use `...@main`, you can omit `with.oblt-aw-ref` (default `main`).
 
 ## Scan logic (summary)
 
@@ -53,6 +74,7 @@ Permissions:
 
 `workflow_call` contract:
 
+- Input: `oblt-aw-ref` (`string`, optional, default `main`) — ref of `elastic/oblt-aw` to clone for detector scripts.
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
 
 ## References
