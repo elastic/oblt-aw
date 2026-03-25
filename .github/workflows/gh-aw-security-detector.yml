@@ -22,13 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout calling repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: target
           fetch-depth: 0
 
       - name: Checkout oblt-aw (detector scripts)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -42,9 +42,9 @@ jobs:
 
       - name: Set up Node.js (npm audit for SEC-033 when lockfile present)
         if: hashFiles('target/**/package-lock.json') != ''
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: "24"
 
       - name: Run security scan
         id: scan
