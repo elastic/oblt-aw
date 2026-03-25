@@ -52,6 +52,46 @@ class TestStripExistingHeaders:
         assert prefix == "#!/usr/bin/env bash\n"
         assert "set -e" in body
 
+    def test_strips_alternate_wrapped_closing_line(self) -> None:
+        """Apache text sometimes ends with 'limitations under the License.' on one line."""
+        alt = """# Copyright 2026-2027 Elasticsearch B.V.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+        prefix, body = ulf._strip_existing_headers(alt + "set -e")
+        assert prefix == ""
+        assert body.strip() == "set -e"
+
+    def test_strips_canonical_then_alternate_double_header(self) -> None:
+        """Updater must not leave a second block that only differs by line wrapping."""
+        alt = """# Copyright 2026-2027 Elasticsearch B.V.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+        content = (
+            "#!/usr/bin/env bash\n"
+            + ulf.APACHE2_HEADER_HASH.rstrip()
+            + "\n\n"
+            + alt
+            + "set -e"
+        )
+        prefix, body = ulf._strip_existing_headers(content)
+        assert prefix == "#!/usr/bin/env bash\n"
+        assert "Copyright" not in body
+        assert body.strip() == "set -e"
+
 
 class TestVerifyLicense:
     def test_verify_license_ok(self, tmp_path: pathlib.Path) -> None:
