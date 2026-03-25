@@ -16,17 +16,23 @@ This is the reusable orchestration entrypoint for `oblt-aw`. It routes to specia
 Supported triggers in this workflow file:
 
 - `schedule`
+- `workflow_dispatch`
 - `workflow_call`
+- `workflow_dispatch` (top-level entrypoint manual runs; used by duplicate-issue-detector routing)
 - `issues` with `opened` and `labeled`
 - `pull_request` with `opened`, `synchronize`, `reopened`
+- `pull_request_review` with `submitted`
 
 Routing jobs:
 
 - `dependency-review`
-- `resource-not-accessible-by-integration-detector`
-- `resource-not-accessible-by-integration-triage`
-- `resource-not-accessible-by-integration-fixer`
+- `security-detector` (`enabled_workflow` id: `security`; static checks per `docs/workflows/security-scanning-ruleset.md` in the caller repo)
+- `duplicate-issue-detector` (`enabled_workflow` id: `duplicate-issue-detector`; runs on `issues: opened` or `workflow_dispatch`)
+- `issue-triage` (`enabled_workflow` id: `issue-triage`; runs on `issues: opened`)
+- `resource-not-accessible-by-integration-detector`, `resource-not-accessible-by-integration-triage`, `resource-not-accessible-by-integration-fixer` (unified `enabled_workflow`: `resource-not-accessible-by-integration`)
 - `unsupported-trigger`
+
+The ingress runs `get-enabled-workflows.yml` first. Gating uses `effective-raw` and `enabled-workflows`: `effective-raw` empty (no open dashboard issue) → all workflows enabled; `effective-raw` non-empty and normalized array `[]` → no workflows; non-empty array with IDs → only listed workflows run. Bare workflow IDs are not accepted.
 
 ## Configuration
 
@@ -46,7 +52,7 @@ Interface exposed through `workflow_call`:
 
 ## Examples
 
-Minimal consumer reference:
+Minimal consumer reference (client template calls ingress only; dashboard read runs inside ingress):
 
 ```yaml
 jobs:

@@ -6,6 +6,8 @@ Source file: `.github/workflows/gh-aw-resource-not-accessible-by-integration-det
 
 This reusable workflow detects `Resource not accessible by integration` occurrences in workflow logs and creates issue output through the log-searching-agent workflow. It discovers all workflows in the repository and runs the agent per workflow via a matrix strategy.
 
+When the agent creates an issue for findings, its instructions require adding the label `oblt-aw/detector/res-not-accessible-by-integration` so ingress can route the issue to the triage workflow.
+
 ## Prerequisites
 
 - Triggered via `workflow_call`.
@@ -15,7 +17,7 @@ This reusable workflow detects `Resource not accessible by integration` occurren
 
 The workflow uses two jobs:
 
-1. **discover** — Lists all workflow file names via the GitHub API.
+1. **discover** — Lists all workflow numeric IDs via the GitHub API (avoids 404 when the API expects exact workflow file names).
 2. **search** — Matrix job that calls `gh-aw-log-searching-agent` per workflow:
    - `elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight`
 
@@ -26,7 +28,7 @@ Configured parameters:
 - **Lookback**: 1 day (aligned with daily schedule trigger)
 - **Search term**: `Resource not accessible by integration`
 - **Conclusion filter**: `any` (success, failure, cancelled)
-- **Issue title prefix**: `[AI Detector][Resource not accessible by Integration]`
+- **Issue title prefix**: `[oblt-aw][resource-not-accessible-by-integration]`
 
 ## Configuration
 

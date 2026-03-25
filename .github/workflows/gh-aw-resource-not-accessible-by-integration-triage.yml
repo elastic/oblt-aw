@@ -26,7 +26,7 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
       additional-instructions: |
-        Your task is to triage newly opened issues in this repository and determine if they are related to "Resource not accessible by integration" errors in GitHub Actions workflows.
+        Your task is to triage issues that carry the detector label `oblt-aw/detector/res-not-accessible-by-integration` and determine if they are related to "Resource not accessible by integration" errors in GitHub Actions workflows.
 
         **Strict No-Output Rule (MUST be enforced first):**
         - If the issue does NOT match the "Resource not accessible by integration" criteria after completing all triage steps, do NOT create any issue, do NOT post any comment, do NOT send any notification, and do NOT produce any output whatsoever.
@@ -37,12 +37,12 @@ jobs:
         1. Review the issue title and body for any mention of "Resource not accessible by integration" or related error messages
         2. If the issue mentions this error, check if it includes details about affected workflows, branches, or steps
         3. Use the GitHub API to cross-reference any mentioned workflow runs or logs for evidence of the error
-        4. If the issue is confirmed to be related to this error, label it with `oblt-aw/triage/resource-not-accessible-by-integration`
+        4. If the issue is confirmed to be related to this error, label it with `oblt-aw/triage/res-not-accessible-by-integration`
         5. If the resolution plan is generated successfully, add the final label `oblt-aw/ai/fix-ready` so the fixer workflow knows it can start working on the issue
         6. If the issue is not related, apply appropriate labels (e.g., `oblt-aw/triage/other`, `oblt-aw/triage/needs-info`) based on the content
 
         **Labeling Criteria:**
-        - Label as `oblt-aw/triage/resource-not-accessible-by-integration` if there is clear evidence linking the issue to the specific error in GitHub Actions
+        - Label as `oblt-aw/triage/res-not-accessible-by-integration` if there is clear evidence linking the issue to the specific error in GitHub Actions
         - Label as `oblt-aw/ai/fix-ready` only after the resolution plan has been successfully generated and posted to the issue
         - Label as `oblt-aw/triage/other` if the issue is unrelated to GitHub Actions errors
         - Label as `oblt-aw/triage/needs-info` if there is insufficient information to determine relevance
@@ -98,7 +98,7 @@ jobs:
         - Provide specific token scope requirements
         - Show how to configure in workflow:
           ```yaml
-          - uses: actions/checkout@v4
+          - uses: actions/checkout@v6
             with:
               token: <enhanced-token-from-secret>
           ```
@@ -139,7 +139,7 @@ jobs:
             runs-on: ubuntu-latest
             steps:
               - name: Test Issue Creation
-                uses: actions/github-script@v7
+                uses: actions/github-script@v8
                 with:
                   script: |
                     // Test creating an issue
@@ -167,7 +167,7 @@ jobs:
 
               - name: Test PR Comment (if applicable)
                 if: github.event_name == 'pull_request'
-                uses: actions/github-script@v7
+                uses: actions/github-script@v8
                 with:
                   script: |
                     try {

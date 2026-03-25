@@ -4,7 +4,7 @@
 
 Source file: `.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml`
 
-This reusable workflow triages newly opened issues for the `Resource not accessible by integration` problem class and prepares fix-ready issues.
+This reusable workflow triages issues that carry the detector label `oblt-aw/detector/res-not-accessible-by-integration` for the `Resource not accessible by integration` problem class and prepares fix-ready issues.
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ The job `run` calls:
 Configured instructions define:
 
 - classification criteria for Resource Not Accessible by Integration issues
-- labels: `oblt-aw/triage/resource-not-accessible-by-integration`, `oblt-aw/triage/other`, `oblt-aw/triage/needs-info`
+- labels: `oblt-aw/triage/res-not-accessible-by-integration`, `oblt-aw/triage/other`, `oblt-aw/triage/needs-info`
 - when to set `oblt-aw/ai/fix-ready`
 - required resolution plan structure
 
