@@ -11,7 +11,7 @@ This reusable workflow executes issue-based fixes for issues labeled as ready to
 - Triggered via `workflow_call`.
 - Issue labels must include:
   - `oblt-aw/ai/fix-ready`
-  - `oblt-aw/triage/resource-not-accessible-by-integration`
+  - `oblt-aw/triage/res-not-accessible-by-integration`
 
 ## Usage
 
