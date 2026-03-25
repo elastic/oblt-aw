@@ -46,7 +46,7 @@
       "id": "security",
       "name": "Security",
       "description": "Runs static security checks on workflows, shell scripts, and dependency manifests per the security scanning ruleset; opens issues for findings.",
-      "maturity": "early-adoption",
+      "maturity": "experimental",
       "default_enabled": false
     },
     {
