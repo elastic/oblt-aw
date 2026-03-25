@@ -21,6 +21,8 @@ This section provides one document per workflow file in `.github/workflows/` and
 - Duplicate Issue Detector workflow: `docs/workflows/gh-aw-duplicate-issue-detector.md`
 - Issue Triage workflow (issue opened): `docs/workflows/gh-aw-issue-triage.md`
 - Resource Not Accessible by Integration detector workflow: `docs/workflows/gh-aw-resource-not-accessible-by-integration-detector.md`
+- Security scanning ruleset: `docs/workflows/security-scanning-ruleset.md`
+- Security detector workflow: `docs/workflows/gh-aw-security-detector.md`
 - Resource Not Accessible by Integration triage workflow: `docs/workflows/gh-aw-resource-not-accessible-by-integration-triage.md`
 - Resource Not Accessible by Integration fixer workflow: `docs/workflows/gh-aw-resource-not-accessible-by-integration-fixer.md`
 - Security scanning ruleset: `docs/workflows/security-scanning-ruleset.md`
