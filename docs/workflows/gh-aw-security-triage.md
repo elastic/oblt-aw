@@ -26,13 +26,10 @@ Configured instructions define:
 
 ## Configuration
 
-Permissions:
+Permissions follow a read-only workflow default with writes confined to the `run` job (same pattern as `gh-aw-security-detector.yml`):
 
-- `actions: read`
-- `contents: read`
-- `discussions: write`
-- `issues: write`
-- `pull-requests: write`
+- **Workflow:** `actions`, `contents`, `discussions`, `issues`, and `pull-requests` are `read` only.
+- **Job `run`:** `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` (minimum needed for issue triage and the nested lock workflow).
 
 ## API / Interface
 

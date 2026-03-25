@@ -8,12 +8,18 @@ on:
 permissions:
   actions: read
   contents: read
-  discussions: write
-  issues: write
-  pull-requests: write
+  discussions: read
+  issues: read
+  pull-requests: read
 
 jobs:
   run:
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
       additional-instructions: |
