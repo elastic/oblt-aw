@@ -24,8 +24,6 @@ Configured instructions define:
 - when to set `oblt-aw/ai/fix-ready`
 - required resolution plan structure
 
-Repository filter behavior uses `target-repositories` with the same semantics as detector/fixer.
-
 ## Configuration
 
 Permissions:
@@ -40,7 +38,6 @@ Permissions:
 
 `workflow_call` contract:
 
-- Input: `target-repositories` (string JSON array, default `[]`)
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
 
 ## References

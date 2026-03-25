@@ -24,10 +24,7 @@ Routing rules from ingress:
   - issue contains label `oblt-aw/triage/res-not-accessible-by-integration`
   -> fixer
 
-Repository filter behavior when called directly:
-
-- **Detector**: Runs in each repository that invokes it (no filter).
-- **Triage/Fixer**: input `target-repositories` exists; default `[]` allows all; non-empty array restricts to listed repositories.
+When called directly, **detector**, **triage**, and **fixer** all run in the repository that invokes the reusable workflow (no extra repository allowlist).
 
 ## References
 

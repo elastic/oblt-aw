@@ -1,12 +1,6 @@
 name: Resource not accessible by Integration Issue Fixer
 on:
   workflow_call:
-    inputs:
-      target-repositories:
-        description: JSON array with allowed repositories. [] allows all repositories.
-        required: false
-        type: string
-        default: "[]"
 
 permissions:
   actions: read
@@ -19,11 +13,7 @@ jobs:
   run:
     if: >-
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration') &&
-      (
-        fromJSON(inputs.target-repositories)[0] == null ||
-        contains(fromJSON(inputs.target-repositories), github.repository)
-      )
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
       additional-instructions: |

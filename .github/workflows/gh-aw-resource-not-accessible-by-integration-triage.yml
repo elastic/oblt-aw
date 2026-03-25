@@ -1,12 +1,6 @@
 name: Resource not accessible by Integration Issue Triage
 on:
   workflow_call:
-    inputs:
-      target-repositories:
-        description: JSON array with allowed repositories. [] allows all repositories.
-        required: false
-        type: string
-        default: "[]"
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -20,9 +14,6 @@ permissions:
 
 jobs:
   run:
-    if: >-
-      fromJSON(inputs.target-repositories)[0] == null ||
-      contains(fromJSON(inputs.target-repositories), github.repository)
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
       additional-instructions: |
