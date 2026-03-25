@@ -16,6 +16,7 @@ This is the reusable orchestration entrypoint for `oblt-aw`. It routes to specia
 Supported triggers in this workflow file:
 
 - `schedule`
+- `workflow_dispatch`
 - `workflow_call`
 - `workflow_dispatch` (top-level entrypoint manual runs; used by duplicate-issue-detector routing)
 - `issues` with `opened` and `labeled`
@@ -25,6 +26,7 @@ Supported triggers in this workflow file:
 Routing jobs:
 
 - `dependency-review`
+- `security-detector` (`enabled_workflow` id: `security`; static checks per `docs/workflows/security-scanning-ruleset.md` in the caller repo)
 - `duplicate-issue-detector` (`enabled_workflow` id: `duplicate-issue-detector`; runs on `issues: opened` or `workflow_dispatch`)
 - `issue-triage` (`enabled_workflow` id: `issue-triage`; runs on `issues: opened`)
 - `resource-not-accessible-by-integration-detector`, `resource-not-accessible-by-integration-triage`, `resource-not-accessible-by-integration-fixer` (unified `enabled_workflow`: `resource-not-accessible-by-integration`)

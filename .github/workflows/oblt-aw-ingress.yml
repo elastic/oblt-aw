@@ -102,6 +102,15 @@ jobs:
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
+  security-detector:
+    needs: dashboard-enabled-workflows
+    if: >-
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) &&
+      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'security'))
+    uses: ./.github/workflows/gh-aw-security-detector.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
   resource-not-accessible-by-integration-fixer:
     needs: dashboard-enabled-workflows
     if: >-
