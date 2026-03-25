@@ -15,7 +15,7 @@ This reusable sub-workflow evaluates a single pull request for automerge eligibi
 
 The job `run` delegates to:
 
-- `elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@v0`
+- `elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main`
 
 Gate checks (as instructed by the prompt):
 
@@ -48,7 +48,7 @@ Permissions:
 
 - Input: `pr-number` (`required: true`, `type: string`)
 
-Delegated `with` mapping to `elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@v0` uses only that workflow’s declared `workflow_call` inputs (for example `prompt`, `additional-instructions`). There is no `target-pr-number` input on the callee; the PR number is passed in `additional-instructions` and in the `prompt` text.
+Delegated `with` mapping to `elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main` uses only that workflow’s declared `workflow_call` inputs (for example `prompt`, `additional-instructions`). There is no `target-pr-number` input on the callee; the PR number is passed in `additional-instructions` and in the `prompt` text.
 
 ## References
 
