@@ -68,10 +68,6 @@ The detector implements the full ruleset in `docs/workflows/security-scanning-ru
 
 - `COPILOT_GITHUB_TOKEN` — Required for detector, triage, and fixer (issue/PR creation and updates, API access).
 
-### Inputs
-
-- `target-repositories` — JSON array; default `[]` allows all; non-empty restricts triage/fixer to listed repositories.
-
 ## Deliverables
 
 1. **Detector** — Workflow that checks out the caller repository and runs the checks defined in the ruleset for all applicable SEC-* rules (shellcheck, pattern scanners, optional ecosystem audits).
