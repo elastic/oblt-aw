@@ -17,11 +17,12 @@ permissions:
 
 jobs:
   run:
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr-by-id.lock.yml@v0
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@v0
     with:
-      target-pr-number: ${{ inputs.pr-number }}
+      additional-instructions: |
+        Target pull request number: ${{ inputs.pr-number }}.
       prompt: |
-        Evaluate this PR for automerge eligibility.
+        For pull request #${{ inputs.pr-number }}: evaluate automerge eligibility.
 
         Approve the PR only when all of these gates are true:
         - PR author is exactly `elastic-vault-github-plugin-prod[bot]`
