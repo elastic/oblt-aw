@@ -1,0 +1,99 @@
+name: Security Issue Triage
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+  discussions: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  run:
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    with:
+      additional-instructions: |
+        Your task is to triage newly opened security-related issues in this repository. Security issues include vulnerabilities in GitHub Actions workflows and shell scripts: injection (expression, command, YAML), secret management (token exposure via CLI args, secrets in command strings), supply chain (action pinning, checksums), and least privilege (excessive permissions).
+
+        **Strict No-Output Rule (MUST be enforced first):**
+        - If the issue does NOT match security vulnerability criteria after completing all triage steps, do NOT create any issue, do NOT post any comment, do NOT send any notification, and do NOT produce any output whatsoever.
+        - Silence is the correct and expected outcome when there is nothing to report.
+        - This rule is unconditional: do not create "nothing found" issues, "no matches" comments, acknowledgement messages, or any other artifact when the issue does not meet the criteria.
+
+        **Triage Steps:**
+        1. Review the issue title and body for security vulnerability indicators (e.g., "[oblt-aw][security]", token exposure, injection, secret leakage, supply chain, least privilege)
+        2. If the issue mentions a security finding, check if it includes affected workflows, scripts, or steps
+        3. Use the GitHub API to cross-reference any mentioned files or workflow runs for evidence
+        4. Classify the issue and label it with exactly one of: `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`
+        5. If the resolution plan is generated successfully, add the final label `oblt-aw/ai/fix-ready` so the fixer workflow knows it can start working on the issue
+        6. If the issue is not security-related, apply `oblt-aw/triage/other`
+        7. If there is insufficient information to classify, apply `oblt-aw/triage/needs-info`
+
+        **Labeling Criteria:**
+        - `oblt-aw/triage/security-injection`: Expression injection, command injection, YAML injection in workflows or scripts
+        - `oblt-aw/triage/security-secrets`: Token/secret exposure via CLI args, secrets in command strings, secrets references in `run` step expressions
+        - `oblt-aw/triage/security-supply-chain`: Action pinning, checksum verification, untrusted action usage
+        - `oblt-aw/triage/security-least-privilege`: Excessive permissions, overly broad GITHUB_TOKEN or job permissions
+        - `oblt-aw/triage/other`: Issue is unrelated to security vulnerabilities
+        - `oblt-aw/triage/needs-info`: Insufficient information to determine relevance or classification
+        - `oblt-aw/ai/fix-ready`: Only after the resolution plan has been successfully generated and posted to the issue
+
+        **When no action is needed (No-Op):**
+        When your analysis concludes that no triage action is required (e.g., issue is unrelated, insufficient info, duplicate, or out of scope), you MUST call the `noop` tool with a message explaining why. Use the format:
+        ```
+        {"noop": {"message": "No action needed: [brief explanation]"}}
+        ```
+        Do not create issues or post comments for no-op outcomes. The noop primitive provides transparency without creating GitHub artifacts.
+
+        **Generate Resolution Plan:**
+        When an issue is confirmed to be a security vulnerability, append a comprehensive resolution plan to the issue. The plan must follow this structure:
+
+        ## Resolution Plan
+
+        ### Root Cause
+        - Identify the vulnerable code location (workflow file, script, step)
+        - Explain why the current implementation is vulnerable
+        - Reference the specific pattern (e.g., token in run args, expression injection)
+
+        ### Risk Assessment
+        - Severity (critical, high, medium, low)
+        - Impact if exploited (secret leakage, arbitrary code execution, etc.)
+        - Affected workflows or scripts
+
+        ### Remediation Steps
+        - Prioritized list of concrete changes to fix the vulnerability
+        - Reference GitHub Actions security hardening guidance where applicable
+        - Include env indirection, least-privilege permissions, or action pinning as needed
+
+        ### Before / After Examples
+        **Before (vulnerable):**
+        ```yaml
+        # or shell snippet showing the vulnerable pattern
+        ```
+
+        **After (remediated):**
+        ```yaml
+        # or shell snippet showing the secure pattern
+        ```
+
+        ### Success Criteria
+        - [ ] No secrets or tokens exposed in command strings or logs
+        - [ ] Env indirection used for secrets where applicable
+        - [ ] Permissions minimized per job
+        - [ ] Actions pinned with SHA where required
+        - [ ] Documentation updated with security requirements
+
+        ### Additional Resources
+        - [GitHub Actions Security Hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
+        - [Workflow Permission Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
+    secrets: inherit

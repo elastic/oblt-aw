@@ -18,7 +18,7 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
     with:
       lookback-window: 1 day ago
-      title-prefix: "[autodoc]"
+      title-prefix: "[oblt-aw][autodoc]"
       additional-instructions: |
         Your task is to analyze ALL documentation in this repository, identify gaps and areas for improvement, and file an issue with concrete findings.
 
@@ -35,7 +35,7 @@ jobs:
 
         **Issue format:** For each finding, include a clear, actionable checklist of specific documentation changes to make. Each item should reference file paths and describe the change needed.
 
-        **Assignment:** When creating the issue, assign it to the elastic/observablt-ci GitHub team. If the platform does not support team assignees for issues, @mention the elastic/observablt-ci team in the issue body.
+        **Team notification (mandatory):** Always @mention @elastic/observablt-ci at the top of the issue body so the team receives notifications. Example: "cc @elastic/observablt-ci" or "Notify: @elastic/observablt-ci" at the start of the body.
     secrets: inherit
 
   # Step 2: Create a PR implementing the audit findings (only when an issue was created)
