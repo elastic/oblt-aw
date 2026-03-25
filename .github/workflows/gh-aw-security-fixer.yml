@@ -7,13 +7,19 @@ on:
 
 permissions:
   actions: read
-  contents: write
-  discussions: write
-  issues: write
-  pull-requests: write
+  contents: read
+  discussions: read
+  issues: read
+  pull-requests: read
 
 jobs:
   run:
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')
