@@ -1,12 +1,6 @@
 name: Security Issue Fixer
 on:
   workflow_call:
-    inputs:
-      target-repositories:
-        description: JSON array with allowed repositories. [] allows all repositories.
-        required: false
-        type: string
-        default: "[]"
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -22,11 +16,7 @@ jobs:
   run:
     if: >-
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
-      (
-        fromJSON(inputs.target-repositories)[0] == null ||
-        contains(fromJSON(inputs.target-repositories), github.repository)
-      )
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
       additional-instructions: |
