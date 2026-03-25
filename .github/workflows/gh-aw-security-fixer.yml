@@ -6,11 +6,7 @@ on:
         required: true
 
 permissions:
-  actions: read
   contents: read
-  discussions: read
-  issues: read
-  pull-requests: read
 
 jobs:
   run:
