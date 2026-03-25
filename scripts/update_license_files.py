@@ -98,11 +98,13 @@ def collect_header_files(root: Path) -> list[Path]:
     return sorted(set(files))
 
 
-# Regex to match a single Apache 2.0 header block (# or // style)
+# Regex to match a single Apache 2.0 header block (# or // style).
+# Closing line is either "# under the License." (canonical here) or a wrapped
+# variant ending with "# limitations under the License." (still Apache 2.0 boilerplate).
 _HEADER_BLOCK_RE = re.compile(
     r"^\s*(?:#|//) Copyright 20\d{2}(?:-20\d{2})? Elasticsearch B\.V\.\s*\n"
     r"(?:\s*(?:#|//).*\n)*?"
-    r"\s*(?:#|//) under the License\.\s*\n"
+    r"\s*(?:#|//) (?:limitations )?under the License\.\s*\n"
     r"(?:\s*(?:#|//)\s*\n)*"
     r"\s*",
     re.MULTILINE,
