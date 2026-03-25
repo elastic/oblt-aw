@@ -68,6 +68,7 @@ Callers that trigger on a **schedule** cannot rely on `workflow_call` inputs for
 
 ## References
 
+- Ingress routing: `docs/workflows/oblt-aw-ingress.md` — workflow id `security` in `workflow-registry.json`
 - [Security agent architecture](../architecture/security-agent-architecture.md)
 - [Security scanning ruleset](security-scanning-ruleset.md)
 - [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758)

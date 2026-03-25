@@ -43,6 +43,13 @@
       "default_enabled": false
     },
     {
+      "id": "security",
+      "name": "Security",
+      "description": "Runs static security checks on workflows, shell scripts, and dependency manifests per the security scanning ruleset; opens issues for findings.",
+      "maturity": "early-adoption",
+      "default_enabled": false
+    },
+    {
       "id": "resource-not-accessible-by-integration",
       "name": "Resource Not Accessible by Integration",
       "description": "Detects 'Resource not accessible by integration' occurrences in workflow logs, creates triage issues, triages newly opened issues, and executes fixes for issues labeled ready to fix.",
