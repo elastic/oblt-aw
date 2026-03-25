@@ -35,7 +35,7 @@ flowchart TD
 
 The security detector must scan **code** (shell scripts, workflow YAML, and dependency manifests when present). No single upstream agent covers all of this today; the detector therefore runs **tooling and pattern checks** defined in the ruleset. It:
 
-- Runs static analysis (shellcheck, grep/semgrep, optional ecosystem audits) per `docs/workflows/security-scanning-ruleset.md`.
+- Runs static analysis (shellcheck, actionlint, zizmor, semgrep, optional ecosystem audits) per `docs/workflows/security-scanning-ruleset.md`.
 - Aggregates findings and creates issues via API; every issue opened for a finding must include the label `oblt-aw/detector/security`.
 - Reuses `gh-aw-issue-triage` and `gh-aw-issue-fixer` for triage and fixer stages.
 
@@ -60,7 +60,7 @@ The detector implements the full ruleset in `docs/workflows/security-scanning-ru
 
 | Stage | ai-github-actions Workflow | Usage |
 |-------|----------------------------|-------|
-| **Detector** | None (code-scanning) | Custom job runs shellcheck + grep/semgrep; creates issues. If a code-scanning agent is added later, oblt-aw can migrate to it. |
+| **Detector** | None (code-scanning) | Custom job runs shellcheck, actionlint, zizmor, semgrep, and npm audit; creates issues. If a code-scanning agent is added later, oblt-aw can migrate to it. |
 | **Triage** | `gh-aw-issue-triage.lock.yml` | Triggered for issues labeled `oblt-aw/detector/security`; classifies with `oblt-aw/triage/security-*`, `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`; adds `oblt-aw/ai/fix-ready` when ready to fix. |
 | **Fixer** | `gh-aw-issue-fixer.lock.yml` | Triggered when a `oblt-aw/triage/security-*` label and `oblt-aw/ai/fix-ready` are present; security-specific instructions; least-privilege and env-indirection patterns. |
 

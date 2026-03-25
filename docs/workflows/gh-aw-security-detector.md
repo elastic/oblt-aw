@@ -21,9 +21,9 @@ Single job **scan**:
 
 1. Checks out the **calling** repository into `target/` (the consumer workspace to scan).
 2. Checks out **`elastic/oblt-aw`** at ref `main` into `_oblt-aw/` so host scripts exist on the runner; detector scripts are not copied into consumer repos.
-3. Installs **shellcheck** and **jq**.
+3. Installs **shellcheck**, **jq**, **curl**, **pip**, **actionlint** (pinned via upstream download script), **zizmor**, and **semgrep** (registry rules downloaded on first use).
 4. Optionally uses **actions/setup-node** when `target/**/package-lock.json` exists so **npm audit** can run for SEC-033.
-5. Runs `_oblt-aw/scripts/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message`.
+5. Runs `_oblt-aw/scripts/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message` (actionlint + zizmor + semgrep + shellcheck + custom heuristics + npm audit, with per-file/line deduplication).
 6. Runs `_oblt-aw/scripts/create-security-issues.sh` to open issues with label `oblt-aw/detector/security` and title prefix `[oblt-aw][security]` in **the caller** (`github.repository`).
 
 The **oblt-aw** checkout uses `COPILOT_GITHUB_TOKEN` so private repositories can be cloned when needed. Detector scripts are always taken from **`elastic/oblt-aw`** at ref **`main`**, so scheduled callers do not need a `workflow_call` input for the host ref.
@@ -42,16 +42,16 @@ jobs:
 
 | Rules | Mechanism |
 |-------|-----------|
-| SEC-001–003, SEC-021 | Workflow grep patterns for secrets / logging |
-| SEC-010 | `github.event.` usage in workflows |
-| SEC-011 | shellcheck on `*.sh` / `*.bash` |
-| SEC-030 | `uses:` refs not pinned to 40-char SHA (heuristic) |
-| SEC-032 | curl/wget in scripts without checksum/signature helpers in-file |
+| SEC-002, SEC-021, SEC-030, SEC-040, SEC-043, and other workflow rules | **zizmor** (offline audits; `ident` mapped to SEC IDs in `scripts/security-scan.sh`) |
+| SEC-010, SEC-002 (expression), SEC-020 (credentials) | **actionlint** JSON output (security-related kinds / messages only) |
+| SEC-010, SEC-012 | **semgrep** `p/github-actions` on `.github/workflows` |
+| SEC-011 | shellcheck on `*.sh` / `*.bash`; actionlint also runs shellcheck on embedded `run:` scripts |
+| SEC-032 | curl/wget in scripts without checksum/signature helpers in-file (custom heuristic) |
 | SEC-033 | `npm audit` when lockfile + npm available |
-| SEC-040 | Broad `permissions` / `write` usage (heuristic) |
-| SEC-043 | `pull_request_target` presence |
 
-Additional rules in the ruleset may be added to the scripts over time. **gh-aw-dependency-review** (ingress) complements SEC-033–SEC-035 at PR time.
+Findings from multiple tools are **deduplicated** by `file|line`, keeping the highest severity. **gh-aw-dependency-review** (ingress) complements SEC-033–SEC-035 at PR time.
+
+Additional rules in the ruleset may be added to the scripts over time.
 
 ## Configuration
 
