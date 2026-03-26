@@ -41,4 +41,4 @@ Permissions:
 
 ## References
 
-- Routing notes: `.github/workflow-routing/agent-suggestions/README.md`
+- Routing rules: `docs/routing/agent-suggestions-routing.md`

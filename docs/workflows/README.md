@@ -24,6 +24,9 @@ This section provides one document per workflow file in `.github/workflows/` and
 - Security detector workflow: `docs/workflows/gh-aw-security-detector.md`
 - Security triage workflow: `docs/workflows/gh-aw-security-triage.md`
 - Security fixer workflow: `docs/workflows/gh-aw-security-fixer.md`
+- Agent suggestions routing: `docs/routing/agent-suggestions-routing.md`
+- Autodoc routing: `docs/routing/autodoc-routing.md`
+- Automerge routing: `docs/routing/automerge-routing.md`
 - Security routing: `docs/routing/security-routing.md`
 - Security architecture: `docs/architecture/security-agent-architecture.md`
 - Distribution workflow: `docs/workflows/distribute-client-workflow.md`

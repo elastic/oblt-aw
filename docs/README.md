@@ -8,7 +8,7 @@ The structure is organized by intent:
 
 - `architecture/`: system-level design and lifecycle.
 - `workflows/`: one document per workflow file.
-- `routing/`: routing rules and event-to-workflow mapping.
+- `routing/`: canonical routing rules and event-to-workflow mapping (all per-workflow routing docs live here; see `docs/routing/README.md`).
 - `operations/`: rollout and maintenance operations.
 - `development/`: contributor setup and local quality checks.
 

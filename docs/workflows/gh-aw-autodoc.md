@@ -42,4 +42,4 @@ Permissions:
 
 ## References
 
-- Routing notes: `.github/workflow-routing/autodoc/README.md`
+- Routing rules: `docs/routing/autodoc-routing.md`
