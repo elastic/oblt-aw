@@ -9,22 +9,21 @@ Routed workflows:
 - `.github/workflows/gh-aw-security-triage.yml`
 - `.github/workflows/gh-aw-security-fixer.yml`
 
+These ingress routes use the same Control Plane dashboard gate as `gh-aw-security-detector.yml`: jobs run only when `workflow-registry.json` id `security` is enabled (see `docs/workflows/oblt-aw-ingress.md` — `get-enabled-workflows` / `enabled-workflows`).
+
 ## Usage
 
-Routing rules from ingress:
+Routing rules from ingress (same pattern as `resource-not-accessible-by-integration-*` in `oblt-aw-ingress.yml`):
 
-- `issues` + `opened` -> triage
-- `issues` + `labeled` +
-  - `github.event.label.name == 'oblt-aw/ai/fix-ready'`
-  - issue contains at least one label matching `oblt-aw/triage/security-*`
-  -> fixer
+- **Triage** — `issues` + (`opened` and issue already has `oblt-aw/detector/security`) **or** (`labeled` and the label applied is `oblt-aw/detector/security`).
+- **Fixer** — `issues` + `labeled` with `oblt-aw/ai/fix-ready`, and the issue has at least one label matching `oblt-aw/triage/security-*`.
 
 ## Trigger Conditions
 
 ### Triage
 
 - **Event**: `issues`
-- **Action**: `opened`
+- **Action**: `opened` (issue must include label `oblt-aw/detector/security`) **or** `labeled` (when `github.event.label.name == 'oblt-aw/detector/security'`)
 - **Filter**: The triage workflow has its own `target-repositories` filter; default `[]` allows all repositories.
 
 ### Fixer

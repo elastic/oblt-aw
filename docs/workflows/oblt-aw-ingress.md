@@ -13,26 +13,156 @@ This is the reusable orchestration entrypoint for `oblt-aw`. It routes to specia
 
 ## Usage
 
-Supported triggers in this workflow file:
+### Supported triggers
+
+The workflow file declares support for:
 
 - `schedule`
-- `workflow_dispatch`
+- `workflow_dispatch` (for example manual runs used by `duplicate-issue-detector` and `security-detector`)
 - `workflow_call`
-- `workflow_dispatch` (top-level entrypoint manual runs; used by duplicate-issue-detector routing)
 - `issues` with `opened` and `labeled`
 - `pull_request` with `opened`, `synchronize`, `reopened`
 - `pull_request_review` with `submitted`
 
-Routing jobs:
+### Dashboard gating
 
-- `dependency-review`
-- `security-detector` (`enabled_workflow` id: `security`; static checks per `docs/workflows/security-scanning-ruleset.md` in the caller repo)
-- `duplicate-issue-detector` (`enabled_workflow` id: `duplicate-issue-detector`; runs on `issues: opened` or `workflow_dispatch`)
-- `issue-triage` (`enabled_workflow` id: `issue-triage`; runs on `issues: opened`)
-- `resource-not-accessible-by-integration-detector`, `resource-not-accessible-by-integration-triage`, `resource-not-accessible-by-integration-fixer` (unified `enabled_workflow`: `resource-not-accessible-by-integration`)
-- `unsupported-trigger`
+The job `dashboard-enabled-workflows` runs `get-enabled-workflows.yml` first. Downstream jobs use `needs: dashboard-enabled-workflows` and gate on its outputs:
 
-The ingress runs `get-enabled-workflows.yml` first. Gating uses `effective-raw` and `enabled-workflows`: `effective-raw` empty (no open dashboard issue) → all workflows enabled; `effective-raw` non-empty and normalized array `[]` → no workflows; non-empty array with IDs → only listed workflows run. Bare workflow IDs are not accepted.
+- `effective-raw` empty (no open dashboard issue) → every registry id is treated as enabled for jobs that check `enabled-workflows`.
+- `effective-raw` non-empty and the normalized `enabled-workflows` array is `[]` → no gated jobs run.
+- Non-empty `enabled-workflows` → only listed registry ids pass the `contains(..., '<id>')` checks. Bare workflow ids are not accepted.
+
+Jobs that do not list `needs: dashboard-enabled-workflows` are not gated this way (see [Internal ingress jobs](#internal-ingress-jobs-not-in-workflow-registryjson)).
+
+Canonical registry ids and metadata live in `workflow-registry.json` at the repository root. Each subsection below pairs one registry entry with its ingress job(s).
+
+## Routed workflows (`workflow-registry.json`)
+
+The following subsections follow the order of entries in `workflow-registry.json`. Each subsection lists the registry fields and the ingress job(s) that honor that id in `enabled-workflows`.
+
+### Agent suggestions (registry id `agent-suggestions`)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `agent-suggestions` |
+| `name` | Agent Suggestions |
+| `description` | Suggests agentic workflows and improvements for the repository based on analysis of current setup. |
+
+| Ingress job | Reusable workflow | Triggers (from `.github/workflows/oblt-aw-ingress.yml`) | Dashboard gate |
+|-------------|-------------------|--------------------------------------------------------|----------------|
+| `agent-suggestions` | `gh-aw-agent-suggestions.yml` | `schedule` | Yes — `enabled-workflows` must contain `agent-suggestions` when `effective-raw` is non-empty |
+
+### Automated documentation (registry id `autodoc`)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `autodoc` |
+| `name` | Automated Documentation |
+| `description` | Analyzes documentation for gaps, outdated content, and inconsistencies; creates issues and PRs to improve docs. |
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `autodoc` | `gh-aw-autodoc.yml` | `schedule` | Yes — `autodoc` |
+
+### Automerge (registry id `automerge`)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `automerge` |
+| `name` | Automerge |
+| `description` | Enables auto-merge for approved dependency-update PRs that meet merge-ready criteria. |
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `automerge` | `gh-aw-automerge.yml` | `schedule`; or `pull_request` `opened` / `synchronize` / `reopened` where `github.event.pull_request.user.login` is `elastic-vault-github-plugin-prod[bot]`; or `pull_request_review` `submitted` with `review.state == approved` for the same bot | Yes — `automerge` |
+
+### Dependency review (registry id `dependency-review`)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `dependency-review` |
+| `name` | Dependency Review |
+| `description` | Analyzes dependency-update PRs from bots, applies merge-ready labels when criteria are met. |
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `dependency-review` | `gh-aw-dependency-review.yml` | `pull_request` `opened` / `synchronize` / `reopened`; author is one of `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`, `elastic-vault-github-plugin-prod[bot]` | Yes — `dependency-review` |
+
+This job is separate from registry id `security`: it is PR-time dependency and license review for bot PRs, not the static repo-wide security scan. See `docs/workflows/gh-aw-dependency-review.md` and `docs/workflows/security-scanning-ruleset.md` (complementary workflows SEC-033–SEC-035).
+
+### Duplicate issue detector (registry id `duplicate-issue-detector`)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `duplicate-issue-detector` |
+| `name` | Duplicate Issue Detector |
+| `description` | Detects potential duplicate issues when a new issue is opened or when the entrypoint is run manually. |
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `duplicate-issue-detector` | `gh-aw-duplicate-issue-detector.yml` | `issues` `opened`, or `workflow_dispatch` | Yes — `duplicate-issue-detector` |
+
+### Issue triage (registry id `issue-triage`)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `issue-triage` |
+| `name` | Issue Triage |
+| `description` | Triages newly opened issues using the generic issue-triage agentic workflow. |
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `issue-triage` | `gh-aw-issue-triage.yml` | `issues` `opened` | Yes — `issue-triage` |
+
+### Security (registry id `security`)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `security` |
+| `name` | Security |
+| `description` | Runs static security checks on workflows, shell scripts, and dependency manifests per the security scanning ruleset; opens issues for findings. |
+
+There is one registry id for the whole security pipeline. The Control Plane Dashboard uses that id for the Security checkbox; `enabled-workflows` lists `security` when consumers restrict runs.
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `security-detector` | `gh-aw-security-detector.yml` | `schedule`, `workflow_dispatch` | Yes — `security` |
+| `security-triage` | `gh-aw-security-triage.yml` | `issues` `opened` with label `oblt-aw/detector/security`, or `issues` `labeled` with that label | Yes — `security`; label filter matches `resource-not-accessible-by-integration-triage` pattern |
+| `security-fixer` | `gh-aw-security-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and a `oblt-aw/triage/security-*` label | Yes — `security`; label filter matches `resource-not-accessible-by-integration-fixer` pattern |
+
+Further reading:
+
+- `docs/architecture/security-agent-architecture.md`
+- `docs/workflows/gh-aw-security-detector.md`
+- `docs/workflows/gh-aw-security-triage.md`
+- `docs/workflows/gh-aw-security-fixer.md`
+
+### Resource not accessible by integration (registry id `resource-not-accessible-by-integration`)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `resource-not-accessible-by-integration` |
+| `name` | Resource Not Accessible by Integration |
+| `description` | Detects 'Resource not accessible by integration' occurrences in workflow logs, creates triage issues, triages newly opened issues, and executes fixes for issues labeled ready to fix. |
+
+One registry id covers detector, triage, and fixer.
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `resource-not-accessible-by-integration-detector` | `gh-aw-resource-not-accessible-by-integration-detector.yml` | `schedule` | Yes — `resource-not-accessible-by-integration` |
+| `resource-not-accessible-by-integration-triage` | `gh-aw-resource-not-accessible-by-integration-triage.yml` | `issues` `opened` with `oblt-aw/detector/res-not-accessible-by-integration`, or `issues` `labeled` with that label | Yes — `resource-not-accessible-by-integration` |
+| `resource-not-accessible-by-integration-fixer` | `gh-aw-resource-not-accessible-by-integration-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and `oblt-aw/triage/res-not-accessible-by-integration` | Yes — `resource-not-accessible-by-integration` |
+
+See `docs/routing/README.md` and routing docs under `docs/routing/` for label details.
+
+## Internal ingress jobs (not in `workflow-registry.json`)
+
+These jobs exist only in `.github/workflows/oblt-aw-ingress.yml` and do not have registry ids:
+
+| Job | Role |
+|-----|------|
+| `dashboard-enabled-workflows` | Invokes `get-enabled-workflows.yml`; supplies `effective-raw` and `enabled-workflows` to gated jobs. |
+| `unsupported-trigger` | Runs when the event is not one of the supported combinations; fails the workflow with a clear message. It has no `needs: dashboard-enabled-workflows` and does not read the registry. |
 
 ## Configuration
 
@@ -64,4 +194,5 @@ jobs:
 
 ## References
 
+- `workflow-registry.json` (canonical workflow ids for the Control Plane Dashboard)
 - `docs/routing/README.md`
