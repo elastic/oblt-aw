@@ -38,7 +38,7 @@ Canonical registry ids and metadata live in `workflow-registry.json` at the repo
 
 ## Routed workflows (`workflow-registry.json`)
 
-The following subsections follow the order of entries in `workflow-registry.json`. Each subsection lists the registry fields and the ingress job(s) that honor that id in `enabled-workflows`.
+The following subsections follow the order of entries in `workflow-registry.json`. Each subsection lists the registry fields and the ingress job(s) that honor that id in `enabled-workflows`. Where a dedicated routing document exists under `docs/routing/`, the subsection includes a **Routing** link to it (labels, triggers, and dispatch detail).
 
 ### Agent suggestions (registry id `agent-suggestions`)
 
@@ -78,6 +78,8 @@ The following subsections follow the order of entries in `workflow-registry.json
 
 ### Dependency review (registry id `dependency-review`)
 
+**Routing:** [Dependency review routing](../routing/dependency-review-routing.md)
+
 | Registry field | Value |
 |----------------|--------|
 | `id` | `dependency-review` |
@@ -116,6 +118,8 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 
 ### Security (registry id `security`)
 
+**Routing:** [Security routing](../routing/security-routing.md)
+
 | Registry field | Value |
 |----------------|--------|
 | `id` | `security` |
@@ -139,6 +143,8 @@ Further reading:
 
 ### Resource not accessible by integration (registry id `resource-not-accessible-by-integration`)
 
+**Routing:** [Resource not accessible by integration routing](../routing/resource-not-accessible-by-integration-routing.md)
+
 | Registry field | Value |
 |----------------|--------|
 | `id` | `resource-not-accessible-by-integration` |
@@ -152,8 +158,6 @@ One registry id covers detector, triage, and fixer.
 | `resource-not-accessible-by-integration-detector` | `gh-aw-resource-not-accessible-by-integration-detector.yml` | `schedule` | Yes — `resource-not-accessible-by-integration` |
 | `resource-not-accessible-by-integration-triage` | `gh-aw-resource-not-accessible-by-integration-triage.yml` | `issues` `opened` with `oblt-aw/detector/res-not-accessible-by-integration`, or `issues` `labeled` with that label | Yes — `resource-not-accessible-by-integration` |
 | `resource-not-accessible-by-integration-fixer` | `gh-aw-resource-not-accessible-by-integration-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and `oblt-aw/triage/res-not-accessible-by-integration` | Yes — `resource-not-accessible-by-integration` |
-
-See `docs/routing/README.md` and routing docs under `docs/routing/` for label details.
 
 ## Internal ingress jobs (not in `workflow-registry.json`)
 
@@ -195,4 +199,7 @@ jobs:
 ## References
 
 - `workflow-registry.json` (canonical workflow ids for the Control Plane Dashboard)
-- `docs/routing/README.md`
+- [Routing documentation index](../routing/README.md)
+- [Dependency review routing](../routing/dependency-review-routing.md)
+- [Security routing](../routing/security-routing.md)
+- [Resource not accessible by integration routing](../routing/resource-not-accessible-by-integration-routing.md)
