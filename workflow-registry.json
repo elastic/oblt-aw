@@ -43,6 +43,13 @@
       "default_enabled": false
     },
     {
+      "id": "mention-in-issue",
+      "name": "Mention in Issue",
+      "description": "AI assistant for issues — answers questions, debugs problems, and creates PRs on demand when triggered by a /ai comment.",
+      "maturity": "experimental",
+      "default_enabled": false
+    },
+    {
       "id": "security",
       "name": "Security",
       "description": "Runs static security checks on workflows, shell scripts, and dependency manifests per the security scanning ruleset; opens issues for findings.",

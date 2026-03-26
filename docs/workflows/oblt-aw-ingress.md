@@ -21,6 +21,7 @@ The workflow file declares support for:
 - `workflow_dispatch` (for example manual runs used by `duplicate-issue-detector` and `security-detector`)
 - `workflow_call`
 - `issues` with `opened` and `labeled`
+- `issue_comment` with `created`
 - `pull_request` with `opened`, `synchronize`, `reopened`
 - `pull_request_review` with `submitted`
 
@@ -115,6 +116,18 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
 | `issue-triage` | `gh-aw-issue-triage.yml` | `issues` `opened` | Yes — `issue-triage` |
+
+### Mention in Issue (registry id `mention-in-issue`)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `mention-in-issue` |
+| `name` | Mention in Issue |
+| `description` | AI assistant for issues — answers questions, debugs problems, and creates PRs on demand when triggered by a /ai comment. |
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `mention-in-issue` | `gh-aw-mention-in-issue.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting with `/ai` | Yes — `mention-in-issue` |
 
 ### Security (registry id `security`)
 
