@@ -18,7 +18,6 @@ Supported triggers in this workflow file:
 - `schedule`
 - `workflow_dispatch`
 - `workflow_call`
-- `workflow_dispatch` (top-level entrypoint manual runs; used by duplicate-issue-detector routing)
 - `issues` with `opened` and `labeled`
 - `pull_request` with `opened`, `synchronize`, `reopened`
 - `pull_request_review` with `submitted`

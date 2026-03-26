@@ -49,4 +49,4 @@ The triage agent appends a resolution plan to confirmed security issues with:
 ## References
 
 - [GitHub Actions Security Hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
-- Routing rules: `docs/routing/security-routing.md`
+- Security architecture: `docs/architecture/security-agent-architecture.md`

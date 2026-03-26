@@ -49,5 +49,5 @@ Permissions:
 
 ## References
 
-- Routing rules: `docs/routing/security-routing.md`
-- Plan: `docs/plans/issue-3758-security-agentic-workflows-plan.md`
+- Security architecture: `docs/architecture/security-agent-architecture.md`
+- Security scanning ruleset: `docs/workflows/security-scanning-ruleset.md`
