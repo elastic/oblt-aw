@@ -4,21 +4,28 @@
 
 Entrypoint source: `.github/workflows/oblt-aw-ingress.yml`
 
-Routed workflows:
+Routed workflows (ingress jobs `security-detector`, `security-triage`, `security-fixer`; registry id `security`):
 
+- `.github/workflows/gh-aw-security-detector.yml`
 - `.github/workflows/gh-aw-security-triage.yml`
 - `.github/workflows/gh-aw-security-fixer.yml`
 
-These ingress routes use the same Control Plane dashboard gate as `gh-aw-security-detector.yml`: jobs run only when `workflow-registry.json` id `security` is enabled (see `docs/workflows/oblt-aw-ingress.md` — `get-enabled-workflows` / `enabled-workflows`).
+All three ingress routes use the same Control Plane dashboard gate: jobs run only when `workflow-registry.json` id `security` is enabled (see `docs/workflows/oblt-aw-ingress.md` — `get-enabled-workflows` / `enabled-workflows`).
 
 ## Usage
 
-Routing rules from ingress (same pattern as `resource-not-accessible-by-integration-*` in `oblt-aw-ingress.yml`):
+Routing rules from ingress (aligned with `oblt-aw-ingress.yml`; issue routes follow the same label pattern as `resource-not-accessible-by-integration-*`):
 
+- **Detector** — `schedule` or `workflow_dispatch`.
 - **Triage** — `issues` + (`opened` and issue already has `oblt-aw/detector/security`) **or** (`labeled` and the label applied is `oblt-aw/detector/security`).
 - **Fixer** — `issues` + `labeled` with `oblt-aw/ai/fix-ready`, and the issue has at least one label matching `oblt-aw/triage/security-*`.
 
 ## Trigger Conditions
+
+### Detector
+
+- **Events**: `schedule`, `workflow_dispatch`
+- **Role**: Static scan of the repository; opens issues with label `oblt-aw/detector/security` for findings (see `docs/workflows/gh-aw-security-detector.md`).
 
 ### Triage
 
@@ -53,5 +60,6 @@ The ingress uses `contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw
 
 ## References
 
+- `docs/workflows/gh-aw-security-detector.md`
 - `docs/workflows/gh-aw-security-triage.md`
 - `docs/workflows/gh-aw-security-fixer.md`
