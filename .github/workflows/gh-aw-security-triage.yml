@@ -34,10 +34,10 @@ jobs:
         1. Review the issue title and body for security vulnerability indicators (e.g., "[oblt-aw][security]", token exposure, injection, secret leakage, supply chain, least privilege)
         2. If the issue mentions a security finding, check if it includes affected workflows, scripts, or steps
         3. Use the GitHub API to cross-reference any mentioned files or workflow runs for evidence
-        4. Classify the issue and label it with exactly one of: `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`
-        5. If the resolution plan is generated successfully, add the final label `oblt-aw/ai/fix-ready` so the fixer workflow knows it can start working on the issue
-        6. If the issue is not security-related, apply `oblt-aw/triage/other`
-        7. If there is insufficient information to classify, apply `oblt-aw/triage/needs-info`
+        4. Classify the issue and label it with exactly one classification label from: `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`, `oblt-aw/triage/other`, `oblt-aw/triage/needs-info`
+        5. If the issue is not security-related, choose `oblt-aw/triage/other` as the single classification label
+        6. If there is insufficient information to determine whether the issue is security-related or how to classify it, choose `oblt-aw/triage/needs-info` as the single classification label
+        7. If the resolution plan is generated successfully, add the additional label `oblt-aw/ai/fix-ready` so the fixer workflow knows it can start working on the issue
 
         **Labeling Criteria:**
         - `oblt-aw/triage/security-injection`: Expression injection, command injection, YAML injection in workflows or scripts
