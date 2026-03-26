@@ -4,56 +4,59 @@
 
 Entrypoint source: `.github/workflows/oblt-aw-ingress.yml`
 
-Security flows apply to **each repository** that installs the distributed client workflow and calls ingress (see `docs/workflows/oblt-aw-client-template.md`). Findings follow `docs/workflows/security-scanning-ruleset.md` (SEC-001–SEC-044) and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758).
-
-Routed workflows:
+Routed workflows (ingress jobs `security-detector`, `security-triage`, `security-fixer`; registry id `security`):
 
 - `.github/workflows/gh-aw-security-detector.yml`
 - `.github/workflows/gh-aw-security-triage.yml`
 - `.github/workflows/gh-aw-security-fixer.yml`
 
+All three ingress routes use the same Control Plane dashboard gate: jobs run only when `workflow-registry.json` id `security` is enabled (see `docs/workflows/oblt-aw-ingress.md` — `get-enabled-workflows` / `enabled-workflows`).
+
 ## Usage
 
-Routing rules from ingress:
+Routing rules from ingress (aligned with `oblt-aw-ingress.yml`; issue routes follow the same label pattern as `resource-not-accessible-by-integration-*`):
 
-- `schedule` or `workflow_dispatch` -> detector
-- `issues` + `opened` -> triage
-- `issues` + `labeled` +
-  - `github.event.label.name == 'oblt-aw/ai/fix-ready'`
-  - issue contains any label matching `oblt-aw/triage/security-*`
-  -> fixer
+- **Detector** — `schedule` or `workflow_dispatch`.
+- **Triage** — `issues` + (`opened` and issue already has `oblt-aw/detector/security`) **or** (`labeled` and the label applied is `oblt-aw/detector/security`).
+- **Fixer** — `issues` + `labeled` with `oblt-aw/ai/fix-ready`, and the issue has at least one label matching `oblt-aw/triage/security-*`.
 
 ## Trigger Conditions
 
-| Workflow | Trigger | Notes |
-|----------|---------|-------|
-| Detector | `schedule`, `workflow_dispatch` | Requires `COPILOT_GITHUB_TOKEN` |
-| Triage | `issues` + `opened` | Runs on new security issues |
-| Fixer | `issues` + `labeled` | Requires `oblt-aw/ai/fix-ready` and at least one `oblt-aw/triage/security-*` |
+### Detector
+
+- **Events**: `schedule`, `workflow_dispatch`
+- **Role**: Static scan of the repository; opens issues with label `oblt-aw/detector/security` for findings (see `docs/workflows/gh-aw-security-detector.md`).
+
+### Triage
+
+- **Event**: `issues`
+- **Action**: `opened` (issue must include label `oblt-aw/detector/security`) **or** `labeled` (when `github.event.label.name == 'oblt-aw/detector/security'`)
+- **Filter**: The triage workflow has its own `target-repositories` filter; default `[]` allows all repositories.
+
+### Fixer
+
+- **Event**: `issues`
+- **Action**: `labeled`
+- **Required labels**:
+  - `oblt-aw/ai/fix-ready` (the label that triggered the event)
+  - At least one of: `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`
+
+The ingress uses `contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')` to match any security triage label.
 
 ## Labels
 
-### Triage labels (`oblt-aw/triage/security-*`)
+| Label | Purpose |
+|-------|---------|
+| `oblt-aw/triage/security-injection` | Expression, command, or YAML injection |
+| `oblt-aw/triage/security-secrets` | Token/secret exposure, secrets in command strings |
+| `oblt-aw/triage/security-supply-chain` | Action pinning, checksums, untrusted actions |
+| `oblt-aw/triage/security-least-privilege` | Excessive permissions |
+| `oblt-aw/ai/fix-ready` | Issue is ready for automated remediation |
 
-- `oblt-aw/triage/security-injection`
-- `oblt-aw/triage/security-secrets`
-- `oblt-aw/triage/security-supply-chain`
-- `oblt-aw/triage/security-least-privilege`
-- `oblt-aw/triage/other`
-- `oblt-aw/triage/needs-info`
+## Repository Filter
 
-### Fixer gate labels
-
-- `oblt-aw/ai/fix-ready` — required for fixer to run
-- Any `oblt-aw/triage/security-*` — required for fixer to run (issue must have both)
-
-## Repository Filter Behavior
-
-When called directly:
-
-- **Detector**: Runs in each repository that invokes it (no filter). Receives `COPILOT_GITHUB_TOKEN` from ingress.
-- **Triage**: Input `target-repositories` exists; default `[]` allows all; non-empty array restricts to listed repositories.
-- **Fixer**: Input `target-repositories` exists; default `[]` allows all; non-empty array restricts to listed repositories.
+- **Triage/Fixer**: input `target-repositories` exists; default `[]` allows all; non-empty JSON array restricts to listed repositories.
+- The workflows apply the filter internally via their `if` conditions.
 
 ## References
 

@@ -1,12 +1,6 @@
 name: Security Issue Triage
 on:
   workflow_call:
-    inputs:
-      target-repositories:
-        description: JSON array with allowed repositories. [] allows all repositories.
-        required: false
-        type: string
-        default: "[]"
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -14,15 +8,18 @@ on:
 permissions:
   actions: read
   contents: read
-  discussions: write
-  issues: write
-  pull-requests: write
+  discussions: read
+  issues: read
+  pull-requests: read
 
 jobs:
   run:
-    if: >-
-      fromJSON(inputs.target-repositories)[0] == null ||
-      contains(fromJSON(inputs.target-repositories), github.repository)
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
       additional-instructions: |
@@ -37,14 +34,14 @@ jobs:
         1. Review the issue title and body for security vulnerability indicators (e.g., "[oblt-aw][security]", token exposure, injection, secret leakage, supply chain, least privilege)
         2. If the issue mentions a security finding, check if it includes affected workflows, scripts, or steps
         3. Use the GitHub API to cross-reference any mentioned files or workflow runs for evidence
-        4. Classify the issue and label it with exactly one of: `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`
-        5. If the resolution plan is generated successfully, add the final label `oblt-aw/ai/fix-ready` so the fixer workflow knows it can start working on the issue
-        6. If the issue is not security-related, apply `oblt-aw/triage/other`
-        7. If there is insufficient information to classify, apply `oblt-aw/triage/needs-info`
+        4. Classify the issue and label it with exactly one classification label from: `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`, `oblt-aw/triage/other`, `oblt-aw/triage/needs-info`
+        5. If the issue is not security-related, choose `oblt-aw/triage/other` as the single classification label
+        6. If there is insufficient information to determine whether the issue is security-related or how to classify it, choose `oblt-aw/triage/needs-info` as the single classification label
+        7. If the resolution plan is generated successfully, add the additional label `oblt-aw/ai/fix-ready` so the fixer workflow knows it can start working on the issue
 
         **Labeling Criteria:**
         - `oblt-aw/triage/security-injection`: Expression injection, command injection, YAML injection in workflows or scripts
-        - `oblt-aw/triage/security-secrets`: Token/secret exposure via CLI args, secrets in command strings, `${{ secrets.* }}` in run blocks
+        - `oblt-aw/triage/security-secrets`: Token/secret exposure via CLI args, secrets in command strings, secrets references in `run` step expressions
         - `oblt-aw/triage/security-supply-chain`: Action pinning, checksum verification, untrusted action usage
         - `oblt-aw/triage/security-least-privilege`: Excessive permissions, overly broad GITHUB_TOKEN or job permissions
         - `oblt-aw/triage/other`: Issue is unrelated to security vulnerabilities

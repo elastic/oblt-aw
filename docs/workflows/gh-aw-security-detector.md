@@ -12,42 +12,51 @@ Unlike the resource-not-accessible detector (workflow logs via `gh-aw-log-search
 
 ## Prerequisites
 
-- Triggered via `workflow_call`.
+- Triggered via `workflow_call` (for example from a caller that uses `schedule`).
 - Required secret: `COPILOT_GITHUB_TOKEN`.
 
 ## Usage
 
 Single job **scan**:
 
-1. Checks out the repository that invoked the workflow (`github.repository`).
-2. Installs **shellcheck** and **jq**.
-3. Optionally uses **actions/setup-node** when `package-lock.json` exists so **npm audit** can run for SEC-033.
-4. Runs `.github/scripts/security-scan.sh`, which emits findings as `file|line|rule|severity|message`.
-5. Runs `.github/scripts/create-security-issues.sh` to open issues with label `oblt-aw/detector/security` and title prefix `[oblt-aw][security]`.
+1. Checks out the **calling** repository into `target/` (the consumer workspace to scan).
+2. Checks out **`elastic/oblt-aw`** at ref `main` into `_oblt-aw/` so host scripts exist on the runner; detector scripts are not copied into consumer repos.
+3. Installs **shellcheck**, **jq**, **curl**, **pip**, **actionlint** (pinned via upstream download script), **zizmor**, and **semgrep** (registry rules downloaded on first use).
+4. Optionally uses **actions/setup-node** when `target/**/package-lock.json` exists so **npm audit** can run for SEC-033.
+5. Runs `_oblt-aw/scripts/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message` (actionlint + zizmor + semgrep + shellcheck + custom heuristics + npm audit, with per-file/line deduplication).
+6. Runs `_oblt-aw/scripts/create-security-issues.sh` to open issues with label `oblt-aw/detector/security` and title prefix `[oblt-aw][security]` in **the caller** (`github.repository`).
+
+The **oblt-aw** checkout uses `COPILOT_GITHUB_TOKEN` so private repositories can be cloned when needed. Detector scripts are always taken from **`elastic/oblt-aw`** at ref **`main`**, so scheduled callers do not need a `workflow_call` input for the host ref.
+
+**Consumer example**:
+
+```yaml
+jobs:
+  security-detector:
+    uses: elastic/oblt-aw/.github/workflows/gh-aw-security-detector.yml@v1.0.0
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+```
 
 ## Scan logic (summary)
 
 | Rules | Mechanism |
 |-------|-----------|
-| SEC-001–003, SEC-021 | Workflow grep patterns for secrets / logging |
-| SEC-010 | `github.event.` usage in workflows |
-| SEC-011 | shellcheck on `*.sh` / `*.bash` |
-| SEC-030 | `uses:` refs not pinned to 40-char SHA (heuristic) |
-| SEC-032 | curl/wget in scripts without checksum/signature helpers in-file |
+| SEC-002, SEC-021, SEC-030, SEC-040, SEC-043, and other workflow rules | **zizmor** (offline audits; `ident` mapped to SEC IDs in `scripts/security-scan.sh`) |
+| SEC-010, SEC-002 (expression), SEC-020 (credentials) | **actionlint** JSON output (security-related kinds / messages only) |
+| SEC-010, SEC-012 | **semgrep** `p/github-actions` on `.github/workflows` |
+| SEC-011 | shellcheck on `*.sh` / `*.bash`; actionlint also runs shellcheck on embedded `run:` scripts |
+| SEC-032 | curl/wget in scripts without checksum/signature helpers in-file (custom heuristic) |
 | SEC-033 | `npm audit` when lockfile + npm available |
-| SEC-040 | Broad `permissions` / `write` usage (heuristic) |
-| SEC-043 | `pull_request_target` presence |
 
-Additional rules in the ruleset may be added to the scripts over time. **gh-aw-dependency-review** (ingress) complements SEC-033–SEC-035 at PR time.
+Findings from multiple tools are **deduplicated** by `file|line`, keeping the highest severity. **gh-aw-dependency-review** (ingress) complements SEC-033–SEC-035 at PR time.
+
+Additional rules in the ruleset may be added to the scripts over time.
 
 ## Configuration
 
-Permissions:
-
-- `actions: read`
-- `contents: read`
-- `issues: write`
-- `pull-requests: read`
+- **Workflow-level** `permissions`: read-only — `actions: read`, `contents: read`, `issues: read`, `pull-requests: read`.
+- **Job `scan` `permissions`**: adds `issues: write` for `GITHUB_TOKEN` (least privilege on the job that can open issues). The **Create issues from findings** step also sets `GH_TOKEN` to **`COPILOT_GITHUB_TOKEN`** for `gh`; keep both aligned with how you authenticate issue creation.
 
 ## API / Interface
 
@@ -55,8 +64,11 @@ Permissions:
 
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
 
+Callers that trigger on a **schedule** cannot rely on `workflow_call` inputs for the host script ref; this workflow always clones detector scripts from **`elastic/oblt-aw`** at **`main`**.
+
 ## References
 
+- Ingress routing: `docs/workflows/oblt-aw-ingress.md` — workflow id `security` in `workflow-registry.json`
 - [Security agent architecture](../architecture/security-agent-architecture.md)
 - [Security scanning ruleset](security-scanning-ruleset.md)
 - [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758)

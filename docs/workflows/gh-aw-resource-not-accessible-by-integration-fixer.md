@@ -11,7 +11,7 @@ This reusable workflow executes issue-based fixes for issues labeled as ready to
 - Triggered via `workflow_call`.
 - Issue labels must include:
   - `oblt-aw/ai/fix-ready`
-  - `oblt-aw/triage/resource-not-accessible-by-integration`
+  - `oblt-aw/triage/res-not-accessible-by-integration`
 
 ## Usage
 
@@ -27,8 +27,6 @@ Configured instructions require:
 - reviewer request to `elastic/observablt-ci`
 - no auto-merge
 
-Repository filter behavior uses `target-repositories` with default `[]` as allow-all.
-
 ## Configuration
 
 Permissions:
@@ -43,7 +41,7 @@ Permissions:
 
 `workflow_call` contract:
 
-- Input: `target-repositories` (string JSON array, default `[]`)
+- No inputs.
 
 ## References
 

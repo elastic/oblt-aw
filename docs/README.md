@@ -25,6 +25,7 @@ Use this index as the starting point and then navigate by topic.
 - Workflow catalog: `docs/workflows/README.md`
 - Routing guide: `docs/routing/README.md`
 - Distribution operations: `docs/operations/distribute-client-workflow.md`
+- Control Plane Dashboard (user instructions): `docs/operations/control-plane-dashboard.md`
 - Contributing and local setup: `docs/development/contributing.md`
 
 ## References
