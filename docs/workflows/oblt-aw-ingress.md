@@ -127,8 +127,8 @@ There is one registry id for the whole security pipeline. The Control Plane Dash
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
 | `security-detector` | `gh-aw-security-detector.yml` | `schedule`, `workflow_dispatch` | Yes — `security` |
-| `security-triage` | `gh-aw-security-triage.yml` | `issues` `opened` with label `oblt-aw/detector/security`, or `issues` `labeled` with that label | Yes — `security`; label filter matches `resource-not-accessible-by-integration-triage` pattern |
-| `security-fixer` | `gh-aw-security-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and a `oblt-aw/triage/security-*` label | Yes — `security`; label filter matches `resource-not-accessible-by-integration-fixer` pattern |
+| `security-triage` | `gh-aw-security-triage.yml` | `issues` `opened` with label `oblt-aw/detector/security`, or `issues` `labeled` with that label | Yes — `security` |
+| `security-fixer` | `gh-aw-security-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and a `oblt-aw/triage/security-*` label | Yes — `security` |
 
 Further reading:
 
