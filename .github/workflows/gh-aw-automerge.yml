@@ -17,39 +17,45 @@ jobs:
       pr_numbers_json: ${{ steps.discover.outputs.pr_numbers_json }}
       pr_count: ${{ steps.discover.outputs.pr_count }}
     steps:
+      # Caller repo may not contain these scripts; fetch control-plane sources explicitly.
+      - name: Checkout elastic/oblt-aw (automerge TypeScript)
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          token: ${{ github.token }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: _oblt-aw/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: _oblt-aw
+        run: npm ci
+
       - name: Discover qualifying PRs
         id: discover
         uses: actions/github-script@v8
         with:
           github-token: ${{ github.token }}
           script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const mergeReadyLabel = 'oblt-aw/ai/merge-ready';
-            const allowedActor = 'elastic-vault-github-plugin-prod[bot]';
-
-            const prs = await github.paginate(github.rest.pulls.list, {
-              owner,
-              repo,
-              state: 'open',
-              per_page: 100,
+            const path = require('node:path');
+            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
+            require(path.join(root, 'node_modules/tsx/cjs/api')).register();
+            const { run } = require(path.join(root, 'scripts/findAutomergeCandidates.ts'));
+            const { prNumbers } = await run({
+              github,
+              context,
+              mergeReadyLabel: 'oblt-aw/ai/merge-ready',
+              allowedActor: 'elastic-vault-github-plugin-prod[bot]',
             });
-
-            const qualifying = prs
-              .filter((pr) => pr.user?.login === allowedActor)
-              .filter((pr) => (pr.labels || []).some((label) => label.name === mergeReadyLabel))
-              .filter((pr) => pr.draft === false)
-              .filter((pr) => (pr.head?.repo?.full_name || '') === (pr.base?.repo?.full_name || ''))
-              .filter((pr) => (pr.head?.ref || '') !== (pr.base?.ref || ''))
-              .map((pr) => pr.number);
-
-            const prNumbers = [...new Set(qualifying)].sort((a, b) => a - b);
             const prNumbersJson = JSON.stringify(prNumbers);
-            const prCount = String(prNumbers.length);
-
             core.setOutput('pr_numbers_json', prNumbersJson);
-            core.setOutput('pr_count', prCount);
-
+            core.setOutput('pr_count', String(prNumbers.length));
             if (prNumbers.length === 0) {
               core.info('No qualifying PRs found.');
             } else {
@@ -74,6 +80,25 @@ jobs:
     if: needs.discover.outputs.pr_count != '0'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout elastic/oblt-aw (automerge TypeScript)
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          token: ${{ github.token }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: _oblt-aw/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: _oblt-aw
+        run: npm ci
+
       - name: Enable auto-merge for approved PRs
         uses: actions/github-script@v8
         env:
@@ -81,93 +106,9 @@ jobs:
         with:
           github-token: ${{ github.token }}
           script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
+            const path = require('node:path');
+            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
+            require(path.join(root, 'node_modules/tsx/cjs/api')).register();
+            const { run } = require(path.join(root, 'scripts/enableAutomergeForApprovedPrs.ts'));
             const prNumbers = JSON.parse(process.env.PR_NUMBERS_JSON || '[]');
-
-            if (!Array.isArray(prNumbers) || prNumbers.length === 0) {
-              core.info('No PRs provided for auto-merge enablement.');
-              return;
-            }
-
-            let failed = 0;
-
-            for (const prNumber of prNumbers) {
-              const { data: pr } = await github.rest.pulls.get({
-                owner,
-                repo,
-                pull_number: prNumber,
-              });
-
-              const { data: checkRuns } = await github.rest.checks.listForRef({
-                owner,
-                repo,
-                ref: pr.head.sha,
-                per_page: 100,
-              });
-
-              const all = checkRuns.check_runs || [];
-              const total = all.length;
-              const completed = all.filter((check) => check.status === 'completed').length;
-              const failedCount = all.filter(
-                (check) =>
-                  check.status === 'completed' &&
-                  !['success', 'skipped', 'neutral'].includes(check.conclusion || '')
-              ).length;
-
-              let checkStatus = 'passing';
-              if (total === 0) {
-                checkStatus = 'no_checks';
-              } else if (completed < total) {
-                checkStatus = 'pending';
-              } else if (failedCount > 0) {
-                checkStatus = 'failing';
-              }
-
-              if (checkStatus !== 'passing') {
-                core.info(`PR #${prNumber}: skipped - check status is '${checkStatus}'`);
-                continue;
-              }
-
-              const { data: reviews } = await github.rest.pulls.listReviews({
-                owner,
-                repo,
-                pull_number: prNumber,
-                per_page: 100,
-              });
-
-              const approvedByActions = reviews.some(
-                (review) => review.state === 'APPROVED' && review.user?.login === 'github-actions[bot]'
-              );
-
-              if (!approvedByActions) {
-                core.info(`PR #${prNumber}: skipped - no APPROVED review from github-actions[bot]`);
-                continue;
-              }
-
-              if (pr.auto_merge != null) {
-                core.info(`PR #${prNumber}: auto-merge already enabled`);
-                continue;
-              }
-
-              core.info(`PR #${prNumber}: enabling auto-merge (squash)`);
-              try {
-                await github.graphql(
-                  `mutation EnablePullRequestAutoMerge($pullRequestId: ID!) {
-                    enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId, mergeMethod: SQUASH}) {
-                      clientMutationId
-                    }
-                  }`,
-                  { pullRequestId: pr.node_id }
-                );
-                core.info(`PR #${prNumber}: auto-merge enabled`);
-              } catch (error) {
-                core.warning(`PR #${prNumber}: failed to enable auto-merge`);
-                core.warning(String(error));
-                failed += 1;
-              }
-            }
-
-            if (failed > 0) {
-              throw new Error(`${failed} PR(s) could not have auto-merge enabled`);
-            }
+            await run({ github, context, core, prNumbers });
