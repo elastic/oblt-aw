@@ -49,5 +49,5 @@ Permissions:
 
 ## References
 
-- Security architecture: `docs/architecture/security-agent-architecture.md`
+- Routing rules: `docs/routing/security-routing.md`
 - Security scanning ruleset: `docs/workflows/security-scanning-ruleset.md`

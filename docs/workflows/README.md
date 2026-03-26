@@ -24,6 +24,7 @@ This section provides one document per workflow file in `.github/workflows/` and
 - Security detector workflow: `docs/workflows/gh-aw-security-detector.md`
 - Security triage workflow: `docs/workflows/gh-aw-security-triage.md`
 - Security fixer workflow: `docs/workflows/gh-aw-security-fixer.md`
+- Security routing: `docs/routing/security-routing.md`
 - Security architecture: `docs/architecture/security-agent-architecture.md`
 - Distribution workflow: `docs/workflows/distribute-client-workflow.md`
 - Dashboard sync workflow: `docs/workflows/sync-control-plane-dashboard.md`
