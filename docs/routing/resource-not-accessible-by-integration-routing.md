@@ -14,17 +14,17 @@ Routed workflows:
 
 Routing rules from ingress:
 
-- `schedule` or `workflow_dispatch` -> detector
-- `issues` + `opened` -> triage
+- `schedule` -> detector
+- `issues` -> triage when:
+  - `opened` and the issue already includes label `oblt-aw/detector/res-not-accessible-by-integration`, or
+  - `labeled` and `github.event.label.name` is `oblt-aw/detector/res-not-accessible-by-integration`
+  (The `opened` branch covers issues created with the detector label in the same request; GitHub does not emit `labeled` for labels set at creation.)
 - `issues` + `labeled` +
   - `github.event.label.name == 'oblt-aw/ai/fix-ready'`
-  - issue contains label `oblt-aw/triage/resource-not-accessible-by-integration`
+  - issue contains label `oblt-aw/triage/res-not-accessible-by-integration`
   -> fixer
 
-Repository filter behavior when called directly:
-
-- **Detector**: Runs in each repository that invokes it (no filter).
-- **Triage/Fixer**: input `target-repositories` exists; default `[]` allows all; non-empty array restricts to listed repositories.
+When called directly, **detector**, **triage**, and **fixer** all run in the repository that invokes the reusable workflow (no extra repository allowlist).
 
 ## References
 

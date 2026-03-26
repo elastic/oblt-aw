@@ -25,7 +25,7 @@ flowchart TD
   A[Schedule / workflow_dispatch] --> B[Security Detector]
   B --> C[Creates issue + label oblt-aw/detector/security]
   C --> D[Security Triage]
-  D --> E["oblt-aw/triage/security-* , other, or needs-info"]
+  D --> E["oblt-aw/triage/security-*, other, or needs-info"]
   E --> F[oblt-aw/ai/fix-ready when ready to fix]
   F --> G["Fixer: oblt-aw/triage/security-* AND oblt-aw/ai/fix-ready"]
   G --> H[Draft PR]
@@ -35,7 +35,7 @@ flowchart TD
 
 The security detector must scan **code** (shell scripts, workflow YAML, and dependency manifests when present). No single upstream agent covers all of this today; the detector therefore runs **tooling and pattern checks** defined in the ruleset. It:
 
-- Runs static analysis (shellcheck, grep/semgrep, optional ecosystem audits) per `docs/workflows/security-scanning-ruleset.md`.
+- Runs static analysis (shellcheck, actionlint, zizmor, semgrep, optional ecosystem audits) per `docs/workflows/security-scanning-ruleset.md`.
 - Aggregates findings and creates issues via API; every issue opened for a finding must include the label `oblt-aw/detector/security`.
 - Reuses `gh-aw-issue-triage` and `gh-aw-issue-fixer` for triage and fixer stages.
 
@@ -44,7 +44,7 @@ The security detector must scan **code** (shell scripts, workflow YAML, and depe
 | Tool / check | Purpose | Target artifacts | Focus area |
 |--------------|---------|------------------|------------|
 | **shellcheck** | Shell quoting, unsafe constructs; supports command-injection heuristics | `.sh`, `.bash` | Injection |
-| **grep / ripgrep** | Secret patterns, token-in-`run:`, logging of secrets | Workflows, scripts | Secret management |
+| **grep / ripgrep** | Secret patterns, token-in `run:`, logging of secrets | Workflows, scripts | Secret management |
 | **semgrep** (or equivalent) | Expression/YAML injection patterns, `${{ secrets.* }}` in `run:` | `.yml` workflows | Injection + secrets |
 | **Custom YAML walk** | `permissions:` analysis, unpinned `uses:`, risky triggers | `.github/workflows/**` | Least privilege + supply chain |
 | **npm audit** / **pip-audit** / **govulncheck** (when lockfiles exist) | Known CVEs in dependencies | `package-lock.json`, Python/Go locks | Supply chain |
@@ -60,17 +60,13 @@ The detector implements the full ruleset in `docs/workflows/security-scanning-ru
 
 | Stage | ai-github-actions Workflow | Usage |
 |-------|----------------------------|-------|
-| **Detector** | None (code-scanning) | Custom job runs shellcheck + grep/semgrep; creates issues. If a code-scanning agent is added later, oblt-aw can migrate to it. |
+| **Detector** | None (code-scanning) | Custom job runs shellcheck, actionlint, zizmor, semgrep, and npm audit; creates issues. If a code-scanning agent is added later, oblt-aw can migrate to it. |
 | **Triage** | `gh-aw-issue-triage.lock.yml` | Triggered for issues labeled `oblt-aw/detector/security`; classifies with `oblt-aw/triage/security-*`, `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`; adds `oblt-aw/ai/fix-ready` when ready to fix. |
 | **Fixer** | `gh-aw-issue-fixer.lock.yml` | Triggered when a `oblt-aw/triage/security-*` label and `oblt-aw/ai/fix-ready` are present; security-specific instructions; least-privilege and env-indirection patterns. |
 
 ### Required Secret
 
 - `COPILOT_GITHUB_TOKEN` — Required for detector, triage, and fixer (issue/PR creation and updates, API access).
-
-### Inputs
-
-- `target-repositories` — JSON array; default `[]` allows all; non-empty restricts triage/fixer to listed repositories.
 
 ## Deliverables
 

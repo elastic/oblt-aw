@@ -9,34 +9,57 @@ on:
 permissions:
   actions: read
   contents: read
-  issues: write
+  issues: read
   pull-requests: read
 
 jobs:
   scan:
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: read
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout calling repository
+        uses: actions/checkout@v6
         with:
+          path: target
           fetch-depth: 0
+
+      - name: Checkout oblt-aw (detector scripts)
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
       - name: Install tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y shellcheck jq
+          sudo apt-get install -y shellcheck jq curl python3-pip
+          python3 -m pip install --user 'zizmor==1.23.1' 'semgrep>=1.60.0'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          mkdir -p "$HOME/bin/actionlint"
+          cd "$HOME/bin/actionlint"
+          # Installer script pinned to commit (v1.7.11 tag); bump SHA when upgrading actionlint.
+          ACTIONLINT_DOWNLOAD_SCRIPT_SHA=393031adb9afb225ee52ae2ccd7a5af5525e03e8
+          ACTIONLINT_VERSION=1.7.11
+          bash <(curl -fsSL "https://raw.githubusercontent.com/rhysd/actionlint/${ACTIONLINT_DOWNLOAD_SCRIPT_SHA}/scripts/download-actionlint.bash") "${ACTIONLINT_VERSION}"
+          echo "$HOME/bin/actionlint" >> "$GITHUB_PATH"
 
       - name: Set up Node.js (npm audit for SEC-033 when lockfile present)
-        if: hashFiles('**/package-lock.json') != ''
-        uses: actions/setup-node@v4
+        if: hashFiles('target/**/package-lock.json') != ''
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: "24"
 
       - name: Run security scan
         id: scan
         run: |
-          chmod +x .github/scripts/security-scan.sh
-          .github/scripts/security-scan.sh . 2>/dev/null | tee findings.txt || true
+          chmod +x _oblt-aw/scripts/security-scan.sh
+          _oblt-aw/scripts/security-scan.sh target 2>/dev/null | tee findings.txt || true
           count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
@@ -46,5 +69,5 @@ jobs:
           GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          chmod +x .github/scripts/create-security-issues.sh
-          .github/scripts/create-security-issues.sh findings.txt
+          chmod +x _oblt-aw/scripts/create-security-issues.sh
+          _oblt-aw/scripts/create-security-issues.sh findings.txt

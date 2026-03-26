@@ -15,7 +15,7 @@ This reusable workflow automates documentation maintenance in two stages: audit 
 
 Jobs:
 
-- `audit`: calls `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings.
+- `audit`: calls `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Created issues always @mention `@elastic/observablt-ci` in the body so the team receives notifications.
 - `fix`: calls `gh-aw-create-pr-from-issue.lock.yml` only when `audit` created an issue.
 
 Workflow-specific requirements passed to the PR stage:
