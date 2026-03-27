@@ -8,13 +8,15 @@ on:
 
 permissions:
   actions: read
-  contents: write
-  discussions: write
-  issues: write
-  pull-requests: write
 
 jobs:
   run:
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-issue.lock.yml@main
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
