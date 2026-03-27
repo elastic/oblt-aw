@@ -2,9 +2,9 @@
 
 ## Overview
 
-Source file: `.github/workflows/gh-aw-dependency-review.yml`
+Source file: [.github/workflows/gh-aw-dependency-review.yml](../../.github/workflows/gh-aw-dependency-review.yml)
 
-This reusable workflow delegates dependency-update PR analysis to a locked workflow in `elastic/ai-github-actions`.
+This reusable workflow delegates dependency-update PR analysis to a locked workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ This reusable workflow delegates dependency-update PR analysis to a locked workf
 
 The job `run` calls:
 
-- `elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main`
+- [elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-dependency-review.lock.yml)
 
 Configured inputs include:
 
@@ -49,4 +49,4 @@ Permissions:
 
 ## References
 
-- Routing rules: `docs/routing/dependency-review-routing.md`
+- Routing rules: [docs/routing/dependency-review-routing.md](../routing/dependency-review-routing.md)

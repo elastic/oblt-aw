@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: `.github/workflows/gh-aw-automerge.yml`
+Source file: [.github/workflows/gh-aw-automerge.yml](../../.github/workflows/gh-aw-automerge.yml)
 
 This workflow discovers qualifying bot-authored PRs, runs an approval sub-workflow, and enables squash auto-merge when gates are satisfied.
 
@@ -45,5 +45,5 @@ Permissions:
 
 ## References
 
-- Approver workflow: `docs/workflows/gh-aw-automerge-approve.md`
-- Routing notes: `.github/workflow-routing/automerge/README.md`
+- Approver workflow: [docs/workflows/gh-aw-automerge-approve.md](gh-aw-automerge-approve.md)
+- Routing notes: [.github/workflow-routing/automerge/README.md](../../.github/workflow-routing/automerge/README.md)

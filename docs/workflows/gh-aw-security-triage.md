@@ -2,9 +2,9 @@
 
 ## Overview
 
-Source file: `.github/workflows/gh-aw-security-triage.yml`
+Source file: [.github/workflows/gh-aw-security-triage.yml](../../.github/workflows/gh-aw-security-triage.yml)
 
-This reusable workflow triages newly opened security-related issues and prepares fix-ready issues for the security fixer workflow. It classifies vulnerabilities in GitHub Actions workflows and shell scripts: injection, secret management, supply chain, and least privilege—matching `docs/workflows/security-scanning-ruleset.md` and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758). It runs in the **caller repository** (same as the detector).
+This reusable workflow triages newly opened security-related issues and prepares fix-ready issues for the security fixer workflow. It classifies vulnerabilities in GitHub Actions workflows and shell scripts: injection, secret management, supply chain, and least privilege—matching [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758). It runs in the **caller repository** (same as the detector).
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ This reusable workflow triages newly opened security-related issues and prepares
 
 The job `run` calls:
 
-- `elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main`
+- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
 
 Configured instructions define:
 
@@ -49,4 +49,4 @@ The triage agent appends a resolution plan to confirmed security issues with:
 ## References
 
 - [GitHub Actions Security Hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
-- Routing rules: `docs/routing/security-routing.md`
+- Routing rules: [docs/routing/security-routing.md](../routing/security-routing.md)

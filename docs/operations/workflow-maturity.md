@@ -1,6 +1,6 @@
 # Workflow Maturity Criteria
 
-This document defines the maturity levels used to classify agentic workflows in the Control Plane Dashboard. Maturity is assigned centrally in `workflow-registry.json` by maintainers.
+This document defines the maturity levels used to classify agentic workflows in the Control Plane Dashboard. Maturity is assigned centrally in [workflow-registry.json](../../workflow-registry.json) by maintainers.
 
 ## Maturity Levels
 
@@ -45,6 +45,6 @@ This document defines the maturity levels used to classify agentic workflows in 
 
 ## Assignment
 
-Maturity is set in `workflow-registry.json` at the repository root. Each workflow entry includes a `maturity` field with one of: `stable`, `early-adoption`, or `experimental`.
+Maturity is set in [workflow-registry.json](../../workflow-registry.json) at the repository root. Each workflow entry includes a `maturity` field with one of: `stable`, `early-adoption`, or `experimental`.
 
 Future enhancement: maturity could be derived automatically from metrics (e.g., successful execution ratio, proposed actions taken).

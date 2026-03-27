@@ -1,6 +1,6 @@
 # Control Plane Dashboard — User Instructions
 
-**Related issue:** https://github.com/elastic/observability-robots/issues/3732
+**Related issue:** [elastic/observability-robots#3732](https://github.com/elastic/observability-robots/issues/3732)
 
 This document explains how to use the OBLT AW Control Plane Dashboard to enable or disable agentic workflows for your repository.
 
@@ -22,7 +22,7 @@ The Control Plane Dashboard is a single GitHub Issue in your repository that lis
 
 1. Open the **Issues** tab of your repository
 2. Search for `label:oblt-aw/dashboard` or `in:title "Control Plane Dashboard"`
-3. If the dashboard does not exist, it will be created when your repository is added to `active-repositories.json` and the sync workflow runs
+3. If the dashboard does not exist, it will be created when your repository is added to [active-repositories.json](../../active-repositories.json) and the sync workflow runs
 
 ### Enabling a Workflow
 
@@ -74,7 +74,7 @@ Each workflow in the dashboard shows a maturity level:
 | **early-adoption** | Available for testing; feedback welcome; may have limitations     |
 | **experimental**   | In development; behavior may change; for internal or limited use  |
 
-See `docs/operations/workflow-maturity.md` for full criteria.
+See [docs/operations/workflow-maturity.md](workflow-maturity.md) for full criteria.
 
 ---
 
@@ -91,6 +91,6 @@ If the sync workflow could not pin it automatically (e.g. you already have 3 pin
 
 ## References
 
-- `docs/operations/control-plane-dashboard-format.md` — Dashboard issue format and checkbox syntax
-- `docs/operations/workflow-maturity.md` — Maturity level definitions
-- `docs/architecture/overview.md` — Control Plane Dashboard architecture
+- [docs/operations/control-plane-dashboard-format.md](control-plane-dashboard-format.md) — Dashboard issue format and checkbox syntax
+- [docs/operations/workflow-maturity.md](workflow-maturity.md) — Maturity level definitions
+- [docs/architecture/overview.md](../architecture/overview.md) — Control Plane Dashboard architecture

@@ -2,9 +2,9 @@
 
 ## Overview
 
-Source file: `.github/workflows/gh-aw-issue-triage.yml`
+Source file: [.github/workflows/gh-aw-issue-triage.yml](../../.github/workflows/gh-aw-issue-triage.yml)
 
-Reusable wrapper that calls the locked generic issue-triage workflow in `elastic/ai-github-actions`. The client entrypoint (`oblt-aw` template) invokes `oblt-aw-ingress`, which runs this job when an issue is opened and the workflow is enabled on the control-plane dashboard.
+Reusable wrapper that calls the locked generic issue-triage workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client entrypoint (`oblt-aw` template) invokes `oblt-aw-ingress`, which runs this job when an issue is opened and the workflow is enabled on the control-plane dashboard.
 
 ## Prerequisites
 
@@ -20,9 +20,9 @@ Ingress routes here when:
 
 The job `run` calls:
 
-- `elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main`
+- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
 
-Behavior and agent instructions for the locked workflow are defined in `elastic/ai-github-actions`.
+Behavior and agent instructions for the locked workflow are defined in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
 
 ## Configuration
 
@@ -42,6 +42,6 @@ Permissions:
 
 ## References
 
-- Ingress routing: `docs/workflows/oblt-aw-ingress.md` — workflow id `issue-triage` in `workflow-registry.json`
-- Specialized triage (Resource Not Accessible by Integration): `docs/workflows/gh-aw-resource-not-accessible-by-integration-triage.md`
-- Upstream lock: `elastic/ai-github-actions` — `.github/workflows/gh-aw-issue-triage.lock.yml`
+- Ingress routing: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) — workflow id `issue-triage` in [workflow-registry.json](../../workflow-registry.json)
+- Specialized triage (Resource Not Accessible by Integration): [docs/workflows/gh-aw-resource-not-accessible-by-integration-triage.md](gh-aw-resource-not-accessible-by-integration-triage.md)
+- Upstream lock: [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-issue-triage.lock.yml`](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
