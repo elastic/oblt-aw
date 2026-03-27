@@ -52,6 +52,7 @@ jobs:
         **Pull Request Requirements:**
         - Title: `docs: Documentation analysis and improvement`
         - Body must include:
+          - `Closes #<issue-number>` at the top to link and auto-close the audit issue on merge
           - Summary of files analyzed
           - List of issues found (with file paths and concise descriptions)
           - List of changes made (with rationale for each change)
