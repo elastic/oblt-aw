@@ -19,7 +19,7 @@ set -euo pipefail
 
 sudo apt-get update -qq
 sudo apt-get install -y shellcheck jq curl python3-pip
-python3 -m pip install --user 'zizmor==1.23.1' 'semgrep>=1.60.0'
+python3 -m pip install --user 'zizmor==1.23.1' 'semgrep==1.60.0'
 echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 mkdir -p "$HOME/bin/actionlint"
 cd "$HOME/bin/actionlint"
