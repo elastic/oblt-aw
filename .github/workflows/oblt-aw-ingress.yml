@@ -100,6 +100,7 @@ jobs:
       github.event.action == 'created' &&
       github.event.issue.pull_request == null &&
       startsWith(github.event.comment.body, '/ai') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'mention-in-issue'))
     uses: ./.github/workflows/gh-aw-mention-in-issue.yml
     secrets:
