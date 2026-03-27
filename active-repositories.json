@@ -1,6 +1,7 @@
 {
     "repositories": [
         "elastic/gh-oblt",
+        "elastic/oblt-actions",
         "elastic/oblt-aw",
         "elastic/oblt-cli",
         "elastic/oblt-framework",
