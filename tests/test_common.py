@@ -28,7 +28,7 @@ class TestAppendMultilineGithubOutput:
         lines = content.splitlines()
         # First line: MY_VAR<<DELIMITER
         assert lines[0].startswith("MY_VAR<<")
-        delimiter = lines[0][len("MY_VAR<<"):]
+        delimiter = lines[0][len("MY_VAR<<") :]
         # Middle lines: the value
         assert lines[1] == "line1"
         assert lines[2] == "line2"
@@ -48,7 +48,7 @@ class TestAppendMultilineGithubOutput:
         content = output_file.read_text()
         lines = content.splitlines()
         assert lines[0].startswith("KEY<<")
-        delimiter = lines[0][len("KEY<<"):]
+        delimiter = lines[0][len("KEY<<") :]
         assert lines[1] == "no-newline"
         assert lines[2] == delimiter
 
@@ -64,7 +64,7 @@ class TestAppendMultilineGithubOutput:
         content = output_file.read_text()
         lines = content.splitlines()
         assert lines[0].startswith("KEY<<")
-        delimiter = lines[0][len("KEY<<"):]
+        delimiter = lines[0][len("KEY<<") :]
         assert lines[1] == "with-newline"
         assert lines[2] == delimiter
 
@@ -81,7 +81,7 @@ class TestAppendMultilineGithubOutput:
         lines = content.splitlines()
         # First line: EMPTY<<DELIMITER
         assert lines[0].startswith("EMPTY<<")
-        delimiter = lines[0][len("EMPTY<<"):]
+        delimiter = lines[0][len("EMPTY<<") :]
         # Empty value produces a blank line then the closing delimiter
         assert lines[1] == ""
         assert lines[2] == delimiter
