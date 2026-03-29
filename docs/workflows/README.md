@@ -2,13 +2,13 @@
 
 ## Overview
 
-This section provides one document per workflow file in `.github/workflows/` and one for the distributed client template source file.
+This section provides workflow documentation for the reusable entrypoint, routed workflows, and supporting workflows in `.github/workflows/`, plus the distributed client template source file.
 
 ## Usage
 
 - CI workflow: `docs/workflows/ci.md`
 - Ingress orchestrator: `docs/workflows/oblt-aw-ingress.md`
-- Dashboard reader (ingress stage): `docs/workflows/oblt-aw-ingress.md` (see "Dashboard gating" section)
+- Dashboard reader workflow: `docs/workflows/get-enabled-workflows.md`
 - Client entrypoint workflow template: `docs/workflows/oblt-aw-client-template.md`
 - Agent suggestions workflow: `docs/workflows/gh-aw-agent-suggestions.md`
 - Autodoc workflow: `docs/workflows/gh-aw-autodoc.md`

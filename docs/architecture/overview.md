@@ -11,10 +11,18 @@ Entrypoint workflows:
 
 Specialized workflows:
 
+- `.github/workflows/gh-aw-agent-suggestions.yml`
+- `.github/workflows/gh-aw-autodoc.yml`
+- `.github/workflows/gh-aw-automerge.yml`
 - `.github/workflows/gh-aw-dependency-review.yml`
+- `.github/workflows/gh-aw-duplicate-issue-detector.yml`
+- `.github/workflows/gh-aw-issue-triage.yml`
 - `.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml`
 - `.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml`
 - `.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml`
+- `.github/workflows/gh-aw-security-detector.yml`
+- `.github/workflows/gh-aw-security-triage.yml`
+- `.github/workflows/gh-aw-security-fixer.yml`
 
 ## Usage
 
@@ -68,10 +76,18 @@ Any issue opened by OBLT AW workflows must use a title that starts with `[oblt-a
 
 Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
 
-- `pull_request` + action in `opened|synchronize|reopened` + bot author in allowlist -> dependency review
-- `schedule` -> resource-not-accessible detector
-- `issues` + (`opened` with label `oblt-aw/detector/res-not-accessible-by-integration` OR `labeled` with that label) -> resource-not-accessible triage
-- `issues` + `labeled` + required labels (`oblt-aw/ai/fix-ready` and `oblt-aw/triage/res-not-accessible-by-integration`) -> resource-not-accessible fixer
+- `schedule` + dashboard allows `agent-suggestions` -> agent suggestions
+- `schedule` + dashboard allows `autodoc` -> automated documentation analysis/improvement workflow
+- (`schedule`) OR (`pull_request` with bot PR author `elastic-vault-github-plugin-prod[bot]`) OR (`pull_request_review` approved for that same bot PR) + dashboard allows `automerge` -> automerge workflow
+- `pull_request` + action in `opened|synchronize|reopened` + bot author in allowlist + dashboard allows `dependency-review` -> dependency review
+- (`issues` `opened`) OR (`workflow_dispatch`) + dashboard allows `duplicate-issue-detector` -> duplicate issue detector
+- `issues` + `opened` + dashboard allows `issue-triage` -> issue triage
+- `schedule` + dashboard allows `resource-not-accessible-by-integration` -> resource-not-accessible detector
+- `issues` + (`opened` with label `oblt-aw/detector/res-not-accessible-by-integration` OR `labeled` with that label) + dashboard allows `resource-not-accessible-by-integration` -> resource-not-accessible triage
+- `issues` + `labeled` + required labels (`oblt-aw/ai/fix-ready` and `oblt-aw/triage/res-not-accessible-by-integration`) + dashboard allows `resource-not-accessible-by-integration` -> resource-not-accessible fixer
+- (`schedule` OR `workflow_dispatch`) + dashboard allows `security` -> security detector
+- `issues` + (`opened` with label `oblt-aw/detector/security` OR `labeled` with that label) + dashboard allows `security` -> security triage
+- `issues` + `labeled` + required labels (`oblt-aw/ai/fix-ready` and any `oblt-aw/triage/security-*`) + dashboard allows `security` -> security fixer
 - unsupported event/action combinations -> `unsupported-trigger` fail-fast job
 
 *Note: Dashboard opt-in/opt-out is read at runtime inside the ingress via `get-enabled-workflows`; there is no `issues.edited` trigger.*
@@ -82,10 +98,18 @@ Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
 flowchart TD
   A[Consumer Repository] --> C[oblt-aw-ingress]
   C --> B[get-enabled-workflows]
+  C --> AS[Agent Suggestions]
+  C --> AD[Automated Documentation]
+  C --> AM[Automerge]
   C --> D[Dependency Review]
+  C --> DI[Duplicate Issue Detector]
+  C --> IT[Issue Triage]
   C --> E[Resource Not Accessible by Integration Detector]
   C --> F[Resource Not Accessible by Integration Triage]
   C --> G[Resource Not Accessible by Integration Fixer]
+  C --> SD[Security Detector]
+  C --> ST[Security Triage]
+  C --> SF[Security Fixer]
   C --> X[Unsupported Trigger]
 ```
 
