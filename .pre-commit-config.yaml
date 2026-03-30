@@ -1,7 +1,7 @@
 repos:
   # ── YAML linting ──────────────────────────────────────────────────────────
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.37.0
+    rev: v1.38.0
     hooks:
       - id: yamllint
         args: [--config-file, .yamllint.yml]
@@ -12,9 +12,15 @@ repos:
     hooks:
       - id: shellcheck
 
+  # ── GitHub Actions linting ────────────────────────────────────────────────
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.11
+    hooks:
+      - id: actionlint
+
   # ── Python linting & formatting ───────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.2
+    rev: v0.15.7
     hooks:
       - id: ruff
         args: [--fix]
@@ -22,15 +28,26 @@ repos:
 
   # ── Python type-checking ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+    rev: v1.19.1
     hooks:
       - id: mypy
         files: ^scripts/
         args: [--strict]
 
+  # ── License headers and NOTICE ───────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: update-license-files
+        name: Update license headers and NOTICE
+        entry: python3 scripts/update_license_files.py
+        language: system
+        pass_filenames: false
+        # Repo-wide scan; run even when no staged files match hook filters
+        always_run: true
+
   # ── General file hygiene ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer

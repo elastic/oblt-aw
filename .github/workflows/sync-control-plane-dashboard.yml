@@ -1,0 +1,82 @@
+name: Sync Control Plane Dashboard
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - workflow-registry.json
+      - active-repositories.json
+      - .github/workflows/sync-control-plane-dashboard.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-control-plane-dashboard
+  cancel-in-progress: false
+
+jobs:
+  prepare-repos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      repos: ${{ steps.matrix.outputs.repos }}
+      has_repos: ${{ steps.matrix.outputs.has_repos }}
+      repos_count: ${{ steps.matrix.outputs.repos_count }}
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Build repos matrix
+        id: matrix
+        run: python scripts/build_repos_matrix.py
+
+      - name: Write repos summary
+        env:
+          REPOS_COUNT: ${{ steps.matrix.outputs.repos_count }}
+        run: |
+          {
+            echo "## Sync target summary"
+            echo ""
+            echo "- Repositories to sync: ${REPOS_COUNT}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  sync-dashboard:
+    needs: prepare-repos
+    if: ${{ needs.prepare-repos.outputs.has_repos == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare-repos.outputs.repos) }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v6
+
+      - name: Create ephemeral GitHub token
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: token-policy-8b60ba56dd3f
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Sync dashboard for ${{ matrix.repository }}
+        env:
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+          TARGET_REPO: ${{ matrix.repository }}
+        run: python scripts/sync_control_plane_dashboard.py --repo "$TARGET_REPO"

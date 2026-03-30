@@ -18,6 +18,12 @@ See [docs/development/contributing.md](docs/development/contributing.md) for:
 - Pre-commit hook reference
 - CI workflow overview
 
+## Client entrypoint workflow (`oblt-aw.yml`)
+
+Edit only [`.github/remote-workflow-template/oblt-aw.yml`](.github/remote-workflow-template/oblt-aw.yml). **Do not modify** [`.github/workflows/oblt-aw.yml`](.github/workflows/oblt-aw.yml) in this repository (enforced for Cursor via [`.cursor/rules/protected-oblt-aw-workflow.mdc`](.cursor/rules/protected-oblt-aw-workflow.mdc) and [AGENTS.md](AGENTS.md)).
+
+Details: [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md).
+
 ## CI
 
 All pull requests must pass CI. The workflow runs on every PR to `main`. See [docs/workflows/ci.md](docs/workflows/ci.md) for details.

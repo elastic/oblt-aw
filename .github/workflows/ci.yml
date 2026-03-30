@@ -28,7 +28,7 @@ jobs:
       - name: Run pre-commit
         uses: elastic/oblt-actions/pre-commit@v1
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
   python-tests:
     name: Python tests
@@ -43,7 +43,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Cache pip packages
         uses: actions/cache@v5
@@ -54,7 +54,7 @@ jobs:
             pip-${{ runner.os }}-
 
       - name: Install pytest
-        run: pip install pytest==8.3.5
+        run: pip install pytest==9.0.2
 
       - name: Run tests
         run: pytest tests/ -v --tb=short
@@ -72,7 +72,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -97,14 +97,14 @@ jobs:
           persist-credentials: false
 
       - name: Run Scorecard analysis
-        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a  # v2.4.3
+        uses: ossf/scorecard-action@99c09fe975337306107572b4fdf4db224cf8e2f2  # v2.4.3
         with:
           results_file: scorecard-results.sarif
           results_format: sarif
           publish_results: false
 
       - name: Upload Scorecard results to GitHub Security
-        uses: github/codeql-action/upload-sarif@820e3160e279568db735cee8ed8f8e77a6da7818  # v3.32.6
+        uses: github/codeql-action/upload-sarif@cb06a0a8527b2c6970741b3a0baa15231dc74a4c  # v4.34.1
         with:
           sarif_file: scorecard-results.sarif
 

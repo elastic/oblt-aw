@@ -4,7 +4,7 @@
 
 Source file: `.github/workflows/ci.yml`
 
-This workflow runs quality checks and tests on every pull request targeting `main`. It enforces linting, formatting, type-checking, and tests for both Python and TypeScript code.
+This workflow runs quality checks and tests on every pull request targeting `main`. It enforces pre-commit checks and Python tests, and runs TypeScript tests via `npm test`.
 
 ## Triggers
 
@@ -27,6 +27,7 @@ The `pre-commit` job uses `elastic/oblt-actions/pre-commit@v1`, which runs all h
 - **YAML**: yamllint with `.yamllint.yml`
 - **Shell**: ShellCheck on shell scripts
 - **Python**: ruff (lint + format), mypy (strict) on `scripts/`
+- **License**: Apache 2.0 headers and NOTICE sync (`scripts/update_license_files.py`; excludes `*.yml` / `*.yaml`)
 - **General**: trailing whitespace, EOF, YAML/JSON checks, merge conflict detection, line endings
 - **Action pinning**: Enforced by workflow design (trusted actions use tags; untrusted use SHA). Ratchet is not used because sethvargo/ratchet lacks `.pre-commit-hooks.yaml` and our policy uses tags for trusted namespaces.
 
@@ -45,6 +46,7 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 - Dependencies: `npm ci` (from `package-lock.json`)
 - Command: `npm test` → `tsx --test tests/unit/*.test.ts`
 - npm cache enabled via `actions/setup-node`
+- Note: CI currently runs TypeScript tests only; dedicated TypeScript lint/format/type-check jobs are not part of this workflow.
 
 ## Scorecard
 
