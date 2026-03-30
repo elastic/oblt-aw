@@ -25,9 +25,9 @@ class TestParseCheckboxState:
 
     def test_returns_all_checked_workflows_when_all_enabled(self) -> None:
         body = """
-- [x] <!-- oblt-aw:dependency-review -->
-- [x] <!-- oblt-aw:agent-suggestions -->
-- [x] <!-- oblt-aw:autodoc -->
+- [x] <!-- oblt-aw:dependency-review --> dependency-review
+- [x] <!-- oblt-aw:agent-suggestions --> agent-suggestions
+- [x] <!-- oblt-aw:autodoc --> autodoc
 """
         result = scpd.parse_checkbox_state(body)
         assert result == {
@@ -38,8 +38,8 @@ class TestParseCheckboxState:
 
     def test_returns_all_unchecked_when_none_enabled(self) -> None:
         body = """
-- [ ] <!-- oblt-aw:dependency-review -->
-- [ ] <!-- oblt-aw:agent-suggestions -->
+- [ ] <!-- oblt-aw:dependency-review --> dependency-review
+- [ ] <!-- oblt-aw:agent-suggestions --> agent-suggestions
 """
         result = scpd.parse_checkbox_state(body)
         assert result == {
@@ -49,9 +49,9 @@ class TestParseCheckboxState:
 
     def test_returns_only_checked_workflows_for_mixed_state(self) -> None:
         body = """
-- [x] <!-- oblt-aw:dependency-review -->
-- [ ] <!-- oblt-aw:agent-suggestions -->
-- [x] <!-- oblt-aw:autodoc -->
+- [x] <!-- oblt-aw:dependency-review --> dependency-review
+- [ ] <!-- oblt-aw:agent-suggestions --> agent-suggestions
+- [x] <!-- oblt-aw:autodoc --> autodoc
 """
         result = scpd.parse_checkbox_state(body)
         assert result == {
@@ -67,15 +67,20 @@ class TestParseCheckboxState:
     def test_ignores_malformed_lines_without_oblt_aw_comment(self) -> None:
         body = """
 - [x] some other text
-- [ ] <!-- oblt-aw:valid-id -->
+- [ ] <!-- oblt-aw:valid-id --> valid
 """
         result = scpd.parse_checkbox_state(body)
         assert result == {"valid-id": False}
 
     def test_handles_long_workflow_ids(self) -> None:
-        body = "- [x] <!-- oblt-aw:resource-not-accessible-by-integration-detector -->"
+        body = "- [x] <!-- oblt-aw:resource-not-accessible-by-integration-detector --> resource"
         result = scpd.parse_checkbox_state(body)
         assert result == {"resource-not-accessible-by-integration-detector": True}
+
+    def test_ignores_pattern_in_middle_of_line(self) -> None:
+        body = "See - [x] <!-- oblt-aw:not-at-start --> for details"
+        result = scpd.parse_checkbox_state(body)
+        assert result == {}
 
 
 # ── maturity_badge ────────────────────────────────────────────────────────────
@@ -120,7 +125,7 @@ class TestBuildDashboardBody:
             {"id": "wf-a", "name": "A", "description": "Desc", "default_enabled": True},
             {"id": "wf-b", "name": "B", "description": "Desc", "default_enabled": True},
         ]
-        existing = "- [ ] <!-- oblt-aw:wf-a -->\n- [x] <!-- oblt-aw:wf-b -->"
+        existing = "- [ ] <!-- oblt-aw:wf-a --> A\n- [x] <!-- oblt-aw:wf-b --> B"
         body = scpd.build_dashboard_body(workflows, existing)
         assert "<!-- oblt-aw:wf-a -->" in body
         assert "<!-- oblt-aw:wf-b -->" in body

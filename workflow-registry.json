@@ -29,11 +29,32 @@
       "default_enabled": true
     },
     {
+      "id": "duplicate-issue-detector",
+      "name": "Duplicate Issue Detector",
+      "description": "Detects potential duplicate issues when a new issue is opened or when the entrypoint is run manually.",
+      "maturity": "experimental",
+      "default_enabled": false
+    },
+    {
+      "id": "issue-triage",
+      "name": "Issue Triage",
+      "description": "Triages newly opened issues using the generic issue-triage agentic workflow.",
+      "maturity": "experimental",
+      "default_enabled": false
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "description": "Runs static security checks on workflows, shell scripts, and dependency manifests per the security scanning ruleset; opens issues for findings.",
+      "maturity": "experimental",
+      "default_enabled": false
+    },
+    {
       "id": "resource-not-accessible-by-integration",
       "name": "Resource Not Accessible by Integration",
       "description": "Detects 'Resource not accessible by integration' occurrences in workflow logs, creates triage issues, triages newly opened issues, and executes fixes for issues labeled ready to fix.",
       "maturity": "early-adoption",
-      "default_enabled": true
+      "default_enabled": false
     }
   ]
 }

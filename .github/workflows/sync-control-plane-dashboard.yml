@@ -32,7 +32,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Build repos matrix
         id: matrix
@@ -42,9 +42,11 @@ jobs:
         env:
           REPOS_COUNT: ${{ steps.matrix.outputs.repos_count }}
         run: |
-          echo "## Sync target summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Repositories to sync: ${REPOS_COUNT}" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Sync target summary"
+            echo ""
+            echo "- Repositories to sync: ${REPOS_COUNT}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   sync-dashboard:
     needs: prepare-repos
@@ -66,12 +68,12 @@ jobs:
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
         with:
-          token-policy: token-policy-63405ab45244
+          token-policy: token-policy-8b60ba56dd3f
 
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Sync dashboard for ${{ matrix.repository }}
         env:

@@ -10,7 +10,7 @@ This document explains how to use the OBLT AW Control Plane Dashboard to enable 
 
 The Control Plane Dashboard is a single GitHub Issue in your repository that lists all available agentic workflows. It provides a Renovate Dependency Dashboard–style interface: you enable or disable each workflow by checking or unchecking task list items.
 
-- **Title:** `[OBLT AW] Control Plane Dashboard`
+- **Title:** `[oblt-aw] Control Plane Dashboard`
 - **Label:** `oblt-aw/dashboard`
 - **Location:** Created and maintained automatically by the control-plane; you can pin it at the top of your Issues list for easy access
 
@@ -28,19 +28,19 @@ The Control Plane Dashboard is a single GitHub Issue in your repository that lis
 
 1. Open the Control Plane Dashboard issue
 2. Find the workflow you want to enable
-3. **Check** the checkbox next to the workflow (change `- [ ]` to `- [x]`)
+3. **Check** the checkbox next to the workflow (click it)
 4. Save or submit the edit
 
-There is no config file. When the client workflow runs, a `check-dashboard` job reads the dashboard issue at runtime and passes `enabled_workflows` to the ingress. The workflow will run on the next trigger (e.g. `schedule`, `workflow_dispatch`, `pull_request`).
+There is no config file. When the client workflow runs, the ingress (`get-enabled-workflows`) reads the dashboard issue at runtime and applies `enabled-workflows` gating. The workflow will run on the next trigger (e.g. `schedule`, `workflow_dispatch`, `pull_request`).
 
 ### Disabling a Workflow
 
 1. Open the Control Plane Dashboard issue
 2. Find the workflow you want to disable
-3. **Uncheck** the checkbox next to the workflow (change `- [x]` to `- [ ]`)
+3. **Uncheck** the checkbox next to the workflow (click it)
 4. Save or submit the edit
 
-The `check-dashboard` job excludes the workflow from `enabled_workflows` at runtime. The workflow will no longer run for your repository until you enable it again.
+The ingress dashboard stage excludes the workflow from `enabled-workflows` at runtime. The workflow will no longer run for your repository until you enable it again.
 
 ---
 
@@ -48,9 +48,9 @@ The `check-dashboard` job excludes the workflow from `enabled_workflows` at runt
 
 1. **You edit the issue** — Check or uncheck one or more workflow checkboxes (no immediate action; no PRs)
 2. **Client runs** — On the next trigger (schedule, workflow_dispatch, pull_request, etc.), the client workflow starts
-3. **check-dashboard job runs first** — Fetches the dashboard issue via API, parses checkboxes (`- [x] <!-- oblt-aw:workflow-id -->`), outputs `enabled_workflows` as JSON array
-4. **Ingress receives input** — The `run-aw` job passes `enabled_workflows` to the ingress
-5. **Ingress gates execution** — Only workflows listed in `enabled_workflows` run; see [Default Behavior](#default-behavior) for semantics when no dashboard exists vs. dashboard with checkboxes
+3. **`get-enabled-workflows` runs inside the ingress** — If there is no open dashboard issue, `effective-raw` is empty and normalized `enabled-workflows` is `[]` (ingress enables all workflows). Otherwise it fetches the issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:workflow-id -->` at line start in the Enable/Disable list), and writes normalized `enabled-workflows` as a JSON array string (`[]` or `["id", ...]`).
+4. **Ingress gating** — The ingress uses `enabled-workflows` and `effective-raw` from `get-enabled-workflows` to gate downstream jobs.
+5. **Ingress gates execution** — Empty string → all workflows; `[]` → none; non-empty array → only listed IDs. See [Default Behavior](#default-behavior).
 
 ---
 
