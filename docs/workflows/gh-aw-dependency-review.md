@@ -29,7 +29,7 @@ Noop semantics (in additional-instructions):
 
 Labeling semantics (in additional-instructions):
 
-- add `oblt-aw/ai/merge-ready` when: no CVE/GHSA/security fixes, no breaking changes affecting this repo, ecosystem checks pass, and workflows are testable or dependency is dev-only. "Low risk" is sufficient when criteria are met; minor behavioral changes that don't affect repo usage do not disqualify.
+- The agent assigns overall risk (**low**, **low-to-moderate**, **moderate**, **high**). Add `oblt-aw/ai/merge-ready` when risk is **low** or **low-to-moderate**, including when changelogs include CVEs/GHSAs/security fixes (those do not block the label in those bands; document them in the analysis). Also require: no breaking changes affecting this repo, ecosystem checks pass, and workflows are testable or the dependency is dev-only. Do not add the label when risk is moderate or high, or when other gates fail.
 - Label application: when all criteria are met, the agent MUST call `add_labels` with that label (not only recommend in the comment). The comment's "Labels Applied" section must reflect labels actually applied via `add_labels`; if none were applied, it must say "No labels applied."
 
 ## Configuration

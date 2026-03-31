@@ -66,7 +66,7 @@ The detector implements the full ruleset in [docs/workflows/security-scanning-ru
 
 ### Required Secret
 
-- `COPILOT_GITHUB_TOKEN` — Required for detector, triage, and fixer (issue/PR creation and updates, API access).
+- `COPILOT_GITHUB_TOKEN` — Required for **triage** and **fixer** (ai-github-actions agents: issue/PR updates, API access). The **detector** uses the default `GITHUB_TOKEN` for issues in the caller repo and does not require this secret.
 
 ## Deliverables
 

@@ -13,7 +13,7 @@ Unlike the resource-not-accessible detector (workflow logs via `gh-aw-log-search
 ## Prerequisites
 
 - Triggered via `workflow_call` (for example from a caller that uses `schedule`).
-- Required secret: `COPILOT_GITHUB_TOKEN`.
+- No repository secrets are required: issue creation uses the job’s default `GITHUB_TOKEN` (`issues: write`), and **`elastic/oblt-aw`** is checked out without a PAT (public repository).
 
 ## Usage
 
@@ -26,7 +26,7 @@ Single job **scan**:
 5. Runs `_oblt-aw/scripts/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message` (actionlint + zizmor + semgrep + shellcheck + custom heuristics + npm audit, with per-file/line deduplication).
 6. Runs `_oblt-aw/scripts/create-security-issues.sh` to open issues with label `oblt-aw/detector/security` and title prefix `[oblt-aw][security]` in **the caller** (`github.repository`).
 
-The **oblt-aw** checkout uses `COPILOT_GITHUB_TOKEN` so private repositories can be cloned when needed. Detector scripts are always taken from **[elastic/oblt-aw](https://github.com/elastic/oblt-aw)** at ref **`main`**, so scheduled callers do not need a `workflow_call` input for the host ref.
+Detector scripts are always taken from the public repository **`elastic/oblt-aw`** at ref **`main`** (no checkout token). Scheduled callers do not need a `workflow_call` input for the host ref.
 
 **Consumer example**:
 
@@ -34,8 +34,6 @@ The **oblt-aw** checkout uses `COPILOT_GITHUB_TOKEN` so private repositories can
 jobs:
   security-detector:
     uses: elastic/oblt-aw/.github/workflows/gh-aw-security-detector.yml@v1.0.0
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 ```
 
 ## Scan logic (summary)
@@ -56,13 +54,13 @@ Additional rules in the ruleset may be added to the scripts over time.
 ## Configuration
 
 - **Workflow-level** `permissions`: read-only — `actions: read`, `contents: read`, `issues: read`, `pull-requests: read`.
-- **Job `scan` `permissions`**: adds `issues: write` for `GITHUB_TOKEN` (least privilege on the job that can open issues). The **Create issues from findings** step also sets `GH_TOKEN` to **`COPILOT_GITHUB_TOKEN`** for `gh`; keep both aligned with how you authenticate issue creation.
+- **Job `scan` `permissions`**: adds `issues: write` for `GITHUB_TOKEN` (least privilege on the job that can open issues). The **Create issues from findings** step sets `GH_TOKEN` to **`github.token`** so `gh issue create` uses the same token (avoids enterprise policy blocks on long-lived fine-grained PATs).
 
 ## API / Interface
 
 `workflow_call` contract:
 
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
+- No `secrets` are declared; callers do not pass `COPILOT_GITHUB_TOKEN` for this workflow.
 
 Callers that trigger on a **schedule** cannot rely on `workflow_call` inputs for the host script ref; this workflow always clones detector scripts from **[elastic/oblt-aw](https://github.com/elastic/oblt-aw)** at **`main`**.
 
