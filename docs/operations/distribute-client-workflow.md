@@ -10,7 +10,7 @@ This workflow distributes or removes the client workflow template ([.github/work
 
 - [active-repositories.json](../../active-repositories.json) is maintained with current target repositories.
 - [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml) is the **only** source template for client `oblt-aw.yml` content. **Do not edit** [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) in this repository (see [Client template doc](../workflows/oblt-aw-client-template.md)).
-- Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/blob/v1/github/create-token).
+- Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
 
 ## Usage
 
