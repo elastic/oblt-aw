@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: `.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml`
+Source file: [.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml)
 
 This reusable workflow detects `Resource not accessible by integration` occurrences in workflow logs and creates issue output through the log-searching-agent workflow. It discovers all workflows in the repository and runs the agent per workflow via a matrix strategy.
 
@@ -19,7 +19,7 @@ The workflow uses two jobs:
 
 1. **discover** — Lists all workflow numeric IDs via the GitHub API (avoids 404 when the API expects exact workflow file names).
 2. **search** — Matrix job that calls `gh-aw-log-searching-agent` per workflow:
-   - `elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight`
+   - [elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight](https://github.com/elastic/ai-github-actions/blob/copilot/log-searching-agent-preflight/.github/workflows/gh-aw-log-searching-agent.lock.yml)
 
 The detector runs in each repository that invokes it (via ingress schedule or workflow_dispatch).
 
@@ -47,5 +47,5 @@ Permissions:
 
 ## References
 
-- Routing rules: `docs/routing/resource-not-accessible-by-integration-routing.md`
+- Routing rules: [docs/routing/resource-not-accessible-by-integration-routing.md](../routing/resource-not-accessible-by-integration-routing.md)
 - Log-searching-agent proposal: [elastic/ai-github-actions#548](https://github.com/elastic/ai-github-actions/pull/548#issuecomment-3997493806)
