@@ -10,7 +10,7 @@ This workflow creates or updates the Control Plane Dashboard issue in each repos
 
 - [workflow-registry.json](../../workflow-registry.json) — workflow metadata (id, name, description, maturity)
 - [active-repositories.json](../../active-repositories.json) — target repositories
-- Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/blob/v1/github/create-token)
+- Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/blob/v1/github/create-token/action.yml)
 
 ## Usage
 
