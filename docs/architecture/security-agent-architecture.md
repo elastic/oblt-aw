@@ -100,7 +100,7 @@ Per triage, the resolution plan must include:
 
 - Requires both a `oblt-aw/triage/security-*` label and `oblt-aw/ai/fix-ready`.
 - Draft PR first; convert to open after validation.
-- Request review from [elastic/observablt-ci](https://github.com/elastic/observablt-ci).
+- Request review from [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci).
 - No auto-merge.
 - Apply least-privilege and env-indirection patterns per triage plan.
 
