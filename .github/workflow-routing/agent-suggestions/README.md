@@ -21,4 +21,4 @@ The agent suggestions workflow adds repository-specific instructions to:
 
 The wrapper delegates to:
 
-- `elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main`
+- [elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-agent-suggestions.lock.yml)

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the ruleset used by the oblt-aw security detector to identify vulnerabilities in GitHub Actions workflows, shell scripts, and related artifacts. It supports the detector–triage–fixer flow in `docs/architecture/security-agent-architecture.md`.
+This document defines the ruleset used by the oblt-aw security detector to identify vulnerabilities in GitHub Actions workflows, shell scripts, and related artifacts. It supports the detector–triage–fixer flow in [docs/architecture/security-agent-architecture.md](../architecture/security-agent-architecture.md).
 
 **Scope**: Workflow YAML (`.github/workflows/**`), shell scripts, dependency manifests when present, and patterns aligned with [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758).
 

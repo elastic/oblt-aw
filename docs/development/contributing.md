@@ -25,7 +25,7 @@ pip install pre-commit
 pre-commit install
 ```
 
-This installs the hooks from `.pre-commit-config.yaml`. They run automatically on `git commit`.
+This installs the hooks from [.pre-commit-config.yaml](../../.pre-commit-config.yaml). They run automatically on `git commit`.
 
 ### 3. Install Python dependencies
 
@@ -79,7 +79,7 @@ make update-license-check
 
 License headers are not applied to `*.yml` or `*.yaml` files (including GitHub Actions workflows).
 
-The `update-license-files` hook uses `always_run: true` in `.pre-commit-config.yaml` so the script runs on every pre-commit invocation and rescans all header targets (not only when certain file types are staged).
+The `update-license-files` hook uses `always_run: true` in [.pre-commit-config.yaml](../../.pre-commit-config.yaml) so the script runs on every pre-commit invocation and rescans all header targets (not only when certain file types are staged).
 
 ### Individual tools
 
@@ -105,10 +105,10 @@ The following hooks run on commit (and in CI via the pre-commit job):
 
 ## CI Workflow
 
-The CI workflow (`.github/workflows/ci.yml`) runs on every PR to `main`. See `docs/workflows/ci.md` for details.
+The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) runs on every PR to `main`. See [docs/workflows/ci.md](../workflows/ci.md) for details.
 
 ## References
 
-- CI workflow: `docs/workflows/ci.md`
-- Pre-commit config: `.pre-commit-config.yaml`
-- Workflow catalog: `docs/workflows/README.md`
+- CI workflow: [docs/workflows/ci.md](../workflows/ci.md)
+- Pre-commit config: [.pre-commit-config.yaml](../../.pre-commit-config.yaml)
+- Workflow catalog: [docs/workflows/README.md](../workflows/README.md)

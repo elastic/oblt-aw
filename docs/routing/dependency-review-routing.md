@@ -2,9 +2,9 @@
 
 ## Overview
 
-Entrypoint source: `.github/workflows/oblt-aw-ingress.yml`
+Entrypoint source: [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml)
 
-Routed workflow source: `.github/workflows/gh-aw-dependency-review.yml`
+Routed workflow source: [.github/workflows/gh-aw-dependency-review.yml](../../.github/workflows/gh-aw-dependency-review.yml)
 
 ## Usage
 
@@ -21,4 +21,4 @@ Ingress routes to dependency review when all conditions are true:
 
 ## References
 
-- `docs/workflows/gh-aw-dependency-review.md`
+- [docs/workflows/gh-aw-dependency-review.md](../workflows/gh-aw-dependency-review.md)

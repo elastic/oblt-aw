@@ -2,9 +2,9 @@
 
 ## Overview
 
-Source file: `.github/workflows/gh-aw-duplicate-issue-detector.yml`
+Source file: [.github/workflows/gh-aw-duplicate-issue-detector.yml](../../.github/workflows/gh-aw-duplicate-issue-detector.yml)
 
-Reusable wrapper that calls the locked duplicate-issue-detector workflow in `elastic/ai-github-actions`. The client entrypoint (`oblt-aw` template) invokes `oblt-aw-ingress`, which runs this job when an issue is opened or when the entrypoint is manually dispatched, provided the workflow is enabled on the control-plane dashboard.
+Reusable wrapper that calls the locked duplicate-issue-detector workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client entrypoint (`oblt-aw` template) invokes `oblt-aw-ingress`, which runs this job when an issue is opened or when the entrypoint is manually dispatched, provided the workflow is enabled on the control-plane dashboard.
 
 ## Prerequisites
 
@@ -20,9 +20,9 @@ Ingress routes here when:
 
 The job `run` calls:
 
-- `elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main`
+- [elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml)
 
-Behavior and agent instructions for the locked workflow are defined in `elastic/ai-github-actions`.
+Behavior and agent instructions for the locked workflow are defined in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
 
 ## Configuration
 
@@ -41,5 +41,5 @@ Permissions:
 
 ## References
 
-- Ingress routing: `docs/workflows/oblt-aw-ingress.md` — workflow id `duplicate-issue-detector` in `workflow-registry.json`
-- Upstream lock: `elastic/ai-github-actions` — `.github/workflows/gh-aw-duplicate-issue-detector.lock.yml`
+- Ingress routing: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) — workflow id `duplicate-issue-detector` in [workflow-registry.json](../../workflow-registry.json)
+- Upstream lock: [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-duplicate-issue-detector.lock.yml`](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml)
