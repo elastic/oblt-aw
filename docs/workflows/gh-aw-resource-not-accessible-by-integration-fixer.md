@@ -24,7 +24,7 @@ Configured instructions require:
 - strict execution of triage-generated plan
 - least-privilege permission fixes
 - draft PR first, then ready-for-review after validation
-- reviewer request to [elastic/observablt-ci](https://github.com/elastic/observablt-ci)
+- reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
 ## Configuration
