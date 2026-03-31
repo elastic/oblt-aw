@@ -2,9 +2,6 @@
 name: Security Detector
 on:
   workflow_call:
-    secrets:
-      COPILOT_GITHUB_TOKEN:
-        required: true
 
 permissions:
   actions: read
@@ -33,7 +30,6 @@ jobs:
           repository: elastic/oblt-aw
           ref: main
           path: _oblt-aw
-          token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
       - name: Install tools
         run: |
@@ -66,7 +62,7 @@ jobs:
       - name: Create issues from findings
         if: ${{ steps.scan.outputs.count != '0' }}
         env:
-          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           chmod +x _oblt-aw/scripts/create-security-issues.sh
