@@ -33,13 +33,14 @@ jobs:
         - Explicitly call out any potential regressions or newly introduced attack surface.
 
         Labeling rule extension:
+        - First assign an overall risk level for the PR: **low**, **low-to-moderate**, **moderate**, or **high**, using the CVE-focused analysis above (scope of vulnerable surface in this repo, quality of the fix, blast radius, and whether behavior changes are contained).
         - Apply `oblt-aw/ai/merge-ready` when ALL of the following are true:
-          - No CVE, GHSA, or security-fix entries in the changelog/release notes for the updated version.
+          - Overall risk is **low** OR **low-to-moderate** (including when changelogs mention CVEs, GHSAs, or security fixes—those entries do **not** disqualify the label in these two bands; they must still be documented in your analysis).
           - No breaking changes to APIs, inputs, or features used by this repository.
           - Ecosystem checks pass (commit verified for Actions, pin format acceptable for Buildkite, etc.).
           - Workflows using the dependency are testable in PR context (pull_request or pull_request_target trigger), OR the dependency is dev-only (e.g. pre-commit, linters) with no production impact.
-        - Treat "low risk" as sufficient when the above criteria are met. Minor behavioral changes (e.g. ignore-pattern handling, formatting) that do not affect this repo's usage do NOT disqualify the label.
-        - Do NOT add `oblt-aw/ai/merge-ready` only when: CVEs/security fixes exist, breaking changes affect this repo, ecosystem checks fail, or workflows are untestable and the dependency has production impact.
+        - Minor behavioral changes (e.g. ignore-pattern handling, formatting) that do not affect this repo's usage do NOT disqualify the label when risk is low or low-to-moderate.
+        - Do NOT add `oblt-aw/ai/merge-ready` when: overall risk is **moderate** or **high**, breaking changes affect this repo, ecosystem checks fail, or workflows are untestable and the dependency has production impact.
 
         Label application (mandatory):
         - When ALL criteria for `oblt-aw/ai/merge-ready` are met, you MUST call `add_labels` with that label. Do not only recommend it in the comment; apply it via the add_labels tool.
