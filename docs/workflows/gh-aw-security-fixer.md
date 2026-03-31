@@ -25,7 +25,7 @@ Configured instructions require:
 - **least-privilege**: grant only minimum permissions required; no over-broad scopes
 - **env-indirection**: never interpolate secrets/tokens in command strings; always pass via `env:` blocks
 - draft PR first, then ready-for-review after validation
-- reviewer request to [elastic/observablt-ci](https://github.com/elastic/observablt-ci)
+- reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
 Repository filter behavior uses `target-repositories` with default `[]` as allow-all.
