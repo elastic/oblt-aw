@@ -85,6 +85,7 @@ The `update-license-files` hook uses `always_run: true` in [.pre-commit-config.y
 
 - **YAML lint**: `yamllint .` (uses `.yamllint.yml`)
 - **Shell lint**: `shellcheck scripts/**/*.sh tests/**/*.sh`
+- **GitHub Actions lint**: `actionlint`
 - **Python lint**: `ruff check scripts/`
 - **Python format**: `ruff format --check scripts/`
 - **Python type-check**: `mypy --strict scripts/`
@@ -98,8 +99,9 @@ The following hooks run on commit (and in CI via the pre-commit job):
 |-----------------|--------------------------|----------------------------------|
 | yamllint        | `*.yml`, `*.yaml`        | YAML style and structure         |
 | shellcheck      | Shell scripts            | Shell script linting             |
-| ruff            | `scripts/**/*.py`        | Python lint (with `--fix`)       |
-| ruff-format     | `scripts/**/*.py`        | Python formatting                |
+| actionlint      | GitHub Actions workflows | GitHub Actions workflow linting  |
+| ruff            | Python files (repo-wide) | Python lint (with `--fix`)       |
+| ruff-format     | Python files (repo-wide) | Python formatting                |
 | mypy            | `scripts/**/*.py`        | Python type-checking (strict)    |
 | update-license-files | Scripts, shell, TypeScript tests, NOTICE | Apache 2.0 headers, NOTICE sync |
 | pre-commit-hooks| Various                  | Trailing whitespace, EOF, etc.   |

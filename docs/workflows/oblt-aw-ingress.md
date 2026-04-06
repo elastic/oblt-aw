@@ -21,6 +21,7 @@ The workflow file declares support for:
 - `workflow_dispatch` (for example manual runs used by `duplicate-issue-detector` and `security-detector`)
 - `workflow_call`
 - `issues` with `opened` and `labeled`
+- `issue_comment` with `created`
 - `pull_request` with `opened`, `synchronize`, `reopened`
 - `pull_request_review` with `submitted`
 
@@ -116,6 +117,18 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 |-------------|-------------------|----------|----------------|
 | `issue-triage` | `gh-aw-issue-triage.yml` | `issues` `opened` | Yes — `issue-triage` |
 
+### Mention in Issue (registry id `mention-in-issue`)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `mention-in-issue` |
+| `name` | Mention in Issue |
+| `description` | AI assistant for issues — answers questions, debugs problems, and creates PRs on demand when triggered by a /ai comment. |
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `mention-in-issue` | `gh-aw-mention-in-issue.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting with `/ai` | Yes — `mention-in-issue` |
+
 ### Security (registry id `security`)
 
 **Routing:** [Security routing](../routing/security-routing.md)
@@ -165,7 +178,7 @@ These jobs exist only in [.github/workflows/oblt-aw-ingress.yml](../../.github/w
 
 | Job | Role |
 |-----|------|
-| `dashboard-enabled-workflows` | Invokes `get-enabled-workflows.yml`; supplies `effective-raw` and `enabled-workflows` to gated jobs. |
+| `dashboard-enabled-workflows` | Invokes `get-enabled-workflows.yml`; supplies `effective-raw` and `enabled-workflows` to gated jobs. See [docs/workflows/get-enabled-workflows.md](get-enabled-workflows.md). |
 | `unsupported-trigger` | Runs when the event is not one of the supported combinations; fails the workflow with a clear message. It has no `needs: dashboard-enabled-workflows` and does not read the registry. |
 
 ## Configuration
@@ -173,6 +186,7 @@ These jobs exist only in [.github/workflows/oblt-aw-ingress.yml](../../.github/w
 Top-level permissions:
 
 - `actions: read`
+- `checks: read`
 - `contents: write`
 - `discussions: write`
 - `issues: write`
@@ -199,6 +213,7 @@ jobs:
 ## References
 
 - [workflow-registry.json](../../workflow-registry.json) (canonical workflow ids for the Control Plane Dashboard)
+- [docs/workflows/get-enabled-workflows.md](get-enabled-workflows.md)
 - [Routing documentation index](../routing/README.md)
 - [Dependency review routing](../routing/dependency-review-routing.md)
 - [Security routing](../routing/security-routing.md)

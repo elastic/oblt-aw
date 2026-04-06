@@ -1,0 +1,22 @@
+---
+name: Mention in Issue
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-issue.lock.yml@main
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

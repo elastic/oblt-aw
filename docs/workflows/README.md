@@ -8,7 +8,7 @@ This section provides one document per workflow file in [.github/workflows/](../
 
 - CI workflow: [docs/workflows/ci.md](ci.md)
 - Ingress orchestrator: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md)
-- Dashboard reader (ingress stage): [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) (see "Dashboard gating" section)
+- Dashboard reader (reusable workflow): [docs/workflows/get-enabled-workflows.md](get-enabled-workflows.md)
 - Client entrypoint workflow template: [docs/workflows/oblt-aw-client-template.md](oblt-aw-client-template.md)
 - Agent suggestions workflow: [docs/workflows/gh-aw-agent-suggestions.md](gh-aw-agent-suggestions.md)
 - Autodoc workflow: [docs/workflows/gh-aw-autodoc.md](gh-aw-autodoc.md)

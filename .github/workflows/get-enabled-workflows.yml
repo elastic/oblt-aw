@@ -17,6 +17,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  contents: read
   issues: read
 
 jobs:
@@ -27,56 +28,20 @@ jobs:
       enabled-workflows: ${{ steps.run.outputs['enabled-workflows'] }}
       effective-raw: ${{ steps.run.outputs['effective-raw'] }}
     steps:
+      - name: Checkout oblt-aw (dashboard script)
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
       - name: Fetch dashboard, parse, and normalize enabled workflows
         id: run
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          # Use delimiter format to avoid corruption when value contains brackets.
-          # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings
-          DELIM=$(dd if=/dev/urandom bs=15 count=1 status=none | base64 | tr -d '\n')
-          normalize_enabled_workflows_json() {
-            printf '%s' "$1" | jq -R -s -c '
-              (gsub("^\\s+|\\s+$"; "")) as $t
-              | if ($t | length) == 0 then
-                  []
-                else
-                  ($t
-                   | try (fromjson | if type == "array" then . else error("not an array") end)
-                   catch ([ $t | scan("[a-z0-9-]+") ] | unique))
-                end
-            '
-          }
-          write_enabled_workflows() {
-            {
-              echo "enabled-workflows<<$DELIM"
-              printf '%s\n' "$1"
-              echo "$DELIM"
-            } >> "$GITHUB_OUTPUT"
-          }
-          if ! BODY=$(gh api "repos/${{ github.repository }}/issues?labels=oblt-aw/dashboard&state=open" \
-            --jq 'if length > 0 then .[0].body else empty end'); then
-            echo "Error fetching dashboard issue via 'gh api'; defaulting to no workflows enabled" >&2
-            RAW="[]"
-          elif [[ -z "$BODY" ]]; then
-            RAW=""
-            echo "No dashboard issue found, defaulting to all workflows enabled"
-          else
-            PARSED=$(echo "$BODY" | grep -oP '(?m)^- \[x\] <!-- oblt-aw:\K[a-z0-9-]+' || true)
-            ENABLED=$(printf '%s\n' "$PARSED" | jq -R -s -c 'split("\n") | map(select(length > 0))')
-            if [[ -z "$ENABLED" || "$ENABLED" == "[]" ]]; then
-              RAW="[]"
-              echo "Dashboard exists but no checkboxes checked, no workflows will run"
-            else
-              RAW="$ENABLED"
-            fi
-          fi
-          NORMALIZED_JSON=$(normalize_enabled_workflows_json "$RAW")
-          write_enabled_workflows "$NORMALIZED_JSON"
-          delim2=$(openssl rand -hex 8)
-          {
-            echo "effective-raw<<$delim2"
-            printf '%s\n' "$RAW"
-            echo "$delim2"
-          } >> "$GITHUB_OUTPUT"
+        run: python _oblt-aw/scripts/get_enabled_workflows.py
