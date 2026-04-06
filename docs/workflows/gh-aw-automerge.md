@@ -45,5 +45,5 @@ Permissions:
 
 ## References
 
-- Approver workflow: [docs/workflows/gh-aw-automerge-approve.md](gh-aw-automerge-approve.md)
-- Routing notes: [.github/workflow-routing/automerge/README.md](../../.github/workflow-routing/automerge/README.md)
+- Approver workflow: [docs/workflows/gh-aw-automerge-approve.md](../workflows/gh-aw-automerge-approve.md)
+- Routing rules: [docs/routing/automerge-routing.md](../routing/automerge-routing.md)
