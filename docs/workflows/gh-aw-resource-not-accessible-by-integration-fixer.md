@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: `.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml`
+Source file: [.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml)
 
 This reusable workflow executes issue-based fixes for issues labeled as ready to fix in the Resource Not Accessible by Integration flow.
 
@@ -17,14 +17,14 @@ This reusable workflow executes issue-based fixes for issues labeled as ready to
 
 The job `run` calls:
 
-- `elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main`
+- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer.lock.yml)
 
 Configured instructions require:
 
 - strict execution of triage-generated plan
 - least-privilege permission fixes
 - draft PR first, then ready-for-review after validation
-- reviewer request to `elastic/observablt-ci`
+- reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
 ## Configuration
@@ -45,4 +45,4 @@ Permissions:
 
 ## References
 
-- Routing rules: `docs/routing/resource-not-accessible-by-integration-routing.md`
+- Routing rules: [docs/routing/resource-not-accessible-by-integration-routing.md](../routing/resource-not-accessible-by-integration-routing.md)

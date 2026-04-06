@@ -93,6 +93,19 @@ jobs:
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
+  mention-in-issue:
+    needs: dashboard-enabled-workflows
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      github.event.issue.pull_request == null &&
+      startsWith(github.event.comment.body, '/ai') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'mention-in-issue'))
+    uses: ./.github/workflows/gh-aw-mention-in-issue.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
   resource-not-accessible-by-integration-detector:
     needs: dashboard-enabled-workflows
     if: >-
@@ -132,8 +145,6 @@ jobs:
       contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'security'))
     uses: ./.github/workflows/gh-aw-security-detector.yml
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   security-fixer:
     needs: dashboard-enabled-workflows
@@ -165,6 +176,7 @@ jobs:
         contains(fromJSON('["schedule","workflow_call"]'), github.event_name) ||
         github.event_name == 'workflow_dispatch' ||
         (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action)) ||
+        (github.event_name == 'issue_comment' && github.event.action == 'created') ||
         (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action)) ||
         (github.event_name == 'pull_request_review' && github.event.action == 'submitted')
       )

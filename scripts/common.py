@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 
 
 def write_outputs(values: dict[str, str]) -> None:
@@ -36,6 +37,20 @@ def write_outputs(values: dict[str, str]) -> None:
     with open(github_output, "a", encoding="utf-8") as output_file:
         for key, value in values.items():
             output_file.write(f"{key}={value}\n")
+
+
+def append_multiline_github_output(name: str, value: str) -> None:
+    """Write a multiline value to GITHUB_OUTPUT using a random delimiter."""
+    github_output = os.getenv("GITHUB_OUTPUT")
+    if not github_output:
+        raise SystemExit("GITHUB_OUTPUT is not set")
+    delimiter = secrets.token_urlsafe(24)
+    with open(github_output, "a", encoding="utf-8") as output_file:
+        output_file.write(f"{name}<<{delimiter}\n")
+        output_file.write(value)
+        if not value.endswith("\n"):
+            output_file.write("\n")
+        output_file.write(f"{delimiter}\n")
 
 
 def parse_repositories(content: str) -> list[str]:

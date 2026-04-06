@@ -21,13 +21,13 @@ The structure is organized by intent:
 
 Use this index as the starting point and then navigate by topic.
 
-- Architecture overview: `docs/architecture/overview.md`
-- Workflow catalog: `docs/workflows/README.md`
-- Routing guide: `docs/routing/README.md`
-- Distribution operations: `docs/operations/distribute-client-workflow.md`
-- Control Plane Dashboard (user instructions): `docs/operations/control-plane-dashboard.md`
-- Contributing and local setup: `docs/development/contributing.md`
+- Architecture overview: [docs/architecture/overview.md](architecture/overview.md)
+- Workflow catalog: [docs/workflows/README.md](workflows/README.md)
+- Routing guide: [docs/routing/README.md](routing/README.md)
+- Distribution operations: [docs/operations/distribute-client-workflow.md](operations/distribute-client-workflow.md)
+- Control Plane Dashboard (user instructions): [docs/operations/control-plane-dashboard.md](operations/control-plane-dashboard.md)
+- Contributing and local setup: [docs/development/contributing.md](development/contributing.md)
 
 ## References
 
-- Repository entrypoint README: `README.md`
+- Repository entrypoint README: [README.md](../README.md)

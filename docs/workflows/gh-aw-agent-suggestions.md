@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: `.github/workflows/gh-aw-agent-suggestions.yml`
+Source file: [.github/workflows/gh-aw-agent-suggestions.yml](../../.github/workflows/gh-aw-agent-suggestions.yml)
 
 This reusable wrapper runs the upstream agent-suggestions workflow with repository-specific policy for issue creation.
 
@@ -15,7 +15,7 @@ This reusable wrapper runs the upstream agent-suggestions workflow with reposito
 
 The job `run` delegates to:
 
-- `elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main`
+- [elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-agent-suggestions.lock.yml)
 
 Repository-specific instructions enforce:
 
@@ -41,4 +41,4 @@ Permissions:
 
 ## References
 
-- Routing rules: `docs/routing/agent-suggestions-routing.md`
+- Routing notes: [.github/workflow-routing/agent-suggestions/README.md](../../.github/workflow-routing/agent-suggestions/README.md)

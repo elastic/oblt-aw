@@ -6,8 +6,8 @@ This guide covers local setup and quality checks for contributors. All changes m
 
 ## Prerequisites
 
-- Python 3.13
-- Node.js 20+
+- Python 3.14
+- Node.js 24
 - [pre-commit](https://pre-commit.com/)
 
 ## One-time Setup
@@ -25,12 +25,12 @@ pip install pre-commit
 pre-commit install
 ```
 
-This installs the hooks from `.pre-commit-config.yaml`. They run automatically on `git commit`.
+This installs the hooks from [.pre-commit-config.yaml](../../.pre-commit-config.yaml). They run automatically on `git commit`.
 
 ### 3. Install Python dependencies
 
 ```bash
-pip install pytest==8.3.5
+pip install pytest==9.0.2
 ```
 
 ### 4. Install Node.js dependencies
@@ -79,15 +79,17 @@ make update-license-check
 
 License headers are not applied to `*.yml` or `*.yaml` files (including GitHub Actions workflows).
 
-The `update-license-files` hook uses `always_run: true` in `.pre-commit-config.yaml` so the script runs on every pre-commit invocation and rescans all header targets (not only when certain file types are staged).
+The `update-license-files` hook uses `always_run: true` in [.pre-commit-config.yaml](../../.pre-commit-config.yaml) so the script runs on every pre-commit invocation and rescans all header targets (not only when certain file types are staged).
 
 ### Individual tools
 
 - **YAML lint**: `yamllint .` (uses `.yamllint.yml`)
-- **Shell lint**: `shellcheck scripts/**/*.sh`
+- **Shell lint**: `shellcheck scripts/**/*.sh tests/**/*.sh`
+- **GitHub Actions lint**: `actionlint`
 - **Python lint**: `ruff check scripts/`
 - **Python format**: `ruff format --check scripts/`
 - **Python type-check**: `mypy --strict scripts/`
+- **GitHub Actions lint**: `actionlint`
 
 ## Pre-commit Hooks
 
@@ -97,18 +99,19 @@ The following hooks run on commit (and in CI via the pre-commit job):
 |-----------------|--------------------------|----------------------------------|
 | yamllint        | `*.yml`, `*.yaml`        | YAML style and structure         |
 | shellcheck      | Shell scripts            | Shell script linting             |
-| ruff            | `scripts/**/*.py`        | Python lint (with `--fix`)       |
-| ruff-format     | `scripts/**/*.py`        | Python formatting                |
+| actionlint      | GitHub Actions workflows | GitHub Actions workflow linting  |
+| ruff            | Python files (repo-wide) | Python lint (with `--fix`)       |
+| ruff-format     | Python files (repo-wide) | Python formatting                |
 | mypy            | `scripts/**/*.py`        | Python type-checking (strict)    |
 | update-license-files | Scripts, shell, TypeScript tests, NOTICE | Apache 2.0 headers, NOTICE sync |
 | pre-commit-hooks| Various                  | Trailing whitespace, EOF, etc.   |
 
 ## CI Workflow
 
-The CI workflow (`.github/workflows/ci.yml`) runs on every PR to `main`. See `docs/workflows/ci.md` for details.
+The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) runs on every PR to `main`. See [docs/workflows/ci.md](../workflows/ci.md) for details.
 
 ## References
 
-- CI workflow: `docs/workflows/ci.md`
-- Pre-commit config: `.pre-commit-config.yaml`
-- Workflow catalog: `docs/workflows/README.md`
+- CI workflow: [docs/workflows/ci.md](../workflows/ci.md)
+- Pre-commit config: [.pre-commit-config.yaml](../../.pre-commit-config.yaml)
+- Workflow catalog: [docs/workflows/README.md](../workflows/README.md)

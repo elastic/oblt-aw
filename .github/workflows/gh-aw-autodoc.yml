@@ -52,6 +52,7 @@ jobs:
         **Pull Request Requirements:**
         - Title: `docs: Documentation analysis and improvement`
         - Body must include:
+          - `Closes #<issue-number>` at the top to link and auto-close the audit issue on merge
           - Summary of files analyzed
           - List of issues found (with file paths and concise descriptions)
           - List of changes made (with rationale for each change)
@@ -63,6 +64,18 @@ jobs:
         - Prefer targeted, high-confidence improvements over speculative rewrites.
         - All changes must be grounded in actual repository content — do not invent capability descriptions.
         - Do not add placeholder text or TODOs as improvements.
-
-        **Reviewers:** When creating the pull request, request review from the elastic/observablt-ci team.
     secrets: inherit
+
+  # Step 3: Explicitly assign elastic/observablt-ci as reviewer (ensures assignment regardless of agent behaviour)
+  request-reviewers:
+    needs: fix
+    if: needs.fix.outputs.created_pr_number != ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Request review from elastic/observablt-ci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.fix.outputs.created_pr_number }}
+        run: gh pr edit "$PR_NUMBER" --add-reviewer "elastic/observablt-ci" --repo "$GITHUB_REPOSITORY"

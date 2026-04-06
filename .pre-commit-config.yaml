@@ -14,13 +14,13 @@ repos:
 
   # ── GitHub Actions linting ────────────────────────────────────────────────
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.11
+    rev: v1.7.12
     hooks:
       - id: actionlint
 
   # ── Python linting & formatting ───────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.7
+    rev: v0.15.9
     hooks:
       - id: ruff
         args: [--fix]
@@ -28,7 +28,7 @@ repos:
 
   # ── Python type-checking ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
+    rev: v1.20.0
     hooks:
       - id: mypy
         files: ^scripts/
