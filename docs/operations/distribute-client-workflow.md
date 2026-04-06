@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml)
 
-This workflow distributes or removes the client workflow template ([.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml)) across repositories listed in [active-repositories.json](../../active-repositories.json).
+This workflow distributes or removes the client workflow template ([.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)) across repositories listed in [active-repositories.json](../../active-repositories.json).
 
 ## Prerequisites
 
