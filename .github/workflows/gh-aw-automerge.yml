@@ -1,6 +1,15 @@
 name: Automerge
 on:
   workflow_call:
+    inputs:
+      allowed-actor:
+        description: "GitHub actor (login) allowed to trigger automerge."
+        type: string
+        default: "elastic-vault-github-plugin-prod[bot]"
+      merge-ready-label:
+        description: "Label that marks a PR as ready for automerge."
+        type: string
+        default: "oblt-aw/ai/merge-ready"
 
 permissions:
   actions: read
@@ -50,8 +59,8 @@ jobs:
             const { prNumbers } = await run({
               github,
               context,
-              mergeReadyLabel: 'oblt-aw/ai/merge-ready',
-              allowedActor: 'elastic-vault-github-plugin-prod[bot]',
+              mergeReadyLabel: '${{ inputs.merge-ready-label }}',
+              allowedActor: '${{ inputs.allowed-actor }}',
             });
             const prNumbersJson = JSON.stringify(prNumbers);
             core.setOutput('pr_numbers_json', prNumbersJson);
