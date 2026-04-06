@@ -89,6 +89,15 @@ Where `workflow-id` is the canonical identifier from [workflow-registry.json](..
 - **Reliable parsing:** The HTML comment is invisible in the rendered issue but preserved when users check/uncheck. Parsers extract workflow IDs from the preceding checkbox state on the same line.
 - **User edits:** When users click a checkbox, GitHub updates `[ ]` to `[x]` or vice versa. The comment stays intact.
 
+### Initial Checkbox State for New Workflow IDs
+
+When dashboard sync introduces a workflow ID that does not already exist in the dashboard issue body, initial checkbox state comes from that entry's `default_enabled` value in [workflow-registry.json](../../workflow-registry.json):
+
+- `default_enabled: true` → rendered as `- [x]`
+- `default_enabled: false` → rendered as `- [ ]`
+
+If a workflow checkbox already exists in the issue body, the current issue state is preserved on sync updates.
+
 ### Parsing Algorithm
 
 To extract enabled workflows from the issue body (when a dashboard issue exists):
