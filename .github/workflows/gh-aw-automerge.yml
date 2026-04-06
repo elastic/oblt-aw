@@ -54,7 +54,7 @@ jobs:
           script: |
             const path = require('node:path');
             const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
-            require(path.join(root, 'node_modules/tsx/cjs/api')).register();
+            require(require.resolve('tsx/cjs/api', { paths: [root] })).register();
             const { run } = require(path.join(root, 'scripts/findAutomergeCandidates.ts'));
             const { prNumbers } = await run({
               github,
@@ -117,7 +117,7 @@ jobs:
           script: |
             const path = require('node:path');
             const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
-            require(path.join(root, 'node_modules/tsx/cjs/api')).register();
+            require(require.resolve('tsx/cjs/api', { paths: [root] })).register();
             const { run } = require(path.join(root, 'scripts/enableAutomergeForApprovedPrs.ts'));
             const prNumbers = JSON.parse(process.env.PR_NUMBERS_JSON || '[]');
             await run({ github, context, core, prNumbers });
