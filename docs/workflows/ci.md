@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
 
-This workflow runs quality checks and tests on every pull request targeting `main`. It enforces pre-commit checks and Python tests, and runs TypeScript tests via `npm test`.
+This workflow runs quality checks and tests on every pull request targeting `main`. It enforces pre-commit checks (including Actionlint), Python tests, and TypeScript tests via `npm test`.
 
 ## Triggers
 
@@ -36,14 +36,14 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 
 ## Python Tests
 
-- Python 3.13
-- Dependencies: pytest 8.3.5
+- Python 3.14
+- Dependencies: pytest 9.0.2
 - Command: `pytest tests/ -v --tb=short`
 - Pip cache keyed by `**/*.py`, `pyproject.toml`, `requirements*.txt`
 
 ## TypeScript Tests
 
-- Node.js 20
+- Node.js 24
 - Dependencies: `npm ci` (from `package-lock.json`)
 - Command: `npm test` → `tsx --test tests/unit/*.test.ts`
 - npm cache enabled via `actions/setup-node`

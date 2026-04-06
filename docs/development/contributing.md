@@ -6,8 +6,8 @@ This guide covers local setup and quality checks for contributors. All changes m
 
 ## Prerequisites
 
-- Python 3.13
-- Node.js 20+
+- Python 3.14
+- Node.js 24
 - [pre-commit](https://pre-commit.com/)
 
 ## One-time Setup
@@ -30,7 +30,7 @@ This installs the hooks from [.pre-commit-config.yaml](../../.pre-commit-config.
 ### 3. Install Python dependencies
 
 ```bash
-pip install pytest==8.3.5
+pip install pytest==9.0.2
 ```
 
 ### 4. Install Node.js dependencies
@@ -84,11 +84,12 @@ The `update-license-files` hook uses `always_run: true` in [.pre-commit-config.y
 ### Individual tools
 
 - **YAML lint**: `yamllint .` (uses `.yamllint.yml`)
-- **Shell lint**: `shellcheck scripts/**/*.sh`
+- **Shell lint**: `shellcheck scripts/**/*.sh tests/**/*.sh`
 - **GitHub Actions lint**: `actionlint`
-- **Python lint**: `ruff check .`
-- **Python format**: `ruff format --check .`
+- **Python lint**: `ruff check scripts/`
+- **Python format**: `ruff format --check scripts/`
 - **Python type-check**: `mypy --strict scripts/`
+- **GitHub Actions lint**: `actionlint`
 
 ## Pre-commit Hooks
 
