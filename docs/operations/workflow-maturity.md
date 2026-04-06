@@ -45,6 +45,11 @@ This document defines the maturity levels used to classify agentic workflows in 
 
 ## Assignment
 
-Maturity is set in [workflow-registry.json](../../workflow-registry.json) at the repository root. Each workflow entry includes a `maturity` field with one of: `stable`, `early-adoption`, or `experimental`.
+Maturity is set in [workflow-registry.json](../../workflow-registry.json) at the repository root. Each workflow entry includes:
+
+- `maturity`: one of `stable`, `early-adoption`, or `experimental`
+- `default_enabled`: default checkbox state used by dashboard sync when a workflow is not yet present in an existing dashboard issue body
+
+`default_enabled` does not override user-edited dashboard checkbox state. It defines the initial state for newly introduced workflow IDs until users change them in the dashboard issue.
 
 Future enhancement: maturity could be derived automatically from metrics (e.g., successful execution ratio, proposed actions taken).

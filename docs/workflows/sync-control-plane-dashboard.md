@@ -8,7 +8,7 @@ This workflow creates or updates the Control Plane Dashboard issue in each repos
 
 ## Prerequisites
 
-- [workflow-registry.json](../../workflow-registry.json) — workflow metadata (id, name, description, maturity)
+- [workflow-registry.json](../../workflow-registry.json) — workflow metadata (`id`, `name`, `description`, `maturity`, `default_enabled`)
 - [active-repositories.json](../../active-repositories.json) — target repositories
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/blob/v1/github/create-token/action.yml)
 
@@ -31,6 +31,12 @@ Execution:
    - Search for existing open issue with label `oblt-aw/dashboard`
    - Create or update the issue with title `[oblt-aw] Control Plane Dashboard`, body from registry (header, maturity badges, checkboxes, descriptions)
    - Pin the issue via `gh issue pin` (if limit of 3 pins reached, log and continue)
+
+`default_enabled` behavior:
+
+- Used when building checkbox state for workflows that are not present in an existing dashboard body.
+- Existing checkbox state in the dashboard issue remains authoritative and is preserved during updates.
+- For newly added workflows in `workflow-registry.json`, `default_enabled` determines the initial checkbox state until users edit that workflow's checkbox.
 
 ## Configuration
 
