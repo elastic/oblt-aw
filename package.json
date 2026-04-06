@@ -6,7 +6,7 @@
     "scripts": {
         "test": "tsx --test tests/unit/*.test.ts"
     },
-    "devDependencies": {
+    "dependencies": {
         "tsx": "^4.20.5"
     }
 }
