@@ -53,3 +53,16 @@ jobs:
         - Do not merge automatically.
         - Do not perform merge operations in this workflow.
     secrets: inherit
+
+  request-reviewers:
+    needs: run
+    if: needs.run.outputs.created_pr_number != ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Request review from elastic/observablt-ci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.run.outputs.created_pr_number }}
+        run: gh pr edit "$PR_NUMBER" --add-reviewer "elastic/observablt-ci" --repo "$GITHUB_REPOSITORY"
