@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: `.github/workflows/gh-aw-autodoc.yml`
+Source file: [.github/workflows/gh-aw-autodoc.yml](../../.github/workflows/gh-aw-autodoc.yml)
 
 This reusable workflow automates documentation maintenance in two stages: audit for documentation drift, then open a docs-only PR when findings exist.
 
@@ -42,4 +42,4 @@ Permissions:
 
 ## References
 
-- Routing notes: `.github/workflow-routing/autodoc/README.md`
+- Routing rules: [docs/routing/autodoc-routing.md](../routing/autodoc-routing.md)

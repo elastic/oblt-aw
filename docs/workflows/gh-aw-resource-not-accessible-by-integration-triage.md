@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: `.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml`
+Source file: [.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml)
 
 This reusable workflow triages issues that carry the detector label `oblt-aw/detector/res-not-accessible-by-integration` for the `Resource not accessible by integration` problem class and prepares fix-ready issues.
 
@@ -15,7 +15,7 @@ This reusable workflow triages issues that carry the detector label `oblt-aw/det
 
 The job `run` calls:
 
-- `elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main`
+- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
 
 Configured instructions define:
 
@@ -42,4 +42,4 @@ Permissions:
 
 ## References
 
-- Routing rules: `docs/routing/resource-not-accessible-by-integration-routing.md`
+- Routing rules: [docs/routing/resource-not-accessible-by-integration-routing.md](../routing/resource-not-accessible-by-integration-routing.md)

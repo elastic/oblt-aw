@@ -6,15 +6,15 @@
 
 Entrypoint workflows:
 
-- `.github/workflows/oblt-aw-ingress.yml` (orchestration)
-- `.github/workflows/get-enabled-workflows.yml` (dashboard read; first stage inside ingress)
+- [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml) (orchestration)
+- [.github/workflows/get-enabled-workflows.yml](../../.github/workflows/get-enabled-workflows.yml) (dashboard read; first stage inside ingress)
 
 Specialized workflows:
 
-- `.github/workflows/gh-aw-dependency-review.yml`
-- `.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml`
-- `.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml`
-- `.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml`
+- [.github/workflows/gh-aw-dependency-review.yml](../../.github/workflows/gh-aw-dependency-review.yml)
+- [.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml)
+- [.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml)
+- [.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml)
 
 ## Usage
 
@@ -41,7 +41,7 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 
 ### Config Flow
 
-1. **Dashboard sync** (`sync-control-plane-dashboard`): Reads `workflow-registry.json` and `active-repositories.json`; creates or updates the dashboard issue in each target repository; pins the issue when possible
+1. **Dashboard sync** (`sync-control-plane-dashboard`): Reads [workflow-registry.json](../../workflow-registry.json) and [active-repositories.json](../../active-repositories.json); creates or updates the dashboard issue in each target repository; pins the issue when possible
 2. **User edit:** Users check or uncheck workflow checkboxes in the dashboard issue (no config file; no PRs on checkbox edits)
 3. **Runtime check** (`get-enabled-workflows`): When the client runs the ingress, this reusable workflow runs first. It parses the dashboard (or `effective-raw` is empty when no issue exists) and emits normalized `enabled-workflows` as a compact JSON array string (`[]` or `["id", ...]`).
 4. **Ingress gating:** Routed jobs use `enabled-workflows` and `effective-raw` from `get-enabled-workflows`; empty string (no dashboard) → all workflows; empty array → none; non-empty array → only listed workflows
@@ -54,8 +54,8 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 
 ### References
 
-- `docs/operations/control-plane-dashboard.md` — user instructions
-- `docs/operations/control-plane-dashboard-format.md` — dashboard issue format
+- [docs/operations/control-plane-dashboard.md](../operations/control-plane-dashboard.md) — user instructions
+- [docs/operations/control-plane-dashboard-format.md](../operations/control-plane-dashboard-format.md) — dashboard issue format
 - [Issue #3732 comment (implementation plan)](https://github.com/elastic/observability-robots/issues/3732#issuecomment-4054356635) — canonical plan
 
 ### Issues created by agentic workflows
@@ -66,7 +66,7 @@ Any issue opened by OBLT AW workflows must use a title that starts with `[oblt-a
 
 ## Routing Model
 
-Current routing conditions from `.github/workflows/oblt-aw-ingress.yml`:
+Current routing conditions from [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml):
 
 - `pull_request` + action in `opened|synchronize|reopened` + bot author in allowlist -> dependency review
 - `schedule` -> resource-not-accessible detector
@@ -93,5 +93,5 @@ flowchart TD
 
 ## References
 
-- `docs/workflows/README.md`
-- `docs/routing/README.md`
+- [docs/workflows/README.md](../workflows/README.md)
+- [docs/routing/README.md](../routing/README.md)

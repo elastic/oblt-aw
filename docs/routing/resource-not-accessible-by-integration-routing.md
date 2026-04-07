@@ -2,13 +2,13 @@
 
 ## Overview
 
-Entrypoint source: `.github/workflows/oblt-aw-ingress.yml`
+Entrypoint source: [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml)
 
 Routed workflows:
 
-- `.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml`
-- `.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml`
-- `.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml`
+- [.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml)
+- [.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml)
+- [.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml)
 
 ## Usage
 
@@ -28,6 +28,6 @@ When called directly, **detector**, **triage**, and **fixer** all run in the rep
 
 ## References
 
-- `docs/workflows/gh-aw-resource-not-accessible-by-integration-detector.md`
-- `docs/workflows/gh-aw-resource-not-accessible-by-integration-triage.md`
-- `docs/workflows/gh-aw-resource-not-accessible-by-integration-fixer.md`
+- [docs/workflows/gh-aw-resource-not-accessible-by-integration-detector.md](../workflows/gh-aw-resource-not-accessible-by-integration-detector.md)
+- [docs/workflows/gh-aw-resource-not-accessible-by-integration-triage.md](../workflows/gh-aw-resource-not-accessible-by-integration-triage.md)
+- [docs/workflows/gh-aw-resource-not-accessible-by-integration-fixer.md](../workflows/gh-aw-resource-not-accessible-by-integration-fixer.md)

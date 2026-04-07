@@ -2,13 +2,13 @@
 
 ## Overview
 
-Source file: `.github/workflows/gh-aw-security-detector.yml`
+Source file: [.github/workflows/gh-aw-security-detector.yml](../../.github/workflows/gh-aw-security-detector.yml)
 
-This reusable workflow scans the **calling repository** (consumer of oblt-aw ingress) for security issues in shell scripts, workflow YAML, and—when tooling is available—dependency manifests. It implements the detector stage of the pipeline in `docs/architecture/security-agent-architecture.md`.
+This reusable workflow scans the **calling repository** (consumer of oblt-aw ingress) for security issues in shell scripts, workflow YAML, and—when tooling is available—dependency manifests. It implements the detector stage of the pipeline in [docs/architecture/security-agent-architecture.md](../architecture/security-agent-architecture.md).
 
-Triage and fixer stages use **`gh-aw-issue-triage.lock.yml`** and **`gh-aw-issue-fixer.lock.yml`** from `elastic/ai-github-actions`; this workflow does **not** clone that repository.
+Triage and fixer stages use **`gh-aw-issue-triage.lock.yml`** and **`gh-aw-issue-fixer.lock.yml`** from [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions); this workflow does **not** clone that repository.
 
-Unlike the resource-not-accessible detector (workflow logs via `gh-aw-log-searching-agent`), the security detector runs **static checks** aligned with `docs/workflows/security-scanning-ruleset.md` (SEC-001–SEC-044) and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758): injection, secret management, supply chain, and least privilege.
+Unlike the resource-not-accessible detector (workflow logs via `gh-aw-log-searching-agent`), the security detector runs **static checks** aligned with [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) (SEC-001–SEC-044) and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758): injection, secret management, supply chain, and least privilege.
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ Unlike the resource-not-accessible detector (workflow logs via `gh-aw-log-search
 Single job **scan**:
 
 1. Checks out the **calling** repository into `target/` (the consumer workspace to scan).
-2. Checks out **`elastic/oblt-aw`** at ref `main` into `_oblt-aw/` so host scripts exist on the runner; detector scripts are not copied into consumer repos.
+2. Checks out **[elastic/oblt-aw](https://github.com/elastic/oblt-aw)** at ref `main` into `_oblt-aw/` so host scripts exist on the runner; detector scripts are not copied into consumer repos.
 3. Installs **shellcheck**, **jq**, **curl**, **pip**, **actionlint** (pinned via upstream download script), **zizmor**, and **semgrep** (registry rules downloaded on first use).
 4. Optionally uses **actions/setup-node** when `target/**/package-lock.json` exists so **npm audit** can run for SEC-033.
 5. Runs `_oblt-aw/scripts/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message` (actionlint + zizmor + semgrep + shellcheck + custom heuristics + npm audit, with per-file/line deduplication).
@@ -40,7 +40,7 @@ jobs:
 
 | Rules | Mechanism |
 |-------|-----------|
-| SEC-002, SEC-021, SEC-030, SEC-040, SEC-043, and other workflow rules | **zizmor** (offline audits; `ident` mapped to SEC IDs in `scripts/security-scan.sh`) |
+| SEC-002, SEC-021, SEC-030, SEC-040, SEC-043, and other workflow rules | **zizmor** (offline audits; `ident` mapped to SEC IDs in [scripts/security-scan.sh](../../scripts/security-scan.sh)) |
 | SEC-010, SEC-002 (expression), SEC-020 (credentials) | **actionlint** JSON output (security-related kinds / messages only) |
 | SEC-010, SEC-012 | **semgrep** `p/github-actions` on `.github/workflows` |
 | SEC-011 | shellcheck on `*.sh` / `*.bash`; actionlint also runs shellcheck on embedded `run:` scripts |
@@ -62,11 +62,11 @@ Additional rules in the ruleset may be added to the scripts over time.
 
 - No `secrets` are declared; callers do not pass `COPILOT_GITHUB_TOKEN` for this workflow.
 
-Callers that trigger on a **schedule** cannot rely on `workflow_call` inputs for the host script ref; this workflow always clones detector scripts from **`elastic/oblt-aw`** at **`main`**.
+Callers that trigger on a **schedule** cannot rely on `workflow_call` inputs for the host script ref; this workflow always clones detector scripts from **[elastic/oblt-aw](https://github.com/elastic/oblt-aw)** at **`main`**.
 
 ## References
 
-- Ingress routing: `docs/workflows/oblt-aw-ingress.md` — workflow id `security` in `workflow-registry.json`
+- Ingress routing: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) — workflow id `security` in [workflow-registry.json](../../workflow-registry.json)
 - [Security agent architecture](../architecture/security-agent-architecture.md)
 - [Security scanning ruleset](security-scanning-ruleset.md)
 - [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758)

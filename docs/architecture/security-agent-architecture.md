@@ -6,7 +6,7 @@ This document defines the architecture for proactive security bug hunting and re
 
 **Goal**: Move from reactive security reviews to continuous, automated security hardening of GitHub Actions and shell scripts.
 
-**Scope**: Security detector, triage, and fixer workflows; ingress routing. The **ruleset** in `docs/workflows/security-scanning-ruleset.md` covers all **security focus areas** defined in [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758): (1) injection, (2) secret management, (3) supply chain, (4) least privilege. The detector implements that full ruleset, including SEC-001–SEC-003 and related patterns for token exposure and env indirection ([oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500)).
+**Scope**: Security detector, triage, and fixer workflows; ingress routing. The **ruleset** in [docs/workflows/security-scanning-ruleset.md](../workflows/security-scanning-ruleset.md) covers all **security focus areas** defined in [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758): (1) injection, (2) secret management, (3) supply chain, (4) least privilege. The detector implements that full ruleset, including SEC-001–SEC-003 and related patterns for token exposure and env indirection ([oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500)).
 
 **Out of scope**: Phase 4 learning/evolution features from that issue; changes to elastic/ai-github-actions beyond reusing published `workflow_call` workflows.
 
@@ -35,7 +35,7 @@ flowchart TD
 
 The security detector must scan **code** (shell scripts, workflow YAML, and dependency manifests when present). No single upstream agent covers all of this today; the detector therefore runs **tooling and pattern checks** defined in the ruleset. It:
 
-- Runs static analysis (shellcheck, actionlint, zizmor, semgrep, optional ecosystem audits) per `docs/workflows/security-scanning-ruleset.md`.
+- Runs static analysis (shellcheck, actionlint, zizmor, semgrep, optional ecosystem audits) per [docs/workflows/security-scanning-ruleset.md](../workflows/security-scanning-ruleset.md).
 - Aggregates findings and creates issues via API; every issue opened for a finding must include the label `oblt-aw/detector/security`.
 - Reuses `gh-aw-issue-triage` and `gh-aw-issue-fixer` for triage and fixer stages.
 
@@ -54,7 +54,7 @@ The security detector must scan **code** (shell scripts, workflow YAML, and depe
 
 ### Implementation
 
-The detector implements the full ruleset in `docs/workflows/security-scanning-ruleset.md`: secret-handling rules (SEC-001–SEC-003), injection (SEC-010–SEC-012), supply chain (SEC-030–SEC-035), and least privilege (SEC-040–SEC-044). [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) is a reference for token exposure patterns addressed by SEC-001–SEC-003.
+The detector implements the full ruleset in [docs/workflows/security-scanning-ruleset.md](../workflows/security-scanning-ruleset.md): secret-handling rules (SEC-001–SEC-003), injection (SEC-010–SEC-012), supply chain (SEC-030–SEC-035), and least privilege (SEC-040–SEC-044). [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) is a reference for token exposure patterns addressed by SEC-001–SEC-003.
 
 ## Integration Points with elastic/ai-github-actions
 
@@ -75,7 +75,7 @@ The detector implements the full ruleset in `docs/workflows/security-scanning-ru
 3. **Triage** — Runs on `oblt-aw/detector/security` issues; applies granular `oblt-aw/triage/security-*` labels; adds `oblt-aw/ai/fix-ready` when appropriate.
 4. **Fixer** — Produces draft PRs per triage plan (env indirection, pinning, permissions, and other remediations as specified).
 
-**Coverage:** All rules in `docs/workflows/security-scanning-ruleset.md`, aligned with [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758). Token exposure via command-line args is one documented class ([oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500)).
+**Coverage:** All rules in [docs/workflows/security-scanning-ruleset.md](../workflows/security-scanning-ruleset.md), aligned with [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758). Token exposure via command-line args is one documented class ([oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500)).
 
 ## Labels
 
@@ -100,7 +100,7 @@ Per triage, the resolution plan must include:
 
 - Requires both a `oblt-aw/triage/security-*` label and `oblt-aw/ai/fix-ready`.
 - Draft PR first; convert to open after validation.
-- Request review from `elastic/observablt-ci`.
+- Request review from [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci).
 - No auto-merge.
 - Apply least-privilege and env-indirection patterns per triage plan.
 

@@ -1,6 +1,6 @@
 # Control Plane Dashboard Issue Format
 
-**Related issue:** https://github.com/elastic/observability-robots/issues/3732
+**Related issue:** [elastic/observability-robots#3732](https://github.com/elastic/observability-robots/issues/3732)
 
 This document defines the structure and format of the OBLT AW Control Plane Dashboard issue. The format enables reliable parsing when users edit checkboxes to opt in or opt out of agentic workflows.
 
@@ -69,7 +69,7 @@ or, when enabled:
 - [x] <!-- oblt-aw:workflow-id --> workflow-name
 ```
 
-Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e.g., `dependency-review`, `agent-suggestions`).
+Where `workflow-id` is the canonical identifier from [workflow-registry.json](../../workflow-registry.json) (e.g., `dependency-review`, `agent-suggestions`).
 
 **Important:** Task list syntax does NOT render as checkboxes inside table cells (GitHub limitation). The checkboxes MUST be in a list section.
 
@@ -81,13 +81,22 @@ Where `workflow-id` is the canonical identifier from `workflow-registry.json` (e
 | **Line position** | MUST be at the **start of a line** (parsers use `^` anchor to avoid false positives in prose/code blocks) |
 | **HTML comment** | MUST appear on the **same line** as the checkbox, immediately after it |
 | **Comment format** | `<!-- oblt-aw:workflow-id -->` — no spaces around the colon |
-| **workflow-id** | Lowercase, hyphen-separated; must match an entry in `workflow-registry.json` |
+| **workflow-id** | Lowercase, hyphen-separated; must match an entry in [workflow-registry.json](../../workflow-registry.json) |
 
 ### Why This Format
 
 - **Interactive:** Task lists in list context render as clickable checkboxes in GitHub Issues.
 - **Reliable parsing:** The HTML comment is invisible in the rendered issue but preserved when users check/uncheck. Parsers extract workflow IDs from the preceding checkbox state on the same line.
 - **User edits:** When users click a checkbox, GitHub updates `[ ]` to `[x]` or vice versa. The comment stays intact.
+
+### Initial Checkbox State for New Workflow IDs
+
+When dashboard sync introduces a workflow ID that does not already exist in the dashboard issue body, initial checkbox state comes from that entry's `default_enabled` value in [workflow-registry.json](../../workflow-registry.json):
+
+- `default_enabled: true` → rendered as `- [x]`
+- `default_enabled: false` → rendered as `- [ ]`
+
+If a workflow checkbox already exists in the issue body, the current issue state is preserved on sync updates.
 
 ### Parsing Algorithm
 
@@ -114,8 +123,8 @@ To extract enabled workflows from the issue body (when a dashboard issue exists)
 | Column | Description |
 |--------|-------------|
 | **Workflow** | Human-readable name or ID of the workflow |
-| **Maturity** | `stable`, `early-adoption`, or `experimental` (from `workflow-registry.json`) |
-| **Description** | Short description from `workflow-registry.json` |
+| **Maturity** | `stable`, `early-adoption`, or `experimental` (from [workflow-registry.json](../../workflow-registry.json)) |
+| **Description** | Short description from [workflow-registry.json](../../workflow-registry.json) |
 
 The **Enable/Disable** section below the table contains a list with task list checkboxes (`- [ ]` / `- [x]`) and `<!-- oblt-aw:workflow-id -->` on each line.
 
