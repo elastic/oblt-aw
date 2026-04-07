@@ -18,6 +18,7 @@ Ingress routes here when:
 - `github.event_name == 'issue_comment'` and `github.event.action == 'created'`, and
 - `github.event.issue.pull_request == null` (the comment is on an issue, not a PR), and
 - `startsWith(github.event.comment.body, '/ai')`, and
+- `github.event.comment.author_association` is one of `OWNER`, `MEMBER`, or `COLLABORATOR`, and
 - Dashboard gating allows `mention-in-issue` (or no dashboard issue is present, so all workflows are enabled).
 
 The job `run` calls:
