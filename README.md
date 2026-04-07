@@ -4,13 +4,12 @@ This repository is the central catalog of reusable agentic workflows for Observa
 
 ## Documentation
 
-Primary repository documentation lives under [docs/](docs/). Workflow routing implementation notes are maintained under [.github/workflow-routing/](.github/workflow-routing/).
+Primary repository documentation lives under `docs/`. Workflow routing documentation lives under `docs/routing/`.
 
 - Docs home: [docs/README.md](docs/README.md)
 - Architecture and design: [docs/architecture/overview.md](docs/architecture/overview.md)
 - Workflow-specific docs: [docs/workflows/README.md](docs/workflows/README.md)
 - Routing docs: [docs/routing/README.md](docs/routing/README.md)
-- Workflow routing implementation notes: [.github/workflow-routing/](.github/workflow-routing/)
 - Distribution and rollout operations: [docs/operations/distribute-client-workflow.md](docs/operations/distribute-client-workflow.md)
 - Contributing and local setup: [docs/development/contributing.md](docs/development/contributing.md)
 

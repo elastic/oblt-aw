@@ -43,6 +43,8 @@ The following subsections follow the order of entries in [workflow-registry.json
 
 ### Agent suggestions (registry id `agent-suggestions`)
 
+**Routing:** [Agent suggestions routing](../routing/agent-suggestions-routing.md)
+
 | Registry field | Value |
 |----------------|--------|
 | `id` | `agent-suggestions` |
@@ -55,6 +57,8 @@ The following subsections follow the order of entries in [workflow-registry.json
 
 ### Automated documentation (registry id `autodoc`)
 
+**Routing:** [Autodoc routing](../routing/autodoc-routing.md)
+
 | Registry field | Value |
 |----------------|--------|
 | `id` | `autodoc` |
@@ -66,6 +70,8 @@ The following subsections follow the order of entries in [workflow-registry.json
 | `autodoc` | `gh-aw-autodoc.yml` | `schedule` | Yes — `autodoc` |
 
 ### Automerge (registry id `automerge`)
+
+**Routing:** [Automerge routing](../routing/automerge-routing.md)
 
 | Registry field | Value |
 |----------------|--------|
@@ -215,6 +221,9 @@ jobs:
 - [workflow-registry.json](../../workflow-registry.json) (canonical workflow ids for the Control Plane Dashboard)
 - [docs/workflows/get-enabled-workflows.md](get-enabled-workflows.md)
 - [Routing documentation index](../routing/README.md)
+- [Agent suggestions routing](../routing/agent-suggestions-routing.md)
+- [Autodoc routing](../routing/autodoc-routing.md)
+- [Automerge routing](../routing/automerge-routing.md)
 - [Dependency review routing](../routing/dependency-review-routing.md)
 - [Security routing](../routing/security-routing.md)
 - [Resource not accessible by integration routing](../routing/resource-not-accessible-by-integration-routing.md)
