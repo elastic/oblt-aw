@@ -56,6 +56,8 @@ jobs:
       ) &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'automerge'))
     uses: ./.github/workflows/gh-aw-automerge.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   dependency-review:
     needs: dashboard-enabled-workflows
