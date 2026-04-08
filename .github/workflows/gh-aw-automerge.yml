@@ -1,15 +1,6 @@
 name: Automerge
 on:
   workflow_call:
-    inputs:
-      allowed-actor:
-        description: "GitHub actor (login) allowed to trigger automerge."
-        type: string
-        default: "elastic-vault-github-plugin-prod[bot]"
-      merge-ready-label:
-        description: "Label that marks a PR as ready for automerge."
-        type: string
-        default: "oblt-aw/ai/merge-ready"
     secrets:
       COPILOT_GITHUB_TOKEN:
         description: "Token for GH-AW mention-in-pr (Copilot); must be supplied by the ingress caller."
@@ -24,13 +15,13 @@ permissions:
   pull-requests: write
 
 jobs:
-  discover:
+  # Single PR from github.event.pull_request. Gates use GITHUB_TOKEN
+  # (checks: read) so Copilot does not need check-run API access.
+  verify:
     runs-on: ubuntu-latest
     outputs:
-      pr_numbers_json: ${{ steps.discover.outputs.pr_numbers_json }}
-      pr_count: ${{ steps.discover.outputs.pr_count }}
+      proceed: ${{ steps.validate.outputs.proceed }}
     steps:
-      # Caller repo may not contain these scripts; fetch control-plane sources explicitly.
       - name: Checkout elastic/oblt-aw (automerge TypeScript)
         uses: actions/checkout@v6
         with:
@@ -50,9 +41,11 @@ jobs:
         working-directory: _oblt-aw
         run: npm ci
 
-      - name: Discover qualifying PRs
-        id: discover
+      - name: Validate pull request for automerge
+        id: validate
         uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -61,43 +54,30 @@ jobs:
             const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
             const rq = createRequire(path.join(root, 'package.json'));
             rq('tsx/cjs/api').register();
-            const { run } = rq('./scripts/findAutomergeCandidates.ts');
-            const { prNumbers } = await run({
-              github,
-              context,
-              mergeReadyLabel: '${{ inputs.merge-ready-label }}',
-              allowedActor: '${{ inputs.allowed-actor }}',
-            });
-            const prNumbersJson = JSON.stringify(prNumbers);
-            core.setOutput('pr_numbers_json', prNumbersJson);
-            core.setOutput('pr_count', String(prNumbers.length));
-            if (prNumbers.length === 0) {
-              core.info('No qualifying PRs found.');
-            } else {
-              core.info(`Found ${prNumbers.length} qualifying PR(s): ${prNumbers.join(' ')}`);
-            }
+            const { run } = rq('./scripts/validateAutomergePr.ts');
+            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
+            const { ok } = await run({ github, context, prNumber, core });
+            core.setOutput('proceed', ok ? 'true' : 'false');
 
   approve:
-    needs: discover
-    if: needs.discover.outputs.pr_count != '0'
-    strategy:
-      fail-fast: false
-      matrix:
-        pr_number: ${{ fromJSON(needs.discover.outputs.pr_numbers_json) }}
+    needs: verify
+    if: needs.verify.outputs.proceed == 'true'
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       additional-instructions: |
-        Target pull request number: ${{ matrix.pr_number }}.
+        Target pull request number: ${{ github.event.pull_request.number }}.
       prompt: |
-        For pull request #${{ matrix.pr_number }}: evaluate automerge eligibility.
+        For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
+
+        This PR already passed automerge validation in the workflow (GITHUB_TOKEN), including check-runs.
+        Do not call check-run or commit status APIs; treat the check gate as satisfied.
 
         Approve the PR only when all of these gates are true:
-        - PR author is exactly `elastic-vault-github-plugin-prod[bot]`
-        - PR has label `${{ inputs.merge-ready-label }}`
+        - PR author is one of: dependabot[bot], renovate[bot], Dependabot, Renovate, elastic-vault-github-plugin-prod[bot]
+        - PR has label `oblt-aw/ai/merge-ready`
         - PR is not draft
         - PR is not from a fork (head repo equals base repo)
         - Head ref is different from base ref
-        - All check-runs on the PR head commit are complete and none are failing
 
         If any gate is false, do not approve and do not request changes.
         Keep output minimal.
@@ -106,9 +86,9 @@ jobs:
 
   enable-automerge:
     needs:
-      - discover
+      - verify
       - approve
-    if: needs.discover.outputs.pr_count != '0'
+    if: needs.verify.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout elastic/oblt-aw (automerge TypeScript)
@@ -130,10 +110,10 @@ jobs:
         working-directory: _oblt-aw
         run: npm ci
 
-      - name: Enable auto-merge for approved PRs
+      - name: Enable auto-merge when approved
         uses: actions/github-script@v8
         env:
-          PR_NUMBERS_JSON: ${{ needs.discover.outputs.pr_numbers_json }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -142,6 +122,6 @@ jobs:
             const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
             const rq = createRequire(path.join(root, 'package.json'));
             rq('tsx/cjs/api').register();
-            const { run } = rq('./scripts/enableAutomergeForApprovedPrs.ts');
-            const prNumbers = JSON.parse(process.env.PR_NUMBERS_JSON || '[]');
-            await run({ github, context, core, prNumbers });
+            const { run } = rq('./scripts/enableAutomergeForApprovedPr.ts');
+            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
+            await run({ github, context, core, prNumber });

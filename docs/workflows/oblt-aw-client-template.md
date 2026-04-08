@@ -16,8 +16,7 @@ Triggers (must stay aligned with `oblt-aw-ingress` so dashboard-gated jobs can r
 - `workflow_dispatch` (required for ingress routes that run only on manual entrypoint runs, e.g. duplicate-issue-detector)
 - `issues` (`opened`, `labeled`) — `opened` drives issue-triage and duplicate-issue-detector; `labeled` supports other flows
 - `issue_comment` (`created`) — drives mention-in-issue when comment starts with `/ai` on an issue (not a PR)
-- `pull_request` (`opened`, `synchronize`, `reopened`)
-- `pull_request_review` (`submitted`)
+- `pull_request` (`opened`, `synchronize`, `reopened`, `labeled`) — automerge runs only when the PR author matches the dependency-review allow list and the PR already has `oblt-aw/ai/merge-ready` (automerge is not triggered on `schedule`)
 
 Execution flow:
 

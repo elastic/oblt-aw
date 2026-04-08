@@ -8,51 +8,46 @@ Routed workflow source: `.github/workflows/gh-aw-automerge.yml`
 
 ## Usage
 
-Ingress dispatches to `gh-aw-automerge.yml` when **any** of the following is true, and the Control Plane dashboard gate allows registry id `automerge` (see `docs/workflows/oblt-aw-ingress.md` — `get-enabled-workflows` / `enabled-workflows`):
+Ingress dispatches to `gh-aw-automerge.yml` when **any** of the following is true, and the Control Plane dashboard gate allows registry id `automerge` (see `docs/workflows/oblt-aw-ingress.md` — `get-enabled-workflows` / `enabled-workflows`).
 
-### Scheduled scan
+There is **no** `schedule` trigger for automerge. The reusable workflow always targets **`github.event.pull_request.number`** (no PR discovery).
 
-- `github.event_name == 'schedule'`
+**Ingress preconditions** (same PR author allow list as dependency-review):
 
-The workflow scans **all open PRs** in the consumer repository and enables automerge on every PR that satisfies all mandatory requirements.
+- `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`, `elastic-vault-github-plugin-prod[bot]`
 
-### PR lifecycle event
+**Ingress preconditions** (label on the PR at event time):
+
+- `contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready')`
+
+### Pull request events
 
 - `github.event_name == 'pull_request'`
-- `github.event.action` is one of `opened`, `synchronize`, `reopened`
-- `github.event.pull_request.user.login` is `elastic-vault-github-plugin-prod[bot]`
+- `github.event.action` is one of `opened`, `synchronize`, `reopened`, `labeled`
 
-Allows the workflow to react immediately when a qualifying PR is opened or updated.
-
-### Approval event
-
-- `github.event_name == 'pull_request_review'`
-- `github.event.action == 'submitted'`
-- `github.event.review.state == 'approved'`
-- `github.event.pull_request.user.login` is `elastic-vault-github-plugin-prod[bot]`
-
-Allows the workflow to react immediately when a qualifying PR receives the expected approval.
+The client entrypoint must include `labeled` in `pull_request` types (see the distributed `oblt-aw.yml` template).
 
 ## Mandatory requirements evaluated at runtime
 
-All of the following must be true for a PR to have automerge enabled:
+`scripts/validateAutomergePr.ts` and `enableAutomergeForApprovedPr.ts` enforce:
 
 | Requirement | Details |
 |---------------|---------|
-| Author | `elastic-vault-github-plugin-prod[bot]` |
-| Label | `oblt-aw/ai/merge-ready` must be present |
+| Author | Same allow list as dependency-review (see above) |
+| Label | `oblt-aw/ai/merge-ready` must be present on the PR |
 | PR state | Not a draft |
 | Branch origin | Upstream branch (head repo equals base repo — not a fork) |
-| Checks | All completed check-runs must have conclusion `success`, `skipped`, or `neutral` |
-| Approved by | `github-actions[bot]` (default `GITHUB_TOKEN` actor) |
+| Refs | Head ref ≠ base ref |
+| Checks | All check-runs complete with conclusion `success`, `skipped`, or `neutral` (via `GITHUB_TOKEN` / Checks API before Copilot) |
+| Approved by | `github-actions[bot]` before auto-merge is enabled |
 
 ## Merge strategy
 
-Automerge is enabled using `gh pr merge --auto --squash`. The merge is performed by GitHub as soon as all branch-protection rules are satisfied in the consumer repository.
+Automerge is enabled using GraphQL `enablePullRequestAutoMerge` with **squash**. GitHub merges when branch protection is satisfied.
 
 ## Configuration
 
-The routed workflow uses the default `GITHUB_TOKEN` with `pull-requests: write`. No additional secrets are required.
+The routed workflow uses `GITHUB_TOKEN` with the permissions listed in `gh-aw-automerge.md`. `COPILOT_GITHUB_TOKEN` is required for the approval job.
 
 ## References
 

@@ -4,27 +4,24 @@
 
 Source file: [.github/workflows/gh-aw-automerge.yml](../../.github/workflows/gh-aw-automerge.yml)
 
-This workflow discovers qualifying bot-authored PRs, runs the GH-AW mention-in-pr approval step for each candidate PR, and enables squash auto-merge when gates are satisfied.
+This workflow runs for a **single** pull request carried by the caller’s `github.event` (`pull_request` only). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes, then enables squash auto-merge when checks and an `github-actions[bot]` approval are present.
+
+Ingress selects which events dispatch here; see [Automerge routing](../routing/automerge-routing.md).
 
 ## Prerequisites
 
-- Triggered via `workflow_call`.
-- Requires qualifying PRs authored by `elastic-vault-github-plugin-prod[bot]` with label `oblt-aw/ai/merge-ready`.
+- Triggered via `workflow_call` only when ingress has already matched author, `oblt-aw/ai/merge-ready` on the PR, and the right event (see ingress).
+- `github.event.pull_request` must be populated (same as dependency-review PR flows).
 
 ## Usage
 
 Jobs:
 
-- `discover`: scans open PRs and outputs a JSON list of qualifying PR numbers.
-- `approve`: matrix-invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` for each qualifying PR (Copilot approval gates).
-- `enable-automerge`: verifies checks/reviews and enables GraphQL auto-merge (squash) for eligible PRs.
+- `verify`: checks out control-plane scripts, runs `scripts/validateAutomergePr.ts` for `github.event.pull_request.number` (author allow list aligned with dependency-review, merge-ready label, draft/fork/ref, check-runs via Checks API).
+- `approve`: invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` when `verify` sets `proceed` (Copilot must not call check APIs; workflow already verified check-runs).
+- `enable-automerge`: runs `scripts/enableAutomergeForApprovedPr.ts` for the same PR number to enable GraphQL auto-merge (squash) when checks pass and `github-actions[bot]` has approved.
 
-Eligibility checks include:
-
-- not draft
-- not from fork
-- all check-runs completed with allowed conclusions (`success`, `skipped`, `neutral`)
-- at least one `APPROVED` review from `github-actions[bot]`
+There is no discover step and no `workflow_call` inputs for merge-ready label or allowed actor (constants live in `validateAutomergePr.ts` and ingress, kept in sync with dependency-review).
 
 ## Configuration
 

@@ -9,9 +9,7 @@ on:
   issue_comment:
     types: [created]
   pull_request:
-    types: [opened, synchronize, reopened]
-  pull_request_review:
-    types: [submitted]
+    types: [opened, synchronize, reopened, labeled]
 
 permissions:
   actions: read
