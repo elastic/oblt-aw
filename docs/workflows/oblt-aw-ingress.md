@@ -83,6 +83,8 @@ The following subsections follow the order of entries in [workflow-registry.json
 |-------------|-------------------|----------|----------------|
 | `automerge` | `gh-aw-automerge.yml` | `schedule`; or `pull_request` `opened` / `synchronize` / `reopened` where `github.event.pull_request.user.login` is `elastic-vault-github-plugin-prod[bot]`; or `pull_request_review` `submitted` with `review.state == approved` for the same bot | Yes — `automerge` |
 
+Forwards `COPILOT_GITHUB_TOKEN` to `gh-aw-automerge.yml` for the Copilot-based approval step.
+
 ### Dependency review (registry id `dependency-review`)
 
 **Routing:** [Dependency review routing](../routing/dependency-review-routing.md)

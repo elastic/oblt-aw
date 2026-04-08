@@ -13,7 +13,6 @@ This section provides one document per workflow file in [.github/workflows/](../
 - Agent suggestions workflow: [docs/workflows/gh-aw-agent-suggestions.md](gh-aw-agent-suggestions.md)
 - Autodoc workflow: [docs/workflows/gh-aw-autodoc.md](gh-aw-autodoc.md)
 - Automerge workflow: [docs/workflows/gh-aw-automerge.md](gh-aw-automerge.md)
-- Automerge approver workflow: [docs/workflows/gh-aw-automerge-approve.md](gh-aw-automerge-approve.md)
 - Dependency review workflow: [docs/workflows/gh-aw-dependency-review.md](gh-aw-dependency-review.md)
 - Duplicate Issue Detector workflow: [docs/workflows/gh-aw-duplicate-issue-detector.md](gh-aw-duplicate-issue-detector.md)
 - Issue Triage workflow (issue opened): [docs/workflows/gh-aw-issue-triage.md](gh-aw-issue-triage.md)

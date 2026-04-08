@@ -10,6 +10,10 @@ on:
         description: "Label that marks a PR as ready for automerge."
         type: string
         default: "oblt-aw/ai/merge-ready"
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        description: "Token for GH-AW mention-in-pr (Copilot); must be supplied by the ingress caller."
+        required: true
 
 permissions:
   actions: read
@@ -80,9 +84,25 @@ jobs:
       fail-fast: false
       matrix:
         pr_number: ${{ fromJSON(needs.discover.outputs.pr_numbers_json) }}
-    uses: ./.github/workflows/gh-aw-automerge-approve.yml
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
-      pr-number: ${{ matrix.pr_number }}
+      additional-instructions: |
+        Target pull request number: ${{ matrix.pr_number }}.
+      prompt: |
+        For pull request #${{ matrix.pr_number }}: evaluate automerge eligibility.
+
+        Approve the PR only when all of these gates are true:
+        - PR author is exactly `elastic-vault-github-plugin-prod[bot]`
+        - PR has label `${{ inputs.merge-ready-label }}`
+        - PR is not draft
+        - PR is not from a fork (head repo equals base repo)
+        - Head ref is different from base ref
+        - All check-runs on the PR head commit are complete and none are failing
+
+        If any gate is false, do not approve and do not request changes.
+        Keep output minimal.
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   enable-automerge:
     needs:

@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/gh-aw-automerge.yml](../../.github/workflows/gh-aw-automerge.yml)
 
-This workflow discovers qualifying bot-authored PRs, runs an approval sub-workflow, and enables squash auto-merge when gates are satisfied.
+This workflow discovers qualifying bot-authored PRs, runs the GH-AW mention-in-pr approval step for each candidate PR, and enables squash auto-merge when gates are satisfied.
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ This workflow discovers qualifying bot-authored PRs, runs an approval sub-workfl
 Jobs:
 
 - `discover`: scans open PRs and outputs a JSON list of qualifying PR numbers.
-- `approve`: matrix-calls `gh-aw-automerge-approve.yml` for each qualifying PR.
+- `approve`: matrix-invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` for each qualifying PR (Copilot approval gates).
 - `enable-automerge`: verifies checks/reviews and enables GraphQL auto-merge (squash) for eligible PRs.
 
 Eligibility checks include:
@@ -41,9 +41,8 @@ Permissions:
 
 `workflow_call` contract:
 
-- no required inputs or secrets
+- **Secrets:** `COPILOT_GITHUB_TOKEN` (required) — forwarded from the ingress caller for the GH-AW approval job.
 
 ## References
 
-- Approver workflow: [docs/workflows/gh-aw-automerge-approve.md](../workflows/gh-aw-automerge-approve.md)
 - Routing rules: [docs/routing/automerge-routing.md](../routing/automerge-routing.md)
