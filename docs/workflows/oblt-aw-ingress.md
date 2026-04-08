@@ -22,8 +22,7 @@ The workflow file declares support for:
 - `workflow_call`
 - `issues` with `opened` and `labeled`
 - `issue_comment` with `created`
-- `pull_request` with `opened`, `synchronize`, `reopened`
-- `pull_request_review` with `submitted`
+- `pull_request` with `opened`, `synchronize`, `reopened`, `labeled` (consumer template includes `labeled` for automerge)
 
 ### Dashboard gating
 
@@ -77,11 +76,13 @@ The following subsections follow the order of entries in [workflow-registry.json
 |----------------|--------|
 | `id` | `automerge` |
 | `name` | Automerge |
-| `description` | Enables auto-merge for approved dependency-update PRs that meet merge-ready criteria. |
+| `description` | Enables auto-merge for allowed bot PRs (same authors as dependency-review) with `oblt-aw/ai/merge-ready` when validation, approval, and checks succeed. |
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `automerge` | `gh-aw-automerge.yml` | `schedule`; or `pull_request` `opened` / `synchronize` / `reopened` where `github.event.pull_request.user.login` is `elastic-vault-github-plugin-prod[bot]`; or `pull_request_review` `submitted` with `review.state == approved` for the same bot | Yes — `automerge` |
+| `automerge` | `gh-aw-automerge.yml` | `pull_request` `opened` / `synchronize` / `reopened` / `labeled` where PR author is in the dependency-review allow list **and** the PR has label `oblt-aw/ai/merge-ready` | Yes — `automerge` |
+
+Forwards `COPILOT_GITHUB_TOKEN` to `gh-aw-automerge.yml` for the Copilot-based approval step.
 
 Forwards `COPILOT_GITHUB_TOKEN` to `gh-aw-automerge.yml` for the Copilot-based approval step.
 

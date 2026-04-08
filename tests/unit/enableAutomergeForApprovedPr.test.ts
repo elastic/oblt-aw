@@ -17,7 +17,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { run } = require('../../scripts/enableAutomergeForApprovedPrs.ts');
+const { run } = require('../../scripts/enableAutomergeForApprovedPr.ts');
 
 function makeCore() {
   const infoMessages = [];
@@ -32,20 +32,20 @@ function makeCore() {
   };
 }
 
-test('enableAutomergeForApprovedPrs exits early when no PR numbers are provided', async () => {
+test('enableAutomergeForApprovedPr exits when pr number invalid', async () => {
   const { core, infoMessages } = makeCore();
 
   await run({
     github: {},
     context: { repo: { owner: 'elastic', repo: 'automerge' } },
     core,
-    prNumbers: [],
+    prNumber: NaN,
   });
 
-  assert.equal(infoMessages[0], 'No PRs provided for auto-merge enablement.');
+  assert.equal(infoMessages[0], 'No pull request number for auto-merge enablement.');
 });
 
-test('enableAutomergeForApprovedPrs enables auto-merge when checks pass and approval exists', async () => {
+test('enableAutomergeForApprovedPr enables auto-merge when checks pass and approval exists', async () => {
   const { core, infoMessages } = makeCore();
   const calls = { graphql: 0 };
 
@@ -75,38 +75,30 @@ test('enableAutomergeForApprovedPrs enables auto-merge when checks pass and appr
     github,
     context: { repo: { owner: 'elastic', repo: 'automerge' } },
     core,
-    prNumbers: [12],
+    prNumber: 12,
   });
 
   assert.equal(calls.graphql, 1);
   assert.ok(infoMessages.some((msg) => msg.includes('PR #12: auto-merge enabled')));
 });
 
-test('enableAutomergeForApprovedPrs skips PRs without passing checks or approval', async () => {
+test('enableAutomergeForApprovedPr skips when checks fail or no approval', async () => {
   const { core, infoMessages } = makeCore();
   const calls = { graphql: 0, listReviews: 0 };
 
-  const github = {
+  const githubFailChecks = {
     rest: {
       pulls: {
-        get: async ({ pull_number }) => ({
-          data: { head: { sha: `sha-${pull_number}` }, auto_merge: null, node_id: `node-${pull_number}` },
-        }),
-        listReviews: async ({ pull_number }) => {
+        get: async () => ({ data: { head: { sha: 'sha1' }, auto_merge: null, node_id: 'n1' } }),
+        listReviews: async () => {
           calls.listReviews += 1;
-          if (pull_number === 2) {
-            return { data: [{ state: 'COMMENTED', user: { login: 'github-actions[bot]' } }] };
-          }
           return { data: [] };
         },
       },
       checks: {
-        listForRef: async ({ ref }) => {
-          if (ref === 'sha-1') {
-            return { data: { check_runs: [{ status: 'completed', conclusion: 'failure' }] } };
-          }
-          return { data: { check_runs: [{ status: 'completed', conclusion: 'success' }] } };
-        },
+        listForRef: async () => ({
+          data: { check_runs: [{ status: 'completed', conclusion: 'failure' }] },
+        }),
       },
     },
     graphql: async () => {
@@ -116,21 +108,53 @@ test('enableAutomergeForApprovedPrs skips PRs without passing checks or approval
   };
 
   await run({
-    github,
+    github: githubFailChecks,
     context: { repo: { owner: 'elastic', repo: 'automerge' } },
     core,
-    prNumbers: [1, 2],
+    prNumber: 1,
+  });
+
+  assert.equal(calls.graphql, 0);
+  assert.equal(calls.listReviews, 0);
+  assert.ok(infoMessages.some((msg) => msg.includes("PR #1: skipped - check status is 'failing'")));
+
+  calls.listReviews = 0;
+  const githubNoApproval = {
+    rest: {
+      pulls: {
+        get: async () => ({ data: { head: { sha: 'sha2' }, auto_merge: null, node_id: 'n2' } }),
+        listReviews: async () => {
+          calls.listReviews += 1;
+          return { data: [{ state: 'COMMENTED', user: { login: 'github-actions[bot]' } }] };
+        },
+      },
+      checks: {
+        listForRef: async () => ({
+          data: { check_runs: [{ status: 'completed', conclusion: 'success' }] },
+        }),
+      },
+    },
+    graphql: async () => {
+      calls.graphql += 1;
+      return {};
+    },
+  };
+
+  await run({
+    github: githubNoApproval,
+    context: { repo: { owner: 'elastic', repo: 'automerge' } },
+    core,
+    prNumber: 2,
   });
 
   assert.equal(calls.graphql, 0);
   assert.equal(calls.listReviews, 1);
-  assert.ok(infoMessages.some((msg) => msg.includes("PR #1: skipped - check status is 'failing'")));
   assert.ok(
     infoMessages.some((msg) => msg.includes('PR #2: skipped - no APPROVED review from github-actions[bot]'))
   );
 });
 
-test('enableAutomergeForApprovedPrs throws when one or more auto-merge operations fail', async () => {
+test('enableAutomergeForApprovedPr throws when GraphQL enable fails', async () => {
   const { core, warnings } = makeCore();
 
   const github = {
@@ -159,9 +183,9 @@ test('enableAutomergeForApprovedPrs throws when one or more auto-merge operation
       github,
       context: { repo: { owner: 'elastic', repo: 'automerge' } },
       core,
-      prNumbers: [99],
+      prNumber: 99,
     }),
-    /1 PR\(s\) could not have auto-merge enabled/
+    /PR #99 could not have auto-merge enabled/
   );
 
   assert.ok(warnings.some((msg) => msg.includes('PR #99: failed to enable auto-merge')));

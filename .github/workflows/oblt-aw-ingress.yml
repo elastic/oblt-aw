@@ -40,20 +40,13 @@ jobs:
   automerge:
     needs: dashboard-enabled-workflows
     if: >-
-      (
-        (
-          github.event_name == 'schedule'
-        ) || (
-          github.event_name == 'pull_request' &&
-          contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-          github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
-        ) || (
-          github.event_name == 'pull_request_review' &&
-          github.event.action == 'submitted' &&
-          github.event.review.state == 'approved' &&
-          github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]'
-        )
+      github.event_name == 'pull_request' &&
+      contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action) &&
+      contains(
+        fromJSON('["dependabot[bot]","renovate[bot]","Dependabot","Renovate","elastic-vault-github-plugin-prod[bot]"]'),
+        github.event.pull_request.user.login
       ) &&
+      contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready') &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'automerge'))
     uses: ./.github/workflows/gh-aw-automerge.yml
     secrets:
@@ -179,8 +172,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action)) ||
         (github.event_name == 'issue_comment' && github.event.action == 'created') ||
-        (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action)) ||
-        (github.event_name == 'pull_request_review' && github.event.action == 'submitted')
+        (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action))
       )
     runs-on: ubuntu-latest
     steps:
