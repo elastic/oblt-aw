@@ -17,7 +17,7 @@
     {
       "id": "automerge",
       "name": "Automerge",
-      "description": "Enables auto-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready when checks and approval gates pass; ingress may re-dispatch on check_run completed after other checks finish.",
+      "description": "Enables auto-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready when validation and approval gates pass; GitHub enforces required checks at merge time.",
       "maturity": "early-adoption",
       "default_enabled": true
     },

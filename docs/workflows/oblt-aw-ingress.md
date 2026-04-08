@@ -23,7 +23,6 @@ The workflow file declares support for:
 - `issues` with `opened` and `labeled`
 - `issue_comment` with `created`
 - `pull_request` with `opened`, `synchronize`, `reopened`, `labeled` (consumer template includes `labeled` for automerge)
-- `check_run` with `completed` (consumer template; ingress uses this to re-run automerge after other checks finish — see [Automerge routing](../routing/automerge-routing.md))
 
 ### Dashboard gating
 
@@ -81,7 +80,7 @@ The following subsections follow the order of entries in [workflow-registry.json
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `automerge` | `gh-aw-automerge.yml` | **(1)** `pull_request` `opened` / `synchronize` / `reopened` / `labeled` with dependency-review author allow list and label `oblt-aw/ai/merge-ready`. **(2)** `check_run` `completed` with an associated PR, excluding oblt-aw automerge-related check names (see [Automerge routing](../routing/automerge-routing.md)). Always passes `pull-request-number` into the reusable workflow. | Yes — `automerge` |
+| `automerge` | `gh-aw-automerge.yml` | `pull_request` `opened` / `synchronize` / `reopened` / `labeled` where PR author is in the dependency-review allow list **and** the PR has label `oblt-aw/ai/merge-ready` | Yes — `automerge` |
 
 Forwards `COPILOT_GITHUB_TOKEN` to `gh-aw-automerge.yml` for the Copilot-based approval step.
 
