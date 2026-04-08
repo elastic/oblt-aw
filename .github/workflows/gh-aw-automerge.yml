@@ -53,11 +53,11 @@ jobs:
           github-token: ${{ github.token }}
           script: |
             const path = require('node:path');
-            const nodeRequire = __original_require__;
+            const { createRequire } = require('node:module');
             const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
-            const tsxApi = nodeRequire.resolve('tsx/cjs/api', { paths: [root] });
-            nodeRequire(tsxApi).register();
-            const { run } = nodeRequire(path.join(root, 'scripts/findAutomergeCandidates.ts'));
+            const rq = createRequire(path.join(root, 'package.json'));
+            rq('tsx/cjs/api').register();
+            const { run } = rq('./scripts/findAutomergeCandidates.ts');
             const { prNumbers } = await run({
               github,
               context,
@@ -118,10 +118,10 @@ jobs:
           github-token: ${{ github.token }}
           script: |
             const path = require('node:path');
-            const nodeRequire = __original_require__;
+            const { createRequire } = require('node:module');
             const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
-            const tsxApi = nodeRequire.resolve('tsx/cjs/api', { paths: [root] });
-            nodeRequire(tsxApi).register();
-            const { run } = nodeRequire(path.join(root, 'scripts/enableAutomergeForApprovedPrs.ts'));
+            const rq = createRequire(path.join(root, 'package.json'));
+            rq('tsx/cjs/api').register();
+            const { run } = rq('./scripts/enableAutomergeForApprovedPrs.ts');
             const prNumbers = JSON.parse(process.env.PR_NUMBERS_JSON || '[]');
             await run({ github, context, core, prNumbers });
