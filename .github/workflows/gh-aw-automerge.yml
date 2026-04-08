@@ -8,15 +8,13 @@ on:
 
 permissions:
   actions: read
-  checks: read
   contents: write
   discussions: write
   issues: write
   pull-requests: write
 
 jobs:
-  # Single PR from github.event.pull_request. Gates use GITHUB_TOKEN
-  # (checks: read) so Copilot does not need check-run API access.
+  # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
   verify:
     runs-on: ubuntu-latest
     outputs:
@@ -69,8 +67,8 @@ jobs:
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
-        This PR already passed automerge validation in the workflow (GITHUB_TOKEN), including check-runs.
-        Do not call check-run or commit status APIs; treat the check gate as satisfied.
+        This PR already passed automerge validation in the workflow (GITHUB_TOKEN) for author, label, draft/fork/ref.
+        Do not call check-run or commit status APIs. Required checks are enforced by GitHub when auto-merge is enabled.
 
         Approve the PR only when all of these gates are true:
         - PR author is one of: dependabot[bot], renovate[bot], Dependabot, Renovate, elastic-vault-github-plugin-prod[bot]

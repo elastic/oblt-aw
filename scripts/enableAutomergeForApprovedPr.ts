@@ -28,36 +28,6 @@ module.exports.run = async function run({ github, context, core, prNumber }) {
     pull_number: prNumber,
   });
 
-  const { data: checkRuns } = await github.rest.checks.listForRef({
-    owner,
-    repo,
-    ref: pr.head.sha,
-    per_page: 100,
-  });
-
-  const all = checkRuns.check_runs || [];
-  const total = all.length;
-  const completed = all.filter((check) => check.status === 'completed').length;
-  const failedCount = all.filter(
-    (check) =>
-      check.status === 'completed' &&
-      !['success', 'skipped', 'neutral'].includes(check.conclusion || '')
-  ).length;
-
-  let checkStatus = 'passing';
-  if (total === 0) {
-    checkStatus = 'no_checks';
-  } else if (completed < total) {
-    checkStatus = 'pending';
-  } else if (failedCount > 0) {
-    checkStatus = 'failing';
-  }
-
-  if (checkStatus !== 'passing') {
-    core.info(`PR #${prNumber}: skipped - check status is '${checkStatus}'`);
-    return;
-  }
-
   const { data: reviews } = await github.rest.pulls.listReviews({
     owner,
     repo,

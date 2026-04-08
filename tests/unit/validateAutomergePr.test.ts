@@ -107,46 +107,11 @@ test('validateAutomergePr returns not ok for draft, fork, or same ref', async ()
   }
 });
 
-test('validateAutomergePr returns not ok when check-runs fail or pending', async () => {
-  const { core } = makeCore();
-  const pr = basePr();
-  const cases = [
-    { check_runs: [] },
-    { check_runs: [{ status: 'queued', conclusion: null }] },
-    { check_runs: [{ status: 'completed', conclusion: 'failure' }] },
-  ];
-  for (const payload of cases) {
-    const github = {
-      rest: {
-        pulls: { get: async () => ({ data: pr }) },
-        checks: { listForRef: async () => ({ data: payload }) },
-      },
-    };
-    const r = await run({
-      github,
-      context: { repo: { owner: 'elastic', repo: 'r' } },
-      prNumber: 3,
-      core,
-    });
-    assert.equal(r.ok, false);
-  }
-});
-
 test('validateAutomergePr returns ok when all gates pass', async () => {
   const { core } = makeCore();
   const github = {
     rest: {
       pulls: { get: async () => ({ data: basePr() }) },
-      checks: {
-        listForRef: async () => ({
-          data: {
-            check_runs: [
-              { status: 'completed', conclusion: 'success' },
-              { status: 'completed', conclusion: 'skipped' },
-            ],
-          },
-        }),
-      },
     },
   };
   const r = await run({
@@ -164,11 +129,6 @@ test('validateAutomergePr allows elastic-vault-github-plugin-prod[bot]', async (
     rest: {
       pulls: {
         get: async () => ({ data: basePr({ user: { login: 'elastic-vault-github-plugin-prod[bot]' } }) }),
-      },
-      checks: {
-        listForRef: async () => ({
-          data: { check_runs: [{ status: 'completed', conclusion: 'success' }] },
-        }),
       },
     },
   };

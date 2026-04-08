@@ -15,7 +15,8 @@
 
 /**
  * Validates the triggering pull request for automerge (author allow list, merge-ready
- * label, draft/fork/ref rules, and check-runs via GITHUB_TOKEN).
+ * label, draft/fork/ref rules). Required status checks are enforced by GitHub when
+ * auto-merge is enabled, not here.
  *
  * Keep ALLOWED_PR_AUTHORS in sync with the `dependency-review` and `automerge` jobs
  * in `.github/workflows/oblt-aw-ingress.yml`.
@@ -29,22 +30,6 @@ const ALLOWED_PR_AUTHORS = new Set([
   'Renovate',
   'elastic-vault-github-plugin-prod[bot]',
 ]);
-
-function checkRunGateStatus(checkRuns) {
-  const all = checkRuns || [];
-  const total = all.length;
-  const completed = all.filter((c) => c.status === 'completed').length;
-  const failedCount = all.filter(
-    (c) =>
-      c.status === 'completed' &&
-      !['success', 'skipped', 'neutral'].includes(c.conclusion || '')
-  ).length;
-
-  if (total === 0) return 'no_checks';
-  if (completed < total) return 'pending';
-  if (failedCount > 0) return 'failing';
-  return 'passing';
-}
 
 module.exports.run = async function run({ github, context, prNumber, core }) {
   const owner = context.repo.owner;
@@ -90,19 +75,6 @@ module.exports.run = async function run({ github, context, prNumber, core }) {
     return { ok: false };
   }
 
-  const { data: checkPayload } = await github.rest.checks.listForRef({
-    owner,
-    repo,
-    ref: pr.head.sha,
-    per_page: 100,
-  });
-
-  const checkStatus = checkRunGateStatus(checkPayload.check_runs || []);
-  if (checkStatus !== 'passing') {
-    core.info(`PR #${prNumber}: check-runs not ready ('${checkStatus}')`);
-    return { ok: false };
-  }
-
-  core.info(`PR #${prNumber}: passed automerge validation (including check-runs)`);
+  core.info(`PR #${prNumber}: passed automerge validation`);
   return { ok: true };
 };
