@@ -84,6 +84,8 @@ The following subsections follow the order of entries in [workflow-registry.json
 
 Forwards `COPILOT_GITHUB_TOKEN` to `gh-aw-automerge.yml` for the Copilot-based approval step.
 
+Forwards `COPILOT_GITHUB_TOKEN` to `gh-aw-automerge.yml` for the Copilot-based approval step.
+
 ### Dependency review (registry id `dependency-review`)
 
 **Routing:** [Dependency review routing](../routing/dependency-review-routing.md)
