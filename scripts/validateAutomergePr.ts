@@ -20,6 +20,8 @@
  * Keep ALLOWED_PR_AUTHORS in sync with the `dependency-review` and `automerge` jobs
  * in `.github/workflows/oblt-aw-ingress.yml`.
  */
+const { checkRunGateStatus } = require('./automergeCheckRunGate.ts');
+
 const MERGE_READY_LABEL = 'oblt-aw/ai/merge-ready';
 
 const ALLOWED_PR_AUTHORS = new Set([
@@ -29,22 +31,6 @@ const ALLOWED_PR_AUTHORS = new Set([
   'Renovate',
   'elastic-vault-github-plugin-prod[bot]',
 ]);
-
-function checkRunGateStatus(checkRuns) {
-  const all = checkRuns || [];
-  const total = all.length;
-  const completed = all.filter((c) => c.status === 'completed').length;
-  const failedCount = all.filter(
-    (c) =>
-      c.status === 'completed' &&
-      !['success', 'skipped', 'neutral'].includes(c.conclusion || '')
-  ).length;
-
-  if (total === 0) return 'no_checks';
-  if (completed < total) return 'pending';
-  if (failedCount > 0) return 'failing';
-  return 'passing';
-}
 
 module.exports.run = async function run({ github, context, prNumber, core }) {
   const owner = context.repo.owner;
@@ -97,7 +83,10 @@ module.exports.run = async function run({ github, context, prNumber, core }) {
     per_page: 100,
   });
 
-  const checkStatus = checkRunGateStatus(checkPayload.check_runs || []);
+  const checkStatus = checkRunGateStatus(
+    checkPayload.check_runs || [],
+    context.runId
+  );
   if (checkStatus !== 'passing') {
     core.info(`PR #${prNumber}: check-runs not ready ('${checkStatus}')`);
     return { ok: false };

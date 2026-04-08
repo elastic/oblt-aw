@@ -13,6 +13,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+const { checkRunGateStatus } = require('./automergeCheckRunGate.ts');
+
 module.exports.run = async function run({ github, context, core, prNumber }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
@@ -35,23 +37,7 @@ module.exports.run = async function run({ github, context, core, prNumber }) {
     per_page: 100,
   });
 
-  const all = checkRuns.check_runs || [];
-  const total = all.length;
-  const completed = all.filter((check) => check.status === 'completed').length;
-  const failedCount = all.filter(
-    (check) =>
-      check.status === 'completed' &&
-      !['success', 'skipped', 'neutral'].includes(check.conclusion || '')
-  ).length;
-
-  let checkStatus = 'passing';
-  if (total === 0) {
-    checkStatus = 'no_checks';
-  } else if (completed < total) {
-    checkStatus = 'pending';
-  } else if (failedCount > 0) {
-    checkStatus = 'failing';
-  }
+  const checkStatus = checkRunGateStatus(checkRuns.check_runs || [], context.runId);
 
   if (checkStatus !== 'passing') {
     core.info(`PR #${prNumber}: skipped - check status is '${checkStatus}'`);

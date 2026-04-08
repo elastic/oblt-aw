@@ -45,6 +45,50 @@ test('enableAutomergeForApprovedPr exits when pr number invalid', async () => {
   assert.equal(infoMessages[0], 'No pull request number for auto-merge enablement.');
 });
 
+test('enableAutomergeForApprovedPr ignores in-progress checks from this workflow run', async () => {
+  const { core, infoMessages } = makeCore();
+  const calls = { graphql: 0 };
+
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({ data: { head: { sha: 'abc123' }, auto_merge: null, node_id: 'PR_node_1' } }),
+        listReviews: async () => ({
+          data: [{ state: 'APPROVED', user: { login: 'github-actions[bot]' } }],
+        }),
+      },
+      checks: {
+        listForRef: async () => ({
+          data: {
+            check_runs: [
+              { status: 'completed', conclusion: 'success', details_url: 'https://github.com/e/a/actions/runs/1/job/1' },
+              {
+                status: 'in_progress',
+                conclusion: null,
+                details_url: 'https://github.com/e/a/actions/runs/55/job/2',
+              },
+            ],
+          },
+        }),
+      },
+    },
+    graphql: async () => {
+      calls.graphql += 1;
+      return {};
+    },
+  };
+
+  await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'automerge' }, runId: 55 },
+    core,
+    prNumber: 12,
+  });
+
+  assert.equal(calls.graphql, 1);
+  assert.ok(infoMessages.some((msg) => msg.includes('PR #12: auto-merge enabled')));
+});
+
 test('enableAutomergeForApprovedPr enables auto-merge when checks pass and approval exists', async () => {
   const { core, infoMessages } = makeCore();
   const calls = { graphql: 0 };

@@ -1,6 +1,11 @@
 name: Automerge
 on:
   workflow_call:
+    inputs:
+      pull-request-number:
+        description: "Pull request number (from pull_request or check_run context)."
+        type: number
+        required: true
     secrets:
       COPILOT_GITHUB_TOKEN:
         description: "Token for GH-AW mention-in-pr (Copilot); must be supplied by the ingress caller."
@@ -15,7 +20,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Single PR from github.event.pull_request. Gates use GITHUB_TOKEN
+  # Single PR from inputs.pull-request-number (ingress passes PR from pull_request or check_run). Gates use GITHUB_TOKEN
   # (checks: read) so Copilot does not need check-run API access.
   verify:
     runs-on: ubuntu-latest
@@ -45,7 +50,7 @@ jobs:
         id: validate
         uses: actions/github-script@v8
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ inputs.pull-request-number }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -65,9 +70,9 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       additional-instructions: |
-        Target pull request number: ${{ github.event.pull_request.number }}.
+        Target pull request number: ${{ inputs.pull-request-number }}.
       prompt: |
-        For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
+        For pull request #${{ inputs.pull-request-number }}: evaluate automerge eligibility.
 
         This PR already passed automerge validation in the workflow (GITHUB_TOKEN), including check-runs.
         Do not call check-run or commit status APIs; treat the check gate as satisfied.
@@ -113,7 +118,7 @@ jobs:
       - name: Enable auto-merge when approved
         uses: actions/github-script@v8
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ inputs.pull-request-number }}
         with:
           github-token: ${{ github.token }}
           script: |

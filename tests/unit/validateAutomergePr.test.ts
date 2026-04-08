@@ -158,6 +158,40 @@ test('validateAutomergePr returns ok when all gates pass', async () => {
   assert.equal(r.ok, true);
 });
 
+test('validateAutomergePr ignores in-progress checks from this workflow run', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: { get: async () => ({ data: basePr() }) },
+      checks: {
+        listForRef: async () => ({
+          data: {
+            check_runs: [
+              {
+                status: 'completed',
+                conclusion: 'success',
+                details_url: 'https://github.com/elastic/r/actions/runs/111/job/1',
+              },
+              {
+                status: 'in_progress',
+                conclusion: null,
+                details_url: 'https://github.com/elastic/r/actions/runs/222/job/2',
+              },
+            ],
+          },
+        }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' }, runId: 222 },
+    prNumber: 5,
+    core,
+  });
+  assert.equal(r.ok, true);
+});
+
 test('validateAutomergePr allows elastic-vault-github-plugin-prod[bot]', async () => {
   const { core } = makeCore();
   const github = {
