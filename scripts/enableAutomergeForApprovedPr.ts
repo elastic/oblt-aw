@@ -13,20 +13,57 @@
 // specific language governing permissions and limitations
 // under the License.
 
+/**
+ * GitHub may reject enablePullRequestAutoMerge with "Pull request is in unstable status"
+ * while mergeability or checks are still settling after review. Retries with backoff
+ * cover that race (see env AUTOMERGE_STABLE_POLL_MS, AUTOMERGE_STABLE_MAX_ATTEMPTS).
+ */
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function graphqlErrorText(error) {
+  if (error && typeof error === 'object' && 'errors' in error) {
+    const errs = error.errors;
+    if (Array.isArray(errs)) {
+      return errs.map((e) => (e && e.message) || '').join('; ');
+    }
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isUnstableAutomergeError(error) {
+  return /unstable status/i.test(graphqlErrorText(error));
+}
+
+function readNonNegativeInt(envValue, defaultValue) {
+  if (envValue === undefined || envValue === '') {
+    return defaultValue;
+  }
+  const n = Number.parseInt(envValue, 10);
+  return Number.isFinite(n) && n >= 0 ? n : defaultValue;
+}
+
+function readPositiveIntMin1(envValue, defaultValue) {
+  if (envValue === undefined || envValue === '') {
+    return defaultValue;
+  }
+  const n = Number.parseInt(envValue, 10);
+  return Number.isFinite(n) && n >= 1 ? n : defaultValue;
+}
+
 module.exports.run = async function run({ github, context, core, prNumber }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
+
+  const pollMs = readNonNegativeInt(process.env.AUTOMERGE_STABLE_POLL_MS, 20000);
+  const maxAttempts = readPositiveIntMin1(process.env.AUTOMERGE_STABLE_MAX_ATTEMPTS, 30);
 
   if (typeof prNumber !== 'number' || !Number.isFinite(prNumber)) {
     core.info('No pull request number for auto-merge enablement.');
     return;
   }
-
-  const { data: pr } = await github.rest.pulls.get({
-    owner,
-    repo,
-    pull_number: prNumber,
-  });
 
   const { data: reviews } = await github.rest.pulls.listReviews({
     owner,
@@ -44,25 +81,56 @@ module.exports.run = async function run({ github, context, core, prNumber }) {
     return;
   }
 
-  if (pr.auto_merge != null) {
-    core.info(`PR #${prNumber}: auto-merge already enabled`);
-    return;
-  }
-
   core.info(`PR #${prNumber}: enabling auto-merge (squash)`);
-  try {
-    await github.graphql(
-      `mutation EnablePullRequestAutoMerge($pullRequestId: ID!) {
+
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const { data: pr } = await github.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: prNumber,
+    });
+
+    if (pr.auto_merge != null) {
+      core.info(`PR #${prNumber}: auto-merge already enabled`);
+      return;
+    }
+
+    if (pr.mergeable_state === 'dirty') {
+      throw new Error(
+        `PR #${prNumber} could not have auto-merge enabled: merge conflicts (mergeable_state: dirty)`
+      );
+    }
+
+    try {
+      await github.graphql(
+        `mutation EnablePullRequestAutoMerge($pullRequestId: ID!) {
           enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId, mergeMethod: SQUASH}) {
             clientMutationId
           }
         }`,
-      { pullRequestId: pr.node_id }
-    );
-    core.info(`PR #${prNumber}: auto-merge enabled`);
-  } catch (error) {
-    core.warning(`PR #${prNumber}: failed to enable auto-merge`);
-    core.warning(String(error));
-    throw new Error(`PR #${prNumber} could not have auto-merge enabled`);
+        { pullRequestId: pr.node_id }
+      );
+      core.info(`PR #${prNumber}: auto-merge enabled`);
+      return;
+    } catch (error) {
+      lastError = error;
+      const recoverable = isUnstableAutomergeError(error);
+      if (!recoverable || attempt === maxAttempts) {
+        core.warning(`PR #${prNumber}: failed to enable auto-merge`);
+        core.warning(String(error));
+        throw new Error(`PR #${prNumber} could not have auto-merge enabled`);
+      }
+      core.info(
+        `PR #${prNumber}: merge still unstable for auto-merge (attempt ${attempt}/${maxAttempts}); waiting ${pollMs}ms`
+      );
+      await sleep(pollMs);
+    }
   }
+
+  core.warning(`PR #${prNumber}: failed to enable auto-merge`);
+  if (lastError != null) {
+    core.warning(String(lastError));
+  }
+  throw new Error(`PR #${prNumber} could not have auto-merge enabled`);
 };
