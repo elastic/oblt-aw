@@ -50,6 +50,7 @@ Normalization behavior:
 
 Top-level permissions:
 
+- `contents: read`
 - `issues: read`
 
 ## References
