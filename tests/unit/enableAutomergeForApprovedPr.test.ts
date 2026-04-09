@@ -82,6 +82,45 @@ test('enableAutomergeForApprovedPr enables auto-merge when approval exists', asy
   assert.ok(infoMessages.some((msg) => msg.includes('PR #12: auto-merge enabled')));
 });
 
+test('enableAutomergeForApprovedPr throws when mergeable_state is dirty', async () => {
+  const { core } = makeCore();
+  const calls = { graphql: 0 };
+
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({
+          data: {
+            head: { sha: 'abc123' },
+            auto_merge: null,
+            node_id: 'PR_node_1',
+            mergeable_state: 'dirty',
+          },
+        }),
+        listReviews: async () => ({
+          data: [{ state: 'APPROVED', user: { login: 'github-actions[bot]' } }],
+        }),
+      },
+    },
+    graphql: async () => {
+      calls.graphql += 1;
+      return {};
+    },
+  };
+
+  await assert.rejects(
+    run({
+      github,
+      context: { repo: { owner: 'elastic', repo: 'automerge' } },
+      core,
+      prNumber: 77,
+    }),
+    /PR #77 could not have auto-merge enabled: merge conflicts \(mergeable_state: dirty\)/
+  );
+
+  assert.equal(calls.graphql, 0);
+});
+
 test('enableAutomergeForApprovedPr retries when GraphQL reports unstable status', async () => {
   const previousPoll = process.env.AUTOMERGE_STABLE_POLL_MS;
   process.env.AUTOMERGE_STABLE_POLL_MS = '0';

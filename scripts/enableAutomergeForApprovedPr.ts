@@ -83,7 +83,6 @@ module.exports.run = async function run({ github, context, core, prNumber }) {
 
   core.info(`PR #${prNumber}: enabling auto-merge (squash)`);
 
-  let lastError;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const { data: pr } = await github.rest.pulls.get({
       owner,
@@ -114,7 +113,6 @@ module.exports.run = async function run({ github, context, core, prNumber }) {
       core.info(`PR #${prNumber}: auto-merge enabled`);
       return;
     } catch (error) {
-      lastError = error;
       const recoverable = isUnstableAutomergeError(error);
       if (!recoverable || attempt === maxAttempts) {
         core.warning(`PR #${prNumber}: failed to enable auto-merge`);
@@ -127,10 +125,4 @@ module.exports.run = async function run({ github, context, core, prNumber }) {
       await sleep(pollMs);
     }
   }
-
-  core.warning(`PR #${prNumber}: failed to enable auto-merge`);
-  if (lastError != null) {
-    core.warning(String(lastError));
-  }
-  throw new Error(`PR #${prNumber} could not have auto-merge enabled`);
 };
