@@ -17,7 +17,7 @@ Jobs:
 
 - `audit`: calls `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Created issues always @mention `@elastic/observablt-ci` in the body so the team receives notifications.
 - `fix`: calls `gh-aw-create-pr-from-issue.lock.yml` only when `audit` created an issue.
-- `request-reviewers`: requests a review from `@elastic/observablt-ci` and applies the `changelog:docs` label to the created PR if that label exists in the repository.
+- `finalize-pr`: requests a review from `@elastic/observablt-ci` and applies the `changelog:docs` label to the created PR if that label exists in the repository.
 
 Workflow-specific requirements passed to the PR stage:
 

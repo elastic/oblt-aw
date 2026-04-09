@@ -66,8 +66,8 @@ jobs:
         - Do not add placeholder text or TODOs as improvements.
     secrets: inherit
 
-  # Step 3: Explicitly assign elastic/observablt-ci as reviewer (ensures assignment regardless of agent behaviour)
-  request-reviewers:
+  # Step 3: Finalize autodoc PR — assign reviewer and apply labels
+  finalize-pr:
     needs: fix
     if: needs.fix.outputs.created_pr_number != ''
     runs-on: ubuntu-latest
@@ -79,7 +79,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.fix.outputs.created_pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "elastic/observablt-ci" --repo "$GITHUB_REPOSITORY"
-
       - name: Apply changelog:docs label if it exists
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
