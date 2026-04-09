@@ -79,6 +79,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.fix.outputs.created_pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "elastic/observablt-ci" --repo "$GITHUB_REPOSITORY"
+
       - name: Apply changelog:docs label if it exists
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
