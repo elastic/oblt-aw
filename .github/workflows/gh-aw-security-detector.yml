@@ -54,5 +54,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
+          SECURITY_SCAN_DATE="$(date -u +%Y-%m-%d)"
+          export SECURITY_SCAN_DATE
           chmod +x _oblt-aw/scripts/create-security-issues.sh
           _oblt-aw/scripts/create-security-issues.sh findings.txt
