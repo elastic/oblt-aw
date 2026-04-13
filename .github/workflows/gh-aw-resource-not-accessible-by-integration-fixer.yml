@@ -16,6 +16,8 @@ jobs:
       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
+      # AWF: gpt-5.x-codex exits with code 1 and no stdout/stderr; pin gpt-4.1 until upstream fix.
+      model: gpt-4.1
       additional-instructions: |
         Your task is to fix issues labeled for the "Resource not accessible by integration" problem.
 
