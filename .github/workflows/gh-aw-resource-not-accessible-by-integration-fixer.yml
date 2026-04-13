@@ -14,7 +14,7 @@ jobs:
     if: >-
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@v0
     with:
       # AWF: gpt-5.x-codex exits with code 1 and no stdout/stderr; pin gpt-4.1 until upstream fix.
       model: gpt-4.1

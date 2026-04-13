@@ -15,7 +15,7 @@ permissions:
 jobs:
   # Step 1: Detect docs drift from recent code changes and create an issue with findings
   audit:
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@v0
     with:
       # AWF: gpt-5.x-codex exits with code 1 and no stdout/stderr; pin gpt-4.1 until upstream fix.
       model: gpt-4.1
@@ -44,7 +44,7 @@ jobs:
   fix:
     needs: audit
     if: needs.audit.outputs.created_issue_number != ''
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@v0
     with:
       # AWF: gpt-5.x-codex exits with code 1 and no stdout/stderr; pin gpt-4.1 until upstream fix.
       model: gpt-4.1
