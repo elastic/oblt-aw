@@ -22,6 +22,8 @@ jobs:
       pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
+      # Avoid lock default gpt-5.3-codex: silent exit 1 under AWF (no driver retry).
+      model: gpt-5.2-codex
       additional-instructions: |
         Your task is to triage newly opened security-related issues in this repository. Security issues include vulnerabilities in GitHub Actions workflows and shell scripts: injection (expression, command, YAML), secret management (token exposure via CLI args, secrets in command strings), supply chain (action pinning, checksums), and least privilege (excessive permissions).
 

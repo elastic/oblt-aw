@@ -18,5 +18,8 @@ jobs:
       issues: write
       pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-issue.lock.yml@main
+    with:
+      # Avoid lock default gpt-5.3-codex: silent exit 1 under AWF (no driver retry).
+      model: gpt-5.2-codex
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
