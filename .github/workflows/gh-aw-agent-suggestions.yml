@@ -15,8 +15,8 @@ jobs:
   run:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main
     with:
-      # Avoid lock default gpt-5.3-codex: silent exit 1 under AWF (no driver retry).
-      model: gpt-5.2-codex
+      # AWF: gpt-5.x-codex exits with code 1 and no stdout/stderr; pin gpt-4.1 until upstream fix.
+      model: gpt-4.1
       title-prefix: "[oblt-aw][agent-suggestions]"
       additional-instructions: |
         Additional requirements for this repository:
