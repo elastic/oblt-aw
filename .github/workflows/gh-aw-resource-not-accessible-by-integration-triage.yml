@@ -14,10 +14,8 @@ permissions:
 
 jobs:
   run:
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@v0
     with:
-      # AWF: gpt-5.x-codex exits with code 1 and no stdout/stderr; pin gpt-4.1 until upstream fix.
-      model: gpt-4.1
       additional-instructions: |
         Your task is to triage issues that carry the detector label `oblt-aw/detector/res-not-accessible-by-integration` and determine if they are related to "Resource not accessible by integration" errors in GitHub Actions workflows.
 
