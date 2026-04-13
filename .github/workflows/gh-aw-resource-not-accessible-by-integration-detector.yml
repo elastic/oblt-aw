@@ -35,6 +35,8 @@ jobs:
         workflow: ${{ fromJSON(needs.discover.outputs.workflows) }}
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight
     with:
+      # Avoid lock default gpt-5.3-codex: silent exit 1 under AWF (no driver retry).
+      model: gpt-5.2-codex
       workflow: ${{ matrix.workflow }}
       search-terms: "Resource not accessible by integration"
       days: 1
