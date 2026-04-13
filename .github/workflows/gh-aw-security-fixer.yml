@@ -19,8 +19,6 @@ jobs:
       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
-      # AWF: gpt-5.x-codex exits with code 1 and no stdout/stderr; pin gpt-4.1 until upstream fix.
-      model: gpt-4.1
       additional-instructions: |
         Your task is to fix security issues labeled for remediation. This workflow uses agentic workflows from elastic/ai-github-actions.
 
