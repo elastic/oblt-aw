@@ -17,8 +17,8 @@ jobs:
   audit:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
     with:
-      # Avoid lock default gpt-5.3-codex: silent exit 1 under AWF (no driver retry).
-      model: gpt-5.2-codex
+      # AWF: gpt-5.x-codex exits with code 1 and no stdout/stderr; pin gpt-4.1 until upstream fix.
+      model: gpt-4.1
       lookback-window: 1 day ago
       title-prefix: "[oblt-aw][autodoc]"
       additional-instructions: |
@@ -46,8 +46,8 @@ jobs:
     if: needs.audit.outputs.created_issue_number != ''
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
     with:
-      # Avoid lock default gpt-5.3-codex: silent exit 1 under AWF (no driver retry).
-      model: gpt-5.2-codex
+      # AWF: gpt-5.x-codex exits with code 1 and no stdout/stderr; pin gpt-4.1 until upstream fix.
+      model: gpt-4.1
       target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
       draft-prs: true
       additional-instructions: |
