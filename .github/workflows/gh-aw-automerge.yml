@@ -62,6 +62,8 @@ jobs:
     if: needs.verify.outputs.proceed == 'true'
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
+      # AWF: gpt-5.x-codex exits with code 1 and no stdout/stderr; pin gpt-4.1 until upstream fix.
+      model: gpt-4.1
       additional-instructions: |
         Target pull request number: ${{ github.event.pull_request.number }}.
       prompt: |
