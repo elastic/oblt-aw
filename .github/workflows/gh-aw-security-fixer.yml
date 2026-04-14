@@ -17,7 +17,7 @@ jobs:
     if: >-
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@v0
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
       additional-instructions: |
         Your task is to fix security issues labeled for remediation. This workflow uses agentic workflows from elastic/ai-github-actions.
