@@ -52,7 +52,14 @@ test('enableAutomergeForApprovedPr enables auto-merge when approval exists', asy
   const github = {
     rest: {
       pulls: {
-        get: async () => ({ data: { head: { sha: 'abc123' }, auto_merge: null, node_id: 'PR_node_1' } }),
+        get: async () => ({
+          data: {
+            head: { sha: 'abc123' },
+            auto_merge: null,
+            node_id: 'PR_node_1',
+            mergeable_state: 'clean',
+          },
+        }),
         listReviews: async () => ({
           data: [{ state: 'APPROVED', user: { login: 'github-actions[bot]' } }],
         }),
@@ -73,6 +80,101 @@ test('enableAutomergeForApprovedPr enables auto-merge when approval exists', asy
 
   assert.equal(calls.graphql, 1);
   assert.ok(infoMessages.some((msg) => msg.includes('PR #12: auto-merge enabled')));
+});
+
+test('enableAutomergeForApprovedPr throws when mergeable_state is dirty', async () => {
+  const { core } = makeCore();
+  const calls = { graphql: 0 };
+
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({
+          data: {
+            head: { sha: 'abc123' },
+            auto_merge: null,
+            node_id: 'PR_node_1',
+            mergeable_state: 'dirty',
+          },
+        }),
+        listReviews: async () => ({
+          data: [{ state: 'APPROVED', user: { login: 'github-actions[bot]' } }],
+        }),
+      },
+    },
+    graphql: async () => {
+      calls.graphql += 1;
+      return {};
+    },
+  };
+
+  await assert.rejects(
+    run({
+      github,
+      context: { repo: { owner: 'elastic', repo: 'automerge' } },
+      core,
+      prNumber: 77,
+    }),
+    /PR #77 could not have auto-merge enabled: merge conflicts \(mergeable_state: dirty\)/
+  );
+
+  assert.equal(calls.graphql, 0);
+});
+
+test('enableAutomergeForApprovedPr retries when GraphQL reports unstable status', async () => {
+  const previousPoll = process.env.AUTOMERGE_STABLE_POLL_MS;
+  process.env.AUTOMERGE_STABLE_POLL_MS = '0';
+
+  try {
+    const { core, infoMessages } = makeCore();
+    const calls = { graphql: 0 };
+
+    const unstableErr = Object.assign(new Error('GraphqlResponseError'), {
+      errors: [{ message: 'Pull request is in unstable status' }],
+    });
+
+    const github = {
+      rest: {
+        pulls: {
+          get: async () => ({
+            data: {
+              head: { sha: 'abc123' },
+              auto_merge: null,
+              node_id: 'PR_node_1',
+              mergeable_state: 'unstable',
+            },
+          }),
+          listReviews: async () => ({
+            data: [{ state: 'APPROVED', user: { login: 'github-actions[bot]' } }],
+          }),
+        },
+      },
+      graphql: async () => {
+        calls.graphql += 1;
+        if (calls.graphql === 1) {
+          throw unstableErr;
+        }
+        return {};
+      },
+    };
+
+    await run({
+      github,
+      context: { repo: { owner: 'elastic', repo: 'automerge' } },
+      core,
+      prNumber: 55,
+    });
+
+    assert.equal(calls.graphql, 2);
+    assert.ok(infoMessages.some((msg) => msg.includes('attempt 1/')));
+    assert.ok(infoMessages.some((msg) => msg.includes('PR #55: auto-merge enabled')));
+  } finally {
+    if (previousPoll === undefined) {
+      delete process.env.AUTOMERGE_STABLE_POLL_MS;
+    } else {
+      process.env.AUTOMERGE_STABLE_POLL_MS = previousPoll;
+    }
+  }
 });
 
 test('enableAutomergeForApprovedPr skips when no approval', async () => {
@@ -115,7 +217,14 @@ test('enableAutomergeForApprovedPr throws when GraphQL enable fails', async () =
   const github = {
     rest: {
       pulls: {
-        get: async () => ({ data: { head: { sha: 'abc123' }, auto_merge: null, node_id: 'PR_node_1' } }),
+        get: async () => ({
+          data: {
+            head: { sha: 'abc123' },
+            auto_merge: null,
+            node_id: 'PR_node_1',
+            mergeable_state: 'clean',
+          },
+        }),
         listReviews: async () => ({
           data: [{ state: 'APPROVED', user: { login: 'github-actions[bot]' } }],
         }),
