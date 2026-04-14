@@ -4,7 +4,7 @@
 
 Entrypoint source: `.github/workflows/oblt-aw-ingress.yml`
 
-Routed workflow source: `.github/workflows/gh-aw-automerge.yml`
+Routed workflow source: `.github/workflows/gh-aw-automerge.yml` (verify and approve on the PR). Auto-merge enablement runs in `.github/workflows/automerge.yml` via `repository_dispatch` so it is not attached as a long-running check on the PR head commit.
 
 ## Usage
 

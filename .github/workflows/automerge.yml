@@ -1,0 +1,66 @@
+# Enables squash auto-merge via GraphQL after approval (see gh-aw-automerge.yml).
+# Triggered by repository_dispatch so this run is not reported as a check on the PR
+# (avoids "unstable status" races while the PR check suite is still settling).
+name: Automerge enable
+
+on:
+  repository_dispatch:
+    types:
+      - oblt-aw-automerge
+
+permissions:
+  contents: read
+
+concurrency:
+  group: automerge-${{ github.event.client_payload.pull_request_number }}
+  cancel-in-progress: false
+
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      PR_NUMBER: ${{ github.event.client_payload.pull_request_number }}
+    steps:
+      - name: Validate client payload
+        run: |
+          if [ -z "${PR_NUMBER}" ] || ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Missing or invalid pull_request_number in client_payload"
+            exit 1
+          fi
+
+      - name: Checkout elastic/oblt-aw (automerge TypeScript)
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          token: ${{ github.token }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: _oblt-aw/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: _oblt-aw
+        run: npm ci
+
+      - name: Enable auto-merge when approved
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const path = require('node:path');
+            const { createRequire } = require('node:module');
+            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
+            const rq = createRequire(path.join(root, 'package.json'));
+            rq('tsx/cjs/api').register();
+            const { run } = rq('./scripts/enableAutomergeForApprovedPr.ts');
+            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
+            await run({ github, context, core, prNumber });

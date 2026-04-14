@@ -82,44 +82,35 @@ jobs:
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
-  enable-automerge:
+  # Runs off the PR check graph via repository_dispatch (see automerge.yml)
+  # so enabling auto-merge does not keep a long-running check on the PR head commit.
+  request-enable-automerge:
     needs:
       - verify
       - approve
     if: needs.verify.outputs.proceed == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
     steps:
-      - name: Checkout elastic/oblt-aw (automerge TypeScript)
-        uses: actions/checkout@v6
-        with:
-          repository: elastic/oblt-aw
-          ref: main
-          path: _oblt-aw
-          token: ${{ github.token }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: _oblt-aw/package-lock.json
-
-      - name: Install npm dependencies
-        working-directory: _oblt-aw
-        run: npm ci
-
-      - name: Enable auto-merge when approved
+      - name: Dispatch automerge enable workflow
         uses: actions/github-script@v8
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
           github-token: ${{ github.token }}
           script: |
-            const path = require('node:path');
-            const { createRequire } = require('node:module');
-            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
-            const rq = createRequire(path.join(root, 'package.json'));
-            rq('tsx/cjs/api').register();
-            const { run } = rq('./scripts/enableAutomergeForApprovedPr.ts');
-            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            await run({ github, context, core, prNumber });
+            const prNumber = Number.parseInt(process.env.PR_NUMBER || '', 10);
+            if (!Number.isFinite(prNumber)) {
+              core.setFailed('Invalid PR_NUMBER for repository_dispatch');
+              return;
+            }
+            await github.request('POST /repos/{owner}/{repo}/dispatches', {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'oblt-aw-automerge',
+              client_payload: {
+                pull_request_number: prNumber,
+              },
+            });

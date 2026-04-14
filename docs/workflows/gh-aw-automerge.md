@@ -19,7 +19,9 @@ Jobs:
 
 - `verify`: checks out control-plane scripts, runs `scripts/validateAutomergePr.ts` for `github.event.pull_request.number` (author allow list aligned with dependency-review, merge-ready label, draft/fork/ref).
 - `approve`: invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` when `verify` sets `proceed` (Copilot must not call check-run APIs for gating; branch protection handles required checks at merge time).
-- `enable-automerge`: runs `scripts/enableAutomergeForApprovedPr.ts` for the same PR number to enable GraphQL auto-merge (squash) when `github-actions[bot]` has approved.
+- `request-enable-automerge`: sends a `repository_dispatch` event (`oblt-aw-automerge`) with the PR number so the actual enable step runs in [`automerge.yml`](../../.github/workflows/automerge.yml). That keeps the long GraphQL enable work off the PR’s check suite and reduces “unstable status” races while checks settle.
+
+The enable workflow ([`automerge.yml`](../../.github/workflows/automerge.yml)) runs `scripts/enableAutomergeForApprovedPr.ts` to enable squash auto-merge when `github-actions[bot]` has approved.
 
 There is no discover step and no `workflow_call` inputs for merge-ready label or allowed actor (constants live in `validateAutomergePr.ts` and ingress, kept in sync with dependency-review).
 
