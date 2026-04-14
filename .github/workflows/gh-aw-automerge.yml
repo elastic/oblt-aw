@@ -41,7 +41,7 @@ jobs:
 
       - name: Validate pull request for automerge
         id: validate
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
