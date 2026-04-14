@@ -17,6 +17,6 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-issue.lock.yml@v0
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-issue.lock.yml@main
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

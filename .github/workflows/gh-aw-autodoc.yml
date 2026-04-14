@@ -15,7 +15,7 @@ permissions:
 jobs:
   # Step 1: Detect docs drift from recent code changes and create an issue with findings
   audit:
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@v0
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
     with:
       lookback-window: 1 day ago
       title-prefix: "[oblt-aw][autodoc]"
@@ -42,7 +42,7 @@ jobs:
   fix:
     needs: audit
     if: needs.audit.outputs.created_issue_number != ''
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@v0
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
     with:
       target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
       draft-prs: true
