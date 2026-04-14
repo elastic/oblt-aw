@@ -114,10 +114,11 @@ module.exports.run = async function run({ github, context, core, prNumber }) {
       return;
     } catch (error) {
       const recoverable = isUnstableAutomergeError(error);
+      const errorText = graphqlErrorText(error);
       if (!recoverable || attempt === maxAttempts) {
         core.warning(`PR #${prNumber}: failed to enable auto-merge`);
-        core.warning(String(error));
-        throw new Error(`PR #${prNumber} could not have auto-merge enabled`);
+        core.warning(errorText);
+        throw new Error(`PR #${prNumber} could not have auto-merge enabled: ${errorText}`);
       }
       core.info(
         `PR #${prNumber}: merge still unstable for auto-merge (attempt ${attempt}/${maxAttempts}); waiting ${pollMs}ms`
