@@ -7,16 +7,16 @@ on:
         required: true
 
 permissions:
-  actions: read
-  contents: write
-  discussions: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
   # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
   verify:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
     outputs:
       proceed: ${{ steps.validate.outputs.proceed }}
     steps:
@@ -60,6 +60,10 @@ jobs:
   approve:
     needs: verify
     if: needs.verify.outputs.proceed == 'true'
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       additional-instructions: |

@@ -27,13 +27,16 @@ There is no discover step and no `workflow_call` inputs for merge-ready label or
 
 ## Configuration
 
-Permissions:
+`GITHUB_TOKEN` follows least privilege: workflow root is `contents: read` only; each job sets the minimum scopes it needs.
 
-- `actions: read`
-- `contents: write`
-- `discussions: write`
-- `issues: write`
-- `pull-requests: write`
+| Job | Permissions |
+|-----|-------------|
+| Workflow (default) | `contents: read` |
+| `verify` | `actions: write` (npm cache via `setup-node`; write includes read for this scope), `contents: read`, `pull-requests: read` (validate script reads the PR) |
+| `approve` | `contents: read`, `issues: write`, `pull-requests: write` (GH-AW mention-in-pr) |
+| `request-enable-automerge` | `contents: write` (create `repository_dispatch`; [GitHub requires write access to the repository](https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event)) |
+
+[`automerge.yml`](../../.github/workflows/automerge.yml) (dispatch target): workflow root `contents: read`; job `enable` uses `actions: write` (npm cache), `contents: read`, and `pull-requests: write` for checkout of control-plane scripts and `enablePullRequestAutoMerge`.
 
 ## API / Interface
 
