@@ -4,12 +4,12 @@
 
 Source file: [.github/workflows/sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml)
 
-This workflow creates or updates the Control Plane Dashboard issue in each repository listed in [active-repositories.json](../../active-repositories.json). The dashboard lists all available agentic workflows with maturity badges and opt-in checkboxes.
+This workflow creates or updates the Control Plane Dashboard issue in each repository listed in [active-repositories.json](../../config/active-repositories.json). The dashboard lists all available agentic workflows with maturity badges and opt-in checkboxes.
 
 ## Prerequisites
 
-- [workflow-registry.json](../../workflow-registry.json) — workflow metadata (`id`, `name`, `description`, `maturity`, `default_enabled`)
-- [active-repositories.json](../../active-repositories.json) — target repositories
+- [workflow-registry.json](../../config/workflow-registry.json) — workflow metadata (`id`, `name`, `description`, `maturity`, `default_enabled`)
+- [active-repositories.json](../../config/active-repositories.json) — target repositories
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/blob/v1/github/create-token/action.yml)
 
 ## Usage
@@ -17,8 +17,8 @@ This workflow creates or updates the Control Plane Dashboard issue in each repos
 Triggers:
 
 - `push` to `main` when any of these paths change:
-  - [workflow-registry.json](../../workflow-registry.json)
-  - [active-repositories.json](../../active-repositories.json)
+  - [workflow-registry.json](../../config/workflow-registry.json)
+  - [active-repositories.json](../../config/active-repositories.json)
   - [.github/workflows/sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml)
 - `workflow_dispatch`
 
@@ -26,7 +26,7 @@ Triggers:
 
 Execution:
 
-1. **prepare-repos job:** Builds repos matrix from [active-repositories.json](../../active-repositories.json) via [scripts/build_repos_matrix.py](../../scripts/build_repos_matrix.py); outputs JSON for matrix strategy
+1. **prepare-repos job:** Builds repos matrix from [active-repositories.json](../../config/active-repositories.json) via [scripts/build_repos_matrix.py](../../scripts/build_repos_matrix.py); outputs JSON for matrix strategy
 2. **sync-dashboard job:** Matrix job (one job per repo); each invokes `scripts/sync_control_plane_dashboard.py --repo <owner/repo>`:
    - Search for existing open issue with label `oblt-aw/dashboard`
    - Create or update the issue with title `[oblt-aw] Control Plane Dashboard`, body from registry (header, maturity badges, checkboxes, descriptions)

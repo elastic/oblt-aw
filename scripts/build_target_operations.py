@@ -26,16 +26,18 @@ def read_previous_repositories(base_ref: str) -> list[str]:
     if not base_ref or base_ref == "0000000000000000000000000000000000000000":
         return []
 
-    try:
-        result = subprocess.run(
-            ["git", "show", f"{base_ref}:active-repositories.json"],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return parse_repositories(result.stdout)
-    except subprocess.CalledProcessError:
-        return []
+    for path in ("config/active-repositories.json", "active-repositories.json"):
+        try:
+            result = subprocess.run(
+                ["git", "show", f"{base_ref}:{path}"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            return parse_repositories(result.stdout)
+        except subprocess.CalledProcessError:
+            continue
+    return []
 
 
 def parse_bool(value: str) -> bool:
@@ -58,7 +60,7 @@ def main() -> int:
         )
         return 0
 
-    config_path = pathlib.Path("active-repositories.json")
+    config_path = pathlib.Path("config/active-repositories.json")
     current_content = (
         config_path.read_text(encoding="utf-8") if config_path.exists() else ""
     )

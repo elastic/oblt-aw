@@ -1,6 +1,11 @@
 name: Dependency Review
 on:
   workflow_call:
+    inputs:
+      allowed-bot-users:
+        description: Comma-separated GitHub logins (from load-allowed-pr-authors CSV output)
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -15,11 +20,11 @@ jobs:
   run:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
     with:
-      allowed-bot-users: "dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-vault-github-plugin-prod[bot]"
+      allowed-bot-users: ${{ inputs.allowed-bot-users }}
       classification-labels: "oblt-aw/ai/merge-ready"
       additional-instructions: |
         Noop when not applicable (mandatory):
-        - If the PR has NO dependency updates to review (e.g., no version bumps in manifest files, no changes to lockfiles that indicate dependency updates, or changes that do not match any supported ecosystem), you MUST call `noop` — do NOT create any comment.
+        - If the PR has NO dependency updates to review (e.g. no version bumps in manifest files, no changes to lockfiles that indicate dependency updates, or changes that do not match any supported ecosystem), you MUST call `noop` — do NOT create any comment.
         - Use the format: {"noop": {"message": "No action needed: [brief explanation]"}}
         - Examples: "No action needed: no dependency version updates found in the PR diff" or "No action needed: PR changes do not match supported dependency ecosystems"
         - Do not create comments for no-op outcomes. The noop tool provides transparency without creating GitHub artifacts.

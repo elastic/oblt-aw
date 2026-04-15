@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - workflow-registry.json
-      - active-repositories.json
+      - config/workflow-registry.json
+      - config/active-repositories.json
       - .github/workflows/sync-control-plane-dashboard.yml
   workflow_dispatch:
 

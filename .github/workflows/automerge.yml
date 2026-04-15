@@ -1,13 +1,12 @@
-# Enables squash auto-merge via GraphQL after approval (see gh-aw-automerge.yml).
-# Triggered by workflow_dispatch so this run is not reported as a check on the PR
-# (avoids "unstable status" races while the PR check suite is still settling).
+# workflow_dispatch merge for PRs that match ingress (label + bot authors). Uses pascalgn/automerge-action.
+# Separate run avoids attaching a long-lived check to the PR commit.
 name: Automerge enable
 
 on:
   workflow_dispatch:
     inputs:
       pull-request-number:
-        description: "Pull request number to enable squash auto-merge for"
+        description: "Pull request number to merge when ready (squash)"
         required: true
         type: number
 
@@ -19,52 +18,46 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  allowed-pr-authors:
+    uses: ./.github/workflows/load-allowed-pr-authors.yml
+
   enable:
+    needs: allowed-pr-authors
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      actions: write
-      contents: read
+      contents: write
       pull-requests: write
     env:
       PR_NUMBER: ${{ github.event.inputs['pull-request-number'] }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Validate workflow inputs
+      - name: Validate input and PR author (ingress allow list)
+        env:
+          ALLOWED_JSON: ${{ needs['allowed-pr-authors'].outputs['allowed_pr_authors_json'] }}
         run: |
+          set -euo pipefail
           if [ -z "${PR_NUMBER}" ] || ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
             echo "::error::Missing or invalid pull-request-number input"
             exit 1
           fi
+          author=$(gh pr view "${PR_NUMBER}" --json author -q .author.login)
+          if ! jq -e --arg author "${author}" 'any(.[]; . == $author)' <<< "${ALLOWED_JSON}" >/dev/null; then
+            echo "::error::PR author '${author}' is not in the control-plane allow list (load-allowed-pr-authors)"
+            exit 1
+          fi
 
-      - name: Checkout elastic/oblt-aw (automerge TypeScript)
-        uses: actions/checkout@v6
-        with:
-          repository: elastic/oblt-aw
-          ref: main
-          path: _oblt-aw
-          token: ${{ github.token }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: _oblt-aw/package-lock.json
-
-      - name: Install npm dependencies
-        working-directory: _oblt-aw
-        run: npm ci
-
-      - name: Enable auto-merge when approved
-        uses: actions/github-script@v8
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const path = require('node:path');
-            const { createRequire } = require('node:module');
-            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
-            const rq = createRequire(path.join(root, 'package.json'));
-            rq('tsx/cjs/api').register();
-            const { run } = rq('./scripts/enableAutomergeForApprovedPr.ts');
-            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            await run({ github, context, core, prNumber });
+      - id: automerge
+        name: Merge pull request when ready (squash)
+        uses: pascalgn/automerge-action@7961b8b5eec56cc088c140b56d864285eabd3f67 # v0.16.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST: ${{ github.event.inputs['pull-request-number'] }}
+          MERGE_LABELS: "oblt-aw/ai/merge-ready"
+          UPDATE_LABELS: "oblt-aw/ai/merge-ready"
+          MERGE_METHOD: squash
+          MERGE_FORKS: "false"
+          MERGE_DELETE_BRANCH: "true"
+          MERGE_REQUIRED_APPROVALS: "1"
+          MERGE_RETRIES: "30"
+          MERGE_RETRY_SLEEP: "20000"

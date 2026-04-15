@@ -140,7 +140,10 @@ class TestMain:
         monkeypatch.chdir(tmp_path)
 
         config = {"repositories": repos or ["elastic/foo", "elastic/bar"]}
-        (tmp_path / "active-repositories.json").write_text(json.dumps(config))
+        (tmp_path / "config").mkdir(exist_ok=True)
+        (tmp_path / "config" / "active-repositories.json").write_text(
+            json.dumps(config)
+        )
         return output_file
 
     def test_no_changes_skips_work(

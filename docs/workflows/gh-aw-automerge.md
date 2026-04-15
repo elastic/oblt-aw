@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/gh-aw-automerge.yml](../../.github/workflows/gh-aw-automerge.yml)
 
-This workflow runs for a **single** pull request from `github.event.pull_request` (`pull_request` trigger only). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes, then enables squash auto-merge when `github-actions[bot]` has approved. Required status checks are **not** queried here; GitHub enforces them when merging via auto-merge.
+This workflow runs for a **single** pull request from `github.event.pull_request` (`pull_request` trigger only). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes, then dispatches [`automerge.yml`](../../.github/workflows/automerge.yml) so a separate run can merge the PR when ready (see below). Required status checks are **not** queried in `verify`; branch protection and [`pascalgn/automerge-action`](https://github.com/pascalgn/automerge-action) handle readiness before merge.
 
 Ingress selects which events dispatch here; see [Automerge routing](../routing/automerge-routing.md).
 
@@ -19,11 +19,11 @@ Jobs:
 
 - `verify`: checks out control-plane scripts, runs `scripts/validateAutomergePr.ts` for `github.event.pull_request.number` (author allow list aligned with dependency-review, merge-ready label, draft/fork/ref).
 - `approve`: invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` when `verify` sets `proceed` (Copilot must not call check-run APIs for gating; branch protection handles required checks at merge time).
-- `request-enable-automerge`: runs [`automerge.yml`](../../.github/workflows/automerge.yml) via `gh workflow run` (`workflow_dispatch` input `pull-request-number`) so the actual enable step runs in a separate workflow run. That keeps the long GraphQL enable work off the PR’s check suite and reduces “unstable status” races while checks settle.
+- `request-enable-automerge`: runs [`automerge.yml`](../../.github/workflows/automerge.yml) via `gh workflow run` (`workflow_dispatch` input `pull-request-number`) so merge logic runs in a separate workflow run and is not attached as a long-lived check on the PR head commit.
 
-The enable workflow ([`automerge.yml`](../../.github/workflows/automerge.yml)) runs `scripts/enableAutomergeForApprovedPr.ts` to enable squash auto-merge when `github-actions[bot]` has approved.
+The dispatch target [`automerge.yml`](../../.github/workflows/automerge.yml) calls [`load-allowed-pr-authors.yml`](../../.github/workflows/load-allowed-pr-authors.yml), validates the PR author against that output, then runs **pascalgn/automerge-action** to **squash-merge** the PR when labels, reviews, and checks satisfy its configuration (`MERGE_LABELS`, `MERGE_REQUIRED_APPROVALS`, etc.).
 
-There is no discover step and no `workflow_call` inputs for merge-ready label or allowed actor (constants live in `validateAutomergePr.ts` and ingress, kept in sync with dependency-review).
+There is no discover step and no `workflow_call` inputs for merge-ready label or allowed actor on `gh-aw-automerge` (see `validateAutomergePr.ts` and ingress; allow list is centralized in `load-allowed-pr-authors` / `config/allowed_pr_authors.json`).
 
 ## Configuration
 
@@ -36,7 +36,7 @@ There is no discover step and no `workflow_call` inputs for merge-ready label or
 | `approve` | `contents: read`, `issues: write`, `pull-requests: write` (GH-AW mention-in-pr) |
 | `request-enable-automerge` | `actions: write` ([create a workflow dispatch event](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event)), `contents: read` |
 
-[`automerge.yml`](../../.github/workflows/automerge.yml) (dispatch target): workflow root `contents: read`; job `enable` uses `actions: write` (npm cache), `contents: read`, and `pull-requests: write` for checkout of control-plane scripts and `enablePullRequestAutoMerge`.
+[`automerge.yml`](../../.github/workflows/automerge.yml) (dispatch target): workflow root `contents: read`; job `allowed-pr-authors` uses `load-allowed-pr-authors.yml`; job `enable` needs it and uses `contents: write` and `pull-requests: write` for `gh` and the automerge action (no checkout of the control plane in `enable`).
 
 ## API / Interface
 
