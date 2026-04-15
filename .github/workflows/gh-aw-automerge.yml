@@ -86,7 +86,7 @@ jobs:
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
-  # Runs off the PR check graph via repository_dispatch (see automerge.yml)
+  # Runs off the PR check graph via workflow_dispatch (see automerge.yml)
   # so enabling auto-merge does not keep a long-running check on the PR head commit.
   request-enable-automerge:
     needs:
@@ -96,25 +96,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write
+      actions: write
+      contents: read
     steps:
-      - name: Dispatch automerge enable workflow
-        uses: actions/github-script@v8
+      - name: Run automerge enable workflow
         env:
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const prNumber = Number.parseInt(process.env.PR_NUMBER || '', 10);
-            if (!Number.isFinite(prNumber)) {
-              core.setFailed('Invalid PR_NUMBER for repository_dispatch');
-              return;
-            }
-            await github.request('POST /repos/{owner}/{repo}/dispatches', {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              event_type: 'oblt-aw-automerge',
-              client_payload: {
-                pull_request_number: prNumber,
-              },
-            });
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid PR_NUMBER for workflow_dispatch"
+            exit 1
+          fi
+          gh workflow run automerge.yml \
+            --ref "${DEFAULT_BRANCH}" \
+            -f "pull-request-number=${PR_NUMBER}"

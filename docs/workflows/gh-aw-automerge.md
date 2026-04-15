@@ -19,7 +19,7 @@ Jobs:
 
 - `verify`: checks out control-plane scripts, runs `scripts/validateAutomergePr.ts` for `github.event.pull_request.number` (author allow list aligned with dependency-review, merge-ready label, draft/fork/ref).
 - `approve`: invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` when `verify` sets `proceed` (Copilot must not call check-run APIs for gating; branch protection handles required checks at merge time).
-- `request-enable-automerge`: sends a `repository_dispatch` event (`oblt-aw-automerge`) with the PR number so the actual enable step runs in [`automerge.yml`](../../.github/workflows/automerge.yml). That keeps the long GraphQL enable work off the PR’s check suite and reduces “unstable status” races while checks settle.
+- `request-enable-automerge`: runs [`automerge.yml`](../../.github/workflows/automerge.yml) via `gh workflow run` (`workflow_dispatch` input `pull-request-number`) so the actual enable step runs in a separate workflow run. That keeps the long GraphQL enable work off the PR’s check suite and reduces “unstable status” races while checks settle.
 
 The enable workflow ([`automerge.yml`](../../.github/workflows/automerge.yml)) runs `scripts/enableAutomergeForApprovedPr.ts` to enable squash auto-merge when `github-actions[bot]` has approved.
 
@@ -34,7 +34,7 @@ There is no discover step and no `workflow_call` inputs for merge-ready label or
 | Workflow (default) | `contents: read` |
 | `verify` | `actions: write` (npm cache via `setup-node`; write includes read for this scope), `contents: read`, `pull-requests: read` (validate script reads the PR) |
 | `approve` | `contents: read`, `issues: write`, `pull-requests: write` (GH-AW mention-in-pr) |
-| `request-enable-automerge` | `contents: write` (create `repository_dispatch`; [GitHub requires write access to the repository](https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event)) |
+| `request-enable-automerge` | `actions: write` ([create a workflow dispatch event](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event)), `contents: read` |
 
 [`automerge.yml`](../../.github/workflows/automerge.yml) (dispatch target): workflow root `contents: read`; job `enable` uses `actions: write` (npm cache), `contents: read`, and `pull-requests: write` for checkout of control-plane scripts and `enablePullRequestAutoMerge`.
 

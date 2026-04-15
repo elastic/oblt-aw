@@ -1,18 +1,21 @@
 # Enables squash auto-merge via GraphQL after approval (see gh-aw-automerge.yml).
-# Triggered by repository_dispatch so this run is not reported as a check on the PR
+# Triggered by workflow_dispatch so this run is not reported as a check on the PR
 # (avoids "unstable status" races while the PR check suite is still settling).
 name: Automerge enable
 
 on:
-  repository_dispatch:
-    types:
-      - oblt-aw-automerge
+  workflow_dispatch:
+    inputs:
+      pull-request-number:
+        description: "Pull request number to enable squash auto-merge for"
+        required: true
+        type: number
 
 permissions:
   contents: read
 
 concurrency:
-  group: automerge-${{ github.event.client_payload.pull_request_number }}
+  group: automerge-${{ github.event.inputs['pull-request-number'] }}
   cancel-in-progress: false
 
 jobs:
@@ -24,12 +27,12 @@ jobs:
       contents: read
       pull-requests: write
     env:
-      PR_NUMBER: ${{ github.event.client_payload.pull_request_number }}
+      PR_NUMBER: ${{ github.event.inputs['pull-request-number'] }}
     steps:
-      - name: Validate client payload
+      - name: Validate workflow inputs
         run: |
           if [ -z "${PR_NUMBER}" ] || ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
-            echo "::error::Missing or invalid pull_request_number in client_payload"
+            echo "::error::Missing or invalid pull-request-number input"
             exit 1
           fi
 
