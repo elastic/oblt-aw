@@ -22,7 +22,7 @@ The Control Plane Dashboard is a single GitHub Issue in your repository that lis
 
 1. Open the **Issues** tab of your repository
 2. Search for `label:oblt-aw/dashboard` or `in:title "Control Plane Dashboard"`
-3. If the dashboard does not exist, it will be created when your repository is added to [active-repositories.json](../../active-repositories.json) and the sync workflow runs
+3. If the dashboard does not exist, it will be created when your repository is added to [active-repositories.json](../../config/active-repositories.json) and the sync workflow runs
 
 ### Enabling a Workflow
 

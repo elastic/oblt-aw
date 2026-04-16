@@ -20,6 +20,10 @@ jobs:
   dashboard-enabled-workflows:
     uses: ./.github/workflows/get-enabled-workflows.yml
 
+  load-allowed-pr-authors:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/load-allowed-pr-authors.yml
+
   agent-suggestions:
     needs: dashboard-enabled-workflows
     if: >-
@@ -38,14 +42,11 @@ jobs:
     secrets: inherit
 
   automerge:
-    needs: dashboard-enabled-workflows
+    needs: [dashboard-enabled-workflows, load-allowed-pr-authors]
     if: >-
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action) &&
-      contains(
-        fromJSON('["dependabot[bot]","renovate[bot]","Dependabot","Renovate","elastic-vault-github-plugin-prod[bot]"]'),
-        github.event.pull_request.user.login
-      ) &&
+      contains(fromJSON(needs['load-allowed-pr-authors'].outputs['allowed_pr_authors_json']), github.event.pull_request.user.login) &&
       contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready') &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'automerge'))
     uses: ./.github/workflows/gh-aw-automerge.yml
@@ -53,16 +54,15 @@ jobs:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   dependency-review:
-    needs: dashboard-enabled-workflows
+    needs: [dashboard-enabled-workflows, load-allowed-pr-authors]
     if: >-
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-      contains(
-        fromJSON('["dependabot[bot]","renovate[bot]","Dependabot","Renovate","elastic-vault-github-plugin-prod[bot]"]'),
-        github.event.pull_request.user.login
-      ) &&
+      contains(fromJSON(needs['load-allowed-pr-authors'].outputs['allowed_pr_authors_json']), github.event.pull_request.user.login) &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'dependency-review'))
     uses: ./.github/workflows/gh-aw-dependency-review.yml
+    with:
+      allowed-bot-users: ${{ needs['load-allowed-pr-authors'].outputs['allowed_pr_authors_csv'] }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

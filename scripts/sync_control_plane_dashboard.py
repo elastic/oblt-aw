@@ -18,7 +18,7 @@
 Sync Control Plane Dashboard issue for a single repository.
 
 1. Search for open issue with label oblt-aw/dashboard (by label only, any title)
-2. Build body from workflow-registry.json (header, maturity badges, checkboxes)
+2. Build body from config/workflow-registry.json (header, maturity badges, checkboxes)
 3. Create (POST) or update (PATCH) issue with title "[oblt-aw] Control Plane Dashboard"
 4. Pin issue via gh issue pin; if pin fails (e.g. 3 already pinned), log and continue
 
@@ -281,13 +281,13 @@ def main() -> int:
         logger.error("Invalid repo format: %s. Expected owner/repo", args.repo)
         return 1
     root = Path(__file__).resolve().parent.parent
-    registry_path = root / "workflow-registry.json"
+    registry_path = root / "config" / "workflow-registry.json"
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     if not token:
         logger.error("GH_TOKEN or GITHUB_TOKEN must be set")
         return 1
     if not registry_path.exists():
-        logger.error("workflow-registry.json not found at %s", registry_path)
+        logger.error("config/workflow-registry.json not found at %s", registry_path)
         return 1
     registry = json.loads(registry_path.read_text())
     workflows = registry.get("workflows", [])

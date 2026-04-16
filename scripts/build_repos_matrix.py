@@ -15,9 +15,9 @@
 # under the License.
 
 """
-Build a matrix of repositories from active-repositories.json for workflow use.
+Build a matrix of repositories from config/active-repositories.json for workflow use.
 
-Reads active-repositories.json and writes to GITHUB_OUTPUT:
+Reads config/active-repositories.json and writes to GITHUB_OUTPUT:
 - repos: JSON array of {"repository": "owner/repo"} for matrix strategy
 - has_repos: "true" or "false"
 - repos_count: number of repositories
@@ -37,7 +37,7 @@ from common import parse_repositories, write_outputs
 def main() -> int:
     """Entry point."""
     root = Path(__file__).resolve().parent.parent
-    active_path = root / "active-repositories.json"
+    active_path = root / "config" / "active-repositories.json"
     if not active_path.exists():
         write_outputs({"repos": "[]", "has_repos": "false", "repos_count": "0"})
         return 0

@@ -18,18 +18,23 @@
  * label, draft/fork/ref rules). Required status checks are enforced by GitHub when
  * auto-merge is enabled, not here.
  *
- * Keep ALLOWED_PR_AUTHORS in sync with the `dependency-review` and `automerge` jobs
- * in `.github/workflows/oblt-aw-ingress.yml`.
+ * Allowed authors are defined in `config/allowed_pr_authors.json` (also
+ * reflected in `.github/workflows/oblt-aw-ingress.yml` (via `load-allowed-pr-authors`) and `gh-aw-dependency-review.yml` (CSV input from the same loader),
+ * which cannot load that file in expressions).
  */
+const path = require('node:path');
+const fs = require('node:fs');
+
 const MERGE_READY_LABEL = 'oblt-aw/ai/merge-ready';
 
-const ALLOWED_PR_AUTHORS = new Set([
-  'dependabot[bot]',
-  'renovate[bot]',
-  'Dependabot',
-  'Renovate',
-  'elastic-vault-github-plugin-prod[bot]',
-]);
+const ALLOWED_PR_AUTHORS = new Set(
+  JSON.parse(
+    fs.readFileSync(
+      path.join(__dirname, '..', 'config', 'allowed_pr_authors.json'),
+      'utf8'
+    )
+  )
+);
 
 module.exports.run = async function run({ github, context, prNumber, core }) {
   const owner = context.repo.owner;

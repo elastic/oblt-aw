@@ -108,13 +108,13 @@ class TestMain:
     def test_no_active_repositories_writes_empty_outputs(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
-        """When active-repositories.json does not exist, main writes empty outputs."""
+        """When config/active-repositories.json does not exist, main writes empty outputs."""
         import importlib.util
 
         output_file = tmp_path / "github_output"
         output_file.touch()
         monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
-        # Load script from tmp_path so it looks for active-repositories.json in tmp_path
+        # Load script from tmp_path so it looks for config/active-repositories.json in tmp_path
         (tmp_path / "scripts").mkdir()
         script_src = pathlib.Path(brm.__file__).read_text()
         (tmp_path / "scripts" / "build_repos_matrix.py").write_text(script_src)
@@ -136,7 +136,7 @@ class TestMain:
     def test_with_active_repositories_builds_matrix(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
-        """When active-repositories.json exists, main builds matrix and writes outputs."""
+        """When config/active-repositories.json exists, main builds matrix and writes outputs."""
         import importlib.util
 
         output_file = tmp_path / "github_output"
@@ -146,7 +146,10 @@ class TestMain:
         script_src = pathlib.Path(brm.__file__).read_text()
         (tmp_path / "scripts" / "build_repos_matrix.py").write_text(script_src)
         config = {"repositories": ["elastic/foo", "elastic/bar"]}
-        (tmp_path / "active-repositories.json").write_text(json.dumps(config))
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "active-repositories.json").write_text(
+            json.dumps(config)
+        )
 
         spec = importlib.util.spec_from_file_location(
             "brm_test",

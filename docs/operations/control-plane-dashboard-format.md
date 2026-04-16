@@ -69,7 +69,7 @@ or, when enabled:
 - [x] <!-- oblt-aw:workflow-id --> workflow-name
 ```
 
-Where `workflow-id` is the canonical identifier from [workflow-registry.json](../../workflow-registry.json) (e.g., `dependency-review`, `agent-suggestions`).
+Where `workflow-id` is the canonical identifier from [workflow-registry.json](../../config/workflow-registry.json) (e.g., `dependency-review`, `agent-suggestions`).
 
 **Important:** Task list syntax does NOT render as checkboxes inside table cells (GitHub limitation). The checkboxes MUST be in a list section.
 
@@ -81,7 +81,7 @@ Where `workflow-id` is the canonical identifier from [workflow-registry.json](..
 | **Line position** | MUST be at the **start of a line** (parsers use `^` anchor to avoid false positives in prose/code blocks) |
 | **HTML comment** | MUST appear on the **same line** as the checkbox, immediately after it |
 | **Comment format** | `<!-- oblt-aw:workflow-id -->` — no spaces around the colon |
-| **workflow-id** | Lowercase, hyphen-separated; must match an entry in [workflow-registry.json](../../workflow-registry.json) |
+| **workflow-id** | Lowercase, hyphen-separated; must match an entry in [workflow-registry.json](../../config/workflow-registry.json) |
 
 ### Why This Format
 
@@ -91,7 +91,7 @@ Where `workflow-id` is the canonical identifier from [workflow-registry.json](..
 
 ### Initial Checkbox State for New Workflow IDs
 
-When dashboard sync introduces a workflow ID that does not already exist in the dashboard issue body, initial checkbox state comes from that entry's `default_enabled` value in [workflow-registry.json](../../workflow-registry.json):
+When dashboard sync introduces a workflow ID that does not already exist in the dashboard issue body, initial checkbox state comes from that entry's `default_enabled` value in [workflow-registry.json](../../config/workflow-registry.json):
 
 - `default_enabled: true` → rendered as `- [x]`
 - `default_enabled: false` → rendered as `- [ ]`
@@ -123,8 +123,8 @@ To extract enabled workflows from the issue body (when a dashboard issue exists)
 | Column | Description |
 |--------|-------------|
 | **Workflow** | Human-readable name or ID of the workflow |
-| **Maturity** | `stable`, `early-adoption`, or `experimental` (from [workflow-registry.json](../../workflow-registry.json)) |
-| **Description** | Short description from [workflow-registry.json](../../workflow-registry.json) |
+| **Maturity** | `stable`, `early-adoption`, or `experimental` (from [workflow-registry.json](../../config/workflow-registry.json)) |
+| **Description** | Short description from [workflow-registry.json](../../config/workflow-registry.json) |
 
 The **Enable/Disable** section below the table contains a list with task list checkboxes (`- [ ]` / `- [x]`) and `<!-- oblt-aw:workflow-id -->` on each line.
 

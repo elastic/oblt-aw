@@ -9,6 +9,7 @@ This reusable workflow delegates dependency-update PR analysis to a locked workf
 ## Prerequisites
 
 - Triggered via `workflow_call`.
+- Required inputs: `allowed-bot-users` (comma-separated logins; ingress passes `needs.load-allowed-pr-authors.outputs.allowed_pr_authors_csv` from [load-allowed-pr-authors.yml](../../.github/workflows/load-allowed-pr-authors.yml), derived from [config/allowed_pr_authors.json](../../config/allowed_pr_authors.json)).
 - Required secret: `COPILOT_GITHUB_TOKEN`.
 
 ## Usage
@@ -17,9 +18,9 @@ The job `run` calls:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-dependency-review.lock.yml)
 
-Configured inputs include:
+Forwarded inputs include:
 
-- `allowed-bot-users`: `dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-vault-github-plugin-prod[bot]`
+- `allowed-bot-users`: from caller (CSV aligned with the control-plane allow list)
 - `classification-labels`: `oblt-aw/ai/merge-ready`
 - `additional-instructions`: Noop-when-not-applicable rules, CVE-focused and internal-change impact analysis instructions.
 
@@ -45,6 +46,7 @@ Permissions:
 
 `workflow_call` contract:
 
+- Inputs: `allowed-bot-users` (`required: true`) — comma-separated GitHub logins for bot PR filtering
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
 
 ## References

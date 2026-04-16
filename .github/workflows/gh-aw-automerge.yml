@@ -7,16 +7,16 @@ on:
         required: true
 
 permissions:
-  actions: read
-  contents: write
-  discussions: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
   # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
   verify:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
     outputs:
       proceed: ${{ steps.validate.outputs.proceed }}
     steps:
@@ -60,6 +60,10 @@ jobs:
   approve:
     needs: verify
     if: needs.verify.outputs.proceed == 'true'
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       additional-instructions: |
@@ -82,44 +86,30 @@ jobs:
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
-  enable-automerge:
+  # Runs off the PR check graph via workflow_dispatch (see automerge.yml)
+  # so enabling auto-merge does not keep a long-running check on the PR head commit.
+  request-enable-automerge:
     needs:
       - verify
       - approve
     if: needs.verify.outputs.proceed == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
     steps:
-      - name: Checkout elastic/oblt-aw (automerge TypeScript)
-        uses: actions/checkout@v6
-        with:
-          repository: elastic/oblt-aw
-          ref: main
-          path: _oblt-aw
-          token: ${{ github.token }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: _oblt-aw/package-lock.json
-
-      - name: Install npm dependencies
-        working-directory: _oblt-aw
-        run: npm ci
-
-      - name: Enable auto-merge when approved
-        uses: actions/github-script@v9
+      - name: Run automerge enable workflow
         env:
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const path = require('node:path');
-            const { createRequire } = require('node:module');
-            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
-            const rq = createRequire(path.join(root, 'package.json'));
-            rq('tsx/cjs/api').register();
-            const { run } = rq('./scripts/enableAutomergeForApprovedPr.ts');
-            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            await run({ github, context, core, prNumber });
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid PR_NUMBER for workflow_dispatch"
+            exit 1
+          fi
+          gh workflow run automerge.yml \
+            --ref "${DEFAULT_BRANCH}" \
+            -f "pull-request-number=${PR_NUMBER}"
