@@ -62,7 +62,7 @@ jobs:
     if: needs.verify.outputs.proceed == 'true'
     permissions:
       actions: read
-      contents: read
+      contents: write
       discussions: write
       issues: write
       pull-requests: write
