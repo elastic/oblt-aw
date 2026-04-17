@@ -34,7 +34,7 @@ There is no discover step and no `workflow_call` inputs for merge-ready label or
 | Workflow (default) | `contents: read` |
 | `verify` | `actions: read`, `contents: read`, `pull-requests: read` (validate script reads the PR) |
 | `approve` | `contents: read`, `issues: write`, `pull-requests: write` (GH-AW mention-in-pr) |
-| `request-enable-automerge` | `actions: read`, `contents: read` (workflow dispatch is performed with `COPILOT_GITHUB_TOKEN`) |
+| `request-enable-automerge` | `actions: read`, `contents: read` |
 
 [`automerge.yml`](../../.github/workflows/automerge.yml) (dispatch target): workflow root `contents: read`; job `allowed-pr-authors` uses `load-allowed-pr-authors.yml`; job `enable` needs it and uses `contents: write` and `pull-requests: write` for `gh` and the automerge action (no checkout of the control plane in `enable`).
 
@@ -42,7 +42,7 @@ There is no discover step and no `workflow_call` inputs for merge-ready label or
 
 `workflow_call` contract:
 
-- **Secrets:** `COPILOT_GITHUB_TOKEN` (required) — forwarded from the ingress caller for the GH-AW approval job and for dispatching [`automerge.yml`](../../.github/workflows/automerge.yml).
+- **Secrets:** `COPILOT_GITHUB_TOKEN` (required) — forwarded from the ingress caller for the GH-AW approval job.
 
 ## References
 
