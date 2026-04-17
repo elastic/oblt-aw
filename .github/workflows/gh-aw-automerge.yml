@@ -61,7 +61,9 @@ jobs:
     needs: verify
     if: needs.verify.outputs.proceed == 'true'
     permissions:
+      actions: read
       contents: read
+      discussions: write
       issues: write
       pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
