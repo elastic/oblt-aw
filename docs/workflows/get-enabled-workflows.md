@@ -53,7 +53,7 @@ Top-level permissions:
 - `contents: read`
 - `issues: read`
 
-The job checks out **`elastic/oblt-aw`** at `main` with **sparse checkout** (`fetch-depth: 1`): only `scripts/get_enabled_workflows.py` and `scripts/common.py` (the latter is required for `from common import ...`). This matches the pattern used in [load-allowed-pr-authors.yml](load-allowed-pr-authors.yml) for minimal clones.
+The job checks out **`elastic/oblt-aw`** at `main` with **sparse checkout** (`fetch-depth: 1`): only `scripts/get_enabled_workflows.py` and `scripts/common.py` (the latter is required for `from common import ...`). This matches the pattern used in [.github/workflows/load-allowed-pr-authors.yml](../../.github/workflows/load-allowed-pr-authors.yml) for minimal clones.
 
 ## References
 
