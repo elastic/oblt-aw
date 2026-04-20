@@ -9,7 +9,6 @@ on:
         required: false
 
 permissions:
-  # gh-aw-automerge runs gh workflow run (requires actions: write); shared at workflow level.
   actions: write
   checks: read
   contents: write

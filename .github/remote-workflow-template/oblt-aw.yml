@@ -17,7 +17,6 @@ permissions:
 jobs:
   run-aw:
     permissions:
-      # Downstream gh-aw-automerge runs gh workflow run (requires actions: write).
       actions: write
       checks: read
       contents: write
