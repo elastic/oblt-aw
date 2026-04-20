@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   load:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     outputs:
       allowed_pr_authors_json: ${{ steps.pack.outputs.allowed_pr_authors_json }}
