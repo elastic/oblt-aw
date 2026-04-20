@@ -88,32 +88,30 @@ jobs:
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
-  # Runs off the PR check graph via workflow_dispatch (see automerge.yml)
-  # so enabling auto-merge does not keep a long-running check on the PR head commit.
-  request-enable-automerge:
+  # Same repository as the PR: GITHUB_TOKEN can merge when checks/reviews satisfy branch protection
+  # and pascalgn/automerge-action config. Author/label rules are enforced in `verify` (validateAutomergePr).
+  automerge:
     needs:
       - verify
       - approve
     if: needs.verify.outputs.proceed == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
     permissions:
-      actions: write
-      contents: read
+      contents: write
+      pull-requests: write
     steps:
-      - name: Run automerge enable workflow
+      - id: merge-pull-request
+        name: Merge pull request when ready (squash)
+        uses: pascalgn/automerge-action@7961b8b5eec56cc088c140b56d864285eabd3f67 # v0.16.4
         env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
-          if ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
-            echo "::error::Invalid PR_NUMBER for workflow_dispatch"
-            exit 1
-          fi
-          # automerge.yml lives only on the control plane (elastic/oblt-aw), not in client repositories.
-          gh workflow run automerge.yml \
-            --repo elastic/oblt-aw \
-            --ref main \
-            -f "pull-request-number=${PR_NUMBER}" \
-            -f "target-repository=${GITHUB_REPOSITORY}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+          MERGE_LABELS: "oblt-aw/ai/merge-ready"
+          UPDATE_LABELS: "oblt-aw/ai/merge-ready"
+          MERGE_METHOD: squash
+          MERGE_FORKS: "false"
+          MERGE_DELETE_BRANCH: "true"
+          MERGE_REQUIRED_APPROVALS: "1"
+          MERGE_RETRIES: "30"
+          MERGE_RETRY_SLEEP: "20000"

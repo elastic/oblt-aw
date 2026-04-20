@@ -4,7 +4,7 @@
 
 Entrypoint source: `.github/workflows/oblt-aw-ingress.yml`
 
-Routed workflow source: `.github/workflows/gh-aw-automerge.yml` (verify and approve on the PR). Merge runs in `.github/workflows/automerge.yml` via `workflow_dispatch` (triggered with `gh workflow run`) so it is not attached as a long-running check on the PR head commit.
+Routed workflow source: `.github/workflows/gh-aw-automerge.yml` (`verify`, `approve`, and `automerge` on the PR). Merge uses **pascalgn/automerge-action** in the same workflow run with `GITHUB_TOKEN` on the consumer repository.
 
 ## Usage
 
@@ -32,7 +32,7 @@ The client entrypoint must include `labeled` in `pull_request` types (see the di
 | Branch origin | Upstream branch (head repo equals base repo — not a fork) |
 | Refs | Head ref ≠ base ref |
 
-**[`automerge.yml`](../../.github/workflows/automerge.yml)** (after approval): re-checks author via `load-allowed-pr-authors` output (from `config/allowed_pr_authors.json`), then **[pascalgn/automerge-action](https://github.com/pascalgn/automerge-action)** enforces `MERGE_LABELS` (`oblt-aw/ai/merge-ready`), `MERGE_REQUIRED_APPROVALS`, fork/branch settings, and merges with **squash** when GitHub reports the PR as ready (required checks and reviews per branch protection and action config).
+**`automerge` job** (after approval): **[pascalgn/automerge-action](https://github.com/pascalgn/automerge-action)** enforces `MERGE_LABELS` (`oblt-aw/ai/merge-ready`), `MERGE_REQUIRED_APPROVALS`, fork/branch settings, and merges with **squash** when GitHub reports the PR as ready (required checks and reviews per branch protection and action config). Author and label gates are enforced in `verify` (`validateAutomergePr.ts`, same allow list as dependency-review).
 
 **Required checks:** Validated by GitHub branch protection and the automerge action’s merge readiness logic, not by `validateAutomergePr.ts`.
 
