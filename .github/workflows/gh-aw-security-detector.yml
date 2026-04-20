@@ -4,17 +4,14 @@ on:
   workflow_call:
 
 permissions:
-  actions: read
   contents: read
-  issues: read
-  pull-requests: read
 
 jobs:
   scan:
     permissions:
       actions: read
       contents: read
-      issues: write
+      id-token: write
       pull-requests: read
     runs-on: ubuntu-latest
     steps:
@@ -48,10 +45,17 @@ jobs:
           count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
+      - name: Create ephemeral GitHub token
+        id: create-token
+        if: ${{ steps.scan.outputs.count != '0' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: token-policy-461e92da2625
+
       - name: Create issues from findings
         if: ${{ steps.scan.outputs.count != '0' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           SECURITY_SCAN_DATE="$(date -u +%Y-%m-%d)"
