@@ -200,7 +200,7 @@ Top-level permissions (matches [.github/workflows/oblt-aw-ingress.yml](../../.gi
 - `checks: read`
 - `contents: write`
 - `discussions: write`
-- `id-token: write` (OIDC for nested reusable workflows that use ephemeral tokens, e.g. [gh-aw-security-detector.yml](gh-aw-security-detector.md))
+- `id-token: write` (OIDC for nested reusable workflows that use ephemeral tokens, e.g. [gh-aw-security-detector.md](gh-aw-security-detector.md))
 - `issues: write`
 - `pull-requests: write`
 
