@@ -194,12 +194,13 @@ These jobs exist only in [.github/workflows/oblt-aw-ingress.yml](../../.github/w
 
 ## Configuration
 
-Top-level permissions:
+Top-level permissions (matches [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml)):
 
-- `actions: read`
+- `actions: write`
 - `checks: read`
 - `contents: write`
 - `discussions: write`
+- `id-token: write` (OIDC for nested reusable workflows that use ephemeral tokens, e.g. [gh-aw-security-detector.yml](gh-aw-security-detector.md))
 - `issues: write`
 - `pull-requests: write`
 
