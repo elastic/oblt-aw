@@ -118,6 +118,7 @@ jobs:
 
   # pascalgn/automerge-action uses the REST merge API, which branch rules can reject when
   # "merge queue" is required. Enabling native "merge when ready" enqueues the PR instead.
+  # Do not pass --delete-branch here: gh rejects it when merge queue is enabled.
   enable-merge-when-ready:
     needs: automerge
     if: always() && needs.automerge.result == 'failure'
@@ -134,4 +135,4 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash --delete-branch
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash
