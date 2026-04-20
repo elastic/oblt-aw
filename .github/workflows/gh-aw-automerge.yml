@@ -105,14 +105,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
           if ! [[ "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
             echo "::error::Invalid PR_NUMBER for workflow_dispatch"
             exit 1
           fi
+          # automerge.yml lives only on the control plane (elastic/oblt-aw), not in client repositories.
           gh workflow run automerge.yml \
-            --repo "${GITHUB_REPOSITORY}" \
-            --ref "${DEFAULT_BRANCH}" \
-            -f "pull-request-number=${PR_NUMBER}"
+            --repo elastic/oblt-aw \
+            --ref main \
+            -f "pull-request-number=${PR_NUMBER}" \
+            -f "target-repository=${GITHUB_REPOSITORY}"
