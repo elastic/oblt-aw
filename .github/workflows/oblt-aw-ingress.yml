@@ -9,7 +9,7 @@ on:
         required: false
 
 permissions:
-  actions: read
+  actions: write
   checks: read
   contents: write
   discussions: write
