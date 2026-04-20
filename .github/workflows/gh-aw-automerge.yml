@@ -100,6 +100,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    outputs:
+      merge_result: ${{ steps.merge-pull-request.outputs.mergeResult }}
     steps:
       - id: merge-pull-request
         name: Merge pull request when ready (squash)
@@ -121,7 +123,7 @@ jobs:
   # Do not pass --delete-branch here: gh rejects it when merge queue is enabled.
   enable-merge-when-ready:
     needs: automerge
-    if: always() && needs.automerge.result == 'failure'
+    if: always() && needs.automerge.outputs.merge_result == 'merge_failed'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
