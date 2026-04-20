@@ -98,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      actions: read
+      actions: write
       contents: read
     steps:
       - name: Run automerge enable workflow
@@ -113,5 +113,6 @@ jobs:
             exit 1
           fi
           gh workflow run automerge.yml \
+            --repo "${GITHUB_REPOSITORY}" \
             --ref "${DEFAULT_BRANCH}" \
             -f "pull-request-number=${PR_NUMBER}"
