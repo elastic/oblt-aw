@@ -55,6 +55,7 @@ Additional rules in the ruleset may be added to the scripts over time.
 
 - **Workflow-level** `permissions`: **`contents: read`** only.
 - **Job `scan` `permissions`**: `actions: read`, `contents: read`, `pull-requests: read`, and **`id-token: write`** (for OIDC used by `create-token`). Issue creation does **not** use `GITHUB_TOKEN`; the **Create issues from findings** step sets `GH_TOKEN` to the ephemeral token from **Create ephemeral GitHub token** (`token-policy-461e92da2625`).
+- **Call chain**: When this workflow runs under [oblt-aw-ingress](oblt-aw-ingress.md), GitHub requires every caller up to the repository entrypoint to allow **`id-token: write`** where needed. The distributed client template grants it on the `run-aw` job; ingress declares **`id-token: write`** at workflow scope so the nested `scan` job is valid.
 
 ## API / Interface
 

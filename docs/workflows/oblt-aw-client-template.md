@@ -28,12 +28,13 @@ Top-level permissions:
 
 - `actions: read`
 
-Job-level permissions:
+Job-level permissions (`run-aw`; must stay at least as permissive as nested ingress and downstream reusable workflows):
 
-- `actions: read`
+- `actions: write`
 - `checks: read`
 - `contents: write`
 - `discussions: write`
+- `id-token: write` (required so [oblt-aw-ingress](oblt-aw-ingress.md) can call [gh-aw-security-detector](gh-aw-security-detector.md), which uses OIDC for `create-token`)
 - `issues: write`
 - `pull-requests: write`
 
