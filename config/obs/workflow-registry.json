@@ -1,4 +1,5 @@
 {
+  "section_title": "Observability",
   "workflows": [
     {
       "id": "agent-suggestions",
@@ -45,7 +46,7 @@
     {
       "id": "mention-in-issue",
       "name": "Mention in Issue",
-      "description": "AI assistant for issues — answers questions, debugs problems, and creates PRs on demand when triggered by a /ai comment.",
+      "description": "AI assistant for issues — answers questions, debugs problems, and creates PRs on demand when triggered with a /ai comment.",
       "maturity": "experimental",
       "default_enabled": false
     },

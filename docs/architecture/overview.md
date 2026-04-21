@@ -41,7 +41,7 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 
 ### Config Flow
 
-1. **Dashboard sync** (`sync-control-plane-dashboard`): Reads [workflow-registry.json](../../config/workflow-registry.json) and [active-repositories.json](../../config/active-repositories.json); creates or updates the dashboard issue in each target repository; pins the issue when possible
+1. **Dashboard sync** (`sync-control-plane-dashboard`): Reads per-org `config/<org-key>/workflow-registry.json` and `active-repositories.json`; creates or updates the **single** dashboard issue in each target repository with sections per org; pins the issue when possible
 2. **User edit:** Users check or uncheck workflow checkboxes in the dashboard issue (no config file; no PRs on checkbox edits)
 3. **Runtime check** (`get-enabled-workflows`): When the client runs the ingress, this reusable workflow runs first. It parses the dashboard (or `effective-raw` is empty when no issue exists) and emits normalized `enabled-workflows` as a compact JSON array string (`[]` or `["id", ...]`).
 4. **Ingress gating:** Routed jobs use `enabled-workflows` and `effective-raw` from `get-enabled-workflows`; empty string (no dashboard) → all workflows; empty array → none; non-empty array → only listed workflows
@@ -56,6 +56,7 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 
 - [docs/operations/control-plane-dashboard.md](../operations/control-plane-dashboard.md) — user instructions
 - [docs/operations/control-plane-dashboard-format.md](../operations/control-plane-dashboard-format.md) — dashboard issue format
+- [Multi-organization agentic workflows (design)](./multi-org-agentic-workflows.md) — parameterizing registries by `config/<org-key>/` (e.g. `config/obs/`), per-org active repositories, one shared dashboard with org-grouped workflows and org-inclusive checklist markers
 - [Issue #3732 comment (implementation plan)](https://github.com/elastic/observability-robots/issues/3732#issuecomment-4054356635) — canonical plan
 
 ### Issues created by agentic workflows

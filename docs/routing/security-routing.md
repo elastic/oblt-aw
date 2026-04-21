@@ -10,7 +10,7 @@ Routed workflows (ingress jobs `security-detector`, `security-triage`, `security
 - [.github/workflows/gh-aw-security-triage.yml](../../.github/workflows/gh-aw-security-triage.yml)
 - [.github/workflows/gh-aw-security-fixer.yml](../../.github/workflows/gh-aw-security-fixer.yml)
 
-All three ingress routes use the same Control Plane dashboard gate: jobs run only when [workflow-registry.json](../../config/workflow-registry.json) id `security` is enabled (see [docs/workflows/oblt-aw-ingress.md](../workflows/oblt-aw-ingress.md) — `get-enabled-workflows` / `enabled-workflows`).
+All three ingress routes use the same Control Plane dashboard gate: jobs run only when [workflow-registry.json](../../config/obs/workflow-registry.json) id `security` is enabled (see [docs/workflows/oblt-aw-ingress.md](../workflows/oblt-aw-ingress.md) — `get-enabled-workflows` / `enabled-workflows`).
 
 ## Usage
 

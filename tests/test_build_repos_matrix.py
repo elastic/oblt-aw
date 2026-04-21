@@ -1,8 +1,8 @@
 """
 Unit tests for scripts/build_repos_matrix.py
 
-Tests the pure-logic functions (parse_repositories, write_outputs) in isolation,
-without touching the file-system beyond tmp_path, and main() with mocked env.
+Tests ``common.parse_repositories``, ``common.write_outputs``, and
+``build_repos_matrix.main`` without touching the file-system beyond ``tmp_path``.
 """
 
 from __future__ import annotations
@@ -17,64 +17,65 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
 
 import build_repos_matrix as brm  # noqa: E402
+from common import parse_repositories  # noqa: E402
 
 
-# ── parse_repositories ────────────────────────────────────────────────────────
+# ── parse_repositories (common) ───────────────────────────────────────────────
 
 
 class TestParseRepositories:
     def test_list_of_strings(self) -> None:
         content = json.dumps(["elastic/foo", "elastic/bar"])
-        result = brm.parse_repositories(content)
+        result = parse_repositories(content)
         assert result == ["elastic/bar", "elastic/foo"]  # sorted
 
     def test_object_with_repositories_key(self) -> None:
         content = json.dumps({"repositories": ["elastic/zoo", "elastic/abc"]})
-        result = brm.parse_repositories(content)
+        result = parse_repositories(content)
         assert result == ["elastic/abc", "elastic/zoo"]
 
     def test_deduplication(self) -> None:
         content = json.dumps(["elastic/dup", "elastic/dup", "elastic/other"])
-        result = brm.parse_repositories(content)
+        result = parse_repositories(content)
         assert result == ["elastic/dup", "elastic/other"]
 
     def test_whitespace_trimmed(self) -> None:
         content = json.dumps(["  elastic/trimmed  "])
-        result = brm.parse_repositories(content)
+        result = parse_repositories(content)
         assert result == ["elastic/trimmed"]
 
     def test_empty_repositories_key(self) -> None:
         content = json.dumps({"repositories": []})
-        result = brm.parse_repositories(content)
+        result = parse_repositories(content)
         assert result == []
 
     def test_empty_list(self) -> None:
-        result = brm.parse_repositories(json.dumps([]))
+        result = parse_repositories(json.dumps([]))
         assert result == []
 
     def test_empty_string_returns_empty(self) -> None:
-        result = brm.parse_repositories("")
+        result = parse_repositories("")
         assert result == []
 
     def test_invalid_entry_raises(self) -> None:
         content = json.dumps(["not-a-valid-repo"])
         with pytest.raises(SystemExit, match="Invalid repository entry"):
-            brm.parse_repositories(content)
+            parse_repositories(content)
 
     def test_non_string_entry_raises(self) -> None:
         content = json.dumps([123])
         with pytest.raises(SystemExit, match="Invalid repository entry"):
-            brm.parse_repositories(content)
+            parse_repositories(content)
 
     def test_invalid_top_level_type_raises(self) -> None:
         content = json.dumps("a string, not a list or dict")
         with pytest.raises(SystemExit, match="active-repositories.json must be"):
-            brm.parse_repositories(content)
+            parse_repositories(content)
 
     def test_repositories_not_a_list_raises(self) -> None:
         content = json.dumps({"repositories": "elastic/foo"})
         with pytest.raises(SystemExit, match=r"`repositories` must be a list"):
-            brm.parse_repositories(content)
+            parse_repositories(content)
 
 
 # ── write_outputs ──────────────────────────────────────────────────────────────
@@ -108,13 +109,13 @@ class TestMain:
     def test_no_active_repositories_writes_empty_outputs(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
-        """When config/active-repositories.json does not exist, main writes empty outputs."""
+        """When no org ``config/<org-key>/`` trees exist, main writes empty outputs."""
         import importlib.util
 
         output_file = tmp_path / "github_output"
         output_file.touch()
         monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
-        # Load script from tmp_path so it looks for config/active-repositories.json in tmp_path
+        # Load script from tmp_path so it resolves repo root to tmp_path
         (tmp_path / "scripts").mkdir()
         script_src = pathlib.Path(brm.__file__).read_text()
         (tmp_path / "scripts" / "build_repos_matrix.py").write_text(script_src)
@@ -136,7 +137,7 @@ class TestMain:
     def test_with_active_repositories_builds_matrix(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
-        """When config/active-repositories.json exists, main builds matrix and writes outputs."""
+        """When an org tree has ``active-repositories.json``, main builds matrix and writes outputs."""
         import importlib.util
 
         output_file = tmp_path / "github_output"
@@ -147,7 +148,11 @@ class TestMain:
         (tmp_path / "scripts" / "build_repos_matrix.py").write_text(script_src)
         config = {"repositories": ["elastic/foo", "elastic/bar"]}
         (tmp_path / "config").mkdir()
-        (tmp_path / "config" / "active-repositories.json").write_text(
+        (tmp_path / "config" / "obs").mkdir()
+        (tmp_path / "config" / "obs" / "workflow-registry.json").write_text(
+            json.dumps({"workflows": []})
+        )
+        (tmp_path / "config" / "obs" / "active-repositories.json").write_text(
             json.dumps(config)
         )
 

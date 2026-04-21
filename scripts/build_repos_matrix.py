@@ -15,9 +15,11 @@
 # under the License.
 
 """
-Build a matrix of repositories from config/active-repositories.json for workflow use.
+Build a matrix of repositories from org ``active-repositories.json`` files for workflow use.
 
-Reads config/active-repositories.json and writes to GITHUB_OUTPUT:
+Unions ``config/<org-key>/active-repositories.json`` for each discovered org tree, then writes
+to GITHUB_OUTPUT:
+
 - repos: JSON array of {"repository": "owner/repo"} for matrix strategy
 - has_repos: "true" or "false"
 - repos_count: number of repositories
@@ -31,19 +33,14 @@ import json
 import sys
 from pathlib import Path
 
-from common import parse_repositories, write_outputs
+from common import merge_active_repositories_from_org_trees, write_outputs
 
 
 def main() -> int:
     """Entry point."""
     root = Path(__file__).resolve().parent.parent
-    active_path = root / "config" / "active-repositories.json"
-    if not active_path.exists():
-        write_outputs({"repos": "[]", "has_repos": "false", "repos_count": "0"})
-        return 0
-
-    content = active_path.read_text()
-    repos = parse_repositories(content)
+    config_dir = root / "config"
+    repos = merge_active_repositories_from_org_trees(config_dir)
     matrix = [{"repository": repo} for repo in repos]
 
     write_outputs(

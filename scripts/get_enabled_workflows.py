@@ -17,6 +17,8 @@
 """
 Read the oblt-aw/dashboard issue and write normalized enabled-workflows JSON to
 GITHUB_OUTPUT (for ingress gating).
+
+Emits compound workflow ids ``org:workflow-id`` (for example ``obs:agent-suggestions``).
 """
 
 from __future__ import annotations
@@ -27,10 +29,12 @@ import re
 import subprocess
 import sys
 
-from common import append_multiline_github_output
-
-
-_DASHBOARD_CHECKBOX = re.compile(r"(?m)^- \[x\] <!-- oblt-aw:([a-z0-9-]+)")
+from common import (
+    LEGACY_DEFAULT_ORG_KEY,
+    append_multiline_github_output,
+    compound_workflow_key,
+    enabled_compound_ids_from_dashboard_body,
+)
 
 
 def normalize_enabled_workflows_json(raw: str) -> str:
@@ -41,25 +45,42 @@ def normalize_enabled_workflows_json(raw: str) -> str:
     try:
         parsed = json.loads(stripped)
         if isinstance(parsed, list):
-            return json.dumps(parsed, separators=(",", ":"))
+            out: list[str] = []
+            for item in parsed:
+                if not isinstance(item, str):
+                    raise ValueError("not string array")
+                item = item.strip()
+                if not item:
+                    continue
+                if ":" in item:
+                    out.append(item)
+                else:
+                    out.append(compound_workflow_key(LEGACY_DEFAULT_ORG_KEY, item))
+            return json.dumps(out, separators=(",", ":"))
         raise ValueError("not an array")
     except (json.JSONDecodeError, ValueError):
-        ids = re.findall(r"[a-z0-9-]+", stripped)
+        tokens = re.split(r"[\s,;]+", stripped)
         seen: set[str] = set()
         unique: list[str] = []
-        for token in ids:
-            if token not in seen:
-                seen.add(token)
-                unique.append(token)
+        for token in tokens:
+            if not token:
+                continue
+            if ":" in token:
+                norm = token
+            else:
+                norm = compound_workflow_key(LEGACY_DEFAULT_ORG_KEY, token)
+            if norm not in seen:
+                seen.add(norm)
+                unique.append(norm)
         return json.dumps(unique, separators=(",", ":"))
 
 
 def parse_enabled_ids_from_body(body: str) -> str:
-    """Return JSON array string of enabled workflow ids from dashboard body."""
-    parsed = _DASHBOARD_CHECKBOX.findall(body)
-    if not parsed:
+    """Return JSON array string of enabled compound ids from dashboard body."""
+    ids = enabled_compound_ids_from_dashboard_body(body)
+    if not ids:
         return "[]"
-    return json.dumps(parsed, separators=(",", ":"))
+    return json.dumps(ids, separators=(",", ":"))
 
 
 def fetch_dashboard_body(github_repository: str) -> tuple[str | None, bool]:

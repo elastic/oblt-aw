@@ -41,5 +41,5 @@ Permissions:
 
 ## References
 
-- Ingress routing: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) — workflow id `duplicate-issue-detector` in [workflow-registry.json](../../config/workflow-registry.json)
+- Ingress routing: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) — workflow id `duplicate-issue-detector` in [workflow-registry.json](../../config/obs/workflow-registry.json)
 - Upstream lock: [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-duplicate-issue-detector.lock.yml`](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml)

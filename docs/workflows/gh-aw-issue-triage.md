@@ -42,6 +42,6 @@ Permissions:
 
 ## References
 
-- Ingress routing: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) — workflow id `issue-triage` in [workflow-registry.json](../../config/workflow-registry.json)
+- Ingress routing: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) — workflow id `issue-triage` in [workflow-registry.json](../../config/obs/workflow-registry.json)
 - Specialized triage (Resource Not Accessible by Integration): [docs/workflows/gh-aw-resource-not-accessible-by-integration-triage.md](gh-aw-resource-not-accessible-by-integration-triage.md)
 - Upstream lock: [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-issue-triage.lock.yml`](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)

@@ -25,25 +25,27 @@ Called by ingress:
 
 | Output | Type | Meaning |
 |--------|------|---------|
-| `enabled-workflows` | JSON array string | Normalized array (`[]` or `["id", ...]`) used by ingress `contains(fromJSON(...), '<id>')` checks |
-| `effective-raw` | string | Pre-normalization signal from dashboard read: `''` (no open dashboard issue), `[]`, or `["id", ...]` |
+| `enabled-workflows` | JSON array string | Normalized array (`[]` or `["org:workflow-id", ...]`) used by ingress `contains(fromJSON(...), 'org:workflow-id')` checks |
+| `effective-raw` | string | Pre-normalization signal from dashboard read: `''` (no open dashboard issue), `[]`, or `["org:workflow-id", ...]` |
 
 Semantics used by ingress:
 
 - `effective-raw == ''`: no open dashboard issue exists; ingress treats all registry workflows as enabled.
 - `effective-raw != ''` and `enabled-workflows == []`: dashboard exists but nothing is selected; gated workflows do not run.
-- `effective-raw != ''` and non-empty `enabled-workflows`: only listed registry IDs are enabled.
+- `effective-raw != ''` and non-empty `enabled-workflows`: only listed compound ids (`org:workflow-id`) are enabled.
 
 ## Dashboard Parsing and Normalization
 
-The workflow fetches the first open issue with label `oblt-aw/dashboard`, then parses checked task-list entries matching:
+The workflow fetches the first open issue with label `oblt-aw/dashboard`, then parses checked task-list entries matching the three-part marker at line start:
 
-`^- [x] <!-- oblt-aw:workflow-id -->`
+`^- [x] <!-- oblt-aw:<org-key>:<workflow-id> -->`
+
+Legacy two-part lines (`<!-- oblt-aw:<workflow-id> -->` without an org) are treated as **`obs:<workflow-id>`**.
 
 Normalization behavior:
 
 - Empty or missing dashboard content normalizes to `[]` for `enabled-workflows`.
-- Non-array payloads are normalized into unique lowercase-hyphen token arrays.
+- Non-array payloads are normalized into unique compound ids (bare tokens get an `obs:` prefix).
 - `effective-raw` is emitted separately to preserve the "no dashboard issue" signal.
 
 ## Configuration
