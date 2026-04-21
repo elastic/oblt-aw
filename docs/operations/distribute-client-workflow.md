@@ -4,11 +4,11 @@
 
 Source file: [.github/workflows/distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml)
 
-This workflow distributes or removes the client workflow template ([.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)) across repositories listed in [active-repositories.json](../../config/active-repositories.json).
+This workflow distributes or removes the client workflow template ([.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)) across repositories listed in each org’s `config/<org-key>/active-repositories.json` (for example [config/obs/active-repositories.json](../../config/obs/active-repositories.json)); targets are the deduplicated union of those lists.
 
 ## Prerequisites
 
-- [active-repositories.json](../../config/active-repositories.json) is maintained with current target repositories.
+- Per-org [active-repositories.json](../../config/obs/active-repositories.json) files under `config/<org-key>/` list current target repositories (union used for distribution).
 - [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml) is the **only** source template for client `oblt-aw.yml` content. **Do not edit** [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) in this repository (see [Client template doc](../workflows/oblt-aw-client-template.md)).
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
 
@@ -16,8 +16,8 @@ This workflow distributes or removes the client workflow template ([.github/remo
 
 Triggers:
 
-- `push` to `main` when either of these files changes:
-  - [active-repositories.json](../../config/active-repositories.json)
+- `push` to `main` when either of these paths change:
+  - `config/**/active-repositories.json` (per-org repo lists)
   - [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)
 - `workflow_dispatch` with optional `force` boolean input.
 
@@ -27,7 +27,7 @@ Execution stages:
 2. `create-prs`
 3. `summarize`
 
-## Distribution Configuration Contract ([active-repositories.json](../../config/active-repositories.json))
+## Distribution configuration contract (per-org `active-repositories.json`)
 
 [scripts/build_target_operations.py](../../scripts/build_target_operations.py) accepts either of these JSON shapes:
 
@@ -69,13 +69,13 @@ Inputs (environment variables):
 
 - `CHANGED_FILES_COUNT`: numeric count from the changed-files step.
 - `FORCE_DISTRIBUTION`: boolean-like string (`1`, `true`, `yes`, `on` are treated as true).
-- `BASE_REF`: prior commit SHA used to read `config/active-repositories.json` from git history for removal detection (falls back to legacy root `active-repositories.json` on older commits).
+- `BASE_REF`: prior commit SHA used to read per-org `config/<org-key>/active-repositories.json` paths from git history for removal detection.
 - `GITHUB_OUTPUT`: required by GitHub Actions output writing.
 
 Behavior:
 
 - If `CHANGED_FILES_COUNT == 0` and `FORCE_DISTRIBUTION` is false, returns no targets.
-- Always generates `install` operations for current repositories in [active-repositories.json](../../config/active-repositories.json).
+- Always generates `install` operations for repositories in the current union of per-org lists (see [scripts/build_target_operations.py](../../scripts/build_target_operations.py)).
 - Generates `remove` operations for repositories present at `BASE_REF` but absent from current config.
 
 Workflow outputs written by the script:

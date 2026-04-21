@@ -9,7 +9,7 @@ This workflow creates PRs across target repositories to install, update, or remo
 ## Prerequisites
 
 - Triggered by changes to:
-  - [active-repositories.json](../../config/active-repositories.json)
+  - `config/**/active-repositories.json` (per-org repo lists; example [config/obs/active-repositories.json](../../config/obs/active-repositories.json))
   - [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)
 - Or manually triggered with `workflow_dispatch`.
 

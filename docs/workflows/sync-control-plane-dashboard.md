@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml)
 
-This workflow creates or updates the **single** Control Plane Dashboard issue in each repository listed in the union of org [active-repositories.json](../../config/obs/active-repositories.json) files (including deprecated [active-repositories.json](../../config/active-repositories.json) at `config/` root). The dashboard lists workflows **per org** with maturity badges and opt-in checkboxes.
+This workflow creates or updates the **single** Control Plane Dashboard issue in each repository listed in the union of org `config/<org-key>/active-repositories.json` files (for example [config/obs/active-repositories.json](../../config/obs/active-repositories.json)). The dashboard lists workflows **per org** with maturity badges and opt-in checkboxes.
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ This workflow creates or updates the **single** Control Plane Dashboard issue in
 Triggers:
 
 - `push` to `main` when any of these paths change:
-  - `config/**/workflow-registry.json` and `config/**/active-repositories.json` (per-org trees and deprecated top-level copies)
+  - `config/**/workflow-registry.json` and `config/**/active-repositories.json` (per-org trees)
   - [.github/workflows/sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml)
 - `workflow_dispatch`
 

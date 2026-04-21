@@ -27,23 +27,11 @@ from common import (
 
 
 def read_previous_repositories(base_ref: str) -> list[str]:
-    """Load union of repository lists from ``base_ref`` (legacy paths + per-org files)."""
+    """Load union of repository lists from per-org files under ``config/`` at ``base_ref``."""
     if not base_ref or base_ref == "0000000000000000000000000000000000000000":
         return []
 
     merged: set[str] = set()
-    for path in ("config/active-repositories.json", "active-repositories.json"):
-        try:
-            result = subprocess.run(
-                ["git", "show", f"{base_ref}:{path}"],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            merged.update(parse_repositories(result.stdout))
-        except subprocess.CalledProcessError:
-            continue
-
     try:
         lst = subprocess.run(
             ["git", "ls-tree", "-r", "--name-only", base_ref, "config"],
