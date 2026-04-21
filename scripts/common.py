@@ -153,22 +153,13 @@ def enabled_compound_ids_from_dashboard_body(body: str) -> list[str]:
     return ordered
 
 
-def merge_active_repositories_from_org_trees(
-    config_dir: Path,
-    *,
-    include_legacy_root_files: bool = True,
-) -> list[str]:
+def merge_active_repositories_from_org_trees(config_dir: Path) -> list[str]:
     """
     Union of repositories listed in each org's ``active-repositories.json`` under
-    ``config_dir``, optionally including deprecated top-level
-    ``config/active-repositories.json`` when present.
+    ``config_dir`` (see :func:`discover_org_config_dirs`).
     """
     merged: set[str] = set()
     for org_dir in discover_org_config_dirs(config_dir):
         path = org_dir / "active-repositories.json"
         merged.update(parse_repositories(path.read_text(encoding="utf-8")))
-    if include_legacy_root_files:
-        legacy = config_dir / "active-repositories.json"
-        if legacy.is_file():
-            merged.update(parse_repositories(legacy.read_text(encoding="utf-8")))
     return sorted(merged)

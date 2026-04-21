@@ -47,7 +47,9 @@ class TestDiscoverOrgConfigDirs:
 
 
 class TestMergeActiveRepositories:
-    def test_unions_org_and_legacy_files(self, tmp_path: pathlib.Path) -> None:
+    def test_unions_org_files_only_ignores_root_active_repositories(
+        self, tmp_path: pathlib.Path
+    ) -> None:
         (tmp_path / "obs").mkdir()
         (tmp_path / "obs" / "workflow-registry.json").write_text(
             '{"workflows":[]}', encoding="utf-8"
@@ -58,10 +60,8 @@ class TestMergeActiveRepositories:
         (tmp_path / "active-repositories.json").write_text(
             json.dumps({"repositories": ["elastic/from-legacy"]}), encoding="utf-8"
         )
-        merged = common.merge_active_repositories_from_org_trees(
-            tmp_path, include_legacy_root_files=True
-        )
-        assert merged == ["elastic/from-legacy", "elastic/from-obs"]
+        merged = common.merge_active_repositories_from_org_trees(tmp_path)
+        assert merged == ["elastic/from-obs"]
 
 
 class TestEnabledCompoundIdsFromBody:

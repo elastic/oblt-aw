@@ -96,9 +96,7 @@ def main() -> int:
         return 0
 
     config_dir = pathlib.Path("config")
-    current_repositories = merge_active_repositories_from_org_trees(
-        config_dir, include_legacy_root_files=True
-    )
+    current_repositories = merge_active_repositories_from_org_trees(config_dir)
 
     base_ref = os.getenv("BASE_REF", "").strip()
     previous_repositories = read_previous_repositories(base_ref)

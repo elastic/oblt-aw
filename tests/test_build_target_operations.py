@@ -141,7 +141,11 @@ class TestMain:
 
         config = {"repositories": repos or ["elastic/foo", "elastic/bar"]}
         (tmp_path / "config").mkdir(exist_ok=True)
-        (tmp_path / "config" / "active-repositories.json").write_text(
+        (tmp_path / "config" / "obs").mkdir(exist_ok=True)
+        (tmp_path / "config" / "obs" / "workflow-registry.json").write_text(
+            json.dumps({"workflows": []})
+        )
+        (tmp_path / "config" / "obs" / "active-repositories.json").write_text(
             json.dumps(config)
         )
         return output_file
