@@ -33,11 +33,7 @@ import json
 import sys
 from pathlib import Path
 
-from common import (
-    merge_active_repositories_from_org_trees,
-    parse_repositories,  # noqa: F401 — re-export for tests
-    write_outputs,
-)
+from common import merge_active_repositories_from_org_trees, write_outputs
 
 
 def main() -> int:
