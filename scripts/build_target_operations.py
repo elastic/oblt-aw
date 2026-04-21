@@ -19,13 +19,19 @@ import pathlib
 import subprocess
 import sys
 
-from common import parse_repositories, write_outputs
+from common import (
+    merge_active_repositories_from_org_trees,
+    parse_repositories,
+    write_outputs,
+)
 
 
 def read_previous_repositories(base_ref: str) -> list[str]:
+    """Load union of repository lists from ``base_ref`` (legacy paths + per-org files)."""
     if not base_ref or base_ref == "0000000000000000000000000000000000000000":
         return []
 
+    merged: set[str] = set()
     for path in ("config/active-repositories.json", "active-repositories.json"):
         try:
             result = subprocess.run(
@@ -34,10 +40,39 @@ def read_previous_repositories(base_ref: str) -> list[str]:
                 capture_output=True,
                 text=True,
             )
-            return parse_repositories(result.stdout)
+            merged.update(parse_repositories(result.stdout))
         except subprocess.CalledProcessError:
             continue
-    return []
+
+    try:
+        lst = subprocess.run(
+            ["git", "ls-tree", "-r", "--name-only", base_ref, "config"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return sorted(merged)
+
+    for line in lst.stdout.splitlines():
+        parts = line.split("/")
+        if len(parts) < 3:
+            continue
+        if parts[-1] != "active-repositories.json":
+            continue
+        if parts[0] != "config":
+            continue
+        try:
+            result = subprocess.run(
+                ["git", "show", f"{base_ref}:{line}"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            merged.update(parse_repositories(result.stdout))
+        except subprocess.CalledProcessError:
+            continue
+    return sorted(merged)
 
 
 def parse_bool(value: str) -> bool:
@@ -60,11 +95,10 @@ def main() -> int:
         )
         return 0
 
-    config_path = pathlib.Path("config/active-repositories.json")
-    current_content = (
-        config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    config_dir = pathlib.Path("config")
+    current_repositories = merge_active_repositories_from_org_trees(
+        config_dir, include_legacy_root_files=True
     )
-    current_repositories = parse_repositories(current_content)
 
     base_ref = os.getenv("BASE_REF", "").strip()
     previous_repositories = read_previous_repositories(base_ref)

@@ -30,7 +30,7 @@ The job `dashboard-enabled-workflows` runs `get-enabled-workflows.yml` first. Do
 
 - `effective-raw` empty (no open dashboard issue) → every registry id is treated as enabled for jobs that check `enabled-workflows`.
 - `effective-raw` non-empty and the normalized `enabled-workflows` array is `[]` → no gated jobs run.
-- Non-empty `enabled-workflows` → only listed registry ids pass the `contains(..., '<id>')` checks. Bare workflow ids are not accepted.
+- Non-empty `enabled-workflows` → only listed **compound ids** `org:workflow-id` pass the `contains(..., 'org:workflow-id')` checks (for example `obs:agent-suggestions`). Bare workflow ids without an org prefix are not accepted.
 
 Jobs that do not list `needs: dashboard-enabled-workflows` are not gated this way (see [Internal ingress jobs](#internal-ingress-jobs-not-in-workflow-registryjson)).
 
@@ -38,13 +38,13 @@ Jobs that do not list `needs: dashboard-enabled-workflows` are not gated this wa
 
 On `pull_request` events only, ingress runs job `load-allowed-pr-authors` (`if: github.event_name == 'pull_request'`), which calls reusable workflow [.github/workflows/load-allowed-pr-authors.yml](../../.github/workflows/load-allowed-pr-authors.yml) in parallel with `dashboard-enabled-workflows`, before `automerge` and `dependency-review`. The reusable workflow **checks out** the public **`elastic/oblt-aw`** repository at `ref=main` (sparse: [config/allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/allowed_pr_authors.json) only; same branch consumers pin with `uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`), then reads the file with `jq -c` into workflow output `allowed_pr_authors_json`. Gating stays on the ingress job so schedule/issue runs do not clone the repo; other workflows can call `load-allowed-pr-authors.yml` without that `if` (for example `workflow_dispatch`). Consumer repositories do not need a copy of this file on disk for ingress routing.
 
-Canonical registry ids and metadata live in [workflow-registry.json](../../config/workflow-registry.json) under `config/`. Each subsection below pairs one registry entry with its ingress job(s).
+Canonical registry ids and metadata live per org under `config/<org-key>/workflow-registry.json` (for example [config/obs/workflow-registry.json](../../config/obs/workflow-registry.json)); deprecated duplicates remain at [workflow-registry.json](../../config/workflow-registry.json). Ingress `enabled-workflows` entries use **`obs:<registry-id>`** for Observability workflows below.
 
-## Routed workflows ([workflow-registry.json](../../config/workflow-registry.json))
+## Routed workflows ([config/obs/workflow-registry.json](../../config/obs/workflow-registry.json))
 
-The following subsections follow the order of entries in [workflow-registry.json](../../config/workflow-registry.json). Each subsection lists the registry fields and the ingress job(s) that honor that id in `enabled-workflows`. Where a dedicated routing document exists under [docs/routing/](../routing/), the subsection includes a **Routing** link to it (labels, triggers, and dispatch detail).
+The following subsections follow the order of entries in the Observability registry. Each subsection lists the registry fields and the ingress job(s) that honor that id in `enabled-workflows` as **`obs:<id>`**. Where a dedicated routing document exists under [docs/routing/](../routing/), the subsection includes a **Routing** link to it (labels, triggers, and dispatch detail).
 
-### Agent suggestions (registry id `agent-suggestions`)
+### Agent suggestions (registry id `agent-suggestions`, gate `obs:agent-suggestions`)
 
 **Routing:** [Agent suggestions routing](../routing/agent-suggestions-routing.md)
 

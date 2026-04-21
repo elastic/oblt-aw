@@ -1,0 +1,12 @@
+{
+  "section_title": "Documentation",
+  "workflows": [
+    {
+      "id": "example-workflow",
+      "name": "Example workflow",
+      "description": "Minimal second-org entry for tests and multi-section dashboard behavior.",
+      "maturity": "experimental",
+      "default_enabled": false
+    }
+  ]
+}

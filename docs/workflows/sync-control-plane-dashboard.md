@@ -4,12 +4,12 @@
 
 Source file: [.github/workflows/sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml)
 
-This workflow creates or updates the Control Plane Dashboard issue in each repository listed in [active-repositories.json](../../config/active-repositories.json). The dashboard lists all available agentic workflows with maturity badges and opt-in checkboxes.
+This workflow creates or updates the **single** Control Plane Dashboard issue in each repository listed in the union of org [active-repositories.json](../../config/obs/active-repositories.json) files (including deprecated [active-repositories.json](../../config/active-repositories.json) at `config/` root). The dashboard lists workflows **per org** with maturity badges and opt-in checkboxes.
 
 ## Prerequisites
 
-- [workflow-registry.json](../../config/workflow-registry.json) — workflow metadata (`id`, `name`, `description`, `maturity`, `default_enabled`)
-- [active-repositories.json](../../config/active-repositories.json) — target repositories
+- Per-org `config/<org-key>/workflow-registry.json` — workflow metadata (`id`, `name`, `description`, `maturity`, `default_enabled`, optional `section_title`)
+- Per-org `config/<org-key>/active-repositories.json` — target repositories for that org’s workflows
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/blob/v1/github/create-token/action.yml)
 
 ## Usage
@@ -17,8 +17,7 @@ This workflow creates or updates the Control Plane Dashboard issue in each repos
 Triggers:
 
 - `push` to `main` when any of these paths change:
-  - [workflow-registry.json](../../config/workflow-registry.json)
-  - [active-repositories.json](../../config/active-repositories.json)
+  - `config/**/workflow-registry.json` and `config/**/active-repositories.json` (per-org trees and deprecated top-level copies)
   - [.github/workflows/sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml)
 - `workflow_dispatch`
 
@@ -26,10 +25,10 @@ Triggers:
 
 Execution:
 
-1. **prepare-repos job:** Builds repos matrix from [active-repositories.json](../../config/active-repositories.json) via [scripts/build_repos_matrix.py](../../scripts/build_repos_matrix.py); outputs JSON for matrix strategy
+1. **prepare-repos job:** Builds repos matrix from the union of org active-repository lists via [scripts/build_repos_matrix.py](../../scripts/build_repos_matrix.py); outputs JSON for matrix strategy
 2. **sync-dashboard job:** Matrix job (one job per repo); each invokes `scripts/sync_control_plane_dashboard.py --repo <owner/repo>`:
    - Search for existing open issue with label `oblt-aw/dashboard`
-   - Create or update the issue with title `[oblt-aw] Control Plane Dashboard`, body from registry (header, maturity badges, checkboxes, descriptions)
+   - Create or update the issue with title `[oblt-aw] Control Plane Dashboard`, body merged from each applicable org registry (sections per org, three-part checkbox markers)
    - Pin the issue via `gh issue pin` (if limit of 3 pins reached, log and continue)
 
 `default_enabled` behavior:

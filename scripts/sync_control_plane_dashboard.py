@@ -18,17 +18,19 @@
 Sync Control Plane Dashboard issue for a single repository.
 
 1. Search for open issue with label oblt-aw/dashboard (by label only, any title)
-2. Build body from config/workflow-registry.json (header, maturity badges, checkboxes)
+2. Build body from every org under ``config/<org-key>/`` that lists this repo in
+   ``active-repositories.json`` (merged sections, three-part checkbox markers)
 3. Create (POST) or update (PATCH) issue with title "[oblt-aw] Control Plane Dashboard"
 4. Pin issue via gh issue pin; if pin fails (e.g. 3 already pinned), log and continue
 
 On every run: title and table format are updated to current spec; user's enabled
-state is preserved. Checkboxes use task list syntax (- [ ] / - [x]) in a list
-section so they render as interactive (clickable) in GitHub.
+state is preserved per compound ``org:workflow-id``. Legacy two-part markers map
+to the ``obs`` org.
 
 Invoked per-repo by the sync-control-plane-dashboard workflow matrix.
 
-Related issue: https://github.com/elastic/observability-robots/issues/3732
+Related issues: https://github.com/elastic/observability-robots/issues/3732,
+https://github.com/elastic/observability-robots/issues/4189
 """
 
 from __future__ import annotations
@@ -45,11 +47,16 @@ import tempfile
 from pathlib import Path
 from urllib.parse import quote
 
+from common import (
+    LEGACY_DEFAULT_ORG_KEY,
+    compound_workflow_key,
+    discover_org_config_dirs,
+    format_oblt_aw_marker,
+    parse_repositories,
+)
+
 DASHBOARD_LABEL = "oblt-aw/dashboard"
 DASHBOARD_TITLE = "[oblt-aw] Control Plane Dashboard"
-# Task list - [x] / - [ ] in list context = interactive checkboxes
-CHECKBOX_ENABLED = re.compile(r"^- \[x\] <!-- oblt-aw:([a-z0-9-]+) -->")
-CHECKBOX_DISABLED = re.compile(r"^- \[ \] <!-- oblt-aw:([a-z0-9-]+) -->")
 
 logger = logging.getLogger(__name__)
 
@@ -64,18 +71,27 @@ def setup_logging() -> None:
 
 
 def parse_checkbox_state(body: str | None) -> dict[str, bool]:
-    """Extract workflow-id -> enabled from issue body using task list (- [x] / - [ ])."""
+    """Extract ``org:workflow-id`` -> enabled from task list lines."""
     state: dict[str, bool] = {}
     if not body:
         return state
     for line in body.splitlines():
-        m = CHECKBOX_ENABLED.search(line)
-        if m:
-            state[m.group(1)] = True
+        m3 = re.match(r"^- \[x\] <!-- oblt-aw:([a-z0-9-]+):([a-z0-9-]+) -->", line)
+        if m3:
+            state[compound_workflow_key(m3.group(1), m3.group(2))] = True
             continue
-        m = CHECKBOX_DISABLED.search(line)
-        if m:
-            state[m.group(1)] = False
+        m3d = re.match(r"^- \[ \] <!-- oblt-aw:([a-z0-9-]+):([a-z0-9-]+) -->", line)
+        if m3d:
+            state[compound_workflow_key(m3d.group(1), m3d.group(2))] = False
+            continue
+        m2 = re.match(r"^- \[x\] <!-- oblt-aw:([a-z0-9-]+) -->", line)
+        if m2:
+            state[compound_workflow_key(LEGACY_DEFAULT_ORG_KEY, m2.group(1))] = True
+            continue
+        m2d = re.match(r"^- \[ \] <!-- oblt-aw:([a-z0-9-]+) -->", line)
+        if m2d:
+            state[compound_workflow_key(LEGACY_DEFAULT_ORG_KEY, m2d.group(1))] = False
+            continue
     return state
 
 
@@ -89,14 +105,45 @@ def maturity_badge(maturity: str) -> str:
     return badges.get(maturity, maturity)
 
 
+def default_section_heading(org_key: str) -> str:
+    """Fallback section title when ``workflow-registry.json`` omits ``section_title``."""
+    if org_key == "obs":
+        return "Observability"
+    return org_key.replace("-", " ").title()
+
+
+def load_org_registry_section(org_dir: Path) -> tuple[str, str, list[dict[str, Any]]]:
+    """Return (org_key, section_heading, workflows) from one org directory."""
+    org_key = org_dir.name
+    raw = json.loads((org_dir / "workflow-registry.json").read_text(encoding="utf-8"))
+    heading = (raw.get("section_title") or "").strip() or default_section_heading(
+        org_key
+    )
+    workflows = raw.get("workflows", [])
+    return org_key, heading, workflows
+
+
+def org_config_dirs_for_target_repo(config_dir: Path, target_repo: str) -> list[Path]:
+    """Org directories under ``config`` whose active repository list includes ``target_repo``."""
+    roots: list[Path] = []
+    for od in discover_org_config_dirs(config_dir):
+        repos = parse_repositories(
+            (od / "active-repositories.json").read_text(encoding="utf-8")
+        )
+        if target_repo in repos:
+            roots.append(od)
+    return sorted(roots, key=lambda p: p.name)
+
+
 def build_dashboard_body(
-    workflows: list[dict[str, Any]],
+    org_sections: list[tuple[str, str, list[dict[str, Any]]]],
     existing_body: str | None,
 ) -> str:
-    """Build dashboard issue body from workflow registry.
+    """Build one dashboard body with a Markdown section per org.
 
-    Preserves user's enabled/disabled state from existing_body; uses
-    default_enabled from registry for workflows not yet present in the body.
+    Each ``org_sections`` item is ``(org_key, section_heading, workflows)``.
+    Preserves enabled/disabled state from ``existing_body`` for compound ids and
+    legacy two-part ``obs`` markers.
     """
     parsed = parse_checkbox_state(existing_body)
     lines = [
@@ -105,37 +152,44 @@ def build_dashboard_body(
         "Use this dashboard to enable or disable agentic workflows for this repository. ",
         "Click the checkboxes below to toggle workflows on or off.",
         "",
-        "### Workflows",
-        "",
-        "| Workflow | Maturity | Description |",
-        "|----------|----------|-------------|",
     ]
-    for wf in workflows:
-        wf_id = wf["id"]
-        name = wf.get("name", wf_id)
-        maturity = wf.get("maturity", "experimental")
-        desc = wf.get("description", "")
-        badge = maturity_badge(maturity)
-        lines.append(f"| {name} | {badge} | {desc} |")
+    for org_key, section_heading, workflows in org_sections:
+        lines.extend(
+            [
+                f"### {section_heading} ({org_key})",
+                "",
+                "| Workflow | Maturity | Description |",
+                "|----------|----------|-------------|",
+            ]
+        )
+        for wf in workflows:
+            wf_id = wf["id"]
+            name = wf.get("name", wf_id)
+            maturity = wf.get("maturity", "experimental")
+            desc = wf.get("description", "")
+            badge = maturity_badge(maturity)
+            lines.append(f"| {name} | {badge} | {desc} |")
+        lines.extend(
+            [
+                "",
+                "#### Enable / Disable",
+                "",
+                "Click a checkbox to enable or disable a workflow:",
+                "",
+            ]
+        )
+        for wf in workflows:
+            wf_id = wf["id"]
+            name = wf.get("name", wf_id)
+            default = wf.get("default_enabled", True)
+            cmp_key = compound_workflow_key(org_key, wf_id)
+            enabled = parsed.get(cmp_key, default)
+            checkbox = "- [x]" if enabled else "- [ ]"
+            marker = format_oblt_aw_marker(org_key, wf_id)
+            lines.append(f"{checkbox} {marker} {name}")
+        lines.append("")
     lines.extend(
         [
-            "",
-            "### Enable / Disable",
-            "",
-            "Click a checkbox to enable or disable a workflow:",
-            "",
-        ]
-    )
-    for wf in workflows:
-        wf_id = wf["id"]
-        name = wf.get("name", wf_id)
-        default = wf.get("default_enabled", True)
-        enabled = parsed.get(wf_id, default)
-        checkbox = "- [x]" if enabled else "- [ ]"
-        lines.append(f"{checkbox} <!-- oblt-aw:{wf_id} --> {name}")
-    lines.extend(
-        [
-            "",
             "### Instructions",
             "",
             "- **Enable a workflow:** Check the checkbox next to the workflow.",
@@ -243,7 +297,7 @@ def pin_issue(owner: str, repo: str, issue_number: int, token: str) -> bool:
 def sync_repo(
     repo: str,
     token: str,
-    workflows: list[dict[str, Any]],
+    org_sections: list[tuple[str, str, list[dict[str, Any]]]],
 ) -> None:
     """Sync dashboard issue for one repository."""
     owner, _, repo_name = repo.partition("/")
@@ -251,7 +305,7 @@ def sync_repo(
         logger.error("Invalid repo format: %s", repo)
         return
     existing = find_dashboard_issue(owner, repo_name, token)
-    body = build_dashboard_body(workflows, existing["body"] if existing else None)
+    body = build_dashboard_body(org_sections, existing["body"] if existing else None)
     if existing:
         issue_number = existing["number"]
         update_issue(owner, repo_name, issue_number, token, body)
@@ -281,21 +335,28 @@ def main() -> int:
         logger.error("Invalid repo format: %s. Expected owner/repo", args.repo)
         return 1
     root = Path(__file__).resolve().parent.parent
-    registry_path = root / "config" / "workflow-registry.json"
+    config_dir = root / "config"
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     if not token:
         logger.error("GH_TOKEN or GITHUB_TOKEN must be set")
         return 1
-    if not registry_path.exists():
-        logger.error("config/workflow-registry.json not found at %s", registry_path)
+
+    org_dirs = org_config_dirs_for_target_repo(config_dir, args.repo)
+    if not org_dirs:
+        logger.error(
+            "Repository %s is not listed in any config/<org-key>/active-repositories.json",
+            args.repo,
+        )
         return 1
-    registry = json.loads(registry_path.read_text())
-    workflows = registry.get("workflows", [])
-    if not workflows:
-        logger.warning("No workflows in registry")
+
+    org_sections: list[tuple[str, str, list[dict[str, Any]]]] = []
+    for od in org_dirs:
+        org_sections.append(load_org_registry_section(od))
+    if not any(wfs for _, _, wfs in org_sections):
+        logger.warning("No workflows in org registries for %s", args.repo)
 
     try:
-        sync_repo(args.repo, token, workflows)
+        sync_repo(args.repo, token, org_sections)
     except Exception as e:
         logger.exception("Failed to sync %s: %s", args.repo, e)
         return 1
