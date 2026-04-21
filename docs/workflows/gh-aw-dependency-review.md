@@ -9,7 +9,7 @@ This reusable workflow delegates dependency-update PR analysis to a locked workf
 ## Prerequisites
 
 - Triggered via `workflow_call`.
-- Required inputs: `allowed-bot-users` (comma-separated logins; ingress passes `needs.load-allowed-pr-authors.outputs.allowed_pr_authors_csv` from [load-allowed-pr-authors.yml](../../.github/workflows/load-allowed-pr-authors.yml), derived from [config/allowed_pr_authors.json](../../config/allowed_pr_authors.json)).
+- Required inputs: `allowed-bot-users` (comma-separated logins; ingress passes `needs.load-allowed-pr-authors.outputs.allowed_pr_authors_csv` from [load-allowed-pr-authors.yml](../../.github/workflows/load-allowed-pr-authors.yml), derived from [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json)).
 - Required secret: `COPILOT_GITHUB_TOKEN`.
 
 ## Usage

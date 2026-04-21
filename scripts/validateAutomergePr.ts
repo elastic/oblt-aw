@@ -18,9 +18,10 @@
  * label, draft/fork/ref rules). Required status checks are enforced by GitHub when
  * auto-merge is enabled, not here.
  *
- * Allowed authors are defined in `config/allowed_pr_authors.json` (also
- * reflected in `.github/workflows/oblt-aw-ingress.yml` (via `load-allowed-pr-authors`) and `gh-aw-dependency-review.yml` (CSV input from the same loader),
- * which cannot load that file in expressions).
+ * Allowed authors are defined in `config/obs/allowed_pr_authors.json` (Observability
+ * control-plane; also reflected in `.github/workflows/oblt-aw-ingress.yml` via
+ * `load-allowed-pr-authors` and `gh-aw-dependency-review.yml` (CSV input from the same
+ * loader), which cannot load that file in expressions).
  */
 const path = require('node:path');
 const fs = require('node:fs');
@@ -30,7 +31,7 @@ const MERGE_READY_LABEL = 'oblt-aw/ai/merge-ready';
 const ALLOWED_PR_AUTHORS = new Set(
   JSON.parse(
     fs.readFileSync(
-      path.join(__dirname, '..', 'config', 'allowed_pr_authors.json'),
+      path.join(__dirname, '..', 'config', 'obs', 'allowed_pr_authors.json'),
       'utf8'
     )
   )

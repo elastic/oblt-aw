@@ -21,7 +21,7 @@ Jobs:
 - `approve`: invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` when `verify` sets `proceed` (Copilot must not call check-run APIs for gating; branch protection handles required checks at merge time).
 - `automerge`: runs **pascalgn/automerge-action** with `GITHUB_TOKEN` on the **same** repository as the PR (`PULL_REQUEST` is the PR number). Squash-merge when `MERGE_LABELS`, `MERGE_REQUIRED_APPROVALS`, and GitHub mergeability align with branch protection.
 
-There is no discover step and no `workflow_call` inputs for merge-ready label or allowed actor on `gh-aw-automerge` (see `validateAutomergePr.ts` and ingress; allow list is centralized in `load-allowed-pr-authors` / `config/allowed_pr_authors.json`).
+There is no discover step and no `workflow_call` inputs for merge-ready label or allowed actor on `gh-aw-automerge` (see `validateAutomergePr.ts` and ingress; allow list is centralized in `load-allowed-pr-authors` / `config/obs/allowed_pr_authors.json`).
 
 ## Configuration
 
