@@ -115,7 +115,7 @@ jobs:
           MERGE_FORKS: "false"
           MERGE_DELETE_BRANCH: "true"
           MERGE_REQUIRED_APPROVALS: "1"
-          MERGE_RETRIES: "30"
+          MERGE_RETRIES: "10"
           MERGE_RETRY_SLEEP: "20000"
 
   # pascalgn/automerge-action uses the REST merge API, which branch rules can reject when
