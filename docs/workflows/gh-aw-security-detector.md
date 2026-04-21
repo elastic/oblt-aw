@@ -13,7 +13,7 @@ Unlike the resource-not-accessible detector (workflow logs via `gh-aw-log-search
 ## Prerequisites
 
 - Triggered via `workflow_call` (for example from a caller that uses `schedule`).
-- No repository secrets are required: issue creation uses the job’s default `GITHUB_TOKEN` (`issues: write`), and **`elastic/oblt-aw`** is checked out without a PAT (public repository).
+- No repository secrets are required: issue creation uses an **ephemeral GitHub token** from [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) with token policy **`token-policy-461e92da2625`** (so downstream workflows can run on issue events; `GITHUB_TOKEN` does not trigger them). **`elastic/oblt-aw`** is checked out without a PAT (public repository).
 
 ## Usage
 
@@ -24,7 +24,7 @@ Single job **scan**:
 3. Installs **shellcheck**, **jq**, **curl**, **pip**, **actionlint** (pinned via upstream download script), **zizmor**, and **semgrep** (registry rules downloaded on first use).
 4. Optionally uses **actions/setup-node** when `target/**/package-lock.json` exists so **npm audit** can run for SEC-033.
 5. Runs `_oblt-aw/scripts/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message` (actionlint + zizmor + semgrep + shellcheck + custom heuristics + npm audit, with per-file/line deduplication).
-6. Runs `_oblt-aw/scripts/create-security-issues.sh` to open issues in **the caller** (`github.repository`) with label `oblt-aw/detector/security`. Findings are **grouped by rule (SEC id)**: **one issue per rule** per run, not one issue per line. The issue **title** is `[oblt-aw][security] <SEC-xxx> — findings (<YYYY-MM-DD>)`, where the date is the analysis date (UTC calendar day; the workflow sets `SECURITY_SCAN_DATE` when creating issues). The **body** lists every occurrence for that rule (file, line, severity, message).
+6. When there are findings, creates an ephemeral token (policy **`token-policy-461e92da2625`**) then runs `_oblt-aw/scripts/create-security-issues.sh` to open issues in **the caller** (`github.repository`) with label `oblt-aw/detector/security`. Findings are **grouped by rule (SEC id)**: **one issue per rule** per run, not one issue per line. The issue **title** is `[oblt-aw][security] <SEC-xxx> — findings (<YYYY-MM-DD>)`, where the date is the analysis date (UTC calendar day; the workflow sets `SECURITY_SCAN_DATE` when creating issues). The **body** lists every occurrence for that rule (file, line, severity, message).
 
 Detector scripts are always taken from the public repository **`elastic/oblt-aw`** at ref **`main`** (no checkout token). Scheduled callers do not need a `workflow_call` input for the host ref.
 
@@ -53,8 +53,9 @@ Additional rules in the ruleset may be added to the scripts over time.
 
 ## Configuration
 
-- **Workflow-level** `permissions`: read-only — `actions: read`, `contents: read`, `issues: read`, `pull-requests: read`.
-- **Job `scan` `permissions`**: adds `issues: write` for `GITHUB_TOKEN` (least privilege on the job that can open issues). The **Create issues from findings** step sets `GH_TOKEN` to **`github.token`** so `gh issue create` uses the same token (avoids enterprise policy blocks on long-lived fine-grained PATs).
+- **Workflow-level** `permissions`: **`contents: read`** only.
+- **Job `scan` `permissions`**: `actions: read`, `contents: read`, `pull-requests: read`, and **`id-token: write`** (for OIDC used by `create-token`). Issue creation does **not** use `GITHUB_TOKEN`; the **Create issues from findings** step sets `GH_TOKEN` to the ephemeral token from **Create ephemeral GitHub token** (`token-policy-461e92da2625`).
+- **Call chain**: When this workflow runs under [oblt-aw-ingress](oblt-aw-ingress.md), GitHub requires every caller up to the repository entrypoint to allow **`id-token: write`** where needed. The distributed client template grants it on the `run-aw` job; ingress declares **`id-token: write`** at workflow scope so the nested `scan` job is valid.
 
 ## API / Interface
 

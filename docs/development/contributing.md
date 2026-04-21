@@ -84,7 +84,7 @@ The `update-license-files` hook uses `always_run: true` in [.pre-commit-config.y
 ### Individual tools
 
 - **YAML lint**: `yamllint .` (uses `.yamllint.yml`)
-- **Shell lint**: `shellcheck scripts/**/*.sh tests/**/*.sh`
+- **Shell lint**: `find scripts tests -type f -name '*.sh' -print0 | xargs -0 shellcheck`
 - **GitHub Actions lint**: `actionlint`
 - **Python lint**: `ruff check scripts/`
 - **Python format**: `ruff format --check scripts/`
