@@ -48,6 +48,8 @@ Permissions:
 `workflow_call` contract:
 
 - No inputs.
+- Required secret:
+  - `COPILOT_GITHUB_TOKEN` — must be provided by the caller so the fixer workflow can authenticate correctly.
 
 ## References
 
