@@ -128,6 +128,20 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 |-------------|-------------------|----------|----------------|
 | `issue-triage` | `gh-aw-issue-triage.yml` | `issues` `opened` | Yes — `issue-triage` |
 
+### Issue fixer (registry id `issue-fixer`)
+
+**Routing:** [Issue fixer routing](../routing/issue-fixer-routing.md)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `issue-fixer` |
+| `name` | Issue Fixer |
+| `description` | Executes generic issue fixes for issues labeled ready to fix, excluding specialized security and resource-not-accessible flows. |
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `issue-fixer` | `gh-aw-issue-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and without `oblt-aw/triage/security-*` or `oblt-aw/triage/res-not-accessible-by-integration` | Yes — `issue-fixer` |
+
 ### Mention in Issue (registry id `mention-in-issue`)
 
 | Registry field | Value |
@@ -231,5 +245,6 @@ jobs:
 - [Autodoc routing](../routing/autodoc-routing.md)
 - [Automerge routing](../routing/automerge-routing.md)
 - [Dependency review routing](../routing/dependency-review-routing.md)
+- [Issue fixer routing](../routing/issue-fixer-routing.md)
 - [Security routing](../routing/security-routing.md)
 - [Resource not accessible by integration routing](../routing/resource-not-accessible-by-integration-routing.md)

@@ -44,6 +44,13 @@
       "default_enabled": false
     },
     {
+      "id": "issue-fixer",
+      "name": "Issue Fixer",
+      "description": "Executes generic issue fixes for issues labeled ready to fix, excluding specialized security and resource-not-accessible flows.",
+      "maturity": "experimental",
+      "default_enabled": false
+    },
+    {
       "id": "mention-in-issue",
       "name": "Mention in Issue",
       "description": "AI assistant for issues — answers questions, debugs problems, and creates PRs on demand when triggered with a /ai comment.",

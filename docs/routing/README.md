@@ -12,6 +12,7 @@ Per-workflow routing (labels, triggers, and dispatch detail):
 - Autodoc routing: [docs/routing/autodoc-routing.md](autodoc-routing.md)
 - Automerge routing: [docs/routing/automerge-routing.md](automerge-routing.md)
 - Dependency review routing: [docs/routing/dependency-review-routing.md](dependency-review-routing.md)
+- Issue fixer routing: [docs/routing/issue-fixer-routing.md](issue-fixer-routing.md)
 - Resource-not-accessible-by-integration routing: [docs/routing/resource-not-accessible-by-integration-routing.md](resource-not-accessible-by-integration-routing.md)
 - Security routing: [docs/routing/security-routing.md](security-routing.md)
 
