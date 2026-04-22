@@ -40,7 +40,7 @@ Configured instructions require:
 Permissions:
 
 - top-level: `actions: read`
-- job `run`: `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`
+- job `run`: `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`
 - job `request-reviewers`: `pull-requests: write`
 
 ## API / Interface

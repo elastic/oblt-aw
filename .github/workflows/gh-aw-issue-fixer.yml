@@ -8,7 +8,6 @@ permissions:
 jobs:
   run:
     permissions:
-      actions: read
       contents: write
       discussions: write
       issues: write
