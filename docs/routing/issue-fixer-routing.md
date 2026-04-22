@@ -15,6 +15,7 @@ Routing rules from ingress:
 - `issue_comment` + `created` +
   - `github.event.issue.pull_request == null` (comment is on an issue, not a PR)
   - `startsWith(github.event.comment.body, '/ai implement')`
+  - `github.event.comment.author_association` is one of `OWNER`, `MEMBER`, or `COLLABORATOR`
   - issue does **not** include any `oblt-aw/triage/security-*` label
   - issue does **not** include `oblt-aw/triage/res-not-accessible-by-integration`
   -> generic fixer
