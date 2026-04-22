@@ -46,7 +46,7 @@
     {
       "id": "issue-fixer",
       "name": "Issue Fixer",
-      "description": "Executes generic issue fixes for issues labeled ready to fix, excluding specialized security and resource-not-accessible flows.",
+      "description": "Executes generic issue fixes requested with /ai implement comments, excluding specialized security and resource-not-accessible flows.",
       "maturity": "experimental",
       "default_enabled": false
     },

@@ -4,31 +4,35 @@ on:
 
 permissions:
   actions: read
-  contents: write
-  discussions: write
-  issues: write
-  pull-requests: write
 
 jobs:
   run:
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
-      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
+      github.event.issue.pull_request == null &&
+      startsWith(github.event.comment.body, '/ai implement') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
       additional-instructions: |
-        Your task is to fix issues labeled for generic remediation.
+        Your task is to fix issues requested through `/ai implement` comments.
 
         **Execution Preconditions:**
-        - Proceed only when the issue has label `oblt-aw/ai/fix-ready`.
+        - Proceed only when the triggering comment starts with `/ai implement` (for example, `/ai implement` or `/ai implement this`).
         - Do not proceed if the issue includes either of these specialized triage labels:
           - `oblt-aw/triage/security-*`
           - `oblt-aw/triage/res-not-accessible-by-integration`
         - The issue must already contain a triage-generated resolution plan.
 
         **Implementation Workflow (sequential and methodical):**
-        1. Read the resolution plan from the issue and extract ordered tasks.
+        1. Read the resolution plan from the issue and extract ordered tasks. Treat this plan as the source of truth.
         2. Execute the plan strictly step by step, without skipping steps.
         3. For each step, document what changed and why in commit messages and PR description.
         4. Run validation/tests described in the plan and confirm the issue is resolved.

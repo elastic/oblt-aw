@@ -136,11 +136,11 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 |----------------|--------|
 | `id` | `issue-fixer` |
 | `name` | Issue Fixer |
-| `description` | Executes generic issue fixes for issues labeled ready to fix, excluding specialized security and resource-not-accessible flows. |
+| `description` | Executes generic issue fixes requested with `/ai implement` comments, excluding specialized security and resource-not-accessible flows. |
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `issue-fixer` | `gh-aw-issue-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and without `oblt-aw/triage/security-*` or `oblt-aw/triage/res-not-accessible-by-integration` | Yes — `issue-fixer` |
+| `issue-fixer` | `gh-aw-issue-fixer.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting `/ai implement`, and without `oblt-aw/triage/security-*` or `oblt-aw/triage/res-not-accessible-by-integration` | Yes — `issue-fixer` |
 
 ### Mention in Issue (registry id `mention-in-issue`)
 
@@ -152,7 +152,7 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `mention-in-issue` | `gh-aw-mention-in-issue.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting with `/ai` | Yes — `mention-in-issue` |
+| `mention-in-issue` | `gh-aw-mention-in-issue.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting with `/ai` and not starting with `/ai implement` | Yes — `mention-in-issue` |
 
 ### Security (registry id `security`)
 
