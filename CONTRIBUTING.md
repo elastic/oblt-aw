@@ -12,7 +12,7 @@ Thank you for contributing to oblt-aw. Please follow the guidelines below.
 
 See [docs/development/contributing.md](docs/development/contributing.md) for:
 
-- Prerequisites (Python 3.13, Node.js 20+, pre-commit)
+- Prerequisites (Python 3.14, Node.js 24, pre-commit)
 - One-time setup
 - Running individual checks
 - Pre-commit hook reference

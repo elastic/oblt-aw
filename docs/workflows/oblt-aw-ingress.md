@@ -56,7 +56,7 @@ The following subsections follow the order of entries in the Observability regis
 
 | Ingress job | Reusable workflow | Triggers (from [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml)) | Dashboard gate |
 |-------------|-------------------|--------------------------------------------------------|----------------|
-| `agent-suggestions` | `gh-aw-agent-suggestions.yml` | `schedule` | Yes — `enabled-workflows` must contain `agent-suggestions` when `effective-raw` is non-empty |
+| `agent-suggestions` | `gh-aw-agent-suggestions.yml` | `schedule` | Yes — `enabled-workflows` must contain `obs:agent-suggestions` when `effective-raw` is non-empty |
 
 ### Automated documentation (registry id `autodoc`)
 
@@ -70,7 +70,7 @@ The following subsections follow the order of entries in the Observability regis
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `autodoc` | `gh-aw-autodoc.yml` | `schedule` | Yes — `autodoc` |
+| `autodoc` | `gh-aw-autodoc.yml` | `schedule` | Yes — `obs:autodoc` |
 
 ### Automerge (registry id `automerge`)
 
@@ -84,7 +84,7 @@ The following subsections follow the order of entries in the Observability regis
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `automerge` | `gh-aw-automerge.yml` | `pull_request` `opened` / `synchronize` / `reopened` / `labeled` where PR author is in `load-allowed-pr-authors` output **and** the PR has label `oblt-aw/ai/merge-ready` | Yes — `automerge` |
+| `automerge` | `gh-aw-automerge.yml` | `pull_request` `opened` / `synchronize` / `reopened` / `labeled` where PR author is in `load-allowed-pr-authors` output **and** the PR has label `oblt-aw/ai/merge-ready` | Yes — `obs:automerge` |
 
 Forwards `COPILOT_GITHUB_TOKEN` to `gh-aw-automerge.yml` for the Copilot-based approval step.
 
@@ -100,7 +100,7 @@ Forwards `COPILOT_GITHUB_TOKEN` to `gh-aw-automerge.yml` for the Copilot-based a
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `dependency-review` | `gh-aw-dependency-review.yml` | `pull_request` `opened` / `synchronize` / `reopened`; PR author must appear in `load-allowed-pr-authors` output (from [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json)) | Yes — `dependency-review` |
+| `dependency-review` | `gh-aw-dependency-review.yml` | `pull_request` `opened` / `synchronize` / `reopened`; PR author must appear in `load-allowed-pr-authors` output (from [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json)) | Yes — `obs:dependency-review` |
 
 This job is separate from registry id `security`: it is PR-time dependency and license review for bot PRs, not the static repo-wide security scan. See [docs/workflows/gh-aw-dependency-review.md](gh-aw-dependency-review.md) and [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) (complementary workflows SEC-033–SEC-035).
 
@@ -150,13 +150,13 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 | `name` | Security |
 | `description` | Runs static security checks on workflows, shell scripts, and dependency manifests per the security scanning ruleset; opens issues for findings. |
 
-There is one registry id for the whole security pipeline. The Control Plane Dashboard uses that id for the Security checkbox; `enabled-workflows` lists `security` when consumers restrict runs.
+There is one registry id for the whole security pipeline. The Control Plane Dashboard uses that id for the Security checkbox; `enabled-workflows` lists compound id `obs:security` when consumers restrict runs.
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `security-detector` | `gh-aw-security-detector.yml` | `schedule`, `workflow_dispatch` | Yes — `security` |
-| `security-triage` | `gh-aw-security-triage.yml` | `issues` `opened` with label `oblt-aw/detector/security`, or `issues` `labeled` with that label | Yes — `security` |
-| `security-fixer` | `gh-aw-security-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and a `oblt-aw/triage/security-*` label | Yes — `security` |
+| `security-detector` | `gh-aw-security-detector.yml` | `schedule`, `workflow_dispatch` | Yes — `obs:security` |
+| `security-triage` | `gh-aw-security-triage.yml` | `issues` `opened` with label `oblt-aw/detector/security`, or `issues` `labeled` with that label | Yes — `obs:security` |
+| `security-fixer` | `gh-aw-security-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and a `oblt-aw/triage/security-*` label | Yes — `obs:security` |
 
 Further reading:
 
@@ -179,9 +179,9 @@ One registry id covers detector, triage, and fixer.
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `resource-not-accessible-by-integration-detector` | `gh-aw-resource-not-accessible-by-integration-detector.yml` | `schedule` | Yes — `resource-not-accessible-by-integration` |
-| `resource-not-accessible-by-integration-triage` | `gh-aw-resource-not-accessible-by-integration-triage.yml` | `issues` `opened` with `oblt-aw/detector/res-not-accessible-by-integration`, or `issues` `labeled` with that label | Yes — `resource-not-accessible-by-integration` |
-| `resource-not-accessible-by-integration-fixer` | `gh-aw-resource-not-accessible-by-integration-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and `oblt-aw/triage/res-not-accessible-by-integration` | Yes — `resource-not-accessible-by-integration` |
+| `resource-not-accessible-by-integration-detector` | `gh-aw-resource-not-accessible-by-integration-detector.yml` | `schedule` | Yes — `obs:resource-not-accessible-by-integration` |
+| `resource-not-accessible-by-integration-triage` | `gh-aw-resource-not-accessible-by-integration-triage.yml` | `issues` `opened` with `oblt-aw/detector/res-not-accessible-by-integration`, or `issues` `labeled` with that label | Yes — `obs:resource-not-accessible-by-integration` |
+| `resource-not-accessible-by-integration-fixer` | `gh-aw-resource-not-accessible-by-integration-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and `oblt-aw/triage/res-not-accessible-by-integration` | Yes — `obs:resource-not-accessible-by-integration` |
 
 ## Internal ingress jobs (not in [workflow-registry.json](../../config/obs/workflow-registry.json))
 
