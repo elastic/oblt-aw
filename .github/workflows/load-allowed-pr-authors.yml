@@ -9,16 +9,16 @@ on:
     outputs:
       allowed_pr_authors_json:
         description: Compact JSON array string of allowed GitHub logins for ingress if conditions
-        value: ${{ jobs.load.outputs.allowed_pr_authors_json }}
+        value: ${{ jobs.load-allowed-pr-authors.outputs.allowed_pr_authors_json }}
       allowed_pr_authors_csv:
         description: Same logins comma-separated (for allowed-bot-users-style inputs)
-        value: ${{ jobs.load.outputs.allowed_pr_authors_csv }}
+        value: ${{ jobs.load-allowed-pr-authors.outputs.allowed_pr_authors_csv }}
 
 permissions:
   contents: read
 
 jobs:
-  load:
+  load-allowed-pr-authors:
     runs-on: ubuntu-slim
     timeout-minutes: 5
     outputs:
@@ -46,3 +46,12 @@ jobs:
           CSV=$(jq -r 'join(",")' "${FILE}")
           echo "allowed_pr_authors_json=$JSON" >> "${GITHUB_OUTPUT}"
           echo "allowed_pr_authors_csv=$CSV" >> "${GITHUB_OUTPUT}"
+
+      - name: Print loaded allow list
+        env:
+          ALLOWED_PR_AUTHORS_JSON: ${{ steps.pack.outputs.allowed_pr_authors_json }}
+          ALLOWED_PR_AUTHORS_CSV: ${{ steps.pack.outputs.allowed_pr_authors_csv }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "allowed_pr_authors_json:" "${ALLOWED_PR_AUTHORS_JSON}"
+          printf '%s\n' "allowed_pr_authors_csv:" "${ALLOWED_PR_AUTHORS_CSV}"
