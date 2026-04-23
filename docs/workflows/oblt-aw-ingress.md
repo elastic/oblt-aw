@@ -133,7 +133,7 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `mention-in-issue` | `gh-aw-mention-in-issue.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting with `/ai` | Yes — `obs:mention-in-issue` |
+| `mention-in-issue` | `gh-aw-mention-in-issue.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting with `/ai`, where `github.event.comment.author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR` | Yes — `obs:mention-in-issue` |
 
 ### Security (registry id `security`)
 
