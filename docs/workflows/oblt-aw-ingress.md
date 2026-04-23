@@ -15,14 +15,9 @@ This is the reusable orchestration entrypoint for `oblt-aw`. It routes to specia
 
 ### Supported triggers
 
-The workflow file declares support for:
+The workflow file declares only `workflow_call`.
 
-- `schedule`
-- `workflow_dispatch` (for example manual runs used by `duplicate-issue-detector` and `security-detector`)
-- `workflow_call`
-- `issues` with `opened` and `labeled`
-- `issue_comment` with `created`
-- `pull_request` with `opened`, `synchronize`, `reopened`, `labeled` (consumer template includes `labeled` for automerge)
+Event triggers such as `schedule`, `workflow_dispatch`, `issues`, `issue_comment`, and `pull_request` are declared in caller workflows/templates (for example [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)). In ingress, routing conditions evaluate `github.event_name` and `github.event.action` from the caller event payload.
 
 ### Dashboard gating
 
@@ -114,7 +109,7 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `duplicate-issue-detector` | `gh-aw-duplicate-issue-detector.yml` | `issues` `opened`, or `workflow_dispatch` | Yes — `duplicate-issue-detector` |
+| `duplicate-issue-detector` | `gh-aw-duplicate-issue-detector.yml` | `issues` `opened`, or `workflow_dispatch` | Yes — `obs:duplicate-issue-detector` |
 
 ### Issue triage (registry id `issue-triage`)
 
@@ -126,7 +121,7 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `issue-triage` | `gh-aw-issue-triage.yml` | `issues` `opened` | Yes — `issue-triage` |
+| `issue-triage` | `gh-aw-issue-triage.yml` | `issues` `opened` | Yes — `obs:issue-triage` |
 
 ### Mention in Issue (registry id `mention-in-issue`)
 
@@ -138,7 +133,7 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `mention-in-issue` | `gh-aw-mention-in-issue.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting with `/ai` | Yes — `mention-in-issue` |
+| `mention-in-issue` | `gh-aw-mention-in-issue.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting with `/ai`, where `github.event.comment.author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR` | Yes — `obs:mention-in-issue` |
 
 ### Security (registry id `security`)
 
