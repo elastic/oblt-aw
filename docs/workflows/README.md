@@ -17,6 +17,7 @@ This section provides documentation for each workflow source in [.github/workflo
 - Dependency review workflow: [docs/workflows/gh-aw-dependency-review.md](gh-aw-dependency-review.md)
 - Duplicate Issue Detector workflow: [docs/workflows/gh-aw-duplicate-issue-detector.md](gh-aw-duplicate-issue-detector.md)
 - Issue Triage workflow (issue opened): [docs/workflows/gh-aw-issue-triage.md](gh-aw-issue-triage.md)
+- Mention in Issue workflow: [docs/workflows/gh-aw-mention-in-issue.md](gh-aw-mention-in-issue.md)
 - Resource Not Accessible by Integration detector workflow: [docs/workflows/gh-aw-resource-not-accessible-by-integration-detector.md](gh-aw-resource-not-accessible-by-integration-detector.md)
 - Resource Not Accessible by Integration triage workflow: [docs/workflows/gh-aw-resource-not-accessible-by-integration-triage.md](gh-aw-resource-not-accessible-by-integration-triage.md)
 - Resource Not Accessible by Integration fixer workflow: [docs/workflows/gh-aw-resource-not-accessible-by-integration-fixer.md](gh-aw-resource-not-accessible-by-integration-fixer.md)
