@@ -5,23 +5,38 @@ on:
       COPILOT_GITHUB_TOKEN:
         required: true
 
+# Ephemeral installation token for GH-AW label/issue API so follow-on workflows are not suppressed
+# (GITHUB_TOKEN mutations do not trigger other workflows). Omit token-policy so Vault uses the
+# auto role token-policy-<12-char sha256(workflow ref base)> for this workflow file; register it in catalog-info.
 permissions:
   actions: read
   contents: read
-  discussions: read
-  issues: read
-  pull-requests: read
 
 jobs:
-  run:
+  mint-gh-aw-github-token:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      token: ${{ steps.create-token.outputs.token }}
+    steps:
+      - name: Create ephemeral GitHub token
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+
+  security-issue-triage:
+    needs: mint-gh-aw-github-token
     permissions:
       actions: read
       contents: read
       discussions: write
       issues: write
       pull-requests: write
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    # Ref tracks elastic/ai-github-actions PR (classification-labels + GH_AW_GITHUB_TOKEN on workflow_call); switch to @main after merge.
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@copilot/add-classification-labels-input
     with:
+      classification-labels: "oblt-aw/triage/security-injection,oblt-aw/triage/security-secrets,oblt-aw/triage/security-supply-chain,oblt-aw/triage/security-least-privilege,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
       additional-instructions: |
         Your task is to triage newly opened security-related issues in this repository. Security issues include vulnerabilities in GitHub Actions workflows and shell scripts: injection (expression, command, YAML), secret management (token exposure via CLI args, secrets in command strings), supply chain (action pinning, checksums), and least privilege (excessive permissions).
 
@@ -96,4 +111,6 @@ jobs:
         ### Additional Resources
         - [GitHub Actions Security Hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
         - [Workflow Permission Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
-    secrets: inherit
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      GH_AW_GITHUB_TOKEN: ${{ needs.mint-gh-aw-github-token.outputs.token }}
