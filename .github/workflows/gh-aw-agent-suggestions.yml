@@ -12,7 +12,7 @@ permissions:
   pull-requests: read
 
 jobs:
-  run:
+  agent-suggestions:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main
     with:
       title-prefix: "[oblt-aw][agent-suggestions]"
