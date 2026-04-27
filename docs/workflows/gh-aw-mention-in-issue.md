@@ -20,7 +20,7 @@ Ingress routes here when:
 - `startsWith(github.event.comment.body, '/ai')`, and
 - Dashboard gating allows `mention-in-issue` (or no dashboard issue is present, so all workflows are enabled).
 
-The job `run` calls:
+The job `mention-in-issue` calls:
 
 - `elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-issue.lock.yml@main`
 
