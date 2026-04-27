@@ -10,12 +10,15 @@ This reusable workflow triages newly opened security-related issues and prepares
 
 - Triggered via `workflow_call`.
 - Required secret: `COPILOT_GITHUB_TOKEN`.
+- **Job `mint-gh-aw-github-token`:** `contents: read`, `id-token: write` (OIDC for ephemeral `create-token` with no explicit `token-policy`; catalog-info auto role for this workflow file).
 
 ## Usage
 
-The job `run` calls:
+The job `mint-gh-aw-github-token` mints an installation token via [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token). The job `security-issue-triage` calls:
 
-- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
+- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@copilot/add-classification-labels-input](https://github.com/elastic/ai-github-actions/blob/copilot/add-classification-labels-input/.github/workflows/gh-aw-issue-triage.lock.yml) (switch to `@main` after upstream merge)
+
+The nested workflow receives **`GH_AW_GITHUB_TOKEN`** (mint output) for GitHub API mutations and **`classification-labels`** matching the security triage allowlist below.
 
 Configured instructions define:
 
@@ -26,10 +29,11 @@ Configured instructions define:
 
 ## Configuration
 
-Permissions follow a read-only workflow default with writes confined to the `run` job (same pattern as `gh-aw-security-detector.yml`):
+Permissions:
 
-- **Workflow:** `actions`, `contents`, `discussions`, `issues`, and `pull-requests` are `read` only.
-- **Job `run`:** `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` (minimum needed for issue triage and the nested lock workflow).
+- **Workflow default:** `actions: read`, `contents: read`
+- **Job `mint-gh-aw-github-token`:** `contents: read`, `id-token: write`
+- **Job `security-issue-triage`:** `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write`
 
 ## API / Interface
 

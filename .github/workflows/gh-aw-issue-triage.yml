@@ -14,7 +14,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  run:
+  issue-triage:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
