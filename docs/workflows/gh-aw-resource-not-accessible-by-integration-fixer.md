@@ -15,7 +15,7 @@ This reusable workflow executes issue-based fixes for issues labeled as ready to
 
 ## Usage
 
-The job `run` calls:
+The job `res-not-accessible-integration-fixer` calls:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer.lock.yml)
 
