@@ -22,7 +22,7 @@ Ingress routes here when:
 - comment is on an issue (not a PR), and
 - `startsWith(github.event.comment.body, '/ai implement')`, and
 - issue labels do not match the specialized security or resource-not-accessible fixer routes, and
-- dashboard gating allows `issue-fixer` (or no dashboard issue is present, so all workflows are enabled).
+- dashboard gating allows `obs:issue-fixer` (or no dashboard issue is present, so all workflows are enabled).
 
 The job `run` calls:
 
@@ -48,11 +48,10 @@ Permissions:
 `workflow_call` contract:
 
 - No inputs.
-- Required secret:
-  - `COPILOT_GITHUB_TOKEN` — must be provided by the caller so the fixer workflow can authenticate correctly.
+- No declared secrets.
 
 ## References
 
-- Ingress routing: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) — workflow id `issue-fixer` in [workflow-registry.json](../../config/obs/workflow-registry.json)
+- Ingress routing: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) — workflow id `issue-fixer` (dashboard gate `obs:issue-fixer`) in [workflow-registry.json](../../config/obs/workflow-registry.json)
 - Routing rules: [docs/routing/issue-fixer-routing.md](../routing/issue-fixer-routing.md)
 - Upstream lock: [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-issue-fixer.lock.yml`](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer.lock.yml)
