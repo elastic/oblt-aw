@@ -13,7 +13,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  run:
+  security-issue-fixer:
     if: >-
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')
@@ -59,8 +59,8 @@ jobs:
     secrets: inherit
 
   request-reviewers:
-    needs: run
-    if: needs.run.outputs.created_pr_number != ''
+    needs: security-issue-fixer
+    if: needs.security-issue-fixer.outputs.created_pr_number != ''
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -68,5 +68,5 @@ jobs:
       - name: Request review from elastic/observablt-ci
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ needs.run.outputs.created_pr_number }}
+          PR_NUMBER: ${{ needs.security-issue-fixer.outputs.created_pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "elastic/observablt-ci" --repo "$GITHUB_REPOSITORY"

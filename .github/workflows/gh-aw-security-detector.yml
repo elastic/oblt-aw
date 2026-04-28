@@ -49,8 +49,6 @@ jobs:
         id: create-token
         if: ${{ steps.scan.outputs.count != '0' }}
         uses: elastic/oblt-actions/github/create-token@v1
-        with:
-          token-policy: token-policy-461e92da2625
 
       - name: Create issues from findings
         if: ${{ steps.scan.outputs.count != '0' }}

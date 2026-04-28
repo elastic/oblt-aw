@@ -18,7 +18,7 @@ Ingress routes here when:
 - `github.event_name == 'issues'` and `github.event.action == 'opened'`, or `github.event_name == 'workflow_dispatch'`, and
 - Dashboard gating allows `duplicate-issue-detector` (or no dashboard issue is present, so all workflows are enabled).
 
-The job `run` calls:
+The job `duplicate-issue-detector` calls:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml)
 

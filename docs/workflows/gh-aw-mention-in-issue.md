@@ -18,12 +18,13 @@ Ingress routes here when:
 - `github.event_name == 'issue_comment'` and `github.event.action == 'created'`, and
 - `github.event.issue.pull_request == null` (the comment is on an issue, not a PR), and
 - `startsWith(github.event.comment.body, '/ai')`, and
+- comment does not start with `/ai implement` (reserved for the generic issue-fixer route), and
 - `github.event.comment.author_association` is one of `OWNER`, `MEMBER`, or `COLLABORATOR`, and
 - Dashboard gating allows `mention-in-issue` (or no dashboard issue is present, so all workflows are enabled).
 
 This allow-list check is enforced in ingress routing (`.github/workflows/oblt-aw-ingress.yml`) before `gh-aw-mention-in-issue.yml` is called.
 
-The job `run` calls:
+The job `mention-in-issue` calls:
 
 - `elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-issue.lock.yml@main`
 

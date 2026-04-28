@@ -14,7 +14,7 @@ This reusable workflow delegates dependency-update PR analysis to a locked workf
 
 ## Usage
 
-The job `run` calls:
+The job `dependency-review` calls:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-dependency-review.lock.yml)
 
@@ -37,10 +37,9 @@ Labeling semantics (in additional-instructions):
 
 Permissions:
 
-- `actions: read`
-- `contents: read`
-- `issues: write`
-- `pull-requests: write`
+- **Workflow:** `actions: read`, `contents: read`.
+- **Job `mint-gh-aw-github-token`:** `contents: read`, `id-token: write` (OIDC for ephemeral `create-token`).
+- **Job `dependency-review`:** `actions: read`, `contents: read`, `issues: write`, `pull-requests: write`.
 
 ## API / Interface
 

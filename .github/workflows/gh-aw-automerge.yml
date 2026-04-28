@@ -132,8 +132,6 @@ jobs:
       - name: Create ephemeral GitHub token
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
-        with:
-          token-policy: token-policy-5a5dcea1ee13
 
       - name: Enable merge when ready (merge queue fallback)
         env:

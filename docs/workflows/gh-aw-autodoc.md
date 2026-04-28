@@ -25,6 +25,12 @@ Workflow-specific requirements passed to the PR stage:
 - PR body must include analyzed files, issues found, and changes made
 - only documentation files may be changed
 
+Additional guidance encoded in `additional-instructions` for both audit and fix jobs:
+
+- Treat leading `-` (and similar) in **table cells** as potentially intentional (for example icon or status placeholders); avoid “cleaning” them without evidence of a real defect.
+- Do not hand-edit **auto-generated** documentation in the fix PR (docs-only); the audit should steer fixes toward generators, templates, or other sources of truth, and the PR body should record any follow-up that is outside this workflow’s scope.
+- Preserve or lightly refresh **legacy inline comments** that still document useful context or history; avoid deleting them only for brevity.
+
 ## Configuration
 
 Permissions:

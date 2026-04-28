@@ -123,6 +123,20 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 |-------------|-------------------|----------|----------------|
 | `issue-triage` | `gh-aw-issue-triage.yml` | `issues` `opened` | Yes — `obs:issue-triage` |
 
+### Issue fixer (registry id `issue-fixer`)
+
+**Routing:** [Issue fixer routing](../routing/issue-fixer-routing.md)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `issue-fixer` |
+| `name` | Issue Fixer |
+| `description` | Executes generic issue fixes requested with `/ai implement` comments, excluding specialized security and resource-not-accessible flows. |
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `issue-fixer` | `gh-aw-issue-fixer.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting `/ai implement`, and without `oblt-aw/triage/security-*` or `oblt-aw/triage/res-not-accessible-by-integration` | Yes — `obs:issue-fixer` |
+
 ### Mention in Issue (registry id `mention-in-issue`)
 
 | Registry field | Value |
@@ -133,7 +147,7 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `mention-in-issue` | `gh-aw-mention-in-issue.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting with `/ai`, where `github.event.comment.author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR` | Yes — `obs:mention-in-issue` |
+| `mention-in-issue` | `gh-aw-mention-in-issue.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting with `/ai` and not starting with `/ai implement`, where `github.event.comment.author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR` | Yes — `obs:mention-in-issue` |
 
 ### Security (registry id `security`)
 
@@ -226,5 +240,6 @@ jobs:
 - [Autodoc routing](../routing/autodoc-routing.md)
 - [Automerge routing](../routing/automerge-routing.md)
 - [Dependency review routing](../routing/dependency-review-routing.md)
+- [Issue fixer routing](../routing/issue-fixer-routing.md)
 - [Security routing](../routing/security-routing.md)
 - [Resource not accessible by integration routing](../routing/resource-not-accessible-by-integration-routing.md)
