@@ -65,7 +65,7 @@ config/
 
 scripts/
   common.py                                 # Helpers: list org keys, load merged registry, paths
-  build_repos_matrix.py                     # --org optional; union of repos for single-dashboard sync
+  build_repos_matrix.py                     # No CLI args; union of repos for single-dashboard sync
   sync_control_plane_dashboard.py           # Merge org registries → one issue body; same label/title
   get_enabled_workflows.py                  # Parse three-part markers; single issue by oblt-aw/dashboard
 
@@ -107,7 +107,10 @@ scripts/
 
 - **Per-org** `active-repositories.json` still defines which repos each org cares about.
 - **Dashboard sync** for a given `owner/repo`: include workflows from **every org folder** that lists this repo (merge). If a repo is only in `obs`, only `obs` sections appear; if in multiple orgs, **all relevant sections** appear in the **same** issue.
-- **`build_repos_matrix.py`:** May output repos needing sync from the **union** of per-org lists (deduplicated), with metadata for which orgs apply if needed.
+- **`build_repos_matrix.py`:** Runs with **no CLI arguments**. It discovers org trees under `config/<org-key>/`, unions and deduplicates `active-repositories.json` entries, and writes workflow outputs:
+  - `repos`: JSON array for matrix strategy in the shape `[{"repository":"owner/repo"}, ...]`
+  - `has_repos`: `"true"` when at least one repository exists, otherwise `"false"`
+  - `repos_count`: number of repositories in `repos`
 - **Distribution** ([distribute-client-workflow](../operations/distribute-client-workflow.md)):** Unchanged idea — per-org lists drive install/remove; implementation walks **`config/*/active-repositories.json`** for org directories (or enumerates org keys explicitly — see §3).
 
 ---
