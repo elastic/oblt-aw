@@ -18,7 +18,7 @@ Ingress routes here when:
 - `github.event_name == 'issues'` and `github.event.action == 'opened'`, and
 - Dashboard gating allows `issue-triage` (or no dashboard issue is present, so all workflows are enabled).
 
-The job `run` calls:
+The job `issue-triage` calls:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
 

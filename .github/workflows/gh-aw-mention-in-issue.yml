@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  run:
+  mention-in-issue:
     permissions:
       actions: read
       contents: write

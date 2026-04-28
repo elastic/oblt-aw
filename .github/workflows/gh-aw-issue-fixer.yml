@@ -1,45 +1,49 @@
-name: Resource not accessible by Integration Issue Fixer
+name: Issue Fixer
 on:
   workflow_call:
 
 permissions:
   actions: read
-  contents: write
-  discussions: write
-  issues: write
-  pull-requests: write
 
 jobs:
-  res-not-accessible-integration-fixer:
+  run:
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
-      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
+      github.event.issue.pull_request == null &&
+      startsWith(github.event.comment.body, '/ai implement') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
       additional-instructions: |
-        Your task is to fix issues labeled for the "Resource not accessible by integration" problem.
+        Your task is to fix issues requested through `/ai implement` comments.
 
         **Execution Preconditions:**
-        - Proceed only when the issue has both labels:
-          - `oblt-aw/ai/fix-ready`
+        - Proceed only when the triggering comment starts with `/ai implement` (for example, `/ai implement` or `/ai implement this`).
+        - Do not proceed if the issue includes either of these specialized triage labels:
+          - `oblt-aw/triage/security-*`
           - `oblt-aw/triage/res-not-accessible-by-integration`
         - The issue must already contain a triage-generated resolution plan.
 
         **Implementation Workflow (sequential and methodical):**
-        1. Read the resolution plan from the issue and extract ordered tasks.
+        1. Read the resolution plan from the issue and extract ordered tasks. Treat this plan as the source of truth.
         2. Execute the plan strictly step by step, without skipping steps.
         3. For each step, document what changed and why in commit messages and PR description.
-        4. Apply least-privilege permissions changes only (no over-broad permission grants).
-        5. Run validation/tests described in the plan and confirm the specific error/warning is resolved.
+        4. Run validation/tests described in the plan and confirm the issue is resolved.
 
         **Pull Request Requirements:**
         - Create a pull request in `Draft` state first.
-        - PR title should reference fixing "Resource not accessible by integration".
+        - PR title should reference fixing the issue.
         - PR body must include:
           - `Closes #<issue-number>` at the top to link and auto-close the source issue on merge
           - checklist of plan steps completed
           - evidence of successful tests/validation
-          - explicit confirmation that the target error/warning is fixed
 
         **Draft to Open Transition:**
         - Keep PR as `Draft` until all plan steps are fully implemented and validation passes.
@@ -55,8 +59,8 @@ jobs:
     secrets: inherit
 
   request-reviewers:
-    needs: res-not-accessible-integration-fixer
-    if: needs.res-not-accessible-integration-fixer.outputs.created_pr_number != ''
+    needs: run
+    if: needs.run.outputs.created_pr_number != ''
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -64,5 +68,5 @@ jobs:
       - name: Request review from elastic/observablt-ci
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ needs.res-not-accessible-integration-fixer.outputs.created_pr_number }}
+          PR_NUMBER: ${{ needs.run.outputs.created_pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "elastic/observablt-ci" --repo "$GITHUB_REPOSITORY"
