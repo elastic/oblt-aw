@@ -18,9 +18,10 @@ Ingress routes here when:
 - `github.event_name == 'issue_comment'` and `github.event.action == 'created'`, and
 - `github.event.issue.pull_request == null` (the comment is on an issue, not a PR), and
 - `startsWith(github.event.comment.body, '/ai')`, and
+- comment does not start with `/ai implement` (reserved for the generic issue-fixer route), and
 - Dashboard gating allows `mention-in-issue` (or no dashboard issue is present, so all workflows are enabled).
 
-The job `run` calls:
+The job `mention-in-issue` calls:
 
 - `elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-issue.lock.yml@main`
 

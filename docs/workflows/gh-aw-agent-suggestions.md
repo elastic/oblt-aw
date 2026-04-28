@@ -13,7 +13,7 @@ This reusable wrapper runs the upstream agent-suggestions workflow with reposito
 
 ## Usage
 
-The job `run` delegates to:
+The job `agent-suggestions` delegates to:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-agent-suggestions.lock.yml)
 
