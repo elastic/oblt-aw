@@ -124,9 +124,9 @@ scripts/
 
 ## 8. Migration sketch (Observability → `obs`)
 
-1. Add **`config/obs/`** with folder name `obs`; move (or copy) registry + active-repositories from top-level config. **All current** registry entries and distribution targets map to **`obs`**; top-level files remain deprecated aliases for `config/obs/` until removed.
+1. Add **`config/obs/`** with folder name `obs`; move (or copy) registry + active-repositories from top-level config. **All current** registry entries and distribution targets map to **`obs`**. Top-level `config/*.json` aliases are now removed, so `config/obs/` is the source of truth.
 2. Optionally add minimal **`config/docs/`** as a second org (e.g. for tests proving section order and merged enabled lists); org key **`docs`** is distinct from the repo **`docs/`** documentation folder.
-3. Extend marker format to `<!-- oblt-aw:obs:<id> -->` (and migrate existing lines in tests/fixtures); dashboard sync rewrites consumer issue markers accordingly.
+3. Extend marker format to `<!-- oblt-aw:obs:<id> -->` (and migrate existing marker lines in `tests/`, such as `test_sync_control_plane_dashboard.py` and `test_get_enabled_workflows.py`); dashboard sync rewrites consumer issue markers accordingly.
 4. Refactor `sync_control_plane_dashboard.py` to **merge** org files into **one** issue body with sections; keep **one** label/title.
 5. Refactor `get_enabled_workflows.py` for three-part markers, **`org:workflow-id`** output, and single-issue read.
 6. Update **`oblt-aw-ingress.yml`** gating from bare ids to **`org:workflow-id`** strings.
