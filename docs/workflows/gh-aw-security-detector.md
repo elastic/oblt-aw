@@ -8,7 +8,7 @@ This reusable workflow scans the **calling repository** (consumer of oblt-aw ing
 
 Triage and fixer stages use **`gh-aw-issue-triage.lock.yml`** and **`gh-aw-issue-fixer.lock.yml`** from [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions); this workflow does **not** clone that repository.
 
-Unlike the resource-not-accessible detector (workflow logs via `gh-aw-log-searching-agent`), the security detector runs **static checks** aligned with [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) (SEC-001–SEC-044) and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758): injection, secret management, supply chain, and least privilege.
+Unlike the resource-not-accessible detector (workflow logs via `gh-aw-log-searching-agent`), the security detector runs **static checks** aligned with [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758): injection, secret management, supply chain, and least privilege. The current implementation emits findings for **SEC-002**, **SEC-010–SEC-012**, **SEC-020–SEC-022**, **SEC-030–SEC-033**, **SEC-035**, **SEC-040**, **SEC-042**, and **SEC-043**. See the ruleset traceability table for per-rule implementation mapping.
 
 ## Prerequisites
 

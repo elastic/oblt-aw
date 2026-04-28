@@ -6,7 +6,7 @@ This document defines the ruleset used by the oblt-aw security detector to ident
 
 **Scope**: Workflow YAML (`.github/workflows/**`), shell scripts, dependency manifests when present, and patterns aligned with [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758).
 
-**Detector:** Implements every SEC-0xx rule defined in this document (currently **SEC-001–SEC-003**, **SEC-010–SEC-012**, **SEC-020–SEC-022**, **SEC-030–SEC-035**, and **SEC-040–SEC-044**), except where a rule explicitly defers to another workflow (for example dependency review at PR time). See **Implementation notes** at the end of this document. [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) illustrates token exposure patterns covered by SEC-001–SEC-003.
+**Detector:** The current detector implementation in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) emits findings for **SEC-002**, **SEC-010–SEC-012**, **SEC-020–SEC-022**, **SEC-030–SEC-033**, **SEC-035**, **SEC-040**, **SEC-042**, and **SEC-043**. Other rule IDs in this document remain part of the ruleset definition and can be implemented in future detector updates. [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) illustrates token exposure patterns covered by SEC-001–SEC-003.
 
 ---
 
@@ -32,6 +32,33 @@ This document defines the ruleset used by the oblt-aw security detector to ident
 | YAML injection pattern detection | SEC-010, SEC-012 |
 
 **Complementary workflow (not a duplicate ruleset):** Repositories using oblt-aw ingress may already run [`gh-aw-dependency-review`](./gh-aw-dependency-review.md) for **dependency and license** signals at PR time. The **security detector** still implements SEC-033–SEC-035 where lockfiles or manifests exist without a PR, and aligns severity/titles with this ruleset.
+
+## Rule-to-implementation traceability
+
+The table below documents how each rule ID is currently represented in the detector implementation.
+
+| Rule ID | Implemented in detector | Primary implementation path |
+|---------|-------------------------|-----------------------------|
+| SEC-001 | No | Not currently emitted by [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-002 | Yes | `actionlint` secret message mapping and `zizmor` `secrets-outside-env` mapping in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-003 | No | Not currently emitted by [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-010 | Yes | `actionlint` expression mapping, `zizmor` template/github-env mappings, and `semgrep` injection mapping in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-011 | Yes | `shellcheck` and `actionlint` shellcheck mappings in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-012 | Yes | `zizmor` default and targeted mappings plus `semgrep` non-injection workflow mappings in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-020 | Yes | `actionlint` credentials mapping and `zizmor` hardcoded credentials mapping in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-021 | Yes | `zizmor` `unredacted-secrets` mapping in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-022 | Yes | `zizmor` `overprovisioned-secrets` and `secrets-inherit` mappings in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-030 | Yes | `zizmor` unpinned/ref-integrity mappings in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-031 | Yes | `zizmor` third-party/high-risk action source mappings in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-032 | Yes | Custom `curl`/`wget` integrity heuristic in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-033 | Yes | `npm audit` check when `package-lock.json` is present in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-034 | No | Not currently emitted by [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-035 | Yes | `zizmor` `dependabot-execution` mapping in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-040 | Yes | `zizmor` permission mappings (`excessive-permissions`, `undocumented-permissions`) in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-041 | No | Not currently emitted by [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-042 | Yes | `zizmor` `self-hosted-runner` mapping in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-043 | Yes | `zizmor` `dangerous-triggers` mapping in [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
+| SEC-044 | No | Not currently emitted by [`scripts/security-scan.sh`](../../scripts/security-scan.sh) |
 
 ---
 
