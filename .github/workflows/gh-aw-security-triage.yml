@@ -6,8 +6,7 @@ on:
         required: true
 
 # Ephemeral installation token for GH-AW label/issue API so follow-on workflows are not suppressed
-# (GITHUB_TOKEN mutations do not trigger other workflows). Omit token-policy so Vault uses the
-# auto role token-policy-<12-char sha256(workflow ref base)> for this workflow file; register it in catalog-info.
+# (GITHUB_TOKEN mutations do not trigger other workflows).
 permissions:
   actions: read
   contents: read

@@ -16,8 +16,7 @@ permissions:
 
 jobs:
   # Ephemeral installation token for GH-AW PR/label API calls so follow-on workflows are not suppressed
-  # (GITHUB_TOKEN mutations do not trigger other workflows). Omit token-policy so Vault uses the
-  # auto role token-policy-<12-char sha256(workflow ref base)> for this workflow file; register it in catalog-info.
+  # (GITHUB_TOKEN mutations do not trigger other workflows).
   mint-gh-aw-github-token:
     runs-on: ubuntu-latest
     permissions:
