@@ -10,7 +10,7 @@ This reusable workflow triages newly opened security-related issues and prepares
 
 - Triggered via `workflow_call`.
 - Required secret: `COPILOT_GITHUB_TOKEN`.
-- **Job `mint-gh-aw-github-token`:** `contents: read`, `id-token: write` (OIDC for ephemeral `create-token` with no explicit `token-policy`; catalog-info auto role for this workflow file).
+- **Job `mint-gh-aw-github-token`:** `contents: read`, `id-token: write` (OIDC for ephemeral `create-token`).
 
 ## Usage
 
