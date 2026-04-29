@@ -1,0 +1,625 @@
+name: Docs PR AI menu
+
+# Canonical home: elastic/oblt-aw/.github/remote-workflow-template/docs/.github/workflows/docs-pr-ai-menu.yml
+# Distributed automatically to repos listed in elastic/oblt-aw/config/docs/active-repositories.json.
+# Helper logic is inlined inside each actions/github-script step so the file is self-contained
+# (no .github/scripts/ dependency in target repos).
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+  issue_comment:
+    types: [edited]
+  workflow_dispatch:
+    inputs:
+      pull_request_number:
+        description: Pull request number to post or refresh the AI PR menu on.
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+  discussions: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  post-menu:
+    name: Post or refresh AI PR menu
+    if: github.event_name == 'pull_request_target' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+      contents: read
+      issues: write
+      pull-requests: write
+    concurrency:
+      group: docs-pr-ai-menu-${{ github.event.pull_request.number || github.event.inputs.pull_request_number }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Create or update AI PR menu comment
+        uses: actions/github-script@v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // ─── Inlined helpers (canonical: docs_pr_ai_menu.cjs) ───
+            const MENU_START = '<!-- docs-pr-ai-menu:start -->';
+            const MENU_END = '<!-- docs-pr-ai-menu:end -->';
+            const WORKFLOW_CONFIG = {
+              docsReview: {
+                checkNamePrefix: 'Docs AI / docs review',
+                label: 'Review docs changes ([`docs-review`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-review.md)).',
+                marker: '<!-- docs-pr-ai-menu:docs-review -->',
+              },
+            };
+            const WORKFLOW_ORDER = ['docsReview'];
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            function getLinePattern(key) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              return new RegExp(
+                `^- \\[([ x])\\] ${escapeRegExp(label)}(?: (Status: .*?))? ${escapeRegExp(marker)}$`,
+                'm'
+              );
+            }
+            function parseWorkflowState(body, key) {
+              const match = (body || '').match(getLinePattern(key));
+              if (!match) return { selected: false };
+              return { selected: match[1] === 'x', statusText: match[2] || null };
+            }
+            function parseMenuState(body) {
+              const state = {};
+              for (const key of WORKFLOW_ORDER) state[key] = parseWorkflowState(body, key);
+              return state;
+            }
+            function getStatusText(workflowState, workflowStatus) {
+              if (workflowStatus?.statusText) return workflowStatus.statusText;
+              const progressLink = workflowStatus?.detailsUrl ? ` [View progress](${workflowStatus.detailsUrl}).` : '';
+              if (workflowStatus?.status === 'in_progress' || workflowStatus?.status === 'queued') return `Status: running.${progressLink}`;
+              if (workflowStatus?.status === 'completed') {
+                if (workflowStatus.conclusion === 'success') return `Status: completed.${progressLink}`;
+                if (workflowStatus.conclusion === 'cancelled') return `Status: cancelled.${progressLink}`;
+                return `Status: needs attention.${progressLink}`;
+              }
+              if (workflowState?.selected) return 'Status: queued.';
+              return 'Status: not started.';
+            }
+            function getWorkflowStatusFromCheckRuns(key, checkRuns) {
+              const { checkNamePrefix } = WORKFLOW_CONFIG[key];
+              const matchingCheckRuns = (checkRuns || []).filter((cr) =>
+                cr.name?.startsWith(checkNamePrefix) && cr.conclusion !== 'skipped'
+              );
+              if (matchingCheckRuns.length === 0) return null;
+              matchingCheckRuns.sort((l, r) =>
+                new Date(r.started_at || r.created_at || 0) - new Date(l.started_at || l.created_at || 0)
+              );
+              return {
+                conclusion: matchingCheckRuns[0].conclusion,
+                detailsUrl: matchingCheckRuns[0].details_url,
+                status: matchingCheckRuns[0].status,
+              };
+            }
+            function buildWorkflowLine(key, workflowState, workflowStatus) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              const selected = workflowState?.selected ? 'x' : ' ';
+              const statusText = getStatusText(workflowState, workflowStatus);
+              return `- [${selected}] ${label} ${statusText} ${marker}`;
+            }
+            function buildMenuBody(state, statuses) {
+              const normalizedState = state || {};
+              const normalizedStatuses = statuses || {};
+              return [
+                MENU_START,
+                '## Elastic Docs AI PR menu',
+                '',
+                'Check the box to run an AI review for this pull request.',
+                '',
+                ...WORKFLOW_ORDER.map((key) => buildWorkflowLine(key, normalizedState[key], normalizedStatuses[key])),
+                '',
+                'Powered by GitHub Agentic Workflows and [docs-actions](https://github.com/elastic/docs-actions). For more information, reach out to the docs team.',
+                '',
+                MENU_END,
+              ].join('\n');
+            }
+            async function getCheckRunsForPullRequest(github, context, pullRequestNumber) {
+              const { data: pullRequest } = await github.rest.pulls.get({
+                owner: context.repo.owner, repo: context.repo.repo, pull_number: pullRequestNumber,
+              });
+              const { data: checks } = await github.rest.checks.listForRef({
+                owner: context.repo.owner, repo: context.repo.repo,
+                ref: pullRequest.head.sha, per_page: 100,
+              });
+              return checks.check_runs || [];
+            }
+            async function findMenuComment(github, context, pullRequestNumber) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: pullRequestNumber, per_page: 100,
+              });
+              return comments.find((c) =>
+                c.user?.login === 'github-actions[bot]' &&
+                c.body?.includes(MENU_START) && c.body?.includes(MENU_END)
+              );
+            }
+            function getActiveWorkflowStatusFromState(workflowState) {
+              if (workflowState?.statusText?.startsWith('Status: running.')) {
+                return { statusText: workflowState.statusText };
+              }
+              return null;
+            }
+            function buildWorkflowStatuses(checkRuns, statusOverrides, existingState) {
+              return Object.fromEntries(
+                WORKFLOW_ORDER.map((key) => [
+                  key,
+                  statusOverrides?.[key] ||
+                    getWorkflowStatusFromCheckRuns(key, checkRuns) ||
+                    getActiveWorkflowStatusFromState(existingState?.[key]),
+                ])
+              );
+            }
+            async function upsertMenuComment({ core, createIfMissing = true, github, context, pullRequestNumber, statusOverrides }) {
+              const checkRuns = await getCheckRunsForPullRequest(github, context, pullRequestNumber);
+              const existingComment = await findMenuComment(github, context, pullRequestNumber);
+              if (!existingComment && !createIfMissing) {
+                core?.warning('AI PR menu comment was not found.');
+                return;
+              }
+              const existingState = parseMenuState(existingComment?.body || '');
+              const statuses = buildWorkflowStatuses(checkRuns, statusOverrides, existingState);
+              const body = buildMenuBody(existingState, statuses);
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  comment_id: existingComment.id, body,
+                });
+                return;
+              }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: pullRequestNumber, body,
+              });
+            }
+            // ─── End helpers ───
+
+            const workflowDispatchPrNumber = context.payload.inputs?.pull_request_number;
+            const pullRequestNumber = context.eventName === 'workflow_dispatch'
+              ? Number(workflowDispatchPrNumber)
+              : context.payload.pull_request.number;
+
+            if (!pullRequestNumber) {
+              core.setFailed('Pull request number is required for workflow_dispatch runs.');
+              return;
+            }
+
+            await upsertMenuComment({ core, github, context, pullRequestNumber });
+
+  evaluate-trigger:
+    name: Evaluate AI PR menu trigger
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request != null &&
+      github.actor != 'github-actions[bot]' &&
+      github.event.comment.user.login == 'github-actions[bot]' &&
+      contains(github.event.comment.body, '<!-- docs-pr-ai-menu:start -->') &&
+      contains(github.event.comment.body, '<!-- docs-pr-ai-menu:end -->')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      docs_review_triggered: ${{ steps.evaluate.outputs.docs_review_triggered }}
+
+    steps:
+      - name: Parse AI PR menu transition
+        id: evaluate
+        uses: actions/github-script@v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // ─── Inlined helpers (parseMenuState only) ───
+            const WORKFLOW_CONFIG = {
+              docsReview: {
+                checkNamePrefix: 'Docs AI / docs review',
+                label: 'Review docs changes ([`docs-review`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-review.md)).',
+                marker: '<!-- docs-pr-ai-menu:docs-review -->',
+              },
+            };
+            const WORKFLOW_ORDER = ['docsReview'];
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            function getLinePattern(key) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              return new RegExp(
+                `^- \\[([ x])\\] ${escapeRegExp(label)}(?: (Status: .*?))? ${escapeRegExp(marker)}$`,
+                'm'
+              );
+            }
+            function parseWorkflowState(body, key) {
+              const match = (body || '').match(getLinePattern(key));
+              if (!match) return { selected: false };
+              return { selected: match[1] === 'x', statusText: match[2] || null };
+            }
+            function parseMenuState(body) {
+              const state = {};
+              for (const key of WORKFLOW_ORDER) state[key] = parseWorkflowState(body, key);
+              return state;
+            }
+            // ─── End helpers ───
+
+            const body = context.payload.comment.body || '';
+            const previousBody = context.payload.changes?.body?.from || '';
+
+            const previousState = parseMenuState(previousBody);
+            const currentState = parseMenuState(body);
+            const docsReviewTriggered =
+              !previousState.docsReview.selected && currentState.docsReview.selected;
+
+            core.setOutput('docs_review_triggered', String(docsReviewTriggered));
+
+  refresh-menu-after-trigger:
+    name: Refresh AI PR menu after trigger
+    needs: [evaluate-trigger]
+    if: needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+      contents: read
+      issues: write
+      pull-requests: write
+    concurrency:
+      group: docs-pr-ai-menu-${{ github.event.issue.number }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Refresh AI PR menu status
+        uses: actions/github-script@v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // ─── Inlined helpers (canonical: docs_pr_ai_menu.cjs) ───
+            const MENU_START = '<!-- docs-pr-ai-menu:start -->';
+            const MENU_END = '<!-- docs-pr-ai-menu:end -->';
+            const WORKFLOW_CONFIG = {
+              docsReview: {
+                checkNamePrefix: 'Docs AI / docs review',
+                label: 'Review docs changes ([`docs-review`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-review.md)).',
+                marker: '<!-- docs-pr-ai-menu:docs-review -->',
+              },
+            };
+            const WORKFLOW_ORDER = ['docsReview'];
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            function getLinePattern(key) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              return new RegExp(
+                `^- \\[([ x])\\] ${escapeRegExp(label)}(?: (Status: .*?))? ${escapeRegExp(marker)}$`,
+                'm'
+              );
+            }
+            function parseWorkflowState(body, key) {
+              const match = (body || '').match(getLinePattern(key));
+              if (!match) return { selected: false };
+              return { selected: match[1] === 'x', statusText: match[2] || null };
+            }
+            function parseMenuState(body) {
+              const state = {};
+              for (const key of WORKFLOW_ORDER) state[key] = parseWorkflowState(body, key);
+              return state;
+            }
+            function getStatusText(workflowState, workflowStatus) {
+              if (workflowStatus?.statusText) return workflowStatus.statusText;
+              const progressLink = workflowStatus?.detailsUrl ? ` [View progress](${workflowStatus.detailsUrl}).` : '';
+              if (workflowStatus?.status === 'in_progress' || workflowStatus?.status === 'queued') return `Status: running.${progressLink}`;
+              if (workflowStatus?.status === 'completed') {
+                if (workflowStatus.conclusion === 'success') return `Status: completed.${progressLink}`;
+                if (workflowStatus.conclusion === 'cancelled') return `Status: cancelled.${progressLink}`;
+                return `Status: needs attention.${progressLink}`;
+              }
+              if (workflowState?.selected) return 'Status: queued.';
+              return 'Status: not started.';
+            }
+            function getWorkflowStatusFromCheckRuns(key, checkRuns) {
+              const { checkNamePrefix } = WORKFLOW_CONFIG[key];
+              const matchingCheckRuns = (checkRuns || []).filter((cr) =>
+                cr.name?.startsWith(checkNamePrefix) && cr.conclusion !== 'skipped'
+              );
+              if (matchingCheckRuns.length === 0) return null;
+              matchingCheckRuns.sort((l, r) =>
+                new Date(r.started_at || r.created_at || 0) - new Date(l.started_at || l.created_at || 0)
+              );
+              return {
+                conclusion: matchingCheckRuns[0].conclusion,
+                detailsUrl: matchingCheckRuns[0].details_url,
+                status: matchingCheckRuns[0].status,
+              };
+            }
+            function buildWorkflowLine(key, workflowState, workflowStatus) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              const selected = workflowState?.selected ? 'x' : ' ';
+              const statusText = getStatusText(workflowState, workflowStatus);
+              return `- [${selected}] ${label} ${statusText} ${marker}`;
+            }
+            function buildMenuBody(state, statuses) {
+              const normalizedState = state || {};
+              const normalizedStatuses = statuses || {};
+              return [
+                MENU_START,
+                '## Elastic Docs AI PR menu',
+                '',
+                'Check the box to run an AI review for this pull request.',
+                '',
+                ...WORKFLOW_ORDER.map((key) => buildWorkflowLine(key, normalizedState[key], normalizedStatuses[key])),
+                '',
+                'Powered by GitHub Agentic Workflows and [docs-actions](https://github.com/elastic/docs-actions). For more information, reach out to the docs team.',
+                '',
+                MENU_END,
+              ].join('\n');
+            }
+            async function getCheckRunsForPullRequest(github, context, pullRequestNumber) {
+              const { data: pullRequest } = await github.rest.pulls.get({
+                owner: context.repo.owner, repo: context.repo.repo, pull_number: pullRequestNumber,
+              });
+              const { data: checks } = await github.rest.checks.listForRef({
+                owner: context.repo.owner, repo: context.repo.repo,
+                ref: pullRequest.head.sha, per_page: 100,
+              });
+              return checks.check_runs || [];
+            }
+            async function findMenuComment(github, context, pullRequestNumber) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: pullRequestNumber, per_page: 100,
+              });
+              return comments.find((c) =>
+                c.user?.login === 'github-actions[bot]' &&
+                c.body?.includes(MENU_START) && c.body?.includes(MENU_END)
+              );
+            }
+            function getActiveWorkflowStatusFromState(workflowState) {
+              if (workflowState?.statusText?.startsWith('Status: running.')) {
+                return { statusText: workflowState.statusText };
+              }
+              return null;
+            }
+            function buildWorkflowStatuses(checkRuns, statusOverrides, existingState) {
+              return Object.fromEntries(
+                WORKFLOW_ORDER.map((key) => [
+                  key,
+                  statusOverrides?.[key] ||
+                    getWorkflowStatusFromCheckRuns(key, checkRuns) ||
+                    getActiveWorkflowStatusFromState(existingState?.[key]),
+                ])
+              );
+            }
+            async function upsertMenuComment({ core, createIfMissing = true, github, context, pullRequestNumber, statusOverrides }) {
+              const checkRuns = await getCheckRunsForPullRequest(github, context, pullRequestNumber);
+              const existingComment = await findMenuComment(github, context, pullRequestNumber);
+              if (!existingComment && !createIfMissing) {
+                core?.warning('AI PR menu comment was not found.');
+                return;
+              }
+              const existingState = parseMenuState(existingComment?.body || '');
+              const statuses = buildWorkflowStatuses(checkRuns, statusOverrides, existingState);
+              const body = buildMenuBody(existingState, statuses);
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  comment_id: existingComment.id, body,
+                });
+                return;
+              }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: pullRequestNumber, body,
+              });
+            }
+            // ─── End helpers ───
+
+            const pullRequestNumber = context.payload.issue.number;
+            const progressUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            await upsertMenuComment({
+              core, createIfMissing: false, github, context, pullRequestNumber,
+              statusOverrides: {
+                docsReview: { detailsUrl: progressUrl, status: 'in_progress' },
+              },
+            });
+
+  run-docs-review:
+    name: Docs AI / docs review
+    needs: [evaluate-trigger]
+    if: needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/docs-actions/.github/workflows/gh-aw-docs-review.lock.yml@v1
+    with:
+      review-scope: repo-wide-markdown
+      additional-instructions: |
+        This repository stores documentation as markdown across the repository.
+        Prefer concise, high-signal review comments with exact replacement text when possible.
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  refresh-menu-after-docs-review:
+    name: Refresh AI PR menu after docs review
+    needs: [evaluate-trigger, run-docs-review]
+    if: always() && needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+      contents: read
+      issues: write
+      pull-requests: write
+    concurrency:
+      group: docs-pr-ai-menu-${{ github.event.issue.number }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Refresh AI PR menu status
+        uses: actions/github-script@v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // ─── Inlined helpers (canonical: docs_pr_ai_menu.cjs) ───
+            const MENU_START = '<!-- docs-pr-ai-menu:start -->';
+            const MENU_END = '<!-- docs-pr-ai-menu:end -->';
+            const WORKFLOW_CONFIG = {
+              docsReview: {
+                checkNamePrefix: 'Docs AI / docs review',
+                label: 'Review docs changes ([`docs-review`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-review.md)).',
+                marker: '<!-- docs-pr-ai-menu:docs-review -->',
+              },
+            };
+            const WORKFLOW_ORDER = ['docsReview'];
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            function getLinePattern(key) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              return new RegExp(
+                `^- \\[([ x])\\] ${escapeRegExp(label)}(?: (Status: .*?))? ${escapeRegExp(marker)}$`,
+                'm'
+              );
+            }
+            function parseWorkflowState(body, key) {
+              const match = (body || '').match(getLinePattern(key));
+              if (!match) return { selected: false };
+              return { selected: match[1] === 'x', statusText: match[2] || null };
+            }
+            function parseMenuState(body) {
+              const state = {};
+              for (const key of WORKFLOW_ORDER) state[key] = parseWorkflowState(body, key);
+              return state;
+            }
+            function getStatusText(workflowState, workflowStatus) {
+              if (workflowStatus?.statusText) return workflowStatus.statusText;
+              const progressLink = workflowStatus?.detailsUrl ? ` [View progress](${workflowStatus.detailsUrl}).` : '';
+              if (workflowStatus?.status === 'in_progress' || workflowStatus?.status === 'queued') return `Status: running.${progressLink}`;
+              if (workflowStatus?.status === 'completed') {
+                if (workflowStatus.conclusion === 'success') return `Status: completed.${progressLink}`;
+                if (workflowStatus.conclusion === 'cancelled') return `Status: cancelled.${progressLink}`;
+                return `Status: needs attention.${progressLink}`;
+              }
+              if (workflowState?.selected) return 'Status: queued.';
+              return 'Status: not started.';
+            }
+            function getWorkflowStatusFromCheckRuns(key, checkRuns) {
+              const { checkNamePrefix } = WORKFLOW_CONFIG[key];
+              const matchingCheckRuns = (checkRuns || []).filter((cr) =>
+                cr.name?.startsWith(checkNamePrefix) && cr.conclusion !== 'skipped'
+              );
+              if (matchingCheckRuns.length === 0) return null;
+              matchingCheckRuns.sort((l, r) =>
+                new Date(r.started_at || r.created_at || 0) - new Date(l.started_at || l.created_at || 0)
+              );
+              return {
+                conclusion: matchingCheckRuns[0].conclusion,
+                detailsUrl: matchingCheckRuns[0].details_url,
+                status: matchingCheckRuns[0].status,
+              };
+            }
+            function buildWorkflowLine(key, workflowState, workflowStatus) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              const selected = workflowState?.selected ? 'x' : ' ';
+              const statusText = getStatusText(workflowState, workflowStatus);
+              return `- [${selected}] ${label} ${statusText} ${marker}`;
+            }
+            function buildMenuBody(state, statuses) {
+              const normalizedState = state || {};
+              const normalizedStatuses = statuses || {};
+              return [
+                MENU_START,
+                '## Elastic Docs AI PR menu',
+                '',
+                'Check the box to run an AI review for this pull request.',
+                '',
+                ...WORKFLOW_ORDER.map((key) => buildWorkflowLine(key, normalizedState[key], normalizedStatuses[key])),
+                '',
+                'Powered by GitHub Agentic Workflows and [docs-actions](https://github.com/elastic/docs-actions). For more information, reach out to the docs team.',
+                '',
+                MENU_END,
+              ].join('\n');
+            }
+            async function getCheckRunsForPullRequest(github, context, pullRequestNumber) {
+              const { data: pullRequest } = await github.rest.pulls.get({
+                owner: context.repo.owner, repo: context.repo.repo, pull_number: pullRequestNumber,
+              });
+              const { data: checks } = await github.rest.checks.listForRef({
+                owner: context.repo.owner, repo: context.repo.repo,
+                ref: pullRequest.head.sha, per_page: 100,
+              });
+              return checks.check_runs || [];
+            }
+            async function findMenuComment(github, context, pullRequestNumber) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: pullRequestNumber, per_page: 100,
+              });
+              return comments.find((c) =>
+                c.user?.login === 'github-actions[bot]' &&
+                c.body?.includes(MENU_START) && c.body?.includes(MENU_END)
+              );
+            }
+            function getActiveWorkflowStatusFromState(workflowState) {
+              if (workflowState?.statusText?.startsWith('Status: running.')) {
+                return { statusText: workflowState.statusText };
+              }
+              return null;
+            }
+            function buildWorkflowStatuses(checkRuns, statusOverrides, existingState) {
+              return Object.fromEntries(
+                WORKFLOW_ORDER.map((key) => [
+                  key,
+                  statusOverrides?.[key] ||
+                    getWorkflowStatusFromCheckRuns(key, checkRuns) ||
+                    getActiveWorkflowStatusFromState(existingState?.[key]),
+                ])
+              );
+            }
+            async function upsertMenuComment({ core, createIfMissing = true, github, context, pullRequestNumber, statusOverrides }) {
+              const checkRuns = await getCheckRunsForPullRequest(github, context, pullRequestNumber);
+              const existingComment = await findMenuComment(github, context, pullRequestNumber);
+              if (!existingComment && !createIfMissing) {
+                core?.warning('AI PR menu comment was not found.');
+                return;
+              }
+              const existingState = parseMenuState(existingComment?.body || '');
+              const statuses = buildWorkflowStatuses(checkRuns, statusOverrides, existingState);
+              const body = buildMenuBody(existingState, statuses);
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  comment_id: existingComment.id, body,
+                });
+                return;
+              }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: pullRequestNumber, body,
+              });
+            }
+            // ─── End helpers ───
+
+            const pullRequestNumber = context.payload.issue.number;
+            const progressUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const docsReviewResult = '${{ needs.run-docs-review.result }}';
+
+            await upsertMenuComment({
+              core, createIfMissing: false, github, context, pullRequestNumber,
+              statusOverrides: {
+                docsReview: {
+                  conclusion: docsReviewResult === 'success' ? 'success' : docsReviewResult === 'cancelled' ? 'cancelled' : 'failure',
+                  detailsUrl: progressUrl,
+                  status: 'completed',
+                },
+              },
+            });
