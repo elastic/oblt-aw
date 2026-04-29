@@ -59,7 +59,7 @@ Ship these in order when adding a **new** routed workflow. The sequence mirrors 
 
 ### 7. Keep the distributed client entrypoint aligned
 
-- If consumers need new **event types** or **activity types** (for example `issues: [opened, labeled]`), update **only** [`.github/remote-workflow-template/oblt-aw.yml`](../../.github/remote-workflow-template/oblt-aw.yml) (the template distributed to other repositories). See [oblt-aw client template](../workflows/oblt-aw-client-template.md).
+- If consumers need new **event types** or **activity types** (for example `issues: [opened, labeled]`), update **only** the distributed client template under [`.github/remote-workflow-template/obs/`](../../.github/remote-workflow-template/obs/) (or the relevant org subtree). See [oblt-aw client template](../workflows/oblt-aw-client-template.md).
 - **Do not** edit the protected installed client [`.github/workflows/oblt-aw.yml`](../../.github/workflows/oblt-aw.yml) in this repository for distribution semantics; it is out of scope for normal changes ([AGENTS.md](../../AGENTS.md)).
 
 ### 8. Validate, merge, and confirm sync

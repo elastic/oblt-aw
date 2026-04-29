@@ -52,7 +52,7 @@ jobs:
             const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
             const rq = createRequire(path.join(root, 'package.json'));
             rq('tsx/cjs/api').register();
-            const { run } = rq('./scripts/validateAutomergePr.ts');
+            const { run } = rq('./scripts/obs/validateAutomergePr.ts');
             const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
             const { ok } = await run({ github, context, prNumber, core });
             core.setOutput('proceed', ok ? 'true' : 'false');

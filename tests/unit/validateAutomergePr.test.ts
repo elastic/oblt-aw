@@ -17,7 +17,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { run } = require('../../scripts/validateAutomergePr.ts');
+const { run } = require('../../scripts/obs/validateAutomergePr.ts');
 
 function makeCore() {
   const infoMessages = [];

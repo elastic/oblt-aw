@@ -62,9 +62,9 @@ APACHE2_HEADER_HASH = _build_header("#")
 # Note: YAML workflow and config files are excluded; GitHub Actions YAML does not
 # carry per-file Apache headers in this repository.
 HEADER_GLOBS = [
-    "scripts/*.py",
-    "scripts/*.sh",
-    "scripts/*.ts",
+    "scripts/**/*.py",
+    "scripts/**/*.sh",
+    "scripts/**/*.ts",
     "tests/**/*.ts",
 ]
 

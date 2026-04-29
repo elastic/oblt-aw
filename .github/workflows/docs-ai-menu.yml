@@ -1,0 +1,206 @@
+name: Docs AI menu
+
+# Reusable implementation for the Elastic Docs issue AI menu. Consumer repositories
+# install `.github/remote-workflow-template/docs/.github/workflows/docs-aw.yml`, which
+# calls `docs-aw-ingress.yml`. Scripts: `scripts/docs/issue-menu/`.
+
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  post-menu:
+    name: Post or refresh AI menu
+    if: github.event_name == 'issues' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: docs-ai-menu-${{ github.event.issue.number || github.event.inputs.issue_number }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout oblt-aw for Docs AI issue menu scripts
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: oblt-aw-scripts
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/docs/issue-menu
+          sparse-checkout-cone-mode: true
+
+      - name: Create or update AI menu comment
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script-path: oblt-aw-scripts/scripts/docs/issue-menu/post-menu.js
+
+  evaluate-trigger:
+    name: Evaluate AI menu trigger
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request == null &&
+      github.actor != 'github-actions[bot]' &&
+      github.event.comment.user.login == 'github-actions[bot]' &&
+      contains(github.event.comment.body, '<!-- docs-ai-menu:start -->') &&
+      contains(github.event.comment.body, '<!-- docs-ai-menu:end -->')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      triage_triggered: ${{ steps.evaluate.outputs.triage_triggered }}
+      issue_scope_triggered: ${{ steps.evaluate.outputs.issue_scope_triggered }}
+    steps:
+      - name: Checkout oblt-aw for Docs AI issue menu scripts
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: oblt-aw-scripts
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/docs/issue-menu
+          sparse-checkout-cone-mode: true
+
+      - name: Parse AI menu transition
+        id: evaluate
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script-path: oblt-aw-scripts/scripts/docs/issue-menu/evaluate-trigger.js
+
+  refresh-menu-after-trigger:
+    name: Refresh AI menu after trigger
+    needs: [evaluate-trigger]
+    if: >-
+      needs.evaluate-trigger.outputs.triage_triggered == 'true' ||
+      needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: docs-ai-menu-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout oblt-aw for Docs AI issue menu scripts
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: oblt-aw-scripts
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/docs/issue-menu
+          sparse-checkout-cone-mode: true
+
+      - name: Refresh AI menu status
+        uses: actions/github-script@v9
+        env:
+          TRIAGE_TRIGGERED: ${{ needs.evaluate-trigger.outputs.triage_triggered }}
+          ISSUE_SCOPE_TRIGGERED: ${{ needs.evaluate-trigger.outputs.issue_scope_triggered }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script-path: oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-trigger.js
+
+  run-docs-triage:
+    name: Docs AI / triage
+    needs: [evaluate-trigger]
+    if: needs.evaluate-trigger.outputs.triage_triggered == 'true'
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/docs-actions/.github/workflows/gh-aw-issue-triage.lock.yml@v1
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  run-docs-issue-scope:
+    name: Docs AI / issue scope
+    needs: [evaluate-trigger]
+    if: needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/docs-actions/.github/workflows/gh-aw-docs-issue-scope.lock.yml@v1
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  refresh-menu-after-docs-triage:
+    name: Refresh AI menu after docs triage
+    needs: [evaluate-trigger, refresh-menu-after-trigger, run-docs-triage]
+    if: always() && needs.evaluate-trigger.outputs.triage_triggered == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: docs-ai-menu-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout oblt-aw for Docs AI issue menu scripts
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: oblt-aw-scripts
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/docs/issue-menu
+          sparse-checkout-cone-mode: true
+
+      - name: Refresh AI menu status
+        uses: actions/github-script@v9
+        env:
+          TRIAGE_RESULT: ${{ needs.run-docs-triage.result }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script-path: oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-triage.js
+
+  refresh-menu-after-docs-issue-scope:
+    name: Refresh AI menu after docs issue scope
+    needs: [evaluate-trigger, refresh-menu-after-trigger, run-docs-issue-scope]
+    if: always() && needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: docs-ai-menu-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout oblt-aw for Docs AI issue menu scripts
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: oblt-aw-scripts
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/docs/issue-menu
+          sparse-checkout-cone-mode: true
+
+      - name: Refresh AI menu status
+        uses: actions/github-script@v9
+        env:
+          ISSUE_SCOPE_RESULT: ${{ needs.run-docs-issue-scope.result }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script-path: oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-issue-scope.js

@@ -31,7 +31,8 @@ Target repositories should consume only this reusable entrypoint:
 
 Reference client workflow template:
 
-- [.github/remote-workflow-template/oblt-aw.yml](.github/remote-workflow-template/oblt-aw.yml)
+- [.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml](.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml) (Observability client template)
+- [.github/remote-workflow-template/docs/.github/workflows/docs-aw.yml](.github/remote-workflow-template/docs/.github/workflows/docs-aw.yml) (Docs client template)
 
 ## Repository Scope
 

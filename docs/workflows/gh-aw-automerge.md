@@ -17,7 +17,7 @@ Ingress selects which events dispatch here; see [Automerge routing](../routing/a
 
 Jobs:
 
-- `verify`: checks out control-plane scripts, runs `scripts/validateAutomergePr.ts` for `github.event.pull_request.number` (author allow list aligned with dependency-review, merge-ready label, draft/fork/ref).
+- `verify`: checks out control-plane scripts, runs `scripts/obs/validateAutomergePr.ts` for `github.event.pull_request.number` (author allow list aligned with dependency-review, merge-ready label, draft/fork/ref).
 - `approve`: invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` when `verify` sets `proceed` (Copilot must not call check-run APIs for gating; branch protection handles required checks at merge time).
 - `automerge`: runs **pascalgn/automerge-action** with `GITHUB_TOKEN` on the **same** repository as the PR (`PULL_REQUEST` is the PR number). Squash-merge when `MERGE_LABELS`, `MERGE_REQUIRED_APPROVALS`, and GitHub mergeability align with branch protection.
 - `enable-merge-when-ready`: runs only when `automerge` outputs `merge_failed`; creates an ephemeral token via `elastic/oblt-actions/github/create-token@v1` and enables native auto-merge queue behavior with `gh pr merge --auto --squash`.

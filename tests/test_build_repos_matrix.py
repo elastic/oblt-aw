@@ -13,8 +13,9 @@ import sys
 
 import pytest
 
-# Make the scripts/ package importable without installation.
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
+# Make ``scripts/`` (for ``common``) and ``scripts/obs/`` importable without installation.
+_root = pathlib.Path(__file__).parent.parent
+sys.path.insert(0, str(_root / "scripts"))
 
 import build_repos_matrix as brm  # noqa: E402
 from common import parse_repositories  # noqa: E402
@@ -116,7 +117,7 @@ class TestMain:
         output_file.touch()
         monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
         # Load script from tmp_path so it resolves repo root to tmp_path
-        (tmp_path / "scripts").mkdir()
+        (tmp_path / "scripts").mkdir(parents=True)
         script_src = pathlib.Path(brm.__file__).read_text()
         (tmp_path / "scripts" / "build_repos_matrix.py").write_text(script_src)
         spec = importlib.util.spec_from_file_location(
@@ -143,7 +144,7 @@ class TestMain:
         output_file = tmp_path / "github_output"
         output_file.touch()
         monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
-        (tmp_path / "scripts").mkdir()
+        (tmp_path / "scripts").mkdir(parents=True)
         script_src = pathlib.Path(brm.__file__).read_text()
         (tmp_path / "scripts" / "build_repos_matrix.py").write_text(script_src)
         config = {"repositories": ["elastic/foo", "elastic/bar"]}
