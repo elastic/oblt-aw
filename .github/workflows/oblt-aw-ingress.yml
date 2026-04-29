@@ -22,6 +22,7 @@ jobs:
     uses: ./.github/workflows/get-enabled-workflows.yml
 
   load-allowed-authors:
+    if: github.event_name == 'pull_request' || github.event_name == 'issues'
     uses: ./.github/workflows/load-allowed-authors.yml
 
   agent-suggestions:

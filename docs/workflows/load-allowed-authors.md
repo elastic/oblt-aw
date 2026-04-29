@@ -18,7 +18,7 @@ Called by ingress:
 
 - [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml), job `load-allowed-authors`
 
-Ingress runs this job on every supported invocation (in parallel with `dashboard-enabled-workflows`).
+Ingress runs this job only when `github.event_name` is `pull_request` or `issues` (see the job `if` in `oblt-aw-ingress.yml`), in parallel with `dashboard-enabled-workflows` when it runs.
 
 ## API / Interface
 

@@ -1,6 +1,6 @@
 # Checks out elastic/oblt-aw (sparse: PR + issue allow-list JSON only).
 # ref=main matches consumers’ uses: elastic/oblt-aw/.../oblt-aw-ingress.yml@main.
-# Ingress runs this on every invocation so issue triage/fixer paths receive allowed_issue_authors_csv.
+# Ingress runs this only on pull_request / issues events (see oblt-aw-ingress job if).
 # Other callers (e.g. workflow_dispatch) can invoke this reusable workflow directly.
 name: Load allowed authors
 
