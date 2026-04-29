@@ -28,8 +28,6 @@ Configured instructions require:
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
-Repository filter behavior uses `target-repositories` with default `[]` as allow-all.
-
 ## Configuration
 
 Permissions:
@@ -44,7 +42,7 @@ Permissions:
 
 `workflow_call` contract:
 
-- Input: `target-repositories` (string JSON array, default `[]`)
+- No inputs.
 - Secret: `COPILOT_GITHUB_TOKEN` (required)
 
 ## References
