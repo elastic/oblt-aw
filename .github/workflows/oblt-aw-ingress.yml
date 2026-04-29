@@ -21,9 +21,9 @@ jobs:
   dashboard-enabled-workflows:
     uses: ./.github/workflows/get-enabled-workflows.yml
 
-  load-allowed-pr-authors:
-    if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/load-allowed-pr-authors.yml
+  load-allowed-authors:
+    if: github.event_name == 'pull_request' || github.event_name == 'issues'
+    uses: ./.github/workflows/load-allowed-authors.yml
 
   agent-suggestions:
     needs: dashboard-enabled-workflows
@@ -43,11 +43,11 @@ jobs:
     secrets: inherit
 
   automerge:
-    needs: [dashboard-enabled-workflows, load-allowed-pr-authors]
+    needs: [dashboard-enabled-workflows, load-allowed-authors]
     if: >-
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action) &&
-      contains(fromJSON(needs['load-allowed-pr-authors'].outputs['allowed_pr_authors_json']), github.event.pull_request.user.login) &&
+      contains(fromJSON(needs['load-allowed-authors'].outputs['allowed_pr_authors_json']), github.event.pull_request.user.login) &&
       contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready') &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:automerge'))
     uses: ./.github/workflows/gh-aw-automerge.yml
@@ -55,15 +55,15 @@ jobs:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   dependency-review:
-    needs: [dashboard-enabled-workflows, load-allowed-pr-authors]
+    needs: [dashboard-enabled-workflows, load-allowed-authors]
     if: >-
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-      contains(fromJSON(needs['load-allowed-pr-authors'].outputs['allowed_pr_authors_json']), github.event.pull_request.user.login) &&
+      contains(fromJSON(needs['load-allowed-authors'].outputs['allowed_pr_authors_json']), github.event.pull_request.user.login) &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:dependency-review'))
     uses: ./.github/workflows/gh-aw-dependency-review.yml
     with:
-      allowed-bot-users: ${{ needs['load-allowed-pr-authors'].outputs['allowed_pr_authors_csv'] }}
+      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_pr_authors_csv'] }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -127,7 +127,7 @@ jobs:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   resource-not-accessible-by-integration-fixer:
-    needs: dashboard-enabled-workflows
+    needs: [dashboard-enabled-workflows, load-allowed-authors]
     if: >-
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
@@ -135,10 +135,12 @@ jobs:
       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration') &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
+    with:
+      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
     secrets: inherit
 
   resource-not-accessible-by-integration-triage:
-    needs: dashboard-enabled-workflows
+    needs: [dashboard-enabled-workflows, load-allowed-authors]
     if: >-
       github.event_name == 'issues' &&
       (
@@ -147,6 +149,8 @@ jobs:
       ) &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:resource-not-accessible-by-integration'))
     uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
+    with:
+      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -158,7 +162,7 @@ jobs:
     uses: ./.github/workflows/gh-aw-security-detector.yml
 
   security-fixer:
-    needs: dashboard-enabled-workflows
+    needs: [dashboard-enabled-workflows, load-allowed-authors]
     if: >-
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
@@ -166,10 +170,12 @@ jobs:
       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:security'))
     uses: ./.github/workflows/gh-aw-security-fixer.yml
+    with:
+      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
     secrets: inherit
 
   security-triage:
-    needs: dashboard-enabled-workflows
+    needs: [dashboard-enabled-workflows, load-allowed-authors]
     if: >-
       github.event_name == 'issues' &&
       (
@@ -178,6 +184,8 @@ jobs:
       ) &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:security'))
     uses: ./.github/workflows/gh-aw-security-triage.yml
+    with:
+      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

@@ -40,6 +40,8 @@ Permissions:
 
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
 
+Ingress does not pass `allowed-bot-users` for this generic path; the upstream lock workflow uses its built-in defaults (no control-plane issue author list).
+
 ## References
 
 - Ingress routing: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) — workflow id `issue-triage` in [workflow-registry.json](../../config/obs/workflow-registry.json)
