@@ -90,7 +90,7 @@ jobs:
       contents: read
       issues: write
     concurrency:
-      group: docs-ai-menu-${{ github.event.issue.number }}
+      group: docs-ai-menu-${{ github.event.issue.number || github.event.inputs.issue_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs AI issue menu scripts
@@ -151,7 +151,7 @@ jobs:
       contents: read
       issues: write
     concurrency:
-      group: docs-ai-menu-${{ github.event.issue.number }}
+      group: docs-ai-menu-${{ github.event.issue.number || github.event.inputs.issue_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs AI issue menu scripts
@@ -183,7 +183,7 @@ jobs:
       contents: read
       issues: write
     concurrency:
-      group: docs-ai-menu-${{ github.event.issue.number }}
+      group: docs-ai-menu-${{ github.event.issue.number || github.event.inputs.issue_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs AI issue menu scripts

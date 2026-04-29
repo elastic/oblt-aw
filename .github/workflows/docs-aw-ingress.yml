@@ -8,13 +8,7 @@ on:
         required: false
 
 permissions:
-  actions: write
-  checks: read
-  contents: write
-  discussions: write
-  id-token: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
   invalid-workflow-dispatch:
@@ -35,6 +29,12 @@ jobs:
 
   docs-ai-menu:
     name: Route Docs AI issue menu
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
       (
         (github.event_name == 'issues' && github.event.action == 'opened') ||
@@ -54,6 +54,13 @@ jobs:
 
   docs-pr-ai-menu:
     name: Route Docs PR AI menu
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
       github.event_name == 'pull_request_target' ||
       (
@@ -84,6 +91,9 @@ jobs:
       contents: read
     steps:
       - name: Unsupported trigger
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
         run: |
-          echo "This entrypoint does not support event '${{ github.event_name }}' with action '${{ github.event.action }}'."
+          echo "This entrypoint does not support event '${EVENT_NAME}' with action '${EVENT_ACTION}'."
           exit 1
