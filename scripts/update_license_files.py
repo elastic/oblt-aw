@@ -64,6 +64,7 @@ APACHE2_HEADER_HASH = _build_header("#")
 HEADER_GLOBS = [
     "scripts/**/*.py",
     "scripts/**/*.sh",
+    "scripts/**/*.js",
     "scripts/**/*.ts",
     "tests/**/*.ts",
 ]
