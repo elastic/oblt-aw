@@ -1,0 +1,678 @@
+name: Docs AI menu
+
+# Canonical home: elastic/oblt-aw/.github/remote-workflow-template/docs/.github/workflows/docs-ai-menu.yml
+# Distributed automatically to repos listed in elastic/oblt-aw/config/docs/active-repositories.json.
+# Helper logic is inlined inside each actions/github-script step so the file is self-contained
+# (no .github/scripts/ dependency in target repos).
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [edited]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to post or refresh the AI menu on.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  post-menu:
+    name: Post or refresh AI menu
+    if: github.event_name == 'issues' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: docs-ai-menu-${{ github.event.issue.number || github.event.inputs.issue_number }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Create or update AI menu comment
+        uses: actions/github-script@v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // ─── Inlined helpers (canonical: docs_ai_menu.cjs) ───
+            const MENU_START = '<!-- docs-ai-menu:start -->';
+            const MENU_END = '<!-- docs-ai-menu:end -->';
+            const WORKFLOW_CONFIG = {
+              triage: {
+                label: 'Triage ([`docs-triage`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-issue-triage.md)).',
+                marker: '<!-- docs-ai-menu:triage -->',
+              },
+              issueScope: {
+                label: 'Scope the docs work ([`docs-issue-scope`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-issue-scope.md)).',
+                marker: '<!-- docs-ai-menu:issue-scope -->',
+              },
+            };
+            const WORKFLOW_ORDER = ['triage', 'issueScope'];
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            function getLinePattern(key) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              return new RegExp(
+                `^- \\[([ x])\\] ${escapeRegExp(label)}(?: (Status: .*?))? ${escapeRegExp(marker)}$`,
+                'm'
+              );
+            }
+            function isMenuComment(body) {
+              return (body || '').includes(MENU_START) && (body || '').includes(MENU_END);
+            }
+            function parseWorkflowState(body, key) {
+              const match = (body || '').match(getLinePattern(key));
+              if (!match) return { selected: false };
+              return { selected: match[1] === 'x', statusText: match[2] || null };
+            }
+            function parseMenuState(body) {
+              const state = {};
+              for (const key of WORKFLOW_ORDER) state[key] = parseWorkflowState(body, key);
+              return state;
+            }
+            function getStatusText(workflowState, workflowStatus) {
+              if (workflowStatus?.statusText) return workflowStatus.statusText;
+              const progressLink = workflowStatus?.detailsUrl ? ` [View progress](${workflowStatus.detailsUrl}).` : '';
+              if (workflowStatus?.status === 'in_progress' || workflowStatus?.status === 'queued') return `Status: running.${progressLink}`;
+              if (workflowStatus?.status === 'completed') {
+                if (workflowStatus.conclusion === 'success') return `Status: completed.${progressLink}`;
+                if (workflowStatus.conclusion === 'cancelled') return `Status: cancelled.${progressLink}`;
+                return `Status: needs attention.${progressLink}`;
+              }
+              if (workflowState?.statusText) return workflowState.statusText;
+              if (workflowState?.selected) return 'Status: queued.';
+              return 'Status: not started.';
+            }
+            function buildWorkflowLine(key, workflowState, workflowStatus) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              const selected = workflowState?.selected ? 'x' : ' ';
+              const statusText = getStatusText(workflowState, workflowStatus);
+              return `- [${selected}] ${label} ${statusText} ${marker}`;
+            }
+            function buildMenuBody(state, statuses) {
+              const normalizedState = state || {};
+              const normalizedStatuses = statuses || {};
+              return [
+                MENU_START,
+                '## Elastic Docs AI Menu',
+                '',
+                'Check one box to run an AI workflow for this issue.',
+                '',
+                ...WORKFLOW_ORDER.map((key) => buildWorkflowLine(key, normalizedState[key], normalizedStatuses[key])),
+                '',
+                'Powered by GitHub Agentic Workflows and [docs-actions](https://github.com/elastic/docs-actions). For more information, reach out to the docs team.',
+                '',
+                MENU_END,
+              ].join('\n');
+            }
+            async function findMenuComment(github, context, issueNumber) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issueNumber, per_page: 100,
+              });
+              return comments.find((c) => c.user?.login === 'github-actions[bot]' && isMenuComment(c.body));
+            }
+            function buildWorkflowStatuses(existingState, statusOverrides) {
+              return Object.fromEntries(
+                WORKFLOW_ORDER.map((key) => [key, statusOverrides?.[key] || { statusText: existingState?.[key]?.statusText }])
+              );
+            }
+            async function upsertMenuComment({ core, createIfMissing = true, github, context, issueNumber, statusOverrides }) {
+              const existingComment = await findMenuComment(github, context, issueNumber);
+              if (!existingComment && !createIfMissing) {
+                core?.warning('AI menu comment was not found.');
+                return;
+              }
+              const existingState = parseMenuState(existingComment?.body || '');
+              const statuses = buildWorkflowStatuses(existingState, statusOverrides);
+              const body = buildMenuBody(existingState, statuses);
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  comment_id: existingComment.id, body,
+                });
+                return;
+              }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issueNumber, body,
+              });
+            }
+            // ─── End helpers ───
+
+            const workflowDispatchIssueNumber = context.payload.inputs?.issue_number;
+            const issueNumber = context.eventName === 'workflow_dispatch'
+              ? Number(workflowDispatchIssueNumber)
+              : context.payload.issue.number;
+
+            if (!issueNumber) {
+              core.setFailed('Issue number is required for workflow_dispatch runs.');
+              return;
+            }
+
+            await upsertMenuComment({ core, github, context, issueNumber });
+
+  evaluate-trigger:
+    name: Evaluate AI menu trigger
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request == null &&
+      github.actor != 'github-actions[bot]' &&
+      github.event.comment.user.login == 'github-actions[bot]' &&
+      contains(github.event.comment.body, '<!-- docs-ai-menu:start -->') &&
+      contains(github.event.comment.body, '<!-- docs-ai-menu:end -->')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      triage_triggered: ${{ steps.evaluate.outputs.triage_triggered }}
+      issue_scope_triggered: ${{ steps.evaluate.outputs.issue_scope_triggered }}
+
+    steps:
+      - name: Parse AI menu transition
+        id: evaluate
+        uses: actions/github-script@v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // ─── Inlined helpers (parseMenuState only) ───
+            const WORKFLOW_CONFIG = {
+              triage: {
+                label: 'Triage ([`docs-triage`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-issue-triage.md)).',
+                marker: '<!-- docs-ai-menu:triage -->',
+              },
+              issueScope: {
+                label: 'Scope the docs work ([`docs-issue-scope`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-issue-scope.md)).',
+                marker: '<!-- docs-ai-menu:issue-scope -->',
+              },
+            };
+            const WORKFLOW_ORDER = ['triage', 'issueScope'];
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            function getLinePattern(key) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              return new RegExp(
+                `^- \\[([ x])\\] ${escapeRegExp(label)}(?: (Status: .*?))? ${escapeRegExp(marker)}$`,
+                'm'
+              );
+            }
+            function parseWorkflowState(body, key) {
+              const match = (body || '').match(getLinePattern(key));
+              if (!match) return { selected: false };
+              return { selected: match[1] === 'x', statusText: match[2] || null };
+            }
+            function parseMenuState(body) {
+              const state = {};
+              for (const key of WORKFLOW_ORDER) state[key] = parseWorkflowState(body, key);
+              return state;
+            }
+            // ─── End helpers ───
+
+            const body = context.payload.comment.body || '';
+            const previousBody = context.payload.changes?.body?.from || '';
+
+            const previousState = parseMenuState(previousBody);
+            const currentState = parseMenuState(body);
+            const triageTriggered = !previousState.triage.selected && currentState.triage.selected;
+            const issueScopeTriggered = !previousState.issueScope.selected && currentState.issueScope.selected;
+
+            core.setOutput('triage_triggered', String(triageTriggered));
+            core.setOutput('issue_scope_triggered', String(issueScopeTriggered));
+
+  refresh-menu-after-trigger:
+    name: Refresh AI menu after trigger
+    needs: [evaluate-trigger]
+    if: >-
+      needs.evaluate-trigger.outputs.triage_triggered == 'true' ||
+      needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: docs-ai-menu-${{ github.event.issue.number }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Refresh AI menu status
+        uses: actions/github-script@v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // ─── Inlined helpers (canonical: docs_ai_menu.cjs) ───
+            const MENU_START = '<!-- docs-ai-menu:start -->';
+            const MENU_END = '<!-- docs-ai-menu:end -->';
+            const WORKFLOW_CONFIG = {
+              triage: {
+                label: 'Triage ([`docs-triage`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-issue-triage.md)).',
+                marker: '<!-- docs-ai-menu:triage -->',
+              },
+              issueScope: {
+                label: 'Scope the docs work ([`docs-issue-scope`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-issue-scope.md)).',
+                marker: '<!-- docs-ai-menu:issue-scope -->',
+              },
+            };
+            const WORKFLOW_ORDER = ['triage', 'issueScope'];
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            function getLinePattern(key) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              return new RegExp(
+                `^- \\[([ x])\\] ${escapeRegExp(label)}(?: (Status: .*?))? ${escapeRegExp(marker)}$`,
+                'm'
+              );
+            }
+            function isMenuComment(body) {
+              return (body || '').includes(MENU_START) && (body || '').includes(MENU_END);
+            }
+            function parseWorkflowState(body, key) {
+              const match = (body || '').match(getLinePattern(key));
+              if (!match) return { selected: false };
+              return { selected: match[1] === 'x', statusText: match[2] || null };
+            }
+            function parseMenuState(body) {
+              const state = {};
+              for (const key of WORKFLOW_ORDER) state[key] = parseWorkflowState(body, key);
+              return state;
+            }
+            function getStatusText(workflowState, workflowStatus) {
+              if (workflowStatus?.statusText) return workflowStatus.statusText;
+              const progressLink = workflowStatus?.detailsUrl ? ` [View progress](${workflowStatus.detailsUrl}).` : '';
+              if (workflowStatus?.status === 'in_progress' || workflowStatus?.status === 'queued') return `Status: running.${progressLink}`;
+              if (workflowStatus?.status === 'completed') {
+                if (workflowStatus.conclusion === 'success') return `Status: completed.${progressLink}`;
+                if (workflowStatus.conclusion === 'cancelled') return `Status: cancelled.${progressLink}`;
+                return `Status: needs attention.${progressLink}`;
+              }
+              if (workflowState?.statusText) return workflowState.statusText;
+              if (workflowState?.selected) return 'Status: queued.';
+              return 'Status: not started.';
+            }
+            function buildWorkflowLine(key, workflowState, workflowStatus) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              const selected = workflowState?.selected ? 'x' : ' ';
+              const statusText = getStatusText(workflowState, workflowStatus);
+              return `- [${selected}] ${label} ${statusText} ${marker}`;
+            }
+            function buildMenuBody(state, statuses) {
+              const normalizedState = state || {};
+              const normalizedStatuses = statuses || {};
+              return [
+                MENU_START,
+                '## Elastic Docs AI Menu',
+                '',
+                'Check one box to run an AI workflow for this issue.',
+                '',
+                ...WORKFLOW_ORDER.map((key) => buildWorkflowLine(key, normalizedState[key], normalizedStatuses[key])),
+                '',
+                'Powered by GitHub Agentic Workflows and [docs-actions](https://github.com/elastic/docs-actions). For more information, reach out to the docs team.',
+                '',
+                MENU_END,
+              ].join('\n');
+            }
+            async function findMenuComment(github, context, issueNumber) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issueNumber, per_page: 100,
+              });
+              return comments.find((c) => c.user?.login === 'github-actions[bot]' && isMenuComment(c.body));
+            }
+            function buildWorkflowStatuses(existingState, statusOverrides) {
+              return Object.fromEntries(
+                WORKFLOW_ORDER.map((key) => [key, statusOverrides?.[key] || { statusText: existingState?.[key]?.statusText }])
+              );
+            }
+            async function upsertMenuComment({ core, createIfMissing = true, github, context, issueNumber, statusOverrides }) {
+              const existingComment = await findMenuComment(github, context, issueNumber);
+              if (!existingComment && !createIfMissing) {
+                core?.warning('AI menu comment was not found.');
+                return;
+              }
+              const existingState = parseMenuState(existingComment?.body || '');
+              const statuses = buildWorkflowStatuses(existingState, statusOverrides);
+              const body = buildMenuBody(existingState, statuses);
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  comment_id: existingComment.id, body,
+                });
+                return;
+              }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issueNumber, body,
+              });
+            }
+            // ─── End helpers ───
+
+            const issueNumber = context.payload.issue.number;
+            const progressUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const statusOverrides = {};
+
+            if ('${{ needs.evaluate-trigger.outputs.triage_triggered }}' === 'true') {
+              statusOverrides.triage = { detailsUrl: progressUrl, status: 'in_progress' };
+            }
+
+            if ('${{ needs.evaluate-trigger.outputs.issue_scope_triggered }}' === 'true') {
+              statusOverrides.issueScope = { detailsUrl: progressUrl, status: 'in_progress' };
+            }
+
+            await upsertMenuComment({
+              core, createIfMissing: false, github, context, issueNumber, statusOverrides,
+            });
+
+  run-docs-triage:
+    name: Docs AI / triage
+    needs: [evaluate-trigger]
+    if: needs.evaluate-trigger.outputs.triage_triggered == 'true'
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/docs-actions/.github/workflows/gh-aw-issue-triage.lock.yml@v1
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  run-docs-issue-scope:
+    name: Docs AI / issue scope
+    needs: [evaluate-trigger]
+    if: needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/docs-actions/.github/workflows/gh-aw-docs-issue-scope.lock.yml@v1
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  refresh-menu-after-docs-triage:
+    name: Refresh AI menu after docs triage
+    needs: [evaluate-trigger, refresh-menu-after-trigger, run-docs-triage]
+    if: always() && needs.evaluate-trigger.outputs.triage_triggered == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: docs-ai-menu-${{ github.event.issue.number }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Refresh AI menu status
+        uses: actions/github-script@v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // ─── Inlined helpers (canonical: docs_ai_menu.cjs) ───
+            const MENU_START = '<!-- docs-ai-menu:start -->';
+            const MENU_END = '<!-- docs-ai-menu:end -->';
+            const WORKFLOW_CONFIG = {
+              triage: {
+                label: 'Triage ([`docs-triage`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-issue-triage.md)).',
+                marker: '<!-- docs-ai-menu:triage -->',
+              },
+              issueScope: {
+                label: 'Scope the docs work ([`docs-issue-scope`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-issue-scope.md)).',
+                marker: '<!-- docs-ai-menu:issue-scope -->',
+              },
+            };
+            const WORKFLOW_ORDER = ['triage', 'issueScope'];
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            function getLinePattern(key) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              return new RegExp(
+                `^- \\[([ x])\\] ${escapeRegExp(label)}(?: (Status: .*?))? ${escapeRegExp(marker)}$`,
+                'm'
+              );
+            }
+            function isMenuComment(body) {
+              return (body || '').includes(MENU_START) && (body || '').includes(MENU_END);
+            }
+            function parseWorkflowState(body, key) {
+              const match = (body || '').match(getLinePattern(key));
+              if (!match) return { selected: false };
+              return { selected: match[1] === 'x', statusText: match[2] || null };
+            }
+            function parseMenuState(body) {
+              const state = {};
+              for (const key of WORKFLOW_ORDER) state[key] = parseWorkflowState(body, key);
+              return state;
+            }
+            function getStatusText(workflowState, workflowStatus) {
+              if (workflowStatus?.statusText) return workflowStatus.statusText;
+              const progressLink = workflowStatus?.detailsUrl ? ` [View progress](${workflowStatus.detailsUrl}).` : '';
+              if (workflowStatus?.status === 'in_progress' || workflowStatus?.status === 'queued') return `Status: running.${progressLink}`;
+              if (workflowStatus?.status === 'completed') {
+                if (workflowStatus.conclusion === 'success') return `Status: completed.${progressLink}`;
+                if (workflowStatus.conclusion === 'cancelled') return `Status: cancelled.${progressLink}`;
+                return `Status: needs attention.${progressLink}`;
+              }
+              if (workflowState?.statusText) return workflowState.statusText;
+              if (workflowState?.selected) return 'Status: queued.';
+              return 'Status: not started.';
+            }
+            function buildWorkflowLine(key, workflowState, workflowStatus) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              const selected = workflowState?.selected ? 'x' : ' ';
+              const statusText = getStatusText(workflowState, workflowStatus);
+              return `- [${selected}] ${label} ${statusText} ${marker}`;
+            }
+            function buildMenuBody(state, statuses) {
+              const normalizedState = state || {};
+              const normalizedStatuses = statuses || {};
+              return [
+                MENU_START,
+                '## Elastic Docs AI Menu',
+                '',
+                'Check one box to run an AI workflow for this issue.',
+                '',
+                ...WORKFLOW_ORDER.map((key) => buildWorkflowLine(key, normalizedState[key], normalizedStatuses[key])),
+                '',
+                'Powered by GitHub Agentic Workflows and [docs-actions](https://github.com/elastic/docs-actions). For more information, reach out to the docs team.',
+                '',
+                MENU_END,
+              ].join('\n');
+            }
+            async function findMenuComment(github, context, issueNumber) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issueNumber, per_page: 100,
+              });
+              return comments.find((c) => c.user?.login === 'github-actions[bot]' && isMenuComment(c.body));
+            }
+            function buildWorkflowStatuses(existingState, statusOverrides) {
+              return Object.fromEntries(
+                WORKFLOW_ORDER.map((key) => [key, statusOverrides?.[key] || { statusText: existingState?.[key]?.statusText }])
+              );
+            }
+            async function upsertMenuComment({ core, createIfMissing = true, github, context, issueNumber, statusOverrides }) {
+              const existingComment = await findMenuComment(github, context, issueNumber);
+              if (!existingComment && !createIfMissing) {
+                core?.warning('AI menu comment was not found.');
+                return;
+              }
+              const existingState = parseMenuState(existingComment?.body || '');
+              const statuses = buildWorkflowStatuses(existingState, statusOverrides);
+              const body = buildMenuBody(existingState, statuses);
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  comment_id: existingComment.id, body,
+                });
+                return;
+              }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issueNumber, body,
+              });
+            }
+            // ─── End helpers ───
+
+            const issueNumber = context.payload.issue.number;
+            const progressUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const triageResult = '${{ needs.run-docs-triage.result }}';
+
+            await upsertMenuComment({
+              core, createIfMissing: false, github, context, issueNumber,
+              statusOverrides: {
+                triage: {
+                  conclusion: triageResult === 'success' ? 'success' : triageResult === 'cancelled' ? 'cancelled' : 'failure',
+                  detailsUrl: progressUrl,
+                  status: 'completed',
+                },
+              },
+            });
+
+  refresh-menu-after-docs-issue-scope:
+    name: Refresh AI menu after docs issue scope
+    needs: [evaluate-trigger, refresh-menu-after-trigger, run-docs-issue-scope]
+    if: always() && needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: docs-ai-menu-${{ github.event.issue.number }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Refresh AI menu status
+        uses: actions/github-script@v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // ─── Inlined helpers (canonical: docs_ai_menu.cjs) ───
+            const MENU_START = '<!-- docs-ai-menu:start -->';
+            const MENU_END = '<!-- docs-ai-menu:end -->';
+            const WORKFLOW_CONFIG = {
+              triage: {
+                label: 'Triage ([`docs-triage`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-issue-triage.md)).',
+                marker: '<!-- docs-ai-menu:triage -->',
+              },
+              issueScope: {
+                label: 'Scope the docs work ([`docs-issue-scope`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-issue-scope.md)).',
+                marker: '<!-- docs-ai-menu:issue-scope -->',
+              },
+            };
+            const WORKFLOW_ORDER = ['triage', 'issueScope'];
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+            function getLinePattern(key) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              return new RegExp(
+                `^- \\[([ x])\\] ${escapeRegExp(label)}(?: (Status: .*?))? ${escapeRegExp(marker)}$`,
+                'm'
+              );
+            }
+            function isMenuComment(body) {
+              return (body || '').includes(MENU_START) && (body || '').includes(MENU_END);
+            }
+            function parseWorkflowState(body, key) {
+              const match = (body || '').match(getLinePattern(key));
+              if (!match) return { selected: false };
+              return { selected: match[1] === 'x', statusText: match[2] || null };
+            }
+            function parseMenuState(body) {
+              const state = {};
+              for (const key of WORKFLOW_ORDER) state[key] = parseWorkflowState(body, key);
+              return state;
+            }
+            function getStatusText(workflowState, workflowStatus) {
+              if (workflowStatus?.statusText) return workflowStatus.statusText;
+              const progressLink = workflowStatus?.detailsUrl ? ` [View progress](${workflowStatus.detailsUrl}).` : '';
+              if (workflowStatus?.status === 'in_progress' || workflowStatus?.status === 'queued') return `Status: running.${progressLink}`;
+              if (workflowStatus?.status === 'completed') {
+                if (workflowStatus.conclusion === 'success') return `Status: completed.${progressLink}`;
+                if (workflowStatus.conclusion === 'cancelled') return `Status: cancelled.${progressLink}`;
+                return `Status: needs attention.${progressLink}`;
+              }
+              if (workflowState?.statusText) return workflowState.statusText;
+              if (workflowState?.selected) return 'Status: queued.';
+              return 'Status: not started.';
+            }
+            function buildWorkflowLine(key, workflowState, workflowStatus) {
+              const { label, marker } = WORKFLOW_CONFIG[key];
+              const selected = workflowState?.selected ? 'x' : ' ';
+              const statusText = getStatusText(workflowState, workflowStatus);
+              return `- [${selected}] ${label} ${statusText} ${marker}`;
+            }
+            function buildMenuBody(state, statuses) {
+              const normalizedState = state || {};
+              const normalizedStatuses = statuses || {};
+              return [
+                MENU_START,
+                '## Elastic Docs AI Menu',
+                '',
+                'Check one box to run an AI workflow for this issue.',
+                '',
+                ...WORKFLOW_ORDER.map((key) => buildWorkflowLine(key, normalizedState[key], normalizedStatuses[key])),
+                '',
+                'Powered by GitHub Agentic Workflows and [docs-actions](https://github.com/elastic/docs-actions). For more information, reach out to the docs team.',
+                '',
+                MENU_END,
+              ].join('\n');
+            }
+            async function findMenuComment(github, context, issueNumber) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issueNumber, per_page: 100,
+              });
+              return comments.find((c) => c.user?.login === 'github-actions[bot]' && isMenuComment(c.body));
+            }
+            function buildWorkflowStatuses(existingState, statusOverrides) {
+              return Object.fromEntries(
+                WORKFLOW_ORDER.map((key) => [key, statusOverrides?.[key] || { statusText: existingState?.[key]?.statusText }])
+              );
+            }
+            async function upsertMenuComment({ core, createIfMissing = true, github, context, issueNumber, statusOverrides }) {
+              const existingComment = await findMenuComment(github, context, issueNumber);
+              if (!existingComment && !createIfMissing) {
+                core?.warning('AI menu comment was not found.');
+                return;
+              }
+              const existingState = parseMenuState(existingComment?.body || '');
+              const statuses = buildWorkflowStatuses(existingState, statusOverrides);
+              const body = buildMenuBody(existingState, statuses);
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  comment_id: existingComment.id, body,
+                });
+                return;
+              }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issueNumber, body,
+              });
+            }
+            // ─── End helpers ───
+
+            const issueNumber = context.payload.issue.number;
+            const progressUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const issueScopeResult = '${{ needs.run-docs-issue-scope.result }}';
+
+            await upsertMenuComment({
+              core, createIfMissing: false, github, context, issueNumber,
+              statusOverrides: {
+                issueScope: {
+                  conclusion: issueScopeResult === 'success' ? 'success' : issueScopeResult === 'cancelled' ? 'cancelled' : 'failure',
+                  detailsUrl: progressUrl,
+                  status: 'completed',
+                },
+              },
+            });
