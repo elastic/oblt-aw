@@ -1,6 +1,11 @@
 name: Security Issue Triage
 on:
   workflow_call:
+    inputs:
+      allowed-bot-users:
+        description: Comma-separated GitHub logins (from load-allowed-authors allowed_issue_authors_csv)
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -35,6 +40,7 @@ jobs:
     # Ref tracks elastic/ai-github-actions PR (classification-labels + GH_AW_GITHUB_TOKEN on workflow_call); switch to @main after merge.
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@copilot/add-classification-labels-input
     with:
+      allowed-bot-users: ${{ inputs.allowed-bot-users }}
       classification-labels: "oblt-aw/triage/security-injection,oblt-aw/triage/security-secrets,oblt-aw/triage/security-supply-chain,oblt-aw/triage/security-least-privilege,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
       additional-instructions: |
         Your task is to triage newly opened security-related issues in this repository. Security issues include vulnerabilities in GitHub Actions workflows and shell scripts: injection (expression, command, YAML), secret management (token exposure via CLI args, secrets in command strings), supply chain (action pinning, checksums), and least privilege (excessive permissions).

@@ -22,7 +22,7 @@ Jobs:
 - `automerge`: runs **pascalgn/automerge-action** with `GITHUB_TOKEN` on the **same** repository as the PR (`PULL_REQUEST` is the PR number). Squash-merge when `MERGE_LABELS`, `MERGE_REQUIRED_APPROVALS`, and GitHub mergeability align with branch protection.
 - `enable-merge-when-ready`: runs only when `automerge` outputs `merge_failed`; creates an ephemeral token via `elastic/oblt-actions/github/create-token@v1` and enables native auto-merge queue behavior with `gh pr merge --auto --squash`.
 
-There is no discover step and no `workflow_call` inputs for merge-ready label or allowed actor on `gh-aw-automerge` (see `validateAutomergePr.ts` and ingress; allow list is centralized in `load-allowed-pr-authors` / `config/obs/allowed_pr_authors.json`).
+There is no discover step and no `workflow_call` inputs for merge-ready label or allowed actor on `gh-aw-automerge` (see `validateAutomergePr.ts` and ingress; allow list is centralized in `load-allowed-authors` / `config/obs/allowed_pr_authors.json`).
 
 ## Configuration
 

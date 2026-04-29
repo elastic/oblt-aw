@@ -1,6 +1,11 @@
 name: Security Issue Fixer
 on:
   workflow_call:
+    inputs:
+      allowed-bot-users:
+        description: Comma-separated GitHub logins (from load-allowed-authors allowed_issue_authors_csv)
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -19,6 +24,7 @@ jobs:
       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
+      allowed-bot-users: ${{ inputs.allowed-bot-users }}
       additional-instructions: |
         Your task is to fix security issues labeled for remediation. This workflow uses agentic workflows from elastic/ai-github-actions.
 

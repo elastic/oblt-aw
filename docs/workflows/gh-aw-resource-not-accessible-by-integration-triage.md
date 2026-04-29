@@ -39,6 +39,7 @@ Permissions:
 
 `workflow_call` contract:
 
+- Input: `allowed-bot-users` (`required: true`) — comma-separated GitHub logins for the upstream issue triage lock; ingress passes `allowed_issue_authors_csv` from [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json).
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
 
 ## References

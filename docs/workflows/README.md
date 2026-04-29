@@ -9,7 +9,7 @@ This section provides documentation for each workflow source in [.github/workflo
 - CI workflow: [docs/workflows/ci.md](ci.md)
 - Ingress orchestrator: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md)
 - Dashboard reader (reusable workflow): [docs/workflows/get-enabled-workflows.md](get-enabled-workflows.md)
-- PR author allow-list loader (reusable workflow): [docs/workflows/load-allowed-pr-authors.md](load-allowed-pr-authors.md)
+- PR and issue allow-list loader (reusable workflow): [docs/workflows/load-allowed-authors.md](load-allowed-authors.md)
 - Observability Agentic Workflow entrypoint and client template (`.github/workflows/oblt-aw.yml`, `.github/remote-workflow-template/oblt-aw.yml`): [docs/workflows/oblt-aw-client-template.md](oblt-aw-client-template.md)
 - Agent suggestions workflow: [docs/workflows/gh-aw-agent-suggestions.md](gh-aw-agent-suggestions.md)
 - Autodoc workflow: [docs/workflows/gh-aw-autodoc.md](gh-aw-autodoc.md)

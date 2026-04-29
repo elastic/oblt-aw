@@ -20,8 +20,11 @@
  *
  * Allowed authors are defined in `config/obs/allowed_pr_authors.json` (Observability
  * control-plane; also reflected in `.github/workflows/oblt-aw-ingress.yml` via
- * `load-allowed-pr-authors` and `gh-aw-dependency-review.yml` (CSV input from the same
- * loader), which cannot load that file in expressions).
+ * `load-allowed-authors` and `gh-aw-dependency-review.yml` (CSV input from the same
+ * loader), which cannot load that file in expressions). Specialized issue triage/fixer
+ * wrappers (security, resource-not-accessible) pass `allowed_issue_authors_csv` from
+ * `config/obs/allowed_issue_authors.json` via the same loader; generic `gh-aw-issue-triage`
+ * / `gh-aw-issue-fixer` do not.
  */
 const path = require('node:path');
 const fs = require('node:fs');

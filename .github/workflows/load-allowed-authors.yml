@@ -1,0 +1,77 @@
+# Checks out elastic/oblt-aw (sparse: PR + issue allow-list JSON only).
+# ref=main matches consumers’ uses: elastic/oblt-aw/.../oblt-aw-ingress.yml@main.
+# Ingress runs this only on pull_request / issues events (see oblt-aw-ingress job if).
+# Other callers (e.g. workflow_dispatch) can invoke this reusable workflow directly.
+name: Load allowed authors
+
+on:
+  workflow_call:
+    outputs:
+      allowed_pr_authors_json:
+        description: Compact JSON array string of allowed GitHub logins for ingress if conditions
+        value: ${{ jobs.load-allowed-authors.outputs.allowed_pr_authors_json }}
+      allowed_pr_authors_csv:
+        description: Same logins comma-separated (for allowed-bot-users-style inputs)
+        value: ${{ jobs.load-allowed-authors.outputs.allowed_pr_authors_csv }}
+      allowed_issue_authors_json:
+        description: Compact JSON array string of allowed logins for issue-scoped GH-AW allowed-bot-users
+        value: ${{ jobs.load-allowed-authors.outputs.allowed_issue_authors_json }}
+      allowed_issue_authors_csv:
+        description: Issue allow list comma-separated (for allowed-bot-users on issue triage/fixer paths)
+        value: ${{ jobs.load-allowed-authors.outputs.allowed_issue_authors_csv }}
+
+permissions:
+  contents: read
+
+jobs:
+  load-allowed-authors:
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    outputs:
+      allowed_pr_authors_json: ${{ steps.pack.outputs.allowed_pr_authors_json }}
+      allowed_pr_authors_csv: ${{ steps.pack.outputs.allowed_pr_authors_csv }}
+      allowed_issue_authors_json: ${{ steps.pack.outputs.allowed_issue_authors_json }}
+      allowed_issue_authors_csv: ${{ steps.pack.outputs.allowed_issue_authors_csv }}
+    steps:
+      - name: Checkout elastic/oblt-aw (allow-list files only)
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            config/obs/allowed_pr_authors.json
+            config/obs/allowed_issue_authors.json
+          sparse-checkout-cone-mode: false
+
+      - name: Pack allow list for job output
+        id: pack
+        run: |
+          set -euo pipefail
+          PR_FILE="${GITHUB_WORKSPACE}/_oblt-aw/config/obs/allowed_pr_authors.json"
+          ISSUE_FILE="${GITHUB_WORKSPACE}/_oblt-aw/config/obs/allowed_issue_authors.json"
+          PR_JSON=$(jq -c . "${PR_FILE}")
+          PR_CSV=$(jq -r 'join(",")' "${PR_FILE}")
+          ISSUE_JSON=$(jq -c . "${ISSUE_FILE}")
+          ISSUE_CSV=$(jq -r 'join(",")' "${ISSUE_FILE}")
+          {
+            echo "allowed_pr_authors_json=$PR_JSON"
+            echo "allowed_pr_authors_csv=$PR_CSV"
+            echo "allowed_issue_authors_json=$ISSUE_JSON"
+            echo "allowed_issue_authors_csv=$ISSUE_CSV"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Print loaded allow lists
+        env:
+          ALLOWED_PR_AUTHORS_JSON: ${{ steps.pack.outputs.allowed_pr_authors_json }}
+          ALLOWED_PR_AUTHORS_CSV: ${{ steps.pack.outputs.allowed_pr_authors_csv }}
+          ALLOWED_ISSUE_AUTHORS_JSON: ${{ steps.pack.outputs.allowed_issue_authors_json }}
+          ALLOWED_ISSUE_AUTHORS_CSV: ${{ steps.pack.outputs.allowed_issue_authors_csv }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "allowed_pr_authors_json:" "${ALLOWED_PR_AUTHORS_JSON}"
+          printf '%s\n' "allowed_pr_authors_csv:" "${ALLOWED_PR_AUTHORS_CSV}"
+          printf '%s\n' "allowed_issue_authors_json:" "${ALLOWED_ISSUE_AUTHORS_JSON}"
+          printf '%s\n' "allowed_issue_authors_csv:" "${ALLOWED_ISSUE_AUTHORS_CSV}"

@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       allowed-bot-users:
-        description: Comma-separated GitHub logins (from load-allowed-pr-authors CSV output)
+        description: Comma-separated GitHub logins (from load-allowed-authors allowed_pr_authors_csv)
         required: true
         type: string
     secrets:
