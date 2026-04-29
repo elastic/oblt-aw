@@ -19,13 +19,20 @@ Ingress routes here when:
 - `github.event.issue.pull_request == null` (the comment is on an issue, not a PR), and
 - `startsWith(github.event.comment.body, '/ai')`, and
 - comment does not start with `/ai implement` (reserved for the generic issue-fixer route), and
+- `github.event.comment.author_association` is one of `OWNER`, `MEMBER`, or `COLLABORATOR`, and
 - Dashboard gating allows `mention-in-issue` (or no dashboard issue is present, so all workflows are enabled).
+
+This allow-list check is enforced in ingress routing (`.github/workflows/oblt-aw-ingress.yml`) before `gh-aw-mention-in-issue.yml` is called.
 
 The job `mention-in-issue` calls:
 
 - `elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-issue.lock.yml@main`
 
 Behavior and agent instructions for the locked workflow are defined in `elastic/ai-github-actions`.
+
+## Troubleshooting
+
+- A `/ai` comment from non-collaborators (for example, `CONTRIBUTOR`, `NONE`, or `FIRST_TIMER`) will not route to `gh-aw-mention-in-issue` because ingress blocks author associations outside `OWNER`/`MEMBER`/`COLLABORATOR`.
 
 ## Configuration
 

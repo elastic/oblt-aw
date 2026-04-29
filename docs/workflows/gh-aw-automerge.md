@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/gh-aw-automerge.yml](../../.github/workflows/gh-aw-automerge.yml)
 
-This workflow runs for a **single** pull request from `github.event.pull_request` (`pull_request` trigger only). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes, then runs **pascalgn/automerge-action** in the `automerge` job so the PR can squash-merge when labels, reviews, and checks satisfy configuration. Required status checks are **not** queried in `verify`; branch protection and [`pascalgn/automerge-action`](https://github.com/pascalgn/automerge-action) handle readiness before merge.
+This workflow runs for a **single** pull request from `github.event.pull_request` (`pull_request` trigger only). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes, then runs **pascalgn/automerge-action** in the `automerge` job so the PR can squash-merge when labels, reviews, and checks satisfy configuration. If that merge attempt reports `merge_failed` (for example when merge queue is required), the workflow runs `enable-merge-when-ready` to enable native GitHub auto-merge (`gh pr merge --auto --squash`) as a fallback. Required status checks are **not** queried in `verify`; branch protection and merge readiness checks handle gating before merge.
 
 Ingress selects which events dispatch here; see [Automerge routing](../routing/automerge-routing.md).
 
@@ -20,6 +20,7 @@ Jobs:
 - `verify`: checks out control-plane scripts, runs `scripts/validateAutomergePr.ts` for `github.event.pull_request.number` (author allow list aligned with dependency-review, merge-ready label, draft/fork/ref).
 - `approve`: invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` when `verify` sets `proceed` (Copilot must not call check-run APIs for gating; branch protection handles required checks at merge time).
 - `automerge`: runs **pascalgn/automerge-action** with `GITHUB_TOKEN` on the **same** repository as the PR (`PULL_REQUEST` is the PR number). Squash-merge when `MERGE_LABELS`, `MERGE_REQUIRED_APPROVALS`, and GitHub mergeability align with branch protection.
+- `enable-merge-when-ready`: runs only when `automerge` outputs `merge_failed`; creates an ephemeral token via `elastic/oblt-actions/github/create-token@v1` and enables native auto-merge queue behavior with `gh pr merge --auto --squash`.
 
 There is no discover step and no `workflow_call` inputs for merge-ready label or allowed actor on `gh-aw-automerge` (see `validateAutomergePr.ts` and ingress; allow list is centralized in `load-allowed-pr-authors` / `config/obs/allowed_pr_authors.json`).
 
@@ -31,8 +32,9 @@ There is no discover step and no `workflow_call` inputs for merge-ready label or
 |-----|-------------|
 | Workflow (default) | `contents: read` |
 | `verify` | `actions: read`, `contents: read`, `pull-requests: read` (validate script reads the PR) |
-| `approve` | `contents: write`, `issues: write`, `pull-requests: write` (GH-AW mention-in-pr) |
+| `approve` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` (GH-AW mention-in-pr) |
 | `automerge` | `contents: write`, `pull-requests: write` (automerge action merges the PR) |
+| `enable-merge-when-ready` | `id-token: write` (required for ephemeral token minting before `gh pr merge --auto`) |
 
 ## API / Interface
 

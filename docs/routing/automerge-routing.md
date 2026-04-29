@@ -4,7 +4,7 @@
 
 Entrypoint source: `.github/workflows/oblt-aw-ingress.yml`
 
-Routed workflow source: `.github/workflows/gh-aw-automerge.yml` (`verify`, `approve`, and `automerge` on the PR). Merge uses **pascalgn/automerge-action** in the same workflow run with `GITHUB_TOKEN` on the consumer repository.
+Routed workflow source: `.github/workflows/gh-aw-automerge.yml` (`verify`, `approve`, `automerge`, and conditional `enable-merge-when-ready` on the PR). Merge first uses **pascalgn/automerge-action** with `GITHUB_TOKEN`; when that step reports `merge_failed`, the workflow enables native GitHub auto-merge as a fallback.
 
 ## Usage
 
@@ -38,7 +38,9 @@ The client entrypoint must include `labeled` in `pull_request` types (see the di
 
 ## Merge strategy
 
-Squash merge via **pascalgn/automerge-action** when the PR satisfies labels, approvals, and checks. This is distinct from GraphQL `enablePullRequestAutoMerge` (native auto-merge queue).
+Primary path: squash merge via **pascalgn/automerge-action** when the PR satisfies labels, approvals, and checks.
+
+Fallback path: when `automerge` returns `merge_failed` (for example with required merge queue), `enable-merge-when-ready` mints an ephemeral token and runs `gh pr merge --auto --squash` to enqueue native GitHub auto-merge.
 
 ## Configuration
 
