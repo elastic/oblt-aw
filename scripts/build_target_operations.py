@@ -163,15 +163,23 @@ def main() -> int:
                 out.append(entry)
         return out
 
+    def dst_paths(files: list[dict[str, str]]) -> set[str]:
+        return {entry["dst"] for entry in files}
+
     operations: list[dict[str, object]] = []
 
     for repo in sorted(current_assignments):
         files = files_for_orgs(current_assignments[repo], at_base_ref=False)
+        previous_files = files_for_orgs(
+            previous_assignments.get(repo, []), at_base_ref=True
+        )
+        remove_files = sorted(dst_paths(previous_files) - dst_paths(files))
         operations.append(
             {
                 "repository": repo,
                 "operation": "install",
                 "files": files,
+                "remove_files": remove_files,
             }
         )
 
