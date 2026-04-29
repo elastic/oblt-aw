@@ -94,7 +94,11 @@ def read_previous_repo_org_assignments(base_ref: str) -> dict[str, list[str]]:
         return {}
     for line in lst.stdout.splitlines():
         parts = line.split("/")
-        if len(parts) < 3 or parts[0] != "config" or parts[-1] != "active-repositories.json":
+        if (
+            len(parts) < 3
+            or parts[0] != "config"
+            or parts[-1] != "active-repositories.json"
+        ):
             continue
         org_key = parts[1]
         try:

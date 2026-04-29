@@ -198,9 +198,11 @@ class TestMain:
             monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/bar"]
         )
 
-        # Patch read_previous_repositories to simulate a previous state with an extra repo.
+        # Patch read_previous_repo_org_assignments to simulate a previous state with an extra repo.
         monkeypatch.setattr(
-            bto, "read_previous_repositories", lambda _: ["elastic/bar", "elastic/gone"]
+            bto,
+            "read_previous_repo_org_assignments",
+            lambda _: {"elastic/bar": ["obs"], "elastic/gone": ["obs"]},
         )
 
         rc = bto.main()
