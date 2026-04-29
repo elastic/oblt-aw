@@ -29,9 +29,9 @@ The job `dashboard-enabled-workflows` runs `get-enabled-workflows.yml` first. Do
 
 Jobs that do not list `needs: dashboard-enabled-workflows` are not gated this way (see [Internal ingress jobs](#internal-ingress-jobs-not-in-workflow-registryjson)).
 
-### PR author allow list (`load-allowed-pr-authors`)
+### Allow lists (`load-allowed-authors`)
 
-On `pull_request` events only, ingress runs job `load-allowed-pr-authors` (`if: github.event_name == 'pull_request'`), which calls reusable workflow [.github/workflows/load-allowed-pr-authors.yml](../../.github/workflows/load-allowed-pr-authors.yml) in parallel with `dashboard-enabled-workflows`, before `automerge` and `dependency-review`. The reusable workflow **checks out** the public **`elastic/oblt-aw`** repository at `ref=main` (sparse: [config/obs/allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) only; same branch consumers pin with `uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`), then reads the file with `jq -c` into workflow output `allowed_pr_authors_json`. Gating stays on the ingress job so schedule/issue runs do not clone the repo; other workflows can call `load-allowed-pr-authors.yml` without that `if` (for example `workflow_dispatch`). Consumer repositories do not need a copy of this file on disk for ingress routing.
+Ingress always runs job `load-allowed-authors`, which calls reusable workflow [.github/workflows/load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml) in parallel with `dashboard-enabled-workflows`. The reusable workflow **checks out** the public **`elastic/oblt-aw`** repository at `ref=main` with sparse paths [config/obs/allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) and [config/obs/allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json) (same branch consumers pin with `uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`), then reads each file with `jq` into four outputs: `allowed_pr_authors_json`, `allowed_pr_authors_csv`, `allowed_issue_authors_json`, and `allowed_issue_authors_csv`. **Pull-request** jobs (`automerge`, `dependency-review`) use the **PR** JSON/CSV for author gating and `allowed-bot-users` on dependency review. **Specialized issue** paths (security triage/fixer, resource-not-accessible triage/fixer) pass **`allowed_issue_authors_csv`** into upstream `allowed-bot-users` for [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) issue triage/fixer locks. Generic **`issue-triage`** / **`issue-fixer`** do not pass that input (upstream defaults only; no control-plane issue author list). Consumer repositories do not need a copy of these files on disk for ingress routing.
 
 Canonical registry ids and metadata live per org under `config/<org-key>/workflow-registry.json` (for example [config/obs/workflow-registry.json](../../config/obs/workflow-registry.json)). Ingress `enabled-workflows` entries use **`obs:<registry-id>`** for Observability workflows below.
 
@@ -79,7 +79,7 @@ The following subsections follow the order of entries in the Observability regis
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `automerge` | `gh-aw-automerge.yml` | `pull_request` `opened` / `synchronize` / `reopened` / `labeled` where PR author is in `load-allowed-pr-authors` output **and** the PR has label `oblt-aw/ai/merge-ready` | Yes — `obs:automerge` |
+| `automerge` | `gh-aw-automerge.yml` | `pull_request` `opened` / `synchronize` / `reopened` / `labeled` where PR author is in `load-allowed-authors` output **and** the PR has label `oblt-aw/ai/merge-ready` | Yes — `obs:automerge` |
 
 Forwards `COPILOT_GITHUB_TOKEN` to `gh-aw-automerge.yml` for the Copilot-based approval step.
 
@@ -95,7 +95,7 @@ Forwards `COPILOT_GITHUB_TOKEN` to `gh-aw-automerge.yml` for the Copilot-based a
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `dependency-review` | `gh-aw-dependency-review.yml` | `pull_request` `opened` / `synchronize` / `reopened`; PR author must appear in `load-allowed-pr-authors` output (from [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json)) | Yes — `obs:dependency-review` |
+| `dependency-review` | `gh-aw-dependency-review.yml` | `pull_request` `opened` / `synchronize` / `reopened`; PR author must appear in `load-allowed-authors` output (from [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json)) | Yes — `obs:dependency-review` |
 
 This job is separate from registry id `security`: it is PR-time dependency and license review for bot PRs, not the static repo-wide security scan. See [docs/workflows/gh-aw-dependency-review.md](gh-aw-dependency-review.md) and [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) (complementary workflows SEC-033–SEC-035).
 
@@ -199,6 +199,7 @@ These jobs exist only in [.github/workflows/oblt-aw-ingress.yml](../../.github/w
 | Job | Role |
 |-----|------|
 | `dashboard-enabled-workflows` | Invokes `get-enabled-workflows.yml`; supplies `effective-raw` and `enabled-workflows` to gated jobs. See [docs/workflows/get-enabled-workflows.md](get-enabled-workflows.md). |
+| `load-allowed-authors` | Invokes `load-allowed-authors.yml`; supplies PR and issue allow-list outputs from **`elastic/oblt-aw`** ([allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json), [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json)). |
 | `unsupported-trigger` | Runs when the event is not one of the supported combinations; fails the workflow with a clear message. It has no `needs: dashboard-enabled-workflows` and does not read the registry. |
 
 ## Configuration

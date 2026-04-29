@@ -1,6 +1,11 @@
 name: Resource not accessible by Integration Issue Triage
 on:
   workflow_call:
+    inputs:
+      allowed-bot-users:
+        description: Comma-separated GitHub logins (from load-allowed-authors allowed_issue_authors_csv)
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -36,6 +41,7 @@ jobs:
     # Ref tracks elastic/ai-github-actions PR (classification-labels + GH_AW_GITHUB_TOKEN on workflow_call); switch to @main after merge.
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@copilot/add-classification-labels-input
     with:
+      allowed-bot-users: ${{ inputs.allowed-bot-users }}
       classification-labels: "oblt-aw/triage/res-not-accessible-by-integration,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
       additional-instructions: |
         Your task is to triage issues that carry the detector label `oblt-aw/detector/res-not-accessible-by-integration` and determine if they are related to "Resource not accessible by integration" errors in GitHub Actions workflows.
