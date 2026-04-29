@@ -20,18 +20,69 @@ import subprocess
 import sys
 
 from common import (
-    merge_active_repositories_from_org_trees,
+    discover_repo_org_assignments,
     parse_repositories,
     write_outputs,
 )
 
+REMOTE_TEMPLATE_DIR = pathlib.Path(".github/remote-workflow-template")
+ZERO_SHA = "0000000000000000000000000000000000000000"
 
-def read_previous_repositories(base_ref: str) -> list[str]:
-    """Load union of repository lists from per-org files under ``config/`` at ``base_ref``."""
-    if not base_ref or base_ref == "0000000000000000000000000000000000000000":
+
+def list_org_template_files(org_key: str) -> list[dict[str, str]]:
+    """
+    Return ``[{src, dst}]`` entries for files under
+    ``.github/remote-workflow-template/<org_key>/``.
+
+    ``src`` is the path from the source repo root.
+    ``dst`` is the path inside the target repo (relative to repo root).
+    """
+    org_root = REMOTE_TEMPLATE_DIR / org_key
+    if not org_root.is_dir():
         return []
+    files: list[dict[str, str]] = []
+    for path in sorted(org_root.rglob("*")):
+        if not path.is_file():
+            continue
+        files.append(
+            {
+                "src": str(path),
+                "dst": str(path.relative_to(org_root)),
+            }
+        )
+    return files
 
-    merged: set[str] = set()
+
+def list_org_template_files_at_ref(org_key: str, ref: str) -> list[dict[str, str]]:
+    """Return ``[{src, dst}]`` from the template tree at ``ref`` via git."""
+    if not ref or ref == ZERO_SHA:
+        return []
+    org_prefix = f"{REMOTE_TEMPLATE_DIR.as_posix()}/{org_key}/"
+    try:
+        result = subprocess.run(
+            ["git", "ls-tree", "-r", "--name-only", ref, str(REMOTE_TEMPLATE_DIR)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return []
+    files: list[dict[str, str]] = []
+    for line in result.stdout.splitlines():
+        if not line.startswith(org_prefix):
+            continue
+        rel = line[len(org_prefix) :]
+        if not rel:
+            continue
+        files.append({"src": line, "dst": rel})
+    return sorted(files, key=lambda f: f["src"])
+
+
+def read_previous_repo_org_assignments(base_ref: str) -> dict[str, list[str]]:
+    """Repo→sorted-org-keys mapping at ``base_ref``, recovered from git history."""
+    if not base_ref or base_ref == ZERO_SHA:
+        return {}
+    assignments: dict[str, set[str]] = {}
     try:
         lst = subprocess.run(
             ["git", "ls-tree", "-r", "--name-only", base_ref, "config"],
@@ -40,27 +91,24 @@ def read_previous_repositories(base_ref: str) -> list[str]:
             text=True,
         )
     except subprocess.CalledProcessError:
-        return sorted(merged)
-
+        return {}
     for line in lst.stdout.splitlines():
         parts = line.split("/")
-        if len(parts) < 3:
+        if len(parts) < 3 or parts[0] != "config" or parts[-1] != "active-repositories.json":
             continue
-        if parts[-1] != "active-repositories.json":
-            continue
-        if parts[0] != "config":
-            continue
+        org_key = parts[1]
         try:
-            result = subprocess.run(
+            content = subprocess.run(
                 ["git", "show", f"{base_ref}:{line}"],
                 check=True,
                 capture_output=True,
                 text=True,
-            )
-            merged.update(parse_repositories(result.stdout))
+            ).stdout
         except subprocess.CalledProcessError:
             continue
-    return sorted(merged)
+        for repo in parse_repositories(content):
+            assignments.setdefault(repo, set()).add(org_key)
+    return {repo: sorted(orgs) for repo, orgs in assignments.items()}
 
 
 def parse_bool(value: str) -> bool:
@@ -84,23 +132,56 @@ def main() -> int:
         return 0
 
     config_dir = pathlib.Path("config")
-    current_repositories = merge_active_repositories_from_org_trees(config_dir)
+    current_assignments = discover_repo_org_assignments(config_dir)
 
     base_ref = os.getenv("BASE_REF", "").strip()
-    previous_repositories = read_previous_repositories(base_ref)
+    previous_assignments = read_previous_repo_org_assignments(base_ref)
 
-    operations = [
-        {"repository": repo, "operation": "install"} for repo in current_repositories
-    ]
+    current_files_by_org: dict[str, list[dict[str, str]]] = {}
+    previous_files_by_org: dict[str, list[dict[str, str]]] = {}
 
-    removed_repositories = sorted(
-        set(previous_repositories) - set(current_repositories)
-    )
-    operations.extend(
-        {"repository": repo, "operation": "remove"} for repo in removed_repositories
-    )
+    def files_for_orgs(orgs: list[str], at_base_ref: bool) -> list[dict[str, str]]:
+        cache = previous_files_by_org if at_base_ref else current_files_by_org
+        seen_dst: set[str] = set()
+        out: list[dict[str, str]] = []
+        for org in orgs:
+            if org not in cache:
+                cache[org] = (
+                    list_org_template_files_at_ref(org, base_ref)
+                    if at_base_ref
+                    else list_org_template_files(org)
+                )
+            for entry in cache[org]:
+                if entry["dst"] in seen_dst:
+                    continue
+                seen_dst.add(entry["dst"])
+                out.append(entry)
+        return out
 
-    install_count = len(current_repositories)
+    operations: list[dict[str, object]] = []
+
+    for repo in sorted(current_assignments):
+        files = files_for_orgs(current_assignments[repo], at_base_ref=False)
+        operations.append(
+            {
+                "repository": repo,
+                "operation": "install",
+                "files": files,
+            }
+        )
+
+    removed_repositories = sorted(set(previous_assignments) - set(current_assignments))
+    for repo in removed_repositories:
+        files = files_for_orgs(previous_assignments[repo], at_base_ref=True)
+        operations.append(
+            {
+                "repository": repo,
+                "operation": "remove",
+                "files": files,
+            }
+        )
+
+    install_count = len(current_assignments)
     remove_count = len(removed_repositories)
     total_count = len(operations)
 

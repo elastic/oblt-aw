@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - config/**/active-repositories.json
-      - .github/remote-workflow-template/oblt-aw.yml
+      - .github/remote-workflow-template/**
   workflow_dispatch:
     inputs:
       force:
@@ -45,7 +45,7 @@ jobs:
         with:
           base-ref: ${{ github.event.before }}
           ref: ${{ github.sha }}
-          filter: '["*config/**/active-repositories.json","*.github/remote-workflow-template/oblt-aw.yml"]'
+          filter: '["*config/**/active-repositories.json","*.github/remote-workflow-template/**"]'
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -109,25 +109,44 @@ jobs:
           token: ${{ steps.create-token.outputs.token }}
           path: target
 
-      - name: Sync client workflow into target repository
+      - name: Sync client files into target repository
         if: ${{ matrix.target.operation == 'install' }}
         env:
-          SOURCE_WORKFLOW_PATH: source/.github/remote-workflow-template/oblt-aw.yml
-          TARGET_WORKFLOW_PATH: target/.github/workflows/oblt-aw.yml
+          FILES_JSON: ${{ toJSON(matrix.target.files) }}
         run: |
           set -euo pipefail
 
-          mkdir -p "$(dirname "$TARGET_WORKFLOW_PATH")"
-          cp "$GITHUB_WORKSPACE/$SOURCE_WORKFLOW_PATH" "$TARGET_WORKFLOW_PATH"
+          printf '%s' "$FILES_JSON" | jq -c '.[]' | while IFS= read -r entry; do
+            src="$GITHUB_WORKSPACE/source/$(printf '%s' "$entry" | jq -r '.src')"
+            dst="$GITHUB_WORKSPACE/target/$(printf '%s' "$entry" | jq -r '.dst')"
+            mkdir -p "$(dirname "$dst")"
+            cp "$src" "$dst"
+          done
 
-      - name: Remove client workflow from target repository
+      - name: Remove client files from target repository
         if: ${{ matrix.target.operation == 'remove' }}
         env:
-          TARGET_WORKFLOW_PATH: target/.github/workflows/oblt-aw.yml
+          FILES_JSON: ${{ toJSON(matrix.target.files) }}
         run: |
           set -euo pipefail
 
-          rm -f "$TARGET_WORKFLOW_PATH"
+          printf '%s' "$FILES_JSON" | jq -c '.[]' | while IFS= read -r entry; do
+            dst="$GITHUB_WORKSPACE/target/$(printf '%s' "$entry" | jq -r '.dst')"
+            rm -f "$dst"
+          done
+
+      - name: Render installed files list
+        if: ${{ matrix.target.operation == 'install' }}
+        id: files-md-install
+        env:
+          FILES_JSON: ${{ toJSON(matrix.target.files) }}
+        run: |
+          set -euo pipefail
+          {
+            echo 'list<<FILES_EOF'
+            printf '%s' "$FILES_JSON" | jq -r '.[] | "- `\(.dst)` (from `\(.src)`)"'
+            echo 'FILES_EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create or update installation PR in target repository
         if: ${{ matrix.target.operation == 'install' }}
@@ -140,16 +159,29 @@ jobs:
           path: target
           branch: oblt-aw/sync-client-workflow
           labels: changelog:ci, oblt-aw/ai/merge-ready
-          commit-message: Add Observability Agentic Workflow Entrypoint
-          title: Add Observability Agentic Workflow Entrypoint
+          commit-message: Sync agentic workflow files from elastic/oblt-aw
+          title: Sync agentic workflow files from elastic/oblt-aw
           body: |
-            This PR installs/updates the Observability Agentic Workflow managed remotely by elastic/oblt-aw.
+            This PR installs/updates files managed remotely by elastic/oblt-aw.
 
-            - Source: `.github/remote-workflow-template/oblt-aw.yml`
-            - Entrypoint: `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main`
+            Files synced:
+            ${{ steps.files-md-install.outputs.list }}
 
             ---
             Created by [workflow run](${{ env.JOB_URL }})
+
+      - name: Render removed files list
+        if: ${{ matrix.target.operation == 'remove' }}
+        id: files-md-remove
+        env:
+          FILES_JSON: ${{ toJSON(matrix.target.files) }}
+        run: |
+          set -euo pipefail
+          {
+            echo 'list<<FILES_EOF'
+            printf '%s' "$FILES_JSON" | jq -r '.[] | "- `\(.dst)`"'
+            echo 'FILES_EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create or update removal PR in target repository
         if: ${{ matrix.target.operation == 'remove' }}
@@ -162,12 +194,13 @@ jobs:
           path: target
           branch: oblt-aw/remove-client-workflow
           labels: changelog:ci, oblt-aw/ai/merge-ready
-          commit-message: Remove Observability Agentic Workflow Entrypoint
-          title: Remove Observability Agentic Workflow Entrypoint
+          commit-message: Remove agentic workflow files managed by elastic/oblt-aw
+          title: Remove agentic workflow files managed by elastic/oblt-aw
           body: |
-            This PR removes the Observability Agentic Workflow managed remotely by elastic/oblt-aw because the repository is no longer admitted.
+            This PR removes files managed remotely by elastic/oblt-aw because the repository is no longer admitted by any org.
 
-            - Removed file: `.github/workflows/oblt-aw.yml`
+            Files removed:
+            ${{ steps.files-md-remove.outputs.list }}
 
             ---
             Created by [workflow run](${{ env.JOB_URL }})
