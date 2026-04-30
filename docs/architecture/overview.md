@@ -28,6 +28,45 @@ jobs:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 ```
 
+## Control plane and consumer interaction diagram
+
+The diagram below summarizes **how operators configure the platform in `elastic/oblt-aw`**, **how automation reaches target repositories**, and **how a run in a consumer repository delegates back** into reusable workflows in this catalog. In each target repository, the **installed client entrypoint** (`.github/workflows/oblt-aw.yml`, from [`.github/remote-workflow-template/oblt-aw.yml`](../../.github/remote-workflow-template/oblt-aw.yml)) is the workflow that **declares `on:`** and **listens for repository-local events**; it then calls ingress in this catalog. Arrows show the primary direction of configuration or invocation; GitHub runs reusable workflows in the **calling repository’s context** (the consumer), while workflow **definitions** live in `elastic/oblt-aw`.
+
+```mermaid
+flowchart TB
+  subgraph OBLT["elastic/oblt-aw (catalog)"]
+    CFG["Per-org config under config\none folder per org key\nworkflow-registry.json\nactive-repositories.json"]
+    DIST["distribute-client-workflow\ninstalls or updates client YAML"]
+    SYNC["sync-control-plane-dashboard\nmaintains dashboard issue body"]
+    ING["oblt-aw-ingress.yml\nreusable orchestration"]
+    GET["get-enabled-workflows.yml\nreads consumer dashboard"]
+    GHA["gh-aw-* reusable workflows\nwrappers and local jobs"]
+    CFG --> DIST
+    CFG --> SYNC
+    ING --> GET
+    ING --> GHA
+  end
+
+  subgraph UP["elastic/ai-github-actions (upstream)"]
+    LOCK["Locked reusable agent workflows\nworkflow_call targets"]
+  end
+
+  subgraph CON["Target repository (consumer)"]
+    EVT["Target-repo GitHub activity\nschedule, issues, pull_request, …"]
+    CLIENT["Client entrypoint oblt-aw.yml\n.github/workflows/oblt-aw.yml\nfrom remote-workflow-template\nlistens via workflow on: triggers"]
+    DASH["Issue: [oblt-aw] Control Plane Dashboard\nlabel oblt-aw/dashboard"]
+    EVT --> CLIENT
+    DASH -.->|checkbox state| GET
+  end
+
+  DIST -->|PR: add or update client file| CLIENT
+  SYNC -->|create or update issue| DASH
+  CLIENT -->|uses: …/oblt-aw-ingress.yml@main| ING
+  GHA -->|uses: locked upstream workflows| LOCK
+```
+
+For event-level routing from ingress to individual `gh-aw-*` jobs, see the smaller routing flowchart under [Examples](#examples).
+
 ## Control Plane Dashboard
 
 The Control Plane Dashboard provides a self-service UI for repository users to opt in or opt out of each agentic workflow. It follows a Renovate Dependency Dashboard–style UX.
