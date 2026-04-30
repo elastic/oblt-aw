@@ -50,7 +50,9 @@ Permissions:
 `workflow_call` contract:
 
 - No inputs.
-- No declared secrets.
+- No declared secrets at the wrapper level; the `run` job uses `secrets: inherit` for nested reusable workflow secrets.
+
+Ingress does not pass `allowed-bot-users` for this generic path; the upstream lock workflow uses its built-in defaults (no control-plane issue author list).
 
 ## References
 

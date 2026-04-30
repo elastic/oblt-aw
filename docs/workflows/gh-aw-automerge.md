@@ -22,7 +22,7 @@ Jobs:
 - `automerge`: runs **pascalgn/automerge-action** with `GITHUB_TOKEN` on the **same** repository as the PR (`PULL_REQUEST` is the PR number). Squash-merge when `MERGE_LABELS`, `MERGE_REQUIRED_APPROVALS`, and GitHub mergeability align with branch protection.
 - `enable-merge-when-ready`: runs only when `automerge` outputs `merge_failed`; creates an ephemeral token via `elastic/oblt-actions/github/create-token@v1` and enables native auto-merge queue behavior with `gh pr merge --auto --squash`.
 
-There is no discover step and no `workflow_call` inputs for merge-ready label or allowed actor on `gh-aw-automerge` (see `validateAutomergePr.ts` and ingress; allow list is centralized in `load-allowed-pr-authors` / `config/obs/allowed_pr_authors.json`).
+There is no discover step. Ingress passes **`allowed-bot-users`** (CSV from `load-allowed-authors` → `allowed_pr_authors_csv`, same source as dependency-review) into the `approve` job’s `gh-aw-mention-in-pr` call so vault and other allowed bot actors match GH-AW’s bot gate. Merge-ready label and PR author gating remain in `validateAutomergePr.ts` and ingress `if` conditions; the canonical PR author list is [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) on `elastic/oblt-aw`.
 
 ## Configuration
 
@@ -40,6 +40,7 @@ There is no discover step and no `workflow_call` inputs for merge-ready label or
 
 `workflow_call` contract:
 
+- **Inputs:** `allowed-bot-users` (required) — comma-separated logins for `gh-aw-mention-in-pr.lock.yml`; ingress passes `needs.load-allowed-authors.outputs.allowed_pr_authors_csv` (see [load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml)).
 - **Secrets:** `COPILOT_GITHUB_TOKEN` (required) — forwarded from the ingress caller for the GH-AW approval job.
 
 ## References

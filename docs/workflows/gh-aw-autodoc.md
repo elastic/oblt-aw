@@ -27,6 +27,7 @@ Workflow-specific requirements passed to the PR stage:
 
 Additional guidance encoded in `additional-instructions` for both audit and fix jobs:
 
+- **Secret documentation:** Before proposing (audit) or implementing (fix) any documentation related to secret definitions or usage, the agent must consult [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) and its root `README.md` as the Observability org source of truth for secret management. The fix stage must not add guidance that contradicts or extends beyond that source.
 - Treat leading `-` (and similar) in **table cells** as potentially intentional (for example icon or status placeholders); avoid “cleaning” them without evidence of a real defect.
 - Do not hand-edit **auto-generated** documentation in the fix PR (docs-only); the audit should steer fixes toward generators, templates, or other sources of truth, and the PR body should record any follow-up that is outside this workflow’s scope.
 - Preserve or lightly refresh **legacy inline comments** that still document useful context or history; avoid deleting them only for brevity.
