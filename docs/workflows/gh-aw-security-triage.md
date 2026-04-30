@@ -16,7 +16,7 @@ This reusable workflow triages newly opened security-related issues and prepares
 
 The job `mint-gh-aw-github-token` mints an installation token via [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token). The job `security-issue-triage` calls:
 
-- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@copilot/add-classification-labels-input](https://github.com/elastic/ai-github-actions/blob/copilot/add-classification-labels-input/.github/workflows/gh-aw-issue-triage.lock.yml) (switch to `@main` after upstream merge)
+- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
 
 The nested workflow receives **`GH_AW_GITHUB_TOKEN`** (mint output) for GitHub API mutations and **`classification-labels`** matching the security triage allowlist below.
 

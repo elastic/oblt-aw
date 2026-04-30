@@ -38,8 +38,7 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
-    # Ref tracks elastic/ai-github-actions PR (classification-labels + GH_AW_GITHUB_TOKEN on workflow_call); switch to @main after merge.
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@copilot/add-classification-labels-input
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.allowed-bot-users }}
       classification-labels: "oblt-aw/triage/res-not-accessible-by-integration,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
