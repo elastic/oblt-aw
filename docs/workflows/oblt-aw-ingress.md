@@ -135,7 +135,7 @@ This job is separate from registry id `security`: it is PR-time dependency and l
 
 | Ingress job | Reusable workflow | Triggers | Dashboard gate |
 |-------------|-------------------|----------|----------------|
-| `issue-fixer` | `gh-aw-issue-fixer.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting `/ai implement`, and without `oblt-aw/triage/security-*` or `oblt-aw/triage/res-not-accessible-by-integration` | Yes — `obs:issue-fixer` |
+| `issue-fixer` | `gh-aw-issue-fixer.yml` | `issue_comment` `created` on an issue (not a PR) with comment starting `/ai implement`, where `github.event.comment.author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR`, and without `oblt-aw/triage/security-*` or `oblt-aw/triage/res-not-accessible-by-integration` | Yes — `obs:issue-fixer` |
 
 ### Mention in Issue (registry id `mention-in-issue`)
 
