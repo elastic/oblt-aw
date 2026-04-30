@@ -28,7 +28,7 @@ jobs:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 ```
 
-## Control plane and consumer interaction diagram
+## Control Plane and Consumer Interaction Diagram
 
 The diagram below summarizes **how operators configure the platform in `elastic/oblt-aw`**, **how automation reaches target repositories**, and **how a run in a consumer repository delegates back** into reusable workflows in this catalog. In each target repository, the **installed client entrypoint** (`.github/workflows/oblt-aw.yml`, from [`.github/remote-workflow-template/oblt-aw.yml`](../../.github/remote-workflow-template/oblt-aw.yml)) is the workflow that **declares `on:`** and **listens for repository-local events**; it then calls ingress in this catalog. Arrows show the primary direction of configuration or invocation; GitHub runs reusable workflows in the **calling repository’s context** (the consumer), while workflow **definitions** live in `elastic/oblt-aw`.
 
