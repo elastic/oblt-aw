@@ -14,11 +14,11 @@ All three ingress routes use the same Control Plane dashboard gate: jobs run onl
 
 ## Usage
 
-Routing rules from ingress (aligned with `oblt-aw-ingress.yml`; issue routes follow the same label pattern as `resource-not-accessible-by-integration-*`):
+Routing rules from ingress (aligned with `oblt-aw-ingress.yml`):
 
 - **Detector** — `schedule` or `workflow_dispatch`.
 - **Triage** — `issues` + (`opened` and issue already has `oblt-aw/detector/security`) **or** (`labeled` and the label applied is `oblt-aw/detector/security`).
-- **Fixer** — `issues` + `labeled` with `oblt-aw/ai/fix-ready`, and the issue has at least one label matching `oblt-aw/triage/security-*`.
+- **Fixer** — `issues` + `labeled`, where the newly added label is either `oblt-aw/ai/fix-ready` or `oblt-aw/triage/security-*`, and the issue has both `oblt-aw/ai/fix-ready` and at least one label matching `oblt-aw/triage/security-*`.
 
 ## Trigger Conditions
 
@@ -37,8 +37,9 @@ Routing rules from ingress (aligned with `oblt-aw-ingress.yml`; issue routes fol
 
 - **Event**: `issues`
 - **Action**: `labeled`
-- **Required labels**:
-  - `oblt-aw/ai/fix-ready` (the label that triggered the event)
+- **Triggering label**: either `oblt-aw/ai/fix-ready` or any `oblt-aw/triage/security-*` label
+- **Required issue label set after labeling**:
+  - `oblt-aw/ai/fix-ready`
   - At least one of: `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`
 
 The ingress uses `contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')` to match any security triage label.
