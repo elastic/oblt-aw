@@ -64,12 +64,15 @@ The table below documents how each rule ID is currently represented in the detec
 
 ## Severity Levels
 
-| Level | Label | Description |
-|-------|-------|-------------|
-| **Critical** | `oblt-aw/severity/critical` | Direct credential exposure, hardcoded secrets, or equivalent. |
-| **High** | `oblt-aw/severity/high` | Exploitable misconfiguration (injection, missing integrity check on binaries, secrets in logs). |
-| **Medium** | `oblt-aw/severity/medium` | Supply-chain or privilege issues with lower immediate exploitability. |
-| **Low** | `oblt-aw/severity/low` | Best-practice gaps and defense-in-depth. |
+| Level | Current detector issue label(s) | Description |
+|-------|---------------------------------|-------------|
+| **Critical** | `oblt-aw/detector/security` | Direct credential exposure, hardcoded secrets, or equivalent. |
+| **High** | `oblt-aw/detector/security` | Exploitable misconfiguration (injection, missing integrity check on binaries, secrets in logs). |
+| **Medium** | `oblt-aw/detector/security` | Supply-chain or privilege issues with lower immediate exploitability. |
+| **Low** | `oblt-aw/detector/security` | Best-practice gaps and defense-in-depth. |
+
+> [!NOTE]
+> The current issue-creation script adds only `oblt-aw/detector/security` to detector-created issues (no `oblt-aw/severity/*` labels are emitted). Severity still appears in each finding entry and maps to this table. See [Workflow: `gh-aw-security-detector.yml`](gh-aw-security-detector.md) and [`scripts/create-security-issues.sh`](../../scripts/create-security-issues.sh).
 
 ---
 
