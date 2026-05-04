@@ -10,28 +10,14 @@ on:
       COPILOT_GITHUB_TOKEN:
         required: true
 
-# Ephemeral installation token for GH-AW label/issue API so follow-on workflows are not suppressed
-# (GITHUB_TOKEN mutations do not trigger other workflows). Omit token-policy so Vault uses the
-# auto role token-policy-<12-char sha256(workflow ref base)> for this workflow file; register it in catalog-info.
+# Ephemeral token minting for label API runs only in signal-res-not-accessible-triage-followups (see #4374 workaround).
+# Omit token-policy on create-token so Vault uses the auto role token-policy-<12-char sha256(workflow ref base)>; register in catalog-info.
 permissions:
   actions: read
   contents: read
 
 jobs:
-  mint-gh-aw-github-token:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    outputs:
-      token: ${{ steps.create-token.outputs.token }}
-    steps:
-      - name: Create ephemeral GitHub token
-        id: create-token
-        uses: elastic/oblt-actions/github/create-token@v1
-
   res-not-accessible-integration-triage:
-    needs: mint-gh-aw-github-token
     permissions:
       actions: read
       contents: read
@@ -228,4 +214,53 @@ jobs:
         - [Troubleshooting Permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      GH_AW_GITHUB_TOKEN: ${{ needs.mint-gh-aw-github-token.outputs.token }}
+
+  # Workaround until we can mint ephemeral tokens inside agentic-workflows (elastic/observability-robots#4374):
+  # mint only in this follow-up job; when the fixer preconditions hold, remove+re-add `oblt-aw/ai/fix-ready`
+  # so ingress sees a `labeled` event from the installation token.
+  signal-res-not-accessible-triage-followups:
+    needs: res-not-accessible-integration-triage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    steps:
+      - name: Create ephemeral GitHub token
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+
+      - name: Re-apply fix-ready label to emit installation-token labeled event
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ steps.create-token.outputs.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumber = context.issue.number;
+            const { data: issue } = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number: issueNumber,
+            });
+            const names = issue.labels.map((l) => l.name);
+            const fixReady = "oblt-aw/ai/fix-ready";
+            const confirmed = "oblt-aw/triage/res-not-accessible-by-integration";
+            if (!names.includes(fixReady) || !names.includes(confirmed)) {
+              core.info(`Issue #${issueNumber} missing ${fixReady} or ${confirmed}; skipping re-apply.`);
+              return;
+            }
+            await github.rest.issues.removeLabel({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              name: fixReady,
+            });
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              labels: [fixReady],
+            });
+            core.info(`Re-applied ${fixReady} on issue #${issueNumber}.`);
