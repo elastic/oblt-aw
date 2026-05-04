@@ -77,15 +77,19 @@ jobs:
           printf '%s\n' "allowed_issue_authors_csv:" "${ALLOWED_ISSUE_AUTHORS_CSV}"
 
       - name: Print triggering author (debug)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
         run: |
           set -euo pipefail
-          printf '%s\n' "debug: github.event_name=${{ github.event_name }}"
-          case "${{ github.event_name }}" in
+          printf '%s\n' "debug: github.event_name=${EVENT_NAME}"
+          case "${EVENT_NAME}" in
             pull_request)
-              printf '%s\n' "debug: github.event.pull_request.user.login=${{ github.event.pull_request.user.login }}"
+              printf '%s\n' "debug: github.event.pull_request.user.login=${PR_AUTHOR}"
               ;;
             issues)
-              printf '%s\n' "debug: github.event.issue.user.login=${{ github.event.issue.user.login }}"
+              printf '%s\n' "debug: github.event.issue.user.login=${ISSUE_AUTHOR}"
               ;;
             *)
               printf '%s\n' "debug: no pull_request/issue author for this event"
