@@ -83,7 +83,7 @@ jobs:
         Do not call check-run or commit status APIs. Required checks are enforced by GitHub when auto-merge is enabled.
 
         Approve the PR only when all of these gates are true:
-        - PR author is one of: dependabot[bot], renovate[bot], Dependabot, Renovate, elastic-vault-github-plugin-prod[bot]
+        - PR author is one of: dependabot[bot], renovate[bot], Dependabot, Renovate, elastic-vault-github-plugin-prod[bot], app/elastic-vault-github-plugin-prod
         - PR has label `oblt-aw/ai/merge-ready`
         - PR is not draft
         - PR is not from a fork (head repo equals base repo)

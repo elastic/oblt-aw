@@ -3,5 +3,6 @@
   "renovate[bot]",
   "Dependabot",
   "Renovate",
-  "elastic-vault-github-plugin-prod[bot]"
+  "elastic-vault-github-plugin-prod[bot]",
+  "app/elastic-vault-github-plugin-prod"
 ]

@@ -140,3 +140,21 @@ test('validateAutomergePr allows elastic-vault-github-plugin-prod[bot]', async (
   });
   assert.equal(r.ok, true);
 });
+
+test('validateAutomergePr allows app/elastic-vault-github-plugin-prod', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr({ user: { login: 'app/elastic-vault-github-plugin-prod' } }) }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 8,
+    core,
+  });
+  assert.equal(r.ok, true);
+});
