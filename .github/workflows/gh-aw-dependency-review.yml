@@ -23,14 +23,45 @@ jobs:
       contents: read
       id-token: write
     outputs:
-      token: ${{ steps.create-token.outputs.token }}
+      token: ${{ steps.encode.outputs.token }}
     steps:
       - name: Create ephemeral GitHub token
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
+      - name: Encode token to preserve through job output boundary
+        id: encode
+        # fetch-github-token registers the raw token with ::add-mask::, which causes the
+        # runner to silently drop any job output whose value matches the masked string
+        # (logged as "Skip output 'token' since it may contain secret.").
+        # Base64-encoding the value before writing it to GITHUB_OUTPUT avoids the mask
+        # match and preserves the token across the job boundary.
+        run: |
+          ENCODED=$(printf '%s' "$TOKEN" | base64 -w0)
+          printf 'token=%s\n' "$ENCODED" >> "$GITHUB_OUTPUT"
+        env:
+          TOKEN: ${{ steps.create-token.outputs.token }}
+
+  # Decode the base64-encoded token from mint-gh-aw-github-token.
+  # Running in a fresh job context means no ::add-mask:: has been registered for
+  # this value, so the decoded token survives as a job output and can be forwarded
+  # to the locked workflow as a secret.
+  decode-minted-token:
+    needs: mint-gh-aw-github-token
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      token: ${{ steps.decode.outputs.token }}
+    steps:
+      - name: Decode token
+        id: decode
+        run: |
+          DECODED=$(printf '%s' "$ENCODED" | base64 -d)
+          printf 'token=%s\n' "$DECODED" >> "$GITHUB_OUTPUT"
+        env:
+          ENCODED: ${{ needs.mint-gh-aw-github-token.outputs.token }}
 
   dependency-review:
-    needs: mint-gh-aw-github-token
+    needs: decode-minted-token
     permissions:
       actions: read
       contents: read
@@ -70,4 +101,4 @@ jobs:
         - The comment's "Labels Applied" section must reflect labels you actually applied via add_labels, not merely recommended. If you applied a label, say so; if you did not apply any, say "No labels applied."
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      GH_AW_GITHUB_TOKEN: ${{ needs.mint-gh-aw-github-token.outputs.token }}
+      GH_AW_GITHUB_TOKEN: ${{ needs.decode-minted-token.outputs.token }}
