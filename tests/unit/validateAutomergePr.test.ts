@@ -158,3 +158,39 @@ test('validateAutomergePr allows app/elastic-vault-github-plugin-prod', async ()
   });
   assert.equal(r.ok, true);
 });
+
+test('validateAutomergePr allows app/dependabot', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr({ user: { login: 'app/dependabot' } }) }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 10,
+    core,
+  });
+  assert.equal(r.ok, true);
+});
+
+test('validateAutomergePr allows app/renovate', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr({ user: { login: 'app/renovate' } }) }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 11,
+    core,
+  });
+  assert.equal(r.ok, true);
+});

@@ -14,10 +14,13 @@ Ingress routes to dependency review when all conditions are true:
 - `github.event.action` is one of `opened`, `synchronize`, `reopened`
 - `github.event.pull_request.user.login` is in:
   - `dependabot[bot]`
+  - `app/dependabot`
   - `renovate[bot]`
+  - `app/renovate`
   - `Dependabot`
   - `Renovate`
   - `elastic-vault-github-plugin-prod[bot]`
+  - `app/elastic-vault-github-plugin-prod`
 
 ## References
 

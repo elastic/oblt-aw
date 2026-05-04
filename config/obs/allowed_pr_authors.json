@@ -1,6 +1,8 @@
 [
   "dependabot[bot]",
+  "app/dependabot",
   "renovate[bot]",
+  "app/renovate",
   "Dependabot",
   "Renovate",
   "elastic-vault-github-plugin-prod[bot]",
