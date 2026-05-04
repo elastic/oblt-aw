@@ -141,14 +141,14 @@ Draft placeholder for `additional_permissions` (not valid YAML until substituted
           {{agentic-workflows-permissions}}
 ```
 
-**Reference only — token policies used inside `elastic/oblt-aw` (control plane, not consumer copy-paste):**
+**Reference only — token policy ids explicitly configured in `elastic/oblt-aw` workflow YAML (control plane, not consumer copy-paste):**
 
-| Workflow / context | `token-policy-…` id (from YAML in this repo) |
-|--------------------|-----------------------------------------------|
+| Workflow / context | `token-policy-…` id (explicit in YAML in this repo) |
+|--------------------|-------------------------------------------------------|
 | [distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml) | `token-policy-63405ab45244` |
 | [sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml) | `token-policy-8b60ba56dd3f` |
-| [gh-aw-security-detector.yml](../../.github/workflows/gh-aw-security-detector.yml) | `token-policy-461e92da2625` |
-| [gh-aw-automerge.yml](../../.github/workflows/gh-aw-automerge.yml) (ephemeral token step) | `token-policy-5a5dcea1ee13` |
+| [gh-aw-security-detector.yml](../../.github/workflows/gh-aw-security-detector.yml) | `-` (no explicit `with.token-policy` on `create-token`) |
+| [gh-aw-automerge.yml](../../.github/workflows/gh-aw-automerge.yml) (ephemeral token step) | `-` (no explicit `with.token-policy` on `create-token`) |
 
 ## Troubleshooting
 

@@ -1,6 +1,11 @@
 name: Automerge
 on:
   workflow_call:
+    inputs:
+      allowed-bot-users:
+        description: Comma-separated GitHub logins for gh-aw-mention-in-pr (from load-allowed-authors allowed_pr_authors_csv)
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         description: "Token for GH-AW mention-in-pr (Copilot); must be supplied by the ingress caller."
@@ -68,6 +73,7 @@ jobs:
       pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
+      allowed-bot-users: ${{ inputs.allowed-bot-users }}
       additional-instructions: |
         Target pull request number: ${{ github.event.pull_request.number }}.
       prompt: |
