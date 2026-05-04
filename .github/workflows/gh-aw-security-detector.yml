@@ -29,7 +29,7 @@ jobs:
           path: _oblt-aw
 
       - name: Install tools
-        run: bash _oblt-aw/scripts/install_security_detector_tools.sh
+        run: bash _oblt-aw/scripts/obs/install_security_detector_tools.sh
 
       - name: Set up Node.js (npm audit for SEC-033 when lockfile present)
         if: hashFiles('target/**/package-lock.json') != ''
@@ -40,8 +40,8 @@ jobs:
       - name: Run security scan
         id: scan
         run: |
-          chmod +x _oblt-aw/scripts/security-scan.sh
-          _oblt-aw/scripts/security-scan.sh target 2>/dev/null | tee findings.txt || true
+          chmod +x _oblt-aw/scripts/obs/security-scan.sh
+          _oblt-aw/scripts/obs/security-scan.sh target 2>/dev/null | tee findings.txt || true
           count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
@@ -58,5 +58,5 @@ jobs:
         run: |
           SECURITY_SCAN_DATE="$(date -u +%Y-%m-%d)"
           export SECURITY_SCAN_DATE
-          chmod +x _oblt-aw/scripts/create-security-issues.sh
-          _oblt-aw/scripts/create-security-issues.sh findings.txt
+          chmod +x _oblt-aw/scripts/obs/create-security-issues.sh
+          _oblt-aw/scripts/obs/create-security-issues.sh findings.txt

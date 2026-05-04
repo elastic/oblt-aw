@@ -7,7 +7,8 @@ from __future__ import annotations
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
+_root = pathlib.Path(__file__).parent.parent
+sys.path.insert(0, str(_root / "scripts"))
 
 import get_enabled_workflows as gew  # noqa: E402
 

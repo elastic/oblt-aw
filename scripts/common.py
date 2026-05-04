@@ -163,3 +163,19 @@ def merge_active_repositories_from_org_trees(config_dir: Path) -> list[str]:
         path = org_dir / "active-repositories.json"
         merged.update(parse_repositories(path.read_text(encoding="utf-8")))
     return sorted(merged)
+
+
+def discover_repo_org_assignments(config_dir: Path) -> dict[str, list[str]]:
+    """
+    Map each repository to the sorted list of org keys that include it.
+
+    Walks every org root under ``config_dir`` (see :func:`discover_org_config_dirs`)
+    and groups by repository. A repository may belong to multiple orgs.
+    """
+    assignments: dict[str, set[str]] = {}
+    for org_dir in discover_org_config_dirs(config_dir):
+        org_key = org_dir.name
+        path = org_dir / "active-repositories.json"
+        for repo in parse_repositories(path.read_text(encoding="utf-8")):
+            assignments.setdefault(repo, set()).add(org_key)
+    return {repo: sorted(orgs) for repo, orgs in assignments.items()}

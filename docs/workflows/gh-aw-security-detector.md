@@ -23,8 +23,8 @@ Single job **scan**:
 2. Checks out **[elastic/oblt-aw](https://github.com/elastic/oblt-aw)** at ref `main` into `_oblt-aw/` so host scripts exist on the runner; detector scripts are not copied into consumer repos.
 3. Installs **shellcheck**, **jq**, **curl**, **pip**, **actionlint** (pinned via upstream download script), **zizmor**, and **semgrep** (registry rules downloaded on first use).
 4. Optionally uses **actions/setup-node** when `target/**/package-lock.json` exists so **npm audit** can run for SEC-033.
-5. Runs `_oblt-aw/scripts/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message` (actionlint + zizmor + semgrep + shellcheck + custom heuristics + npm audit, with per-file/line deduplication).
-6. When there are findings, creates an ephemeral token then runs `_oblt-aw/scripts/create-security-issues.sh` to open issues in **the caller** (`github.repository`) with label `oblt-aw/detector/security`. Findings are **grouped by rule (SEC id)**: **one issue per rule** per run, not one issue per line. The issue **title** is `[oblt-aw][security] <SEC-xxx> — findings (<YYYY-MM-DD>)`, where the date is the analysis date (UTC calendar day; the workflow sets `SECURITY_SCAN_DATE` when creating issues). The **body** lists every occurrence for that rule (file, line, severity, message).
+5. Runs `_oblt-aw/scripts/obs/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message` (actionlint + zizmor + semgrep + shellcheck + custom heuristics + npm audit, with per-file/line deduplication).
+6. When there are findings, creates an ephemeral token then runs `_oblt-aw/scripts/obs/create-security-issues.sh` to open issues in **the caller** (`github.repository`) with label `oblt-aw/detector/security`. Findings are **grouped by rule (SEC id)**: **one issue per rule** per run, not one issue per line. The issue **title** is `[oblt-aw][security] <SEC-xxx> — findings (<YYYY-MM-DD>)`, where the date is the analysis date (UTC calendar day; the workflow sets `SECURITY_SCAN_DATE` when creating issues). The **body** lists every occurrence for that rule (file, line, severity, message).
 
 Detector scripts are always taken from the public repository **`elastic/oblt-aw`** at ref **`main`** (no checkout token). Scheduled callers do not need a `workflow_call` input for the host ref.
 
@@ -40,7 +40,7 @@ jobs:
 
 | Rules | Mechanism |
 |-------|-----------|
-| SEC-002, SEC-021, SEC-030, SEC-040, SEC-043, and other workflow rules | **zizmor** (offline audits; `ident` mapped to SEC IDs in [scripts/security-scan.sh](../../scripts/security-scan.sh)) |
+| SEC-002, SEC-021, SEC-030, SEC-040, SEC-043, and other workflow rules | **zizmor** (offline audits; `ident` mapped to SEC IDs in [scripts/obs/security-scan.sh](../../scripts/obs/security-scan.sh)) |
 | SEC-010, SEC-002 (expression), SEC-020 (credentials) | **actionlint** JSON output (security-related kinds / messages only) |
 | SEC-010, SEC-012 | **semgrep** `p/github-actions` on `.github/workflows` |
 | SEC-011 | shellcheck on `*.sh` / `*.bash`; actionlint also runs shellcheck on embedded `run:` scripts |

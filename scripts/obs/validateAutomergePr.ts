@@ -34,7 +34,7 @@ const MERGE_READY_LABEL = 'oblt-aw/ai/merge-ready';
 const ALLOWED_PR_AUTHORS = new Set(
   JSON.parse(
     fs.readFileSync(
-      path.join(__dirname, '..', 'config', 'obs', 'allowed_pr_authors.json'),
+      path.join(__dirname, '..', '..', 'config', 'obs', 'allowed_pr_authors.json'),
       'utf8'
     )
   )

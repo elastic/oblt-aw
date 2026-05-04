@@ -6,4 +6,4 @@
 
 ## Client entrypoint changes
 
-Use **[.github/remote-workflow-template/oblt-aw.yml](.github/remote-workflow-template/oblt-aw.yml)** as the only source for the distributed client workflow. See [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+Use **[`.github/remote-workflow-template/`](.github/remote-workflow-template/)** as the source for distributed client workflows (per org subtree, for example `obs/.github/workflows/oblt-aw.yml`, `docs/.github/workflows/docs-aw.yml`). See [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md) and [CONTRIBUTING.md](CONTRIBUTING.md).

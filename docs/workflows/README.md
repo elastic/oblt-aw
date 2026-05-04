@@ -10,7 +10,8 @@ This section provides documentation for each workflow source in [.github/workflo
 - Ingress orchestrator: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md)
 - Dashboard reader (reusable workflow): [docs/workflows/get-enabled-workflows.md](get-enabled-workflows.md)
 - PR and issue allow-list loader (reusable workflow): [docs/workflows/load-allowed-authors.md](load-allowed-authors.md)
-- Observability Agentic Workflow entrypoint and client template (`.github/workflows/oblt-aw.yml`, `.github/remote-workflow-template/oblt-aw.yml`): [docs/workflows/oblt-aw-client-template.md](oblt-aw-client-template.md)
+- Observability Agentic Workflow entrypoint and client template (`.github/workflows/oblt-aw.yml`, `.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml`): [docs/workflows/oblt-aw-client-template.md](oblt-aw-client-template.md)
+- Docs Agentic Workflow entrypoint and client template (`docs-aw.yml` under `.github/remote-workflow-template/docs/`): [docs/workflows/docs-aw-client-template.md](docs-aw-client-template.md)
 - Agent suggestions workflow: [docs/workflows/gh-aw-agent-suggestions.md](gh-aw-agent-suggestions.md)
 - Autodoc workflow: [docs/workflows/gh-aw-autodoc.md](gh-aw-autodoc.md)
 - Automerge workflow: [docs/workflows/gh-aw-automerge.md](gh-aw-automerge.md)
@@ -34,4 +35,4 @@ This section provides documentation for each workflow source in [.github/workflo
 ## References
 
 - Workflow source files: [.github/workflows/](../../.github/workflows/)
-- Remote template source: [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)
+- Remote template source: [.github/remote-workflow-template/](../../.github/remote-workflow-template/)

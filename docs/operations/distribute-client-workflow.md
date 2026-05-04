@@ -4,12 +4,12 @@
 
 Source file: [.github/workflows/distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml)
 
-This workflow distributes or removes the client workflow template ([.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)) across repositories listed in each org’s `config/<org-key>/active-repositories.json` (for example [config/obs/active-repositories.json](../../config/obs/active-repositories.json)); targets are the deduplicated union of those lists.
+This workflow distributes or removes client files from each org’s subtree under [.github/remote-workflow-template/](../../.github/remote-workflow-template/) across repositories listed in that org’s `config/<org-key>/active-repositories.json` (for example [config/obs/active-repositories.json](../../config/obs/active-repositories.json)). A repository may belong to multiple orgs; destination paths are deduplicated (first org in sorted order wins on collision).
 
 ## Prerequisites
 
 - Per-org [active-repositories.json](../../config/obs/active-repositories.json) files under `config/<org-key>/` list current target repositories (union used for distribution).
-- [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml) is the **only** source template for client `oblt-aw.yml` content. **Do not edit** [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) in this repository (see [Client template doc](../workflows/oblt-aw-client-template.md)).
+- Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/oblt-aw.yml` → `.github/workflows/oblt-aw.yml`). **Do not edit** [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) in this repository (see [Client template doc](../workflows/oblt-aw-client-template.md)).
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
 
 ## Usage
@@ -18,7 +18,7 @@ Triggers:
 
 - `push` to `main` when either of these paths change:
   - `config/**/active-repositories.json` (per-org repo lists)
-  - [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)
+  - [.github/remote-workflow-template/](../../.github/remote-workflow-template/)
 - `workflow_dispatch` with optional `force` boolean input.
 
 Execution stages:

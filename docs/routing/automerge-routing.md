@@ -22,7 +22,7 @@ The client entrypoint must include `labeled` in `pull_request` types (see the di
 
 ## Mandatory requirements evaluated at runtime
 
-**`gh-aw-automerge.yml` — `verify` job** (`scripts/validateAutomergePr.ts`):
+**`gh-aw-automerge.yml` — `verify` job** (`scripts/obs/validateAutomergePr.ts`):
 
 | Requirement | Details |
 |---------------|---------|

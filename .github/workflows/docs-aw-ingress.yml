@@ -1,0 +1,99 @@
+name: Docs Agentic Workflow Ingress
+
+# Routes caller events from distributed `docs-aw.yml` to reusable docs menu workflows.
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  invalid-workflow-dispatch:
+    name: Reject empty workflow_dispatch
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.issue_number || '') == '' &&
+      (github.event.inputs.pull_request_number || '') == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Invalid workflow_dispatch inputs
+        run: |
+          echo "workflow_dispatch requires issue_number and/or pull_request_number."
+          exit 1
+
+  docs-ai-menu:
+    name: Route Docs AI issue menu
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    if: >-
+      (
+        (github.event_name == 'issues' && github.event.action == 'opened') ||
+        (
+          github.event_name == 'issue_comment' &&
+          github.event.action == 'edited' &&
+          github.event.issue.pull_request == null
+        ) ||
+        (
+          github.event_name == 'workflow_dispatch' &&
+          (github.event.inputs.issue_number || '') != ''
+        )
+      )
+    uses: ./.github/workflows/docs-ai-menu.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  docs-pr-ai-menu:
+    name: Route Docs PR AI menu
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.action == 'edited' &&
+        github.event.issue.pull_request != null
+      ) ||
+      (
+        github.event_name == 'workflow_dispatch' &&
+        (github.event.inputs.pull_request_number || '') != ''
+      )
+    uses: ./.github/workflows/docs-pr-ai-menu.yml
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  unsupported-trigger:
+    name: Unsupported trigger
+    if: >-
+      !(
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'issues' && github.event.action == 'opened') ||
+        (github.event_name == 'issue_comment' && github.event.action == 'edited') ||
+        github.event_name == 'pull_request_target'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Unsupported trigger
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+        run: |
+          echo "This entrypoint does not support event '${EVENT_NAME}' with action '${EVENT_ACTION}'."
+          exit 1
