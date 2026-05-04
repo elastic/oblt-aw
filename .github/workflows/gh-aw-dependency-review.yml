@@ -28,6 +28,12 @@ jobs:
       - name: Create ephemeral GitHub token
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          # Default fetch-github-token revokes the installation token in a post step when Vault
+          # issues a lease. That runs when this job finishes, before the nested ai-github-actions
+          # workflow applies labels via safe_outputs — the forwarded secret is then invalid and
+          # labeling falls back to GITHUB_TOKEN (github-actions actor; no follow-on workflows).
+          skip-token-revoke: 'true'
 
   dependency-review:
     needs: mint-gh-aw-github-token

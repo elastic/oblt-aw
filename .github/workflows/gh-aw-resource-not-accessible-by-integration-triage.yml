@@ -29,6 +29,10 @@ jobs:
       - name: Create ephemeral GitHub token
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          # See gh-aw-dependency-review.yml: avoid revoking the token when the mint job ends while a
+          # sibling job still forwards it to elastic/ai-github-actions for PR/issue API writes.
+          skip-token-revoke: 'true'
 
   res-not-accessible-integration-triage:
     needs: mint-gh-aw-github-token

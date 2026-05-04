@@ -38,7 +38,7 @@ Labeling semantics (in additional-instructions):
 Permissions:
 
 - **Workflow:** `actions: read`, `contents: read`.
-- **Job `mint-gh-aw-github-token`:** `contents: read`, `id-token: write` (OIDC for ephemeral `create-token`).
+- **Job `mint-gh-aw-github-token`:** `contents: read`, `id-token: write` (OIDC for ephemeral `create-token`). `create-token` is called with `skip-token-revoke: true` so Vault-backed installation tokens are **not** revoked when the mint job finishes; otherwise the default post-step revocation invalidates the token before the nested `elastic/ai-github-actions` job runs `safe_outputs` (labels/comments), and GitHub falls back to `GITHUB_TOKEN` (no follow-on workflows from labeling).
 - **Job `dependency-review`:** `actions: read`, `contents: read`, `issues: write`, `pull-requests: write`.
 
 ## API / Interface

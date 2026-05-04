@@ -14,7 +14,7 @@ This reusable workflow triages issues that carry the detector label `oblt-aw/det
 
 ## Usage
 
-The job `mint-gh-aw-github-token` mints an installation token via [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token). The job `res-not-accessible-integration-triage` calls:
+The job `mint-gh-aw-github-token` mints an installation token via [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) with `skip-token-revoke: true` so the token is not revoked at mint job completion before the nested ai-github-actions workflow uses it (see [gh-aw-dependency-review.md](gh-aw-dependency-review.md) configuration). The job `res-not-accessible-integration-triage` calls:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
 
