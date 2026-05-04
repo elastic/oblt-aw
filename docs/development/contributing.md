@@ -83,13 +83,14 @@ The `update-license-files` hook uses `always_run: true` in [.pre-commit-config.y
 
 ### Individual tools
 
-- **YAML lint**: `yamllint .` (uses `.yamllint.yml`)
-- **Shell lint**: `find scripts tests -type f -name '*.sh' -print0 | xargs -0 shellcheck`
-- **GitHub Actions lint**: `actionlint`
-- **Python lint**: `ruff check .`
-- **Python format**: `ruff format --check .`
-- **Python type-check**: `mypy --strict scripts/`
-- **GitHub Actions lint**: `actionlint`
+Use pre-commit hook entrypoints for one-off tool runs so you use the pinned hook versions without extra global installs:
+
+- **YAML lint**: `pre-commit run yamllint --all-files`
+- **Shell lint**: `pre-commit run shellcheck --all-files`
+- **GitHub Actions lint**: `pre-commit run actionlint --all-files`
+- **Python lint**: `pre-commit run ruff --all-files`
+- **Python format**: `pre-commit run ruff-format --all-files`
+- **Python type-check**: `pre-commit run mypy --all-files`
 
 ## Pre-commit Hooks
 
