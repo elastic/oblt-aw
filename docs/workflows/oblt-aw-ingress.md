@@ -165,7 +165,7 @@ There is one registry id for the whole security pipeline. The Control Plane Dash
 |-------------|-------------------|----------|----------------|
 | `security-detector` | `gh-aw-security-detector.yml` | `schedule`, `workflow_dispatch` | Yes — `obs:security` |
 | `security-triage` | `gh-aw-security-triage.yml` | `issues` `opened` with label `oblt-aw/detector/security`, or `issues` `labeled` with that label | Yes — `obs:security` |
-| `security-fixer` | `gh-aw-security-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and a `oblt-aw/triage/security-*` label | Yes — `obs:security` |
+| `security-fixer` | `gh-aw-security-fixer.yml` | `issues` `labeled` where the newly added label is either `oblt-aw/ai/fix-ready` or `oblt-aw/triage/security-*`, and the issue has both `oblt-aw/ai/fix-ready` and at least one `oblt-aw/triage/security-*` label after labeling | Yes — `obs:security` |
 
 Further reading:
 
