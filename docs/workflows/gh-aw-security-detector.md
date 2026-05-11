@@ -42,7 +42,7 @@ jobs:
 |-------|-----------|
 | SEC-002, SEC-021, SEC-030, SEC-040, SEC-043, and other workflow rules | **zizmor** (offline audits; `ident` mapped to SEC IDs in [scripts/security-scan.sh](../../scripts/security-scan.sh)) |
 | SEC-010, SEC-002 (expression), SEC-020 (credentials) | **actionlint** JSON output (security-related kinds / messages only) |
-| SEC-010, SEC-012 | **semgrep** `p/github-actions` on `.github/workflows` |
+| SEC-002, SEC-010, SEC-012, SEC-020 | **semgrep** `p/github-actions` on `.github/workflows` (secret/token/credential IDs map to secret-management rules; injection IDs map to injection rules) |
 | SEC-011 | shellcheck on `*.sh` / `*.bash`; actionlint also runs shellcheck on embedded `run:` scripts |
 | SEC-032 | curl/wget in scripts without checksum/signature helpers in-file (custom heuristic) |
 | SEC-033 | `npm audit` when lockfile + npm available |
