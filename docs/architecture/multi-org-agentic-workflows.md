@@ -64,10 +64,21 @@ config/
   # Optional: JSON Schema under config/schema/ (must not collide with org-key discovery rules)
 
 scripts/
-  common.py                                 # Helpers: list org keys, load merged registry, paths
-  build_repos_matrix.py                     # No CLI args; union of repos for single-dashboard sync
-  sync_control_plane_dashboard.py           # Merge org registries → one issue body; same label/title
-  get_enabled_workflows.py                  # Parse three-part markers; single issue by oblt-aw/dashboard
+  common.py                                 # Shared helpers (org discovery, markers, distribution inputs)
+  build_target_operations.py                # Distribution matrix builder (all org templates)
+  build_repos_matrix.py                     # Union of repos for sync-control-plane-dashboard matrix
+  sync_control_plane_dashboard.py         # Merge org registries → one dashboard issue body
+  get_enabled_workflows.py                # Parse dashboard; normalized enabled-workflows for ingress
+  summarize_pr_results.sh                   # PR result summary for distribute-client-workflow
+  update_license_files.py                   # Apache headers / NOTICE (repo-wide)
+  obs/
+    validateAutomergePr.ts                  # Automerge verify step
+    security-scan.sh                        # Security detector scan driver
+    create-security-issues.sh               # Open grouped SEC issues from findings
+    install_security_detector_tools.sh      # Tooling bootstrap for detector
+  docs/
+    issue-menu/                             # Docs AI issue menu (github-script modules)
+    pr-menu/                                # Docs AI PR menu (github-script modules)
 
 .github/workflows/
   gh-aw-*.yml                               # Reusable agent workflows — see §4
@@ -76,7 +87,7 @@ scripts/
   ...
 ```
 
-**Common functionality at top level:** Python under `scripts/`; tests under `tests/`; docs under `docs/architecture/` and `docs/operations/`.
+**Layout:** Cross-org control-plane and distribution Python at `scripts/` root; Observability-only tooling under `scripts/obs/`; Docs menu scripts under `scripts/docs/`; tests under `tests/`; docs under `docs/architecture/` and `docs/operations/`.
 
 ---
 

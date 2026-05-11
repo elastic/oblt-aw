@@ -17,7 +17,7 @@ This is the reusable orchestration entrypoint for `oblt-aw`. It routes to specia
 
 The workflow file declares only `workflow_call`.
 
-Event triggers such as `schedule`, `workflow_dispatch`, `issues`, `issue_comment`, and `pull_request` are declared in caller workflows/templates (for example [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)). In ingress, routing conditions evaluate `github.event_name` and `github.event.action` from the caller event payload.
+Event triggers such as `schedule`, `workflow_dispatch`, `issues`, `issue_comment`, and `pull_request` are declared in caller workflows/templates (for example [.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml](../../.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml)). In ingress, routing conditions evaluate `github.event_name` and `github.event.action` from the caller event payload.
 
 ### Dashboard gating
 
