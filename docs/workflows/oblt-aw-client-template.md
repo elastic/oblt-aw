@@ -2,9 +2,9 @@
 
 ## Overview
 
-**Source of truth (edit here only):** [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)
+**Source of truth (edit here only):** [.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml](../../.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml)
 
-**Do not edit** [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) in this repository. That path is not maintained as a hand-edited copy of the template; avoid changing it in PRs and automation. `distribute-client-workflow` installs the **remote template** into **other** repositories as their [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml).
+**Do not edit** [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) in this repository. That path is not maintained as a hand-edited copy of the template; avoid changing it in PRs and automation. `distribute-client-workflow` installs the **remote template** tree into **other** repositories (for example their [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) from the `obs` org payload).
 
 This workflow is the client-facing entrypoint template distributed to target repositories.
 

@@ -93,6 +93,15 @@ class TestStripExistingHeaders:
         assert body.strip() == "set -e"
 
 
+class TestHeaderForPath:
+    def test_js_and_ts_use_slash_slash_comments(self) -> None:
+        assert ulf._header_for_path(pathlib.Path("scripts/foo.js")).startswith("//")
+        assert ulf._header_for_path(pathlib.Path("bar.ts")).startswith("//")
+
+    def test_python_uses_hash_comments(self) -> None:
+        assert ulf._header_for_path(pathlib.Path("x.py")).startswith("#")
+
+
 class TestVerifyLicense:
     def test_verify_license_ok(self, tmp_path: pathlib.Path) -> None:
         (tmp_path / "LICENSE").write_text(
