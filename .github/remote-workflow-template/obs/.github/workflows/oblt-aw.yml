@@ -17,6 +17,9 @@ permissions:
 
 jobs:
   run-aw:
+    if: >-
+      github.event_name != 'status' ||
+      (github.event.state == 'failure' && contains(github.event.context, 'buildkite'))
     permissions:
       actions: write
       checks: read
