@@ -204,7 +204,7 @@ One registry id covers detector, triage, and fixer.
 |-------------|-------------------|----------|----------------|
 | `estc-pr-buildkite-detective` | `gh-aw-estc-pr-buildkite-detective.yml` | `status` event where `github.event.state == 'failure'` and `github.event.context` contains `buildkite` | Yes — `obs:estc-pr-buildkite-detective` |
 
-Requires a Buildkite API token forwarded as secret `BUILDKITE_API_TOKEN` from the consumer workflow. See [docs/workflows/gh-aw-estc-pr-buildkite-detective.md](gh-aw-estc-pr-buildkite-detective.md).
+Requires a Buildkite API token forwarded as secret `BUILDKITE_API_TOKEN` from the consumer workflow, mapped from consumer secret `BUILDKITE_LOGS_API_TOKEN`. If your consumer repo previously used `BUILDKITE_API_TOKEN` as the secret name, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN`. See [docs/workflows/gh-aw-estc-pr-buildkite-detective.md](gh-aw-estc-pr-buildkite-detective.md).
 
 ## Internal ingress jobs (not in [workflow-registry.json](../../config/obs/workflow-registry.json))
 
