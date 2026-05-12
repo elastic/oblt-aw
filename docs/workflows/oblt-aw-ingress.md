@@ -17,7 +17,7 @@ This is the reusable orchestration entrypoint for `oblt-aw`. It routes to specia
 
 The workflow file declares only `workflow_call`.
 
-Event triggers such as `schedule`, `workflow_dispatch`, `issues`, `issue_comment`, and `pull_request` are declared in caller workflows/templates (for example [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)). In ingress, routing conditions evaluate `github.event_name` and `github.event.action` from the caller event payload.
+Event triggers such as `schedule`, `workflow_dispatch`, `issues`, `issue_comment`, and `pull_request` are declared in caller workflows/templates (for example [.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml](../../.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml)). In ingress, routing conditions evaluate `github.event_name` and `github.event.action` from the caller event payload.
 
 ### Dashboard gating
 
@@ -192,6 +192,20 @@ One registry id covers detector, triage, and fixer.
 | `resource-not-accessible-by-integration-triage` | `gh-aw-resource-not-accessible-by-integration-triage.yml` | `issues` `opened` with `oblt-aw/detector/res-not-accessible-by-integration`, or `issues` `labeled` with that label | Yes — `obs:resource-not-accessible-by-integration` |
 | `resource-not-accessible-by-integration-fixer` | `gh-aw-resource-not-accessible-by-integration-fixer.yml` | `issues` `labeled` with `oblt-aw/ai/fix-ready` and `oblt-aw/triage/res-not-accessible-by-integration` | Yes — `obs:resource-not-accessible-by-integration` |
 
+### PR Buildkite Detective (registry id `estc-pr-buildkite-detective`)
+
+| Registry field | Value |
+|----------------|--------|
+| `id` | `estc-pr-buildkite-detective` |
+| `name` | PR Buildkite Detective |
+| `description` | Analyzes Buildkite CI failures for a PR when a Buildkite status check fails; posts a diagnostic comment on the pull request. |
+
+| Ingress job | Reusable workflow | Triggers | Dashboard gate |
+|-------------|-------------------|----------|----------------|
+| `estc-pr-buildkite-detective` | `gh-aw-estc-pr-buildkite-detective.yml` | `status` event where `github.event.state == 'failure'` and `github.event.context` contains `buildkite` | Yes — `obs:estc-pr-buildkite-detective` |
+
+Requires a Buildkite API token forwarded as secret `BUILDKITE_API_TOKEN` from the consumer workflow. See [docs/workflows/gh-aw-estc-pr-buildkite-detective.md](gh-aw-estc-pr-buildkite-detective.md).
+
 ## Internal ingress jobs (not in [workflow-registry.json](../../config/obs/workflow-registry.json))
 
 These jobs exist only in [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml) and do not have registry ids:
@@ -244,3 +258,4 @@ jobs:
 - [Issue fixer routing](../routing/issue-fixer-routing.md)
 - [Security routing](../routing/security-routing.md)
 - [Resource not accessible by integration routing](../routing/resource-not-accessible-by-integration-routing.md)
+- [docs/workflows/gh-aw-estc-pr-buildkite-detective.md](gh-aw-estc-pr-buildkite-detective.md)
