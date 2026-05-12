@@ -17,7 +17,7 @@ Triggers (must stay aligned with `oblt-aw-ingress` so dashboard-gated jobs can r
 - `issues` (`opened`, `labeled`) — `opened` drives issue-triage and duplicate-issue-detector; `labeled` supports other flows
 - `issue_comment` (`created`) — drives mention-in-issue for `/ai` issue comments and issue-fixer for `/ai implement` issue comments (not PR comments); both routes require `github.event.comment.author_association` to be `OWNER`, `MEMBER`, or `COLLABORATOR`
 - `pull_request` (`opened`, `synchronize`, `reopened`, `labeled`) — automerge runs only when the PR author matches the dependency-review allow list and the PR already has `oblt-aw/ai/merge-ready` (automerge is not triggered on `schedule`)
-- `status` — drives PR Buildkite Detective when a Buildkite status check fails (`github.event.state == 'failure'` and `github.event.context` contains `buildkite`); requires `BUILDKITE_API_TOKEN` secret in the consumer repository
+- `status` — drives PR Buildkite Detective when a Buildkite status check fails (`github.event.state == 'failure'` and `github.event.context` contains `buildkite`); requires `BUILDKITE_LOGS_API_TOKEN` secret in the consumer repository
 
 Execution flow:
 
@@ -42,7 +42,9 @@ Job-level permissions (`run-aw`; must stay at least as permissive as nested ingr
 Required secret mapping:
 
 - `COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`
-- `BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}` (only required when `estc-pr-buildkite-detective` is enabled; consumers without Buildkite CI can omit this secret — ingress skips the job when the secret is absent)
+- `BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_LOGS_API_TOKEN }}` (only required when `estc-pr-buildkite-detective` is enabled; consumers without Buildkite CI can omit this secret — ingress skips the job when the secret is absent)
+
+Migration note: if your repository previously used `BUILDKITE_API_TOKEN` as the consumer-facing secret name, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN`.
 
 ## References
 

@@ -10,7 +10,7 @@ Reusable wrapper that calls the locked PR Buildkite Detective workflow in [elast
 
 - Triggered via `workflow_call` from `oblt-aw-ingress.yml`.
 - Required secret: `COPILOT_GITHUB_TOKEN`.
-- Required secret: `BUILDKITE_API_TOKEN` — a Buildkite API token with read access to build logs for the repository's Buildkite organization. Consumers must provision this secret in their repository or organization settings.
+- Required secret: `BUILDKITE_API_TOKEN` — a Buildkite API token with read access to build logs for the repository's Buildkite organization. In consumer repositories, map this from `BUILDKITE_LOGS_API_TOKEN`.
 
 ## Usage
 
@@ -42,6 +42,8 @@ Permissions:
 
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
 - Secret: `BUILDKITE_API_TOKEN` (`required: true`)
+
+Migration note for consumers: if you previously configured the consumer-facing secret name as `BUILDKITE_API_TOKEN`, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN` in repository/organization secrets.
 
 ## References
 
