@@ -21,6 +21,13 @@ permissions:
 
 jobs:
   dashboard-enabled-workflows:
+    # Skip the entire ingress for status events that are not a failed Buildkite check.
+    # All other events run unconditionally. This avoids spawning downstream jobs that
+    # would all evaluate to false for non-actionable status events (e.g. success or
+    # non-Buildkite contexts), since only estc-pr-buildkite-detective handles status.
+    if: >-
+      github.event_name != 'status' ||
+      (github.event_name == 'status' && github.event.state == 'failure' && contains(github.event.context, 'buildkite'))
     uses: ./.github/workflows/get-enabled-workflows.yml
 
   load-allowed-authors:
