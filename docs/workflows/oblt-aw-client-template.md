@@ -2,9 +2,9 @@
 
 ## Overview
 
-**Source of truth (edit here only):** [.github/remote-workflow-template/oblt-aw.yml](../../.github/remote-workflow-template/oblt-aw.yml)
+**Source of truth (edit here only):** [.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml](../../.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml)
 
-**Do not edit** [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) in this repository. That path is not maintained as a hand-edited copy of the template; avoid changing it in PRs and automation. `distribute-client-workflow` installs the **remote template** into **other** repositories as their [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml).
+**Do not edit** [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) in this repository. That path is not maintained as a hand-edited copy of the template; avoid changing it in PRs and automation. `distribute-client-workflow` installs the **remote template** tree into **other** repositories (for example their [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) from the `obs` org payload).
 
 This workflow is the client-facing entrypoint template distributed to target repositories.
 
@@ -17,6 +17,7 @@ Triggers (must stay aligned with `oblt-aw-ingress` so dashboard-gated jobs can r
 - `issues` (`opened`, `labeled`) — `opened` drives issue-triage and duplicate-issue-detector; `labeled` supports other flows
 - `issue_comment` (`created`) — drives mention-in-issue for `/ai` issue comments and issue-fixer for `/ai implement` issue comments (not PR comments); both routes require `github.event.comment.author_association` to be `OWNER`, `MEMBER`, or `COLLABORATOR`
 - `pull_request` (`opened`, `synchronize`, `reopened`, `labeled`) — automerge runs only when the PR author matches the dependency-review allow list and the PR already has `oblt-aw/ai/merge-ready` (automerge is not triggered on `schedule`)
+- `status` — drives PR Buildkite Detective when a Buildkite status check fails (`github.event.state == 'failure'` and `github.event.context` contains `buildkite`); requires `BUILDKITE_API_TOKEN` secret in the consumer repository
 
 Execution flow:
 
@@ -41,6 +42,7 @@ Job-level permissions (`run-aw`; must stay at least as permissive as nested ingr
 Required secret mapping:
 
 - `COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`
+- `BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}` (only required when `estc-pr-buildkite-detective` is enabled; consumers without Buildkite CI can omit this secret — ingress skips the job when the secret is absent)
 
 ## References
 

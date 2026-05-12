@@ -1,0 +1,164 @@
+name: Docs PR AI menu
+
+# Reusable implementation for the Elastic Docs PR AI menu. Entry repositories use
+# docs-aw.yml plus docs-aw-ingress.yml. Scripts live under scripts/docs/pr-menu/.
+
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  post-menu:
+    name: Post or refresh AI PR menu
+    if: github.event_name == 'pull_request_target' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      checks: read
+      contents: read
+      issues: write
+      pull-requests: write
+    concurrency:
+      group: docs-pr-ai-menu-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pull_request_number }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout oblt-aw for Docs PR AI menu scripts
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: oblt-aw-scripts
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/docs/pr-menu
+          sparse-checkout-cone-mode: true
+
+      - name: Create or update AI PR menu comment
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script-path: oblt-aw-scripts/scripts/docs/pr-menu/post-menu.js
+
+  evaluate-trigger:
+    name: Evaluate AI PR menu trigger
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request != null &&
+      github.actor != 'github-actions[bot]' &&
+      github.event.comment.user.login == 'github-actions[bot]' &&
+      contains(github.event.comment.body, '<!-- docs-pr-ai-menu:start -->') &&
+      contains(github.event.comment.body, '<!-- docs-pr-ai-menu:end -->')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      docs_review_triggered: ${{ steps.evaluate.outputs.docs_review_triggered }}
+    steps:
+      - name: Checkout oblt-aw for Docs PR AI menu scripts
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: oblt-aw-scripts
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/docs/pr-menu
+          sparse-checkout-cone-mode: true
+
+      - name: Parse AI PR menu transition
+        id: evaluate
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script-path: oblt-aw-scripts/scripts/docs/pr-menu/evaluate-trigger.js
+
+  refresh-menu-after-trigger:
+    name: Refresh AI PR menu after trigger
+    needs: [evaluate-trigger]
+    if: needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      checks: read
+      contents: read
+      issues: write
+      pull-requests: write
+    concurrency:
+      group: docs-pr-ai-menu-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pull_request_number }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout oblt-aw for Docs PR AI menu scripts
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: oblt-aw-scripts
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/docs/pr-menu
+          sparse-checkout-cone-mode: true
+
+      - name: Refresh AI PR menu status
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script-path: oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-trigger.js
+
+  run-docs-review:
+    name: Docs AI / docs review
+    needs: [evaluate-trigger]
+    if: needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/docs-actions/.github/workflows/gh-aw-docs-review.lock.yml@v1
+    with:
+      review-scope: repo-wide-markdown
+      additional-instructions: |
+        This repository stores documentation as markdown across the repository.
+        Prefer concise, high-signal review comments with exact replacement text when possible.
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  refresh-menu-after-docs-review:
+    name: Refresh AI PR menu after docs review
+    needs: [evaluate-trigger, run-docs-review]
+    if: always() && needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      checks: read
+      contents: read
+      issues: write
+      pull-requests: write
+    concurrency:
+      group: docs-pr-ai-menu-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pull_request_number }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout oblt-aw for Docs PR AI menu scripts
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: oblt-aw-scripts
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/docs/pr-menu
+          sparse-checkout-cone-mode: true
+
+      - name: Refresh AI PR menu status
+        uses: actions/github-script@v9
+        env:
+          DOCS_REVIEW_RESULT: ${{ needs.run-docs-review.result }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script-path: oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-docs-review.js

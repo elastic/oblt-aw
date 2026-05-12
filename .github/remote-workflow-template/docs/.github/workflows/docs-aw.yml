@@ -1,0 +1,41 @@
+name: Docs Agentic Workflow Entrypoint
+
+# Distributed to repositories in config/docs/active-repositories.json.
+# Triggers must stay aligned with docs-aw-ingress routing conditions.
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [edited]
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number for Docs AI issue menu (manual refresh).
+        required: false
+        default: ''
+        type: string
+      pull_request_number:
+        description: Pull request number for Docs PR AI menu (manual refresh).
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  run-docs-aw:
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      discussions: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    uses: elastic/oblt-aw/.github/workflows/docs-aw-ingress.yml@main # ratchet:exclude
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
