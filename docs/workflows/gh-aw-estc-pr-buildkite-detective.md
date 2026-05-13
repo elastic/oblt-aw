@@ -23,7 +23,7 @@ Ingress routes here when:
 
 The job `estc-pr-buildkite-detective` calls:
 
-- [elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@v0](https://github.com/elastic/ai-github-actions/blob/v0/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
+- [elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@copilot/reduce-comment-spamming](https://github.com/elastic/ai-github-actions/blob/copilot/reduce-comment-spamming/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
 
 Behavior and agent instructions for the locked workflow are defined in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
 
@@ -48,5 +48,5 @@ Migration note for consumers: if you previously configured the consumer-facing s
 ## References
 
 - Ingress routing: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md) — workflow id `estc-pr-buildkite-detective` in [workflow-registry.json](../../config/obs/workflow-registry.json)
-- Upstream lock: [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml`](https://github.com/elastic/ai-github-actions/blob/v0/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
+- Upstream lock: [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml`](https://github.com/elastic/ai-github-actions/blob/copilot/reduce-comment-spamming/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
 - Upstream documentation: [elastic.github.io/ai-github-actions](https://elastic.github.io/ai-github-actions/workflows/gh-agent-workflows/estc-pr-buildkite-detective/)
