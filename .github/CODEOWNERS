@@ -1,3 +1,6 @@
 # These owners will be the default owners for everything in
 # the repo.
 *       @elastic/observablt-robots
+
+# Docs team owns the docs workflow templates.
+.github/remote-workflow-template/docs/  @elastic/observablt-robots @elastic/docs
