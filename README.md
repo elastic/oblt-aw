@@ -31,7 +31,8 @@ Target repositories should consume the distributed client entrypoint workflow:
 
 Reference template source and ingress implementation:
 
-- [.github/remote-workflow-template/oblt-aw.yml](.github/remote-workflow-template/oblt-aw.yml)
+- [.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml](.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml) (Observability client template)
+- [.github/remote-workflow-template/docs/.github/workflows/docs-aw.yml](.github/remote-workflow-template/docs/.github/workflows/docs-aw.yml) (Docs client template)
 - [elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/oblt-aw-ingress.yml)
 
 ## Repository Scope

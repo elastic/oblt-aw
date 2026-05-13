@@ -21,7 +21,7 @@ The workflow uses two jobs:
 2. **search** — Matrix job that calls `gh-aw-log-searching-agent` per workflow:
    - [elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight](https://github.com/elastic/ai-github-actions/blob/copilot/log-searching-agent-preflight/.github/workflows/gh-aw-log-searching-agent.lock.yml)
 
-The detector runs in each repository that invokes it (via ingress schedule or workflow_dispatch).
+The detector is invoked by ingress only on scheduled runs (`github.event_name == schedule`). Ingress `workflow_dispatch` does not route this detector job.
 
 Configured parameters:
 

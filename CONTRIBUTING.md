@@ -20,7 +20,7 @@ See [docs/development/contributing.md](docs/development/contributing.md) for:
 
 ## Client entrypoint workflow (`oblt-aw.yml`)
 
-Edit only [`.github/remote-workflow-template/oblt-aw.yml`](.github/remote-workflow-template/oblt-aw.yml). **Do not modify** [`.github/workflows/oblt-aw.yml`](.github/workflows/oblt-aw.yml) in this repository (enforced for Cursor via [`.cursor/rules/protected-oblt-aw-workflow.mdc`](.cursor/rules/protected-oblt-aw-workflow.mdc) and [AGENTS.md](AGENTS.md)).
+Edit only the distributed client templates under [`.github/remote-workflow-template/`](.github/remote-workflow-template/) (for example [`.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml`](.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml) for Observability and [`.github/remote-workflow-template/docs/.github/workflows/docs-aw.yml`](.github/remote-workflow-template/docs/.github/workflows/docs-aw.yml) for Docs). **Do not modify** [`.github/workflows/oblt-aw.yml`](.github/workflows/oblt-aw.yml) in this repository (enforced for Cursor via [`.cursor/rules/protected-oblt-aw-workflow.mdc`](.cursor/rules/protected-oblt-aw-workflow.mdc) and [AGENTS.md](AGENTS.md)).
 
 Details: [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md).
 

@@ -24,6 +24,8 @@ Forwarded inputs include:
 - `classification-labels`: `oblt-aw/ai/merge-ready`
 - `additional-instructions`: Noop-when-not-applicable rules, CVE-focused and internal-change impact analysis instructions.
 
+After `dependency-review`, the workflow runs `signal-dependency-review-followups`, which mints an ephemeral installation token and re-applies `oblt-aw/ai/merge-ready` (remove + add) when present. This emits a `labeled` event from the installation token so downstream follow-up workflows can run.
+
 Noop semantics (in additional-instructions):
 
 - When the PR has no dependency updates to review (no version bumps, no lockfile changes indicating dependency updates, or changes outside supported ecosystems), the agent MUST call `noop` and must NOT add any comment to the PR.
@@ -38,8 +40,8 @@ Labeling semantics (in additional-instructions):
 Permissions:
 
 - **Workflow:** `actions: read`, `contents: read`.
-- **Job `mint-gh-aw-github-token`:** `contents: read`, `id-token: write` (OIDC for ephemeral `create-token`).
 - **Job `dependency-review`:** `actions: read`, `contents: read`, `issues: write`, `pull-requests: write`.
+- **Job `signal-dependency-review-followups`:** `contents: read`, `id-token: write`, `pull-requests: write` (OIDC for ephemeral `create-token` and label re-apply signaling).
 
 ## API / Interface
 

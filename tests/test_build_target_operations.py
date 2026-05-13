@@ -148,6 +148,16 @@ class TestMain:
         (tmp_path / "config" / "obs" / "active-repositories.json").write_text(
             json.dumps(config)
         )
+        tmpl = (
+            tmp_path
+            / ".github"
+            / "remote-workflow-template"
+            / "obs"
+            / ".github"
+            / "workflows"
+        )
+        tmpl.mkdir(parents=True, exist_ok=True)
+        (tmpl / "oblt-aw.yml").write_text("name: client\n")
         return output_file
 
     def test_no_changes_skips_work(
@@ -178,6 +188,13 @@ class TestMain:
         assert repos == {"elastic/foo", "elastic/bar"}
         ops = {t["operation"] for t in targets}
         assert ops == {"install"}
+        for t in targets:
+            assert t["operation"] == "install"
+            assert "files" in t
+            assert isinstance(t["files"], list)
+            assert len(t["files"]) >= 1
+            dsts = {f["dst"] for f in t["files"]}
+            assert ".github/workflows/oblt-aw.yml" in dsts
 
     def test_force_distribution(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
@@ -198,9 +215,11 @@ class TestMain:
             monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/bar"]
         )
 
-        # Patch read_previous_repositories to simulate a previous state with an extra repo.
+        # Patch read_previous_repo_org_assignments to simulate a previous state with an extra repo.
         monkeypatch.setattr(
-            bto, "read_previous_repositories", lambda _: ["elastic/bar", "elastic/gone"]
+            bto,
+            "read_previous_repo_org_assignments",
+            lambda _: {"elastic/bar": ["obs"], "elastic/gone": ["obs"]},
         )
 
         rc = bto.main()
@@ -216,3 +235,6 @@ class TestMain:
         ops_by_repo = {t["repository"]: t["operation"] for t in targets}
         assert ops_by_repo["elastic/bar"] == "install"
         assert ops_by_repo["elastic/gone"] == "remove"
+        for t in targets:
+            assert "files" in t
+            assert isinstance(t["files"], list)

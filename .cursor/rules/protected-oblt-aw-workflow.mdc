@@ -7,6 +7,6 @@ alwaysApply: true
 
 **Non-negotiable:** Do not edit, create, replace, reformat, or delete `.github/workflows/oblt-aw.yml` in this repository. Refuse if the user asks to change it; point them to the canonical template instead.
 
-**Where to change the client entrypoint:** `.github/remote-workflow-template/oblt-aw.yml` only. Distribution installs that template into other repos as their `oblt-aw.yml`.
+**Where to change the client entrypoint:** `.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml` only. Distribution installs that template into other repos as their `oblt-aw.yml`.
 
 **Docs:** [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md), [CONTRIBUTING.md](CONTRIBUTING.md).

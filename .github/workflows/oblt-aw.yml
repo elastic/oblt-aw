@@ -10,9 +10,10 @@ on:
     types: [created]
   pull_request:
     types: [opened, synchronize, reopened, labeled]
+  status:
 
 permissions:
-  actions: read
+  contents: read
 
 jobs:
   run-aw:
@@ -27,3 +28,4 @@ jobs:
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main # ratchet:exclude
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_LOGS_API_TOKEN }}

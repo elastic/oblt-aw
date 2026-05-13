@@ -7,6 +7,7 @@
         "elastic/oblt-framework",
         "elastic/oblt-infra",
         "elastic/oblt-robot",
+        "elastic/observability-catalog",
         "elastic/observability-github-secrets",
         "elastic/observability-github-settings",
         "elastic/observability-robots",

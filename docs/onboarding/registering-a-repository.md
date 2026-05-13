@@ -56,7 +56,7 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
        issues: write
      ```
 
-   - **c. `TokenPolicy.metadata.name` (`token-policy-<calculated-sha>`)** — This step applies to the **nested `TokenPolicy` object's `metadata.name``**, **not** the outer Backstage **`Resource.metadata.name`** shown in the appendix template. The **`calculated-sha`** (or equivalent stable id for the nested policy object) must be derived from the **`workflow_ref` string with the branch / ref segment removed**—that is, from the repository-scoped workflow path only (for example **`elastic/<repo>/.github/workflows/oblt-aw.yml`** without `@refs/heads/main`). Keep the outer Backstage **`Resource.metadata.name`** following the appendix / existing `elastic/catalog-info` convention for the wrapper resource, and derive **only** the nested **`TokenPolicy.metadata.name`** from this rule. The exact hash algorithm is owned by **`elastic/catalog-info`** (**Unknown** here); **mirror an existing token policy resource** in that repository and match its naming rules.
+   - **c. `TokenPolicy.metadata.name` (`token-policy-<12-char sha256(workflow ref base)>`)** — This step applies to the **nested `TokenPolicy` object's `metadata.name`**, **not** the outer Backstage **`Resource.metadata.name`** shown in the appendix template. Derive the suffix from the **workflow ref base** (the `workflow_ref` value without the `@refs/heads/main` segment): for onboarding this is **`elastic/<repo>/.github/workflows/oblt-aw.yml`**. Set the nested name to **`token-policy-<12-char sha256(workflow ref base)>`** to match the control-plane auto-role convention documented in workflow source comments.
 
    - **d. Author the manifest** — Write the YAML file(s) under paths required by **`elastic/catalog-info`**, filling the template fields from **a–c** and the [appendix](#appendix-token-policy-yaml-template).
 
@@ -90,7 +90,7 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
 ## Appendix: Token policy YAML template
 
-Validate against the current schema and reviewers in **`elastic/catalog-info`** before merging. **`<repo>`** is the slug only; **`elastic/<repo>`** is the full `owner/repo` ([convention](#convention-elastic-organization-and-repository-slug)). Apply step **2c** for **`token-policy-<calculated-sha>`**.
+Validate against the current schema and reviewers in **`elastic/catalog-info`** before merging. **`<repo>`** is the slug only; **`elastic/<repo>`** is the full `owner/repo` ([convention](#convention-elastic-organization-and-repository-slug)). Apply step **2c** for **`token-policy-<12-char sha256(workflow ref base)>`**.
 
 ```yaml
 # yaml-language-server: $schema=https://gist.githubusercontent.com/elasticmachine/988b80dae436cafea07d9a4a460a011d/raw/rre.schema.json
@@ -113,7 +113,7 @@ spec:
     apiVersion: github.elastic.dev/v1
     kind: TokenPolicy
     metadata:
-      name: token-policy-<calculated-sha>
+      name: token-policy-<12-char sha256(workflow ref base)>
     spec:
       vault:
         - ci-prod
