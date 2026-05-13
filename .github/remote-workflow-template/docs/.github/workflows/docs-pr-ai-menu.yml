@@ -28,7 +28,9 @@ permissions:
 jobs:
   post-menu:
     name: Post or refresh AI PR menu
-    if: github.event_name == 'pull_request_target' || github.event_name == 'workflow_dispatch'
+    if: >-
+      (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository) ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       checks: read
