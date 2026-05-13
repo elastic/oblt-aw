@@ -70,6 +70,13 @@
       "description": "Detects 'Resource not accessible by integration' occurrences in workflow logs, creates triage issues, triages newly opened issues, and executes fixes for issues labeled ready to fix.",
       "maturity": "early-adoption",
       "default_enabled": false
+    },
+    {
+      "id": "estc-pr-buildkite-detective",
+      "name": "PR Buildkite Detective",
+      "description": "Analyzes Buildkite CI failures for a PR when a Buildkite status check fails; posts a diagnostic comment on the pull request.",
+      "maturity": "early-adoption",
+      "default_enabled": false
     }
   ]
 }
