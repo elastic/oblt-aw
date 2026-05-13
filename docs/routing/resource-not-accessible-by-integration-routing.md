@@ -24,6 +24,10 @@ Routing rules from ingress:
   - issue contains label `oblt-aw/triage/res-not-accessible-by-integration`
   -> fixer
 
+All three routes (detector, triage, fixer) also require the shared dashboard gate to pass: `enabled-workflows` must contain `obs:resource-not-accessible-by-integration` when `effective-raw` is non-empty.
+
+For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/oblt-aw-ingress.md](../workflows/oblt-aw-ingress.md).
+
 When called directly, **detector**, **triage**, and **fixer** all run in the repository that invokes the reusable workflow (no extra repository allowlist).
 
 ## References
