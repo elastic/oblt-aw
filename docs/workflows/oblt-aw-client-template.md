@@ -27,7 +27,7 @@ Execution flow:
 
 Top-level permissions:
 
-- `actions: read`
+- `contents: read`
 
 Job-level permissions (`run-aw`; must stay at least as permissive as nested ingress and downstream reusable workflows):
 
