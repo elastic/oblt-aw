@@ -11,6 +11,7 @@ This workflow creates or updates the **single** Control Plane Dashboard issue in
 - Per-org `config/<org-key>/workflow-registry.json` — workflow metadata (`id`, `name`, `description`, `maturity`, `default_enabled`, optional `section_title`)
 - Per-org `config/<org-key>/active-repositories.json` — target repositories for that org’s workflows
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/blob/v1/github/create-token/action.yml)
+- [GitHub CLI (`gh`)](https://cli.github.com/) available in `PATH` (required by `scripts/sync_control_plane_dashboard.py` for `gh api` and issue pinning)
 
 ## Usage
 
