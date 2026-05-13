@@ -44,7 +44,7 @@ Example:
 - **`workflow-id`** remains unique **within** that org’s `workflow-registry.json` (same as today per file).
 - **`enabled-workflows`** JSON passed to ingress uses **globally unique** entries in the **canonical** form **`org:workflow-id`** (e.g. `obs:agent-suggestions`, `docs:example-workflow`). Documented in [control-plane-dashboard-format.md](../operations/control-plane-dashboard-format.md). Ingress gating uses **`contains(fromJSON(...), 'org:workflow-id')`** with these exact strings.
 
-Regex and tests in `sync_control_plane_dashboard.py` / `get_enabled_workflows.py` must be updated from the current two-part `oblt-aw:<id>` pattern to this **three-part** pattern.
+Regex and tests in `sync_control_plane_dashboard.py` / `get_enabled_workflows.py` are already updated to the three-part `<!-- oblt-aw:<org-key>:<workflow-id> -->` pattern (with legacy two-part compatibility for previously generated dashboards).
 
 ---
 
@@ -133,15 +133,15 @@ scripts/
 
 ---
 
-## 8. Migration sketch (Observability → `obs`)
+## 8. Migration status (Observability → `obs`)
 
-1. Add **`config/obs/`** with folder name `obs`; move (or copy) registry + active-repositories from top-level config. **All current** registry entries and distribution targets map to **`obs`**. Top-level `config/*.json` aliases are now removed, so `config/obs/` is the source of truth.
-2. Optionally add minimal **`config/docs/`** as a second org (e.g. for tests proving section order and merged enabled lists); org key **`docs`** is distinct from the repo **`docs/`** documentation folder.
-3. Extend marker format to `<!-- oblt-aw:obs:<id> -->` (and migrate existing marker lines in `tests/`, such as `test_sync_control_plane_dashboard.py` and `test_get_enabled_workflows.py`); dashboard sync rewrites consumer issue markers accordingly.
-4. Refactor `sync_control_plane_dashboard.py` to **merge** org files into **one** issue body with sections; keep **one** label/title.
-5. Refactor `get_enabled_workflows.py` for three-part markers, **`org:workflow-id`** output, and single-issue read.
-6. Update **`oblt-aw-ingress.yml`** gating from bare ids to **`org:workflow-id`** strings.
-7. Add tests with **two org folders** (e.g. `obs` + `docs`) proving section order and merged enabled list.
+This migration is already implemented in this repository:
+
+1. `config/obs/` is the source of truth for Observability org configuration, and top-level `config/*.json` aliases are removed.
+2. Marker format and parser behavior use org-aware identifiers (`<!-- oblt-aw:<org-key>:<workflow-id> -->` and `org:workflow-id`) with legacy two-part parsing support.
+3. Dashboard sync merges org data into one issue body with one dashboard label/title.
+4. Ingress gating uses compound `org:workflow-id` identifiers.
+5. Tests cover org-aware parsing and dashboard generation, including multi-org section and marker handling.
 
 ---
 
