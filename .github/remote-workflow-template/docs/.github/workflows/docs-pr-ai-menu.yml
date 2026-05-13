@@ -228,6 +228,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     outputs:
       docs_review_triggered: ${{ steps.evaluate.outputs.docs_review_triggered }}
 
@@ -271,6 +272,16 @@ jobs:
 
             const body = context.payload.comment.body || '';
             const previousBody = context.payload.changes?.body?.from || '';
+
+            const { data: pullRequest } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.issue.number,
+            });
+            if (pullRequest.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`) {
+              core.setOutput('docs_review_triggered', 'false');
+              return;
+            }
 
             const previousState = parseMenuState(previousBody);
             const currentState = parseMenuState(body);
