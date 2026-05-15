@@ -25,7 +25,8 @@ Core behavior:
 
 - computes target operations via [scripts/build_target_operations.py](../../scripts/build_target_operations.py)
 - clones each target repository
-- installs or removes each `dst` path from the per-target `files: [{src, dst}, ...]` list produced by the builder
+- for `install` operations, copies each mapping in `files: [{src, dst}, ...]` into the target repository
+- for `remove` operations, deletes each `dst` path listed in `files`
 - opens or updates PRs using `peter-evans/create-pull-request`
 - emits consolidated summary via [scripts/summarize_pr_results.sh](../../scripts/summarize_pr_results.sh)
 
@@ -35,9 +36,13 @@ Core behavior:
   - a list of `owner/repo` strings
   - an object with `repositories: [owner/repo, ...]`
 - The target builder step exposes:
-  - `targets` (JSON matrix entries with `repository`, `operation`, and `files`)
+  - `targets` (JSON matrix entries; shape varies by `operation`)
+    - install entry: `{"repository":"owner/repo","operation":"install","files":[{"src":"...","dst":"..."}],"remove_files":["path/removed/from-template", ...]}`
+    - remove entry: `{"repository":"owner/repo","operation":"remove","files":[{"src":"...","dst":"..."}]}`
   - `has_targets` (`true`/`false`)
   - `install_count`, `remove_count`, `total_count`
+- `remove_files` is populated only for `install` entries and lists destination files that existed at `BASE_REF` but are no longer present in the current template assignment for that repository.
+- Current workflow behavior for `install` operations copies `files` only; it does **not** delete paths from `remove_files`. Stale destination files are removed only during a full `remove` operation for repositories that leave the active config union.
 - Removal operations are computed by comparing current config against the version at `BASE_REF`.
 - PR result artifacts are emitted as `repo|op|url` lines and consumed by the summarize step.
 

@@ -11,7 +11,8 @@
 Triggers (must stay aligned with [docs-aw-ingress](docs-aw-ingress.md) routing):
 
 - `issues` (`opened`) — posts the issue AI menu
-- `issue_comment` (`edited`) — checkbox transitions on the issue AI menu (non-PR issues)
+- `issue_comment` (`edited`) — checkbox transitions on the issue AI menu when the edited comment is on a non-PR issue
+- `issue_comment` (`edited`) — checkbox transitions on the PR AI menu when the edited comment is on a PR thread
 - `pull_request_target` (`opened`, `reopened`, `synchronize`, `ready_for_review`) — posts and refreshes the PR AI menu
 - `workflow_dispatch` — manual refresh; provide `issue_number` and/or `pull_request_number` (at least one required; enforced in ingress)
 

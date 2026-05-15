@@ -80,11 +80,36 @@ Behavior:
 
 Workflow outputs written by the script:
 
-- `targets`: JSON array of objects like `{"repository":"owner/repo","operation":"install|remove"}`
+- `targets`: JSON array where each entry is one of:
+  - install entry:
+    ```json
+    {
+      "repository": "owner/repo",
+      "operation": "install",
+      "files": [{"src": "...", "dst": "..."}],
+      "remove_files": ["path/removed/from-template"]
+    }
+    ```
+  - remove entry:
+    ```json
+    {
+      "repository": "owner/repo",
+      "operation": "remove",
+      "files": [{"src": "...", "dst": "..."}]
+    }
+    ```
 - `has_targets`: `true` when at least one operation exists; otherwise `false`
 - `install_count`: count of install/update operations
 - `remove_count`: count of removal operations
 - `total_count`: total operations (`install_count + remove_count`)
+
+`remove_files` contains destination paths present for the repository at `BASE_REF` that are no longer present in the current template assignment.
+
+### Current sync semantics in `create-prs`
+
+- For `install`, the workflow copies each entry from `files` into the target repository.
+- For `remove`, the workflow deletes each `dst` path from `files`.
+- The workflow currently does **not** apply `remove_files` during `install`; template-path cleanup from `remove_files` therefore requires an explicit follow-up or a full `remove` operation for repositories removed from active config.
 
 ## PR Result Artifact and Summary Contract
 
