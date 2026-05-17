@@ -23,8 +23,22 @@ python3 -m pip install --user 'zizmor==1.23.1' 'semgrep==1.60.0'
 echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 mkdir -p "$HOME/bin/actionlint"
 cd "$HOME/bin/actionlint"
-# Installer script pinned to commit (v1.7.11 tag); bump SHA when upgrading actionlint.
-ACTIONLINT_DOWNLOAD_SCRIPT_SHA=393031adb9afb225ee52ae2ccd7a5af5525e03e8
 ACTIONLINT_VERSION=1.7.11
-bash <(curl -fsSL "https://raw.githubusercontent.com/rhysd/actionlint/${ACTIONLINT_DOWNLOAD_SCRIPT_SHA}/scripts/download-actionlint.bash") "${ACTIONLINT_VERSION}"
+ACTIONLINT_TAG="v${ACTIONLINT_VERSION}"
+ACTIONLINT_OS="linux"
+case "$(uname -m)" in
+  x86_64|amd64) ACTIONLINT_ARCH="amd64" ;;
+  aarch64|arm64) ACTIONLINT_ARCH="arm64" ;;
+  *)
+    echo "Unsupported architecture for actionlint: $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+ACTIONLINT_TARBALL="actionlint_${ACTIONLINT_VERSION}_${ACTIONLINT_OS}_${ACTIONLINT_ARCH}.tar.gz"
+ACTIONLINT_RELEASE_BASE="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_TAG}"
+curl -fsSLO "${ACTIONLINT_RELEASE_BASE}/${ACTIONLINT_TARBALL}"
+curl -fsSLO "${ACTIONLINT_RELEASE_BASE}/checksums.txt"
+grep " ${ACTIONLINT_TARBALL}$" checksums.txt | sha256sum -c -
+tar -xzf "${ACTIONLINT_TARBALL}"
+chmod +x actionlint
 echo "$HOME/bin/actionlint" >> "$GITHUB_PATH"
