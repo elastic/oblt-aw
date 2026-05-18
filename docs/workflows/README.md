@@ -19,6 +19,7 @@ This section provides documentation for each workflow source in [.github/workflo
 - Autodoc workflow: [docs/workflows/gh-aw-autodoc.md](gh-aw-autodoc.md)
 - Automerge workflow: [docs/workflows/gh-aw-automerge.md](gh-aw-automerge.md)
 - Dependency review workflow: [docs/workflows/gh-aw-dependency-review.md](gh-aw-dependency-review.md)
+- PR Buildkite Detective workflow: [docs/workflows/gh-aw-estc-pr-buildkite-detective.md](gh-aw-estc-pr-buildkite-detective.md)
 - Duplicate Issue Detector workflow: [docs/workflows/gh-aw-duplicate-issue-detector.md](gh-aw-duplicate-issue-detector.md)
 - Issue Fixer workflow (generic fix-ready path): [docs/workflows/gh-aw-issue-fixer.md](gh-aw-issue-fixer.md)
 - Issue Triage workflow (issue opened): [docs/workflows/gh-aw-issue-triage.md](gh-aw-issue-triage.md)
