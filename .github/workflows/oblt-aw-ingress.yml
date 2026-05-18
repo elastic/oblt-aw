@@ -31,7 +31,10 @@ jobs:
     uses: ./.github/workflows/get-enabled-workflows.yml
 
   load-allowed-authors:
-    if: github.event_name == 'pull_request' || github.event_name == 'issues'
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'issues' ||
+      github.event_name == 'issue_comment'
     uses: ./.github/workflows/load-allowed-authors.yml
 
   agent-suggestions:
@@ -101,7 +104,7 @@ jobs:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   issue-fixer:
-    needs: dashboard-enabled-workflows
+    needs: [dashboard-enabled-workflows, load-allowed-authors]
     if: >-
       github.event_name == 'issue_comment' &&
       github.event.action == 'created' &&
@@ -112,6 +115,8 @@ jobs:
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration') &&
       (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:issue-fixer'))
     uses: ./.github/workflows/gh-aw-issue-fixer.yml
+    with:
+      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
     secrets: inherit
 
   mention-in-issue:

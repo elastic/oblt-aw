@@ -18,7 +18,11 @@ permissions:
   pull-requests: write
 
 jobs:
+  prefetch-issue-context:
+    uses: ./.github/workflows/prefetch-issue-context.yml
+
   security-issue-fixer:
+    needs: prefetch-issue-context
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.allowed-bot-users }}
@@ -31,8 +35,13 @@ jobs:
           - At least one of `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`
         - The issue must already contain a triage-generated resolution plan.
 
+        **Prefetched issue context (source of truth for issue body and comments):**
+        On public repositories, GitHub MCP guard policies apply `min-integrity: approved` and can hide triage comments (for example from `github-actions` with `CONTRIBUTOR` association). Use the prefetched thread below instead of MCP reads when verifying the resolution plan.
+
+        ${{ needs.prefetch-issue-context.outputs.context }}
+
         **Implementation Workflow (sequential and methodical):**
-        1. Read the resolution plan from the issue and extract ordered tasks.
+        1. Read the resolution plan from the prefetched issue context (or the issue via MCP when available) and extract ordered tasks.
         2. Execute the plan strictly step by step, without skipping steps.
         3. For each step, document what changed and why in commit messages and PR description.
         4. **Least-privilege (MANDATORY):** Grant only the minimum permissions required. Never add broad scopes (e.g., avoid `contents: write` when `contents: read` suffices). Prefer job-level permissions over workflow-root permissions.
