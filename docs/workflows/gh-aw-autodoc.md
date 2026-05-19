@@ -31,6 +31,7 @@ Additional guidance encoded in `additional-instructions` for both audit and fix 
 - Treat leading `-` (and similar) in **table cells** as potentially intentional (for example icon or status placeholders); avoid “cleaning” them without evidence of a real defect.
 - Do not hand-edit **auto-generated** documentation in the fix PR (docs-only); the audit should steer fixes toward generators, templates, or other sources of truth, and the PR body should record any follow-up that is outside this workflow’s scope.
 - Preserve or lightly refresh **legacy inline comments** that still document useful context or history; avoid deleting them only for brevity.
+- AI-related files are always out of scope for autodoc changes: AI assets, skills files, instruction/configuration files, and lock files (for example `*.lock*` and `*.lock.yml`).
 
 ## Configuration
 
