@@ -184,7 +184,10 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v semgrep >/dev/null 2>&1; 
     (if ($sv == "ERROR" or $sv == "error") then "high"
      elif ($sv == "WARNING" or $sv == "warning") then "medium"
      else "low" end) as $sev |
-    (if ($cid | test("injection|insecure|secret|credential"; "i")) then "SEC-010"
+    (($cid + " " + $msg) | ascii_downcase) as $text |
+    (if ($text | test("hardcoded[[:space:]_-]*(secret|token|credential)|(secret|token|credential).*(hardcoded|literal)"; "i")) then "SEC-020"
+     elif ($text | test("secret|token|credential"; "i")) then "SEC-002"
+     elif ($text | test("inject|insecure|template"; "i")) then "SEC-010"
      else "SEC-012" end) as $rule |
     "\($p)|\($ln)|\($rule)|\($sev)|semgrep [\($cid)]: \($msg)"
   ' >>"$FINDINGS_TMP" 2>/dev/null || true
