@@ -25,13 +25,20 @@ jobs:
     outputs:
       proceed: ${{ steps.validate.outputs.proceed }}
     steps:
-      - name: Checkout elastic/oblt-aw (automerge TypeScript)
+      - name: Checkout elastic/oblt-aw (automerge verify only)
         uses: actions/checkout@v6
         with:
           repository: elastic/oblt-aw
           ref: main
           path: _oblt-aw
+          fetch-depth: 1
           token: ${{ github.token }}
+          sparse-checkout: |
+            config/obs/allowed_pr_authors.json
+            scripts/obs/validateAutomergePr.ts
+            package.json
+            package-lock.json
+          sparse-checkout-cone-mode: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -62,9 +69,71 @@ jobs:
             const { ok } = await run({ github, context, prNumber, core });
             core.setOutput('proceed', ok ? 'true' : 'false');
 
-  approve:
+  # Classify dependency updates by changed file paths (no extra labels in consumer repos).
+  # Posts a single PR comment when the collection is inactive, ambiguous, or unclassified.
+  check-dependency-collection:
     needs: verify
     if: needs.verify.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      allowed: ${{ steps.check-collection.outputs.allowed }}
+      collection-id: ${{ steps.check-collection.outputs.collection-id }}
+    steps:
+      - name: Checkout elastic/oblt-aw (dependency collection gate only)
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            config/obs/automerge-dependency-collections.json
+            scripts/obs/checkAutomergeDependencyCollection.ts
+            scripts/obs/classifyAutomergeDependencyCollection.ts
+            scripts/obs/lib/matchPathGlob.ts
+            package.json
+            package-lock.json
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: _oblt-aw/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: _oblt-aw
+        run: npm ci
+
+      - name: Check dependency collection for automerge
+        id: check-collection
+        uses: actions/github-script@v9
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const path = require('node:path');
+            const { createRequire } = require('node:module');
+            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
+            const rq = createRequire(path.join(root, 'package.json'));
+            rq('tsx/cjs/api').register();
+            const { run } = rq('./scripts/obs/checkAutomergeDependencyCollection.ts');
+            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
+            const { allowed, collectionId } = await run({ github, context, prNumber, core });
+            core.setOutput('allowed', allowed ? 'true' : 'false');
+            core.setOutput('collection-id', collectionId || '');
+
+  approve:
+    needs: [verify, check-dependency-collection]
+    if: >-
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true'
     permissions:
       actions: read
       contents: write
@@ -79,7 +148,7 @@ jobs:
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
-        This PR already passed automerge validation in the workflow (GITHUB_TOKEN) for author, label, draft/fork/ref.
+        This PR already passed automerge validation in the workflow (GITHUB_TOKEN) for author, label, draft/fork/ref, and dependency collection `${{ needs.check-dependency-collection.outputs.collection-id }}` (file-path classification; no extra repo labels).
         Do not call check-run or commit status APIs. Required checks are enforced by GitHub when auto-merge is enabled.
 
         Approve the PR only when all of these gates are true:
@@ -99,8 +168,11 @@ jobs:
   automerge:
     needs:
       - verify
+      - check-dependency-collection
       - approve
-    if: needs.verify.outputs.proceed == 'true'
+    if: >-
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
