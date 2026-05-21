@@ -1,7 +1,7 @@
 name: Observability Agentic Workflow Ingress
 
-# Gating uses effective-raw (no dashboard → '') and enabled-workflows (normalized JSON array).
-# Normalization runs in get-enabled-workflows.
+# Dynamic routing: plan-routes selects eligible workflows; publish-planned-dispatch writes
+# oblt-aw-planned-dispatch.yml; invoke-planned-dispatch calls it at a literal @ref.
 on:
   workflow_call:
     secrets:
@@ -19,12 +19,14 @@ permissions:
   issues: write
   pull-requests: write
 
+# Keep in sync: publish-planned-dispatch args and invoke-planned-dispatch uses: (literal).
+env:
+  DISPATCH_REPO: elastic/oblt-aw
+  DISPATCH_BRANCH: oblt-aw/dispatch/working
+  DISPATCH_WORKFLOW: oblt-aw-planned-dispatch.yml
+
 jobs:
   dashboard-enabled-workflows:
-    # Skip the entire ingress for status events that are not a failed Buildkite check.
-    # All other events run unconditionally. This avoids spawning downstream jobs that
-    # would all evaluate to false for non-actionable status events (e.g. success or
-    # non-Buildkite contexts), since only estc-pr-buildkite-detective handles status.
     if: >-
       github.event_name != 'status' ||
       (github.event_name == 'status' && github.event.state == 'failure' && contains(github.event.context, 'buildkite'))
@@ -34,199 +36,208 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'issues'
     uses: ./.github/workflows/load-allowed-authors.yml
 
-  agent-suggestions:
-    needs: dashboard-enabled-workflows
+  plan-routes:
+    name: Plan ingress routes
+    needs:
+      - dashboard-enabled-workflows
+      - load-allowed-authors
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:agent-suggestions'))
-    uses: ./.github/workflows/gh-aw-agent-suggestions.yml
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      always() &&
+      (needs.dashboard-enabled-workflows.result == 'success' ||
+        needs.dashboard-enabled-workflows.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      routes: ${{ steps.plan.outputs.routes }}
+      has-routes: ${{ steps.plan.outputs.has-routes }}
+      unsupported-trigger: ${{ steps.plan.outputs.unsupported-trigger }}
+    steps:
+      - name: Checkout control plane scripts
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: ${{ github.repository == 'elastic/oblt-aw' && github.sha || 'main' }}
+          path: oblt-aw
+          sparse-checkout: scripts
+          sparse-checkout-cone-mode: false
 
-  autodoc:
-    needs: dashboard-enabled-workflows
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Plan routes for this event
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+          EFFECTIVE_RAW: ${{ needs.dashboard-enabled-workflows.outputs.effective-raw || '' }}
+          ENABLED_WORKFLOWS_JSON: ${{ needs.dashboard-enabled-workflows.outputs.enabled-workflows || '[]' }}
+          ALLOWED_PR_AUTHORS_JSON: ${{ needs.load-allowed-authors.outputs.allowed_pr_authors_json || '[]' }}
+          ALLOWED_ISSUE_AUTHORS_JSON: ${{ needs.load-allowed-authors.outputs.allowed_issue_authors_json || '[]' }}
+          PR_USER_LOGIN: ${{ github.event.pull_request.user.login || '' }}
+          PR_LABELS_CSV: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          ISSUE_LABELS_CSV: ${{ join(github.event.issue.labels.*.name, ',') }}
+          ISSUE_IS_PULL_REQUEST: ${{ github.event.issue.pull_request != null }}
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+          COMMENT_AUTHOR_ASSOCIATION: ${{ github.event.comment.author_association || '' }}
+          STATUS_STATE: ${{ github.event.state || '' }}
+          STATUS_CONTEXT: ${{ github.event.context || '' }}
+          LABELED_LABEL_NAME: ${{ github.event.label.name || '' }}
+        working-directory: oblt-aw
+        run: python scripts/plan_ingress_routes.py
+
+  publish-planned-dispatch:
+    name: Publish planned dispatch workflow
+    needs:
+      - dashboard-enabled-workflows
+      - plan-routes
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:autodoc'))
-    uses: ./.github/workflows/gh-aw-autodoc.yml
+      needs.plan-routes.outputs.has-routes == 'true' &&
+      (needs.dashboard-enabled-workflows.result == 'success' ||
+        needs.dashboard-enabled-workflows.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: oblt-aw-dispatch-working
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Create ephemeral GitHub token for control plane
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+
+      - name: Checkout control plane scripts and config
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: oblt-aw-tools
+          sparse-checkout: |
+            scripts
+            config
+          sparse-checkout-cone-mode: false
+          token: ${{ steps.create-token.outputs.token }}
+
+      - name: Checkout control plane repository for dispatch branch
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: oblt-aw
+          fetch-depth: 0
+          token: ${{ steps.create-token.outputs.token }}
+
+      - name: Prepare dispatch branch
+        working-directory: oblt-aw
+        env:
+          DISPATCH_BRANCH: ${{ env.DISPATCH_BRANCH }}
+        run: |
+          set -euo pipefail
+          git fetch origin
+          remote_ref="origin/${DISPATCH_BRANCH}"
+          if git rev-parse --verify "${remote_ref}" >/dev/null 2>&1; then
+            git checkout -B "${DISPATCH_BRANCH}" "${remote_ref}"
+            echo "checked out existing branch ${DISPATCH_BRANCH} from ${remote_ref}"
+          else
+            git checkout -B "${DISPATCH_BRANCH}"
+            echo "created branch ${DISPATCH_BRANCH} from current HEAD"
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Generate planned dispatch workflow
+        env:
+          ROUTES_JSON: ${{ needs.plan-routes.outputs.routes }}
+          CONTROL_PLANE_REF: ${{ github.repository == 'elastic/oblt-aw' && github.sha || 'main' }}
+          DISPATCH_REPO: ${{ env.DISPATCH_REPO }}
+          DISPATCH_WORKFLOW: ${{ env.DISPATCH_WORKFLOW }}
+        run: |
+          python oblt-aw-tools/scripts/generate_planned_dispatch.py \
+            --routes-json "${ROUTES_JSON}" \
+            --control-plane-ref "${CONTROL_PLANE_REF}" \
+            --dispatch-repo "${DISPATCH_REPO}" \
+            --dispatch-workflow "${DISPATCH_WORKFLOW}" \
+            --output "oblt-aw/.github/workflows/${DISPATCH_WORKFLOW}"
+
+      - name: Setup git for control plane commits
+        uses: elastic/oblt-actions/git/setup@v1
+        with:
+          github-token: ${{ steps.create-token.outputs.token }}
+
+      - name: Commit planned dispatch workflow
+        id: commit-dispatch
+        working-directory: oblt-aw
+        env:
+          ROUTES_JSON: ${{ needs.plan-routes.outputs.routes }}
+          DISPATCH_WORKFLOW: ${{ env.DISPATCH_WORKFLOW }}
+        run: |
+          set -euo pipefail
+          git add ".github/workflows/${DISPATCH_WORKFLOW}"
+          if git diff --cached --quiet; then
+            echo "no changes to planned dispatch workflow; skipping commit"
+            echo "changes_detected=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          routes_csv="$(printf '%s' "${ROUTES_JSON}" | jq -r 'join(", ")')"
+          git commit -m "chore(dispatch): planned routes ${routes_csv}"
+          echo "changes_detected=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Push dispatch branch
+        if: steps.commit-dispatch.outputs.changes_detected == 'true'
+        working-directory: oblt-aw
+        env:
+          DISPATCH_BRANCH: ${{ env.DISPATCH_BRANCH }}
+        run: |
+          set -euo pipefail
+          refspec="HEAD:refs/heads/${DISPATCH_BRANCH}"
+          if git push origin "${refspec}"; then
+            exit 0
+          fi
+          remote_ref="origin/${DISPATCH_BRANCH}"
+          if git rev-parse --verify "${remote_ref}" >/dev/null 2>&1; then
+            echo "push rejected; rebasing onto ${remote_ref} and retrying"
+            git pull --rebase origin "${DISPATCH_BRANCH}"
+            git push origin "${refspec}"
+            exit 0
+          fi
+          echo "git push failed and remote branch ${remote_ref} does not exist" >&2
+          exit 1
+
+  invoke-planned-dispatch:
+    name: Invoke planned dispatch
+    needs:
+      - dashboard-enabled-workflows
+      - load-allowed-authors
+      - plan-routes
+      - publish-planned-dispatch
+    if: >-
+      needs.plan-routes.outputs.has-routes == 'true' &&
+      (needs.dashboard-enabled-workflows.result == 'success' ||
+        needs.dashboard-enabled-workflows.result == 'skipped')
+    # Literal path and @ref — GitHub does not allow expressions in uses: (must match env above).
+    uses: elastic/oblt-aw/.github/workflows/oblt-aw-planned-dispatch.yml@oblt-aw/dispatch/working
+    with:
+      allowed-pr-authors-csv: ${{ needs.load-allowed-authors.outputs.allowed_pr_authors_csv || '' }}
+      allowed-issue-authors-csv: ${{ needs.load-allowed-authors.outputs.allowed_issue_authors_csv || '' }}
     secrets: inherit
-
-  automerge:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
-    if: >-
-      github.event_name == 'pull_request' &&
-      contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action) &&
-      contains(fromJSON(needs['load-allowed-authors'].outputs['allowed_pr_authors_json']), github.event.pull_request.user.login) &&
-      contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready') &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:automerge'))
-    uses: ./.github/workflows/gh-aw-automerge.yml
-    with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_pr_authors_csv'] }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  dependency-review:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
-    if: >-
-      github.event_name == 'pull_request' &&
-      contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-      contains(fromJSON(needs['load-allowed-authors'].outputs['allowed_pr_authors_json']), github.event.pull_request.user.login) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:dependency-review'))
-    uses: ./.github/workflows/gh-aw-dependency-review.yml
-    with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_pr_authors_csv'] }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  duplicate-issue-detector:
-    needs: dashboard-enabled-workflows
-    if: >-
-      (
-        (github.event_name == 'issues' && github.event.action == 'opened') ||
-        github.event_name == 'workflow_dispatch'
-      ) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:duplicate-issue-detector'))
-    uses: ./.github/workflows/gh-aw-duplicate-issue-detector.yml
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  issue-triage:
-    needs: dashboard-enabled-workflows
-    if: >-
-      github.event_name == 'issues' &&
-      github.event.action == 'opened' &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:issue-triage'))
-    uses: ./.github/workflows/gh-aw-issue-triage.yml
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  issue-fixer:
-    needs: dashboard-enabled-workflows
-    if: >-
-      github.event_name == 'issue_comment' &&
-      github.event.action == 'created' &&
-      github.event.issue.pull_request == null &&
-      startsWith(github.event.comment.body, '/ai implement') &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
-      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
-      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration') &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:issue-fixer'))
-    uses: ./.github/workflows/gh-aw-issue-fixer.yml
-    secrets: inherit
-
-  mention-in-issue:
-    needs: dashboard-enabled-workflows
-    if: >-
-      github.event_name == 'issue_comment' &&
-      github.event.action == 'created' &&
-      github.event.issue.pull_request == null &&
-      startsWith(github.event.comment.body, '/ai') &&
-      !startsWith(github.event.comment.body, '/ai implement') &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:mention-in-issue'))
-    uses: ./.github/workflows/gh-aw-mention-in-issue.yml
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  resource-not-accessible-by-integration-detector:
-    needs: dashboard-enabled-workflows
-    if: >-
-      contains(fromJSON('["schedule"]'), github.event_name) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:resource-not-accessible-by-integration'))
-    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  resource-not-accessible-by-integration-fixer:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
-    if: >-
-      github.event_name == 'issues' &&
-      github.event.action == 'labeled' &&
-      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration') &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:resource-not-accessible-by-integration'))
-    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
-    with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
-    secrets: inherit
-
-  resource-not-accessible-by-integration-triage:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
-    if: >-
-      github.event_name == 'issues' &&
-      (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration')
-      ) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:resource-not-accessible-by-integration'))
-    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
-    with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  security-detector:
-    needs: dashboard-enabled-workflows
-    if: >-
-      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:security'))
-    uses: ./.github/workflows/gh-aw-security-detector.yml
-
-  security-fixer:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
-    if: >-
-      github.event_name == 'issues' &&
-      github.event.action == 'labeled' &&
-      (
-        (github.event.label.name == 'oblt-aw/ai/fix-ready' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')) ||
-        (startsWith(github.event.label.name, 'oblt-aw/triage/security-') && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/ai/fix-ready'))
-      ) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:security'))
-    uses: ./.github/workflows/gh-aw-security-fixer.yml
-    with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
-    secrets: inherit
-
-  security-triage:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
-    if: >-
-      github.event_name == 'issues' &&
-      (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/security')
-      ) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:security'))
-    uses: ./.github/workflows/gh-aw-security-triage.yml
-    with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  estc-pr-buildkite-detective:
-    needs: dashboard-enabled-workflows
-    if: >-
-      github.event_name == 'status' &&
-      github.event.state == 'failure' &&
-      contains(github.event.context, 'buildkite') &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:estc-pr-buildkite-detective'))
-    uses: ./.github/workflows/gh-aw-estc-pr-buildkite-detective.yml
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}
 
   unsupported-trigger:
-    if: >-
-      !(
-        contains(fromJSON('["schedule","workflow_call"]'), github.event_name) ||
-        github.event_name == 'workflow_dispatch' ||
-        github.event_name == 'status' ||
-        (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action)) ||
-        (github.event_name == 'issue_comment' && github.event.action == 'created') ||
-        (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action))
-      )
+    name: Unsupported trigger
+    needs: plan-routes
+    if: needs.plan-routes.outputs.unsupported-trigger == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Unsupported trigger
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
         run: |
-          echo "This entrypoint does not support event '${{ github.event_name }}' with action '${{ github.event.action }}'."
+          echo "This entrypoint does not support event '${EVENT_NAME}' with action '${EVENT_ACTION}'."
           exit 1

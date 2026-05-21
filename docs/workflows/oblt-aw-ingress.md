@@ -6,6 +6,8 @@ Source file: [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/obl
 
 This is the reusable orchestration entrypoint for `oblt-aw`. It routes to specialized workflows based on event context.
 
+**Dynamic routing:** Ingress plans eligible routes, generates `oblt-aw-planned-dispatch.yml` (static `uses:` per active `gh-aw-*`), commits and pushes it to `oblt-aw/dispatch/working` on **`elastic/oblt-aw`** via [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token), then invokes it. See [Dynamic ingress routing](../routing/dynamic-ingress-routing.md).
+
 ## Prerequisites
 
 - Called by consumer workflows using `workflow_call`.

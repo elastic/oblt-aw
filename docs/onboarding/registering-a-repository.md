@@ -147,6 +147,7 @@ Draft placeholder for `additional_permissions` (not valid YAML until substituted
 |--------------------|-------------------------------------------------------|
 | [distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml) | `token-policy-63405ab45244` |
 | [sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml) | `token-policy-8b60ba56dd3f` |
+| [oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml) (`publish-planned-dispatch`, write `elastic/oblt-aw` dispatch branch) | `-` (no explicit `with.token-policy` on `create-token`; auto role from caller `oblt-aw.yml` ref) |
 | [gh-aw-security-detector.yml](../../.github/workflows/gh-aw-security-detector.yml) | `-` (no explicit `with.token-policy` on `create-token`) |
 | [gh-aw-automerge.yml](../../.github/workflows/gh-aw-automerge.yml) (ephemeral token step) | `-` (no explicit `with.token-policy` on `create-token`) |
 

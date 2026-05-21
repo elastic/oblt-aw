@@ -28,6 +28,7 @@ dashboard markers use ``<!-- oblt-aw:<org-key>:<workflow-id> -->``; ingress and
 from __future__ import annotations
 
 import json
+from typing import Any
 import os
 import re
 import secrets
@@ -114,6 +115,82 @@ def discover_org_config_dirs(config_dir: Path) -> list[Path]:
 def discover_org_keys_sorted(config_dir: Path) -> list[str]:
     """Sorted org keys (directory names) under ``config_dir``."""
     return [p.name for p in discover_org_config_dirs(config_dir)]
+
+
+def load_workflow_registry(org_dir: Path) -> dict[str, Any]:
+    """Load ``workflow-registry.json`` from an org config directory."""
+    path = org_dir / "workflow-registry.json"
+    if not path.is_file():
+        raise SystemExit(f"missing workflow registry: {path}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise SystemExit(f"workflow-registry.json must be an object: {path}")
+    workflows = data.get("workflows")
+    if not isinstance(workflows, list):
+        raise SystemExit(f"workflow-registry.json must include workflows[]: {path}")
+    return data
+
+
+def ingress_route_specs_from_registry(
+    registry: dict[str, Any],
+) -> dict[str, dict[str, str]]:
+    """
+    Build ingress dispatch route specs from workflow-registry entries.
+
+    Each workflow defines ``dispatch`` as a list of route objects. Each route
+    requires ``id``, ``workflow`` (gh-aw filename), and ``secrets``. Optional
+    ``with_input``: ``allowed-pr`` or ``allowed-issue``.
+    """
+    specs: dict[str, dict[str, str]] = {}
+    for entry in registry.get("workflows", []):
+        if not isinstance(entry, dict):
+            raise SystemExit("workflow-registry workflows[] entries must be objects")
+        workflow_id = entry.get("id")
+        if not isinstance(workflow_id, str) or not workflow_id:
+            raise SystemExit("workflow-registry entry missing id")
+
+        if "dispatch" not in entry:
+            continue
+
+        routes = entry["dispatch"]
+        if not isinstance(routes, list):
+            raise SystemExit(f"dispatch must be a list for workflow {workflow_id!r}")
+        if not routes:
+            raise SystemExit(f"dispatch must not be empty for workflow {workflow_id!r}")
+
+        for route in routes:
+            if not isinstance(route, dict):
+                raise SystemExit(
+                    f"dispatch entries must be objects for {workflow_id!r}"
+                )
+            route_id = route.get("id")
+            if not isinstance(route_id, str) or not route_id:
+                raise SystemExit(f"dispatch route missing id under {workflow_id!r}")
+            if route_id in specs:
+                raise SystemExit(f"duplicate ingress route id: {route_id!r}")
+            specs[route_id] = _normalize_ingress_dispatch(route, route_id)
+
+    return specs
+
+
+def _normalize_ingress_dispatch(raw: object, route_id: str) -> dict[str, str]:
+    if not isinstance(raw, dict):
+        raise SystemExit(f"dispatch for {route_id!r} must be an object")
+    workflow = raw.get("workflow")
+    secrets = raw.get("secrets")
+    if not isinstance(workflow, str) or not workflow:
+        raise SystemExit(f"dispatch.workflow required for {route_id!r}")
+    if not isinstance(secrets, str) or not secrets:
+        raise SystemExit(f"dispatch.secrets required for {route_id!r}")
+    spec: dict[str, str] = {"workflow": workflow, "secrets": secrets}
+    with_input = raw.get("with_input")
+    if with_input is not None:
+        if with_input not in ("allowed-pr", "allowed-issue"):
+            raise SystemExit(
+                f"dispatch.with_input for {route_id!r} must be allowed-pr or allowed-issue"
+            )
+        spec["with_input"] = with_input
+    return spec
 
 
 def format_oblt_aw_marker(org_key: str, workflow_id: str) -> str:

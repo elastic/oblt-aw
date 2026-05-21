@@ -48,6 +48,7 @@ Ship these in order when adding a **new** routed workflow. The sequence mirrors 
 ### 5. Register in `workflow-registry.json`
 
 - Under `config/<org-key>/workflow-registry.json`, add one object with a unique `id` within that org, plus `name`, `description`, `maturity`, and `default_enabled`. **Defaults for new workflows:** set `maturity` to **`experimental`** and `default_enabled` to **`false`** so new dashboard rows start opt-in; change to `stable`, `early-adoption`, or `true` only when you intentionally want broader rollout ([workflow maturity](../operations/workflow-maturity.md)).
+- For Observability ingress dispatch, add a **`dispatch`** list on that entry (each item: `id`, `workflow`, `secrets`, optional `with_input`) — see [dynamic ingress routing](../routing/dynamic-ingress-routing.md).
 - The `id` you choose is what appears after `obs:` in ingress `contains(...)` checks (for example `id: issue-fixer` → gate `obs:issue-fixer`).
 
 ### 6. Update documentation
