@@ -4,11 +4,11 @@
 
 Source file: `.github/workflows/oblt-aw-mention-in-issue.yml`
 
-Reusable wrapper that calls the locked mention-in-issue workflow in `elastic/ai-github-actions`. The client template `trigger-oblt-aw-mention-in-issue.yml` calls this workflow on `issue_comment` events when prelude allows `obs:mention-in-issue`.
+Reusable wrapper that calls the locked mention-in-issue workflow in `elastic/ai-github-actions`. The client template `trg-oblt-aw-mention-in-issue.yml` calls this workflow on `issue_comment` events when prelude allows `obs:mention-in-issue`.
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from `trigger-oblt-aw-mention-in-issue.yml` client templates.
+- Triggered via `workflow_call` from `trg-oblt-aw-mention-in-issue.yml` client templates.
 - Required secret: `COPILOT_GITHUB_TOKEN`.
 
 ## Usage

@@ -1,7 +1,7 @@
 name: Docs AI menu
 
 # Reusable implementation for the Elastic Docs issue AI menu. Consumer repositories
-# install `.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-ai-menu.yml`.
+# install `.github/remote-workflow-template/docs/.github/workflows/trg-docs-aw-ai-menu.yml`.
 # Scripts: `scripts/docs/issue-menu/`.
 
 on:

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Client templates: `trigger-oblt-aw-resource-not-accessible-by-integration-*.yml` → matching `oblt-aw-*` workflows
+Client templates: `trg-oblt-aw-resource-not-accessible-by-integration-*.yml` → matching `oblt-aw-*` workflows
 
 Routed workflows:
 

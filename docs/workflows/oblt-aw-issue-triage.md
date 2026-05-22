@@ -4,11 +4,11 @@
 
 Source file: [.github/workflows/oblt-aw-issue-triage.yml](../../.github/workflows/oblt-aw-issue-triage.yml)
 
-Reusable wrapper that calls the locked generic issue-triage workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trigger-oblt-aw-issue-triage.yml` calls this workflow on `issues` `opened` when prelude allows `obs:issue-triage`.
+Reusable wrapper that calls the locked generic issue-triage workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trg-oblt-aw-issue-triage.yml` calls this workflow on `issues` `opened` when prelude allows `obs:issue-triage`.
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from `trigger-oblt-aw-issue-triage.yml` client templates.
+- Triggered via `workflow_call` from `trg-oblt-aw-issue-triage.yml` client templates.
 - Required secret: `COPILOT_GITHUB_TOKEN`.
 
 ## Usage

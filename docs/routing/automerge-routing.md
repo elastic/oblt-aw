@@ -2,7 +2,7 @@
 
 ## Overview
 
-Client template: `trigger-oblt-aw-automerge.yml` → `oblt-aw-automerge.yml`
+Client template: `trg-oblt-aw-automerge.yml` → `oblt-aw-automerge.yml`
 
 Routed workflow source: `.github/workflows/oblt-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, and conditional `enable-merge-when-ready` on the PR). Merge first uses **pascalgn/automerge-action** with `GITHUB_TOKEN`; when that step reports `merge_failed`, the workflow enables native GitHub auto-merge as a fallback.
 
@@ -18,7 +18,7 @@ There is **no** `schedule` trigger for automerge. The reusable workflow uses `gi
 - Author is in the same allow list as dependency-review: `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`, `elastic-vault-github-plugin-prod[bot]`
 - PR has label `oblt-aw/ai/merge-ready` at event time
 
-The client template includes `labeled` in `pull_request` types (`trigger-oblt-aw-automerge.yml`).
+The client template includes `labeled` in `pull_request` types (`trg-oblt-aw-automerge.yml`).
 
 ## Mandatory requirements evaluated at runtime
 

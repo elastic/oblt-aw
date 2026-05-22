@@ -10,7 +10,7 @@ Ingress selects which events dispatch here; see [Automerge routing](../routing/a
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from `trigger-oblt-aw-automerge.yml` when prelude and route guards match author, `oblt-aw/ai/merge-ready`, and the right `pull_request` action.
+- Triggered via `workflow_call` from `trg-oblt-aw-automerge.yml` when prelude and route guards match author, `oblt-aw/ai/merge-ready`, and the right `pull_request` action.
 - `github.event.pull_request` must be populated (same as dependency-review PR flows).
 
 ## Usage

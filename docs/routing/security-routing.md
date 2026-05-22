@@ -2,7 +2,7 @@
 
 ## Overview
 
-Client templates: `trigger-oblt-aw-security-*.yml` → matching `oblt-aw-security-*.yml`
+Client templates: `trg-oblt-aw-security-*.yml` → matching `oblt-aw-security-*.yml`
 
 Routed workflows (`oblt-aw-security-*`; registry id `security`):
 
