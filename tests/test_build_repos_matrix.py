@@ -7,18 +7,13 @@ Tests ``common.parse_repositories``, ``common.write_outputs``, and
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import pathlib
-import sys
 
+import build_repos_matrix as brm
 import pytest
-
-# Make ``scripts/`` (for ``common``) and ``scripts/obs/`` importable without installation.
-_root = pathlib.Path(__file__).parent.parent
-sys.path.insert(0, str(_root / "scripts"))
-
-import build_repos_matrix as brm  # noqa: E402
-from common import parse_repositories  # noqa: E402
+from common import parse_repositories
 
 
 # ── parse_repositories (common) ───────────────────────────────────────────────
@@ -111,8 +106,6 @@ class TestMain:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
         """When no org ``config/<org-key>/`` trees exist, main writes empty outputs."""
-        import importlib.util
-
         output_file = tmp_path / "github_output"
         output_file.touch()
         monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
@@ -139,8 +132,6 @@ class TestMain:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
         """When an org tree has ``active-repositories.json``, main builds matrix and writes outputs."""
-        import importlib.util
-
         output_file = tmp_path / "github_output"
         output_file.touch()
         monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))

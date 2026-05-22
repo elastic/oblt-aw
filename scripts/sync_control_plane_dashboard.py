@@ -36,7 +36,6 @@ https://github.com/elastic/observability-robots/issues/4189
 from __future__ import annotations
 
 import argparse
-from typing import Any, cast
 import json
 import logging
 import os
@@ -45,6 +44,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any, cast
 from urllib.parse import quote
 
 from common import (

@@ -18,12 +18,8 @@
 from __future__ import annotations
 
 import pathlib
-import sys
 
-
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
-
-import update_license_files as ulf  # noqa: E402
+import update_license_files as ulf
 
 
 class TestStripExistingHeaders:

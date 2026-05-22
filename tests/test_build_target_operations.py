@@ -10,14 +10,9 @@ from __future__ import annotations
 
 import json
 import pathlib
-import sys
 
+import build_target_operations as bto
 import pytest
-
-# Make the scripts/ package importable without installation.
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
-
-import build_target_operations as bto  # noqa: E402  (after sys.path manipulation)
 
 
 # ── parse_repositories ────────────────────────────────────────────────────────

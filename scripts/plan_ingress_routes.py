@@ -24,9 +24,12 @@ and returns only workflow routes that should run for the current event.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from dataclasses import dataclass
 from typing import Any, Literal
+
+from common import write_outputs
 
 ORG_PREFIX = "obs:"
 
@@ -402,11 +405,6 @@ def context_from_env(environ: dict[str, str]) -> RoutePlanContext:
 
 def run_plan_cli() -> None:
     """Write planned routes to GITHUB_OUTPUT (ingress plan-routes job)."""
-    import json
-    import os
-
-    from common import write_outputs
-
     ctx = context_from_env({key: value for key, value in os.environ.items()})
     result = plan_routes(ctx)
 

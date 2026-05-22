@@ -3,13 +3,9 @@
 from __future__ import annotations
 
 import pathlib
-import sys
 
+import common
 import pytest
-
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
-
-import common  # noqa: E402
 
 
 def test_ingress_route_specs_requires_dispatch_list() -> None:

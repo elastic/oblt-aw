@@ -4,13 +4,7 @@ Unit tests for scripts/get_enabled_workflows.py
 
 from __future__ import annotations
 
-import pathlib
-import sys
-
-_root = pathlib.Path(__file__).parent.parent
-sys.path.insert(0, str(_root / "scripts"))
-
-import get_enabled_workflows as gew  # noqa: E402
+import get_enabled_workflows as gew
 
 
 class TestNormalizeEnabledWorkflowsJson:

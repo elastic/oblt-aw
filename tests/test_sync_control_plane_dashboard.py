@@ -7,14 +7,7 @@ build_dashboard_body) in isolation, without touching the network or gh CLI.
 
 from __future__ import annotations
 
-import sys
-import pathlib
-
-
-_root = pathlib.Path(__file__).parent.parent
-sys.path.insert(0, str(_root / "scripts"))
-
-import sync_control_plane_dashboard as scpd  # noqa: E402
+import sync_control_plane_dashboard as scpd
 
 
 def _obs_section(workflows: list[dict]) -> list[tuple[str, str, list[dict]]]:

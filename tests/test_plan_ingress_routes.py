@@ -6,15 +6,9 @@ from __future__ import annotations
 
 import json
 import os
-import pathlib
-import sys
 
+import plan_ingress_routes as routes
 import pytest
-
-_root = pathlib.Path(__file__).parent.parent
-sys.path.insert(0, str(_root / "scripts"))
-
-import plan_ingress_routes as routes  # noqa: E402
 
 
 def _ctx(**overrides: object) -> routes.RoutePlanContext:

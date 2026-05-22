@@ -15,17 +15,7 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-import pytest
-
-ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS = ROOT / "scripts"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
-
-from generate_planned_dispatch import (  # noqa: E402
+from generate_planned_dispatch import (
     PlannedDispatchTarget,
     commit_message_for_routes,
     gh_aw_workflow_uses,
@@ -34,6 +24,9 @@ from generate_planned_dispatch import (  # noqa: E402
     render_planned_dispatch_workflow,
     write_planned_dispatch_workflow,
 )
+from pathlib import Path
+
+import pytest
 
 
 def test_route_specs_loaded_from_workflow_registry() -> None:

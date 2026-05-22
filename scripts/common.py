@@ -28,11 +28,11 @@ dashboard markers use ``<!-- oblt-aw:<org-key>:<workflow-id> -->``; ingress and
 from __future__ import annotations
 
 import json
-from typing import Any
 import os
 import re
 import secrets
 from pathlib import Path
+from typing import Any
 
 # Default org for legacy two-part markers ``<!-- oblt-aw:<workflow-id> -->``.
 LEGACY_DEFAULT_ORG_KEY = "obs"
