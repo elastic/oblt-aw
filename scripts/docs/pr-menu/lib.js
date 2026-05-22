@@ -21,7 +21,7 @@ const WORKFLOW_CONFIG = {
   docsReview: {
     checkNamePrefix: 'Docs AI / docs review',
     label:
-      'Review docs changes ([`docs-review`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-review.md)).',
+      'Review docs changes ([`docs-review`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/oblt-aw-docs-review.md)).',
     marker: '<!-- docs-pr-ai-menu:docs-review -->',
   },
 };

@@ -2,9 +2,9 @@
 
 ## Overview
 
-Entrypoint source: [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml)
+Client template: `oblt-aw-dependency-review.yml` → `oblt-aw-dependency-review.yml`
 
-Routed workflow source: [.github/workflows/gh-aw-dependency-review.yml](../../.github/workflows/gh-aw-dependency-review.yml)
+Routed workflow source: [.github/workflows/oblt-aw-dependency-review.yml](../../.github/workflows/oblt-aw-dependency-review.yml)
 
 ## Usage
 
@@ -20,8 +20,8 @@ Ingress routes to dependency review when all conditions are true:
   - `elastic-vault-github-plugin-prod[bot]`
 - Dashboard gate passes for registry id `dependency-review` (`enabled-workflows` contains `obs:dependency-review` when `effective-raw` is non-empty).
 
-For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/oblt-aw-ingress.md](../workflows/oblt-aw-ingress.md).
+For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/aw-prelude.md](../workflows/aw-prelude.md).
 
 ## References
 
-- [docs/workflows/gh-aw-dependency-review.md](../workflows/gh-aw-dependency-review.md)
+- [docs/workflows/oblt-aw-dependency-review.md](../workflows/oblt-aw-dependency-review.md)

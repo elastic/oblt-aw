@@ -59,6 +59,9 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v --tb=short
 
+      - name: Validate *-aw-* workflows call aw-prelude
+        run: python scripts/validate_aw_workflow_prelude.py
+
   typescript-tests:
     name: TypeScript tests
     runs-on: ubuntu-latest

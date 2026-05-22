@@ -25,15 +25,10 @@ See [docs/development/contributing.md](docs/development/contributing.md) for ful
 
 ## Quick Start
 
-Target repositories should consume the distributed client entrypoint workflow:
+Target repositories install per-workflow client templates from this repository (for example `oblt-aw-automerge.yml`, `oblt-aw-issue-fixer.yml`). Each template calls a matching `oblt-aw-*` reusable workflow; shared gating runs in [aw-prelude.yml](.github/workflows/aw-prelude.yml).
 
-- `.github/workflows/oblt-aw.yml` (installed by distribution from this repository's remote template)
-
-Reference template source and ingress implementation:
-
-- [.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml](.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml) (Observability client template)
-- [.github/remote-workflow-template/docs/.github/workflows/docs-aw.yml](.github/remote-workflow-template/docs/.github/workflows/docs-aw.yml) (Docs client template)
-- [elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/oblt-aw-ingress.yml)
+- Observability templates: [.github/remote-workflow-template/obs/.github/workflows/](.github/remote-workflow-template/obs/.github/workflows/) — see [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md)
+- Docs templates: [.github/remote-workflow-template/docs/.github/workflows/](.github/remote-workflow-template/docs/.github/workflows/) (`docs-aw-ai-menu.yml`, `docs-aw-pr-ai-menu.yml`)
 
 ## Repository Scope
 

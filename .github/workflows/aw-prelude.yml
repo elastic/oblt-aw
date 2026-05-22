@@ -1,0 +1,100 @@
+name: Agentic Workflow Prelude
+
+# Shared dashboard gating and optional allow-list loading for *-aw-* workflows.
+# Call this reusable workflow before agent-specific jobs in oblt-aw-* and docs-aw-* wrappers.
+on:
+  workflow_call:
+    inputs:
+      enabled-workflow-id:
+        description: Compound Control Plane id (for example obs:automerge)
+        required: true
+        type: string
+      load-allowed-authors:
+        description: Load PR and issue allow lists from elastic/oblt-aw config
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      proceed:
+        description: >-
+          True when dashboard gating allows this workflow (effective-raw empty or
+          enabled-workflow-id is listed in enabled-workflows).
+        value: ${{ jobs.evaluate.outputs.proceed }}
+      effective-raw:
+        description: Raw dashboard read before normalization ('' means all enabled)
+        value: ${{ jobs.dashboard.outputs.effective-raw }}
+      enabled-workflows:
+        description: Normalized JSON array of compound ids from the dashboard
+        value: ${{ jobs.dashboard.outputs.enabled-workflows }}
+      allowed-pr-authors-json:
+        description: JSON array of allowed PR bot logins (empty when not loaded)
+        value: ${{ jobs.evaluate.outputs.allowed-pr-authors-json }}
+      allowed-pr-authors-csv:
+        description: Comma-separated allowed PR bot logins (empty when not loaded)
+        value: ${{ jobs.evaluate.outputs.allowed-pr-authors-csv }}
+      allowed-issue-authors-json:
+        description: JSON array of allowed issue bot logins (empty when not loaded)
+        value: ${{ jobs.evaluate.outputs.allowed-issue-authors-json }}
+      allowed-issue-authors-csv:
+        description: Comma-separated allowed issue bot logins (empty when not loaded)
+        value: ${{ jobs.evaluate.outputs.allowed-issue-authors-csv }}
+
+permissions:
+  contents: read
+
+jobs:
+  dashboard:
+    uses: ./.github/workflows/get-enabled-workflows.yml
+
+  allowed-authors:
+    if: >-
+      inputs.load-allowed-authors &&
+      (github.event_name == 'pull_request' || github.event_name == 'issues')
+    uses: ./.github/workflows/load-allowed-authors.yml
+
+  evaluate:
+    needs: [dashboard, allowed-authors]
+    if: >-
+      always() &&
+      needs.dashboard.result == 'success' &&
+      (needs.allowed-authors.result == 'success' || needs.allowed-authors.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      proceed: ${{ steps.gate.outputs.proceed }}
+      allowed-pr-authors-json: ${{ steps.pack.outputs.allowed-pr-authors-json }}
+      allowed-pr-authors-csv: ${{ steps.pack.outputs.allowed-pr-authors-csv }}
+      allowed-issue-authors-json: ${{ steps.pack.outputs.allowed-issue-authors-json }}
+      allowed-issue-authors-csv: ${{ steps.pack.outputs.allowed-issue-authors-csv }}
+    steps:
+      - name: Evaluate dashboard gate
+        id: gate
+        env:
+          EFFECTIVE_RAW: ${{ needs.dashboard.outputs.effective-raw }}
+          ENABLED_WORKFLOWS: ${{ needs.dashboard.outputs.enabled-workflows }}
+          ENABLED_WORKFLOW_ID: ${{ inputs.enabled-workflow-id }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EFFECTIVE_RAW}" ]; then
+            echo "proceed=true"
+          elif echo "${ENABLED_WORKFLOWS}" | jq -e --arg id "${ENABLED_WORKFLOW_ID}" 'index($id) != null' >/dev/null; then
+            echo "proceed=true"
+          else
+            echo "proceed=false"
+          fi >> "${GITHUB_OUTPUT}"
+
+      - name: Pack allow-list outputs
+        id: pack
+        env:
+          PR_JSON: ${{ needs.allowed-authors.outputs.allowed_pr_authors_json }}
+          PR_CSV: ${{ needs.allowed-authors.outputs.allowed_pr_authors_csv }}
+          ISSUE_JSON: ${{ needs.allowed-authors.outputs.allowed_issue_authors_json }}
+          ISSUE_CSV: ${{ needs.allowed-authors.outputs.allowed_issue_authors_csv }}
+        run: |
+          set -euo pipefail
+          {
+            echo "allowed-pr-authors-json=${PR_JSON:-[]}"
+            echo "allowed-pr-authors-csv=${PR_CSV:-}"
+            echo "allowed-issue-authors-json=${ISSUE_JSON:-[]}"
+            echo "allowed-issue-authors-csv=${ISSUE_CSV:-}"
+          } >> "${GITHUB_OUTPUT}"
