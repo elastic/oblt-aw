@@ -15,10 +15,9 @@ _root = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(_root / "scripts"))
 
 import plan_ingress_routes as routes  # noqa: E402
-from plan_ingress_routes import RoutePlanContext, plan_routes  # noqa: E402
 
 
-def _ctx(**overrides: object) -> RoutePlanContext:
+def _ctx(**overrides: object) -> routes.RoutePlanContext:
     base = {
         "event_name": "pull_request",
         "event_action": "opened",
@@ -37,25 +36,27 @@ def _ctx(**overrides: object) -> RoutePlanContext:
         "labeled_label_name": "",
     }
     base.update(overrides)
-    return RoutePlanContext(**base)  # type: ignore[arg-type]
+    return routes.RoutePlanContext(**base)  # type: ignore[arg-type]
 
 
 class TestPlanRoutesPullRequest:
     def test_bot_pr_dependency_review_only(self) -> None:
-        result = plan_routes(_ctx())
+        result = routes.plan_routes(_ctx())
         assert result.routes == ["dependency-review"]
         assert not result.unsupported_trigger
 
     def test_human_pr_no_routes(self) -> None:
-        result = plan_routes(_ctx(pull_request_user_login="human-user"))
+        result = routes.plan_routes(_ctx(pull_request_user_login="human-user"))
         assert result.routes == []
 
     def test_automerge_requires_merge_ready_label(self) -> None:
-        result = plan_routes(_ctx(pull_request_labels=["oblt-aw/ai/merge-ready"]))
+        result = routes.plan_routes(
+            _ctx(pull_request_labels=["oblt-aw/ai/merge-ready"])
+        )
         assert result.routes == ["automerge", "dependency-review"]
 
     def test_dashboard_disables_route(self) -> None:
-        result = plan_routes(
+        result = routes.plan_routes(
             _ctx(
                 effective_raw="dashboard",
                 enabled_workflows=["obs:autodoc"],
@@ -66,7 +67,7 @@ class TestPlanRoutesPullRequest:
 
 class TestPlanRoutesSchedule:
     def test_schedule_all_default_enabled(self) -> None:
-        result = plan_routes(
+        result = routes.plan_routes(
             _ctx(
                 event_name="schedule",
                 event_action="",
@@ -81,7 +82,7 @@ class TestPlanRoutesSchedule:
 
 class TestPlanRoutesIssues:
     def test_issue_opened_triage(self) -> None:
-        result = plan_routes(
+        result = routes.plan_routes(
             _ctx(
                 event_name="issues",
                 event_action="opened",
@@ -92,7 +93,7 @@ class TestPlanRoutesIssues:
         assert result.routes == ["issue-triage"]
 
     def test_issue_comment_implement(self) -> None:
-        result = plan_routes(
+        result = routes.plan_routes(
             _ctx(
                 event_name="issue_comment",
                 event_action="created",
@@ -107,7 +108,7 @@ class TestPlanRoutesIssues:
 
 class TestUnsupportedTrigger:
     def test_push_not_supported(self) -> None:
-        result = plan_routes(_ctx(event_name="push", event_action=""))
+        result = routes.plan_routes(_ctx(event_name="push", event_action=""))
         assert result.unsupported_trigger
         assert result.routes == []
 
@@ -123,5 +124,5 @@ class TestContextFromEnv:
         monkeypatch.setenv("PR_USER_LOGIN", "bot")
         monkeypatch.setenv("PR_LABELS_CSV", "oblt-aw/ai/merge-ready")
         ctx = routes.context_from_env(os.environ)
-        result = plan_routes(ctx)
+        result = routes.plan_routes(ctx)
         assert "automerge" in result.routes
