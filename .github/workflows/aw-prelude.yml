@@ -41,7 +41,7 @@ on:
 
 permissions:
   contents: read
-
+  issues: read
 jobs:
   dashboard:
     uses: ./.github/workflows/get-enabled-workflows.yml
