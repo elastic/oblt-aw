@@ -32,6 +32,7 @@ Additional guidance encoded in `additional-instructions` for both audit and fix 
 - Preserve existing markdown link fragments (`#...`) unless target-heading verification proves a correction is required; when editing links with fragments, validate against the target heading slug first. This includes icon-prefixed headings where the valid slug starts with `-`: the `-` character is a valid replacement for a leading icon in heading text and therefore a valid part of the anchor slug (for example, changing `[Lab 01: Troubleshooting](01-installation-setup.md#-troubleshooting-quick-reference)` to `[Lab 01: Troubleshooting](01-installation-setup.md#troubleshooting-quick-reference)` is invalid when the verified slug is `#-troubleshooting-quick-reference`).
 - Do not hand-edit **auto-generated** documentation in the fix PR (docs-only); the audit should steer fixes toward generators, templates, or other sources of truth, and the PR body should record any follow-up that is outside this workflow’s scope.
 - Preserve or lightly refresh **legacy inline comments** that still document useful context or history; avoid deleting them only for brevity.
+- AI-related files are always out of scope for autodoc changes: AI assets, skills files, instruction/configuration files, and lock files (for example `*.lock*` and `*.lock.yml`).
 
 ## Configuration
 
