@@ -4,11 +4,11 @@
 
 Source file: [.github/workflows/docs-aw-pr-ai-menu.yml](../../.github/workflows/docs-aw-pr-ai-menu.yml)
 
-Reusable implementation for the Docs PR AI menu. The client template `docs-aw-pr-ai-menu.yml` calls this workflow on supported PR events.
+Reusable implementation for the Docs PR AI menu. The client template `trigger-docs-aw-pr-ai-menu.yml` calls this workflow on supported PR events.
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from [docs-aw-pr-ai-menu.yml](../../.github/remote-workflow-template/docs/.github/workflows/docs-aw-pr-ai-menu.yml) (distributed client template).
+- Triggered via `workflow_call` from [trigger-docs-aw-pr-ai-menu.yml](../../.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-pr-ai-menu.yml) (distributed client template).
 - Optional secret input: `COPILOT_GITHUB_TOKEN` (`required: false` at this workflow boundary).
 
 ## Usage

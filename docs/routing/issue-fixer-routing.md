@@ -2,7 +2,7 @@
 
 ## Overview
 
-Client template: `oblt-aw-issue-fixer.yml` → `oblt-aw-issue-fixer.yml`
+Client template: `trigger-oblt-aw-issue-fixer.yml` → `oblt-aw-issue-fixer.yml`
 
 Routed workflow:
 

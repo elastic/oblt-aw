@@ -7,7 +7,7 @@ alwaysApply: true
 
 **Do not** add a monolithic `.github/workflows/oblt-aw.yml` entrypoint (removed).
 
-**Where to change consumer entrypoints:** [`.github/remote-workflow-template/obs/.github/workflows/oblt-aw-*.yml`](.github/remote-workflow-template/obs/.github/workflows/) only. Distribution installs that tree into target repositories.
+**Where to change consumer entrypoints:** [`.github/remote-workflow-template/obs/.github/workflows/trigger-oblt-aw-*.yml`](.github/remote-workflow-template/obs/.github/workflows/) only. Distribution installs that tree into target repositories.
 
 **Control-plane reusables** live under `.github/workflows/oblt-aw-*.yml` and `.github/workflows/docs-aw-*.yml` (shared prelude: `aw-prelude.yml`). **Do not** edit consumer copies under target repos from this repository except via distribution.
 

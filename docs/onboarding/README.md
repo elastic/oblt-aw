@@ -2,7 +2,7 @@
 
 ## Overview
 
-This folder collects **onboarding** for teams that use **OBLT Agentic Workflows** (`oblt-aw`): the control plane in [elastic/oblt-aw](https://github.com/elastic/oblt-aw), per-workflow client templates (`oblt-aw-*.yml`), and per-repository [Control Plane Dashboard](../operations/control-plane-dashboard.md) behavior.
+This folder collects **onboarding** for teams that use **OBLT Agentic Workflows** (`oblt-aw`): the control plane in [elastic/oblt-aw](https://github.com/elastic/oblt-aw), per-workflow client templates (`trigger-oblt-aw-*.yml`), and per-repository [Control Plane Dashboard](../operations/control-plane-dashboard.md) behavior.
 
 Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`workflow-registry.json`](../../config/obs/workflow-registry.json) and [`active-repositories.json`](../../config/obs/active-repositories.json). Ingress and the dashboard gate work using compound ids `org-key:workflow-id` (see [multi-org design](../architecture/multi-org-agentic-workflows.md)).
 

@@ -4,11 +4,11 @@
 
 Source file: [.github/workflows/oblt-aw-estc-pr-buildkite-detective.yml](../../.github/workflows/oblt-aw-estc-pr-buildkite-detective.yml)
 
-Reusable wrapper that calls the locked PR Buildkite Detective workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `oblt-aw-estc-pr-buildkite-detective.yml` calls this workflow on failed Buildkite `status` events when prelude allows `obs:estc-pr-buildkite-detective`.
+Reusable wrapper that calls the locked PR Buildkite Detective workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trigger-oblt-aw-estc-pr-buildkite-detective.yml` calls this workflow on failed Buildkite `status` events when prelude allows `obs:estc-pr-buildkite-detective`.
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from `oblt-aw-estc-pr-buildkite-detective.yml` client templates.
+- Triggered via `workflow_call` from `trigger-oblt-aw-estc-pr-buildkite-detective.yml` client templates.
 - Required secret: `COPILOT_GITHUB_TOKEN`.
 - Required secret: `BUILDKITE_API_TOKEN` — a Buildkite API token with read access to build logs for the repository's Buildkite organization. In consumer repositories, map this from `BUILDKITE_LOGS_API_TOKEN`.
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Client template: `oblt-aw-dependency-review.yml` → `oblt-aw-dependency-review.yml`
+Client template: `trigger-oblt-aw-dependency-review.yml` → `oblt-aw-dependency-review.yml`
 
 Routed workflow source: [.github/workflows/oblt-aw-dependency-review.yml](../../.github/workflows/oblt-aw-dependency-review.yml)
 

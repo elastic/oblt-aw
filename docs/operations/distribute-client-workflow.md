@@ -9,7 +9,7 @@ This workflow distributes or removes client files from each org’s subtree unde
 ## Prerequisites
 
 - Per-org [active-repositories.json](../../config/obs/active-repositories.json) files under `config/<org-key>/` list current target repositories (union used for distribution).
-- Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/oblt-aw-*.yml` → `.github/workflows/oblt-aw-*.yml`). Edit only under [remote-workflow-template](../../.github/remote-workflow-template/) (see [Client template doc](../workflows/oblt-aw-client-template.md)).
+- Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/trigger-oblt-aw-*.yml` → `.github/workflows/trigger-oblt-aw-*.yml`). Edit only under [remote-workflow-template](../../.github/remote-workflow-template/) (see [Client template doc](../workflows/oblt-aw-client-template.md)).
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
 
 ## Usage

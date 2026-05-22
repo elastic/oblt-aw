@@ -21,7 +21,7 @@ const { matchPathGlob, pathMatchesAnyGlob } = require('../../scripts/obs/lib/mat
 
 test('matchPathGlob matches workflow paths', () => {
   assert.equal(
-    matchPathGlob('.github/workflows/oblt-aw-automerge.yml', '.github/workflows/**'),
+    matchPathGlob('.github/workflows/trigger-oblt-aw-automerge.yml', '.github/workflows/**'),
     true
   );
   assert.equal(matchPathGlob('README.md', '.github/workflows/**'), false);

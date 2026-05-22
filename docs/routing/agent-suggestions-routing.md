@@ -2,7 +2,7 @@
 
 ## Overview
 
-Client template: `oblt-aw-agent-suggestions.yml` → `oblt-aw-agent-suggestions.yml`
+Client template: `trigger-oblt-aw-agent-suggestions.yml` → `oblt-aw-agent-suggestions.yml`
 
 Routed workflow source: `.github/workflows/oblt-aw-agent-suggestions.yml`
 

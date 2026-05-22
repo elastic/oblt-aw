@@ -1,4 +1,4 @@
-# Workflow: Client templates `oblt-aw-*.yml`
+# Workflow: Client templates `trigger-oblt-aw-*.yml`
 
 ## Overview
 
@@ -6,7 +6,7 @@
 
 ## Split-trigger model
 
-Each agentic workflow has its own client template under `oblt-aw-<workflow-id>.yml` (or a descriptive suffix for multi-step features such as `oblt-aw-security-triage.yml`). Each file declares **only** the GitHub events that can trigger that workflow, then calls the matching reusable workflow in `elastic/oblt-aw`:
+Each agentic workflow has its own client template under `trigger-oblt-aw-<workflow-id>.yml` (or a descriptive suffix for multi-step features such as `trigger-oblt-aw-security-triage.yml`). Each file declares **only** the GitHub events that can trigger that workflow, then calls the matching reusable workflow in `elastic/oblt-aw`:
 
 ```yaml
 uses: elastic/oblt-aw/.github/workflows/oblt-aw-<name>.yml@main
@@ -22,9 +22,9 @@ Shared dashboard gating and allow-list loading run inside each `oblt-aw-*` workf
 flowchart TB
   subgraph Consumer["Consumer .github/workflows/"]
     EVT["GitHub event"]
-    C_AUTO["oblt-aw-automerge.yml\non: pull_request"]
-    C_TRI["oblt-aw-issue-triage.yml\non: issues"]
-    C_OTHER["oblt-aw-*.yml\nother narrow on:"]
+    C_AUTO["trigger-oblt-aw-automerge.yml\non: pull_request"]
+    C_TRI["trigger-oblt-aw-issue-triage.yml\non: issues"]
+    C_OTHER["trigger-oblt-aw-*.yml\nother narrow on:"]
     DASH["Issue: [oblt-aw] Control Plane Dashboard"]
     EVT --> C_AUTO
     EVT --> C_TRI
@@ -52,21 +52,21 @@ Full platform view (distribution, dashboard sync, before/after ingress): [archit
 
 | Client template | Triggers | Reusable workflow |
 |-----------------|----------|-------------------|
-| `oblt-aw-agent-suggestions.yml` | `schedule` | `oblt-aw-agent-suggestions.yml` |
-| `oblt-aw-autodoc.yml` | `schedule` | `oblt-aw-autodoc.yml` |
-| `oblt-aw-automerge.yml` | `pull_request` (opened, synchronize, reopened, labeled) | `oblt-aw-automerge.yml` |
-| `oblt-aw-dependency-review.yml` | `pull_request` (opened, synchronize, reopened) | `oblt-aw-dependency-review.yml` |
-| `oblt-aw-duplicate-issue-detector.yml` | `issues` opened, `workflow_dispatch` | `oblt-aw-duplicate-issue-detector.yml` |
-| `oblt-aw-issue-triage.yml` | `issues` opened | `oblt-aw-issue-triage.yml` |
-| `oblt-aw-issue-fixer.yml` | `issue_comment` created | `oblt-aw-issue-fixer.yml` |
-| `oblt-aw-mention-in-issue.yml` | `issue_comment` created | `oblt-aw-mention-in-issue.yml` |
-| `oblt-aw-security-detector.yml` | `schedule`, `workflow_dispatch` | `oblt-aw-security-detector.yml` |
-| `oblt-aw-security-triage.yml` | `issues` opened, labeled | `oblt-aw-security-triage.yml` |
-| `oblt-aw-security-fixer.yml` | `issues` labeled | `oblt-aw-security-fixer.yml` |
-| `oblt-aw-resource-not-accessible-by-integration-detector.yml` | `schedule` | `oblt-aw-resource-not-accessible-by-integration-detector.yml` |
-| `oblt-aw-resource-not-accessible-by-integration-triage.yml` | `issues` opened, labeled | `oblt-aw-resource-not-accessible-by-integration-triage.yml` |
-| `oblt-aw-resource-not-accessible-by-integration-fixer.yml` | `issues` labeled | `oblt-aw-resource-not-accessible-by-integration-fixer.yml` |
-| `oblt-aw-estc-pr-buildkite-detective.yml` | `status` (Buildkite failure only, job `if`) | `oblt-aw-estc-pr-buildkite-detective.yml` |
+| `trigger-oblt-aw-agent-suggestions.yml` | `schedule` | `oblt-aw-agent-suggestions.yml` |
+| `trigger-oblt-aw-autodoc.yml` | `schedule` | `oblt-aw-autodoc.yml` |
+| `trigger-oblt-aw-automerge.yml` | `pull_request` (opened, synchronize, reopened, labeled) | `oblt-aw-automerge.yml` |
+| `trigger-oblt-aw-dependency-review.yml` | `pull_request` (opened, synchronize, reopened) | `oblt-aw-dependency-review.yml` |
+| `trigger-oblt-aw-duplicate-issue-detector.yml` | `issues` opened, `workflow_dispatch` | `oblt-aw-duplicate-issue-detector.yml` |
+| `trigger-oblt-aw-issue-triage.yml` | `issues` opened | `oblt-aw-issue-triage.yml` |
+| `trigger-oblt-aw-issue-fixer.yml` | `issue_comment` created | `oblt-aw-issue-fixer.yml` |
+| `trigger-oblt-aw-mention-in-issue.yml` | `issue_comment` created | `oblt-aw-mention-in-issue.yml` |
+| `trigger-oblt-aw-security-detector.yml` | `schedule`, `workflow_dispatch` | `oblt-aw-security-detector.yml` |
+| `trigger-oblt-aw-security-triage.yml` | `issues` opened, labeled | `oblt-aw-security-triage.yml` |
+| `trigger-oblt-aw-security-fixer.yml` | `issues` labeled | `oblt-aw-security-fixer.yml` |
+| `trigger-oblt-aw-resource-not-accessible-by-integration-detector.yml` | `schedule` | `oblt-aw-resource-not-accessible-by-integration-detector.yml` |
+| `trigger-oblt-aw-resource-not-accessible-by-integration-triage.yml` | `issues` opened, labeled | `oblt-aw-resource-not-accessible-by-integration-triage.yml` |
+| `trigger-oblt-aw-resource-not-accessible-by-integration-fixer.yml` | `issues` labeled | `oblt-aw-resource-not-accessible-by-integration-fixer.yml` |
+| `trigger-oblt-aw-estc-pr-buildkite-detective.yml` | `status` (Buildkite failure only, job `if`) | `oblt-aw-estc-pr-buildkite-detective.yml` |
 
 Route-specific conditions (labels, `/ai` comment prefix, allow-listed PR authors, and so on) are enforced inside the `oblt-aw-*` reusable workflow after [aw-prelude](aw-prelude.md) runs.
 
@@ -90,14 +90,14 @@ Job-level permissions on `run-aw` (must stay at least as permissive as nested re
 
 | Secret | Templates |
 |--------|-----------|
-| `COPILOT_GITHUB_TOKEN` | All except `oblt-aw-issue-fixer.yml` and resource fixer (use `secrets: inherit` where noted in template) |
-| `BUILDKITE_LOGS_API_TOKEN` → `BUILDKITE_API_TOKEN` | `oblt-aw-estc-pr-buildkite-detective.yml` only |
+| `COPILOT_GITHUB_TOKEN` | All except `trigger-oblt-aw-issue-fixer.yml` and resource fixer (use `secrets: inherit` where noted in template) |
+| `BUILDKITE_LOGS_API_TOKEN` → `BUILDKITE_API_TOKEN` | `trigger-oblt-aw-estc-pr-buildkite-detective.yml` only |
 
 ## Migration from monolithic entrypoint
 
-1. Merge distribution PRs that add `oblt-aw-*.yml` files.
-2. Delete `.github/workflows/oblt-aw.yml` and stop calling `oblt-aw-ingress` in the consumer repository.
-3. Update Backstage `workflow_ref` / token policies to reference each installed client workflow file (one policy per workflow if your org requires narrow OIDC claims).
+1. Merge distribution PRs that add `trigger-oblt-aw-*.yml` files.
+2. Delete `.github/workflows/oblt-aw.yml` and stop calling `oblt-aw-ingress` in the consumer repository. Remove any legacy per-workflow client files named `oblt-aw-*.yml` (without the `trigger-` prefix); distribution drops paths that are no longer in the template tree.
+3. Update Backstage `workflow_ref` / token policies to reference each installed **`trigger-oblt-aw-*.yml`** client workflow file (one policy per workflow if your org requires narrow OIDC claims).
 
 ## References
 

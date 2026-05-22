@@ -38,7 +38,7 @@ const COLLECTIONS = [
 
 test('classifyChangedFiles allows active github-actions-only PR', () => {
   const outcome = classifyChangedFiles(
-    ['.github/workflows/oblt-aw-automerge.yml'],
+    ['.github/workflows/trigger-oblt-aw-automerge.yml'],
     COLLECTIONS
   );
   assert.deepEqual(outcome, {

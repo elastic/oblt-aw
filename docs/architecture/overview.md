@@ -2,7 +2,7 @@
 
 ## Overview
 
-`oblt-aw` exposes reusable `oblt-aw-*` workflows. Each consumer installs one or more **`oblt-aw-*.yml`** client templates (narrow `on:` triggers) that call the matching control-plane workflow. Shared dashboard gating runs in [aw-prelude](../../.github/workflows/aw-prelude.yml) before agent-specific jobs.
+`oblt-aw` exposes reusable `oblt-aw-*` workflows. Each consumer installs one or more **`trigger-oblt-aw-*.yml`** client templates (narrow `on:` triggers) that call the matching control-plane workflow. Shared dashboard gating runs in [aw-prelude](../../.github/workflows/aw-prelude.yml) before agent-specific jobs.
 
 Platform workflows:
 
@@ -31,7 +31,7 @@ Specialized workflows:
 Consumer repositories install per-workflow client templates (example):
 
 ```yaml
-# .github/workflows/oblt-aw-automerge.yml
+# .github/workflows/trigger-oblt-aw-automerge.yml
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled]
@@ -44,7 +44,7 @@ jobs:
 
 ## Control Plane and Consumer Interaction Diagram
 
-The diagram below summarizes **how operators configure the platform in `elastic/oblt-aw`**, **how automation reaches target repositories**, and **how a run delegates** into reusable workflows in this catalog. Each target repository installs **`oblt-aw-<workflow-id>.yml`** files from [remote-workflow-template/obs](../../.github/remote-workflow-template/obs/) with **event-specific `on:`** triggers; each client job calls the matching **`oblt-aw-*`** workflow, which runs **prelude** then agent steps.
+The diagram below summarizes **how operators configure the platform in `elastic/oblt-aw`**, **how automation reaches target repositories**, and **how a run delegates** into reusable workflows in this catalog. Each target repository installs **`trigger-oblt-aw-<workflow-id>.yml`** files from [remote-workflow-template/obs](../../.github/remote-workflow-template/obs/) with **event-specific `on:`** triggers; each client job calls the matching **`oblt-aw-*`** workflow, which runs **prelude** then agent steps.
 
 ```mermaid
 flowchart TB
@@ -67,7 +67,7 @@ flowchart TB
 
   subgraph CON["Target repository (consumer)"]
     EVT["Target-repo GitHub activity\nschedule, issues, pull_request, …"]
-    CLIENT["Client oblt-aw-*.yml per workflow\nfrom remote-workflow-template\nnarrow on: triggers"]
+    CLIENT["Client trigger-oblt-aw-*.yml per workflow\nfrom remote-workflow-template\nnarrow on: triggers"]
     DASH["Issue: [oblt-aw] Control Plane Dashboard\nlabel oblt-aw/dashboard"]
     EVT --> CLIENT
     DASH -.->|checkbox state| GET
@@ -99,8 +99,8 @@ flowchart TB
   subgraph After["After: split-trigger"]
     A_EVT["Same consumer event"]
     A_EVT --> A_MATCH{"Which client on: matches?"}
-    A_MATCH -->|pull_request| A_PR["oblt-aw-automerge.yml\noblt-aw-dependency-review.yml\n…"]
-    A_MATCH -->|issues| A_ISS["oblt-aw-issue-triage.yml\n…"]
+    A_MATCH -->|pull_request| A_PR["trigger-oblt-aw-automerge.yml\ntrigger-oblt-aw-dependency-review.yml\n…"]
+    A_MATCH -->|issues| A_ISS["trigger-oblt-aw-issue-triage.yml\n…"]
     A_MATCH -->|no match| A_NONE["Other client workflows\nnot scheduled — no skipped check"]
     A_PR --> A_REU["Matching oblt-aw-* reusable"]
     A_ISS --> A_REU
@@ -114,7 +114,7 @@ Each installed client file has one `run-aw` job. The reusable runs **prelude** f
 ```mermaid
 sequenceDiagram
   participant GH as GitHub event
-  participant Client as Consumer oblt-aw-*.yml
+  participant Client as Consumer trigger-oblt-aw-*.yml
   participant Reuse as oblt-aw-* reusable
   participant Prelude as aw-prelude
   participant GET as get-enabled-workflows
@@ -182,7 +182,7 @@ See [Split-trigger vs monolithic ingress](#split-trigger-vs-monolithic-ingress) 
 
 ```mermaid
 flowchart LR
-  A[Consumer oblt-aw-*.yml] --> G[oblt-aw-* reusable]
+  A[Consumer trigger-oblt-aw-*.yml] --> G[oblt-aw-* reusable]
   G --> P[aw-prelude]
   P --> B[get-enabled-workflows]
   G --> D[Agent steps]
