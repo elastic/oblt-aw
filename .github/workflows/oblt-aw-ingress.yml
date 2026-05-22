@@ -98,6 +98,8 @@ jobs:
         needs.dashboard-enabled-workflows.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      dispatch_sha: ${{ steps.record-dispatch-sha.outputs.dispatch_sha }}
     concurrency:
       group: oblt-aw-dispatch-working
       cancel-in-progress: false
@@ -209,6 +211,53 @@ jobs:
           echo "git push failed and remote branch ${remote_ref} does not exist" >&2
           exit 1
 
+      - name: Verify remote dispatch branch matches published commit
+        id: verify-remote-dispatch
+        working-directory: oblt-aw
+        env:
+          DISPATCH_BRANCH: ${{ env.DISPATCH_BRANCH }}
+        run: |
+          set -euo pipefail
+          expected="$(git rev-parse HEAD)"
+          actual="$(gh api "repos/elastic/oblt-aw/git/ref/heads/${DISPATCH_BRANCH}" -q .object.sha)"
+          if [ "${actual}" != "${expected}" ]; then
+            echo "::error::remote ${DISPATCH_BRANCH} is ${actual}, expected ${expected} after push" >&2
+            exit 1
+          fi
+          echo "remote ${DISPATCH_BRANCH} is at ${actual}"
+
+      - name: Record published dispatch commit
+        id: record-dispatch-sha
+        working-directory: oblt-aw
+        run: |
+          set -euo pipefail
+          echo "dispatch_sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
+  verify-dispatch-branch:
+    name: Verify dispatch branch before invoke
+    needs:
+      - publish-planned-dispatch
+    if: needs.publish-planned-dispatch.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: oblt-aw-dispatch-working
+      cancel-in-progress: false
+    steps:
+      - name: Verify dispatch branch still at published commit
+        env:
+          DISPATCH_BRANCH: ${{ env.DISPATCH_BRANCH }}
+          EXPECTED_SHA: ${{ needs.publish-planned-dispatch.outputs.dispatch_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          actual="$(gh api "repos/elastic/oblt-aw/git/ref/heads/${DISPATCH_BRANCH}" -q .object.sha)"
+          if [ "${actual}" != "${EXPECTED_SHA}" ]; then
+            echo "::error::remote ${DISPATCH_BRANCH} is ${actual}, expected ${EXPECTED_SHA} from publish-planned-dispatch in this run" >&2
+            exit 1
+          fi
+          echo "remote ${DISPATCH_BRANCH} is at ${actual}"
+
   invoke-planned-dispatch:
     name: Invoke planned dispatch
     needs:
@@ -216,11 +265,17 @@ jobs:
       - load-allowed-authors
       - plan-routes
       - publish-planned-dispatch
+      - verify-dispatch-branch
     if: >-
       needs.plan-routes.outputs.has-routes == 'true' &&
+      needs.verify-dispatch-branch.result == 'success' &&
       (needs.dashboard-enabled-workflows.result == 'success' ||
         needs.dashboard-enabled-workflows.result == 'skipped')
+    concurrency:
+      group: oblt-aw-dispatch-working
+      cancel-in-progress: false
     # Literal path and @ref — GitHub does not allow expressions in uses: (must match env above).
+    # Branch tip is resolved when this job starts; verify-dispatch-branch ensures it matches this run's publish.
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-planned-dispatch.yml@oblt-aw/dispatch/working
     with:
       allowed-pr-authors-csv: ${{ needs.load-allowed-authors.outputs.allowed_pr_authors_csv || '' }}

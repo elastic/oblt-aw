@@ -5,7 +5,8 @@ Ingress no longer declares one top-level job per `gh-aw-*` workflow with event-t
 1. **`plan-routes`** — [`scripts/plan_ingress_routes.py`](../../scripts/plan_ingress_routes.py) evaluates dashboard, authors, labels, and event context and writes route outputs to `GITHUB_OUTPUT`.
 2. **[`oblt-aw-ingress.yml`](../../.github/workflows/oblt-aw-ingress.yml)** (after `plan-routes`):
    - **`publish-planned-dispatch`** — [`scripts/generate_planned_dispatch.py`](../../scripts/generate_planned_dispatch.py) generates the planned dispatch workflow; ingress checks out **`elastic/oblt-aw`** with an ephemeral token from [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) (auto role from the caller workflow ref), prepares `DISPATCH_BRANCH`, commits when the file changed, and pushes the dispatch branch (with rebase retry on rejection). Each generated job has a literal `uses: elastic/oblt-aw/.github/workflows/gh-aw-*.yml@<control-plane-ref>`.
-   - **`invoke-planned-dispatch`** — literal `uses: …/DISPATCH_WORKFLOW@DISPATCH_BRANCH` (must match the ingress `env` block; expressions are not allowed in `uses:`).
+   - **`verify-dispatch-branch`** — confirms `oblt-aw/dispatch/working` still points at the commit recorded by **`publish-planned-dispatch`** (guards against another ingress run overwriting the branch before invoke).
+   - **`invoke-planned-dispatch`** — literal `uses: …/DISPATCH_WORKFLOW@DISPATCH_BRANCH` (must match the ingress `env` block; expressions are not allowed in `uses:`). GitHub resolves the branch tip when this job starts; it must match the verified publish commit.
 
 No matrix, no per-route invoke wrappers, no manifest layer.
 
