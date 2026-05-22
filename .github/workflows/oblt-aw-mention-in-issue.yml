@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: read
-
+  issues: read
 jobs:
   prelude:
     uses: ./.github/workflows/aw-prelude.yml
