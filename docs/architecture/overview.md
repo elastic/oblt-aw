@@ -81,6 +81,60 @@ flowchart TB
 
 For event-level routing, see [docs/routing/README.md](../routing/README.md) and per-workflow routing docs.
 
+### Split-trigger vs monolithic ingress
+
+Monolithic ingress scheduled **every route as a sibling job** on a broad client trigger; jobs with `if: false` still appeared as **skipped** checks. Split-trigger clients schedule **only** workflows whose `on:` matches the event.
+
+```mermaid
+flowchart TB
+  subgraph Before["Before: monolithic ingress"]
+    B_EVT["Consumer event e.g. pull_request"]
+    B_CLI["oblt-aw.yml → oblt-aw-ingress"]
+    B_EVT --> B_CLI
+    B_CLI --> B_SKIP1["route A job\nskipped"]
+    B_CLI --> B_SKIP2["route B job\nskipped"]
+    B_CLI --> B_RUN["route C job\nruns"]
+  end
+
+  subgraph After["After: split-trigger"]
+    A_EVT["Same consumer event"]
+    A_EVT --> A_MATCH{"Which client on: matches?"}
+    A_MATCH -->|pull_request| A_PR["oblt-aw-automerge.yml\noblt-aw-dependency-review.yml\n…"]
+    A_MATCH -->|issues| A_ISS["oblt-aw-issue-triage.yml\n…"]
+    A_MATCH -->|no match| A_NONE["Other client workflows\nnot scheduled — no skipped check"]
+    A_PR --> A_REU["Matching oblt-aw-* reusable"]
+    A_ISS --> A_REU
+  end
+```
+
+### Single workflow run path
+
+Each installed client file has one `run-aw` job. The reusable runs **prelude** first, then agent-specific jobs when `proceed` is true.
+
+```mermaid
+sequenceDiagram
+  participant GH as GitHub event
+  participant Client as Consumer oblt-aw-*.yml
+  participant Reuse as oblt-aw-* reusable
+  participant Prelude as aw-prelude
+  participant GET as get-enabled-workflows
+  participant Agent as Agent jobs
+  participant Up as ai-github-actions lock
+
+  GH->>Client: on: matches
+  Client->>Reuse: workflow_call
+  Reuse->>Prelude: first job
+  Prelude->>GET: read dashboard issue
+  GET-->>Prelude: enabled-workflows, proceed
+  alt proceed is true
+    Prelude-->>Reuse: outputs.proceed
+    Reuse->>Agent: route-specific if / steps
+    Agent->>Up: workflow_call agent lock
+  else proceed is false
+    Prelude-->>Reuse: downstream jobs skipped
+  end
+```
+
 ## Control Plane Dashboard
 
 The Control Plane Dashboard provides a self-service UI for repository users to opt in or opt out of each agentic workflow. It follows a Renovate Dependency Dashboard–style UX.
@@ -124,15 +178,16 @@ Client templates declare **narrow** `on:` triggers; route-specific `if` conditio
 
 ## Examples
 
+See [Split-trigger vs monolithic ingress](#split-trigger-vs-monolithic-ingress) and [Single workflow run path](#single-workflow-run-path) above for diagrams. Minimal job graph:
+
 ```mermaid
-flowchart TD
-  A[Consumer oblt-aw-*.yml] --> G[oblt-aw-* workflow]
+flowchart LR
+  A[Consumer oblt-aw-*.yml] --> G[oblt-aw-* reusable]
   G --> P[aw-prelude]
   P --> B[get-enabled-workflows]
-  G --> D[Agent steps / upstream lock]
+  G --> D[Agent steps]
+  D --> L[Upstream lock workflow]
 ```
-
-*Prelude calls `get-enabled-workflows` to read the dashboard issue; downstream jobs run only when `proceed` is true.*
 
 ## References
 

@@ -16,6 +16,38 @@ That removes the large number of skipped ingress jobs on unrelated events (for e
 
 Shared dashboard gating and allow-list loading run inside each `oblt-aw-*` workflow via [aw-prelude.yml](aw-prelude.md) (first job), not in the client file.
 
+### Architecture
+
+```mermaid
+flowchart TB
+  subgraph Consumer["Consumer .github/workflows/"]
+    EVT["GitHub event"]
+    C_AUTO["oblt-aw-automerge.yml\non: pull_request"]
+    C_TRI["oblt-aw-issue-triage.yml\non: issues"]
+    C_OTHER["oblt-aw-*.yml\nother narrow on:"]
+    DASH["Issue: [oblt-aw] Control Plane Dashboard"]
+    EVT --> C_AUTO
+    EVT --> C_TRI
+    EVT -.->|on: no match| C_OTHER
+  end
+
+  subgraph OBLT["elastic/oblt-aw"]
+    R["oblt-aw-* reusable"]
+    PRE["aw-prelude"]
+    GET["get-enabled-workflows"]
+    AG["Agent steps"]
+    LOCK["Upstream gh-aw lock"]
+    R --> PRE --> GET
+    PRE --> AG --> LOCK
+  end
+
+  DASH -.->|checkboxes| GET
+  C_AUTO -->|uses: oblt-aw-automerge@main| R
+  C_TRI -->|uses: oblt-aw-issue-triage@main| R
+```
+
+Full platform view (distribution, dashboard sync, before/after ingress): [architecture overview — split-trigger diagrams](../architecture/overview.md#split-trigger-vs-monolithic-ingress).
+
 ### Template index
 
 | Client template | Triggers | Reusable workflow |
