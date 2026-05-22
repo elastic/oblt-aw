@@ -4,7 +4,7 @@
 
 Entrypoint source: `.github/workflows/oblt-aw-ingress.yml`
 
-Routed workflow source: `.github/workflows/gh-aw-automerge.yml` (`verify`, `approve`, `automerge`, and conditional `enable-merge-when-ready` on the PR). Merge first uses **pascalgn/automerge-action** with `GITHUB_TOKEN`; when that step reports `merge_failed`, the workflow enables native GitHub auto-merge as a fallback.
+Routed workflow source: `.github/workflows/gh-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, and conditional `enable-merge-when-ready` on the PR). Merge first uses **pascalgn/automerge-action** with `GITHUB_TOKEN`; when that step reports `merge_failed`, the workflow enables native GitHub auto-merge as a fallback.
 
 ## Usage
 
@@ -31,6 +31,14 @@ The client entrypoint must include `labeled` in `pull_request` types (see the di
 | PR state | Not a draft |
 | Branch origin | Upstream branch (head repo equals base repo — not a fork) |
 | Refs | Head ref ≠ base ref |
+
+**`gh-aw-automerge.yml` — `check-dependency-collection` job** (`scripts/obs/checkAutomergeDependencyCollection.ts`):
+
+| Requirement | Details |
+|---------------|---------|
+| Classification | Changed file paths on the PR are matched against [config/obs/automerge-dependency-collections.json](../../config/obs/automerge-dependency-collections.json) (`file-glob` per collection). No extra labels are required in consumer repositories. |
+| Active collections | Only collections with `"active": true` proceed to `approve` and `automerge`. |
+| Skipped PRs | When classification fails or the collection is inactive, the job posts or updates a single PR comment (marker `oblt-aw-automerge:dependency-collection-gate`) and downstream jobs do not run. |
 
 **`automerge` job** (after approval): **[pascalgn/automerge-action](https://github.com/pascalgn/automerge-action)** enforces `MERGE_LABELS` (`oblt-aw/ai/merge-ready`), `MERGE_REQUIRED_APPROVALS`, fork/branch settings, and merges with **squash** when GitHub reports the PR as ready (required checks and reviews per branch protection and action config). Author and label gates are enforced in `verify` (`validateAutomergePr.ts`, same allow list as dependency-review).
 

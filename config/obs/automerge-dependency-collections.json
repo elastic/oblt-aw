@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "policy": "deny-unclassified",
+  "collections": [
+    {
+      "id": "github-actions",
+      "description": "GitHub Actions and composite action version bumps",
+      "active": true,
+      "file-glob": [
+        ".github/workflows/**",
+        ".github/actions/**",
+        "**/action.yml",
+        "**/action.yaml"
+      ]
+    },
+    {
+      "id": "pre-commit",
+      "description": "pre-commit hook dependency updates",
+      "active": true,
+      "file-glob": [".pre-commit-config.yaml"]
+    },
+    {
+      "id": "python-dependencies",
+      "description": "Python package and lockfile updates",
+      "active": false,
+      "file-glob": [
+        "**/pyproject.toml",
+        "**/requirements.txt",
+        "**/requirements-*.txt",
+        "**/poetry.lock",
+        "**/Pipfile",
+        "**/Pipfile.lock"
+      ]
+    },
+    {
+      "id": "go-dependencies",
+      "description": "Go module and sum updates",
+      "active": false,
+      "file-glob": ["go.mod", "go.sum", "**/go.mod", "**/go.sum"]
+    },
+    {
+      "id": "node-dependencies",
+      "description": "npm/yarn/pnpm manifest and lockfile updates",
+      "active": false,
+      "file-glob": [
+        "package.json",
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "**/package.json",
+        "**/package-lock.json",
+        "**/yarn.lock",
+        "**/pnpm-lock.yaml"
+      ]
+    },
+    {
+      "id": "vm-images",
+      "description": "CI runner or container image pin updates",
+      "active": false,
+      "file-glob": [
+        ".buildkite/**",
+        "**/Dockerfile",
+        "**/Dockerfile.*",
+        "**/docker-compose.yml",
+        "**/docker-compose.yaml"
+      ]
+    }
+  ]
+}
