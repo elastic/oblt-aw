@@ -9,7 +9,9 @@ This is the reusable orchestration entrypoint for `oblt-aw`. It routes to specia
 ## Prerequisites
 
 - Called by consumer workflows using `workflow_call`.
-- Optional secret: `COPILOT_GITHUB_TOKEN`.
+- Optional secrets:
+  - `COPILOT_GITHUB_TOKEN`
+  - `BUILDKITE_API_TOKEN` (used only by the `estc-pr-buildkite-detective` route)
 
 ## Usage
 
@@ -233,6 +235,7 @@ Top-level permissions (matches [.github/workflows/oblt-aw-ingress.yml](../../.gi
 Interface exposed through `workflow_call`:
 
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
+- Secret: `BUILDKITE_API_TOKEN` (`required: false`, used by `estc-pr-buildkite-detective`)
 
 ## Examples
 
@@ -245,6 +248,8 @@ jobs:
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 ```
+
+If you enable the `estc-pr-buildkite-detective` route, also map `BUILDKITE_API_TOKEN` from your consumer secret (commonly named `BUILDKITE_LOGS_API_TOKEN`).
 
 ## References
 
