@@ -42,7 +42,7 @@ Job-level permissions (`run-aw`; must stay at least as permissive as nested ingr
 Required secret mapping:
 
 - `COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`
-- `BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_LOGS_API_TOKEN }}` (only required when `estc-pr-buildkite-detective` is enabled; consumers without Buildkite CI can omit this secret — ingress skips the job when the secret is absent)
+- `BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_LOGS_API_TOKEN }}` (required when handling failed Buildkite `status` events for `estc-pr-buildkite-detective`; ingress does not check secret presence before routing, and the called workflow requires this secret)
 
 Migration note: if your repository previously used `BUILDKITE_API_TOKEN` as the consumer-facing secret name, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN`.
 
