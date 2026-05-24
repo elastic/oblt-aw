@@ -21,6 +21,8 @@ Ingress routes here when:
 - `github.event.context` contains `buildkite`, and
 - Dashboard gating allows `estc-pr-buildkite-detective` (or no dashboard issue is present, so all workflows are enabled).
 
+Ingress routing is based on those event and dashboard conditions only; it does not check whether `BUILDKITE_API_TOKEN` is present. If the consumer mapping from `BUILDKITE_LOGS_API_TOKEN` is missing, the required `workflow_call` secret contract fails and the detective job cannot start.
+
 The job `estc-pr-buildkite-detective` calls:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@copilot/reduce-comment-spamming](https://github.com/elastic/ai-github-actions/blob/copilot/reduce-comment-spamming/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
