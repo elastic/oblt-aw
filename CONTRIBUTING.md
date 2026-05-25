@@ -6,7 +6,8 @@ Thank you for contributing to oblt-aw. Please follow the guidelines below.
 
 1. **Install pre-commit** and run `pre-commit install`
 2. **Run checks** before pushing: `pre-commit run --all-files`
-3. **Run tests**: `pytest tests/` and `npm test`
+3. **On a fresh checkout, install test dependencies once**: `pip install pytest==9.0.2` and `npm ci`
+4. **Run tests**: `pytest tests/` and `npm test`
 
 ## Full Guide
 
