@@ -23,8 +23,16 @@ python3 -m pip install --user 'zizmor==1.23.1' 'semgrep==1.60.0'
 echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 mkdir -p "$HOME/bin/actionlint"
 cd "$HOME/bin/actionlint"
-# Installer script pinned to commit (v1.7.11 tag); bump SHA when upgrading actionlint.
-ACTIONLINT_DOWNLOAD_SCRIPT_SHA=393031adb9afb225ee52ae2ccd7a5af5525e03e8
 ACTIONLINT_VERSION=1.7.11
-bash <(curl -fsSL "https://raw.githubusercontent.com/rhysd/actionlint/${ACTIONLINT_DOWNLOAD_SCRIPT_SHA}/scripts/download-actionlint.bash") "${ACTIONLINT_VERSION}"
+ACTIONLINT_ARCHIVE="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+ACTIONLINT_RELEASE_BASE_URL="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}"
+curl -fsSLO "${ACTIONLINT_RELEASE_BASE_URL}/${ACTIONLINT_ARCHIVE}"
+curl -fsSLO "${ACTIONLINT_RELEASE_BASE_URL}/checksums.txt"
+if ! grep -E "[[:space:]]${ACTIONLINT_ARCHIVE}$" checksums.txt > checksums.actionlint.txt; then
+  echo "Missing checksum entry for ${ACTIONLINT_ARCHIVE} in checksums.txt" >&2
+  exit 1
+fi
+sha256sum -c checksums.actionlint.txt
+tar -xzf "${ACTIONLINT_ARCHIVE}"
+chmod +x actionlint
 echo "$HOME/bin/actionlint" >> "$GITHUB_PATH"
