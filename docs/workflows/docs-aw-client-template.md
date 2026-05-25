@@ -12,7 +12,7 @@ Triggers (must stay aligned with [docs-aw-ingress](docs-aw-ingress.md) routing):
 
 - `issues` (`opened`) — posts the issue AI menu
 - `issue_comment` (`edited`) — checkbox transitions on the issue AI menu (non-PR issues)
-- `pull_request_target` (`opened`, `reopened`, `synchronize`, `ready_for_review`) — posts and refreshes the PR AI menu
+- `pull_request_target` (`opened`, `reopened`, `synchronize`, `ready_for_review`) — posts and refreshes the PR AI menu for same-repository PRs (fork PRs are skipped)
 - `workflow_dispatch` — manual refresh; provide `issue_number` and/or `pull_request_number` (at least one required; enforced in ingress)
 
 Execution flow:
@@ -31,7 +31,6 @@ Job-level permissions (`run-docs-aw`; must stay at least as permissive as nested
 - `checks: read`
 - `contents: read`
 - `discussions: write`
-- `id-token: write`
 - `issues: write`
 - `pull-requests: write`
 
