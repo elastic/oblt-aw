@@ -28,6 +28,13 @@ from common import (
 REMOTE_TEMPLATE_DIR = pathlib.Path(".github/remote-workflow-template")
 ZERO_SHA = "0000000000000000000000000000000000000000"
 
+# Paths dropped from the template tree before some consumers were re-synced.
+# Always scheduled for removal on install when absent from the current template set.
+RETIRED_CLIENT_DST_PATHS: tuple[str, ...] = (
+    ".github/workflows/oblt-aw.yml",
+    ".github/workflows/oblt-aw-ingress.yml",
+)
+
 
 def list_org_template_files(org_key: str) -> list[dict[str, str]]:
     """
@@ -173,7 +180,11 @@ def main() -> int:
         previous_files = files_for_orgs(
             previous_assignments.get(repo, []), at_base_ref=True
         )
-        remove_files = sorted(dst_paths(previous_files) - dst_paths(files))
+        current_dsts = dst_paths(files)
+        remove_files = sorted(
+            (dst_paths(previous_files) - current_dsts)
+            | {p for p in RETIRED_CLIENT_DST_PATHS if p not in current_dsts}
+        )
         operations.append(
             {
                 "repository": repo,
