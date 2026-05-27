@@ -26,7 +26,7 @@ Core behavior:
 - computes target operations via [scripts/build_target_operations.py](../../scripts/build_target_operations.py)
 - clones each target repository
 - installs or updates each `dst` from the per-target `files: [{src, dst}, ...]` list
-- deletes each path in `remove_files` when templates drop paths or retired client paths no longer apply
+- deletes each path in `remove_files` when templates drop paths since `BASE_REF`
 - removes all managed `dst` paths when a repository leaves the config (`operation: remove`)
 - opens or updates PRs using `peter-evans/create-pull-request`
 - emits consolidated summary via [scripts/summarize_pr_results.sh](../../scripts/summarize_pr_results.sh)

@@ -76,7 +76,7 @@ Behavior:
 
 - If `CHANGED_FILES_COUNT == 0` and `FORCE_DISTRIBUTION` is false, returns no targets.
 - Always generates `install` operations for repositories in the current union of per-org lists (see [scripts/build_target_operations.py](../../scripts/build_target_operations.py)).
-- Each `install` target includes `remove_files`: destination paths that existed in the template tree at `BASE_REF` for that repository’s org assignments but are absent from the current tree, plus retired paths (for example `.github/workflows/oblt-aw.yml` after migration) when no longer in the template set.
+- Each `install` target includes `remove_files`: destination paths that existed in the template tree at `BASE_REF` for that repository’s org assignments but are absent from the current tree.
 - Generates `remove` operations for repositories present at `BASE_REF` but absent from current config.
 
 Workflow outputs written by the script:
