@@ -74,7 +74,7 @@ Inputs (environment variables):
 
 Behavior:
 
-- If `CHANGED_FILES_COUNT == 0` and `FORCE_DISTRIBUTION` is false, returns no targets.
+- If `CHANGED_FILES_COUNT == 0`, `FORCE_DISTRIBUTION` is false, and `git diff --name-only` between `BASE_REF` and `HEAD` under `config/` and `.github/remote-workflow-template/` is empty, returns no targets. The git fallback covers template **renames** (the changed-files action only counts added, modified, and deleted paths).
 - Always generates `install` operations for repositories in the current union of per-org lists (see [scripts/build_target_operations.py](../../scripts/build_target_operations.py)).
 - Each `install` target includes `remove_files`: destination paths that existed in the template tree at `BASE_REF` for that repository’s org assignments but are absent from the current tree.
 - Generates `remove` operations for repositories present at `BASE_REF` but absent from current config.
