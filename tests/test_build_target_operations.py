@@ -196,8 +196,7 @@ class TestMain:
             dsts = {f["dst"] for f in t["files"]}
             assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts
             assert "remove_files" in t
-            assert ".github/workflows/oblt-aw.yml" in t["remove_files"]
-            assert ".github/workflows/oblt-aw-ingress.yml" in t["remove_files"]
+            assert t["remove_files"] == []
 
     def test_force_distribution(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
@@ -248,7 +247,7 @@ class TestMain:
     def test_install_includes_remove_files_for_dropped_templates(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
-        """remove_files includes dropped-at-base-ref and explicitly retired paths."""
+        """remove_files includes template dst paths dropped since BASE_REF."""
         output_file = self._setup_env(
             monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/foo"]
         )
@@ -289,6 +288,5 @@ class TestMain:
         install = next(t for t in targets if t["repository"] == "elastic/foo")
         assert install["operation"] == "install"
         assert ".github/workflows/oblt-aw.yml" in install["remove_files"]
-        assert ".github/workflows/oblt-aw-ingress.yml" in install["remove_files"]
         dsts = {f["dst"] for f in install["files"]}
         assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts
