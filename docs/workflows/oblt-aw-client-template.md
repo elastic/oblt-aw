@@ -76,9 +76,9 @@ Top-level permissions on every client template:
 
 - `contents: read`
 
-Control-plane `oblt-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` match upstream lock permissions in `scripts/gh_aw_lock_permissions.json`.
+Control-plane `oblt-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
 
-Job-level permissions on `run-aw` must **exactly** match the union of all job scopes in the called `oblt-aw-*` reusable. CI enforces this via `scripts/validate_trigger_workflow_permissions.py`.
+Job-level permissions on `run-aw` must be at least as permissive as the union of all job scopes in the called `oblt-aw-*` reusable (see per-template table below).
 
 | Client template | `run-aw` job permissions (union of callee jobs) |
 |-----------------|-----------------------------------------------|
