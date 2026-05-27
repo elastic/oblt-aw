@@ -1,7 +1,7 @@
 name: Docs PR AI menu
 
 # Reusable implementation for the Elastic Docs PR AI menu. Consumer repositories
-# install `.github/remote-workflow-template/docs/.github/workflows/trg-docs-aw-pr-ai-menu.yml`.
+# install `.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-pr-ai-menu.yml`.
 # Scripts: `scripts/docs/pr-menu/`.
 
 on:

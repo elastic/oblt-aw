@@ -4,11 +4,11 @@
 
 Source file: [.github/workflows/oblt-aw-duplicate-issue-detector.yml](../../.github/workflows/oblt-aw-duplicate-issue-detector.yml)
 
-Reusable wrapper that calls the locked duplicate-issue-detector workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trg-oblt-aw-duplicate-issue-detector.yml` calls this workflow on `issues` `opened` or `workflow_dispatch` when prelude allows `obs:duplicate-issue-detector`.
+Reusable wrapper that calls the locked duplicate-issue-detector workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trigger-oblt-aw-duplicate-issue-detector.yml` calls this workflow on `issues` `opened` or `workflow_dispatch` when prelude allows `obs:duplicate-issue-detector`.
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from `trg-oblt-aw-duplicate-issue-detector.yml` client templates.
+- Triggered via `workflow_call` from `trigger-oblt-aw-duplicate-issue-detector.yml` client templates.
 - Required secret: `COPILOT_GITHUB_TOKEN`.
 
 ## Usage

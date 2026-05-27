@@ -18,7 +18,7 @@
 Validate that every local *-aw-* workflow under .github/workflows/ calls aw-prelude.yml.
 
 Excludes aw-prelude.yml itself (the shared prelude implementation) and distributed
-trg-* client entrypoints, which call elastic/oblt-aw reusable workflows remotely.
+trg-* and trigger-* client entrypoints, which call elastic/oblt-aw reusable workflows remotely.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def list_subject_workflows() -> list[pathlib.Path]:
         for p in paths
         if AW_WORKFLOW_PATTERN.match(p.name)
         and p.name != "aw-prelude.yml"
-        and not p.name.startswith("trg-")
+        and not p.name.startswith(("trg-", "trigger-"))
     ]
 
 
