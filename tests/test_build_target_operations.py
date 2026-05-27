@@ -157,7 +157,7 @@ class TestMain:
             / "workflows"
         )
         tmpl.mkdir(parents=True, exist_ok=True)
-        (tmpl / "trg-oblt-aw-automerge.yml").write_text("name: client\n")
+        (tmpl / "trigger-oblt-aw-automerge.yml").write_text("name: client\n")
         return output_file
 
     def test_no_changes_skips_work(
@@ -194,7 +194,7 @@ class TestMain:
             assert isinstance(t["files"], list)
             assert len(t["files"]) >= 1
             dsts = {f["dst"] for f in t["files"]}
-            assert ".github/workflows/trg-oblt-aw-automerge.yml" in dsts
+            assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts
             assert "remove_files" in t
             assert ".github/workflows/oblt-aw.yml" in t["remove_files"]
             assert ".github/workflows/oblt-aw-ingress.yml" in t["remove_files"]
@@ -268,8 +268,8 @@ class TestMain:
                     "dst": ".github/workflows/oblt-aw.yml",
                 },
                 {
-                    "src": ".github/remote-workflow-template/obs/.github/workflows/trg-oblt-aw-automerge.yml",
-                    "dst": ".github/workflows/trg-oblt-aw-automerge.yml",
+                    "src": ".github/remote-workflow-template/obs/.github/workflows/trigger-oblt-aw-automerge.yml",
+                    "dst": ".github/workflows/trigger-oblt-aw-automerge.yml",
                 },
             ]
 
@@ -291,4 +291,4 @@ class TestMain:
         assert ".github/workflows/oblt-aw.yml" in install["remove_files"]
         assert ".github/workflows/oblt-aw-ingress.yml" in install["remove_files"]
         dsts = {f["dst"] for f in install["files"]}
-        assert ".github/workflows/trg-oblt-aw-automerge.yml" in dsts
+        assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts
