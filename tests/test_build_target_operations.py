@@ -157,7 +157,7 @@ class TestMain:
             / "workflows"
         )
         tmpl.mkdir(parents=True, exist_ok=True)
-        (tmpl / "trg-oblt-aw-automerge.yml").write_text("name: client\n")
+        (tmpl / "trigger-oblt-aw-automerge.yml").write_text("name: client\n")
         return output_file
 
     def test_no_changes_skips_work(
@@ -194,7 +194,9 @@ class TestMain:
             assert isinstance(t["files"], list)
             assert len(t["files"]) >= 1
             dsts = {f["dst"] for f in t["files"]}
-            assert ".github/workflows/trg-oblt-aw-automerge.yml" in dsts
+            assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts
+            assert "remove_files" in t
+            assert t["remove_files"] == []
 
     def test_force_distribution(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
@@ -238,3 +240,53 @@ class TestMain:
         for t in targets:
             assert "files" in t
             assert isinstance(t["files"], list)
+            if t["operation"] == "install":
+                assert "remove_files" in t
+                assert isinstance(t["remove_files"], list)
+
+    def test_install_includes_remove_files_for_dropped_templates(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """remove_files includes template dst paths dropped since BASE_REF."""
+        output_file = self._setup_env(
+            monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/foo"]
+        )
+
+        monkeypatch.setattr(
+            bto,
+            "read_previous_repo_org_assignments",
+            lambda _: {"elastic/foo": ["obs"]},
+        )
+
+        def fake_list_at_ref(org_key: str, ref: str) -> list[dict[str, str]]:
+            assert org_key == "obs"
+            assert ref == "deadbeef"
+            return [
+                {
+                    "src": ".github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml",
+                    "dst": ".github/workflows/oblt-aw.yml",
+                },
+                {
+                    "src": ".github/remote-workflow-template/obs/.github/workflows/trigger-oblt-aw-automerge.yml",
+                    "dst": ".github/workflows/trigger-oblt-aw-automerge.yml",
+                },
+            ]
+
+        monkeypatch.setattr(bto, "list_org_template_files_at_ref", fake_list_at_ref)
+        monkeypatch.setenv("BASE_REF", "deadbeef")
+
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        targets = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in content.splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        install = next(t for t in targets if t["repository"] == "elastic/foo")
+        assert install["operation"] == "install"
+        assert ".github/workflows/oblt-aw.yml" in install["remove_files"]
+        dsts = {f["dst"] for f in install["files"]}
+        assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts

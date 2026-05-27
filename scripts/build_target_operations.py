@@ -173,7 +173,8 @@ def main() -> int:
         previous_files = files_for_orgs(
             previous_assignments.get(repo, []), at_base_ref=True
         )
-        remove_files = sorted(dst_paths(previous_files) - dst_paths(files))
+        current_dsts = dst_paths(files)
+        remove_files = sorted(dst_paths(previous_files) - current_dsts)
         operations.append(
             {
                 "repository": repo,

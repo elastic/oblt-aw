@@ -9,7 +9,7 @@ This workflow distributes or removes client files from each org’s subtree unde
 ## Prerequisites
 
 - Per-org [active-repositories.json](../../config/obs/active-repositories.json) files under `config/<org-key>/` list current target repositories (union used for distribution).
-- Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/trg-oblt-aw-*.yml` → `.github/workflows/trg-oblt-aw-*.yml`). Edit only under [remote-workflow-template](../../.github/remote-workflow-template/) (see [Client template doc](../workflows/oblt-aw-client-template.md)).
+- Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/trigger-oblt-aw-*.yml` → `.github/workflows/trigger-oblt-aw-*.yml`). Edit only under [remote-workflow-template](../../.github/remote-workflow-template/) (see [Client template doc](../workflows/oblt-aw-client-template.md)).
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
 
 ## Usage
@@ -76,6 +76,7 @@ Behavior:
 
 - If `CHANGED_FILES_COUNT == 0` and `FORCE_DISTRIBUTION` is false, returns no targets.
 - Always generates `install` operations for repositories in the current union of per-org lists (see [scripts/build_target_operations.py](../../scripts/build_target_operations.py)).
+- Each `install` target includes `remove_files`: destination paths that existed in the template tree at `BASE_REF` for that repository’s org assignments but are absent from the current tree.
 - Generates `remove` operations for repositories present at `BASE_REF` but absent from current config.
 
 Workflow outputs written by the script:

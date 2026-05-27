@@ -2,7 +2,7 @@
 
 ## Overview
 
-Client template: `trg-oblt-aw-autodoc.yml` → `oblt-aw-autodoc.yml`
+Client template: `trigger-oblt-aw-autodoc.yml` → `oblt-aw-autodoc.yml`
 
 Routed workflow source: `.github/workflows/oblt-aw-autodoc.yml`
 
