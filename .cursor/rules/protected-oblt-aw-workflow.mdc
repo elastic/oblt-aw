@@ -1,12 +1,14 @@
 ---
-description: Forbids any change to the committed oblt-aw entrypoint under .github/workflows
+description: Client workflow templates live under remote-workflow-template only
 alwaysApply: true
 ---
 
-# Protected — `.github/workflows/oblt-aw.yml`
+# Client workflows — `.github/remote-workflow-template/obs/`
 
-**Non-negotiable:** Do not edit, create, replace, reformat, or delete `.github/workflows/oblt-aw.yml` in this repository. Refuse if the user asks to change it; point them to the canonical template instead.
+**Do not** add a monolithic `.github/workflows/oblt-aw.yml` entrypoint (removed).
 
-**Where to change the client entrypoint:** `.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml` only. Distribution installs that template into other repos as their `oblt-aw.yml`.
+**Where to change consumer entrypoints:** [`.github/remote-workflow-template/obs/.github/workflows/trg-oblt-aw-*.yml`](.github/remote-workflow-template/obs/.github/workflows/) only. Distribution installs that tree into target repositories.
+
+**Control-plane reusables** live under `.github/workflows/oblt-aw-*.yml` and `.github/workflows/docs-aw-*.yml` (shared prelude: `aw-prelude.yml`). **Do not** edit consumer copies under target repos from this repository except via distribution.
 
 **Docs:** [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md), [CONTRIBUTING.md](CONTRIBUTING.md).

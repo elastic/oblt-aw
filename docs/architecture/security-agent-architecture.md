@@ -37,7 +37,7 @@ The security detector must scan **code** (shell scripts, workflow YAML, and depe
 
 - Runs static analysis (shellcheck, actionlint, zizmor, semgrep, optional ecosystem audits) per [docs/workflows/security-scanning-ruleset.md](../workflows/security-scanning-ruleset.md).
 - Aggregates findings and creates issues via API; every issue opened for a finding must include the label `oblt-aw/detector/security`.
-- Reuses `gh-aw-issue-triage` and `gh-aw-issue-fixer` for triage and fixer stages.
+- Reuses `oblt-aw-issue-triage` and `oblt-aw-issue-fixer` for triage and fixer stages.
 
 ## Tool Selection (aligned with #3758 Phase 1)
 
@@ -50,7 +50,7 @@ The security detector must scan **code** (shell scripts, workflow YAML, and depe
 | **npm audit** / **pip-audit** / **govulncheck** (when lockfiles exist) | Known CVEs in dependencies | `package-lock.json`, Python/Go locks | Supply chain |
 | **Pattern scripts** | Downloads without checksum verification | Shell scripts | Supply chain (integrity) |
 
-**Complementary:** Repositories may enable **`gh-aw-dependency-review`** via oblt-aw ingress for PR-time dependency review; the detector’s SEC-033–SEC-035 rules still cover scheduled/repo-wide manifest checks.
+**Complementary:** Repositories may enable **`oblt-aw-dependency-review`** via oblt-aw ingress for PR-time dependency review; the detector’s SEC-033–SEC-035 rules still cover scheduled/repo-wide manifest checks.
 
 ### Implementation
 

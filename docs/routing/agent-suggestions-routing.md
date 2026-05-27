@@ -2,16 +2,16 @@
 
 ## Overview
 
-Entrypoint source: `.github/workflows/oblt-aw-ingress.yml`
+Client template: `trg-oblt-aw-agent-suggestions.yml` → `oblt-aw-agent-suggestions.yml`
 
-Routed workflow source: `.github/workflows/gh-aw-agent-suggestions.yml`
+Routed workflow source: `.github/workflows/oblt-aw-agent-suggestions.yml`
 
 ## Usage
 
 Ingress routes to agent suggestions when:
 
 - `github.event_name == 'schedule'`
-- The Control Plane dashboard gate allows registry id `agent-suggestions` (see `docs/workflows/oblt-aw-ingress.md` — `get-enabled-workflows` / `enabled-workflows`)
+- The Control Plane dashboard gate allows registry id `agent-suggestions` (see `docs/workflows/aw-prelude.md` — `get-enabled-workflows` / `enabled-workflows`)
 
 The event name is evaluated in the context of the workflow run that invoked the ingress (`workflow_call`).
 
@@ -32,4 +32,4 @@ The wrapper delegates to:
 
 ## References
 
-- `docs/workflows/gh-aw-agent-suggestions.md`
+- `docs/workflows/oblt-aw-agent-suggestions.md`

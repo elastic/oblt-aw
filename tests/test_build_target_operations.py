@@ -157,7 +157,7 @@ class TestMain:
             / "workflows"
         )
         tmpl.mkdir(parents=True, exist_ok=True)
-        (tmpl / "oblt-aw.yml").write_text("name: client\n")
+        (tmpl / "trg-oblt-aw-automerge.yml").write_text("name: client\n")
         return output_file
 
     def test_no_changes_skips_work(
@@ -194,8 +194,9 @@ class TestMain:
             assert isinstance(t["files"], list)
             assert len(t["files"]) >= 1
             dsts = {f["dst"] for f in t["files"]}
-            assert ".github/workflows/oblt-aw.yml" in dsts
+            assert ".github/workflows/trg-oblt-aw-automerge.yml" in dsts
             assert "remove_files" in t
+            assert ".github/workflows/oblt-aw.yml" in t["remove_files"]
             assert ".github/workflows/oblt-aw-ingress.yml" in t["remove_files"]
 
     def test_force_distribution(
@@ -247,7 +248,7 @@ class TestMain:
     def test_install_includes_remove_files_for_dropped_templates(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
-        """Paths present at BASE_REF but absent from the current tree appear in remove_files."""
+        """remove_files includes dropped-at-base-ref and explicitly retired paths."""
         output_file = self._setup_env(
             monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/foo"]
         )
@@ -287,7 +288,7 @@ class TestMain:
         )
         install = next(t for t in targets if t["repository"] == "elastic/foo")
         assert install["operation"] == "install"
+        assert ".github/workflows/oblt-aw.yml" in install["remove_files"]
         assert ".github/workflows/oblt-aw-ingress.yml" in install["remove_files"]
-        assert ".github/workflows/trg-oblt-aw-automerge.yml" in install["remove_files"]
         dsts = {f["dst"] for f in install["files"]}
-        assert ".github/workflows/oblt-aw.yml" in dsts
+        assert ".github/workflows/trg-oblt-aw-automerge.yml" in dsts

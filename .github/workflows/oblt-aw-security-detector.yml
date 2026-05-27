@@ -1,0 +1,74 @@
+---
+name: Security Detector
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      enabled-workflow-id: obs:security
+
+  scan:
+    needs: prelude
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      pull-requests: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout calling repository
+        uses: actions/checkout@v6
+        with:
+          path: target
+          fetch-depth: 0
+
+      - name: Checkout oblt-aw (detector scripts)
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+
+      - name: Install tools
+        run: bash _oblt-aw/scripts/obs/install_security_detector_tools.sh
+
+      - name: Set up Node.js (npm audit for SEC-033 when lockfile present)
+        if: hashFiles('target/**/package-lock.json') != ''
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Run security scan
+        id: scan
+        run: |
+          chmod +x _oblt-aw/scripts/obs/security-scan.sh
+          _oblt-aw/scripts/obs/security-scan.sh target 2>/dev/null | tee findings.txt || true
+          count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Create ephemeral GitHub token
+        id: create-token
+        if: ${{ steps.scan.outputs.count != '0' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+
+      - name: Create issues from findings
+        if: ${{ steps.scan.outputs.count != '0' }}
+        env:
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          SECURITY_SCAN_DATE="$(date -u +%Y-%m-%d)"
+          export SECURITY_SCAN_DATE
+          chmod +x _oblt-aw/scripts/obs/create-security-issues.sh
+          _oblt-aw/scripts/obs/create-security-issues.sh findings.txt
