@@ -18,7 +18,7 @@ def test_list_subject_workflows_includes_oblt_aw_wrappers() -> None:
     assert "docs-aw-ai-menu.yml" in names
     assert "docs-aw-pr-ai-menu.yml" in names
     assert "aw-prelude.yml" not in names
-    assert "trigger-oblt-aw-automerge.yml" not in names
+    assert "trg-oblt-aw-automerge.yml" not in names
 
 
 def test_validate_workflow_rejects_missing_prelude(
