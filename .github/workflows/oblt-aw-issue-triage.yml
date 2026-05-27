@@ -1,0 +1,35 @@
+---
+name: Issue Triage
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      enabled-workflow-id: obs:issue-triage
+
+  issue-triage:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      github.event_name == 'issues' &&
+      github.event.action == 'opened'
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

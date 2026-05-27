@@ -2,13 +2,13 @@
 
 ## Overview
 
-Entrypoint source: [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml)
+Client templates: `trg-oblt-aw-resource-not-accessible-by-integration-*.yml` → matching `oblt-aw-*` workflows
 
 Routed workflows:
 
-- [.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml)
-- [.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml)
-- [.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml)
+- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml)
+- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-triage.yml)
+- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.yml)
 
 ## Usage
 
@@ -26,12 +26,12 @@ Routing rules from ingress:
 
 All three routes (detector, triage, fixer) also require the shared dashboard gate to pass: `enabled-workflows` must contain `obs:resource-not-accessible-by-integration` when `effective-raw` is non-empty.
 
-For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/oblt-aw-ingress.md](../workflows/oblt-aw-ingress.md).
+For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/aw-prelude.md](../workflows/aw-prelude.md).
 
 When called directly, **detector**, **triage**, and **fixer** all run in the repository that invokes the reusable workflow (no extra repository allowlist).
 
 ## References
 
-- [docs/workflows/gh-aw-resource-not-accessible-by-integration-detector.md](../workflows/gh-aw-resource-not-accessible-by-integration-detector.md)
-- [docs/workflows/gh-aw-resource-not-accessible-by-integration-triage.md](../workflows/gh-aw-resource-not-accessible-by-integration-triage.md)
-- [docs/workflows/gh-aw-resource-not-accessible-by-integration-fixer.md](../workflows/gh-aw-resource-not-accessible-by-integration-fixer.md)
+- [docs/workflows/oblt-aw-resource-not-accessible-by-integration-detector.md](../workflows/oblt-aw-resource-not-accessible-by-integration-detector.md)
+- [docs/workflows/oblt-aw-resource-not-accessible-by-integration-triage.md](../workflows/oblt-aw-resource-not-accessible-by-integration-triage.md)
+- [docs/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.md](../workflows/oblt-aw-resource-not-accessible-by-integration-fixer.md)

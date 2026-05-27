@@ -157,7 +157,7 @@ class TestMain:
             / "workflows"
         )
         tmpl.mkdir(parents=True, exist_ok=True)
-        (tmpl / "oblt-aw.yml").write_text("name: client\n")
+        (tmpl / "trg-oblt-aw-automerge.yml").write_text("name: client\n")
         return output_file
 
     def test_no_changes_skips_work(
@@ -194,7 +194,7 @@ class TestMain:
             assert isinstance(t["files"], list)
             assert len(t["files"]) >= 1
             dsts = {f["dst"] for f in t["files"]}
-            assert ".github/workflows/oblt-aw.yml" in dsts
+            assert ".github/workflows/trg-oblt-aw-automerge.yml" in dsts
 
     def test_force_distribution(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path

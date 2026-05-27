@@ -1,52 +1,117 @@
-# Workflow: Client Template `oblt-aw.yml`
+# Workflow: Client templates `trg-oblt-aw-*.yml`
 
 ## Overview
 
-**Source of truth (edit here only):** [.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml](../../.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml)
+**Source of truth (edit here only):** [.github/remote-workflow-template/obs/.github/workflows/](../../.github/remote-workflow-template/obs/.github/workflows/)
 
-**Do not edit** [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) in this repository. That path is not maintained as a hand-edited copy of the template; avoid changing it in PRs and automation. `distribute-client-workflow` installs the **remote template** tree into **other** repositories (for example their [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) from the `obs` org payload).
+## Split-trigger model
 
-This workflow is the client-facing entrypoint template distributed to target repositories.
+Each agentic workflow has its own client template under `trg-oblt-aw-<workflow-id>.yml` (or a descriptive suffix for multi-step features such as `trg-oblt-aw-security-triage.yml`). Each file declares **only** the GitHub events that can trigger that workflow, then calls the matching reusable workflow in `elastic/oblt-aw`:
 
-## Usage
+```yaml
+uses: elastic/oblt-aw/.github/workflows/oblt-aw-<name>.yml@main
+```
 
-Triggers (must stay aligned with `oblt-aw-ingress` so dashboard-gated jobs can run):
+That removes the large number of skipped ingress jobs on unrelated events (for example issue comments no longer run automerge, dependency-review, and security jobs).
 
-- `schedule` (`0 6 * * *`)
-- `workflow_dispatch` (required for ingress routes that run only on manual entrypoint runs, e.g. duplicate-issue-detector)
-- `issues` (`opened`, `labeled`) — `opened` drives issue-triage and duplicate-issue-detector; `labeled` supports other flows
-- `issue_comment` (`created`) — drives mention-in-issue for `/ai` issue comments and issue-fixer for `/ai implement` issue comments (not PR comments); both routes require `github.event.comment.author_association` to be `OWNER`, `MEMBER`, or `COLLABORATOR`
-- `pull_request` (`opened`, `synchronize`, `reopened`, `labeled`) — automerge runs only when the PR author matches the dependency-review allow list and the PR already has `oblt-aw/ai/merge-ready` (automerge is not triggered on `schedule`)
-- `status` — drives PR Buildkite Detective when a Buildkite status check fails (`github.event.state == 'failure'` and `github.event.context` contains `buildkite`); requires `BUILDKITE_LOGS_API_TOKEN` secret in the consumer repository
+Shared dashboard gating and allow-list loading run inside each `oblt-aw-*` workflow via [aw-prelude.yml](aw-prelude.md) (first job), not in the client file.
 
-Execution flow:
+### Architecture
 
-1. **run-aw job** calls [elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/oblt-aw-ingress.yml). The ingress runs `get-enabled-workflows` first (in the consumer repo context): it looks up an open issue labeled `oblt-aw/dashboard`, parses checkboxes (`^- [x] <!-- oblt-aw:<org-key>:<workflow-id> -->` at line start in each org’s Enable/Disable list; legacy `obs` markers without an org segment are accepted), and derives normalized `enabled-workflows` (always `[]` or `["org:workflow-id", ...]`). Use `effective-raw`: empty means no dashboard issue → all workflows enabled; otherwise `[]` or `["org:workflow-id", ...]` from the issue. Consumers do not need to call `get-enabled-workflows` separately; the ingress invokes it.
+```mermaid
+flowchart TB
+  subgraph Consumer["Consumer .github/workflows/"]
+    EVT["GitHub event"]
+    C_AUTO["trg-oblt-aw-automerge.yml\non: pull_request"]
+    C_TRI["trg-oblt-aw-issue-triage.yml\non: issues"]
+    C_OTHER["trg-oblt-aw-*.yml\nother narrow on:"]
+    DASH["Issue: [oblt-aw] Control Plane Dashboard"]
+    EVT --> C_AUTO
+    EVT --> C_TRI
+    EVT -.->|on: no match| C_OTHER
+  end
+
+  subgraph OBLT["elastic/oblt-aw"]
+    R["oblt-aw-* reusable"]
+    PRE["aw-prelude"]
+    GET["get-enabled-workflows"]
+    AG["Agent steps"]
+    LOCK["Upstream gh-aw lock"]
+    R --> PRE --> GET
+    PRE --> AG --> LOCK
+  end
+
+  DASH -.->|checkboxes| GET
+  C_AUTO -->|uses: oblt-aw-automerge@main| R
+  C_TRI -->|uses: oblt-aw-issue-triage@main| R
+```
+
+Full platform view (distribution, dashboard sync, before/after ingress): [architecture overview — split-trigger diagrams](../architecture/overview.md#split-trigger-vs-monolithic-ingress).
+
+### Template index
+
+| Client template | Triggers | Reusable workflow |
+|-----------------|----------|-------------------|
+| `trg-oblt-aw-agent-suggestions.yml` | `schedule` | `oblt-aw-agent-suggestions.yml` |
+| `trg-oblt-aw-autodoc.yml` | `schedule` | `oblt-aw-autodoc.yml` |
+| `trg-oblt-aw-automerge.yml` | `pull_request` (opened, synchronize, reopened, labeled) | `oblt-aw-automerge.yml` |
+| `trg-oblt-aw-dependency-review.yml` | `pull_request` (opened, synchronize, reopened) | `oblt-aw-dependency-review.yml` |
+| `trg-oblt-aw-duplicate-issue-detector.yml` | `issues` opened, `workflow_dispatch` | `oblt-aw-duplicate-issue-detector.yml` |
+| `trg-oblt-aw-issue-triage.yml` | `issues` opened | `oblt-aw-issue-triage.yml` |
+| `trg-oblt-aw-issue-fixer.yml` | `issue_comment` created | `oblt-aw-issue-fixer.yml` |
+| `trg-oblt-aw-mention-in-issue.yml` | `issue_comment` created | `oblt-aw-mention-in-issue.yml` |
+| `trg-oblt-aw-security-detector.yml` | `schedule`, `workflow_dispatch` | `oblt-aw-security-detector.yml` |
+| `trg-oblt-aw-security-triage.yml` | `issues` opened, labeled | `oblt-aw-security-triage.yml` |
+| `trg-oblt-aw-security-fixer.yml` | `issues` labeled | `oblt-aw-security-fixer.yml` |
+| `trg-oblt-aw-resource-not-accessible-by-integration-detector.yml` | `schedule` | `oblt-aw-resource-not-accessible-by-integration-detector.yml` |
+| `trg-oblt-aw-resource-not-accessible-by-integration-triage.yml` | `issues` opened, labeled | `oblt-aw-resource-not-accessible-by-integration-triage.yml` |
+| `trg-oblt-aw-resource-not-accessible-by-integration-fixer.yml` | `issues` labeled | `oblt-aw-resource-not-accessible-by-integration-fixer.yml` |
+| `trg-oblt-aw-estc-pr-buildkite-detective.yml` | `status` (Buildkite failure only, job `if`) | `oblt-aw-estc-pr-buildkite-detective.yml` |
+
+Route-specific conditions (labels, `/ai` comment prefix, allow-listed PR authors, and so on) are enforced inside the `oblt-aw-*` reusable workflow after [aw-prelude](aw-prelude.md) runs.
 
 ## Configuration
 
-Top-level permissions:
+Top-level permissions on every client template:
 
 - `contents: read`
 
-Job-level permissions (`run-aw`; must stay at least as permissive as nested ingress and downstream reusable workflows):
+Control-plane `oblt-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
 
-- `actions: write`
-- `checks: read`
-- `contents: write`
-- `discussions: write`
-- `id-token: write` (required so [oblt-aw-ingress](oblt-aw-ingress.md) can call [gh-aw-security-detector](gh-aw-security-detector.md), which uses OIDC for `create-token`)
-- `issues: write`
-- `pull-requests: write`
+Job-level permissions on `run-aw` must be at least as permissive as the union of all job scopes in the called `oblt-aw-*` reusable (see per-template table below).
 
-Required secret mapping:
+| Client template | `run-aw` job permissions (union of callee jobs) |
+|-----------------|-----------------------------------------------|
+| `trg-oblt-aw-agent-suggestions.yml` | `contents: read`, `issues: write`, `pull-requests: read` |
+| `trg-oblt-aw-autodoc.yml` | `actions: read`, `contents: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-automerge.yml` | `actions: read`, `contents: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-dependency-review.yml` | `actions: read`, `contents: read`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-duplicate-issue-detector.yml` | `contents: read`, `issues: write`, `pull-requests: read` |
+| `trg-oblt-aw-estc-pr-buildkite-detective.yml` | `actions: read`, `contents: read`, `issues: read`, `pull-requests: write` |
+| `trg-oblt-aw-issue-fixer.yml` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-issue-triage.yml` | `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-mention-in-issue.yml` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-resource-not-accessible-by-integration-detector.yml` | `actions: read`, `contents: read`, `issues: write` |
+| `trg-oblt-aw-resource-not-accessible-by-integration-fixer.yml` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-resource-not-accessible-by-integration-triage.yml` | `actions: read`, `contents: read`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-security-detector.yml` | `actions: read`, `contents: read`, `id-token: write`, `issues: read`, `pull-requests: read` |
+| `trg-oblt-aw-security-fixer.yml` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-security-triage.yml` | `actions: read`, `contents: read`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 
-- `COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`
-- `BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_LOGS_API_TOKEN }}` (only required when `estc-pr-buildkite-detective` is enabled; consumers without Buildkite CI can omit this secret — ingress skips the job when the secret is absent)
+### Secrets
 
-Migration note: if your repository previously used `BUILDKITE_API_TOKEN` as the consumer-facing secret name, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN`.
+| Secret | Templates |
+|--------|-----------|
+| `COPILOT_GITHUB_TOKEN` | All except `trg-oblt-aw-issue-fixer.yml` and resource fixer (use `secrets: inherit` where noted in template) |
+| `BUILDKITE_LOGS_API_TOKEN` → `BUILDKITE_API_TOKEN` | `trg-oblt-aw-estc-pr-buildkite-detective.yml` only |
+
+## Migration from monolithic entrypoint
+
+1. Merge distribution PRs that add `trg-oblt-aw-*.yml` files.
+2. Delete `.github/workflows/oblt-aw.yml` and stop calling `oblt-aw-ingress` in the consumer repository. Remove any legacy per-workflow client files named `oblt-aw-*.yml` or `trigger-oblt-aw-*.yml` (without the `trg-` prefix); distribution drops paths that are no longer in the template tree.
+3. Update Backstage `workflow_ref` / token policies to reference each installed **`trg-oblt-aw-*.yml`** client workflow file (one policy per workflow if your org requires narrow OIDC claims).
 
 ## References
 
-- Distribution process: [docs/operations/distribute-client-workflow.md](../operations/distribute-client-workflow.md)
-- Ingress doc: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md)
+- [docs/operations/distribute-client-workflow.md](../operations/distribute-client-workflow.md)
+- [aw-prelude.md](aw-prelude.md)
