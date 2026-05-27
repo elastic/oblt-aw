@@ -18,7 +18,7 @@ See [docs/development/contributing.md](docs/development/contributing.md) for:
 - Pre-commit hook reference
 - CI workflow overview
 
-## Client entrypoint workflows (`trg-oblt-aw-*.yml`)
+## Client entrypoint workflows (`trigger-oblt-aw-*.yml`)
 
 Edit only the distributed client templates under [`.github/remote-workflow-template/`](.github/remote-workflow-template/) (for example [`.github/remote-workflow-template/obs/.github/workflows/`](.github/remote-workflow-template/obs/.github/workflows/) for Observability and [`.github/remote-workflow-template/docs/.github/workflows/`](.github/remote-workflow-template/docs/.github/workflows/) for Docs). See [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md) and [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md).
 

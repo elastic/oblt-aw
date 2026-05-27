@@ -4,11 +4,11 @@
 
 Source file: [.github/workflows/oblt-aw-issue-fixer.yml](../../.github/workflows/oblt-aw-issue-fixer.yml)
 
-Reusable wrapper that calls the locked generic issue-fixer workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trg-oblt-aw-issue-fixer.yml` calls this workflow on `issue_comment` when prelude allows `obs:issue-fixer` and route guards pass.
+Reusable wrapper that calls the locked generic issue-fixer workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trigger-oblt-aw-issue-fixer.yml` calls this workflow on `issue_comment` when prelude allows `obs:issue-fixer` and route guards pass.
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from `trg-oblt-aw-issue-fixer.yml` client templates.
+- Triggered via `workflow_call` from `trigger-oblt-aw-issue-fixer.yml` client templates.
 - Triggering issue comment must start with `/ai implement` (for example, `/ai implement` or `/ai implement this`).
 - Triggering comment author association must be one of: `OWNER`, `MEMBER`, `COLLABORATOR`.
 - Issue must not include specialized triage labels:
