@@ -6,14 +6,13 @@ on:
         required: true
 
 permissions:
-  actions: read
-  contents: write
-  discussions: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
   prelude:
+    permissions:
+      contents: read
+      issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
       enabled-workflow-id: obs:autodoc
@@ -21,6 +20,10 @@ jobs:
   # Step 1: Detect docs drift from recent code changes and create an issue with findings
   audit:
     needs: prelude
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
     if: needs.prelude.outputs.proceed == 'true'
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
     with:
@@ -58,6 +61,11 @@ jobs:
   # Step 2: Create a PR implementing the audit findings (only when an issue was created)
   fix:
     needs: audit
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
     if: needs.audit.outputs.created_issue_number != ''
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
     with:

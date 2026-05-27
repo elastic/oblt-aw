@@ -8,9 +8,12 @@ on:
 
 permissions:
   contents: read
-  issues: read
+
 jobs:
   prelude:
+    permissions:
+      contents: read
+      issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
       enabled-workflow-id: obs:mention-in-issue

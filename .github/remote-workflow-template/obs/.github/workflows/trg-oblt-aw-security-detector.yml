@@ -11,11 +11,9 @@ permissions:
 jobs:
   run-aw:
     permissions:
-      actions: write
-      checks: read
-      contents: write
-      discussions: write
+      actions: read
+      contents: read
       id-token: write
-      issues: write
-      pull-requests: write
+      issues: read
+      pull-requests: read
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-security-detector.yml@main # ratchet:exclude

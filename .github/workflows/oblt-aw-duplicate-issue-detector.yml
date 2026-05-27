@@ -8,18 +8,22 @@ on:
 
 permissions:
   contents: read
-  discussions: write
-  issues: write
-  pull-requests: read
 
 jobs:
   prelude:
+    permissions:
+      contents: read
+      issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
       enabled-workflow-id: obs:duplicate-issue-detector
 
   duplicate-issue-detector:
     needs: prelude
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
     if: >-
       needs.prelude.outputs.proceed == 'true' &&
       (

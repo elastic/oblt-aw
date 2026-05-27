@@ -7,20 +7,25 @@ on:
         required: true
 
 permissions:
-  actions: read
   contents: read
-  discussions: write
-  issues: write
-  pull-requests: write
 
 jobs:
   prelude:
+    permissions:
+      contents: read
+      issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
       enabled-workflow-id: obs:issue-triage
 
   issue-triage:
     needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
       needs.prelude.outputs.proceed == 'true' &&
       github.event_name == 'issues' &&

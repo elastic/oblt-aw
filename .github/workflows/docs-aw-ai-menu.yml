@@ -15,6 +15,9 @@ permissions:
 
 jobs:
   prelude:
+    permissions:
+      contents: read
+      issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
       enabled-workflow-id: docs:example-workflow
@@ -130,7 +133,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-      discussions: write
       issues: write
       pull-requests: write
     uses: elastic/docs-actions/.github/workflows/gh-aw-issue-triage.lock.yml@v1

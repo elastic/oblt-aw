@@ -25,6 +25,8 @@ permissions:
 
 jobs:
   load-allowed-authors:
+    permissions:
+      contents: read
     runs-on: ubuntu-slim
     timeout-minutes: 5
     outputs:

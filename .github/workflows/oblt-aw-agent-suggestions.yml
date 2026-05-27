@@ -6,19 +6,23 @@ on:
         required: true
 
 permissions:
-  actions: read
   contents: read
-  issues: write
-  pull-requests: read
 
 jobs:
   prelude:
+    permissions:
+      contents: read
+      issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
       enabled-workflow-id: obs:agent-suggestions
 
   agent-suggestions:
     needs: prelude
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
     if: needs.prelude.outputs.proceed == 'true'
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main
     with:

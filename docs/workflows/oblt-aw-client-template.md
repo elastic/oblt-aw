@@ -76,15 +76,27 @@ Top-level permissions on every client template:
 
 - `contents: read`
 
-Job-level permissions on `run-aw` (must stay at least as permissive as nested reusable workflows):
+Control-plane `oblt-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` match upstream lock permissions in `scripts/gh_aw_lock_permissions.json`.
 
-- `actions: write`
-- `checks: read`
-- `contents: write`
-- `discussions: write`
-- `id-token: write`
-- `issues: write`
-- `pull-requests: write`
+Job-level permissions on `run-aw` must **exactly** match the union of all job scopes in the called `oblt-aw-*` reusable. CI enforces this via `scripts/validate_trigger_workflow_permissions.py`.
+
+| Client template | `run-aw` job permissions (union of callee jobs) |
+|-----------------|-----------------------------------------------|
+| `trg-oblt-aw-agent-suggestions.yml` | `contents: read`, `issues: write`, `pull-requests: read` |
+| `trg-oblt-aw-autodoc.yml` | `actions: read`, `contents: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-automerge.yml` | `actions: read`, `contents: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-dependency-review.yml` | `actions: read`, `contents: read`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-duplicate-issue-detector.yml` | `contents: read`, `issues: write`, `pull-requests: read` |
+| `trg-oblt-aw-estc-pr-buildkite-detective.yml` | `actions: read`, `contents: read`, `issues: read`, `pull-requests: write` |
+| `trg-oblt-aw-issue-fixer.yml` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-issue-triage.yml` | `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-mention-in-issue.yml` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-resource-not-accessible-by-integration-detector.yml` | `actions: read`, `contents: read`, `issues: write` |
+| `trg-oblt-aw-resource-not-accessible-by-integration-fixer.yml` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-resource-not-accessible-by-integration-triage.yml` | `actions: read`, `contents: read`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-security-detector.yml` | `actions: read`, `contents: read`, `id-token: write`, `issues: read`, `pull-requests: read` |
+| `trg-oblt-aw-security-fixer.yml` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trg-oblt-aw-security-triage.yml` | `actions: read`, `contents: read`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 
 ### Secrets
 

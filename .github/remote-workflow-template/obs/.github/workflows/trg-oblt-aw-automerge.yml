@@ -10,8 +10,7 @@ permissions:
 jobs:
   run-aw:
     permissions:
-      actions: write
-      checks: read
+      actions: read
       contents: write
       discussions: write
       id-token: write

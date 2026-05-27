@@ -41,12 +41,17 @@ on:
 
 permissions:
   contents: read
-  issues: read
+
 jobs:
   dashboard:
+    permissions:
+      contents: read
+      issues: read
     uses: ./.github/workflows/get-enabled-workflows.yml
 
   allowed-authors:
+    permissions:
+      contents: read
     if: >-
       inputs.load-allowed-authors &&
       (github.event_name == 'pull_request' || github.event_name == 'issues')
@@ -54,6 +59,8 @@ jobs:
 
   evaluate:
     needs: [dashboard, allowed-authors]
+    permissions:
+      contents: read
     if: >-
       always() &&
       needs.dashboard.result == 'success' &&

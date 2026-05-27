@@ -3,14 +3,13 @@ on:
   workflow_call:
 
 permissions:
-  actions: read
-  contents: write
-  discussions: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
   prelude:
+    permissions:
+      contents: read
+      issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
       enabled-workflow-id: obs:resource-not-accessible-by-integration
@@ -18,6 +17,12 @@ jobs:
 
   res-not-accessible-integration-fixer:
     needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
       needs.prelude.outputs.proceed == 'true' &&
       github.event_name == 'issues' &&

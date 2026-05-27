@@ -6,19 +6,22 @@ on:
         required: true
 
 permissions:
-  actions: read
   contents: read
-  issues: write
-  pull-requests: read
 
 jobs:
   prelude:
+    permissions:
+      contents: read
+      issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
       enabled-workflow-id: obs:resource-not-accessible-by-integration
 
   discover:
     needs: prelude
+    permissions:
+      actions: read
+      contents: read
     if: needs.prelude.outputs.proceed == 'true' && github.event_name == 'schedule'
     runs-on: ubuntu-latest
     outputs:
@@ -36,6 +39,10 @@ jobs:
 
   search:
     needs: discover
+    permissions:
+      actions: read
+      contents: read
+      issues: write
     if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
     strategy:
       matrix:

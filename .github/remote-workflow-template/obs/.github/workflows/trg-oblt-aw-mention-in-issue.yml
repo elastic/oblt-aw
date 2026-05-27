@@ -10,11 +10,9 @@ permissions:
 jobs:
   run-aw:
     permissions:
-      actions: write
-      checks: read
+      actions: read
       contents: write
       discussions: write
-      id-token: write
       issues: write
       pull-requests: write
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-mention-in-issue.yml@main # ratchet:exclude

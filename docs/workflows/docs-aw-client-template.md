@@ -31,12 +31,14 @@ Top-level permissions on every client template:
 
 - `contents: read`
 
-Job-level permissions on `run-aw` (must stay at least as permissive as nested reusable workflows):
+Control-plane `docs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` match upstream lock permissions in `scripts/gh_aw_lock_permissions.json`.
 
-| Template | Job permissions |
-|----------|-----------------|
+Job-level permissions on `run-aw` must **exactly** match the union of all job scopes in the called `docs-aw-*` reusable. CI enforces this via `scripts/validate_trigger_workflow_permissions.py`.
+
+| Template | `run-aw` job permissions (union of callee jobs) |
+|----------|-------------------------------------------------|
 | `trg-docs-aw-ai-menu.yml` | `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
-| `trg-docs-aw-pr-ai-menu.yml` | Above plus `checks: read`, `id-token: write` |
+| `trg-docs-aw-pr-ai-menu.yml` | `actions: read`, `checks: read`, `contents: read`, `issues: write`, `pull-requests: write` |
 
 Required secret mapping (both templates):
 

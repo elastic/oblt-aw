@@ -7,11 +7,13 @@ on:
 
 # Ephemeral token minting for label API runs only in signal-security-triage-followups (see #4374 workaround).
 permissions:
-  actions: read
   contents: read
 
 jobs:
   prelude:
+    permissions:
+      contents: read
+      issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
       enabled-workflow-id: obs:security

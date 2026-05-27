@@ -55,6 +55,9 @@ jobs:
       - name: Validate *-aw-* workflows call aw-prelude
         run: python scripts/validate_aw_workflow_prelude.py
 
+      - name: Validate *-aw-* and trigger template permissions
+        run: python scripts/validate_trigger_workflow_permissions.py
+
   typescript-tests:
     name: TypeScript tests
     runs-on: ubuntu-latest

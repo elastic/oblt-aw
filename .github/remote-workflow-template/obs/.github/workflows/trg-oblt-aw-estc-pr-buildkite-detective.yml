@@ -12,12 +12,9 @@ jobs:
       github.event.state == 'failure' &&
       contains(github.event.context, 'buildkite')
     permissions:
-      actions: write
-      checks: read
-      contents: write
-      discussions: write
-      id-token: write
-      issues: write
+      actions: read
+      contents: read
+      issues: read
       pull-requests: write
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-estc-pr-buildkite-detective.yml@main # ratchet:exclude
     secrets:
