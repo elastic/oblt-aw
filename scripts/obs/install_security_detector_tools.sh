@@ -25,6 +25,12 @@ mkdir -p "$HOME/bin/actionlint"
 cd "$HOME/bin/actionlint"
 # Installer script pinned to commit (v1.7.11 tag); bump SHA when upgrading actionlint.
 ACTIONLINT_DOWNLOAD_SCRIPT_SHA=393031adb9afb225ee52ae2ccd7a5af5525e03e8
+ACTIONLINT_DOWNLOAD_SCRIPT_SHA256=6ea5eefacaea8c73b9ef8ea6947c2946b5d7d8af24b0f3e629ac7b42e17a7dfb
 ACTIONLINT_VERSION=1.7.11
-bash <(curl -fsSL "https://raw.githubusercontent.com/rhysd/actionlint/${ACTIONLINT_DOWNLOAD_SCRIPT_SHA}/scripts/download-actionlint.bash") "${ACTIONLINT_VERSION}"
+curl -fsSL \
+  "https://raw.githubusercontent.com/rhysd/actionlint/${ACTIONLINT_DOWNLOAD_SCRIPT_SHA}/scripts/download-actionlint.bash" \
+  -o download-actionlint.bash
+echo "${ACTIONLINT_DOWNLOAD_SCRIPT_SHA256}  download-actionlint.bash" | sha256sum -c -
+bash ./download-actionlint.bash "${ACTIONLINT_VERSION}"
+rm -f ./download-actionlint.bash
 echo "$HOME/bin/actionlint" >> "$GITHUB_PATH"
