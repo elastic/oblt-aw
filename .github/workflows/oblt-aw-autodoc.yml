@@ -16,20 +16,7 @@ jobs:
     uses: ./.github/workflows/aw-prelude.yml
     with:
       enabled-workflow-id: obs:autodoc
-
-  # Step 1: Detect docs drift from recent code changes and create an issue with findings
-  audit:
-    needs: prelude
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: read
-    if: needs.prelude.outputs.proceed == 'true'
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
-    with:
-      lookback-window: 1 day ago
-      title-prefix: "[oblt-aw][autodoc]"
-      additional-instructions: |
+      platform-additional-instructions: |
         Your task is to analyze ALL documentation in this repository, identify gaps and areas for improvement, and file an issue with concrete findings.
 
         Do NOT search for open issues. Instead, perform a direct documentation audit of this repository.
@@ -56,6 +43,20 @@ jobs:
         **Issue format:** For each finding, include a clear, actionable checklist of specific documentation changes to make. Each item should reference file paths and describe the change needed.
 
         **Team notification (mandatory):** Always @mention @elastic/observablt-ci at the top of the issue body so the team receives notifications. Example: "cc @elastic/observablt-ci" or "Notify: @elastic/observablt-ci" at the start of the body.
+
+  # Step 1: Detect docs drift from recent code changes and create an issue with findings
+  audit:
+    needs: prelude
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    if: needs.prelude.outputs.proceed == 'true'
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
+    with:
+      lookback-window: 1 day ago
+      title-prefix: "[oblt-aw][autodoc]"
+      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
     secrets: inherit
 
   # Step 2: Create a PR implementing the audit findings (only when an issue was created)

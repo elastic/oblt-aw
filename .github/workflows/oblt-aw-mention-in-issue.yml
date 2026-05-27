@@ -35,5 +35,7 @@ jobs:
       !startsWith(github.event.comment.body, '/ai implement') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-issue.lock.yml@main
+    with:
+      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

@@ -1,0 +1,22 @@
+# Example consumer apm.yml (copy to repository root as apm.yml)
+name: my-repository
+version: 1.0.0
+
+dependencies:
+  apm: []
+  mcp: []
+
+x-oblt-aw:
+  version: 1
+  common:
+    setup-commands:
+      - ./scripts/bootstrap-agent-context.sh
+    inputs:
+      additional-instructions: |
+        Shared guidance for every observability agentic workflow in this repository.
+  workflows:
+    # Registry id from config/obs/workflow-registry.json — overrides common entirely.
+    agent-suggestions:
+      inputs:
+        additional-instructions: |
+          Additional agent-suggestions-only instructions.

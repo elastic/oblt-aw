@@ -21,6 +21,9 @@ jobs:
     uses: ./.github/workflows/aw-prelude.yml
     with:
       enabled-workflow-id: docs:example-workflow
+      platform-additional-instructions: |
+        This repository stores documentation as markdown across the repository.
+        Prefer concise, high-signal review comments with exact replacement text when possible.
 
   post-menu:
     name: Post or refresh AI PR menu
@@ -126,8 +129,10 @@ jobs:
 
   run-docs-review:
     name: Docs AI / docs review
-    needs: [evaluate-trigger]
-    if: needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    needs: [prelude, evaluate-trigger]
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
     permissions:
       actions: read
       contents: read
@@ -136,9 +141,7 @@ jobs:
     uses: elastic/docs-actions/.github/workflows/gh-aw-docs-review.lock.yml@v1
     with:
       review-scope: repo-wide-markdown
-      additional-instructions: |
-        This repository stores documentation as markdown across the repository.
-        Prefer concise, high-signal review comments with exact replacement text when possible.
+      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

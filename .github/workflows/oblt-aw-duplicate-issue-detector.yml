@@ -31,5 +31,7 @@ jobs:
         github.event_name == 'workflow_dispatch'
       )
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main
+    with:
+      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

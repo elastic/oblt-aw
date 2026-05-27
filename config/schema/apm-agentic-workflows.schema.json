@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/elastic/oblt-aw/config/schema/apm-agentic-workflows.schema.json",
+  "title": "OBLT AW agentic assets (apm.yml extension)",
+  "description": "Extension block x-oblt-aw in consumer apm.yml. Workflow ids match config/<org-key>/workflow-registry.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for x-oblt-aw."
+    },
+    "common": {
+      "$ref": "#/$defs/assetBlock",
+      "description": "Assets shared by all agentic workflows when no workflow-specific block exists."
+    },
+    "workflows": {
+      "type": "object",
+      "description": "Per-workflow assets. When a workflow id is present, common is ignored entirely (override).",
+      "additionalProperties": {
+        "$ref": "#/$defs/assetBlock"
+      },
+      "propertyNames": {
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      }
+    }
+  },
+  "$defs": {
+    "assetBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "setup-commands": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Shell commands run before the agentic workflow engine starts."
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Overrides for agentic workflow inputs (kebab-case keys). Values may be scalars or *-file paths.",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

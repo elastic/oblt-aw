@@ -18,6 +18,8 @@ jobs:
     with:
       enabled-workflow-id: obs:automerge
       load-allowed-authors: true
+      platform-additional-instructions: |
+        Target pull request number: ${{ github.event.pull_request.number }}.
 
   # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
   verify:
@@ -154,8 +156,7 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       allowed-bot-users: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
-      additional-instructions: |
-        Target pull request number: ${{ github.event.pull_request.number }}.
+      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 

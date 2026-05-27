@@ -42,7 +42,9 @@ def list_subject_workflows() -> list[pathlib.Path]:
     return [
         p
         for p in paths
-        if AW_WORKFLOW_PATTERN.match(p.name) and p.name != "aw-prelude.yml"
+        if AW_WORKFLOW_PATTERN.match(p.name)
+        and p.name != "aw-prelude.yml"
+        and not p.name.startswith("trg-")
     ]
 
 
