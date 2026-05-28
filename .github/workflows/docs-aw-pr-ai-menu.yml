@@ -79,7 +79,9 @@ jobs:
           PULL_REQUEST_NUMBER: ${{ steps.resolve-pr.outputs.number }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/pr-menu/post-menu.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/post-menu.js')
+            await fn({github, context, core})
 
   evaluate-trigger:
     name: Evaluate AI PR menu trigger
@@ -116,7 +118,9 @@ jobs:
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/pr-menu/evaluate-trigger.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/evaluate-trigger.js')
+            await fn({github, context, core})
 
   refresh-menu-after-trigger:
     name: Refresh AI PR menu after trigger
@@ -148,7 +152,9 @@ jobs:
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-trigger.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-trigger.js')
+            await fn({github, context, core})
 
   run-docs-review:
     name: Docs AI / docs review
@@ -200,4 +206,6 @@ jobs:
           DOCS_REVIEW_RESULT: ${{ needs.run-docs-review.result }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-docs-review.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-docs-review.js')
+            await fn({github, context, core})
