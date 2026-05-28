@@ -129,6 +129,25 @@ class TestShouldRunDistribution:
         assert bto.should_run_distribution(0, False, "abc123") is False
 
 
+class TestLegacyTrgClientEntrypoints:
+    def test_maps_trigger_to_trg(self) -> None:
+        current_dsts = {
+            ".github/workflows/trigger-oblt-aw-automerge.yml",
+            ".github/workflows/trigger-oblt-aw-security-detector.yml",
+        }
+        assert bto.legacy_trg_client_entrypoints(current_dsts) == {
+            ".github/workflows/trg-oblt-aw-automerge.yml",
+            ".github/workflows/trg-oblt-aw-security-detector.yml",
+        }
+
+    def test_ignores_non_trigger_oblt_aw(self) -> None:
+        current_dsts = {
+            ".github/workflows/trigger-docs-aw-ai-menu.yml",
+            ".github/workflows/other.yml",
+        }
+        assert bto.legacy_trg_client_entrypoints(current_dsts) == set()
+
+
 class TestParseBool:
     @pytest.mark.parametrize("value", ["true", "True", "TRUE", "1", "yes", "on"])
     def test_truthy_values(self, value: str) -> None:
@@ -244,7 +263,8 @@ class TestMain:
             dsts = {f["dst"] for f in t["files"]}
             assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts
             assert "remove_files" in t
-            assert t["remove_files"] == []
+            # Legacy cleanup always schedules the old trg-* path when trigger-* exists.
+            assert ".github/workflows/trg-oblt-aw-automerge.yml" in t["remove_files"]
 
     def test_force_distribution(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
@@ -333,6 +353,43 @@ class TestMain:
         assert ".github/workflows/trg-oblt-aw-automerge.yml" in install["remove_files"]
         dsts = {f["dst"] for f in install["files"]}
         assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts
+
+    def test_install_always_removes_legacy_trg_when_trigger_present(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        output_file = self._setup_env(
+            monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/foo"]
+        )
+        monkeypatch.setattr(
+            bto,
+            "read_previous_repo_org_assignments",
+            lambda _: {"elastic/foo": ["obs"]},
+        )
+
+        # Previous template already contains `trigger-*` so template diff alone would not
+        # schedule legacy `trg-*` deletion; we still want to remove it.
+        def fake_list_at_ref(org_key: str, ref: str) -> list[dict[str, str]]:
+            return [
+                {
+                    "src": ".github/remote-workflow-template/obs/.github/workflows/trigger-oblt-aw-automerge.yml",
+                    "dst": ".github/workflows/trigger-oblt-aw-automerge.yml",
+                },
+            ]
+
+        monkeypatch.setattr(bto, "list_org_template_files_at_ref", fake_list_at_ref)
+
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        targets = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in content.splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        install = next(t for t in targets if t["repository"] == "elastic/foo")
+        assert ".github/workflows/trg-oblt-aw-automerge.yml" in install["remove_files"]
 
     def test_install_includes_remove_files_for_dropped_templates(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
