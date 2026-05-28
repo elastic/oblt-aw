@@ -15,8 +15,8 @@ Reusable implementation for the Docs PR AI menu. The client template `trigger-do
 
 Jobs and routing behavior:
 
-1. `post-menu` posts or refreshes the PR AI menu when the routed event is `pull_request_target` or `workflow_dispatch`.
-2. `evaluate-trigger` runs on routed `issue_comment` events for PRs when an existing AI menu bot comment was edited (`<!-- docs-pr-ai-menu:start -->` and `<!-- docs-pr-ai-menu:end -->` markers).
+1. `post-menu` posts or refreshes the PR AI menu when the routed event is a successful `workflow_run` of [trigger-docs-aw-pr-ai-menu-collect.yml](../../.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-pr-ai-menu-collect.yml) or `workflow_dispatch`. The collect leg uses fork-safe `pull_request`; the privileged leg downloads the PR number artifact and never uses `pull_request_target`.
+2. `evaluate-trigger` runs on routed `issue_comment` events for PRs when an existing AI menu bot comment was edited (`<!-- docs-pr-ai-menu:start -->` and `<!-- docs-pr-ai-menu:end -->` markers). On fork PRs, only organization members may trigger the docs review path.
 3. `run-docs-review` calls `elastic/docs-actions/.github/workflows/gh-aw-docs-review.lock.yml@v1` when `docs_review_triggered == 'true'`, with `review-scope: repo-wide-markdown`.
 4. Refresh jobs update the AI PR menu comment after trigger evaluation and after the downstream review run.
 
