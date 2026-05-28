@@ -15,7 +15,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:security
+      control-plane-workflow: oblt-aw-security-fixer.yml
       load-allowed-authors: true
 
   security-issue-fixer:

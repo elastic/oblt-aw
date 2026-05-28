@@ -44,7 +44,8 @@ def test_validate_workflow_accepts_prelude_job(
     good = workflows / "oblt-aw-test.yml"
     good.write_text(
         "name: Test\non:\n  workflow_call:\njobs:\n"
-        "  prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n",
+        "  prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n"
+        "    with:\n      control-plane-workflow: oblt-aw-test.yml\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "WORKFLOWS_DIR", workflows)

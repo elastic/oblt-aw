@@ -5,8 +5,11 @@ name: Agentic Workflow Prelude
 on:
   workflow_call:
     inputs:
-      enabled-workflow-id:
-        description: Compound Control Plane id (for example obs:automerge)
+      control-plane-workflow:
+        description: >-
+          Basename of this wrapper under .github/workflows/ (for example
+          oblt-aw-automerge.yml). Compound org:workflow-id is resolved from
+          config/<org>/workflow-registry.json.
         required: true
         type: string
       load-allowed-authors:
@@ -18,7 +21,7 @@ on:
       proceed:
         description: >-
           True when dashboard gating allows this workflow (effective-raw empty or
-          enabled-workflow-id is listed in enabled-workflows).
+          the registry-resolved compound id is listed in enabled-workflows).
         value: ${{ jobs.evaluate.outputs.proceed }}
       effective-raw:
         description: Raw dashboard read before normalization ('' means all enabled)
@@ -74,12 +77,21 @@ jobs:
       allowed-issue-authors-json: ${{ steps.pack.outputs.allowed-issue-authors-json }}
       allowed-issue-authors-csv: ${{ steps.pack.outputs.allowed-issue-authors-csv }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve compound workflow id from registry
+        id: resolve
+        env:
+          CONTROL_PLANE_WORKFLOW: ${{ inputs.control-plane-workflow }}
+        run: python scripts/resolve_control_plane_workflow_id.py "${CONTROL_PLANE_WORKFLOW}"
+
       - name: Evaluate dashboard gate
         id: gate
         env:
           EFFECTIVE_RAW: ${{ needs.dashboard.outputs.effective-raw }}
           ENABLED_WORKFLOWS: ${{ needs.dashboard.outputs.enabled-workflows }}
-          ENABLED_WORKFLOW_ID: ${{ inputs.enabled-workflow-id }}
+          ENABLED_WORKFLOW_ID: ${{ steps.resolve.outputs.compound-workflow-id }}
         run: |
           set -euo pipefail
           if [ -z "${EFFECTIVE_RAW}" ]; then

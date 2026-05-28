@@ -6,7 +6,11 @@
       "name": "Example workflow",
       "description": "Minimal second-org entry for tests and multi-section dashboard behavior.",
       "maturity": "experimental",
-      "default_enabled": false
+      "default_enabled": false,
+      "control_plane_workflows": [
+        "docs-aw-ai-menu.yml",
+        "docs-aw-pr-ai-menu.yml"
+      ]
     }
   ]
 }

@@ -18,7 +18,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:estc-pr-buildkite-detective
+      control-plane-workflow: oblt-aw-estc-pr-buildkite-detective.yml
 
   estc-pr-buildkite-detective:
     needs: prelude

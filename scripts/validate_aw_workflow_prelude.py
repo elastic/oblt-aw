@@ -15,7 +15,8 @@
 # under the License.
 
 """
-Validate that every local *-aw-* workflow under .github/workflows/ calls aw-prelude.yml.
+Validate that every local *-aw-* workflow under .github/workflows/ calls aw-prelude.yml
+and is registered in config/<org>/workflow-registry.json.
 
 Excludes aw-prelude.yml itself (the shared prelude implementation), *-collect.yml
 fork-safe collector reusables (gating runs in the privileged callee), and distributed
@@ -28,7 +29,10 @@ import pathlib
 import re
 import sys
 
+from workflow_registry import validate_registry_against_workflows
+
 WORKFLOWS_DIR = pathlib.Path(".github/workflows")
+CONFIG_DIR = pathlib.Path("config")
 AW_WORKFLOW_PATTERN = re.compile(r".+-aw-.+\.ya?ml$")
 PRELUDE_USES = re.compile(
     r"uses:\s*\./\.github/workflows/aw-prelude\.ya?ml\b",
@@ -73,13 +77,24 @@ def main() -> int:
     for path in subjects:
         errors.extend(validate_workflow(path))
 
+    errors.extend(
+        validate_registry_against_workflows(
+            CONFIG_DIR,
+            WORKFLOWS_DIR,
+            {path.name for path in subjects},
+        )
+    )
+
     if errors:
         print("aw-prelude enforcement failed:", file=sys.stderr)
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         return 1
 
-    print(f"Validated {len(subjects)} *-aw-* workflow(s) call aw-prelude.yml.")
+    print(
+        f"Validated {len(subjects)} *-aw-* workflow(s) call aw-prelude.yml "
+        "and match workflow-registry.json."
+    )
     return 0
 
 
