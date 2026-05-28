@@ -120,6 +120,23 @@ def parse_bool(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def legacy_trg_client_entrypoints(current_dsts: set[str]) -> set[str]:
+    """
+    Derive legacy `trg-` client entrypoint paths from the current `trigger-` set.
+
+    This handles the case where a rename-only template change was skipped by the
+    distribution workflow (for example because the changed-files action ignores
+    git renames), leaving stale `trg-*` files in target repositories. When the
+    current template tree contains `trigger-*`, we proactively delete the
+    corresponding `trg-*` paths.
+    """
+    legacy: set[str] = set()
+    for dst in current_dsts:
+        if dst.startswith(".github/workflows/trigger-oblt-aw-"):
+            legacy.add(dst.replace("/trigger-oblt-aw-", "/trg-oblt-aw-", 1))
+    return legacy
+
+
 def has_relevant_git_changes(base_ref: str) -> bool:
     """
     True when ``config/`` or the remote template tree differ between ``base_ref`` and HEAD.
@@ -217,7 +234,9 @@ def main() -> int:
             previous_assignments.get(repo, []), at_base_ref=True
         )
         current_dsts = dst_paths(files)
-        remove_files = sorted(dst_paths(previous_files) - current_dsts)
+        removed_by_template_diff = dst_paths(previous_files) - current_dsts
+        removed_legacy_trg = legacy_trg_client_entrypoints(current_dsts) - current_dsts
+        remove_files = sorted(removed_by_template_diff | removed_legacy_trg)
         operations.append(
             {
                 "repository": repo,
