@@ -14,7 +14,7 @@ Every control-plane `*-aw-*` wrapper (`oblt-aw-*`, `docs-aw-*`) invokes this pre
 
 | Input | Type | Default | Purpose |
 |-------|------|---------|---------|
-| `enabled-workflow-id` | string | (required) | Compound Control Plane id, for example `obs:automerge` |
+| `control-plane-workflow` | string | (required) | Basename of the calling wrapper (for example `oblt-aw-automerge.yml`). Prelude resolves `org:workflow-id` from that org’s [`workflow-registry.json`](../../config/obs/workflow-registry.json) `control_plane_workflows` list. |
 | `load-allowed-authors` | boolean | `false` | When true, loads PR and issue bot allow lists on `pull_request` / `issues` events |
 
 ### Outputs
@@ -32,7 +32,7 @@ Every control-plane `*-aw-*` wrapper (`oblt-aw-*`, `docs-aw-*`) invokes this pre
 Same as ingress historically used:
 
 - `effective-raw` empty → `proceed=true`
-- Otherwise `proceed=true` only when `enabled-workflow-id` is in `enabled-workflows`
+- Otherwise `proceed=true` only when the registry-resolved compound id is in `enabled-workflows`
 
 ## References
 

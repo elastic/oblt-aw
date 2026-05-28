@@ -15,7 +15,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:agent-suggestions
+      control-plane-workflow: oblt-aw-agent-suggestions.yml
 
   agent-suggestions:
     needs: prelude

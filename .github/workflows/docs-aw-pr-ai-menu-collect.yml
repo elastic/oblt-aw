@@ -11,8 +11,18 @@ permissions:
   contents: read
 
 jobs:
+  prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflow: docs-aw-pr-ai-menu-collect.yml
+
   collect:
     name: Save PR number artifact
+    needs: prelude
+    if: needs.prelude.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

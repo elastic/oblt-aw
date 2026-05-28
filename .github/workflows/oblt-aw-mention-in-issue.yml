@@ -16,7 +16,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:mention-in-issue
+      control-plane-workflow: oblt-aw-mention-in-issue.yml
 
   mention-in-issue:
     needs: prelude

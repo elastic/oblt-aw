@@ -15,7 +15,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:resource-not-accessible-by-integration
+      control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-detector.yml
 
   discover:
     needs: prelude

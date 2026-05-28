@@ -13,7 +13,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:security
+      control-plane-workflow: oblt-aw-security-detector.yml
 
   scan:
     needs: prelude

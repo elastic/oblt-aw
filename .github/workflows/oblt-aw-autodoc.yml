@@ -15,7 +15,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:autodoc
+      control-plane-workflow: oblt-aw-autodoc.yml
 
   # Step 1: Detect docs drift from recent code changes and create an issue with findings
   audit:

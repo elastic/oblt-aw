@@ -20,7 +20,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: docs:example-workflow
+      control-plane-workflow: docs-aw-ai-menu.yml
 
   post-menu:
     name: Post or refresh AI menu

@@ -16,7 +16,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:issue-triage
+      control-plane-workflow: oblt-aw-issue-triage.yml
 
   issue-triage:
     needs: prelude

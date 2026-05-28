@@ -16,7 +16,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:automerge
+      control-plane-workflow: oblt-aw-automerge.yml
       load-allowed-authors: true
 
   # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
