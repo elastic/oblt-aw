@@ -77,14 +77,26 @@ jobs:
       allowed-issue-authors-json: ${{ steps.pack.outputs.allowed-issue-authors-json }}
       allowed-issue-authors-csv: ${{ steps.pack.outputs.allowed-issue-authors-csv }}
     steps:
-      - name: Checkout
+      - name: Checkout oblt-aw (registry scripts + config)
         uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/resolve_control_plane_workflow_id.py
+            scripts/workflow_registry.py
+            scripts/common.py
+            config/
+          sparse-checkout-cone-mode: false
 
       - name: Resolve compound workflow id from registry
         id: resolve
         env:
           CONTROL_PLANE_WORKFLOW: ${{ inputs.control-plane-workflow }}
-        run: python scripts/resolve_control_plane_workflow_id.py "${CONTROL_PLANE_WORKFLOW}"
+        run: python _oblt-aw/scripts/resolve_control_plane_workflow_id.py "${CONTROL_PLANE_WORKFLOW}" --config-dir _oblt-aw/config
 
       - name: Evaluate dashboard gate
         id: gate
