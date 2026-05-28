@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import subprocess
 import sys
 
 import pytest
@@ -79,6 +80,53 @@ class TestParseRepositories:
 
 
 # ── parse_bool ────────────────────────────────────────────────────────────────
+
+
+class TestHasRelevantGitChanges:
+    def test_detects_non_empty_git_diff(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def fake_run(
+            cmd: list[str], **kwargs: object
+        ) -> subprocess.CompletedProcess[str]:
+            assert cmd[:4] == ["git", "diff", "--name-only", "base-sha"]
+            return subprocess.CompletedProcess(
+                cmd, 0, ".github/remote-workflow-template/obs/x.yml\n"
+            )
+
+        monkeypatch.setattr(bto.subprocess, "run", fake_run)
+        assert bto.has_relevant_git_changes("base-sha") is True
+
+    def test_empty_git_diff_returns_false(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fake_run(
+            cmd: list[str], **kwargs: object
+        ) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(cmd, 0, "")
+
+        monkeypatch.setattr(bto.subprocess, "run", fake_run)
+        assert bto.has_relevant_git_changes("base-sha") is False
+
+    def test_invalid_base_ref_returns_false(self) -> None:
+        assert bto.has_relevant_git_changes("") is False
+        assert bto.has_relevant_git_changes(bto.ZERO_SHA) is False
+
+
+class TestShouldRunDistribution:
+    def test_force_overrides_zero_counts(self) -> None:
+        assert bto.should_run_distribution(0, True, "") is True
+
+    def test_changed_files_count_triggers_run(self) -> None:
+        assert bto.should_run_distribution(3, False, "") is True
+
+    def test_git_fallback_when_changed_files_zero(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(bto, "has_relevant_git_changes", lambda _: True)
+        assert bto.should_run_distribution(0, False, "abc123") is True
+
+    def test_skips_when_no_signals(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(bto, "has_relevant_git_changes", lambda _: False)
+        assert bto.should_run_distribution(0, False, "abc123") is False
 
 
 class TestParseBool:
@@ -243,6 +291,48 @@ class TestMain:
             if t["operation"] == "install":
                 assert "remove_files" in t
                 assert isinstance(t["remove_files"], list)
+
+    def test_zero_changed_files_with_git_template_diff_builds_targets(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """Renames-only pushes: changed-files count 0 but git diff still distributes."""
+        output_file = self._setup_env(
+            monkeypatch, tmp_path, changed_files_count=0, base_ref="deadbeef"
+        )
+        monkeypatch.setattr(bto, "has_relevant_git_changes", lambda _: True)
+        monkeypatch.setattr(
+            bto,
+            "read_previous_repo_org_assignments",
+            lambda _: {"elastic/foo": ["obs"]},
+        )
+
+        def fake_list_at_ref(org_key: str, ref: str) -> list[dict[str, str]]:
+            assert org_key == "obs"
+            assert ref == "deadbeef"
+            return [
+                {
+                    "src": ".github/remote-workflow-template/obs/.github/workflows/trg-oblt-aw-automerge.yml",
+                    "dst": ".github/workflows/trg-oblt-aw-automerge.yml",
+                },
+            ]
+
+        monkeypatch.setattr(bto, "list_org_template_files_at_ref", fake_list_at_ref)
+
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        assert "has_targets=true" in content
+        targets = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in content.splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        install = next(t for t in targets if t["repository"] == "elastic/foo")
+        assert ".github/workflows/trg-oblt-aw-automerge.yml" in install["remove_files"]
+        dsts = {f["dst"] for f in install["files"]}
+        assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts
 
     def test_install_includes_remove_files_for_dropped_templates(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
