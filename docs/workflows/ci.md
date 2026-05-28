@@ -15,7 +15,7 @@ This workflow runs quality checks and tests on every pull request targeting `mai
 | Job               | Purpose                                                                 |
 |-------------------|-------------------------------------------------------------------------|
 | `pre-commit`      | Runs all pre-commit hooks (YAML, shell, GitHub Actions lint, Python lint/format, mypy) |
-| `python-tests`    | Runs pytest on `tests/`                                                 |
+| `python-tests`    | Runs pytest on `tests/` and validates every `*-aw-*` workflow calls `aw-prelude.yml` |
 | `typescript-tests`| Runs `npm test` (tsx) on `tests/unit/*.test.ts`                         |
 | `scorecard`       | OpenSSF Scorecard security analysis; uploads SARIF to GitHub Security   |
 | `required`        | Gate job; fails if any of the above jobs fail                           |
@@ -37,9 +37,9 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 ## Python Tests
 
 - Python 3.14
-- Dependencies: pytest 9.0.2
+- Dependencies: `requirements-ci.txt` (pytest 9.0.2)
 - Command: `pytest tests/ -v --tb=short`
-- Pip cache keyed by `**/*.py`, `pyproject.toml`, `requirements*.txt`
+- Pip cache via `actions/setup-python` (`cache: pip`), keyed by `requirements-ci.txt`
 
 ## TypeScript Tests
 

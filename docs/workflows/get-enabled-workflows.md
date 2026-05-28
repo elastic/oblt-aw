@@ -17,7 +17,7 @@ Triggers:
 
 Called by ingress:
 
-- [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml), job `dashboard-enabled-workflows`
+- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml), job `dashboard`
 
 ## API / Interface
 
@@ -59,6 +59,6 @@ The job checks out **`elastic/oblt-aw`** at `main` with **sparse checkout** (`fe
 
 ## References
 
-- [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md)
+- [docs/workflows/aw-prelude.md](aw-prelude.md)
 - [docs/operations/control-plane-dashboard.md](../operations/control-plane-dashboard.md)
 - [docs/operations/control-plane-dashboard-format.md](../operations/control-plane-dashboard-format.md)

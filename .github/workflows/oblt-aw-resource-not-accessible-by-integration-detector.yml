@@ -1,0 +1,96 @@
+name: Resource Not Accessible by Integration Detector
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      enabled-workflow-id: obs:resource-not-accessible-by-integration
+
+  discover:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: read
+    if: needs.prelude.outputs.proceed == 'true' && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    outputs:
+      workflows: ${{ steps.list.outputs.workflows }}
+    steps:
+      - id: list
+        run: |
+          # Use numeric workflow IDs (not path-derived filenames) to avoid 404 when
+          # the API expects the exact workflow file name (e.g. copilot.yml, not "copilot")
+          workflows=$(gh api repos/${{ github.repository }}/actions/workflows \
+            --jq '[.workflows[].id | tostring] | tojson')
+          echo "workflows=$workflows" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  search:
+    needs: discover
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
+    strategy:
+      matrix:
+        workflow: ${{ fromJSON(needs.discover.outputs.workflows) }}
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight
+    with:
+      workflow: ${{ matrix.workflow }}
+      search-terms: "Resource not accessible by integration"
+      days: 1
+      conclusion: "any"
+      title-prefix: "[oblt-aw][resource-not-accessible-by-integration]"
+      additional-instructions: |
+        **Error Context:**
+        You are analyzing preflight search results for the exact phrase "Resource not accessible by integration" in GitHub Actions workflow logs. This error typically indicates permission or token scope issues when workflows access protected resources (e.g., secrets, environments, or repository settings).
+
+        **Strict No-Output Rule (MUST be enforced first):**
+        - If NO occurrences of the target error exist in the search results, call `noop` — do NOT create any issue, comment, or notification.
+        - Silence is the correct outcome when there is nothing to report.
+
+        **Specific noop calls:**
+        Call `noop` in these scenarios. Use the format:
+        ```
+        {"noop": {"message": "No action needed: [brief explanation]"}}
+        ```
+        - Zero matches in the search results: `{"noop": {"message": "No action needed: no occurrences of 'Resource not accessible by integration' detected in workflow logs"}}`
+        - Matches are benign or informational with no action needed: `{"noop": {"message": "No action needed: [describe why matches are non-actionable]"}}`
+        - All matched issues are already tracked by existing open issues: `{"noop": {"message": "No action needed: findings already covered by issue #[N]"}}`
+        - Evidence insufficient to identify root cause or actionable pattern: `{"noop": {"message": "No action needed: insufficient evidence for actionable triage"}}`
+        Do not create issues or post comments for no-op outcomes. The noop tool provides transparency without creating GitHub artifacts.
+
+        **Required Information to Include in Reports:**
+        For each detected occurrence, ensure the issue body includes:
+        - **Workflow Name/File**: The workflow that generated the error
+        - **Workflow Run URL**: Direct link (https://github.com/{owner}/{repo}/actions/runs/{run_id})
+        - **Branch Name**: Where the workflow was executed
+        - **Job/Step Name**: Specific job and step where the error occurred
+        - **Error Context**: Surrounding log lines from the search results
+        - **Frequency**: How many times this error occurred across the searched runs
+
+        **Issue Organization:**
+        - Organize findings by workflow or branch
+        - Use markdown tables or lists for clarity
+        - Add direct links to all affected workflow runs
+        - Group related occurrences and prioritize by frequency/severity
+        - Include recommendations for fixing (e.g., token permissions, environment access) when patterns are identifiable
+
+        **Detector label (required when creating an issue):**
+        - When you create an issue to report findings, you MUST add the label `oblt-aw/detector/res-not-accessible-by-integration` so ingress can route the issue to the triage workflow.
+
+        **Assignment:** When creating the issue, assign it to the elastic/observablt-ci GitHub team. If the platform does not support team assignees for issues, @mention the elastic/observablt-ci team in the issue body.
+    secrets: inherit

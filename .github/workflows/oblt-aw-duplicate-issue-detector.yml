@@ -1,0 +1,35 @@
+---
+name: Duplicate Issue Detector
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      enabled-workflow-id: obs:duplicate-issue-detector
+
+  duplicate-issue-detector:
+    needs: prelude
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      (
+        (github.event_name == 'issues' && github.event.action == 'opened') ||
+        github.event_name == 'workflow_dispatch'
+      )
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

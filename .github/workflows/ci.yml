@@ -44,20 +44,17 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-ci.txt
 
-      - name: Cache pip packages
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ hashFiles('**/*.py', '**/pyproject.toml', '**/requirements*.txt') }}
-          restore-keys: |
-            pip-${{ runner.os }}-
-
-      - name: Install pytest
-        run: pip install pytest==9.0.2
+      - name: Install Python test dependencies
+        run: pip install -r requirements-ci.txt
 
       - name: Run tests
         run: pytest tests/ -v --tb=short
+
+      - name: Validate *-aw-* workflows call aw-prelude
+        run: python scripts/validate_aw_workflow_prelude.py
 
   typescript-tests:
     name: TypeScript tests
@@ -104,7 +101,7 @@ jobs:
           publish_results: false
 
       - name: Upload Scorecard results to GitHub Security
-        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e  # v4.35.4
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4.35.5
         with:
           sarif_file: scorecard-results.sarif
 

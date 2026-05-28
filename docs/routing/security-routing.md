@@ -2,19 +2,19 @@
 
 ## Overview
 
-Entrypoint source: [.github/workflows/oblt-aw-ingress.yml](../../.github/workflows/oblt-aw-ingress.yml)
+Client templates: `trigger-oblt-aw-security-*.yml` → matching `oblt-aw-security-*.yml`
 
-Routed workflows (ingress jobs `security-detector`, `security-triage`, `security-fixer`; registry id `security`):
+Routed workflows (`oblt-aw-security-*`; registry id `security`):
 
-- [.github/workflows/gh-aw-security-detector.yml](../../.github/workflows/gh-aw-security-detector.yml)
-- [.github/workflows/gh-aw-security-triage.yml](../../.github/workflows/gh-aw-security-triage.yml)
-- [.github/workflows/gh-aw-security-fixer.yml](../../.github/workflows/gh-aw-security-fixer.yml)
+- [.github/workflows/oblt-aw-security-detector.yml](../../.github/workflows/oblt-aw-security-detector.yml)
+- [.github/workflows/oblt-aw-security-triage.yml](../../.github/workflows/oblt-aw-security-triage.yml)
+- [.github/workflows/oblt-aw-security-fixer.yml](../../.github/workflows/oblt-aw-security-fixer.yml)
 
-All three ingress routes use the same Control Plane dashboard gate: jobs run only when [workflow-registry.json](../../config/obs/workflow-registry.json) id `security` is enabled (see [docs/workflows/oblt-aw-ingress.md](../workflows/oblt-aw-ingress.md) — `get-enabled-workflows` / `enabled-workflows`).
+All three workflows use the same Control Plane dashboard gate: prelude allows `obs:security` when [workflow-registry.json](../../config/obs/workflow-registry.json) id `security` is enabled ([aw-prelude](../workflows/aw-prelude.md)).
 
 ## Usage
 
-Routing rules from ingress (aligned with `oblt-aw-ingress.yml`; issue routes follow the same label pattern as `resource-not-accessible-by-integration-*`):
+Routing rules in `oblt-aw-security-*.yml` (issue routes follow the same label pattern as `resource-not-accessible-by-integration-*`):
 
 - **Detector** — `schedule` or `workflow_dispatch`.
 - **Triage** — `issues` + (`opened` and issue already has `oblt-aw/detector/security`) **or** (`labeled` and the label applied is `oblt-aw/detector/security`).
@@ -25,7 +25,7 @@ Routing rules from ingress (aligned with `oblt-aw-ingress.yml`; issue routes fol
 ### Detector
 
 - **Events**: `schedule`, `workflow_dispatch`
-- **Role**: Static scan of the repository; opens issues with label `oblt-aw/detector/security` for findings (see [docs/workflows/gh-aw-security-detector.md](../workflows/gh-aw-security-detector.md)).
+- **Role**: Static scan of the repository; opens issues with label `oblt-aw/detector/security` for findings (see [docs/workflows/oblt-aw-security-detector.md](../workflows/oblt-aw-security-detector.md)).
 
 ### Triage
 
@@ -60,6 +60,6 @@ The ingress uses `contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw
 
 ## References
 
-- [docs/workflows/gh-aw-security-detector.md](../workflows/gh-aw-security-detector.md)
-- [docs/workflows/gh-aw-security-triage.md](../workflows/gh-aw-security-triage.md)
-- [docs/workflows/gh-aw-security-fixer.md](../workflows/gh-aw-security-fixer.md)
+- [docs/workflows/oblt-aw-security-detector.md](../workflows/oblt-aw-security-detector.md)
+- [docs/workflows/oblt-aw-security-triage.md](../workflows/oblt-aw-security-triage.md)
+- [docs/workflows/oblt-aw-security-fixer.md](../workflows/oblt-aw-security-fixer.md)

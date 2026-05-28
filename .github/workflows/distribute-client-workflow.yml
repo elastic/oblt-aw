@@ -7,6 +7,8 @@ on:
     paths:
       - config/**/active-repositories.json
       - .github/remote-workflow-template/**
+      - .github/workflows/distribute-client-workflow.yml
+      - scripts/build_target_operations.py
   workflow_dispatch:
     inputs:
       force:
@@ -29,6 +31,7 @@ jobs:
     outputs:
       targets: ${{ steps.targets.outputs.targets }}
       has_targets: ${{ steps.targets.outputs.has_targets }}
+      relevant_git_changes: ${{ steps.targets.outputs.relevant_git_changes }}
       install_count: ${{ steps.targets.outputs.install_count }}
       remove_count: ${{ steps.targets.outputs.remove_count }}
       total_count: ${{ steps.targets.outputs.total_count }}
@@ -45,7 +48,7 @@ jobs:
         with:
           base-ref: ${{ github.event.before }}
           ref: ${{ github.sha }}
-          filter: '["*config/**/active-repositories.json","*.github/remote-workflow-template/**"]'
+          filter: '["config/**/active-repositories.json",".github/remote-workflow-template/**"]'
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -66,12 +69,14 @@ jobs:
           REMOVE_COUNT: ${{ steps.targets.outputs.remove_count }}
           TOTAL_COUNT: ${{ steps.targets.outputs.total_count }}
           CHANGED_FILES_COUNT: ${{ steps.changed-files.outputs.count || 0 }}
+          RELEVANT_GIT_CHANGES: ${{ steps.targets.outputs.relevant_git_changes || 'false' }}
           FORCE_DISTRIBUTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force || 'false' }}
         run: |
           {
             echo "## Distribution target summary"
             echo
-            echo "- Relevant changed files: ${CHANGED_FILES_COUNT}"
+            echo "- Relevant changed files (changed-files action): ${CHANGED_FILES_COUNT}"
+            echo "- Relevant git diff (config + templates): ${RELEVANT_GIT_CHANGES}"
             echo "- Force distribution: ${FORCE_DISTRIBUTION}"
             echo "- Install/update targets: ${INSTALL_COUNT}"
             echo "- Removal targets: ${REMOVE_COUNT}"
@@ -123,6 +128,17 @@ jobs:
             cp "$src" "$dst"
           done
 
+      - name: Remove obsolete client files from target repository
+        if: ${{ matrix.target.operation == 'install' }}
+        env:
+          REMOVE_FILES_JSON: ${{ toJSON(matrix.target.remove_files) }}
+        run: |
+          set -euo pipefail
+
+          printf '%s' "$REMOVE_FILES_JSON" | jq -r '.[]' | while IFS= read -r dst; do
+            rm -f "$GITHUB_WORKSPACE/target/$dst"
+          done
+
       - name: Remove client files from target repository
         if: ${{ matrix.target.operation == 'remove' }}
         env:
@@ -148,6 +164,24 @@ jobs:
             echo 'FILES_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: Render removed obsolete files list
+        if: ${{ matrix.target.operation == 'install' }}
+        id: files-md-install-remove
+        env:
+          REMOVE_FILES_JSON: ${{ toJSON(matrix.target.remove_files) }}
+        run: |
+          set -euo pipefail
+          {
+            echo 'list<<FILES_EOF'
+            count="$(printf '%s' "$REMOVE_FILES_JSON" | jq 'length')"
+            if [[ "$count" -eq 0 ]]; then
+              echo '_None._'
+            else
+              printf '%s' "$REMOVE_FILES_JSON" | jq -r '.[] | "- `\(.)`"'
+            fi
+            echo 'FILES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create or update installation PR in target repository
         if: ${{ matrix.target.operation == 'install' }}
         id: cpr
@@ -166,6 +200,9 @@ jobs:
 
             Files synced:
             ${{ steps.files-md-install.outputs.list }}
+
+            Files removed (no longer in the template tree):
+            ${{ steps.files-md-install-remove.outputs.list }}
 
             ---
             Created by [workflow run](${{ env.JOB_URL }})
