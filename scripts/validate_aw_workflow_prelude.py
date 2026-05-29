@@ -15,9 +15,11 @@
 # under the License.
 
 """
-Validate that every *-aw-* workflow under .github/workflows/ calls aw-prelude.yml.
+Validate that every local *-aw-* workflow under .github/workflows/ calls aw-prelude.yml
+and is registered in config/<org>/workflow-registry.json.
 
-Excludes aw-prelude.yml itself (the shared prelude implementation).
+Excludes aw-prelude.yml itself (the shared prelude implementation) and distributed
+trg-* and trigger-* client entrypoints, which call elastic/oblt-aw reusable workflows remotely.
 """
 
 from __future__ import annotations
@@ -26,7 +28,10 @@ import pathlib
 import re
 import sys
 
+from workflow_registry import validate_registry_against_workflows
+
 WORKFLOWS_DIR = pathlib.Path(".github/workflows")
+CONFIG_DIR = pathlib.Path("config")
 AW_WORKFLOW_PATTERN = re.compile(r".+-aw-.+\.ya?ml$")
 PRELUDE_USES = re.compile(
     r"uses:\s*\./\.github/workflows/aw-prelude\.ya?ml\b",
@@ -44,7 +49,7 @@ def list_subject_workflows() -> list[pathlib.Path]:
         for p in paths
         if AW_WORKFLOW_PATTERN.match(p.name)
         and p.name != "aw-prelude.yml"
-        and not p.name.startswith("trg-")
+        and not p.name.startswith(("trg-", "trigger-"))
     ]
 
 
@@ -70,13 +75,24 @@ def main() -> int:
     for path in subjects:
         errors.extend(validate_workflow(path))
 
+    errors.extend(
+        validate_registry_against_workflows(
+            CONFIG_DIR,
+            WORKFLOWS_DIR,
+            {path.name for path in subjects},
+        )
+    )
+
     if errors:
         print("aw-prelude enforcement failed:", file=sys.stderr)
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         return 1
 
-    print(f"Validated {len(subjects)} *-aw-* workflow(s) call aw-prelude.yml.")
+    print(
+        f"Validated {len(subjects)} *-aw-* workflow(s) call aw-prelude.yml "
+        "and match workflow-registry.json."
+    )
     return 0
 
 

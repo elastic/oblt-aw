@@ -15,7 +15,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:dependency-review
+      control-plane-workflow: oblt-aw-dependency-review.yml
       load-allowed-authors: true
       platform-additional-instructions: |
         Noop when not applicable (mandatory):

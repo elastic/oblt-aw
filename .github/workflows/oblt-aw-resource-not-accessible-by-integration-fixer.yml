@@ -12,7 +12,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:resource-not-accessible-by-integration
+      control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-fixer.yml
       load-allowed-authors: true
       platform-additional-instructions: |
         Your task is to fix issues labeled for the "Resource not accessible by integration" problem.

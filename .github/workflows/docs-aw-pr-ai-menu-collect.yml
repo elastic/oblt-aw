@@ -1,0 +1,42 @@
+name: Docs PR AI menu collect
+
+# Fork-safe collector for the split-workflow pattern. Consumer repositories install
+# `trigger-docs-aw-pr-ai-menu-collect.yml`, which calls this reusable on `pull_request`.
+# The PR number artifact is consumed by `docs-aw-pr-ai-menu.yml` via `workflow_run`.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflow: docs-aw-pr-ai-menu-collect.yml
+
+  collect:
+    name: Save PR number artifact
+    needs: prelude
+    if: needs.prelude.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Write pull request number
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: echo "$PR_NUMBER" > pr_number.txt
+
+      - name: Upload pull request number artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-number
+          path: pr_number.txt
+          retention-days: 1

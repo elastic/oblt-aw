@@ -16,7 +16,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:security
+      control-plane-workflow: oblt-aw-security-triage.yml
       load-allowed-authors: true
       platform-additional-instructions: |
         Your task is to triage newly opened security-related issues in this repository. Security issues include vulnerabilities in GitHub Actions workflows and shell scripts: injection (expression, command, YAML), secret management (token exposure via CLI args, secrets in command strings), supply chain (action pinning, checksums), and least privilege (excessive permissions).

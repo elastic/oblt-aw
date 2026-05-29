@@ -18,7 +18,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:estc-pr-buildkite-detective
+      control-plane-workflow: oblt-aw-estc-pr-buildkite-detective.yml
       platform-additional-instructions: |
         If a step fails, check if the failure is reported as a GitHub issue labeled `flaky-test`. Reference the GitHub issue if so.
 

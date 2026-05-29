@@ -15,7 +15,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:autodoc
+      control-plane-workflow: oblt-aw-autodoc.yml
       platform-additional-instructions: |
         Your task is to analyze ALL documentation in this repository, identify gaps and areas for improvement, and file an issue with concrete findings.
 

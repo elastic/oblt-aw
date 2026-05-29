@@ -55,7 +55,7 @@ Additional rules in the ruleset may be added to the scripts over time.
 
 - **Workflow-level** `permissions`: **`contents: read`** only.
 - **Job `scan` `permissions`**: `actions: read`, `contents: read`, `pull-requests: read`, and **`id-token: write`** (for OIDC used by `create-token`). Issue creation does **not** use `GITHUB_TOKEN`; the **Create issues from findings** step sets `GH_TOKEN` to the ephemeral token from **Create ephemeral GitHub token**.
-- **Call chain**: The distributed client template `trg-oblt-aw-security-detector.yml` grants **`id-token: write`** on the `run-aw` job so the nested `scan` job can call `create-token`.
+- **Call chain**: The distributed client template `trigger-oblt-aw-security-detector.yml` grants **`id-token: write`** on the `run-aw` job so the nested `scan` job can call `create-token`.
 
 ## API / Interface
 

@@ -19,13 +19,15 @@ const { upsertMenuComment } = require('./lib.js');
 
 module.exports = async ({ github, context, core }) => {
   const workflowDispatchPrNumber = context.payload.inputs?.pull_request_number;
-  const pullRequestNumber =
+  const envPrNumber = process.env.PULL_REQUEST_NUMBER;
+  const pullRequestNumber = Number(
     context.eventName === 'workflow_dispatch'
-      ? Number(workflowDispatchPrNumber)
-      : context.payload.pull_request.number;
+      ? workflowDispatchPrNumber
+      : envPrNumber || context.payload.pull_request?.number,
+  );
 
-  if (!pullRequestNumber) {
-    core.setFailed('Pull request number is required for workflow_dispatch runs.');
+  if (!pullRequestNumber || Number.isNaN(pullRequestNumber)) {
+    core.setFailed('Pull request number is required.');
     return;
   }
 

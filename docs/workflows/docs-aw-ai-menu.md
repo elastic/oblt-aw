@@ -4,11 +4,11 @@
 
 Source file: [.github/workflows/docs-aw-ai-menu.yml](../../.github/workflows/docs-aw-ai-menu.yml)
 
-Reusable implementation for the Docs issue AI menu. The client template `trg-docs-aw-ai-menu.yml` calls this workflow on supported issue events.
+Reusable implementation for the Docs issue AI menu. The client template `trigger-docs-aw-ai-menu.yml` calls this workflow on supported issue events.
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from [trg-docs-aw-ai-menu.yml](../../.github/remote-workflow-template/docs/.github/workflows/trg-docs-aw-ai-menu.yml) (distributed client template).
+- Triggered via `workflow_call` from [trigger-docs-aw-ai-menu.yml](../../.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-ai-menu.yml) (distributed client template).
 - Optional secret input: `COPILOT_GITHUB_TOKEN` (`required: false` at this workflow boundary).
 
 ## Usage

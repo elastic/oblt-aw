@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Adopting** a new workflow means: it is **defined in the remote control plane** (`elastic/oblt-aw` — reusable `oblt-aw-*` workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trg-oblt-aw-<workflow-id>.yml`** client template that calls `elastic/oblt-aw/.github/workflows/oblt-aw-<name>.yml@main`.
+**Adopting** a new workflow means: it is **defined in the remote control plane** (`elastic/oblt-aw` — reusable `oblt-aw-*` workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trigger-oblt-aw-<workflow-id>.yml`** client template that calls `elastic/oblt-aw/.github/workflows/oblt-aw-<name>.yml@main`.
 
 You **cannot** meaningfully “enable” a workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](../../config/obs/workflow-registry.json), the **client template and `oblt-aw-*` wrapper** exist, and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane Dashboard (or until prelude sees no dashboard and treats the full catalog as enabled).
 
@@ -19,12 +19,12 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 1. Add the reusable workflow (and upstream lock, if applicable)
 
-- Add `.github/workflows/trg-oblt-aw-<name>.yml (client); oblt-aw-<name>.yml` at the repository root.
+- Add `.github/workflows/trigger-oblt-aw-<name>.yml (client); oblt-aw-<name>.yml` at the repository root.
 - When the agent graph lives in **`elastic/ai-github-actions`**, add a thin wrapper that calls the pinned lock file and pass domain-specific `with:` / `secrets:`.
 
 ### 2. Add prelude and route conditions
 
-- First job: `uses: ./.github/workflows/aw-prelude.yml` with `enabled-workflow-id: <org-key>:<workflow-id>` and `load-allowed-authors: true` when PR/issue allow lists apply.
+- First job: `uses: ./.github/workflows/aw-prelude.yml` with `control-plane-workflow: <this-wrapper-basename>.yml` (must appear under that workflow’s `control_plane_workflows` in `workflow-registry.json`) and `load-allowed-authors: true` when PR/issue allow lists apply.
 - Downstream jobs: `needs: prelude` and `if: needs.prelude.outputs.proceed == 'true'` plus event/label/comment guards ([aw-prelude](../workflows/aw-prelude.md)).
 
 ### 3. Mirror permissions from similar workflows
@@ -37,11 +37,11 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 5. Register in `workflow-registry.json`
 
-- Add one object with unique `id`, `name`, `description`, `maturity`, and `default_enabled` under `config/<org-key>/workflow-registry.json`.
+- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, and `control_plane_workflows` (basenames of every `oblt-aw-*` / `docs-aw-*` wrapper that share this dashboard id) under `config/<org-key>/workflow-registry.json`.
 
 ### 6. Add a client template
 
-- Add `.github/remote-workflow-template/obs/.github/workflows/trg-oblt-aw-<workflow-id>.yml` with **only** the triggers for this workflow ([oblt-aw client template](../workflows/oblt-aw-client-template.md)).
+- Add `.github/remote-workflow-template/obs/.github/workflows/trigger-oblt-aw-<workflow-id>.yml` with **only** the triggers for this workflow ([oblt-aw client template](../workflows/oblt-aw-client-template.md)).
 
 ### 7. Update documentation
 
@@ -67,8 +67,8 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ## Troubleshooting
 
-- **Workflow never runs after checking the box** — Wait for a supported trigger on the installed `trg-oblt-aw-*.yml` client ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)).
-- **Validation fails on the PR** — Compare `permissions` with a sibling wrapper; confirm prelude `enabled-workflow-id` matches registry `obs:<id>`.
+- **Workflow never runs after checking the box** — Wait for a supported trigger on the installed `trigger-oblt-aw-*.yml` client ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)).
+- **Validation fails on the PR** — Compare `permissions` with a sibling wrapper; confirm the wrapper basename is listed under the correct `control_plane_workflows` entry in `workflow-registry.json` and prelude passes `control-plane-workflow: <basename>`.
 
 ## References
 

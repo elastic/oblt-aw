@@ -1,7 +1,7 @@
 name: Docs AI menu
 
 # Reusable implementation for the Elastic Docs issue AI menu. Consumer repositories
-# install `.github/remote-workflow-template/docs/.github/workflows/trg-docs-aw-ai-menu.yml`.
+# install `.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-ai-menu.yml`.
 # Scripts: `scripts/docs/issue-menu/`.
 
 on:
@@ -20,7 +20,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: docs:example-workflow
+      control-plane-workflow: docs-aw-ai-menu.yml
 
   post-menu:
     name: Post or refresh AI menu
@@ -52,7 +52,9 @@ jobs:
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/issue-menu/post-menu.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/post-menu.js')
+            await fn({github, context, core})
 
   evaluate-trigger:
     name: Evaluate AI menu trigger
@@ -89,7 +91,9 @@ jobs:
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/issue-menu/evaluate-trigger.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/evaluate-trigger.js')
+            await fn({github, context, core})
 
   refresh-menu-after-trigger:
     name: Refresh AI menu after trigger
@@ -124,7 +128,9 @@ jobs:
           ISSUE_SCOPE_TRIGGERED: ${{ needs.evaluate-trigger.outputs.issue_scope_triggered }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-trigger.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-trigger.js')
+            await fn({github, context, core})
 
   run-docs-triage:
     name: Docs AI / triage
@@ -183,7 +189,9 @@ jobs:
           TRIAGE_RESULT: ${{ needs.run-docs-triage.result }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-triage.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-triage.js')
+            await fn({github, context, core})
 
   refresh-menu-after-docs-issue-scope:
     name: Refresh AI menu after docs issue scope
@@ -215,4 +223,6 @@ jobs:
           ISSUE_SCOPE_RESULT: ${{ needs.run-docs-issue-scope.result }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-issue-scope.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-issue-scope.js')
+            await fn({github, context, core})

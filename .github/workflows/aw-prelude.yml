@@ -5,8 +5,11 @@ name: Agentic Workflow Prelude
 on:
   workflow_call:
     inputs:
-      enabled-workflow-id:
-        description: Compound Control Plane id (for example obs:automerge)
+      control-plane-workflow:
+        description: >-
+          Basename of this wrapper under .github/workflows/ (for example
+          oblt-aw-automerge.yml). Compound org:workflow-id is resolved from
+          config/<org>/workflow-registry.json.
         required: true
         type: string
       load-allowed-authors:
@@ -37,7 +40,7 @@ on:
       proceed:
         description: >-
           True when dashboard gating allows this workflow (effective-raw empty or
-          enabled-workflow-id is listed in enabled-workflows).
+          the registry-resolved compound id is listed in enabled-workflows).
         value: ${{ jobs.evaluate.outputs.proceed }}
       effective-raw:
         description: Raw dashboard read before normalization ('' means all enabled)
@@ -106,17 +109,39 @@ jobs:
     timeout-minutes: 2
     outputs:
       proceed: ${{ steps.gate.outputs.proceed }}
+      compound-workflow-id: ${{ steps.resolve.outputs.compound-workflow-id }}
       allowed-pr-authors-json: ${{ steps.pack.outputs.allowed-pr-authors-json }}
       allowed-pr-authors-csv: ${{ steps.pack.outputs.allowed-pr-authors-csv }}
       allowed-issue-authors-json: ${{ steps.pack.outputs.allowed-issue-authors-json }}
       allowed-issue-authors-csv: ${{ steps.pack.outputs.allowed-issue-authors-csv }}
     steps:
+      - name: Checkout oblt-aw (registry scripts + config)
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/resolve_control_plane_workflow_id.py
+            scripts/workflow_registry.py
+            scripts/common.py
+            config/
+          sparse-checkout-cone-mode: false
+
+      - name: Resolve compound workflow id from registry
+        id: resolve
+        env:
+          CONTROL_PLANE_WORKFLOW: ${{ inputs.control-plane-workflow }}
+        run: python _oblt-aw/scripts/resolve_control_plane_workflow_id.py "${CONTROL_PLANE_WORKFLOW}" --config-dir _oblt-aw/config
+
       - name: Evaluate dashboard gate
         id: gate
         env:
           EFFECTIVE_RAW: ${{ needs.dashboard.outputs.effective-raw }}
           ENABLED_WORKFLOWS: ${{ needs.dashboard.outputs.enabled-workflows }}
-          ENABLED_WORKFLOW_ID: ${{ inputs.enabled-workflow-id }}
+          ENABLED_WORKFLOW_ID: ${{ steps.resolve.outputs.compound-workflow-id }}
         run: |
           set -euo pipefail
           if [ -z "${EFFECTIVE_RAW}" ]; then
@@ -234,7 +259,7 @@ jobs:
       - name: Resolve agentic assets from apm.yml
         id: resolve
         env:
-          ENABLED_WORKFLOW_ID: ${{ inputs.enabled-workflow-id }}
+          ENABLED_WORKFLOW_ID: ${{ needs.evaluate.outputs.compound-workflow-id }}
           REPO_ROOT: ${{ github.workspace }}
           PLATFORM_ADDITIONAL_INSTRUCTIONS: ${{ inputs.platform-additional-instructions }}
           PLATFORM_INPUTS_JSON: ${{ inputs.platform-inputs-json }}

@@ -16,7 +16,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      enabled-workflow-id: obs:duplicate-issue-detector
+      control-plane-workflow: oblt-aw-duplicate-issue-detector.yml
 
   duplicate-issue-detector:
     needs: prelude
