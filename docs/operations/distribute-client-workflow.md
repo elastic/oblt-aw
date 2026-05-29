@@ -19,6 +19,8 @@ Triggers:
 - `push` to `main` when either of these paths change:
   - `config/**/active-repositories.json` (per-org repo lists)
   - [.github/remote-workflow-template/](../../.github/remote-workflow-template/)
+  - `.github/workflows/distribute-client-workflow.yml` (distribution workflow definition)
+  - `scripts/build_target_operations.py` (target operation builder)
 - `workflow_dispatch` with optional `force` boolean input.
 
 Execution stages:
@@ -83,6 +85,7 @@ Workflow outputs written by the script:
 
 - `targets`: JSON array of objects like `{"repository":"owner/repo","operation":"install|remove"}`
 - `has_targets`: `true` when at least one operation exists; otherwise `false`
+- `relevant_git_changes`: `true` when `git diff --name-only` between `BASE_REF` and `HEAD` under `config/` and `.github/remote-workflow-template/` is non-empty; otherwise `false`
 - `install_count`: count of install/update operations
 - `remove_count`: count of removal operations
 - `total_count`: total operations (`install_count + remove_count`)
