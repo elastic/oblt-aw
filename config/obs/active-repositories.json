@@ -10,7 +10,6 @@
         "elastic/observability-catalog",
         "elastic/observability-github-secrets",
         "elastic/observability-github-settings",
-        "elastic/observability-robots",
-        "elastic/observability-test-environments"
+        "elastic/observability-robots"
     ]
 }
