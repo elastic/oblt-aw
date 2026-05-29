@@ -201,9 +201,26 @@ jobs:
         if: >-
           inputs.install-apm-packages &&
           steps.detect.outputs.present == 'true'
+        env:
+          APM_VERSION: "v0.16.0"
         run: |
           set -euo pipefail
-          curl -fsSL https://aka.ms/apm-unix | sh
+          OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          ARCH="$(uname -m)"
+          case "${ARCH}" in
+            x86_64) ARCH="x86_64" ;;
+            arm64|aarch64) ARCH="arm64" ;;
+            *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
+          esac
+          TARBALL="apm-${OS}-${ARCH}.tar.gz"
+          BASE_URL="https://github.com/microsoft/apm/releases/download/${APM_VERSION}"
+          curl -fsSL "${BASE_URL}/${TARBALL}" -o "/tmp/${TARBALL}"
+          curl -fsSL "${BASE_URL}/${TARBALL}.sha256" -o "/tmp/${TARBALL}.sha256"
+          EXPECTED="$(awk '{print $1}' "/tmp/${TARBALL}.sha256")"
+          echo "${EXPECTED}  /tmp/${TARBALL}" | sha256sum -c
+          mkdir -p "${HOME}/.local/bin"
+          tar -xzf "/tmp/${TARBALL}" -C /tmp "apm-${OS}-${ARCH}/apm"
+          install -m 0755 "/tmp/apm-${OS}-${ARCH}/apm" "${HOME}/.local/bin/apm"
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
 
       - name: Install agent packages from apm.yml
