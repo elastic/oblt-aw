@@ -11,6 +11,8 @@ This workflow creates PRs across target repositories to install, update, or remo
 - Triggered by changes to:
   - `config/**/active-repositories.json` (per-org repo lists; example [config/obs/active-repositories.json](../../config/obs/active-repositories.json))
   - [.github/remote-workflow-template/](../../.github/remote-workflow-template/) (per-org subtrees such as `obs/`, `docs/`)
+  - `.github/workflows/distribute-client-workflow.yml` (distribution workflow definition)
+  - `scripts/build_target_operations.py` (target operation builder)
 - Or manually triggered with `workflow_dispatch`.
 
 ## Usage
@@ -39,6 +41,7 @@ Core behavior:
 - The target builder step exposes:
   - `targets` (JSON matrix entries with `repository`, `operation`, `files`, and for install ops `remove_files`)
   - `has_targets` (`true`/`false`)
+  - `relevant_git_changes` (`true` when relevant `git diff` changes are detected under `config/` or `.github/remote-workflow-template/`; otherwise `false`)
   - `install_count`, `remove_count`, `total_count`
 - Removal operations are computed by comparing current config against the version at `BASE_REF`.
 - PR result artifacts are emitted as `repo|op|url` lines and consumed by the summarize step.

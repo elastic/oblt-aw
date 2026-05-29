@@ -4,11 +4,12 @@
 
 Source file: [.github/workflows/docs-aw-pr-ai-menu.yml](../../.github/workflows/docs-aw-pr-ai-menu.yml)
 
-Reusable implementation for the Docs PR AI menu. The client template `trigger-docs-aw-pr-ai-menu.yml` calls this workflow on supported PR events.
+Reusable implementation for the Docs PR AI menu. The distributed client templates use a split trigger model: `trigger-docs-aw-pr-ai-menu-collect.yml` handles fork-safe `pull_request` events, and `trigger-docs-aw-pr-ai-menu.yml` handles `workflow_run`, `issue_comment`, and `workflow_dispatch` before calling this reusable workflow.
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from [trigger-docs-aw-pr-ai-menu.yml](../../.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-pr-ai-menu.yml) (distributed client template).
+- Triggered via `workflow_call` from [trigger-docs-aw-pr-ai-menu.yml](../../.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-pr-ai-menu.yml) (distributed privileged leg).
+- PR-event collection is performed by [trigger-docs-aw-pr-ai-menu-collect.yml](../../.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-pr-ai-menu-collect.yml), which triggers the privileged leg via `workflow_run`.
 - Optional secret input: `COPILOT_GITHUB_TOKEN` (`required: false` at this workflow boundary).
 
 ## Usage
