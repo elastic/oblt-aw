@@ -32,6 +32,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 from apm_agentic_assets import resolve_agentic_assets
 from common import append_multiline_github_output, write_outputs
@@ -62,6 +63,10 @@ def main() -> int:
     if not isinstance(platform_inputs, dict):
         print("PLATFORM_INPUTS_JSON must be a JSON object", file=sys.stderr)
         return 1
+    if not all(isinstance(k, str) for k in platform_inputs):
+        print("PLATFORM_INPUTS_JSON keys must all be strings", file=sys.stderr)
+        return 1
+    platform_inputs_typed: dict[str, Any] = cast(dict[str, Any], platform_inputs)
 
     config_dir: Path | None = None
     config_env = os.environ.get("CONTROL_PLANE_CONFIG_DIR", "").strip()
@@ -74,7 +79,7 @@ def main() -> int:
             workflow_id=workflow_id,
             org_key=org_key,
             platform_additional_instructions=platform_text,
-            platform_inputs=platform_inputs,
+            platform_inputs=platform_inputs_typed,
             config_dir=config_dir,
         )
     except (OSError, ValueError, FileNotFoundError) as exc:
