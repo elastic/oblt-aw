@@ -138,8 +138,14 @@ def validate_registry_against_workflows(
     config_dir: Path,
     workflows_dir: Path,
     subject_workflow_names: set[str],
+    skip_declaration_check: frozenset[str] = frozenset(),
 ) -> list[str]:
-    """Return human-readable validation errors (empty when valid)."""
+    """Return human-readable validation errors (empty when valid).
+
+    skip_declaration_check: filenames whose control-plane-workflow declaration is
+    intentionally absent (e.g. pull_request workflows that cannot call aw-prelude).
+    They are still verified against the registry for existence/staleness.
+    """
     errors: list[str] = []
     try:
         index = build_control_plane_workflow_index(config_dir)
@@ -164,6 +170,8 @@ def validate_registry_against_workflows(
         )
 
     for path_name in subject_workflow_names:
+        if path_name in skip_declaration_check:
+            continue
         path = workflows_dir / path_name
         if not path.is_file():
             continue
