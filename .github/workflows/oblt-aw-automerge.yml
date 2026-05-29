@@ -18,8 +18,6 @@ jobs:
     with:
       control-plane-workflow: oblt-aw-automerge.yml
       load-allowed-authors: true
-      platform-additional-instructions: |
-        Target pull request number: ${{ github.event.pull_request.number }}.
 
   # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
   verify:
@@ -142,8 +140,19 @@ jobs:
             core.setOutput('allowed', allowed ? 'true' : 'false');
             core.setOutput('collection-id', collectionId || '');
 
-  approve:
+  resolve-apm-assets:
     needs: [prelude, verify, check-dependency-collection]
+    if: >-
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true'
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-automerge.yml
+      platform-additional-instructions: |
+        Target pull request number: ${{ github.event.pull_request.number }}.
+
+  approve:
+    needs: [prelude, verify, check-dependency-collection, resolve-apm-assets]
     if: >-
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true'
@@ -156,7 +165,7 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       allowed-bot-users: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
-      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 

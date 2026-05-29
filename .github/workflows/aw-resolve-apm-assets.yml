@@ -1,0 +1,156 @@
+name: Resolve APM Agentic Assets
+
+# Resolves consumer apm.yml assets for one agentic workflow invocation. Call immediately
+# before each job that uses a gh-aw-* reusable workflow (not from aw-prelude).
+on:
+  workflow_call:
+    inputs:
+      control-plane-workflow:
+        description: >-
+          Basename of the calling wrapper under .github/workflows/ (for example
+          oblt-aw-automerge.yml). Used to resolve the registry workflow id for apm.yml.
+        required: true
+        type: string
+      platform-additional-instructions:
+        description: >-
+          Control-plane baseline additional-instructions for this agent invocation.
+          Merged with consumer apm.yml assets (platform first, then repo assets).
+        required: false
+        type: string
+        default: ""
+      platform-inputs-json:
+        description: >-
+          JSON object of platform workflow_call inputs to merge; repo apm.yml inputs
+          override per key when an asset block is selected.
+        required: false
+        type: string
+        default: "{}"
+      install-apm-packages:
+        description: Run `apm install` when apm.yml is present in the consumer repository
+        required: false
+        type: boolean
+        default: true
+    outputs:
+      apm-manifest-present:
+        description: True when the consumer repository contains apm.yml or apm.yaml
+        value: ${{ jobs.resolve.outputs.apm-manifest-present }}
+      apm-extension-present:
+        description: True when apm.yml contains an x-oblt-aw extension block
+        value: ${{ jobs.resolve.outputs.apm-extension-present }}
+      asset-source:
+        description: none, common, or workflow (APM asset block used for resolution)
+        value: ${{ jobs.resolve.outputs.asset-source }}
+      resolved-additional-instructions:
+        description: Platform baseline plus resolved repo additional-instructions
+        value: ${{ jobs.resolve.outputs.resolved-additional-instructions }}
+      resolved-inputs-json:
+        description: JSON object of merged platform and APM workflow inputs
+        value: ${{ jobs.resolve.outputs.resolved-inputs-json }}
+      resolved-setup-commands-json:
+        description: JSON array of setup shell commands from APM assets
+        value: ${{ jobs.resolve.outputs.resolved-setup-commands-json }}
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      apm-manifest-present: ${{ steps.resolve.outputs.apm-manifest-present }}
+      apm-extension-present: ${{ steps.resolve.outputs.apm-extension-present }}
+      asset-source: ${{ steps.resolve.outputs.asset-source }}
+      resolved-additional-instructions: ${{ steps.resolve.outputs.resolved-additional-instructions }}
+      resolved-inputs-json: ${{ steps.resolve.outputs.resolved-inputs-json }}
+      resolved-setup-commands-json: ${{ steps.resolve.outputs.resolved-setup-commands-json }}
+    steps:
+      - name: Checkout consumer repository
+        uses: actions/checkout@v6
+
+      - name: Checkout oblt-aw resolver scripts
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/apm_agentic_assets.py
+            scripts/resolve_apm_agentic_assets.py
+            scripts/resolve_control_plane_workflow_id.py
+            scripts/workflow_registry.py
+            scripts/common.py
+            config/
+          sparse-checkout-cone-mode: false
+
+      - name: Resolve compound workflow id from registry
+        id: registry
+        env:
+          CONTROL_PLANE_WORKFLOW: ${{ inputs.control-plane-workflow }}
+        run: python _oblt-aw/scripts/resolve_control_plane_workflow_id.py "${CONTROL_PLANE_WORKFLOW}" --config-dir _oblt-aw/config
+
+      - name: Detect apm manifest
+        id: detect
+        run: |
+          set -euo pipefail
+          if [ -f apm.yml ] || [ -f apm.yaml ]; then
+            echo "present=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "present=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install Python dependencies for resolver
+        run: pip install PyYAML==6.0.2
+
+      - name: Install APM CLI
+        if: >-
+          inputs.install-apm-packages &&
+          steps.detect.outputs.present == 'true'
+        env:
+          APM_VERSION: "v0.16.0"
+        run: |
+          set -euo pipefail
+          OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          ARCH="$(uname -m)"
+          case "${ARCH}" in
+            x86_64) ARCH="x86_64" ;;
+            arm64|aarch64) ARCH="arm64" ;;
+            *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
+          esac
+          TARBALL="apm-${OS}-${ARCH}.tar.gz"
+          BASE_URL="https://github.com/microsoft/apm/releases/download/${APM_VERSION}"
+          curl -fsSL "${BASE_URL}/${TARBALL}" -o "/tmp/${TARBALL}"
+          curl -fsSL "${BASE_URL}/${TARBALL}.sha256" -o "/tmp/${TARBALL}.sha256"
+          EXPECTED="$(awk '{print $1}' "/tmp/${TARBALL}.sha256")"
+          echo "${EXPECTED}  /tmp/${TARBALL}" | sha256sum -c
+          mkdir -p "${HOME}/.local/bin"
+          tar -xzf "/tmp/${TARBALL}" -C /tmp "apm-${OS}-${ARCH}/apm"
+          install -m 0755 "/tmp/apm-${OS}-${ARCH}/apm" "${HOME}/.local/bin/apm"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+
+      - name: Install agent packages from apm.yml
+        if: >-
+          inputs.install-apm-packages &&
+          steps.detect.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          apm install
+
+      - name: Resolve agentic assets from apm.yml
+        id: resolve
+        env:
+          ENABLED_WORKFLOW_ID: ${{ steps.registry.outputs.compound-workflow-id }}
+          REPO_ROOT: ${{ github.workspace }}
+          CONTROL_PLANE_CONFIG_DIR: ${{ github.workspace }}/_oblt-aw/config
+          PLATFORM_ADDITIONAL_INSTRUCTIONS: ${{ inputs.platform-additional-instructions }}
+          PLATFORM_INPUTS_JSON: ${{ inputs.platform-inputs-json }}
+        run: python _oblt-aw/scripts/resolve_apm_agentic_assets.py

@@ -18,8 +18,18 @@ jobs:
     with:
       control-plane-workflow: oblt-aw-issue-triage.yml
 
-  issue-triage:
+  resolve-apm-assets:
     needs: prelude
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      github.event_name == 'issues' &&
+      github.event.action == 'opened'
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-issue-triage.yml
+
+  issue-triage:
+    needs: [prelude, resolve-apm-assets]
     permissions:
       actions: read
       contents: read
@@ -32,6 +42,6 @@ jobs:
       github.event.action == 'opened'
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
-      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

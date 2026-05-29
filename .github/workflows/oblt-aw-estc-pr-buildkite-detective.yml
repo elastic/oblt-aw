@@ -19,11 +19,22 @@ jobs:
     uses: ./.github/workflows/aw-prelude.yml
     with:
       control-plane-workflow: oblt-aw-estc-pr-buildkite-detective.yml
+
+  resolve-apm-assets:
+    needs: prelude
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      github.event_name == 'status' &&
+      github.event.state == 'failure' &&
+      contains(github.event.context, 'buildkite')
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-estc-pr-buildkite-detective.yml
       platform-additional-instructions: |
         If a step fails, check if the failure is reported as a GitHub issue labeled `flaky-test`. Reference the GitHub issue if so.
 
   estc-pr-buildkite-detective:
-    needs: prelude
+    needs: [prelude, resolve-apm-assets]
     permissions:
       actions: read
       contents: read
@@ -36,7 +47,7 @@ jobs:
       contains(github.event.context, 'buildkite')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@copilot/reduce-comment-spamming
     with:
-      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}

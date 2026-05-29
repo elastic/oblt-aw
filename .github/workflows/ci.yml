@@ -56,6 +56,9 @@ jobs:
       - name: Validate *-aw-* workflows call aw-prelude
         run: python scripts/validate_aw_workflow_prelude.py
 
+      - name: Validate gh-aw-* workflows call resolve-apm-assets
+        run: python scripts/validate_aw_workflow_resolve_apm_assets.py
+
   typescript-tests:
     name: TypeScript tests
     runs-on: ubuntu-latest

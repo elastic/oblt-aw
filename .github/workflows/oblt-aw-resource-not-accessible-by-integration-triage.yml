@@ -19,6 +19,19 @@ jobs:
     with:
       control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-triage.yml
       load-allowed-authors: true
+
+  resolve-apm-assets:
+    needs: prelude
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      github.event_name == 'issues' &&
+      (
+        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration')) ||
+        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration')
+      )
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-triage.yml
       platform-additional-instructions: |
         Your task is to triage issues that carry the detector label `oblt-aw/detector/res-not-accessible-by-integration` and determine if they are related to "Resource not accessible by integration" errors in GitHub Actions workflows.
 
@@ -205,7 +218,7 @@ jobs:
         - [Troubleshooting Permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
 
   res-not-accessible-integration-triage:
-    needs: prelude
+    needs: [prelude, resolve-apm-assets]
     permissions:
       actions: read
       contents: read
@@ -223,7 +236,7 @@ jobs:
     with:
       allowed-bot-users: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
       classification-labels: "oblt-aw/triage/res-not-accessible-by-integration,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
-      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

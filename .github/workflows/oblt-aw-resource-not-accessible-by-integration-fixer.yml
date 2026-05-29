@@ -14,6 +14,18 @@ jobs:
     with:
       control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-fixer.yml
       load-allowed-authors: true
+
+  resolve-apm-assets:
+    needs: prelude
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-fixer.yml
       platform-additional-instructions: |
         Your task is to fix issues labeled for the "Resource not accessible by integration" problem.
 
@@ -52,7 +64,7 @@ jobs:
         - Do not perform merge operations in this workflow.
 
   res-not-accessible-integration-fixer:
-    needs: prelude
+    needs: [prelude, resolve-apm-assets]
     permissions:
       actions: read
       contents: write
@@ -68,7 +80,7 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
       allowed-bot-users: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
-      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets: inherit
 
   request-reviewers:

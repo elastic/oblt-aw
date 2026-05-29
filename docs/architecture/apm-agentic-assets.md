@@ -1,6 +1,6 @@
 # APM agentic assets (consumer repositories)
 
-Consumer repositories can declare **shared** and **per-workflow** agentic assets in [`apm.yml`](https://github.com/microsoft/apm) using the `x-oblt-aw` extension. The control plane resolves those assets in [`aw-prelude.yml`](../../.github/workflows/aw-prelude.yml) before calling upstream `gh-aw-*` workflows.
+Consumer repositories can declare **shared** and **per-workflow** agentic assets in [`apm.yml`](https://github.com/microsoft/apm) using the `x-oblt-aw` extension. The control plane resolves those assets in [`aw-resolve-apm-assets.yml`](../../.github/workflows/aw-resolve-apm-assets.yml) immediately before each upstream `gh-aw-*` invocation (not in [`aw-prelude.yml`](../../.github/workflows/aw-prelude.yml)).
 
 ## Workflow identifiers
 
@@ -10,7 +10,7 @@ Keys under `x-oblt-aw.workflows` must match the `id` field in the org [`workflow
 
 | Layer | Behavior |
 |-------|----------|
-| **Platform** (`platform-additional-instructions` / `platform-inputs-json` on `aw-prelude`) | Control-plane baseline from `elastic/oblt-aw`; always applied first for instructions (prepended). Input keys can be overridden by APM per key. |
+| **Platform** (`platform-additional-instructions` / `platform-inputs-json` on `resolve-apm-assets`) | Control-plane baseline for that agent invocation; always applied first for instructions (prepended). Input keys can be overridden by APM per key. |
 | **`x-oblt-aw.common`** | Used when no `workflows.<id>` entry exists for the running workflow. |
 | **`x-oblt-aw.workflows.<id>`** | **Override:** when this key exists, `common` is ignored entirely for that run. |
 
@@ -47,7 +47,7 @@ x-oblt-aw:
 
 ## Runtime behavior
 
-When the dashboard gate passes (`proceed == true`), `aw-prelude` runs the `apm-assets` job:
+When the dashboard gate passes (`proceed == true`), each agent job’s preceding `resolve-apm-assets` call:
 
 1. Checks out the **consumer** repository (caller context).
 2. Runs [`apm install`](https://microsoft.github.io/apm/) when `apm.yml` is present (installs declared skills, plugins, MCP servers, and other APM dependencies).
@@ -56,7 +56,7 @@ When the dashboard gate passes (`proceed == true`), `aw-prelude` runs the `apm-a
    - `resolved-inputs-json` (merged platform + APM inputs)
    - `resolved-setup-commands-json`
 
-Downstream `oblt-aw-*` jobs should pass `additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}` and may read other keys from `resolved-inputs-json` when needed.
+Downstream `gh-aw-*` jobs should pass `additional-instructions: ${{ needs.<resolve-job>.outputs.resolved-additional-instructions }}` and may read other keys from `resolved-inputs-json` when needed. Use one resolve job per agent invocation when platform prompts differ (see `oblt-aw-autodoc.yml`).
 
 ## Schema
 
@@ -66,4 +66,5 @@ JSON Schema for the extension block: [`config/schema/apm-agentic-workflows.schem
 
 - [APM (Agent Package Manager)](https://github.com/microsoft/apm)
 - [Multi-org agentic workflows](./multi-org-agentic-workflows.md)
+- [Resolve APM agentic assets](../../.github/workflows/aw-resolve-apm-assets.yml)
 - [Agentic Workflow Prelude](../../.github/workflows/aw-prelude.yml)

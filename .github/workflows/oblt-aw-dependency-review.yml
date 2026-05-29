@@ -17,6 +17,17 @@ jobs:
     with:
       control-plane-workflow: oblt-aw-dependency-review.yml
       load-allowed-authors: true
+
+  resolve-apm-assets:
+    needs: prelude
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      github.event_name == 'pull_request' &&
+      contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
+      contains(fromJSON(needs.prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login)
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-dependency-review.yml
       platform-additional-instructions: |
         Noop when not applicable (mandatory):
         - If the PR has NO dependency updates to review (e.g. no version bumps in manifest files, no changes to lockfiles that indicate dependency updates, or changes that do not match any supported ecosystem), you MUST call `noop` — do NOT create any comment.
@@ -47,7 +58,7 @@ jobs:
         - The comment's "Labels Applied" section must reflect labels you actually applied via add_labels, not merely recommended. If you applied a label, say so; if you did not apply any, say "No labels applied."
 
   dependency-review:
-    needs: prelude
+    needs: [prelude, resolve-apm-assets]
     permissions:
       actions: read
       contents: read
@@ -62,7 +73,7 @@ jobs:
     with:
       allowed-bot-users: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
       classification-labels: "oblt-aw/ai/merge-ready"
-      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

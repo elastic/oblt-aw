@@ -16,6 +16,13 @@ jobs:
     uses: ./.github/workflows/aw-prelude.yml
     with:
       control-plane-workflow: oblt-aw-agent-suggestions.yml
+
+  resolve-apm-assets:
+    needs: prelude
+    if: needs.prelude.outputs.proceed == 'true'
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-agent-suggestions.yml
       platform-additional-instructions: |
         Additional requirements for this repository:
 
@@ -33,7 +40,7 @@ jobs:
         - `expires`: `24h`
 
   agent-suggestions:
-    needs: prelude
+    needs: [prelude, resolve-apm-assets]
     permissions:
       contents: read
       issues: write
@@ -42,5 +49,5 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main
     with:
       title-prefix: "[oblt-aw][agent-suggestions]"
-      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets: inherit

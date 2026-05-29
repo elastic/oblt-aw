@@ -18,6 +18,19 @@ jobs:
     with:
       control-plane-workflow: oblt-aw-security-triage.yml
       load-allowed-authors: true
+
+  resolve-apm-assets:
+    needs: prelude
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      github.event_name == 'issues' &&
+      (
+        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security')) ||
+        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/security')
+      )
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-security-triage.yml
       platform-additional-instructions: |
         Your task is to triage newly opened security-related issues in this repository. Security issues include vulnerabilities in GitHub Actions workflows and shell scripts: injection (expression, command, YAML), secret management (token exposure via CLI args, secrets in command strings), supply chain (action pinning, checksums), and least privilege (excessive permissions).
 
@@ -94,7 +107,7 @@ jobs:
         - [Workflow Permission Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
 
   security-issue-triage:
-    needs: prelude
+    needs: [prelude, resolve-apm-assets]
     permissions:
       actions: read
       contents: read
@@ -112,7 +125,7 @@ jobs:
     with:
       allowed-bot-users: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
       classification-labels: "oblt-aw/triage/security-injection,oblt-aw/triage/security-secrets,oblt-aw/triage/security-supply-chain,oblt-aw/triage/security-least-privilege,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
-      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

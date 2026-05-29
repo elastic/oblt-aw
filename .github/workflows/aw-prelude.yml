@@ -1,7 +1,8 @@
 name: Agentic Workflow Prelude
 
-# Shared dashboard gating, optional allow-list loading, and APM asset resolution for *-aw-* workflows.
+# Shared dashboard gating and optional allow-list loading for *-aw-* workflows.
 # Call this reusable workflow before agent-specific jobs in oblt-aw-* and docs-aw-* wrappers.
+# APM asset resolution lives in aw-resolve-apm-assets.yml (per gh-aw-* invocation).
 on:
   workflow_call:
     inputs:
@@ -17,25 +18,6 @@ on:
         required: false
         type: boolean
         default: false
-      platform-additional-instructions:
-        description: >-
-          Control-plane baseline additional-instructions for the agentic workflow.
-          Merged with consumer apm.yml assets (platform first, then repo assets).
-        required: false
-        type: string
-        default: ""
-      platform-inputs-json:
-        description: >-
-          JSON object of platform workflow_call inputs to merge; repo apm.yml inputs
-          override per key when an asset block is selected.
-        required: false
-        type: string
-        default: "{}"
-      install-apm-packages:
-        description: Run `apm install` when apm.yml is present in the consumer repository
-        required: false
-        type: boolean
-        default: true
     outputs:
       proceed:
         description: >-
@@ -60,24 +42,6 @@ on:
       allowed-issue-authors-csv:
         description: Comma-separated allowed issue bot logins (empty when not loaded)
         value: ${{ jobs.evaluate.outputs.allowed-issue-authors-csv }}
-      apm-manifest-present:
-        description: True when the consumer repository contains apm.yml or apm.yaml
-        value: ${{ jobs.apm-assets.outputs.apm-manifest-present }}
-      apm-extension-present:
-        description: True when apm.yml contains an x-oblt-aw extension block
-        value: ${{ jobs.apm-assets.outputs.apm-extension-present }}
-      asset-source:
-        description: none, common, or workflow (APM asset block used for resolution)
-        value: ${{ jobs.apm-assets.outputs.asset-source }}
-      resolved-additional-instructions:
-        description: Platform baseline plus resolved repo additional-instructions
-        value: ${{ jobs.apm-assets.outputs.resolved-additional-instructions }}
-      resolved-inputs-json:
-        description: JSON object of merged platform and APM workflow inputs
-        value: ${{ jobs.apm-assets.outputs.resolved-inputs-json }}
-      resolved-setup-commands-json:
-        description: JSON array of setup shell commands from APM assets
-        value: ${{ jobs.apm-assets.outputs.resolved-setup-commands-json }}
 
 permissions:
   contents: read
@@ -167,100 +131,3 @@ jobs:
             echo "allowed-issue-authors-json=${ISSUE_JSON:-[]}"
             echo "allowed-issue-authors-csv=${ISSUE_CSV:-}"
           } >> "${GITHUB_OUTPUT}"
-
-  apm-assets:
-    needs: [dashboard, allowed-authors, evaluate]
-    permissions:
-      contents: read
-    if: >-
-      always() &&
-      needs.dashboard.result == 'success' &&
-      (needs.allowed-authors.result == 'success' || needs.allowed-authors.result == 'skipped') &&
-      needs.evaluate.result == 'success' &&
-      needs.evaluate.outputs.proceed == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    outputs:
-      apm-manifest-present: ${{ steps.resolve.outputs.apm-manifest-present }}
-      apm-extension-present: ${{ steps.resolve.outputs.apm-extension-present }}
-      asset-source: ${{ steps.resolve.outputs.asset-source }}
-      resolved-additional-instructions: ${{ steps.resolve.outputs.resolved-additional-instructions }}
-      resolved-inputs-json: ${{ steps.resolve.outputs.resolved-inputs-json }}
-      resolved-setup-commands-json: ${{ steps.resolve.outputs.resolved-setup-commands-json }}
-    steps:
-      - name: Checkout consumer repository
-        uses: actions/checkout@v6
-
-      - name: Checkout oblt-aw resolver scripts
-        uses: actions/checkout@v6
-        with:
-          repository: elastic/oblt-aw
-          ref: main
-          path: _oblt-aw
-          fetch-depth: 1
-          sparse-checkout: |
-            scripts/apm_agentic_assets.py
-            scripts/resolve_apm_agentic_assets.py
-            scripts/common.py
-          sparse-checkout-cone-mode: false
-
-      - name: Detect apm manifest
-        id: detect
-        run: |
-          set -euo pipefail
-          if [ -f apm.yml ] || [ -f apm.yaml ]; then
-            echo "present=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "present=false" >> "${GITHUB_OUTPUT}"
-          fi
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-
-      - name: Install Python dependencies for resolver
-        run: pip install PyYAML==6.0.2
-
-      - name: Install APM CLI
-        if: >-
-          inputs.install-apm-packages &&
-          steps.detect.outputs.present == 'true'
-        env:
-          APM_VERSION: "v0.16.0"
-        run: |
-          set -euo pipefail
-          OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-          ARCH="$(uname -m)"
-          case "${ARCH}" in
-            x86_64) ARCH="x86_64" ;;
-            arm64|aarch64) ARCH="arm64" ;;
-            *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
-          esac
-          TARBALL="apm-${OS}-${ARCH}.tar.gz"
-          BASE_URL="https://github.com/microsoft/apm/releases/download/${APM_VERSION}"
-          curl -fsSL "${BASE_URL}/${TARBALL}" -o "/tmp/${TARBALL}"
-          curl -fsSL "${BASE_URL}/${TARBALL}.sha256" -o "/tmp/${TARBALL}.sha256"
-          EXPECTED="$(awk '{print $1}' "/tmp/${TARBALL}.sha256")"
-          echo "${EXPECTED}  /tmp/${TARBALL}" | sha256sum -c
-          mkdir -p "${HOME}/.local/bin"
-          tar -xzf "/tmp/${TARBALL}" -C /tmp "apm-${OS}-${ARCH}/apm"
-          install -m 0755 "/tmp/apm-${OS}-${ARCH}/apm" "${HOME}/.local/bin/apm"
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
-
-      - name: Install agent packages from apm.yml
-        if: >-
-          inputs.install-apm-packages &&
-          steps.detect.outputs.present == 'true'
-        run: |
-          set -euo pipefail
-          apm install
-
-      - name: Resolve agentic assets from apm.yml
-        id: resolve
-        env:
-          ENABLED_WORKFLOW_ID: ${{ needs.evaluate.outputs.compound-workflow-id }}
-          REPO_ROOT: ${{ github.workspace }}
-          PLATFORM_ADDITIONAL_INSTRUCTIONS: ${{ inputs.platform-additional-instructions }}
-          PLATFORM_INPUTS_JSON: ${{ inputs.platform-inputs-json }}
-        run: python _oblt-aw/scripts/resolve_apm_agentic_assets.py

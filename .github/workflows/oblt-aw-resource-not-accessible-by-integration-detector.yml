@@ -16,6 +16,33 @@ jobs:
     uses: ./.github/workflows/aw-prelude.yml
     with:
       control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-detector.yml
+
+  discover:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: read
+    if: needs.prelude.outputs.proceed == 'true' && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    outputs:
+      workflows: ${{ steps.list.outputs.workflows }}
+    steps:
+      - id: list
+        run: |
+          # Use numeric workflow IDs (not path-derived filenames) to avoid 404 when
+          # the API expects the exact workflow file name (e.g. copilot.yml, not "copilot")
+          workflows=$(gh api repos/${{ github.repository }}/actions/workflows \
+            --jq '[.workflows[].id | tostring] | tojson')
+          echo "workflows=$workflows" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  resolve-apm-assets:
+    needs: [prelude, discover]
+    if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-detector.yml
       platform-additional-instructions: |
         **Error Context:**
         You are analyzing preflight search results for the exact phrase "Resource not accessible by integration" in GitHub Actions workflow logs. This error typically indicates permission or token scope issues when workflows access protected resources (e.g., secrets, environments, or repository settings).
@@ -56,28 +83,8 @@ jobs:
 
         **Assignment:** When creating the issue, assign it to the elastic/observablt-ci GitHub team. If the platform does not support team assignees for issues, @mention the elastic/observablt-ci team in the issue body.
 
-  discover:
-    needs: prelude
-    permissions:
-      actions: read
-      contents: read
-    if: needs.prelude.outputs.proceed == 'true' && github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    outputs:
-      workflows: ${{ steps.list.outputs.workflows }}
-    steps:
-      - id: list
-        run: |
-          # Use numeric workflow IDs (not path-derived filenames) to avoid 404 when
-          # the API expects the exact workflow file name (e.g. copilot.yml, not "copilot")
-          workflows=$(gh api repos/${{ github.repository }}/actions/workflows \
-            --jq '[.workflows[].id | tostring] | tojson')
-          echo "workflows=$workflows" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ github.token }}
-
   search:
-    needs: [prelude, discover]
+    needs: [discover, resolve-apm-assets]
     permissions:
       actions: read
       contents: read
@@ -93,5 +100,5 @@ jobs:
       days: 1
       conclusion: "any"
       title-prefix: "[oblt-aw][resource-not-accessible-by-integration]"
-      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets: inherit
