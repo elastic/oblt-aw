@@ -50,8 +50,9 @@ x-oblt-aw:
 When the dashboard gate passes (`proceed == true`), each agent job’s preceding `resolve-apm-assets` call:
 
 1. Checks out the **consumer** repository (caller context).
-2. Runs [`apm install`](https://microsoft.github.io/apm/) when `apm.yml` is present (installs declared skills, plugins, MCP servers, and other APM dependencies).
-3. Runs [`scripts/resolve_apm_agentic_assets.py`](../../scripts/resolve_apm_agentic_assets.py) to produce:
+2. Installs [`requirements-runtime.txt`](../../requirements-runtime.txt) with pip cache via `actions/setup-python`.
+3. Runs [`apm install`](https://microsoft.github.io/apm/) when `apm.yml` is present (installs declared skills, plugins, MCP servers, and other APM dependencies).
+4. Runs [`scripts/resolve_apm_agentic_assets.py`](../../scripts/resolve_apm_agentic_assets.py) to produce:
    - `resolved-additional-instructions`
    - `resolved-inputs-json` (merged platform + APM inputs)
    - `resolved-setup-commands-json`

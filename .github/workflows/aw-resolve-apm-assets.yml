@@ -85,6 +85,7 @@ jobs:
             scripts/workflow_registry.py
             scripts/common.py
             config/
+            requirements-runtime.txt
           sparse-checkout-cone-mode: false
 
       - name: Resolve compound workflow id from registry
@@ -107,9 +108,11 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
+          cache: pip
+          cache-dependency-path: _oblt-aw/requirements-runtime.txt
 
       - name: Install Python dependencies for resolver
-        run: pip install PyYAML==6.0.2
+        run: pip install -r _oblt-aw/requirements-runtime.txt
 
       - name: Install APM CLI
         if: >-

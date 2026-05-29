@@ -1,2 +1,2 @@
+-r requirements-runtime.txt
 pytest==9.0.2
-PyYAML==6.0.2

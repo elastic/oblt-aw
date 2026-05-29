@@ -54,6 +54,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-runtime.txt
 
       - name: Build target operations matrix
         id: targets

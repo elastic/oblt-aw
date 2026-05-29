@@ -1,0 +1,2 @@
+# Python dependencies for control-plane scripts invoked from GitHub Actions workflows.
+PyYAML==6.0.2

@@ -37,9 +37,9 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 ## Python Tests
 
 - Python 3.14
-- Dependencies: `requirements-ci.txt` (pytest 9.0.2)
+- Dependencies: `requirements-ci.txt` (includes `requirements-runtime.txt` and pytest)
 - Command: `pytest tests/ -v --tb=short`
-- Pip cache via `actions/setup-python` (`cache: pip`), keyed by `requirements-ci.txt`
+- Pip cache via `actions/setup-python` (`cache: pip`), keyed by `requirements-ci.txt` and `requirements-runtime.txt`
 
 ## TypeScript Tests
 
