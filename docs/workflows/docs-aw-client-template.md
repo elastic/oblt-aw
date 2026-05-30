@@ -40,6 +40,9 @@ Menu checkbox handling (`issue_comment`) and manual refresh (`workflow_dispatch`
 Top-level permissions on every client template:
 
 - `contents: read`
+- `issues: read`
+
+`issues: read` is required so `issue_comment`-routed paths and issue/PR metadata lookups can evaluate routing conditions consistently across Docs templates.
 
 Control-plane `docs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
 
@@ -48,7 +51,7 @@ Job-level permissions on `run-aw` must be at least as permissive as the union of
 | Template | `run-aw` job permissions (union of callee jobs) |
 |----------|-------------------------------------------------|
 | `trigger-docs-aw-ai-menu.yml` | `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
-| `trigger-docs-aw-pr-ai-menu-collect.yml` | `actions: write`, `contents: read` |
+| `trigger-docs-aw-pr-ai-menu-collect.yml` | `actions: write`, `contents: read`, `issues: read` |
 | `trigger-docs-aw-pr-ai-menu.yml` | `actions: read`, `checks: read`, `contents: read`, `issues: write`, `pull-requests: write` |
 
 Required secret mapping (both templates):
