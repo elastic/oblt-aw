@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       shared-proceed:
-        description: Dashboard gate for this route from aw-event-context.
+        description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
       shared-allowed-pr-authors-json:
@@ -34,12 +34,6 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
-    if: >-
-      inputs.shared-proceed == 'true' &&
-      github.event_name == 'issues' &&
-      github.event.action == 'labeled' &&
-      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}

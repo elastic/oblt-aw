@@ -17,7 +17,7 @@
 """
 Evaluate dashboard gates for multiple control-plane workflows at once.
 
-Used by aw-event-context.yml so event-scoped orchestrators run dashboard and
+Used by aw-prelude.yml so event-scoped orchestrators run dashboard and
 allow-list loading once, then fan out per-route proceed flags.
 """
 

@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       shared-proceed:
-        description: Dashboard gate for this route from aw-event-context.
+        description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
       shared-allowed-pr-authors-json:
@@ -36,11 +36,6 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
-    if: >-
-      inputs.shared-proceed == 'true' &&
-      github.event_name == 'pull_request' &&
-      contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-      contains(fromJSON(inputs.shared-allowed-pr-authors-json), github.event.pull_request.user.login)
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}

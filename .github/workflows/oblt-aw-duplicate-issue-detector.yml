@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       shared-proceed:
-        description: Dashboard gate for this route from aw-event-context.
+        description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
       shared-allowed-pr-authors-json:
@@ -36,12 +36,6 @@ jobs:
       contents: read
       issues: write
       pull-requests: read
-    if: >-
-      inputs.shared-proceed == 'true' &&
-      (
-        (github.event_name == 'issues' && github.event.action == 'opened') ||
-        github.event_name == 'workflow_dispatch'
-      )
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

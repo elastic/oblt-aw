@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       shared-proceed:
-        description: Dashboard gate for this route from aw-event-context.
+        description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
       shared-allowed-pr-authors-json:
@@ -39,11 +39,6 @@ jobs:
       contents: read
       issues: read
       pull-requests: write
-    if: >-
-      inputs.shared-proceed == 'true' &&
-      github.event_name == 'status' &&
-      github.event.state == 'failure' &&
-      contains(github.event.context, 'buildkite')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@copilot/reduce-comment-spamming
     with:
       additional-instructions: |
