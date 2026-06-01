@@ -24,7 +24,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 2. Add prelude and route conditions
 
-- First job: `uses: ./.github/workflows/aw-prelude.yml` with `control-plane-workflow: <this-wrapper-basename>.yml` (must appear under that workflow’s `control_plane_workflows` in `workflow-registry.json`) and `load-allowed-authors: true` when PR/issue allow lists apply.
+- Do **not** call `aw-prelude.yml` from `oblt-aw-*` / `docs-aw-*` wrappers; add an `ingress_routes` entry and a matching `route-*` job in `oblt-aw-ingress.yml` or `docs-aw-ingress.yml` instead.
 - Downstream jobs: `needs: prelude` and `if: needs.prelude.outputs.proceed == 'true'` plus event/label/comment guards ([aw-prelude](../workflows/aw-prelude.md)).
 
 ### 3. Mirror permissions from similar workflows
@@ -37,7 +37,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 5. Register in `workflow-registry.json`
 
-- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, and `control_plane_workflows` (basenames of every `oblt-aw-*` / `docs-aw-*` wrapper that share this dashboard id) under `config/<org-key>/workflow-registry.json`.
+- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, and `ingress_routes` (one entry per route leg that shares this dashboard id) under `config/<org-key>/workflow-registry.json`.
 
 ### 6. Add a client template
 
@@ -68,7 +68,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 ## Troubleshooting
 
 - **Workflow never runs after checking the box** — Wait for a supported trigger on the installed `trigger-oblt-aw-*.yml` client ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)).
-- **Validation fails on the PR** — Compare `permissions` with a sibling wrapper; confirm the wrapper basename is listed under the correct `control_plane_workflows` entry in `workflow-registry.json` and prelude passes `control-plane-workflow: <basename>`.
+- **Validation fails on the PR** — Compare `permissions` with a sibling wrapper; confirm the wrapper is listed in `ingress_routes` and that a matching `route-*` job exists in the org ingress workflow.
 
 ## References
 

@@ -15,11 +15,10 @@
 # under the License.
 
 """
-Validate that every local *-aw-* workflow under .github/workflows/ calls aw-prelude.yml
-and is registered in config/<org>/workflow-registry.json.
+Validate aw-prelude placement for control-plane workflows.
 
-Excludes aw-prelude.yml itself (the shared prelude implementation) and distributed
-trg-* and trigger-* client entrypoints, which call elastic/oblt-aw reusable workflows remotely.
+- *-aw-* wrappers (except ingress) must not call aw-prelude; ingress owns prelude.
+- oblt-aw-ingress.yml and docs-aw-ingress.yml must call aw-prelude.yml and define route-* jobs.
 """
 
 from __future__ import annotations
@@ -38,9 +37,11 @@ PRELUDE_USES = re.compile(
     re.MULTILINE,
 )
 PRELUDE_JOB = re.compile(r"^\s+prelude:\s*$", re.MULTILINE)
+INGRESS_FILES = ("oblt-aw-ingress.yml", "docs-aw-ingress.yml")
+ROUTE_JOB_PATTERN = re.compile(r"^\s+route-[\w-]+:\s*$", re.MULTILINE)
 
 
-def list_subject_workflows() -> list[pathlib.Path]:
+def list_workflow_files() -> list[pathlib.Path]:
     if not WORKFLOWS_DIR.is_dir():
         raise SystemExit(f"Missing directory: {WORKFLOWS_DIR}")
     paths = sorted(WORKFLOWS_DIR.glob("*.yml")) + sorted(WORKFLOWS_DIR.glob("*.yaml"))
@@ -49,37 +50,65 @@ def list_subject_workflows() -> list[pathlib.Path]:
         for p in paths
         if AW_WORKFLOW_PATTERN.match(p.name)
         and p.name != "aw-prelude.yml"
+        and p.name not in INGRESS_FILES
         and not p.name.startswith(("trg-", "trigger-"))
     ]
 
 
-def validate_workflow(path: pathlib.Path) -> list[str]:
+def list_aw_wrappers(paths: list[pathlib.Path]) -> list[pathlib.Path]:
+    return [p for p in paths if p.name not in INGRESS_FILES]
+
+
+def validate_aw_wrapper_no_prelude(path: pathlib.Path) -> list[str]:
+    text = path.read_text(encoding="utf-8")
+    errors: list[str] = []
+    if PRELUDE_JOB.search(text):
+        errors.append(
+            f"{path}: must not define a prelude job (aw-prelude runs in ingress only)"
+        )
+    if PRELUDE_USES.search(text):
+        errors.append(
+            f"{path}: must not call aw-prelude.yml (prelude and route gating run in ingress)"
+        )
+    return errors
+
+
+def validate_ingress(path: pathlib.Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     errors: list[str] = []
     if not PRELUDE_JOB.search(text):
         errors.append(f"{path}: missing job id 'prelude'")
     if not PRELUDE_USES.search(text):
-        errors.append(
-            f"{path}: must call './.github/workflows/aw-prelude.yml' via a prelude job"
-        )
+        errors.append(f"{path}: must call './.github/workflows/aw-prelude.yml'")
+    if not ROUTE_JOB_PATTERN.search(text):
+        errors.append(f"{path}: missing route-* dispatch job(s)")
     return errors
 
 
 def main() -> int:
-    errors: list[str] = []
-    subjects = list_subject_workflows()
-    if not subjects:
+    paths = list_workflow_files()
+    if not paths:
         print("No *-aw-* workflows found to validate.", file=sys.stderr)
         return 1
 
-    for path in subjects:
-        errors.extend(validate_workflow(path))
+    wrappers = list_aw_wrappers(paths)
+    errors: list[str] = []
+    for path in wrappers:
+        errors.extend(validate_aw_wrapper_no_prelude(path))
 
+    for ingress_name in INGRESS_FILES:
+        ingress = WORKFLOWS_DIR / ingress_name
+        if ingress.is_file():
+            errors.extend(validate_ingress(ingress))
+        else:
+            errors.append(f"{ingress}: missing ingress workflow")
+
+    registry_subjects = {path.name for path in wrappers}
     errors.extend(
         validate_registry_against_workflows(
             CONFIG_DIR,
             WORKFLOWS_DIR,
-            {path.name for path in subjects},
+            registry_subjects,
         )
     )
 
@@ -90,8 +119,8 @@ def main() -> int:
         return 1
 
     print(
-        f"Validated {len(subjects)} *-aw-* workflow(s) call aw-prelude.yml "
-        "and match workflow-registry.json."
+        f"Validated {len(wrappers)} *-aw wrapper(s) and "
+        f"{len(INGRESS_FILES)} ingress workflow(s)."
     )
     return 0
 

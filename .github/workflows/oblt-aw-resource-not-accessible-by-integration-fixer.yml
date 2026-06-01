@@ -1,37 +1,53 @@
 name: Resource not accessible by Integration Issue Fixer
 on:
   workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-token-policy:
+        description: Token policy resolved by oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-pr-authors-csv:
+        description: Allowed PR bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-issue-authors-csv:
+        description: Allowed issue bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-fixer.yml
-      load-allowed-authors: true
 
   res-not-accessible-integration-fixer:
-    needs: prelude
     permissions:
       actions: read
       contents: write
       discussions: write
       issues: write
       pull-requests: write
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'issues' &&
-      github.event.action == 'labeled' &&
-      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
-      allowed-bot-users: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
+      allowed-bot-users: ${{ inputs.ingress-allowed-issue-authors-csv }}
       additional-instructions: |
         Your task is to fix issues labeled for the "Resource not accessible by integration" problem.
 

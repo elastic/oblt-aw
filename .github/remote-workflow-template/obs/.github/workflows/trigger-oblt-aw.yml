@@ -1,0 +1,52 @@
+name: Observability Agentic Workflow Trigger
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  status:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oblt-aw-trigger-${{ github.event.pull_request.number || github.event.issue.number || github.event.schedule || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  dispatch-entrypoint:
+    permissions:
+      actions: write
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Create ephemeral GitHub token for workflow dispatch
+        id: token
+        uses: elastic/oblt-actions/github/create-token@v1
+
+      - name: Dispatch oblt-aw entrypoint
+        uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26 # v1.3.2
+        with:
+          token: ${{ steps.token.outputs.token }}
+          workflow: oblt-aw.yml
+          wait-for-completion: true
+          sync-status: true
+          wait-timeout-seconds: 900
+          inputs: |
+            {
+              "trigger-source": ${{ toJSON(github.workflow) }},
+              "event-name": ${{ toJSON(github.event_name) }},
+              "event-action": ${{ toJSON(github.event.action || '') }},
+              "event-payload-json": ${{ toJSON(toJSON(github.event)) }},
+              "caller-ref": ${{ toJSON(github.ref) }},
+              "caller-sha": ${{ toJSON(github.sha) }},
+              "caller-run-id": ${{ toJSON(github.run_id) }}
+            }

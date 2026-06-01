@@ -1,6 +1,37 @@
 name: Security Issue Triage
 on:
   workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-token-policy:
+        description: Token policy resolved by oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-pr-authors-csv:
+        description: Allowed PR bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-issue-authors-csv:
+        description: Allowed issue bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -10,33 +41,17 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      control-plane-workflow: oblt-aw-security-triage.yml
-      load-allowed-authors: true
 
   security-issue-triage:
-    needs: prelude
     permissions:
       actions: read
       contents: read
       discussions: write
       issues: write
       pull-requests: write
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'issues' &&
-      (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/security')
-      )
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
-      allowed-bot-users: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
+      allowed-bot-users: ${{ inputs.ingress-allowed-issue-authors-csv }}
       classification-labels: "oblt-aw/triage/security-injection,oblt-aw/triage/security-secrets,oblt-aw/triage/security-supply-chain,oblt-aw/triage/security-least-privilege,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
       additional-instructions: |
         Your task is to triage newly opened security-related issues in this repository. Security issues include vulnerabilities in GitHub Actions workflows and shell scripts: injection (expression, command, YAML), secret management (token exposure via CLI args, secrets in command strings), supply chain (action pinning, checksums), and least privilege (excessive permissions).
@@ -119,7 +134,7 @@ jobs:
   # mint only in this follow-up job; remove+re-add `oblt-aw/ai/fix-ready` when the fixer preconditions
   # hold so ingress sees a `labeled` event from the installation token.
   signal-security-triage-followups:
-    needs: [security-issue-triage, prelude]
+    needs: [security-issue-triage]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -129,14 +144,14 @@ jobs:
     steps:
       - name: Create ephemeral GitHub token (configured policy)
         id: create-token-explicit
-        if: ${{ needs.prelude.outputs.token-policy != '' }}
+        if: ${{ inputs.ingress-token-policy != '' }}
         uses: elastic/oblt-actions/github/create-token@v1
         with:
-          token-policy: ${{ needs.prelude.outputs.token-policy }}
+          token-policy: ${{ inputs.ingress-token-policy }}
 
       - name: Create ephemeral GitHub token (Vault auto policy)
         id: create-token-auto
-        if: ${{ needs.prelude.outputs.token-policy == '' }}
+        if: ${{ inputs.ingress-token-policy == '' }}
         uses: elastic/oblt-actions/github/create-token@v1
 
       - name: Re-apply fix-ready label to emit installation-token labeled event
