@@ -2,7 +2,7 @@
   "repositories": [
     {
       "repository": "elastic/opentelemetry",
-      "token-policy": ""
+      "token-policy": "token-policy-6f4d825f492c"
     }
   ]
 }
