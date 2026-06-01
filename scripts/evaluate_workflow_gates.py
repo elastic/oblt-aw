@@ -17,7 +17,7 @@
 """
 Evaluate dashboard gates for multiple control-plane workflows at once.
 
-Used by aw-prelude.yml so event-scoped orchestrators run dashboard and
+Used by aw-event-context.yml so event-scoped orchestrators run dashboard and
 allow-list loading once, then fan out per-route proceed flags.
 """
 
@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 
 from common import write_outputs
-from workflow_registry import build_control_plane_workflow_index
+from workflow_registry import build_control_plane_workflow_index, resolve_compound_id
 
 
 def _proceed_for_compound_id(
@@ -59,7 +59,7 @@ def evaluate_gates(
                 f"control-plane workflow {basename!r} is not listed in any "
                 f"workflow-registry.json control_plane_workflows (known: {known})"
             )
-        compound_id = index[basename].compound_id
+        compound_id = resolve_compound_id(config_dir, basename)
         allowed = _proceed_for_compound_id(
             effective_raw, enabled_workflows_json, compound_id
         )

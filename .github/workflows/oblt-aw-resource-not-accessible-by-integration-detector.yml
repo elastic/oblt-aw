@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       shared-proceed:
-        description: Dashboard gate for this route from aw-prelude.
+        description: Dashboard gate for this route from aw-event-context.
         required: true
         type: string
       shared-allowed-pr-authors-json:
@@ -34,6 +34,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+    if: inputs.shared-proceed == 'true' && github.event_name == 'schedule'
     runs-on: ubuntu-latest
     outputs:
       workflows: ${{ steps.list.outputs.workflows }}
@@ -48,13 +49,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-  resolve-apm-assets:
-    needs: [discover]
+  search:
+    needs: discover
+    permissions:
+      actions: read
+      contents: read
+      issues: write
     if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
-    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    strategy:
+      matrix:
+        workflow: ${{ fromJSON(needs.discover.outputs.workflows) }}
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight
     with:
-      control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-detector.yml
-      platform-additional-instructions: |
+      workflow: ${{ matrix.workflow }}
+      search-terms: "Resource not accessible by integration"
+      days: 1
+      conclusion: "any"
+      title-prefix: "[oblt-aw][resource-not-accessible-by-integration]"
+      additional-instructions: |
         **Error Context:**
         You are analyzing preflight search results for the exact phrase "Resource not accessible by integration" in GitHub Actions workflow logs. This error typically indicates permission or token scope issues when workflows access protected resources (e.g., secrets, environments, or repository settings).
 
@@ -93,23 +105,4 @@ jobs:
         - When you create an issue to report findings, you MUST add the label `oblt-aw/detector/res-not-accessible-by-integration` so ingress can route the issue to the triage workflow.
 
         **Assignment:** When creating the issue, assign it to the elastic/observablt-ci GitHub team. If the platform does not support team assignees for issues, @mention the elastic/observablt-ci team in the issue body.
-
-  search:
-    needs: [discover, resolve-apm-assets]
-    permissions:
-      actions: read
-      contents: read
-      issues: write
-    if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
-    strategy:
-      matrix:
-        workflow: ${{ fromJSON(needs.discover.outputs.workflows) }}
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight
-    with:
-      workflow: ${{ matrix.workflow }}
-      search-terms: "Resource not accessible by integration"
-      days: 1
-      conclusion: "any"
-      title-prefix: "[oblt-aw][resource-not-accessible-by-integration]"
-      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets: inherit

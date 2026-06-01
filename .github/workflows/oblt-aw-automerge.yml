@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       shared-proceed:
-        description: Dashboard gate for this route from aw-prelude.
+        description: Dashboard gate for this route from aw-event-context.
         required: true
         type: string
       shared-allowed-pr-authors-json:
@@ -33,6 +33,12 @@ jobs:
 
   # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
   verify:
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      github.event_name == 'pull_request' &&
+      contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action) &&
+      contains(fromJSON(inputs.shared-allowed-pr-authors-json), github.event.pull_request.user.login) &&
+      contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready')
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -145,19 +151,8 @@ jobs:
             core.setOutput('allowed', allowed ? 'true' : 'false');
             core.setOutput('collection-id', collectionId || '');
 
-  resolve-apm-assets:
-    needs: [verify, check-dependency-collection]
-    if: >-
-      needs.verify.outputs.proceed == 'true' &&
-      needs.check-dependency-collection.outputs.allowed == 'true'
-    uses: ./.github/workflows/aw-resolve-apm-assets.yml
-    with:
-      control-plane-workflow: oblt-aw-automerge.yml
-      platform-additional-instructions: |
-        Target pull request number: ${{ github.event.pull_request.number }}.
-
   approve:
-    needs: [verify, check-dependency-collection, resolve-apm-assets]
+    needs: [verify, check-dependency-collection]
     if: >-
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true'
@@ -170,7 +165,8 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
-      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      additional-instructions: |
+        Target pull request number: ${{ github.event.pull_request.number }}.
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 

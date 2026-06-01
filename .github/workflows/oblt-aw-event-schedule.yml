@@ -11,39 +11,35 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
+  event-context:
     permissions:
       contents: read
       issues: read
-    uses: ./.github/workflows/aw-prelude.yml
+    uses: ./.github/workflows/aw-event-context.yml
     with:
       control-plane-workflows: >-
         ["oblt-aw-agent-suggestions.yml","oblt-aw-autodoc.yml","oblt-aw-security-detector.yml","oblt-aw-resource-not-accessible-by-integration-detector.yml"]
       load-allowed-authors: false
 
   agent-suggestions:
-    needs: prelude
-    if: >-
-      fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-agent-suggestions.yml'] == 'true'
+    needs: event-context
     permissions:
       contents: read
       issues: write
       pull-requests: read
     uses: ./.github/workflows/oblt-aw-agent-suggestions.yml
     with:
-      shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-agent-suggestions.yml'] }}
-      shared-allowed-pr-authors-json: ${{ needs.prelude.outputs.allowed-pr-authors-json }}
-      shared-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
-      shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
-      shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
-      shared-token-policy: ${{ needs.prelude.outputs.token-policy }}
+      shared-proceed: ${{ fromJSON(needs.event-context.outputs.proceed-by-workflow)['oblt-aw-agent-suggestions.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.event-context.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.event-context.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.event-context.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.event-context.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.event-context.outputs.token-policy }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   autodoc:
-    needs: prelude
-    if: >-
-      fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-autodoc.yml'] == 'true'
+    needs: event-context
     permissions:
       actions: read
       contents: write
@@ -51,20 +47,17 @@ jobs:
       pull-requests: write
     uses: ./.github/workflows/oblt-aw-autodoc.yml
     with:
-      shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-autodoc.yml'] }}
-      shared-allowed-pr-authors-json: ${{ needs.prelude.outputs.allowed-pr-authors-json }}
-      shared-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
-      shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
-      shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
-      shared-token-policy: ${{ needs.prelude.outputs.token-policy }}
+      shared-proceed: ${{ fromJSON(needs.event-context.outputs.proceed-by-workflow)['oblt-aw-autodoc.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.event-context.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.event-context.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.event-context.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.event-context.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.event-context.outputs.token-policy }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   security-detector:
-    needs: prelude
-    if: >-
-      fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-security-detector.yml'] == 'true' &&
-      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    needs: event-context
     permissions:
       actions: read
       contents: read
@@ -73,29 +66,26 @@ jobs:
       pull-requests: read
     uses: ./.github/workflows/oblt-aw-security-detector.yml
     with:
-      shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-security-detector.yml'] }}
-      shared-allowed-pr-authors-json: ${{ needs.prelude.outputs.allowed-pr-authors-json }}
-      shared-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
-      shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
-      shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
-      shared-token-policy: ${{ needs.prelude.outputs.token-policy }}
+      shared-proceed: ${{ fromJSON(needs.event-context.outputs.proceed-by-workflow)['oblt-aw-security-detector.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.event-context.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.event-context.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.event-context.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.event-context.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.event-context.outputs.token-policy }}
 
   resource-not-accessible-detector:
-    needs: prelude
-    if: >-
-      fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-resource-not-accessible-by-integration-detector.yml'] == 'true' &&
-      github.event_name == 'schedule'
+    needs: event-context
     permissions:
       actions: read
       contents: read
       issues: write
     uses: ./.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml
     with:
-      shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-resource-not-accessible-by-integration-detector.yml'] }}
-      shared-allowed-pr-authors-json: ${{ needs.prelude.outputs.allowed-pr-authors-json }}
-      shared-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
-      shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
-      shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
-      shared-token-policy: ${{ needs.prelude.outputs.token-policy }}
+      shared-proceed: ${{ fromJSON(needs.event-context.outputs.proceed-by-workflow)['oblt-aw-resource-not-accessible-by-integration-detector.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.event-context.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.event-context.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.event-context.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.event-context.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.event-context.outputs.token-policy }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

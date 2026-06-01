@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       shared-proceed:
-        description: Dashboard gate for this route from aw-prelude.
+        description: Dashboard gate for this route from aw-event-context.
         required: true
         type: string
       shared-allowed-pr-authors-json:
@@ -29,6 +29,9 @@ permissions:
 jobs:
 
   scan:
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
     permissions:
       actions: read
       contents: read

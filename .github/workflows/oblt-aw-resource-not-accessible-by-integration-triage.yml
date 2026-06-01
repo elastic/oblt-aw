@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       shared-proceed:
-        description: Dashboard gate for this route from aw-prelude.
+        description: Dashboard gate for this route from aw-event-context.
         required: true
         type: string
       shared-allowed-pr-authors-json:
@@ -32,17 +32,25 @@ permissions:
 
 jobs:
 
-  resolve-apm-assets:
+  res-not-accessible-integration-triage:
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
+      inputs.shared-proceed == 'true' &&
       github.event_name == 'issues' &&
       (
         (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration')) ||
         (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration')
       )
-    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
-      control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-triage.yml
-      platform-additional-instructions: |
+      allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
+      classification-labels: "oblt-aw/triage/res-not-accessible-by-integration,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
+      additional-instructions: |
         Your task is to triage issues that carry the detector label `oblt-aw/detector/res-not-accessible-by-integration` and determine if they are related to "Resource not accessible by integration" errors in GitHub Actions workflows.
 
         **Strict No-Output Rule (MUST be enforced first):**
@@ -226,26 +234,6 @@ jobs:
         - [GitHub Actions Permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
         - [Workflow Permission Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
         - [Troubleshooting Permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
-
-  res-not-accessible-integration-triage:
-    needs: [resolve-apm-assets]
-    permissions:
-      actions: read
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
-    if: >-
-      github.event_name == 'issues' &&
-      (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration')
-      )
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
-    with:
-      allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
-      classification-labels: "oblt-aw/triage/res-not-accessible-by-integration,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
-      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

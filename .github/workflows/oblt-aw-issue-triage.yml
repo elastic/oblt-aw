@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       shared-proceed:
-        description: Dashboard gate for this route from aw-prelude.
+        description: Dashboard gate for this route from aw-event-context.
         required: true
         type: string
       shared-allowed-pr-authors-json:
@@ -31,24 +31,17 @@ permissions:
 
 jobs:
 
-  resolve-apm-assets:
-    if: >-
-      github.event_name == 'issues' &&
-      github.event.action == 'opened'
-    uses: ./.github/workflows/aw-resolve-apm-assets.yml
-    with:
-      control-plane-workflow: oblt-aw-issue-triage.yml
-
   issue-triage:
-    needs: [resolve-apm-assets]
     permissions:
       actions: read
       contents: read
       discussions: write
       issues: write
       pull-requests: write
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      github.event_name == 'issues' &&
+      github.event.action == 'opened'
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
-    with:
-      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

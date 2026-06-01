@@ -6,13 +6,13 @@
 
 ## Event-scoped client model
 
-Client templates are grouped by **GitHub event family** so co-triggered routes share one dashboard read and one allow-list load per workflow run. Each event-scoped client calls an orchestrator reusable (`oblt-aw-event-*.yml`) that runs [aw-prelude.yml](aw-prelude.md) once, then fans out to per-route `oblt-aw-*` workflows.
+Client templates are grouped by **GitHub event family** so co-triggered routes share one dashboard read and one allow-list load per workflow run. Each event-scoped client calls an orchestrator reusable (`oblt-aw-event-*.yml`) that runs [aw-event-context.yml](aw-event-context.md) once, then fans out to per-route `oblt-aw-*` workflows.
 
 ```yaml
 uses: elastic/oblt-aw/.github/workflows/oblt-aw-event-pull-request.yml@main
 ```
 
-Per-route dashboard gating uses the required `shared-proceed` input (and related shared allow-list fields) passed from [aw-prelude.yml](aw-prelude.md) via each `oblt-aw-event-*` orchestrator.
+Per-route dashboard gating uses the required `shared-proceed` input (and related shared allow-list fields) passed from [aw-event-context.yml](aw-event-context.md) via each `oblt-aw-event-*` orchestrator.
 
 ### Architecture
 
@@ -33,7 +33,7 @@ flowchart TB
 
   subgraph OBLT["elastic/oblt-aw"]
     ORCH["oblt-aw-event-* orchestrator"]
-    CTX["aw-prelude"]
+    CTX["aw-event-context"]
     R["oblt-aw-* route"]
     AG["Agent steps"]
     LOCK["Upstream gh-aw lock"]
@@ -104,3 +104,4 @@ Job-level permissions on `run-aw` must be at least as permissive as the union of
 
 - [docs/operations/distribute-client-workflow.md](../operations/distribute-client-workflow.md)
 - [aw-prelude.md](aw-prelude.md)
+- [aw-event-context.md](aw-event-context.md)

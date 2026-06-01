@@ -17,8 +17,10 @@
 """
 Validate local *-aw-* route workflows and registry coherence.
 
-Route reusables (oblt-aw-*, docs-aw-*) receive shared event context from
-*-aw-event-* orchestrators and declare workflow_call input shared-proceed.
+Observability route reusables (oblt-aw-*.yml) receive shared event context from
+oblt-aw-event-* orchestrators and declare workflow_call input shared-proceed.
+
+Docs route reusables (docs-aw-*.yml) still call aw-prelude.yml via a prelude job.
 """
 
 from __future__ import annotations
@@ -33,7 +35,8 @@ WORKFLOWS_DIR = pathlib.Path(".github/workflows")
 CONFIG_DIR = pathlib.Path("config")
 AW_WORKFLOW_PATTERN = re.compile(r".+-aw-.+\.ya?ml$")
 EVENT_ORCHESTRATOR_PATTERN = re.compile(r".+-aw-event-.+\.ya?ml$")
-ROUTE_PATTERN = re.compile(r"^(?:oblt|docs)-aw-.+\.ya?ml$")
+OBLT_ROUTE_PATTERN = re.compile(r"^oblt-aw-.+\.ya?ml$")
+DOCS_ROUTE_PATTERN = re.compile(r"^docs-aw-.+\.ya?ml$")
 PRELUDE_USES = re.compile(
     r"uses:\s*\./\.github/workflows/aw-prelude\.ya?ml\b",
     re.MULTILINE,
@@ -56,21 +59,35 @@ def list_subject_workflows() -> list[pathlib.Path]:
     ]
 
 
-def validate_route(path: pathlib.Path) -> list[str]:
+def validate_oblt_route(path: pathlib.Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     errors: list[str] = []
     if PRELUDE_JOB.search(text):
-        errors.append(f"{path}: route workflows must not define a prelude job")
+        errors.append(f"{path}: oblt-aw route workflows must not define a prelude job")
     if PRELUDE_USES.search(text):
-        errors.append(f"{path}: route workflows must not call aw-prelude.yml")
+        errors.append(f"{path}: oblt-aw route workflows must not call aw-prelude.yml")
     if not SHARED_PROCEED_INPUT.search(text):
         errors.append(f"{path}: must declare workflow_call input shared-proceed")
     return errors
 
 
+def validate_docs_route(path: pathlib.Path) -> list[str]:
+    text = path.read_text(encoding="utf-8")
+    errors: list[str] = []
+    if not PRELUDE_JOB.search(text):
+        errors.append(f"{path}: missing job id 'prelude'")
+    if not PRELUDE_USES.search(text):
+        errors.append(
+            f"{path}: must call './.github/workflows/aw-prelude.yml' via a prelude job"
+        )
+    return errors
+
+
 def validate_workflow(path: pathlib.Path) -> list[str]:
-    if ROUTE_PATTERN.match(path.name):
-        return validate_route(path)
+    if OBLT_ROUTE_PATTERN.match(path.name):
+        return validate_oblt_route(path)
+    if DOCS_ROUTE_PATTERN.match(path.name):
+        return validate_docs_route(path)
     return []
 
 
@@ -80,11 +97,16 @@ def validate_registry_for_subjects(subject_workflow_names: set[str]) -> list[str
         WORKFLOWS_DIR,
         subject_workflow_names,
     )
-    routes = {name for name in subject_workflow_names if ROUTE_PATTERN.match(name)}
+    oblt_routes = {
+        name for name in subject_workflow_names if OBLT_ROUTE_PATTERN.match(name)
+    }
     filtered: list[str] = []
     for err in errors:
         path_name = err.split(":", 1)[0].split("/")[-1]
-        if path_name in routes and "prelude must pass control-plane-workflow" in err:
+        if (
+            path_name in oblt_routes
+            and "prelude must pass control-plane-workflow" in err
+        ):
             continue
         filtered.append(err)
     return filtered
@@ -110,7 +132,7 @@ def main() -> int:
 
     print(
         f"Validated {len(subjects)} *-aw-* workflow(s): "
-        "routes declare shared-proceed; event orchestrators call aw-prelude.yml."
+        "oblt-aw routes declare shared-proceed; docs-aw routes call aw-prelude.yml."
     )
     return 0
 

@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       shared-proceed:
-        description: Dashboard gate for this route from aw-prelude.
+        description: Dashboard gate for this route from aw-event-context.
         required: true
         type: string
       shared-allowed-pr-authors-json:
@@ -30,18 +30,25 @@ permissions:
 
 jobs:
 
-  resolve-apm-assets:
+  security-issue-fixer:
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
+      inputs.shared-proceed == 'true' &&
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
       (
         (github.event.label.name == 'oblt-aw/ai/fix-ready' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')) ||
         (startsWith(github.event.label.name, 'oblt-aw/triage/security-') && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/ai/fix-ready'))
       )
-    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
-      control-plane-workflow: oblt-aw-security-fixer.yml
-      platform-additional-instructions: |
+      allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
+      additional-instructions: |
         Your task is to fix security issues labeled for remediation. This workflow uses agentic workflows from elastic/ai-github-actions.
 
         **Execution Preconditions:**
@@ -78,26 +85,6 @@ jobs:
         **Merge Policy:**
         - Do not merge automatically.
         - Do not perform merge operations in this workflow.
-
-  security-issue-fixer:
-    needs: [resolve-apm-assets]
-    permissions:
-      actions: read
-      contents: write
-      discussions: write
-      issues: write
-      pull-requests: write
-    if: >-
-      github.event_name == 'issues' &&
-      github.event.action == 'labeled' &&
-      (
-        (github.event.label.name == 'oblt-aw/ai/fix-ready' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')) ||
-        (startsWith(github.event.label.name, 'oblt-aw/triage/security-') && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/ai/fix-ready'))
-      )
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
-    with:
-      allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
-      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets: inherit
 
   request-reviewers:
