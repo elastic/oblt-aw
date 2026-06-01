@@ -41,6 +41,11 @@ on:
       allowed-issue-authors-csv:
         description: Comma-separated allowed issue bot logins (empty when not loaded)
         value: ${{ jobs.evaluate.outputs.allowed-issue-authors-csv }}
+      token-policy:
+        description: >-
+          Token policy from config/<org>/active-repositories.json for this repository
+          when set; empty when not configured (create-token uses Vault auto policy).
+        value: ${{ jobs.evaluate.outputs.token-policy }}
 
 permissions:
   contents: read
@@ -76,6 +81,7 @@ jobs:
       allowed-pr-authors-csv: ${{ steps.pack.outputs.allowed-pr-authors-csv }}
       allowed-issue-authors-json: ${{ steps.pack.outputs.allowed-issue-authors-json }}
       allowed-issue-authors-csv: ${{ steps.pack.outputs.allowed-issue-authors-csv }}
+      token-policy: ${{ steps.token-policy.outputs.token-policy }}
     steps:
       - name: Checkout oblt-aw (registry scripts + config)
         uses: actions/checkout@v6
@@ -89,8 +95,16 @@ jobs:
             scripts/resolve_control_plane_workflow_id.py
             scripts/workflow_registry.py
             scripts/common.py
+            scripts/resolve_repository_token_policy.py
             config/
           sparse-checkout-cone-mode: false
+
+      - name: Resolve repository token policy
+        id: token-policy
+        env:
+          CONFIG_DIR: _oblt-aw/config
+          TARGET_REPOSITORY: ${{ github.repository }}
+        run: python _oblt-aw/scripts/resolve_repository_token_policy.py
 
       - name: Resolve compound workflow id from registry
         id: resolve

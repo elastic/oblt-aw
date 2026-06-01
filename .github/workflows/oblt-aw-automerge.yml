@@ -212,20 +212,28 @@ jobs:
   # "merge queue" is required. Enabling native "merge when ready" enqueues the PR instead.
   # Do not pass --delete-branch here: gh rejects it when merge queue is enabled.
   enable-merge-when-ready:
-    needs: automerge
+    needs: [automerge, prelude]
     if: always() && needs.automerge.outputs.merge_result == 'merge_failed'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       id-token: write
     steps:
-      - name: Create ephemeral GitHub token
-        id: create-token
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ needs.prelude.outputs.token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ needs.prelude.outputs.token-policy }}
+
+      - name: Create ephemeral GitHub token (Vault auto policy)
+        id: create-token-auto
+        if: ${{ needs.prelude.outputs.token-policy == '' }}
         uses: elastic/oblt-actions/github/create-token@v1
 
       - name: Enable merge when ready (merge queue fallback)
         env:
-          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |

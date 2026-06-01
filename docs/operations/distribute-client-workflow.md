@@ -29,39 +29,35 @@ Execution stages:
 
 ## Distribution configuration contract (per-org `active-repositories.json`)
 
-[scripts/build_target_operations.py](../../scripts/build_target_operations.py) accepts either of these JSON shapes:
-
-- Object form:
+[scripts/build_target_operations.py](../../scripts/build_target_operations.py) expects this JSON shape:
 
   ```json
   {
     "repositories": [
-      "elastic/oblt-aw",
-      "elastic/oblt-cli"
+      {
+        "repository": "elastic/oblt-aw",
+        "token-policy": ""
+      },
+      {
+        "repository": "elastic/oblt-cli",
+        "token-policy": "token-policy-abc123def456"
+      }
     ]
   }
-  ```
-
-- List form:
-
-  ```json
-  [
-    "elastic/oblt-aw",
-    "elastic/oblt-cli"
-  ]
   ```
 
 Validation and normalization rules:
 
 - `repositories` must resolve to a JSON list.
-- Every entry must be a string in `owner/repo` format.
+- Every entry is an object with required `repository` (`owner/repo`) and `token-policy` (string; use `""` when Vault auto policy / control-plane defaults apply).
+- When `token-policy` is non-empty, consumer `create-token` steps (via `aw-prelude`) use that policy for that repository; when empty, consumer workflows keep Vault auto policy per trigger workflow ref. Control-plane `distribute-client-workflow` and `sync-control-plane-dashboard` always use their fixed workflow token policies (`token-policy-63405ab45244` and `token-policy-8b60ba56dd3f`).
 - Entries are normalized (trimmed), de-duplicated, and sorted before processing.
-- Invalid entries fail the step with: `Invalid repository entry: ... Expected 'owner/repo'`.
+- Invalid entries fail the step with: `Invalid repository entry: ... Expected object with 'repository'`.
 
 Examples:
 
-- Valid: `"elastic/oblt-aw"`
-- Invalid: `"elastic"` (missing slash), `123` (non-string), `{"repo":"elastic/oblt-aw"}` (wrong type)
+- Valid: `{"repository": "elastic/oblt-aw", "token-policy": ""}`
+- Invalid: `"elastic/oblt-aw"` (bare string), `"elastic"` (missing slash in `repository`), `123` (non-object), `{"repo":"elastic/oblt-aw"}` (wrong key)
 
 ## `build_target_operations.py` Contract
 
