@@ -70,7 +70,7 @@ jobs:
   # remove+re-add `oblt-aw/ai/merge-ready` when present so ingress sees a `labeled` event from the
   # installation token (GITHUB_TOKEN label writes do not trigger downstream workflows).
   signal-dependency-review-followups:
-    needs: dependency-review
+    needs: [dependency-review, prelude]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -78,14 +78,22 @@ jobs:
       id-token: write
       pull-requests: write
     steps:
-      - name: Create ephemeral GitHub token
-        id: create-token
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ needs.prelude.outputs.token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ needs.prelude.outputs.token-policy }}
+
+      - name: Create ephemeral GitHub token (Vault auto policy)
+        id: create-token-auto
+        if: ${{ needs.prelude.outputs.token-policy == '' }}
         uses: elastic/oblt-actions/github/create-token@v1
 
       - name: Re-apply merge-ready label to emit installation-token labeled event
         uses: actions/github-script@v9
         with:
-          github-token: ${{ steps.create-token.outputs.token }}
+          github-token: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;

@@ -1,5 +1,8 @@
 {
   "repositories": [
-    "elastic/opentelemetry"
+    {
+      "repository": "elastic/opentelemetry",
+      "token-policy": ""
+    }
   ]
 }

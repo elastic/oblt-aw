@@ -20,24 +20,17 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
 ## Steps
 
-1. **Create a new branch on `elastic/oblt-aw`, choose the org, and add the repository** — From an up-to-date `main`, create a **feature branch** (for example `git checkout -b feat/oblt-aw-register-<repo>`; exact naming is your team’s convention). On that branch only, identify the owning **`config/<org-key>/`** folder ([multi-org design](../architecture/multi-org-agentic-workflows.md)) and edit **`active-repositories.json`** to include **`elastic/<repo>`** in **`owner/repo`** form. Use either JSON shape ([distribute-client-workflow](../operations/distribute-client-workflow.md)):
-
-   **Object form:**
+1. **Create a new branch on `elastic/oblt-aw`, choose the org, and add the repository** — From an up-to-date `main`, create a **feature branch** (for example `git checkout -b feat/oblt-aw-register-<repo>`; exact naming is your team’s convention). On that branch only, identify the owning **`config/<org-key>/`** folder ([multi-org design](../architecture/multi-org-agentic-workflows.md)) and edit **`active-repositories.json`** to add an object with **`repository`** set to **`elastic/<repo>`** and **`token-policy`** set to a Backstage policy name when this repo should use an explicit policy for all `create-token` calls, or **`""`** otherwise ([distribute-client-workflow](../operations/distribute-client-workflow.md)):
 
    ```json
    {
      "repositories": [
-       "elastic/<repo>"
+       {
+         "repository": "elastic/<repo>",
+         "token-policy": ""
+       }
      ]
    }
-   ```
-
-   **List form:**
-
-   ```json
-   [
-     "elastic/<repo>"
-   ]
    ```
 
    Commit on the branch and open a pull request to **`main`**, but **do not merge** that registration PR until **step 3** is complete.

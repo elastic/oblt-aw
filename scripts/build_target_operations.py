@@ -21,6 +21,7 @@ import sys
 
 from common import (
     discover_repo_org_assignments,
+    merge_repository_token_policies_from_org_trees,
     parse_repositories,
     write_outputs,
 )
@@ -182,6 +183,7 @@ def main() -> int:
 
     config_dir = pathlib.Path("config")
     current_assignments = discover_repo_org_assignments(config_dir)
+    token_policies = merge_repository_token_policies_from_org_trees(config_dir)
 
     previous_assignments = read_previous_repo_org_assignments(base_ref)
 
@@ -224,6 +226,7 @@ def main() -> int:
                 "operation": "install",
                 "files": files,
                 "remove_files": remove_files,
+                "token-policy": token_policies.get(repo, ""),
             }
         )
 
@@ -235,6 +238,7 @@ def main() -> int:
                 "repository": repo,
                 "operation": "remove",
                 "files": files,
+                "token-policy": token_policies.get(repo, ""),
             }
         )
 
