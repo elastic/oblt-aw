@@ -22,7 +22,7 @@ There is no config file (no `.github/oblt-aw-config.json`), no PRs when users to
 Every workflow in ingress gating is identified by **`org-key:workflow-id`**:
 
 - **`org-key`** — Directory name under `config/<org-key>/` in `elastic/oblt-aw` (for example `obs`, `docs`). Not to be confused with the repository’s root `docs/` Markdown tree.
-- **`workflow-id`** — Unique within that org’s [`workflow-registry.json`](../../config/obs/workflow-registry.json). Each registry entry lists every control-plane reusable it gates via `control_plane_workflows` (basenames under `.github/workflows/`, for example `oblt-aw-security-detector.yml`); multiple files may share one `id` (detector/fixer/triage).
+- **`workflow-id`** — Unique within that org’s [`workflow-registry.json`](../../config/obs/workflow-registry.json). Each registry entry lists every control-plane reusable it gates via `ingress_routes` (basenames under `.github/workflows/`, for example `oblt-aw-security-detector.yml`); multiple files may share one `id` (detector/fixer/triage).
 
 **Examples:** `obs:agent-suggestions`, `docs:example-workflow`.
 

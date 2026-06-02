@@ -1,28 +1,23 @@
 name: Agentic Workflow Prelude
 
-# Shared dashboard gating and optional allow-list loading for *-aw-* workflows.
-# Call this reusable workflow before agent-specific jobs in oblt-aw-* and docs-aw-* wrappers.
+# Shared dashboard read and optional allow-list loading for ingress workflows.
 # APM asset resolution lives in aw-resolve-apm-assets.yml (per gh-aw-* invocation).
 on:
   workflow_call:
     inputs:
-      control-plane-workflow:
-        description: >-
-          Basename of this wrapper under .github/workflows/ (for example
-          oblt-aw-automerge.yml). Compound org:workflow-id is resolved from
-          config/<org>/workflow-registry.json.
-        required: true
-        type: string
       load-allowed-authors:
         description: Load PR and issue allow lists from elastic/oblt-aw config
         required: false
         type: boolean
         default: false
+      ingress-event-name:
+        description: Relayed event name from ingress (empty uses github.event_name)
+        required: false
+        type: string
+        default: ''
     outputs:
       proceed:
-        description: >-
-          True when dashboard gating allows this workflow (effective-raw empty or
-          the registry-resolved compound id is listed in enabled-workflows).
+        description: Always true; route jobs gate on enabled-workflows in ingress
         value: ${{ jobs.evaluate.outputs.proceed }}
       effective-raw:
         description: Raw dashboard read before normalization ('' means all enabled)
@@ -44,8 +39,8 @@ on:
         value: ${{ jobs.evaluate.outputs.allowed-issue-authors-csv }}
       token-policy:
         description: >-
-          Token policy from config/<org>/active-repositories.json for this repository
-          when set; empty when not configured (create-token uses Vault auto policy).
+          Token policy from config/<org>/active-repositories.json for this repository;
+          passed as ingress-token-policy to workflows that call create-token.
         value: ${{ jobs.evaluate.outputs.token-policy }}
 
 permissions:
@@ -63,7 +58,10 @@ jobs:
       contents: read
     if: >-
       inputs.load-allowed-authors &&
-      (github.event_name == 'pull_request' || github.event_name == 'issues')
+      (
+        (inputs.ingress-event-name != '' && inputs.ingress-event-name || github.event_name) == 'pull_request' ||
+        (inputs.ingress-event-name != '' && inputs.ingress-event-name || github.event_name) == 'issues'
+      )
     uses: ./.github/workflows/load-allowed-authors.yml
 
   evaluate:
@@ -78,7 +76,6 @@ jobs:
     timeout-minutes: 2
     outputs:
       proceed: ${{ steps.gate.outputs.proceed }}
-      compound-workflow-id: ${{ steps.resolve.outputs.compound-workflow-id }}
       allowed-pr-authors-json: ${{ steps.pack.outputs.allowed-pr-authors-json }}
       allowed-pr-authors-csv: ${{ steps.pack.outputs.allowed-pr-authors-csv }}
       allowed-issue-authors-json: ${{ steps.pack.outputs.allowed-issue-authors-json }}
@@ -94,7 +91,6 @@ jobs:
           fetch-depth: 1
           token: ${{ github.token }}
           sparse-checkout: |
-            scripts/resolve_control_plane_workflow_id.py
             scripts/workflow_registry.py
             scripts/common.py
             scripts/resolve_repository_token_policy.py
@@ -108,27 +104,9 @@ jobs:
           TARGET_REPOSITORY: ${{ github.repository }}
         run: python _oblt-aw/scripts/resolve_repository_token_policy.py
 
-      - name: Resolve compound workflow id from registry
-        id: resolve
-        env:
-          CONTROL_PLANE_WORKFLOW: ${{ inputs.control-plane-workflow }}
-        run: python _oblt-aw/scripts/resolve_control_plane_workflow_id.py "${CONTROL_PLANE_WORKFLOW}" --config-dir _oblt-aw/config
-
-      - name: Evaluate dashboard gate
+      - name: Set proceed output
         id: gate
-        env:
-          EFFECTIVE_RAW: ${{ needs.dashboard.outputs.effective-raw }}
-          ENABLED_WORKFLOWS: ${{ needs.dashboard.outputs.enabled-workflows }}
-          ENABLED_WORKFLOW_ID: ${{ steps.resolve.outputs.compound-workflow-id }}
-        run: |
-          set -euo pipefail
-          if [ -z "${EFFECTIVE_RAW}" ]; then
-            echo "proceed=true"
-          elif echo "${ENABLED_WORKFLOWS}" | jq -e --arg id "${ENABLED_WORKFLOW_ID}" 'index($id) != null' >/dev/null; then
-            echo "proceed=true"
-          else
-            echo "proceed=false"
-          fi >> "${GITHUB_OUTPUT}"
+        run: echo "proceed=true" >> "${GITHUB_OUTPUT}"
 
       - name: Pack allow-list outputs
         id: pack

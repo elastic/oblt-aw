@@ -1,11 +1,26 @@
 name: Docs AI menu
 
-# Reusable implementation for the Elastic Docs issue AI menu. Consumer repositories
-# install `.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-ai-menu.yml`.
+# Reusable implementation for the Elastic Docs issue AI menu. Routed from docs-aw-ingress.yml.
 # Scripts: `scripts/docs/issue-menu/`.
 
 on:
   workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from docs-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from docs-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from docs-aw-ingress
+        required: false
+        type: string
+        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
@@ -14,27 +29,24 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      control-plane-workflow: docs-aw-ai-menu.yml
-
   post-menu:
     name: Post or refresh AI menu
-    needs: prelude
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      (github.event_name == 'issues' || github.event_name == 'workflow_dispatch')
+      (
+        inputs.ingress-event-name != '' && inputs.ingress-event-name ||
+        github.event_name
+      ) == 'issues' ||
+      (
+        inputs.ingress-event-name != '' && inputs.ingress-event-name ||
+        github.event_name
+      ) == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
       issues: write
     concurrency:
-      group: docs-ai-menu-${{ github.event.issue.number || github.event.inputs.issue_number }}
+      group: docs-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.issue_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs AI issue menu scripts
@@ -58,15 +70,16 @@ jobs:
 
   evaluate-trigger:
     name: Evaluate AI menu trigger
-    needs: prelude
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request == null &&
+      (
+        inputs.ingress-event-name != '' && inputs.ingress-event-name ||
+        github.event_name
+      ) == 'issue_comment' &&
+      fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.pull_request == null &&
       github.actor != 'github-actions[bot]' &&
-      github.event.comment.user.login == 'github-actions[bot]' &&
-      contains(github.event.comment.body, '<!-- docs-ai-menu:start -->') &&
-      contains(github.event.comment.body, '<!-- docs-ai-menu:end -->')
+      fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.user.login == 'github-actions[bot]' &&
+      contains(fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.body, '<!-- docs-ai-menu:start -->') &&
+      contains(fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.body, '<!-- docs-ai-menu:end -->')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -107,7 +120,7 @@ jobs:
       contents: read
       issues: write
     concurrency:
-      group: docs-ai-menu-${{ github.event.issue.number || github.event.inputs.issue_number }}
+      group: docs-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.issue_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs AI issue menu scripts
@@ -133,19 +146,15 @@ jobs:
             await fn({github, context, core})
 
   resolve-apm-assets-triage:
-    needs: [prelude, evaluate-trigger]
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      needs.evaluate-trigger.outputs.triage_triggered == 'true'
+    needs: [evaluate-trigger]
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: docs-aw-ai-menu.yml
 
   run-docs-triage:
     name: Docs AI / triage
-    needs: [prelude, evaluate-trigger, resolve-apm-assets-triage]
+    needs: [evaluate-trigger, resolve-apm-assets-triage]
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
       needs.evaluate-trigger.outputs.triage_triggered == 'true'
     permissions:
       actions: read
@@ -159,9 +168,8 @@ jobs:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   resolve-apm-assets-issue-scope:
-    needs: [prelude, evaluate-trigger]
+    needs: [evaluate-trigger]
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
       needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
@@ -169,9 +177,8 @@ jobs:
 
   run-docs-issue-scope:
     name: Docs AI / issue scope
-    needs: [prelude, evaluate-trigger, resolve-apm-assets-issue-scope]
+    needs: [evaluate-trigger, resolve-apm-assets-issue-scope]
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
       needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
     permissions:
       actions: read

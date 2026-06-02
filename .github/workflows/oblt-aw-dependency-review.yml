@@ -1,6 +1,36 @@
 name: Dependency Review
 on:
   workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-token-policy:
+        description: Token policy resolved by oblt-aw-ingress prelude
+        required: true
+        type: string
+      ingress-allowed-pr-authors-csv:
+        description: Allowed PR bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-issue-authors-csv:
+        description: Allowed issue bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -9,22 +39,8 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      control-plane-workflow: oblt-aw-dependency-review.yml
-      load-allowed-authors: true
 
   resolve-apm-assets:
-    needs: prelude
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'pull_request' &&
-      contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-      contains(fromJSON(needs.prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login)
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-dependency-review.yml
@@ -58,20 +74,15 @@ jobs:
         - The comment's "Labels Applied" section must reflect labels you actually applied via add_labels, not merely recommended. If you applied a label, say so; if you did not apply any, say "No labels applied."
 
   dependency-review:
-    needs: [prelude, resolve-apm-assets]
+    needs: [resolve-apm-assets]
     permissions:
       actions: read
       contents: read
       issues: write
       pull-requests: write
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'pull_request' &&
-      contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-      contains(fromJSON(needs.prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login)
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
     with:
-      allowed-bot-users: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      allowed-bot-users: ${{ inputs.ingress-allowed-pr-authors-csv }}
       classification-labels: "oblt-aw/ai/merge-ready"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
@@ -82,7 +93,7 @@ jobs:
   # remove+re-add `oblt-aw/ai/merge-ready` when present so ingress sees a `labeled` event from the
   # installation token (GITHUB_TOKEN label writes do not trigger downstream workflows).
   signal-dependency-review-followups:
-    needs: [dependency-review, prelude]
+    needs: [dependency-review]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -90,22 +101,16 @@ jobs:
       id-token: write
       pull-requests: write
     steps:
-      - name: Create ephemeral GitHub token (configured policy)
-        id: create-token-explicit
-        if: ${{ needs.prelude.outputs.token-policy != '' }}
+      - name: Create ephemeral GitHub token
+        id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
         with:
-          token-policy: ${{ needs.prelude.outputs.token-policy }}
-
-      - name: Create ephemeral GitHub token (Vault auto policy)
-        id: create-token-auto
-        if: ${{ needs.prelude.outputs.token-policy == '' }}
-        uses: elastic/oblt-actions/github/create-token@v1
+          token-policy: ${{ inputs.ingress-token-policy }}
 
       - name: Re-apply merge-ready label to emit installation-token labeled event
         uses: actions/github-script@v9
         with:
-          github-token: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          github-token: ${{ steps.create-token.outputs.token }}
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;

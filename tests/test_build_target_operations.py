@@ -205,7 +205,8 @@ class TestMain:
             / "workflows"
         )
         tmpl.mkdir(parents=True, exist_ok=True)
-        (tmpl / "trigger-oblt-aw-automerge.yml").write_text("name: client\n")
+        (tmpl / "trigger-oblt-aw.yml").write_text("name: client\n")
+        (tmpl / "oblt-aw.yml").write_text("name: entrypoint\n")
         return output_file
 
     def test_no_changes_skips_work(
@@ -242,7 +243,8 @@ class TestMain:
             assert isinstance(t["files"], list)
             assert len(t["files"]) >= 1
             dsts = {f["dst"] for f in t["files"]}
-            assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts
+            assert ".github/workflows/trigger-oblt-aw.yml" in dsts
+            assert ".github/workflows/oblt-aw.yml" in dsts
             assert "remove_files" in t
             assert t["remove_files"] == []
 
@@ -332,7 +334,7 @@ class TestMain:
         install = next(t for t in targets if t["repository"] == "elastic/foo")
         assert ".github/workflows/trg-oblt-aw-automerge.yml" in install["remove_files"]
         dsts = {f["dst"] for f in install["files"]}
-        assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts
+        assert ".github/workflows/trigger-oblt-aw.yml" in dsts
 
     def test_install_includes_remove_files_for_dropped_templates(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
@@ -377,6 +379,9 @@ class TestMain:
         )
         install = next(t for t in targets if t["repository"] == "elastic/foo")
         assert install["operation"] == "install"
-        assert ".github/workflows/oblt-aw.yml" in install["remove_files"]
+        assert (
+            ".github/workflows/trigger-oblt-aw-automerge.yml" in install["remove_files"]
+        )
         dsts = {f["dst"] for f in install["files"]}
-        assert ".github/workflows/trigger-oblt-aw-automerge.yml" in dsts
+        assert ".github/workflows/trigger-oblt-aw.yml" in dsts
+        assert ".github/workflows/oblt-aw.yml" in dsts

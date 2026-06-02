@@ -1,6 +1,32 @@
 name: Security Issue Fixer
 on:
   workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-pr-authors-csv:
+        description: Allowed PR bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-issue-authors-csv:
+        description: Allowed issue bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -9,29 +35,24 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      control-plane-workflow: oblt-aw-security-fixer.yml
-      load-allowed-authors: true
 
   resolve-apm-assets:
-    needs: prelude
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'issues' &&
-      github.event.action == 'labeled' &&
-      (
-        (github.event.label.name == 'oblt-aw/ai/fix-ready' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')) ||
-        (startsWith(github.event.label.name, 'oblt-aw/triage/security-') && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/ai/fix-ready'))
-      )
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-security-fixer.yml
-      platform-additional-instructions: |
+
+  security-issue-fixer:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
+    with:
+      allowed-bot-users: ${{ inputs.ingress-allowed-issue-authors-csv }}
+      additional-instructions: |
         Your task is to fix security issues labeled for remediation. This workflow uses agentic workflows from elastic/ai-github-actions.
 
         **Execution Preconditions:**
@@ -68,27 +89,6 @@ jobs:
         **Merge Policy:**
         - Do not merge automatically.
         - Do not perform merge operations in this workflow.
-
-  security-issue-fixer:
-    needs: [prelude, resolve-apm-assets]
-    permissions:
-      actions: read
-      contents: write
-      discussions: write
-      issues: write
-      pull-requests: write
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'issues' &&
-      github.event.action == 'labeled' &&
-      (
-        (github.event.label.name == 'oblt-aw/ai/fix-ready' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')) ||
-        (startsWith(github.event.label.name, 'oblt-aw/triage/security-') && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/ai/fix-ready'))
-      )
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
-    with:
-      allowed-bot-users: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
-      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets: inherit
 
   request-reviewers:

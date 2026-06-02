@@ -1,6 +1,32 @@
 name: Resource Not Accessible by Integration Detector
 on:
   workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-pr-authors-csv:
+        description: Allowed PR bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-issue-authors-csv:
+        description: Allowed issue bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -9,20 +35,11 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-detector.yml
 
   discover:
-    needs: prelude
     permissions:
       actions: read
       contents: read
-    if: needs.prelude.outputs.proceed == 'true' && github.event_name == 'schedule'
     runs-on: ubuntu-latest
     outputs:
       workflows: ${{ steps.list.outputs.workflows }}
@@ -38,7 +55,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   resolve-apm-assets:
-    needs: [prelude, discover]
+    needs: [discover]
     if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:

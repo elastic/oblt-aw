@@ -1,11 +1,26 @@
 name: Docs PR AI menu
 
-# Reusable implementation for the Elastic Docs PR AI menu. Consumer repositories
-# install `.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-pr-ai-menu.yml`.
+# Reusable implementation for the Elastic Docs PR AI menu. Routed from docs-aw-ingress.yml.
 # Scripts: `scripts/docs/pr-menu/`.
 
 on:
   workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from docs-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from docs-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from docs-aw-ingress
+        required: false
+        type: string
+        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
@@ -14,23 +29,20 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      control-plane-workflow: docs-aw-pr-ai-menu.yml
-
   post-menu:
     name: Post or refresh AI PR menu
-    needs: prelude
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
       (
-        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
-        github.event_name == 'workflow_dispatch'
-      )
+        (
+          inputs.ingress-event-name != '' && inputs.ingress-event-name ||
+          github.event_name
+        ) == 'workflow_run' &&
+        fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).workflow_run.conclusion == 'success'
+      ) ||
+      (
+        inputs.ingress-event-name != '' && inputs.ingress-event-name ||
+        github.event_name
+      ) == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -40,23 +52,28 @@ jobs:
       issues: write
       pull-requests: write
     concurrency:
-      group: docs-pr-ai-menu-${{ github.event.workflow_run.id || github.event.pull_request.number || github.event.issue.number || github.event.inputs.pull_request_number }}
+      group: docs-pr-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).workflow_run.id || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).pull_request.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.pull_request_number }}
       cancel-in-progress: false
     steps:
       - name: Download pull request number artifact
-        if: github.event_name == 'workflow_run'
+        if: >-
+          (
+            inputs.ingress-event-name != '' && inputs.ingress-event-name ||
+            github.event_name
+          ) == 'workflow_run'
         uses: actions/download-artifact@v8
         with:
           name: pr-number
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Resolve pull request number
         id: resolve-pr
         env:
-          WORKFLOW_DISPATCH_PR: ${{ github.event.inputs.pull_request_number }}
+          EVENT_NAME: ${{ inputs.ingress-event-name != '' && inputs.ingress-event-name || github.event_name }}
+          WORKFLOW_DISPATCH_PR: ${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.pull_request_number }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+          if [ "${EVENT_NAME}" = "workflow_run" ]; then
             echo "number=$(cat pr_number.txt)" >> "$GITHUB_OUTPUT"
           else
             echo "number=${WORKFLOW_DISPATCH_PR}" >> "$GITHUB_OUTPUT"
@@ -85,15 +102,16 @@ jobs:
 
   evaluate-trigger:
     name: Evaluate AI PR menu trigger
-    needs: prelude
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request != null &&
+      (
+        inputs.ingress-event-name != '' && inputs.ingress-event-name ||
+        github.event_name
+      ) == 'issue_comment' &&
+      fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.pull_request != null &&
       github.actor != 'github-actions[bot]' &&
-      github.event.comment.user.login == 'github-actions[bot]' &&
-      contains(github.event.comment.body, '<!-- docs-pr-ai-menu:start -->') &&
-      contains(github.event.comment.body, '<!-- docs-pr-ai-menu:end -->')
+      fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.user.login == 'github-actions[bot]' &&
+      contains(fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.body, '<!-- docs-pr-ai-menu:start -->') &&
+      contains(fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.body, '<!-- docs-pr-ai-menu:end -->')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -134,7 +152,7 @@ jobs:
       issues: write
       pull-requests: write
     concurrency:
-      group: docs-pr-ai-menu-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pull_request_number }}
+      group: docs-pr-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).pull_request.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.pull_request_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
@@ -157,10 +175,7 @@ jobs:
             await fn({github, context, core})
 
   resolve-apm-assets:
-    needs: [prelude, evaluate-trigger]
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    needs: [evaluate-trigger]
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: docs-aw-pr-ai-menu.yml
@@ -170,9 +185,8 @@ jobs:
 
   run-docs-review:
     name: Docs AI / docs review
-    needs: [prelude, evaluate-trigger, resolve-apm-assets]
+    needs: [evaluate-trigger, resolve-apm-assets]
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
       needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
     permissions:
       actions: read

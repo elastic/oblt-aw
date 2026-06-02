@@ -1,6 +1,36 @@
 name: Security Issue Triage
 on:
   workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-token-policy:
+        description: Token policy resolved by oblt-aw-ingress prelude
+        required: true
+        type: string
+      ingress-allowed-pr-authors-csv:
+        description: Allowed PR bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-issue-authors-csv:
+        description: Allowed issue bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -10,24 +40,8 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      control-plane-workflow: oblt-aw-security-triage.yml
-      load-allowed-authors: true
 
   resolve-apm-assets:
-    needs: prelude
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'issues' &&
-      (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/security')
-      )
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-security-triage.yml
@@ -107,23 +121,16 @@ jobs:
         - [Workflow Permission Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
 
   security-issue-triage:
-    needs: [prelude, resolve-apm-assets]
+    needs: [resolve-apm-assets]
     permissions:
       actions: read
       contents: read
       discussions: write
       issues: write
       pull-requests: write
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'issues' &&
-      (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/security')
-      )
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
-      allowed-bot-users: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
+      allowed-bot-users: ${{ inputs.ingress-allowed-issue-authors-csv }}
       classification-labels: "oblt-aw/triage/security-injection,oblt-aw/triage/security-secrets,oblt-aw/triage/security-supply-chain,oblt-aw/triage/security-least-privilege,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
@@ -133,7 +140,7 @@ jobs:
   # mint only in this follow-up job; remove+re-add `oblt-aw/ai/fix-ready` when the fixer preconditions
   # hold so ingress sees a `labeled` event from the installation token.
   signal-security-triage-followups:
-    needs: [security-issue-triage, prelude]
+    needs: [security-issue-triage]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -141,22 +148,16 @@ jobs:
       id-token: write
       issues: write
     steps:
-      - name: Create ephemeral GitHub token (configured policy)
-        id: create-token-explicit
-        if: ${{ needs.prelude.outputs.token-policy != '' }}
+      - name: Create ephemeral GitHub token
+        id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
         with:
-          token-policy: ${{ needs.prelude.outputs.token-policy }}
-
-      - name: Create ephemeral GitHub token (Vault auto policy)
-        id: create-token-auto
-        if: ${{ needs.prelude.outputs.token-policy == '' }}
-        uses: elastic/oblt-actions/github/create-token@v1
+          token-policy: ${{ inputs.ingress-token-policy }}
 
       - name: Re-apply fix-ready label to emit installation-token labeled event
         uses: actions/github-script@v9
         with:
-          github-token: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          github-token: ${{ steps.create-token.outputs.token }}
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;

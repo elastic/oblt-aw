@@ -2,24 +2,43 @@
 name: Security Detector
 on:
   workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-token-policy:
+        description: Token policy resolved by oblt-aw-ingress prelude
+        required: true
+        type: string
+      ingress-allowed-pr-authors-csv:
+        description: Allowed PR bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-issue-authors-csv:
+        description: Allowed issue bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      control-plane-workflow: oblt-aw-security-detector.yml
 
   scan:
-    needs: prelude
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
     permissions:
       actions: read
       contents: read
@@ -57,26 +76,17 @@ jobs:
           count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
-      - name: Create ephemeral GitHub token (configured policy)
-        id: create-token-explicit
-        if: >-
-          steps.scan.outputs.count != '0' &&
-          needs.prelude.outputs.token-policy != ''
+      - name: Create ephemeral GitHub token
+        id: create-token
+        if: ${{ steps.scan.outputs.count != '0' }}
         uses: elastic/oblt-actions/github/create-token@v1
         with:
-          token-policy: ${{ needs.prelude.outputs.token-policy }}
-
-      - name: Create ephemeral GitHub token (Vault auto policy)
-        id: create-token-auto
-        if: >-
-          steps.scan.outputs.count != '0' &&
-          needs.prelude.outputs.token-policy == ''
-        uses: elastic/oblt-actions/github/create-token@v1
+          token-policy: ${{ inputs.ingress-token-policy }}
 
       - name: Create issues from findings
         if: ${{ steps.scan.outputs.count != '0' }}
         env:
-          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           SECURITY_SCAN_DATE="$(date -u +%Y-%m-%d)"

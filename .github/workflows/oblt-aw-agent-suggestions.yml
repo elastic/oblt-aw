@@ -1,6 +1,32 @@
 name: Agent Suggestions
 on:
   workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-pr-authors-csv:
+        description: Allowed PR bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-issue-authors-csv:
+        description: Allowed issue bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -9,17 +35,7 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      control-plane-workflow: oblt-aw-agent-suggestions.yml
-
   resolve-apm-assets:
-    needs: prelude
-    if: needs.prelude.outputs.proceed == 'true'
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-agent-suggestions.yml
@@ -40,12 +56,11 @@ jobs:
         - `expires`: `24h`
 
   agent-suggestions:
-    needs: [prelude, resolve-apm-assets]
+    needs: [resolve-apm-assets]
     permissions:
       contents: read
       issues: write
       pull-requests: read
-    if: needs.prelude.outputs.proceed == 'true'
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main
     with:
       title-prefix: "[oblt-aw][agent-suggestions]"
