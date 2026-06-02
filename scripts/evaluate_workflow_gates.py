@@ -30,8 +30,7 @@ import sys
 from pathlib import Path
 
 from common import write_outputs
-from workflow_registry import build_control_plane_workflow_index, resolve_compound_id
-
+from workflow_registry import build_control_plane_workflow_index
 
 def _proceed_for_compound_id(
     effective_raw: str, enabled_workflows_json: str, compound_id: str
@@ -59,7 +58,7 @@ def evaluate_gates(
                 f"control-plane workflow {basename!r} is not listed in any "
                 f"workflow-registry.json control_plane_workflows (known: {known})"
             )
-        compound_id = resolve_compound_id(config_dir, basename)
+        compound_id = index[basename].compound_id
         allowed = _proceed_for_compound_id(
             effective_raw, enabled_workflows_json, compound_id
         )
