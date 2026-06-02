@@ -156,10 +156,24 @@ jobs:
             const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-trigger.js')
             await fn({github, context, core})
 
+  resolve-apm-assets:
+    needs: [prelude, evaluate-trigger]
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: docs-aw-pr-ai-menu.yml
+      platform-additional-instructions: |
+        This repository stores documentation as markdown across the repository.
+        Prefer concise, high-signal review comments with exact replacement text when possible.
+
   run-docs-review:
     name: Docs AI / docs review
-    needs: [evaluate-trigger]
-    if: needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    needs: [prelude, evaluate-trigger, resolve-apm-assets]
+    if: >-
+      needs.prelude.outputs.proceed == 'true' &&
+      needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
     permissions:
       actions: read
       contents: read
@@ -168,9 +182,7 @@ jobs:
     uses: elastic/docs-actions/.github/workflows/gh-aw-docs-review.lock.yml@v1
     with:
       review-scope: repo-wide-markdown
-      additional-instructions: |
-        This repository stores documentation as markdown across the repository.
-        Prefer concise, high-signal review comments with exact replacement text when possible.
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

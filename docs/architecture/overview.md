@@ -2,11 +2,11 @@
 
 ## Overview
 
-`oblt-aw` exposes reusable `oblt-aw-*` workflows. Each consumer installs one or more **`trigger-oblt-aw-*.yml`** client templates (narrow `on:` triggers) that call the matching control-plane workflow. Shared dashboard gating runs in [aw-prelude](../../.github/workflows/aw-prelude.yml) before agent-specific jobs.
+`oblt-aw` exposes reusable `oblt-aw-*` workflows. Each consumer installs one or more **`trigger-oblt-aw-*.yml`** client templates (narrow `on:` triggers) that call the matching control-plane workflow. Shared dashboard gating and optional [APM agentic assets](./apm-agentic-assets.md) resolution run in [aw-prelude](../../.github/workflows/aw-prelude.yml) before agent-specific jobs.
 
 Platform workflows:
 
-- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml) (dashboard + allow lists)
+- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml) (dashboard, allow lists, APM asset resolution)
 - [.github/workflows/get-enabled-workflows.yml](../../.github/workflows/get-enabled-workflows.yml) (dashboard read; used by prelude)
 
 Specialized workflows:

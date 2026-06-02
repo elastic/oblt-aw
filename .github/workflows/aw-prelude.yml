@@ -2,6 +2,7 @@ name: Agentic Workflow Prelude
 
 # Shared dashboard gating and optional allow-list loading for *-aw-* workflows.
 # Call this reusable workflow before agent-specific jobs in oblt-aw-* and docs-aw-* wrappers.
+# APM asset resolution lives in aw-resolve-apm-assets.yml (per gh-aw-* invocation).
 on:
   workflow_call:
     inputs:
@@ -77,6 +78,7 @@ jobs:
     timeout-minutes: 2
     outputs:
       proceed: ${{ steps.gate.outputs.proceed }}
+      compound-workflow-id: ${{ steps.resolve.outputs.compound-workflow-id }}
       allowed-pr-authors-json: ${{ steps.pack.outputs.allowed-pr-authors-json }}
       allowed-pr-authors-csv: ${{ steps.pack.outputs.allowed-pr-authors-csv }}
       allowed-issue-authors-json: ${{ steps.pack.outputs.allowed-issue-authors-json }}

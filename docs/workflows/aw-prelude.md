@@ -8,6 +8,8 @@ Shared reusable prelude for agentic workflows (dashboard gating and optional all
 
 Every control-plane `*-aw-*` wrapper (`oblt-aw-*`, `docs-aw-*`) invokes this prelude as its first job before running agent-specific steps. CI enforces this via [scripts/validate_aw_workflow_prelude.py](../../scripts/validate_aw_workflow_prelude.py).
 
+APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the prelude. Call [aw-resolve-apm-assets.yml](aw-resolve-apm-assets.md) once per `gh-aw-*` agent invocation instead.
+
 ## Contract
 
 ### Inputs
@@ -38,4 +40,5 @@ Same as ingress historically used:
 
 - [get-enabled-workflows.md](get-enabled-workflows.md)
 - [load-allowed-authors.md](load-allowed-authors.md)
+- [aw-resolve-apm-assets.md](aw-resolve-apm-assets.md)
 - [oblt-aw-client-template.md](oblt-aw-client-template.md)
