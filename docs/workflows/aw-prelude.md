@@ -26,6 +26,7 @@ Every control-plane `*-aw-*` wrapper (`oblt-aw-*`, `docs-aw-*`) invokes this pre
 | `enabled-workflows` | Normalized JSON array of compound ids |
 | `allowed-pr-authors-json` / `allowed-pr-authors-csv` | PR allow list (empty when not loaded) |
 | `allowed-issue-authors-json` / `allowed-issue-authors-csv` | Issue allow list (empty when not loaded) |
+| `token-policy` | Token policy resolved for `github.repository` from `config/<org>/active-repositories.json`; empty when not configured (create-token uses Vault auto policy) |
 
 ### Gating rule
 
