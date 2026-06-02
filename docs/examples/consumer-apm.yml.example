@@ -12,8 +12,10 @@ x-oblt-aw:
   # Each org block must define common; workflows.<id> overrides common entirely.
   obs:
     common:
+      # Script paths and inline shell are both valid; use a list, a string, or a multiline block.
       setup-commands:
         - ./scripts/bootstrap-agent-context.sh
+        - pip install -r requirements-dev.txt
       inputs:
         additional-instructions: |
           Shared guidance for every observability agentic workflow in this repository.

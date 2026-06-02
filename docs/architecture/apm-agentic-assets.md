@@ -17,6 +17,14 @@ Keys under `x-oblt-aw.<org-key>.workflows` must match the `id` field in that org
 | `<org-key>.common` | **Required** for each org block | Shared assets when no workflow override exists |
 | `<org-key>.workflows.<id>` | Optional | **Override:** when present, `common` is ignored entirely for that run |
 
+Each asset block (`common` or `workflows.<id>`) may include:
+
+| Field | Form | Behavior |
+|-------|------|----------|
+| `setup-commands` | Inline string or list of strings | Shell run before the agentic engine. Use a **list** for separate steps, a **single string** for one command, or a **multiline block** (`\|`) for several inline commands (one non-empty, non-`#` line per command). Entries may be repo script paths (for example `./scripts/bootstrap.sh`) or arbitrary inline shell (for example `npm ci`). |
+| `setup-commands-file` | Repo-relative path | Optional. UTF-8 file with one command per line; appended after `setup-commands`. Same line rules as multiline inline text. |
+| `inputs` | Mapping | Agentic workflow input overrides; `*-file` keys load repo file contents (see manifest example). |
+
 A repository in multiple org fleets may define separate `obs` and `docs` blocks with different `common` guidance.
 
 ## Precedence (per run)
@@ -47,11 +55,15 @@ x-oblt-aw:
     common:
       setup-commands:
         - ./scripts/ai-bootstrap.sh
+        - npm ci --ignore-scripts
       inputs:
         additional-instructions: |
           Repository-wide agent guidance for observability agentic workflows.
     workflows:
       agent-suggestions:
+        setup-commands: |
+          export AGENT_CONTEXT=agent-suggestions
+          ./scripts/validate-agent-env.sh
         inputs:
           additional-instructions: |
             Overrides obs.common entirely for agent-suggestions only.

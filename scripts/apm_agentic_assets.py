@@ -28,6 +28,9 @@ Precedence within the org block for the running ``org-key``:
 - Otherwise use ``common``.
 - Platform / control-plane inputs are merged per-key on top: APM ``inputs`` override
   platform keys; ``additional-instructions`` from APM are appended after platform text.
+
+``setup-commands`` accepts inline shell (string, list, or multiline block) and optional
+``setup-commands-file`` (one command per line). Entries may be script paths or shell.
 """
 
 from __future__ import annotations
@@ -206,18 +209,54 @@ def materialize_inputs(
     return out
 
 
-def extract_setup_commands(block: dict[str, Any]) -> list[str]:
-    commands = block.get("setup-commands")
-    if commands is None:
+def _expand_setup_command_lines(text: str) -> list[str]:
+    """Split multiline inline setup text into individual shell commands."""
+    lines: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            lines.append(stripped)
+    return lines
+
+
+def _normalize_setup_commands_value(value: Any, *, field: str) -> list[str]:
+    if value is None:
         return []
-    if not isinstance(commands, list):
-        raise ValueError("setup-commands must be a list of strings")
-    normalized: list[str] = []
-    for item in commands:
-        if not isinstance(item, str) or not item.strip():
-            raise ValueError("setup-commands entries must be non-empty strings")
-        normalized.append(item)
-    return normalized
+    if isinstance(value, str):
+        if not value.strip():
+            raise ValueError(f"{field} must be a non-empty string")
+        return _expand_setup_command_lines(value)
+    if isinstance(value, list):
+        normalized: list[str] = []
+        for item in value:
+            if not isinstance(item, str) or not item.strip():
+                raise ValueError(f"{field} entries must be non-empty strings")
+            normalized.extend(_expand_setup_command_lines(item))
+        return normalized
+    raise ValueError(f"{field} must be a string or a list of strings")
+
+
+def extract_setup_commands(block: dict[str, Any], *, repo_root: Path) -> list[str]:
+    """
+    Resolve setup shell commands from an asset block.
+
+    Supports:
+    - ``setup-commands``: inline shell (string or list of strings; multiline strings
+      split into one command per non-empty, non-comment line)
+    - ``setup-commands-file``: repo-relative path to a file with one command per line
+    """
+    commands = _normalize_setup_commands_value(
+        block.get("setup-commands"), field="setup-commands"
+    )
+
+    commands_file = block.get("setup-commands-file")
+    if commands_file is None:
+        return commands
+    if not isinstance(commands_file, str) or not commands_file.strip():
+        raise ValueError("setup-commands-file must be a non-empty string path")
+    file_text = read_file_input(repo_root, commands_file.strip())
+    commands.extend(_expand_setup_command_lines(file_text))
+    return commands
 
 
 def compose_additional_instructions(
@@ -335,7 +374,7 @@ def resolve_agentic_assets(
     )
 
     apm_inputs = materialize_inputs(repo_root, block.get("inputs"))
-    setup_commands = extract_setup_commands(block)
+    setup_commands = extract_setup_commands(block, repo_root=repo_root)
 
     merged_inputs = merge_platform_and_apm_inputs(platform_inputs, apm_inputs)
     additional = compose_additional_instructions(

@@ -42,12 +42,26 @@
       "additionalProperties": false,
       "properties": {
         "setup-commands": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "description": "Shell commands run before the agentic workflow engine starts."
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            }
+          ],
+          "description": "Inline shell commands (string or list). Multiline strings are split into one command per non-empty, non-comment line. List entries may be script paths or arbitrary shell."
+        },
+        "setup-commands-file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative path to a UTF-8 file with one shell command per line (same line splitting as setup-commands)."
         },
         "inputs": {
           "type": "object",

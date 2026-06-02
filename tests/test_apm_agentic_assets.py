@@ -80,6 +80,38 @@ class TestExtractOrgExtension:
             aaa.extract_org_extension(ext, "obs")
 
 
+class TestExtractSetupCommands:
+    def test_inline_string(self) -> None:
+        assert aaa.extract_setup_commands(
+            {"setup-commands": "npm ci"},
+            repo_root=pathlib.Path("/tmp"),
+        ) == ["npm ci"]
+
+    def test_multiline_block_string(self) -> None:
+        block = {
+            "setup-commands": "export FOO=1\n\n# skipped\n./scripts/run.sh\n",
+        }
+        assert aaa.extract_setup_commands(block, repo_root=pathlib.Path("/tmp")) == [
+            "export FOO=1",
+            "./scripts/run.sh",
+        ]
+
+    def test_setup_commands_file(self, repo: pathlib.Path) -> None:
+        scripts = repo / "scripts"
+        scripts.mkdir()
+        (scripts / "setup.txt").write_text(
+            "echo from-file\n\n# comment\n./scripts/extra.sh\n",
+            encoding="utf-8",
+        )
+        assert aaa.extract_setup_commands(
+            {
+                "setup-commands": ["echo inline"],
+                "setup-commands-file": "scripts/setup.txt",
+            },
+            repo_root=repo,
+        ) == ["echo inline", "echo from-file", "./scripts/extra.sh"]
+
+
 class TestResolveAgenticAssets:
     def test_no_manifest_platform_only(self, repo: pathlib.Path) -> None:
         out = aaa.resolve_agentic_assets(
@@ -149,6 +181,31 @@ x-oblt-aw:
         assert out["setup_commands"] == ["echo specific"]
         assert "common-only" not in out["additional_instructions"]
         assert "specific-only" in out["additional_instructions"]
+
+    def test_multiline_inline_setup_commands(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      setup-commands: |
+        export REPO_BOOTSTRAP=1
+        ./scripts/bootstrap.sh
+      inputs:
+        additional-instructions: bootstrapped
+""",
+            encoding="utf-8",
+        )
+        out = aaa.resolve_agentic_assets(
+            repo_root=repo,
+            workflow_id="autodoc",
+            org_key="obs",
+        )
+        assert out["setup_commands"] == [
+            "export REPO_BOOTSTRAP=1",
+            "./scripts/bootstrap.sh",
+        ]
 
     def test_file_input(self, repo: pathlib.Path) -> None:
         ai_dir = repo / ".github" / "ai"

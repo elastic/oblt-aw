@@ -30,7 +30,7 @@ Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.y
 | `asset-source` | `none`, `common`, or `workflow` |
 | `resolved-additional-instructions` | Merged platform + APM instructions |
 | `resolved-inputs-json` | Merged platform + APM inputs |
-| `resolved-setup-commands-json` | Setup commands from the selected asset block |
+| `resolved-setup-commands-json` | JSON array of shell commands from the selected asset block (`setup-commands` inline string/list and optional `setup-commands-file`) |
 
 ### Typical caller pattern
 
