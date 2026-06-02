@@ -59,6 +59,9 @@ jobs:
       - name: Validate ingress route registries
         run: python scripts/validate_ingress_registry.py
 
+      - name: Validate gh-aw-* workflows call resolve-apm-assets
+        run: python scripts/validate_aw_workflow_resolve_apm_assets.py
+
   typescript-tests:
     name: TypeScript tests
     runs-on: ubuntu-latest

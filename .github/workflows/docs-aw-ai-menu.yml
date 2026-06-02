@@ -145,23 +145,41 @@ jobs:
             const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-trigger.js')
             await fn({github, context, core})
 
+  resolve-apm-assets-triage:
+    needs: [evaluate-trigger]
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: docs-aw-ai-menu.yml
+
   run-docs-triage:
     name: Docs AI / triage
-    needs: [evaluate-trigger]
-    if: needs.evaluate-trigger.outputs.triage_triggered == 'true'
+    needs: [evaluate-trigger, resolve-apm-assets-triage]
+    if: >-
+      needs.evaluate-trigger.outputs.triage_triggered == 'true'
     permissions:
       actions: read
       contents: read
       issues: write
       pull-requests: write
     uses: elastic/docs-actions/.github/workflows/gh-aw-issue-triage.lock.yml@v1
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets-triage.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
+  resolve-apm-assets-issue-scope:
+    needs: [evaluate-trigger]
+    if: >-
+      needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: docs-aw-ai-menu.yml
+
   run-docs-issue-scope:
     name: Docs AI / issue scope
-    needs: [evaluate-trigger]
-    if: needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
+    needs: [evaluate-trigger, resolve-apm-assets-issue-scope]
+    if: >-
+      needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
     permissions:
       actions: read
       contents: read
@@ -169,6 +187,8 @@ jobs:
       issues: write
       pull-requests: write
     uses: elastic/docs-actions/.github/workflows/gh-aw-docs-issue-scope.lock.yml@v1
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets-issue-scope.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -182,7 +202,7 @@ jobs:
       contents: read
       issues: write
     concurrency:
-      group: docs-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.issue_number }}
+      group: docs-ai-menu-${{ github.event.issue.number || github.event.inputs.issue_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs AI issue menu scripts
@@ -216,7 +236,7 @@ jobs:
       contents: read
       issues: write
     concurrency:
-      group: docs-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.issue_number }}
+      group: docs-ai-menu-${{ github.event.issue.number || github.event.inputs.issue_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs AI issue menu scripts

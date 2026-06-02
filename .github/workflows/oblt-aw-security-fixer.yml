@@ -36,7 +36,13 @@ permissions:
 
 jobs:
 
+  resolve-apm-assets:
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-security-fixer.yml
+
   security-issue-fixer:
+    needs: [resolve-apm-assets]
     permissions:
       actions: read
       contents: write

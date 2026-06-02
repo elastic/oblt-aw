@@ -33,16 +33,11 @@ permissions:
 
 jobs:
 
-  run:
-    permissions:
-      actions: read
-      contents: write
-      discussions: write
-      issues: write
-      pull-requests: write
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
+  resolve-apm-assets:
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
-      additional-instructions: |
+      control-plane-workflow: oblt-aw-issue-fixer.yml
+      platform-additional-instructions: |
         Your task is to fix issues requested through `/ai implement` comments.
 
         **Execution Preconditions:**
@@ -77,6 +72,24 @@ jobs:
         **Merge Policy:**
         - Do not merge automatically.
         - Do not perform merge operations in this workflow.
+
+  run:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+    if: >-
+      github.event.issue.pull_request == null &&
+      startsWith(github.event.comment.body, '/ai implement') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets: inherit
 
   request-reviewers:

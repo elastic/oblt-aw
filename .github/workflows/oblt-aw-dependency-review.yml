@@ -40,17 +40,11 @@ permissions:
 
 jobs:
 
-  dependency-review:
-    permissions:
-      actions: read
-      contents: read
-      issues: write
-      pull-requests: write
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
+  resolve-apm-assets:
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
-      allowed-bot-users: ${{ inputs.ingress-allowed-pr-authors-csv }}
-      classification-labels: "oblt-aw/ai/merge-ready"
-      additional-instructions: |
+      control-plane-workflow: oblt-aw-dependency-review.yml
+      platform-additional-instructions: |
         Noop when not applicable (mandatory):
         - If the PR has NO dependency updates to review (e.g. no version bumps in manifest files, no changes to lockfiles that indicate dependency updates, or changes that do not match any supported ecosystem), you MUST call `noop` — do NOT create any comment.
         - Use the format: {"noop": {"message": "No action needed: [brief explanation]"}}
@@ -78,6 +72,19 @@ jobs:
         Label application (mandatory):
         - When ALL criteria for `oblt-aw/ai/merge-ready` are met, you MUST call `add_labels` with that label. Do not only recommend it in the comment; apply it via the add_labels tool.
         - The comment's "Labels Applied" section must reflect labels you actually applied via add_labels, not merely recommended. If you applied a label, say so; if you did not apply any, say "No labels applied."
+
+  dependency-review:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
+    with:
+      allowed-bot-users: ${{ inputs.ingress-allowed-pr-authors-csv }}
+      classification-labels: "oblt-aw/ai/merge-ready"
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

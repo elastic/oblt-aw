@@ -11,6 +11,6 @@ Consumer Documentation repos use **`trigger-docs-aw.yml`** (events) → **`docs-
 ## Control-plane workflow naming
 
 - Shared prelude: `.github/workflows/aw-prelude.yml` (no org prefix).
-- Observability reusables: `.github/workflows/oblt-aw-<workflow-id>.yml` (routed via `oblt-aw-ingress.yml`, which calls `aw-prelude` once and dispatches eligible `route-*` jobs; individual `oblt-aw-*` wrappers do not call prelude). Enforced by `scripts/validate_aw_workflow_prelude.py` in CI.
-- Docs reusables: `.github/workflows/docs-aw-*.yml` (routed via `docs-aw-ingress.yml`; same ingress/prelude model as Observability).
+- Observability reusables: `.github/workflows/oblt-aw-<workflow-id>.yml` (routed via `oblt-aw-ingress.yml`, which calls `aw-prelude` once and dispatches eligible `route-*` jobs; individual `oblt-aw-*` wrappers do not call prelude). Enforced by `scripts/validate_aw_workflow_prelude.py` in CI. Workflows that invoke `gh-aw-*` must call `aw-resolve-apm-assets.yml` per agent job (`scripts/validate_aw_workflow_resolve_apm_assets.py`).
+- Docs reusables: `.github/workflows/docs-aw-*.yml` (routed via `docs-aw-ingress.yml`; same ingress/prelude model as Observability; same `aw-resolve-apm-assets` requirement for `gh-aw-*` jobs).
 - Upstream lock files in `elastic/ai-github-actions` / `elastic/docs-actions` keep the `gh-aw-*` prefix.

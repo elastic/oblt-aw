@@ -167,9 +167,15 @@ def validate_registry_against_workflows(
                 f"{path}: remove enabled-workflow-id "
                 "(dashboard gating is enforced in ingress route jobs)"
             )
-        if LEGACY_CONTROL_PLANE_WORKFLOW.search(text):
+        # control-plane-workflow is required on aw-resolve-apm-assets calls; only
+        # forbid legacy passes to aw-prelude.
+        if re.search(
+            r"uses:\s*\./\.github/workflows/aw-prelude\.ya?ml[\s\S]{0,800}?"
+            r"control-plane-workflow:",
+            text,
+        ):
             errors.append(
-                f"{path}: remove control-plane-workflow "
+                f"{path}: remove control-plane-workflow from aw-prelude "
                 "(prelude runs in ingress without per-wrapper gating)"
             )
     return errors

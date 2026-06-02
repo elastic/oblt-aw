@@ -1,6 +1,7 @@
 name: Agentic Workflow Prelude
 
 # Shared dashboard read and optional allow-list loading for ingress workflows.
+# APM asset resolution lives in aw-resolve-apm-assets.yml (per gh-aw-* invocation).
 on:
   workflow_call:
     inputs:

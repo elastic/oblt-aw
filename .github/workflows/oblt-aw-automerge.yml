@@ -155,8 +155,19 @@ jobs:
             core.setOutput('allowed', allowed ? 'true' : 'false');
             core.setOutput('collection-id', collectionId || '');
 
-  approve:
+  resolve-apm-assets:
     needs: [verify, check-dependency-collection]
+    if: >-
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true'
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-automerge.yml
+      platform-additional-instructions: |
+        Target pull request number: ${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).pull_request.number }}.
+
+  approve:
+    needs: [verify, check-dependency-collection, resolve-apm-assets]
     if: >-
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true'
@@ -169,8 +180,7 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.ingress-allowed-pr-authors-csv }}
-      additional-instructions: |
-        Target pull request number: ${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).pull_request.number }}.
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       prompt: |
         For pull request #${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).pull_request.number }}: evaluate automerge eligibility.
 

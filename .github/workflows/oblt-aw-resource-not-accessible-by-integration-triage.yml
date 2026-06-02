@@ -41,18 +41,11 @@ permissions:
 
 jobs:
 
-  res-not-accessible-integration-triage:
-    permissions:
-      actions: read
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+  resolve-apm-assets:
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
-      allowed-bot-users: ${{ inputs.ingress-allowed-issue-authors-csv }}
-      classification-labels: "oblt-aw/triage/res-not-accessible-by-integration,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
-      additional-instructions: |
+      control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-triage.yml
+      platform-additional-instructions: |
         Your task is to triage issues that carry the detector label `oblt-aw/detector/res-not-accessible-by-integration` and determine if they are related to "Resource not accessible by integration" errors in GitHub Actions workflows.
 
         **Strict No-Output Rule (MUST be enforced first):**
@@ -193,7 +186,7 @@ jobs:
                     }
 
               - name: Test PR Comment (if applicable)
-                if: (inputs.ingress-event-name != '' && inputs.ingress-event-name || (inputs.ingress-event-name != '' && inputs.ingress-event-name || github.event_name)) == 'pull_request'
+                if: github.event_name == 'pull_request'
                 uses: actions/github-script@v8
                 with:
                   script: |
@@ -236,6 +229,20 @@ jobs:
         - [GitHub Actions Permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
         - [Workflow Permission Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
         - [Troubleshooting Permissions](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#permissions-for-the-github_token)
+
+  res-not-accessible-integration-triage:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    with:
+      allowed-bot-users: ${{ inputs.ingress-allowed-issue-authors-csv }}
+      classification-labels: "oblt-aw/triage/res-not-accessible-by-integration,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

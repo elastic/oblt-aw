@@ -41,18 +41,11 @@ permissions:
 
 jobs:
 
-  security-issue-triage:
-    permissions:
-      actions: read
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+  resolve-apm-assets:
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
-      allowed-bot-users: ${{ inputs.ingress-allowed-issue-authors-csv }}
-      classification-labels: "oblt-aw/triage/security-injection,oblt-aw/triage/security-secrets,oblt-aw/triage/security-supply-chain,oblt-aw/triage/security-least-privilege,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
-      additional-instructions: |
+      control-plane-workflow: oblt-aw-security-triage.yml
+      platform-additional-instructions: |
         Your task is to triage newly opened security-related issues in this repository. Security issues include vulnerabilities in GitHub Actions workflows and shell scripts: injection (expression, command, YAML), secret management (token exposure via CLI args, secrets in command strings), supply chain (action pinning, checksums), and least privilege (excessive permissions).
 
         **Strict No-Output Rule (MUST be enforced first):**
@@ -126,6 +119,20 @@ jobs:
         ### Additional Resources
         - [GitHub Actions Security Hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
         - [Workflow Permission Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
+
+  security-issue-triage:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    with:
+      allowed-bot-users: ${{ inputs.ingress-allowed-issue-authors-csv }}
+      classification-labels: "oblt-aw/triage/security-injection,oblt-aw/triage/security-secrets,oblt-aw/triage/security-supply-chain,oblt-aw/triage/security-least-privilege,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

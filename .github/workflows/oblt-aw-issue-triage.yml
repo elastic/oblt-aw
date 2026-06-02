@@ -37,7 +37,13 @@ permissions:
 
 jobs:
 
+  resolve-apm-assets:
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-issue-triage.yml
+
   issue-triage:
+    needs: [resolve-apm-assets]
     permissions:
       actions: read
       contents: read
@@ -45,5 +51,7 @@ jobs:
       issues: write
       pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

@@ -36,12 +36,19 @@ permissions:
   contents: read
 
 jobs:
+  resolve-apm-assets:
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-duplicate-issue-detector.yml
 
   duplicate-issue-detector:
+    needs: [resolve-apm-assets]
     permissions:
       contents: read
       issues: write
       pull-requests: read
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

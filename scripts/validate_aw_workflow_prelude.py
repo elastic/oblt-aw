@@ -59,6 +59,15 @@ def list_aw_wrappers(paths: list[pathlib.Path]) -> list[pathlib.Path]:
     return [p for p in paths if p.name not in INGRESS_FILES]
 
 
+def list_subject_workflows() -> list[pathlib.Path]:
+    """Workflows subject to resolve-apm-assets validation (wrappers, not ingress)."""
+    return [
+        p
+        for p in list_aw_wrappers(list_workflow_files())
+        if p.name != "aw-resolve-apm-assets.yml"
+    ]
+
+
 def validate_aw_wrapper_no_prelude(path: pathlib.Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     errors: list[str] = []

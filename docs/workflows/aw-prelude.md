@@ -32,5 +32,6 @@ Shared reusable prelude for agentic workflows (dashboard read, optional allow li
 
 - [get-enabled-workflows.md](get-enabled-workflows.md)
 - [load-allowed-authors.md](load-allowed-authors.md)
+- [aw-resolve-apm-assets.md](aw-resolve-apm-assets.md)
 - [oblt-aw-ingress.md](oblt-aw-ingress.md)
 - [docs-aw-ingress.md](docs-aw-ingress.md)
