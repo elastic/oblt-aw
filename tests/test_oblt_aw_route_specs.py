@@ -14,8 +14,11 @@ from oblt_aw_route_specs import (  # noqa: E402
     default_workflow_file,
     load_ingress_route_job_ids,
     load_ingress_route_specs,
+    max_job_permissions,
+    parse_route_job_permissions,
     validate_all_org_registries,
     validate_docs_ingress_registry,
+    validate_ingress_route_job_permissions,
     validate_obs_ingress_registry,
 )
 
@@ -156,6 +159,73 @@ class TestLoadIngressRouteSpecs:
         path = _write_registry(tmp_path, [{"id": "autodoc", "ingress_routes": []}])
         with pytest.raises(SystemExit, match="non-empty array"):
             load_ingress_route_specs(path)
+
+
+class TestIngressRoutePermissions:
+    def test_max_job_permissions_unions_job_scopes(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        workflow = tmp_path / "oblt-aw-sample.yml"
+        workflow.write_text(
+            "permissions:\n  contents: read\n\n"
+            "jobs:\n"
+            "  one:\n"
+            "    permissions:\n"
+            "      issues: read\n"
+            "  two:\n"
+            "    permissions:\n"
+            "      issues: write\n"
+            "      pull-requests: read\n",
+            encoding="utf-8",
+        )
+        assert max_job_permissions(workflow) == {
+            "issues": "write",
+            "pull-requests": "read",
+        }
+
+    def test_parse_route_job_permissions(self, tmp_path: pathlib.Path) -> None:
+        ingress = tmp_path / "ingress.yml"
+        ingress.write_text(
+            "jobs:\n"
+            "  route-sample:\n"
+            "    needs: prelude\n"
+            "    permissions:\n"
+            "      issues: write\n"
+            "    uses: ./.github/workflows/oblt-aw-sample.yml\n",
+            encoding="utf-8",
+        )
+        text = ingress.read_text(encoding="utf-8")
+        assert parse_route_job_permissions(text, "sample") == {"issues": "write"}
+
+    def test_validate_ingress_route_job_permissions_fails_when_missing(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        workflows_dir = tmp_path / "workflows"
+        workflows_dir.mkdir()
+        (workflows_dir / "oblt-aw-sample.yml").write_text(
+            "jobs:\n  run:\n    permissions:\n      issues: write\n",
+            encoding="utf-8",
+        )
+        ingress = tmp_path / "oblt-aw-ingress.yml"
+        ingress.write_text(
+            "jobs:\n"
+            "  route-sample:\n"
+            "    needs: prelude\n"
+            "    uses: ./.github/workflows/oblt-aw-sample.yml\n",
+            encoding="utf-8",
+        )
+        specs = load_ingress_route_specs(
+            _write_registry(
+                tmp_path,
+                [{"id": "sample", "ingress_routes": [{"id": "sample"}]}],
+            )
+        )
+        with pytest.raises(SystemExit, match="missing job permissions"):
+            validate_ingress_route_job_permissions(
+                ingress,
+                specs=specs,
+                workflows_dir=workflows_dir,
+            )
 
 
 class TestLoadIngressRouteJobIds:

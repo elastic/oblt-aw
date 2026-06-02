@@ -62,6 +62,10 @@ jobs:
 
   route-agent-suggestions:
     needs: prelude
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -82,6 +86,11 @@ jobs:
 
   route-autodoc:
     needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -101,6 +110,13 @@ jobs:
 
   route-automerge:
     needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      id-token: write
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -136,6 +152,12 @@ jobs:
 
   route-dependency-review:
     needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -166,6 +188,10 @@ jobs:
 
   route-duplicate-issue-detector:
     needs: prelude
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -195,6 +221,12 @@ jobs:
 
   route-issue-triage:
     needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -216,6 +248,12 @@ jobs:
 
   route-issue-fixer:
     needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -251,6 +289,12 @@ jobs:
 
   route-mention-in-issue:
     needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -280,6 +324,11 @@ jobs:
 
   route-security-detector:
     needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      pull-requests: read
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -302,6 +351,12 @@ jobs:
 
   route-security-fixer:
     needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -338,6 +393,13 @@ jobs:
 
   route-security-triage:
     needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      id-token: write
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -372,6 +434,10 @@ jobs:
 
   route-resource-not-accessible-by-integration-detector:
     needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      issues: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -395,6 +461,12 @@ jobs:
 
   route-resource-not-accessible-by-integration-fixer:
     needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -423,6 +495,13 @@ jobs:
 
   route-resource-not-accessible-by-integration-triage:
     needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      id-token: write
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -461,6 +540,11 @@ jobs:
 
   route-estc-pr-buildkite-detective:
     needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&

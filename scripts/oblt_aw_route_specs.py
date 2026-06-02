@@ -203,6 +203,123 @@ def validate_all_org_registries(config_dir: Path) -> None:
 
 
 ROUTE_JOB_PATTERN = re.compile(r"^\s+route-([\w-]+):\s*$", re.MULTILINE)
+ROUTE_JOB_BLOCK_PATTERN = re.compile(
+    r"^  route-([\w-]+):\n(.*?)(?=^  \S|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+PERMISSION_SCOPE_PATTERN = re.compile(
+    r"^      ([a-z0-9-]+): (read|write|none)\s*$", re.MULTILINE
+)
+
+_PERMISSION_LEVELS: dict[str, int] = {"none": 0, "read": 1, "write": 2}
+
+
+def _parse_permissions_blocks(workflow_text: str) -> list[dict[str, str]]:
+    blocks: list[dict[str, str]] = []
+    in_block = False
+    current: dict[str, str] = {}
+    for line in workflow_text.splitlines():
+        if re.match(r"^\s+permissions:\s*$", line):
+            in_block = True
+            current = {}
+            continue
+        if in_block:
+            match = re.match(r"^\s+([a-z0-9-]+):\s*(read|write|none)\s*$", line)
+            if match:
+                current[match.group(1)] = match.group(2)
+                continue
+            if line.strip() and not re.match(r"^\s{6,}", line):
+                in_block = False
+                if current:
+                    blocks.append(current)
+                current = {}
+    if in_block and current:
+        blocks.append(current)
+    return blocks
+
+
+def max_job_permissions(workflow_path: Path) -> dict[str, str]:
+    """Union of the highest scope per key across all job permissions blocks."""
+    merged: dict[str, str] = {}
+    for block in _parse_permissions_blocks(workflow_path.read_text(encoding="utf-8")):
+        for scope, level in block.items():
+            if (
+                scope not in merged
+                or _PERMISSION_LEVELS[level] > _PERMISSION_LEVELS[merged[scope]]
+            ):
+                merged[scope] = level
+    return merged
+
+
+def parse_route_job_permissions(
+    ingress_text: str, route_id: str
+) -> dict[str, str] | None:
+    """Return permissions for route-{route_id}, or None when the block omits it."""
+    for match in ROUTE_JOB_BLOCK_PATTERN.finditer(ingress_text):
+        if match.group(1) != route_id:
+            continue
+        scopes = PERMISSION_SCOPE_PATTERN.findall(match.group(2))
+        if not scopes:
+            return None
+        return dict(scopes)
+    raise RegistryParseError(f"route-{route_id} job not found in ingress workflow")
+
+
+def format_route_job_permissions(permissions: dict[str, str]) -> str:
+    lines = ["    permissions:"]
+    for scope in sorted(permissions):
+        lines.append(f"      {scope}: {permissions[scope]}")
+    return "\n".join(lines)
+
+
+def union_permissions(
+    permission_maps: list[dict[str, str]],
+) -> dict[str, str]:
+    merged: dict[str, str] = {}
+    for permission_map in permission_maps:
+        for scope, level in permission_map.items():
+            if (
+                scope not in merged
+                or _PERMISSION_LEVELS[level] > _PERMISSION_LEVELS[merged[scope]]
+            ):
+                merged[scope] = level
+    return merged
+
+
+def _permissions_cover(
+    actual: dict[str, str] | None, required: dict[str, str]
+) -> list[str]:
+    if actual is None:
+        return [f"missing job permissions (need {required})"]
+    errors: list[str] = []
+    for scope, required_level in sorted(required.items()):
+        actual_level = actual.get(scope)
+        if actual_level is None:
+            errors.append(f"missing scope {scope!r} (need {required_level})")
+            continue
+        if _PERMISSION_LEVELS[actual_level] < _PERMISSION_LEVELS[required_level]:
+            errors.append(f"{scope}: {actual_level} is below required {required_level}")
+    return errors
+
+
+def validate_ingress_route_job_permissions(
+    ingress_path: Path,
+    *,
+    specs: dict[str, IngressRouteSpec],
+    workflows_dir: Path,
+) -> None:
+    """Route jobs must declare permissions covering each routed workflow."""
+    ingress_text = ingress_path.read_text(encoding="utf-8")
+    for route_id, spec in sorted(specs.items()):
+        required = max_job_permissions(workflows_dir / spec.workflow_file)
+        if not required:
+            continue
+        actual = parse_route_job_permissions(ingress_text, route_id)
+        errors = _permissions_cover(actual, required)
+        if errors:
+            raise SystemExit(
+                f"{ingress_path.name} route-{route_id}: " + "; ".join(errors)
+            )
 
 
 def load_ingress_route_job_ids(ingress_path: Path) -> list[str]:
@@ -247,6 +364,12 @@ def validate_org_ingress_registry(
             "Missing .github/workflows file(s) referenced by ingress_routes: "
             + ", ".join(sorted(set(missing_files)))
         )
+
+    validate_ingress_route_job_permissions(
+        ingress_path,
+        specs=specs,
+        workflows_dir=workflows_dir,
+    )
 
 
 def validate_obs_ingress_registry(

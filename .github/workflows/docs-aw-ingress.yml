@@ -53,6 +53,12 @@ jobs:
 
   route-ai-menu:
     needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -85,6 +91,9 @@ jobs:
 
   route-pr-ai-menu-collect:
     needs: prelude
+    permissions:
+      actions: write
+      contents: read
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
@@ -110,6 +119,12 @@ jobs:
 
   route-pr-ai-menu:
     needs: prelude
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      issues: write
+      pull-requests: write
     if: >-
       always() &&
       (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
