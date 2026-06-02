@@ -20,9 +20,8 @@ on:
         default: ''
       ingress-token-policy:
         description: Token policy resolved by oblt-aw-ingress prelude
-        required: false
+        required: true
         type: string
-        default: ''
       ingress-allowed-pr-authors-csv:
         description: Allowed PR bot logins from oblt-aw-ingress prelude
         required: false
@@ -77,26 +76,17 @@ jobs:
           count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
-      - name: Create ephemeral GitHub token (configured policy)
-        id: create-token-explicit
-        if: >-
-          steps.scan.outputs.count != '0' &&
-          inputs.ingress-token-policy != ''
+      - name: Create ephemeral GitHub token
+        id: create-token
+        if: ${{ steps.scan.outputs.count != '0' }}
         uses: elastic/oblt-actions/github/create-token@v1
         with:
           token-policy: ${{ inputs.ingress-token-policy }}
 
-      - name: Create ephemeral GitHub token (Vault auto policy)
-        id: create-token-auto
-        if: >-
-          steps.scan.outputs.count != '0' &&
-          inputs.ingress-token-policy == ''
-        uses: elastic/oblt-actions/github/create-token@v1
-
       - name: Create issues from findings
         if: ${{ steps.scan.outputs.count != '0' }}
         env:
-          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           SECURITY_SCAN_DATE="$(date -u +%Y-%m-%d)"

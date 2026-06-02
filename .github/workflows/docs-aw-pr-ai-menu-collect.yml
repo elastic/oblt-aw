@@ -21,11 +21,6 @@ on:
         required: false
         type: string
         default: ''
-      ingress-token-policy:
-        description: Token policy resolved by docs-aw-ingress prelude
-        required: false
-        type: string
-        default: ''
 
 permissions:
   contents: read

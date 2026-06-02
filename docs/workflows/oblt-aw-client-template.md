@@ -64,9 +64,10 @@ flowchart TB
 | Scope | Job | Why |
 |-------|-----|-----|
 | `contents: read` | workflow root | Default |
-| `actions: write` | `dispatch-entrypoint` | `workflow-dispatch` action (REST `workflow_dispatch`) |
-| `id-token: write` | `dispatch-entrypoint` | `create-token` (Backstage OIDC) |
-| `statuses: write` | `dispatch-entrypoint` | PR commit status with link to dispatched `oblt-aw.yml` run |
+| `actions: write` | `dispatch-entrypoint` | `GITHUB_TOKEN` — REST `workflow_dispatch` for `oblt-aw.yml` in the same repository |
+| `statuses: write` | `dispatch-entrypoint` | `GITHUB_TOKEN` — PR commit status with link to dispatched `oblt-aw.yml` run |
+
+The trigger uses `secrets.GITHUB_TOKEN` only (no `create-token`); same-repo dispatch and commit statuses do not need Backstage OIDC.
 
 The dispatch step does **not** wait for `oblt-aw.yml` to finish. On `pull_request` events, a follow-up step posts commit status context `oblt-aw/entrypoint` on the PR head SHA with `target_url` set to the `runUrlHtml` output from `workflow-dispatch` (traceability only; `state: success` means dispatch succeeded, not that ingress or routed workflows completed). Do not add this context as a required check unless you intend to gate merges on dispatch alone.
 
@@ -91,7 +92,7 @@ The dispatch step does **not** wait for `oblt-aw.yml` to finish. On `pull_reques
 
 1. Merge distribution PRs that install `trigger-oblt-aw.yml` and `oblt-aw.yml`.
 2. Remove legacy `trigger-oblt-aw-*.yml` per-workflow client files (distribution `remove_files` handles drops).
-3. Update Backstage `workflow_ref` to **`trigger-oblt-aw.yml@refs/heads/main`** (single policy for dispatch) and optionally **`oblt-aw.yml`** if your vault model requires it.
+3. Register Backstage `workflow_ref` for **`oblt-aw.yml`** (and routed control-plane workflows) when your vault model requires `create-token`; **`trigger-oblt-aw.yml` does not call `create-token`**.
 
 ## References
 

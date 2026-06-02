@@ -17,11 +17,6 @@ on:
         required: false
         type: string
         default: ''
-      ingress-token-policy:
-        description: Token policy resolved by oblt-aw-ingress prelude
-        required: false
-        type: string
-        default: ''
       ingress-allowed-pr-authors-csv:
         description: Allowed PR bot logins from oblt-aw-ingress prelude
         required: false

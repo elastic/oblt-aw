@@ -23,21 +23,15 @@ jobs:
   dispatch-entrypoint:
     permissions:
       actions: write
-      contents: read
-      id-token: write
       statuses: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Create ephemeral GitHub token for workflow dispatch
-        id: token
-        uses: elastic/oblt-actions/github/create-token@v1
-
       - name: Dispatch oblt-aw entrypoint
         id: dispatch
         uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26 # v1.3.2
         with:
-          token: ${{ steps.token.outputs.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           workflow: oblt-aw.yml
           inputs: |
             {
@@ -53,7 +47,7 @@ jobs:
       - name: Post entrypoint run link on PR commit
         if: github.event_name == 'pull_request'
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_URL: ${{ steps.dispatch.outputs.runUrlHtml }}
           STATUS_CONTEXT: oblt-aw/entrypoint

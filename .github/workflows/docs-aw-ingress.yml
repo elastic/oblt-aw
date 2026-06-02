@@ -80,7 +80,6 @@ jobs:
       ingress-event-name: ${{ inputs.ingress-event-name }}
       ingress-event-action: ${{ inputs.ingress-event-action }}
       ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
-      ingress-token-policy: ${{ needs.prelude.outputs.token-policy }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -108,7 +107,6 @@ jobs:
       ingress-event-name: ${{ inputs.ingress-event-name }}
       ingress-event-action: ${{ inputs.ingress-event-action }}
       ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
-      ingress-token-policy: ${{ needs.prelude.outputs.token-policy }}
 
   route-pr-ai-menu:
     needs: prelude
@@ -140,7 +138,6 @@ jobs:
       ingress-event-name: ${{ inputs.ingress-event-name }}
       ingress-event-action: ${{ inputs.ingress-event-action }}
       ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
-      ingress-token-policy: ${{ needs.prelude.outputs.token-policy }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
