@@ -18,7 +18,7 @@ Shared dashboard gating and prelude run in ingress, not in the client trigger fi
 
 | File | Triggers | Role |
 |------|----------|------|
-| `trigger-docs-aw.yml` | `issues` opened; `issue_comment` edited; `pull_request` (opened, reopened, synchronize, ready_for_review); `workflow_run` on this workflow (completed, success); `workflow_dispatch` (optional `issue_number`, `pull_request_number`) | Dispatches `docs-aw.yml` with relayed event JSON |
+| `trigger-docs-aw.yml` | `issues` opened; `issue_comment` edited; `pull_request` (opened, reopened, synchronize, ready_for_review); `workflow_run` on this workflow when the completed run succeeded and its originating event was `pull_request`; `workflow_dispatch` (optional `issue_number`, `pull_request_number`) | Dispatches `docs-aw.yml` with relayed event JSON |
 | `docs-aw.yml` | `workflow_dispatch` only | Entrypoint; calls `docs-aw-ingress.yml` |
 
 Route-specific conditions (for example PR vs non-PR issue comments, menu checkbox transitions) are enforced inside the `docs-aw-*` reusable workflows after ingress routing.
@@ -28,7 +28,7 @@ Route-specific conditions (for example PR vs non-PR issue comments, menu checkbo
 The PR AI menu uses a fork-safe collect leg and a privileged post leg within one trigger:
 
 1. **`pull_request`** on `trigger-docs-aw.yml` → ingress `route-pr-ai-menu-collect` uploads a `pr-number` artifact.
-2. **`workflow_run`** when that trigger completes successfully (`workflow_run.event == pull_request`) → ingress `route-pr-ai-menu` downloads the artifact and posts the menu from trusted base-repo context.
+2. **`workflow_run`** when that trigger completes successfully (`workflow_run.event == pull_request`) → ingress `route-pr-ai-menu` downloads the artifact and posts the menu from trusted base-repo context. The dispatch job runs only for that privileged leg (not for `workflow_run` chains where the parent event was already `workflow_run`), preventing an infinite re-dispatch loop.
 
 Menu checkbox handling (`issue_comment`) and manual refresh (`workflow_dispatch`) use the same unified trigger.
 
