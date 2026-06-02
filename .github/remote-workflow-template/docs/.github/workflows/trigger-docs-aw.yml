@@ -72,7 +72,7 @@ jobs:
             ${{ github.event.pull_request.head.sha ||
                 github.event.workflow_run.head_sha }}
           RUN_URL: ${{ steps.dispatch.outputs.runUrlHtml }}
-          STATUS_CONTEXT: Documentation Agentic Workflow Execution - docs org
+          STATUS_CONTEXT: Documentation Agentic Workflow Execution
         run: |
           gh api \
             --method POST \

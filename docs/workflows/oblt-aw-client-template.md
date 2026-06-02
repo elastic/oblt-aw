@@ -69,7 +69,7 @@ flowchart TB
 
 The trigger uses `secrets.GITHUB_TOKEN` only (no `create-token`); same-repo dispatch and commit statuses do not need Backstage OIDC.
 
-The dispatch step does **not** wait for `oblt-aw.yml` to finish. On `pull_request` events, a follow-up step posts commit status context `Observability Agentic Workflow Execution - obs org` on the PR head SHA with `target_url` set to the `runUrlHtml` output from `workflow-dispatch` (traceability only; `state: success` means dispatch succeeded, not that ingress or routed workflows completed). Do not add this context as a required check unless you intend to gate merges on dispatch alone.
+The dispatch step does **not** wait for `oblt-aw.yml` to finish. On `pull_request` events, a follow-up step posts commit status context `Observability Agentic Workflow Execution` on the PR head SHA with `target_url` set to the `runUrlHtml` output from `workflow-dispatch` (traceability only; `state: success` means dispatch succeeded, not that ingress or routed workflows completed). Do not add this context as a required check unless you intend to gate merges on dispatch alone.
 
 **`oblt-aw.yml`**
 

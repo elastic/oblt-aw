@@ -50,7 +50,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_URL: ${{ steps.dispatch.outputs.runUrlHtml }}
-          STATUS_CONTEXT: Observability Agentic Workflow Execution - obs org
+          STATUS_CONTEXT: Observability Agentic Workflow Execution
         run: |
           gh api \
             --method POST \

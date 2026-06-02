@@ -32,7 +32,7 @@ The PR AI menu uses a fork-safe collect leg and a privileged post leg within one
 
 Menu checkbox handling (`issue_comment`) and manual refresh (`workflow_dispatch`) use the same unified trigger.
 
-On `pull_request` and on the privileged `workflow_run` leg (`workflow_run.event == pull_request`), the trigger posts commit status context `Documentation Agentic Workflow Execution - docs org` on the PR head SHA with `target_url` pointing at the dispatched `docs-aw.yml` run (`runUrlHtml` from `workflow-dispatch`). This is traceability only; the trigger does not wait for ingress or routed workflows to finish.
+On `pull_request` and on the privileged `workflow_run` leg (`workflow_run.event == pull_request`), the trigger posts commit status context `Documentation Agentic Workflow Execution` on the PR head SHA with `target_url` pointing at the dispatched `docs-aw.yml` run (`runUrlHtml` from `workflow-dispatch`). This is traceability only; the trigger does not wait for ingress or routed workflows to finish.
 
 ## Permissions
 
