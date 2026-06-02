@@ -4,17 +4,32 @@ Consumer repositories can declare **shared** and **per-workflow** agentic assets
 
 ## Workflow identifiers
 
-Keys under `x-oblt-aw.workflows` must match the `id` field in the org [`workflow-registry.json`](../../config/obs/workflow-registry.json) for that product line (for example `agent-suggestions`, `autodoc`, `security`). Ingress and dashboard gating continue to use compound ids `org-key:workflow-id` (for example `obs:agent-suggestions`).
+Keys under `x-oblt-aw.<org-key>.workflows` must match the `id` field in that org’s [`workflow-registry.json`](../../config/obs/workflow-registry.json) (for example `agent-suggestions` under `obs`, `docs-pr-ai-menu` under `docs`). Ingress and dashboard gating continue to use compound ids `org-key:workflow-id` (for example `obs:agent-suggestions`).
 
-## Precedence
+## Structure
+
+`x-oblt-aw` is nested by **org key** (same names as `config/<org-key>/` in the control plane, e.g. `obs`, `docs`):
+
+| Path | Requirement | Behavior |
+|------|-------------|----------|
+| `version` | Required | Schema version (`1`) |
+| `<org-key>` | Per org that configures assets | Container for that product line |
+| `<org-key>.common` | **Required** for each org block | Shared assets when no workflow override exists |
+| `<org-key>.workflows.<id>` | Optional | **Override:** when present, `common` is ignored entirely for that run |
+
+A repository in multiple org fleets may define separate `obs` and `docs` blocks with different `common` guidance.
+
+## Precedence (per run)
 
 | Layer | Behavior |
 |-------|----------|
 | **Platform** (`platform-additional-instructions` / `platform-inputs-json` on `resolve-apm-assets`) | Control-plane baseline for that agent invocation; always applied first for instructions (prepended). Input keys can be overridden by APM per key. |
-| **`x-oblt-aw.common`** | Used when no `workflows.<id>` entry exists for the running workflow. |
-| **`x-oblt-aw.workflows.<id>`** | **Override:** when this key exists, `common` is ignored entirely for that run. |
+| **`x-oblt-aw.<org-key>.common`** | Used when no `workflows.<id>` entry exists for the running workflow in that org. |
+| **`x-oblt-aw.<org-key>.workflows.<id>`** | **Override:** when this key exists, that org’s `common` is ignored entirely for that run. |
 
 There is no merge between `common` and `workflows.<id>` (no field-level fallback from common when a workflow block is present).
+
+If `x-oblt-aw` exists but the running org key is not configured, resolution returns platform-only assets (`asset-source: none`).
 
 ## Manifest example
 
@@ -28,21 +43,32 @@ dependencies:
 
 x-oblt-aw:
   version: 1
-  common:
-    setup-commands:
-      - ./scripts/ai-bootstrap.sh
-    inputs:
-      additional-instructions: |
-        Repository-wide agent guidance for all observability agentic workflows.
-  workflows:
-    agent-suggestions:
+  obs:
+    common:
+      setup-commands:
+        - ./scripts/ai-bootstrap.sh
       inputs:
         additional-instructions: |
-          Overrides common entirely for agent-suggestions only.
-    autodoc:
+          Repository-wide agent guidance for observability agentic workflows.
+    workflows:
+      agent-suggestions:
+        inputs:
+          additional-instructions: |
+            Overrides obs.common entirely for agent-suggestions only.
+      autodoc:
+        inputs:
+          lookback-window: 3 days ago
+          additional-instructions-file: .github/ai/autodoc-extra.md
+  docs:
+    common:
       inputs:
-        lookback-window: 3 days ago
-        additional-instructions-file: .github/ai/autodoc-extra.md
+        additional-instructions: |
+          Shared guidance for documentation agentic workflows.
+    workflows:
+      docs-pr-ai-menu:
+        inputs:
+          additional-instructions: |
+            Overrides docs.common for the PR AI menu workflow.
 ```
 
 ## Runtime behavior
@@ -52,7 +78,7 @@ When the dashboard gate passes (`proceed == true`), each agent job’s preceding
 1. Checks out the **consumer** repository (caller context).
 2. Installs [`requirements-runtime.txt`](../../requirements-runtime.txt) with pip cache via `actions/setup-python`.
 3. Runs [`apm install`](https://microsoft.github.io/apm/) when `apm.yml` is present (installs declared skills, plugins, MCP servers, and other APM dependencies).
-4. Runs [`scripts/resolve_apm_agentic_assets.py`](../../scripts/resolve_apm_agentic_assets.py) to produce:
+4. Runs [`scripts/resolve_apm_agentic_assets.py`](../../scripts/resolve_apm_agentic_assets.py) with the compound workflow id (`org-key:workflow-id`) to select the org block and produce:
    - `resolved-additional-instructions`
    - `resolved-inputs-json` (merged platform + APM inputs)
    - `resolved-setup-commands-json`

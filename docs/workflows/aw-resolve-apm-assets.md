@@ -16,7 +16,7 @@ Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.y
 
 | Input | Type | Default | Purpose |
 |-------|------|---------|---------|
-| `control-plane-workflow` | string | (required) | Basename of the calling wrapper; used to resolve the registry workflow id for `x-oblt-aw.workflows.<id>` selection |
+| `control-plane-workflow` | string | (required) | Basename of the calling wrapper; used to resolve org key and registry workflow id for `x-oblt-aw.<org-key>.workflows.<id>` selection |
 | `platform-additional-instructions` | string | `""` | Control-plane baseline text for this agent invocation (prepended before repo APM instructions) |
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
 | `install-apm-packages` | boolean | `true` | Run `apm install` when `apm.yml` is present |

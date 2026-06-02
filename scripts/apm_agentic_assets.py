@@ -19,10 +19,13 @@ Resolve agentic-workflow assets from a consumer repository ``apm.yml``.
 
 Extension block: ``x-oblt-aw`` (see ``config/schema/apm-agentic-workflows.schema.json``).
 
-Precedence (non-negotiable):
-- If ``workflows.<workflow-id>`` is present in ``x-oblt-aw``, use that block only
-  (ignore ``common`` entirely).
-- Otherwise use ``common`` when present.
+Structure (non-negotiable):
+- Top-level ``version`` plus one mapping per org key (e.g. ``obs``, ``docs``).
+- Each org block **must** include ``common`` and may include ``workflows``.
+
+Precedence within the org block for the running ``org-key``:
+- If ``workflows.<workflow-id>`` is present, use that block only (ignore ``common``).
+- Otherwise use ``common``.
 - Platform / control-plane inputs are merged per-key on top: APM ``inputs`` override
   platform keys; ``additional-instructions`` from APM are appended after platform text.
 """
@@ -37,7 +40,6 @@ import yaml  # type: ignore[import-untyped]
 
 OBLT_AW_EXTENSION_KEY = "x-oblt-aw"
 APM_MANIFEST_NAMES = ("apm.yml", "apm.yaml")
-
 # Keys whose values are repo-relative file paths to load as UTF-8 text.
 FILE_INPUT_SUFFIX = "-file"
 
@@ -119,31 +121,57 @@ def validate_workflow_id(
         )
 
 
+def reject_legacy_flat_extension(extension: dict[str, Any]) -> None:
+    """Reject pre–multi-org flat ``common`` / ``workflows`` at the extension root."""
+    if "common" in extension or "workflows" in extension:
+        raise ValueError(
+            f"{OBLT_AW_EXTENSION_KEY} must nest assets under org keys (e.g. obs, docs); "
+            "top-level common/workflows are no longer supported"
+        )
+
+
+def extract_org_extension(
+    extension: dict[str, Any], org_key: str
+) -> dict[str, Any] | None:
+    """Return the org-scoped block (``common`` + optional ``workflows``) or None."""
+    reject_legacy_flat_extension(extension)
+    org_block = extension.get(org_key)
+    if org_block is None:
+        return None
+    if not isinstance(org_block, dict):
+        raise ValueError(
+            f"{OBLT_AW_EXTENSION_KEY}.{org_key} must be a mapping, "
+            f"got {type(org_block).__name__}"
+        )
+    return org_block
+
+
 def select_asset_block(
-    extension: dict[str, Any], workflow_id: str
+    org_extension: dict[str, Any], workflow_id: str, *, org_key: str
 ) -> dict[str, Any] | None:
     """
-    Pick common or workflow-specific assets.
+    Pick common or workflow-specific assets for one org.
 
     Workflow block wins entirely when the key exists (override semantics).
     """
-    workflows = extension.get("workflows")
+    prefix = f"{OBLT_AW_EXTENSION_KEY}.{org_key}"
+    workflows = org_extension.get("workflows")
     if isinstance(workflows, dict) and workflow_id in workflows:
         block = workflows[workflow_id]
         if block is None:
             return {}
         if not isinstance(block, dict):
             raise ValueError(
-                f"x-oblt-aw.workflows.{workflow_id} must be a mapping, "
+                f"{prefix}.workflows.{workflow_id} must be a mapping, "
                 f"got {type(block).__name__}"
             )
         return block
 
-    common = extension.get("common")
+    common = org_extension.get("common")
     if common is None:
         return None
     if not isinstance(common, dict):
-        raise ValueError("x-oblt-aw.common must be a mapping")
+        raise ValueError(f"{prefix}.common must be a mapping")
     return common
 
 
@@ -273,7 +301,20 @@ def resolve_agentic_assets(
     if not isinstance(extension, dict):
         raise ValueError(f"{OBLT_AW_EXTENSION_KEY} must be a mapping")
 
-    block = select_asset_block(extension, workflow_id)
+    org_extension = extract_org_extension(extension, org_key)
+    if org_extension is None:
+        return {
+            "apm_manifest_present": True,
+            "apm_extension_present": True,
+            "asset_source": "none",
+            "additional_instructions": compose_additional_instructions(
+                platform_additional_instructions, {}
+            ),
+            "inputs": dict(platform_inputs),
+            "setup_commands": [],
+        }
+
+    block = select_asset_block(org_extension, workflow_id, org_key=org_key)
     if block is None:
         return {
             "apm_manifest_present": True,
@@ -286,10 +327,10 @@ def resolve_agentic_assets(
             "setup_commands": [],
         }
 
+    workflows = org_extension.get("workflows")
     asset_source = (
         "workflow"
-        if isinstance(extension.get("workflows"), dict)
-        and workflow_id in extension["workflows"]
+        if isinstance(workflows, dict) and workflow_id in workflows
         else "common"
     )
 

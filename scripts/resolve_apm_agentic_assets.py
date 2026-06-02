@@ -18,7 +18,8 @@
 CLI entrypoint for GitHub Actions: resolve agentic assets from apm.yml.
 
 Environment:
-  WORKFLOW_ID          Registry workflow id (e.g. agent-suggestions)
+  ENABLED_WORKFLOW_ID  Compound org-key:workflow-id (preferred; from registry resolution)
+  WORKFLOW_ID          Registry workflow id when ORG_KEY is set separately
   ORG_KEY              Org key from config/<org-key>/ (default: obs)
   REPO_ROOT            Repository root (default: cwd)
   PLATFORM_ADDITIONAL_INSTRUCTIONS  Multiline platform baseline text

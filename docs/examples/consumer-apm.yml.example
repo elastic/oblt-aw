@@ -8,15 +8,23 @@ dependencies:
 
 x-oblt-aw:
   version: 1
-  common:
-    setup-commands:
-      - ./scripts/bootstrap-agent-context.sh
-    inputs:
-      additional-instructions: |
-        Shared guidance for every observability agentic workflow in this repository.
-  workflows:
-    # Registry id from config/obs/workflow-registry.json — overrides common entirely.
-    agent-suggestions:
+  # Org keys match config/<org-key>/ in elastic/oblt-aw (e.g. obs, docs).
+  # Each org block must define common; workflows.<id> overrides common entirely.
+  obs:
+    common:
+      setup-commands:
+        - ./scripts/bootstrap-agent-context.sh
       inputs:
         additional-instructions: |
-          Additional agent-suggestions-only instructions.
+          Shared guidance for every observability agentic workflow in this repository.
+    workflows:
+      # Registry id from config/obs/workflow-registry.json — overrides obs.common.
+      agent-suggestions:
+        inputs:
+          additional-instructions: |
+            Additional agent-suggestions-only instructions.
+  docs:
+    common:
+      inputs:
+        additional-instructions: |
+          Shared guidance for documentation agentic workflows (when this repo is in docs fleet).

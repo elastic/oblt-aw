@@ -2,32 +2,41 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/elastic/oblt-aw/config/schema/apm-agentic-workflows.schema.json",
   "title": "OBLT AW agentic assets (apm.yml extension)",
-  "description": "Extension block x-oblt-aw in consumer apm.yml. Workflow ids match config/<org-key>/workflow-registry.json.",
+  "description": "Extension block x-oblt-aw in consumer apm.yml. Each org key (e.g. obs, docs) owns common and workflows; workflow ids match config/<org-key>/workflow-registry.json.",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": {
+    "$ref": "#/$defs/orgBlock"
+  },
   "required": ["version"],
   "properties": {
     "version": {
       "type": "integer",
       "const": 1,
       "description": "Schema version for x-oblt-aw."
-    },
-    "common": {
-      "$ref": "#/$defs/assetBlock",
-      "description": "Assets shared by all agentic workflows when no workflow-specific block exists."
-    },
-    "workflows": {
-      "type": "object",
-      "description": "Per-workflow assets. When a workflow id is present, common is ignored entirely (override).",
-      "additionalProperties": {
-        "$ref": "#/$defs/assetBlock"
-      },
-      "propertyNames": {
-        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-      }
     }
   },
   "$defs": {
+    "orgBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["common"],
+      "properties": {
+        "common": {
+          "$ref": "#/$defs/assetBlock",
+          "description": "Assets shared by all agentic workflows for this org when no workflow-specific block exists."
+        },
+        "workflows": {
+          "type": "object",
+          "description": "Per-workflow assets for this org. When a workflow id is present, common is ignored entirely (override).",
+          "additionalProperties": {
+            "$ref": "#/$defs/assetBlock"
+          },
+          "propertyNames": {
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          }
+        }
+      }
+    },
     "assetBlock": {
       "type": "object",
       "additionalProperties": false,
