@@ -8,7 +8,7 @@ Consumer repositories install **two** client workflows:
 
 | File | Role |
 |------|------|
-| `trigger-oblt-aw.yml` | Declares all supported GitHub events; one job dispatches the entrypoint via [`benc-uk/workflow-dispatch`](https://github.com/benc-uk/workflow-dispatch) with `wait-for-completion` and `sync-status` |
+| `trigger-oblt-aw.yml` | Declares all supported GitHub events; one job dispatches the entrypoint via [`benc-uk/workflow-dispatch`](https://github.com/benc-uk/workflow-dispatch) and posts a PR commit status linking to the dispatched run |
 | `oblt-aw.yml` | `workflow_dispatch` receiver; calls `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main` with relayed event context |
 
 Split per-workflow `trigger-oblt-aw-*.yml` files are **not** distributed anymore.
@@ -66,8 +66,9 @@ flowchart TB
 | `contents: read` | workflow root | Default |
 | `actions: write` | `dispatch-entrypoint` | `workflow-dispatch` action (REST `workflow_dispatch`) |
 | `id-token: write` | `dispatch-entrypoint` | `create-token` (Backstage OIDC) |
+| `statuses: write` | `dispatch-entrypoint` | PR commit status with link to dispatched `oblt-aw.yml` run |
 
-The dispatch step sets `wait-for-completion: true` and `sync-status: true` so the trigger job waits for `oblt-aw.yml` (including ingress and routed workflows) to finish and mirrors its conclusion on the trigger check. Job timeout is 20 minutes (`wait-timeout-seconds: 900` on the action).
+The dispatch step does **not** wait for `oblt-aw.yml` to finish. On `pull_request` events, a follow-up step posts commit status context `oblt-aw/entrypoint` on the PR head SHA with `target_url` set to the `runUrlHtml` output from `workflow-dispatch` (traceability only; `state: success` means dispatch succeeded, not that ingress or routed workflows completed). Do not add this context as a required check unless you intend to gate merges on dispatch alone.
 
 **`oblt-aw.yml`**
 

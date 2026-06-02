@@ -32,13 +32,15 @@ The PR AI menu uses a fork-safe collect leg and a privileged post leg within one
 
 Menu checkbox handling (`issue_comment`) and manual refresh (`workflow_dispatch`) use the same unified trigger.
 
+On `pull_request` and on the privileged `workflow_run` leg (`workflow_run.event == pull_request`), the trigger posts commit status context `docs-aw/entrypoint` on the PR head SHA with `target_url` pointing at the dispatched `docs-aw.yml` run (`runUrlHtml` from `workflow-dispatch`). This is traceability only; the trigger does not wait for ingress or routed workflows to finish.
+
 ## Permissions
 
 Control-plane `docs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only).
 
 | Client workflow | Job permissions (minimum) |
 |-----------------|---------------------------|
-| `trigger-docs-aw.yml` | `actions: write`, `contents: read`, `id-token: write` (dispatch job) |
+| `trigger-docs-aw.yml` | `actions: write`, `contents: read`, `id-token: write`, `statuses: write` (dispatch job; status used for PR traceability) |
 | `docs-aw.yml` | `actions: write`, `contents: read`, `id-token: write`, `issues: read`, `pull-requests: read` (ingress job; routed workflows may need more) |
 
 Routed workflows (`docs-aw-ai-menu.yml`, `docs-aw-pr-ai-menu.yml`) require `issues: write`, `pull-requests: write`, and related scopes on agent jobs.
