@@ -32,6 +32,7 @@ from pathlib import Path
 from common import write_outputs
 from workflow_registry import build_control_plane_workflow_index
 
+
 def _proceed_for_compound_id(
     effective_raw: str, enabled_workflows_json: str, compound_id: str
 ) -> bool:
