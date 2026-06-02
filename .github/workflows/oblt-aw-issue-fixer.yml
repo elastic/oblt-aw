@@ -34,6 +34,8 @@ permissions:
 jobs:
 
   resolve-apm-assets:
+    permissions:
+      contents: read
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-issue-fixer.yml

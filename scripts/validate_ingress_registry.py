@@ -22,12 +22,15 @@ from pathlib import Path
 
 from oblt_aw_route_specs import (
     validate_all_org_registries,
+    validate_all_workflow_local_reusable_job_permissions,
+    validate_client_entrypoint_permissions,
     validate_docs_ingress_registry,
     validate_obs_ingress_registry,
 )
 
 CONFIG_DIR = Path("config")
 WORKFLOWS_DIR = Path(".github/workflows")
+TEMPLATE_DIR = Path(".github/remote-workflow-template")
 
 
 def main() -> int:
@@ -42,6 +45,14 @@ def main() -> int:
         workflows_dir=WORKFLOWS_DIR,
         ingress_path=WORKFLOWS_DIR / "docs-aw-ingress.yml",
     )
+    validate_all_workflow_local_reusable_job_permissions(WORKFLOWS_DIR)
+    for org_key in ("obs", "docs"):
+        validate_client_entrypoint_permissions(
+            org_key=org_key,
+            config_dir=CONFIG_DIR,
+            workflows_dir=WORKFLOWS_DIR,
+            template_dir=TEMPLATE_DIR,
+        )
     print("Ingress registry validated.")
     return 0
 

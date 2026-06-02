@@ -7,7 +7,7 @@ Central ingress reusable for Documentation agentic workflows. Called from consum
 1. **`aw-prelude`** — reads dashboard `enabled-workflows` / `effective-raw` and token policy once per ingress run
 2. **Route jobs** — Each `route-*` job gates on event eligibility and dashboard enablement; only matching routes call the corresponding `docs-aw-*` reusable with relayed event context
 
-Route ids and workflow files are declared in [`config/docs/workflow-registry.json`](../../config/docs/workflow-registry.json) `ingress_routes`; CI validates that registry entries match `route-*` jobs in this workflow.
+Route ids and workflow files are declared in [`config/docs/workflow-registry.json`](../../config/docs/workflow-registry.json) `ingress_routes`; CI validates that registry entries match `route-*` jobs in this workflow and that each `route-*` job declares `permissions` covering the called `docs-aw-*` workflow.
 
 ## Inputs
 

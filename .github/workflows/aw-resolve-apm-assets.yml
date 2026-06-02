@@ -81,8 +81,8 @@ jobs:
           sparse-checkout: |
             scripts/apm_agentic_assets.py
             scripts/resolve_apm_agentic_assets.py
-            scripts/resolve_control_plane_workflow_id.py
             scripts/workflow_registry.py
+            scripts/oblt_aw_route_specs.py
             scripts/common.py
             config/
             requirements-runtime.txt
@@ -92,7 +92,10 @@ jobs:
         id: registry
         env:
           CONTROL_PLANE_WORKFLOW: ${{ inputs.control-plane-workflow }}
-        run: python _oblt-aw/scripts/resolve_control_plane_workflow_id.py "${CONTROL_PLANE_WORKFLOW}" --config-dir _oblt-aw/config
+        run: >-
+          python _oblt-aw/scripts/workflow_registry.py
+          "${CONTROL_PLANE_WORKFLOW}"
+          --config-dir _oblt-aw/config
 
       - name: Detect apm manifest
         id: detect

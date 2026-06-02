@@ -176,6 +176,8 @@ jobs:
 
   resolve-apm-assets:
     needs: [evaluate-trigger]
+    permissions:
+      contents: read
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: docs-aw-pr-ai-menu.yml

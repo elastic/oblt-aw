@@ -11,12 +11,19 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
 
 from oblt_aw_route_specs import (  # noqa: E402
+    IngressRouteSpec,
     default_workflow_file,
     load_ingress_route_job_ids,
     load_ingress_route_specs,
+    max_job_permissions,
+    parse_route_job_permissions,
+    union_ingress_route_permissions,
     validate_all_org_registries,
+    validate_client_entrypoint_permissions,
     validate_docs_ingress_registry,
+    validate_ingress_route_job_permissions,
     validate_obs_ingress_registry,
+    validate_workflow_local_reusable_job_permissions,
 )
 
 
@@ -158,6 +165,136 @@ class TestLoadIngressRouteSpecs:
             load_ingress_route_specs(path)
 
 
+class TestIngressRoutePermissions:
+    def test_max_job_permissions_unions_job_scopes(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        workflow = tmp_path / "oblt-aw-sample.yml"
+        workflow.write_text(
+            "permissions:\n  contents: read\n\n"
+            "jobs:\n"
+            "  one:\n"
+            "    permissions:\n"
+            "      issues: read\n"
+            "  two:\n"
+            "    permissions:\n"
+            "      issues: write\n"
+            "      pull-requests: read\n",
+            encoding="utf-8",
+        )
+        assert max_job_permissions(workflow) == {
+            "issues": "write",
+            "pull-requests": "read",
+        }
+
+    def test_parse_route_job_permissions(self, tmp_path: pathlib.Path) -> None:
+        ingress = tmp_path / "ingress.yml"
+        ingress.write_text(
+            "jobs:\n"
+            "  route-sample:\n"
+            "    needs: prelude\n"
+            "    permissions:\n"
+            "      issues: write\n"
+            "    uses: ./.github/workflows/oblt-aw-sample.yml\n",
+            encoding="utf-8",
+        )
+        text = ingress.read_text(encoding="utf-8")
+        assert parse_route_job_permissions(text, "sample") == {"issues": "write"}
+
+    def test_validate_ingress_route_job_permissions_fails_when_over_granted(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        workflows_dir = tmp_path / "workflows"
+        workflows_dir.mkdir()
+        (workflows_dir / "oblt-aw-sample.yml").write_text(
+            "jobs:\n  run:\n    permissions:\n      issues: write\n",
+            encoding="utf-8",
+        )
+        ingress = tmp_path / "oblt-aw-ingress.yml"
+        ingress.write_text(
+            "jobs:\n"
+            "  route-sample:\n"
+            "    needs: prelude\n"
+            "    permissions:\n"
+            "      issues: write\n"
+            "      pull-requests: write\n"
+            "    uses: ./.github/workflows/oblt-aw-sample.yml\n",
+            encoding="utf-8",
+        )
+        specs = load_ingress_route_specs(
+            _write_registry(
+                tmp_path,
+                [{"id": "sample", "ingress_routes": [{"id": "sample"}]}],
+            )
+        )
+        with pytest.raises(SystemExit, match="pull-requests"):
+            validate_ingress_route_job_permissions(
+                ingress,
+                specs=specs,
+                workflows_dir=workflows_dir,
+            )
+
+    def test_validate_workflow_local_reusable_job_permissions_requires_explicit(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        workflow = tmp_path / "oblt-aw-sample.yml"
+        workflow.write_text(
+            "on:\n  workflow_call:\njobs:\n"
+            "  resolve-apm-assets:\n"
+            "    uses: ./.github/workflows/aw-resolve-apm-assets.yml\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(SystemExit, match="missing job permissions"):
+            validate_workflow_local_reusable_job_permissions(workflow)
+
+    def test_union_ingress_route_permissions(self, tmp_path: pathlib.Path) -> None:
+        ingress = tmp_path / "oblt-aw-ingress.yml"
+        ingress.write_text(
+            "jobs:\n"
+            "  route-a:\n    permissions:\n      issues: write\n"
+            "    uses: ./.github/workflows/oblt-aw-a.yml\n"
+            "  route-b:\n    permissions:\n      pull-requests: read\n"
+            "    uses: ./.github/workflows/oblt-aw-b.yml\n",
+            encoding="utf-8",
+        )
+        specs = {
+            "a": IngressRouteSpec(route_id="a", workflow_file="oblt-aw-a.yml"),
+            "b": IngressRouteSpec(route_id="b", workflow_file="oblt-aw-b.yml"),
+        }
+        union = union_ingress_route_permissions(ingress, specs=specs)
+        assert union == {"issues": "write", "pull-requests": "read"}
+
+    def test_validate_ingress_route_job_permissions_fails_when_missing(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        workflows_dir = tmp_path / "workflows"
+        workflows_dir.mkdir()
+        (workflows_dir / "oblt-aw-sample.yml").write_text(
+            "jobs:\n  run:\n    permissions:\n      issues: write\n",
+            encoding="utf-8",
+        )
+        ingress = tmp_path / "oblt-aw-ingress.yml"
+        ingress.write_text(
+            "jobs:\n"
+            "  route-sample:\n"
+            "    needs: prelude\n"
+            "    uses: ./.github/workflows/oblt-aw-sample.yml\n",
+            encoding="utf-8",
+        )
+        specs = load_ingress_route_specs(
+            _write_registry(
+                tmp_path,
+                [{"id": "sample", "ingress_routes": [{"id": "sample"}]}],
+            )
+        )
+        with pytest.raises(SystemExit, match="missing job permissions"):
+            validate_ingress_route_job_permissions(
+                ingress,
+                specs=specs,
+                workflows_dir=workflows_dir,
+            )
+
+
 class TestLoadIngressRouteJobIds:
     def test_extracts_route_job_ids(self, tmp_path: pathlib.Path) -> None:
         ingress = tmp_path / "oblt-aw-ingress.yml"
@@ -190,3 +327,13 @@ class TestRepoRegistryValidation:
             workflows_dir=repo_root / ".github" / "workflows",
             ingress_path=repo_root / ".github" / "workflows" / "docs-aw-ingress.yml",
         )
+
+    def test_client_entrypoints_match_ingress_route_union(self) -> None:
+        repo_root = pathlib.Path(__file__).parent.parent
+        for org_key in ("obs", "docs"):
+            validate_client_entrypoint_permissions(
+                org_key=org_key,
+                config_dir=repo_root / "config",
+                workflows_dir=repo_root / ".github" / "workflows",
+                template_dir=repo_root / ".github" / "remote-workflow-template",
+            )

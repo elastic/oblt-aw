@@ -38,6 +38,8 @@ jobs:
 
   # Step 1: Detect docs drift from recent code changes and create an issue with findings
   resolve-apm-assets-audit:
+    permissions:
+      contents: read
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-autodoc.yml
@@ -85,6 +87,8 @@ jobs:
   resolve-apm-assets-fix:
     needs: audit
     if: needs.audit.outputs.created_issue_number != ''
+    permissions:
+      contents: read
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-autodoc.yml
