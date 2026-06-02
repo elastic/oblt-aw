@@ -158,6 +158,9 @@ jobs:
 
   approve:
     needs: [verify, check-dependency-collection]
+    if: >-
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true'
     permissions:
       actions: read
       contents: write
@@ -194,6 +197,9 @@ jobs:
       - verify
       - check-dependency-collection
       - approve
+    if: >-
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
