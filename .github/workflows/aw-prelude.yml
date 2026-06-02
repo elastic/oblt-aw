@@ -91,7 +91,6 @@ jobs:
           fetch-depth: 1
           token: ${{ github.token }}
           sparse-checkout: |
-            scripts/workflow_registry.py
             scripts/common.py
             scripts/resolve_repository_token_policy.py
             config/

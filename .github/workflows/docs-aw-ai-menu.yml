@@ -147,6 +147,8 @@ jobs:
 
   resolve-apm-assets-triage:
     needs: [evaluate-trigger]
+    permissions:
+      contents: read
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: docs-aw-ai-menu.yml
@@ -171,6 +173,8 @@ jobs:
     needs: [evaluate-trigger]
     if: >-
       needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
+    permissions:
+      contents: read
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: docs-aw-ai-menu.yml

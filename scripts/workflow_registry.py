@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -109,6 +110,19 @@ def parse_registry_entries(org_dir: Path) -> list[RegistryWorkflowEntry]:
     return entries
 
 
+def resolve_compound_id(config_dir: Path, control_plane_workflow: str) -> str:
+    """Map a control-plane workflow basename to its compound dashboard id."""
+    index = build_control_plane_workflow_index(config_dir)
+    entry = index.get(control_plane_workflow)
+    if entry is None:
+        known = ", ".join(sorted(index))
+        raise ValueError(
+            f"control-plane workflow {control_plane_workflow!r} is not listed in any "
+            f"workflow-registry.json ingress_routes (known: {known})"
+        )
+    return entry.compound_id
+
+
 def build_control_plane_workflow_index(
     config_dir: Path,
 ) -> dict[str, RegistryWorkflowEntry]:
@@ -179,3 +193,42 @@ def validate_registry_against_workflows(
                 "(prelude runs in ingress without per-wrapper gating)"
             )
     return errors
+
+
+def main() -> int:
+    """CLI: resolve a control-plane workflow file to org:workflow-id."""
+    import argparse
+    import os
+
+    from common import write_outputs
+
+    parser = argparse.ArgumentParser(
+        description="Resolve control-plane workflow file to org:workflow-id"
+    )
+    parser.add_argument(
+        "control_plane_workflow",
+        help="Workflow basename under .github/workflows/ (for example oblt-aw-automerge.yml)",
+    )
+    parser.add_argument(
+        "--config-dir",
+        type=Path,
+        default=Path("config"),
+        help="Config root containing per-org workflow-registry.json trees",
+    )
+    args = parser.parse_args()
+
+    try:
+        compound_id = resolve_compound_id(args.config_dir, args.control_plane_workflow)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if os.getenv("GITHUB_OUTPUT"):
+        write_outputs({"compound-workflow-id": compound_id})
+    else:
+        print(compound_id)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

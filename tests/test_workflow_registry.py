@@ -55,6 +55,18 @@ class TestBuildControlPlaneWorkflowIndex:
         assert index["oblt-aw-security-fixer.yml"].compound_id == "obs:security"
 
 
+class TestResolveCompoundId:
+    def test_resolves_control_plane_workflow(self, tmp_path: pathlib.Path) -> None:
+        _write_org(
+            tmp_path,
+            "obs",
+            [{"id": "automerge", "ingress_routes": [{"id": "automerge"}]}],
+        )
+        assert (
+            wr.resolve_compound_id(tmp_path, "oblt-aw-automerge.yml") == "obs:automerge"
+        )
+
+
 class TestValidateRegistryAgainstWorkflows:
     def test_flags_missing_registry_entry(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch

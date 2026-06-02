@@ -47,7 +47,6 @@ jobs:
       checks: read
       contents: read
       discussions: write
-      id-token: write
       issues: write
       pull-requests: write
     uses: elastic/oblt-aw/.github/workflows/docs-aw-ingress.yml@main # ratchet:exclude
