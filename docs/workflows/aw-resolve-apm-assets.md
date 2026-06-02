@@ -70,6 +70,7 @@ Examples with upstream gates: [oblt-aw-automerge.yml](../../.github/workflows/ob
 
 ## References
 
+- [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format and vendor extension fields
 - [APM agentic assets architecture](../architecture/apm-agentic-assets.md)
 - [Agentic Workflow Prelude](aw-prelude.md)
 - [scripts/resolve_apm_agentic_assets.py](../../scripts/resolve_apm_agentic_assets.py)

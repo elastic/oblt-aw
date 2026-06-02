@@ -99,11 +99,14 @@ Downstream `gh-aw-*` jobs should pass `additional-instructions: ${{ needs.<resol
 
 ## Schema
 
-JSON Schema for the extension block: [`config/schema/apm-agentic-workflows.schema.json`](../../config/schema/apm-agentic-workflows.schema.json).
+`x-oblt-aw` is a vendor extension on consumer `apm.yml`. APM preserves unknown top-level keys per the [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/).
+
+JSON Schema for this extension block: [`config/schema/apm-agentic-workflows.schema.json`](../../config/schema/apm-agentic-workflows.schema.json).
 
 ## References
 
 - [APM (Agent Package Manager)](https://github.com/microsoft/apm)
+- [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format and vendor extension fields
 - [Multi-org agentic workflows](./multi-org-agentic-workflows.md)
 - [Resolve APM agentic assets](../../.github/workflows/aw-resolve-apm-assets.yml)
 - [Agentic Workflow Prelude](../../.github/workflows/aw-prelude.yml)
