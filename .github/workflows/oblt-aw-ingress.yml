@@ -144,7 +144,6 @@ jobs:
       ingress-event-name: ${{ inputs.ingress-event-name }}
       ingress-event-action: ${{ inputs.ingress-event-action }}
       ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
-      ingress-token-policy: ${{ needs.prelude.outputs.token-policy }}
       ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
       ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets:
@@ -180,7 +179,6 @@ jobs:
       ingress-event-name: ${{ inputs.ingress-event-name }}
       ingress-event-action: ${{ inputs.ingress-event-action }}
       ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
-      ingress-token-policy: ${{ needs.prelude.outputs.token-policy }}
       ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
       ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets:
@@ -345,7 +343,6 @@ jobs:
       ingress-event-name: ${{ inputs.ingress-event-name }}
       ingress-event-action: ${{ inputs.ingress-event-action }}
       ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
-      ingress-token-policy: ${{ needs.prelude.outputs.token-policy }}
       ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
       ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
 
@@ -426,7 +423,6 @@ jobs:
       ingress-event-name: ${{ inputs.ingress-event-name }}
       ingress-event-action: ${{ inputs.ingress-event-action }}
       ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
-      ingress-token-policy: ${{ needs.prelude.outputs.token-policy }}
       ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
       ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets:
@@ -532,7 +528,6 @@ jobs:
       ingress-event-name: ${{ inputs.ingress-event-name }}
       ingress-event-action: ${{ inputs.ingress-event-action }}
       ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
-      ingress-token-policy: ${{ needs.prelude.outputs.token-policy }}
       ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
       ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets:

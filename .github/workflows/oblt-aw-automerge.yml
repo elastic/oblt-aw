@@ -17,10 +17,6 @@ on:
         required: false
         type: string
         default: ''
-      ingress-token-policy:
-        description: Token policy resolved by oblt-aw-ingress prelude
-        required: true
-        type: string
       ingress-allowed-pr-authors-csv:
         description: Allowed PR bot logins from oblt-aw-ingress prelude
         required: false
@@ -248,8 +244,6 @@ jobs:
       - name: Create ephemeral GitHub token
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
-        with:
-          token-policy: ${{ inputs.ingress-token-policy }}
 
       - name: Enable merge when ready (merge queue fallback)
         env:

@@ -1,48 +1,15 @@
 {
   "repositories": [
-    {
-      "repository": "elastic/gh-oblt",
-      "token-policy": "token-policy-bea69d21b520"
-    },
-    {
-      "repository": "elastic/oblt-actions",
-      "token-policy": "token-policy-dbe14d22fc0d"
-    },
-    {
-      "repository": "elastic/oblt-aw",
-      "token-policy": "token-policy-267984e2662f"
-    },
-    {
-      "repository": "elastic/oblt-cli",
-      "token-policy": "token-policy-36401b7c6eba"
-    },
-    {
-      "repository": "elastic/oblt-framework",
-      "token-policy": "token-policy-371e815a5a93"
-    },
-    {
-      "repository": "elastic/oblt-infra",
-      "token-policy": "token-policy-65f0f52af128"
-    },
-    {
-      "repository": "elastic/oblt-robot",
-      "token-policy": "token-policy-e2201d02661f"
-    },
-    {
-      "repository": "elastic/observability-catalog",
-      "token-policy": ""
-    },
-    {
-      "repository": "elastic/observability-github-secrets",
-      "token-policy": "token-policy-1a20b562a03f"
-    },
-    {
-      "repository": "elastic/observability-github-settings",
-      "token-policy": "token-policy-b15759d51a6a"
-    },
-    {
-      "repository": "elastic/observability-robots",
-      "token-policy": "token-policy-711a6d8c9026"
-    }
+    "elastic/gh-oblt",
+    "elastic/oblt-actions",
+    "elastic/oblt-aw",
+    "elastic/oblt-cli",
+    "elastic/oblt-framework",
+    "elastic/oblt-infra",
+    "elastic/oblt-robot",
+    "elastic/observability-catalog",
+    "elastic/observability-github-secrets",
+    "elastic/observability-github-settings",
+    "elastic/observability-robots"
   ]
 }

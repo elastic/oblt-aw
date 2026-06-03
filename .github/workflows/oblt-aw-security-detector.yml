@@ -18,10 +18,6 @@ on:
         required: false
         type: string
         default: ''
-      ingress-token-policy:
-        description: Token policy resolved by oblt-aw-ingress prelude
-        required: true
-        type: string
       ingress-allowed-pr-authors-csv:
         description: Allowed PR bot logins from oblt-aw-ingress prelude
         required: false
@@ -80,8 +76,6 @@ jobs:
         id: create-token
         if: ${{ steps.scan.outputs.count != '0' }}
         uses: elastic/oblt-actions/github/create-token@v1
-        with:
-          token-policy: ${{ inputs.ingress-token-policy }}
 
       - name: Create issues from findings
         if: ${{ steps.scan.outputs.count != '0' }}
