@@ -15,9 +15,8 @@ on:
         default: ''
       ingress-event-payload-json:
         description: Relayed github.event JSON from oblt-aw-ingress
-        required: false
+        required: true
         type: string
-        default: ''
       ingress-allowed-pr-authors-csv:
         description: Allowed PR bot logins from oblt-aw-ingress prelude
         required: false

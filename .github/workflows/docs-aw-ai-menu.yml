@@ -18,9 +18,8 @@ on:
         default: ''
       ingress-event-payload-json:
         description: Relayed github.event JSON from docs-aw-ingress
-        required: false
+        required: true
         type: string
-        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
@@ -46,7 +45,7 @@ jobs:
       contents: read
       issues: write
     concurrency:
-      group: docs-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.issue_number }}
+      group: docs-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json).issue.number || fromJSON(inputs.ingress-event-payload-json).inputs.issue_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs AI issue menu scripts
@@ -57,11 +56,14 @@ jobs:
           path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
+            scripts/docs/lib
             scripts/docs/issue-menu
           sparse-checkout-cone-mode: true
 
       - name: Create or update AI menu comment
         uses: actions/github-script@v9
+        env:
+          INGRESS_EVENT_JSON: ${{ inputs.ingress-event-payload-json }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -75,11 +77,11 @@ jobs:
         inputs.ingress-event-name != '' && inputs.ingress-event-name ||
         github.event_name
       ) == 'issue_comment' &&
-      fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.pull_request == null &&
+      fromJSON(inputs.ingress-event-payload-json).issue.pull_request == null &&
       github.actor != 'github-actions[bot]' &&
-      fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.user.login == 'github-actions[bot]' &&
-      contains(fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.body, '<!-- docs-ai-menu:start -->') &&
-      contains(fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.body, '<!-- docs-ai-menu:end -->')
+      fromJSON(inputs.ingress-event-payload-json).comment.user.login == 'github-actions[bot]' &&
+      contains(fromJSON(inputs.ingress-event-payload-json).comment.body, '<!-- docs-ai-menu:start -->') &&
+      contains(fromJSON(inputs.ingress-event-payload-json).comment.body, '<!-- docs-ai-menu:end -->')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -96,12 +98,15 @@ jobs:
           path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
+            scripts/docs/lib
             scripts/docs/issue-menu
           sparse-checkout-cone-mode: true
 
       - name: Parse AI menu transition
         id: evaluate
         uses: actions/github-script@v9
+        env:
+          INGRESS_EVENT_JSON: ${{ inputs.ingress-event-payload-json }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -120,7 +125,7 @@ jobs:
       contents: read
       issues: write
     concurrency:
-      group: docs-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.issue_number }}
+      group: docs-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json).issue.number || fromJSON(inputs.ingress-event-payload-json).inputs.issue_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs AI issue menu scripts
@@ -131,12 +136,14 @@ jobs:
           path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
+            scripts/docs/lib
             scripts/docs/issue-menu
           sparse-checkout-cone-mode: true
 
       - name: Refresh AI menu status
         uses: actions/github-script@v9
         env:
+          INGRESS_EVENT_JSON: ${{ inputs.ingress-event-payload-json }}
           TRIAGE_TRIGGERED: ${{ needs.evaluate-trigger.outputs.triage_triggered }}
           ISSUE_SCOPE_TRIGGERED: ${{ needs.evaluate-trigger.outputs.issue_scope_triggered }}
         with:
@@ -206,7 +213,7 @@ jobs:
       contents: read
       issues: write
     concurrency:
-      group: docs-ai-menu-${{ github.event.issue.number || github.event.inputs.issue_number }}
+      group: docs-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json).issue.number || fromJSON(inputs.ingress-event-payload-json).inputs.issue_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs AI issue menu scripts
@@ -217,12 +224,14 @@ jobs:
           path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
+            scripts/docs/lib
             scripts/docs/issue-menu
           sparse-checkout-cone-mode: true
 
       - name: Refresh AI menu status
         uses: actions/github-script@v9
         env:
+          INGRESS_EVENT_JSON: ${{ inputs.ingress-event-payload-json }}
           TRIAGE_RESULT: ${{ needs.run-docs-triage.result }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -240,7 +249,7 @@ jobs:
       contents: read
       issues: write
     concurrency:
-      group: docs-ai-menu-${{ github.event.issue.number || github.event.inputs.issue_number }}
+      group: docs-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json).issue.number || fromJSON(inputs.ingress-event-payload-json).inputs.issue_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs AI issue menu scripts
@@ -251,12 +260,14 @@ jobs:
           path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
+            scripts/docs/lib
             scripts/docs/issue-menu
           sparse-checkout-cone-mode: true
 
       - name: Refresh AI menu status
         uses: actions/github-script@v9
         env:
+          INGRESS_EVENT_JSON: ${{ inputs.ingress-event-payload-json }}
           ISSUE_SCOPE_RESULT: ${{ needs.run-docs-issue-scope.result }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
