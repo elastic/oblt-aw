@@ -41,6 +41,9 @@ jobs:
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-duplicate-issue-detector.yml
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
 
   duplicate-issue-detector:
     needs: [resolve-apm-assets]

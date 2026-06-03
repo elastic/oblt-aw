@@ -159,6 +159,9 @@ jobs:
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: docs-aw-ai-menu.yml
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
 
   run-docs-triage:
     name: Docs AI / triage
@@ -173,6 +176,7 @@ jobs:
     uses: elastic/docs-actions/.github/workflows/gh-aw-issue-triage.lock.yml@v1
     with:
       additional-instructions: ${{ needs.resolve-apm-assets-triage.outputs.resolved-additional-instructions }}
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets-triage.outputs.resolved-setup-commands-json), ' && ') }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -185,6 +189,9 @@ jobs:
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: docs-aw-ai-menu.yml
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
 
   run-docs-issue-scope:
     name: Docs AI / issue scope
@@ -200,6 +207,7 @@ jobs:
     uses: elastic/docs-actions/.github/workflows/gh-aw-docs-issue-scope.lock.yml@v1
     with:
       additional-instructions: ${{ needs.resolve-apm-assets-issue-scope.outputs.resolved-additional-instructions }}
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets-issue-scope.outputs.resolved-setup-commands-json), ' && ') }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

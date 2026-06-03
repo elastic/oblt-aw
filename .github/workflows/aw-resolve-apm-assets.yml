@@ -30,6 +30,21 @@ on:
         required: false
         type: boolean
         default: true
+      ingress-event-name:
+        description: Relayed github.event_name from ingress (injected into gh-aw prompt context)
+        required: false
+        type: string
+        default: ""
+      ingress-event-action:
+        description: Relayed github.event.action from ingress (injected into gh-aw prompt context)
+        required: false
+        type: string
+        default: ""
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from ingress (injected into gh-aw prompt context)
+        required: false
+        type: string
+        default: ""
     outputs:
       apm-manifest-present:
         description: True when the consumer repository contains apm.yml or apm.yaml
@@ -80,6 +95,7 @@ jobs:
           token: ${{ github.token }}
           sparse-checkout: |
             scripts/apm_agentic_assets.py
+            scripts/ingress_github_context.py
             scripts/resolve_apm_agentic_assets.py
             scripts/workflow_registry.py
             scripts/oblt_aw_route_specs.py
@@ -159,4 +175,7 @@ jobs:
           CONTROL_PLANE_CONFIG_DIR: ${{ github.workspace }}/_oblt-aw/config
           PLATFORM_ADDITIONAL_INSTRUCTIONS: ${{ inputs.platform-additional-instructions }}
           PLATFORM_INPUTS_JSON: ${{ inputs.platform-inputs-json }}
+          INGRESS_EVENT_NAME: ${{ inputs.ingress-event-name }}
+          INGRESS_EVENT_ACTION: ${{ inputs.ingress-event-action }}
+          INGRESS_EVENT_PAYLOAD_JSON: ${{ inputs.ingress-event-payload-json }}
         run: python _oblt-aw/scripts/resolve_apm_agentic_assets.py

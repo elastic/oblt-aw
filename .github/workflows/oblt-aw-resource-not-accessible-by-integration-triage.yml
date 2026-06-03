@@ -42,6 +42,9 @@ jobs:
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-triage.yml
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
         Your task is to triage issues that carry the detector label `oblt-aw/detector/res-not-accessible-by-integration` and determine if they are related to "Resource not accessible by integration" errors in GitHub Actions workflows.
 
@@ -240,6 +243,7 @@ jobs:
       allowed-bot-users: ${{ inputs.ingress-allowed-issue-authors-csv }}
       classification-labels: "oblt-aw/triage/res-not-accessible-by-integration,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), ' && ') }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

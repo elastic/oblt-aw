@@ -61,6 +61,9 @@ jobs:
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-detector.yml
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
         **Error Context:**
         You are analyzing preflight search results for the exact phrase "Resource not accessible by integration" in GitHub Actions workflow logs. This error typically indicates permission or token scope issues when workflows access protected resources (e.g., secrets, environments, or repository settings).
