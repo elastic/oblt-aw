@@ -20,15 +20,12 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
 ## Steps
 
-1. **Create a new branch on `elastic/oblt-aw`, choose the org, and add the repository** — From an up-to-date `main`, create a **feature branch** (for example `git checkout -b feat/oblt-aw-register-<repo>`; exact naming is your team’s convention). On that branch only, identify the owning **`config/<org-key>/`** folder ([multi-org design](../architecture/multi-org-agentic-workflows.md)) and edit **`active-repositories.json`** to add an object with **`repository`** set to **`elastic/<repo>`** and **`token-policy`** set to a Backstage policy name when this repo should use an explicit policy for all `create-token` calls, or **`""`** otherwise ([distribute-client-workflow](../operations/distribute-client-workflow.md)):
+1. **Create a new branch on `elastic/oblt-aw`, choose the org, and add the repository** — From an up-to-date `main`, create a **feature branch** (for example `git checkout -b feat/oblt-aw-register-<repo>`; exact naming is your team’s convention). On that branch only, identify the owning **`config/<org-key>/`** folder ([multi-org design](../architecture/multi-org-agentic-workflows.md)) and edit **`active-repositories.json`** to add **`elastic/<repo>`** ([distribute-client-workflow](../operations/distribute-client-workflow.md)):
 
    ```json
    {
      "repositories": [
-       {
-         "repository": "elastic/<repo>",
-         "token-policy": ""
-       }
+       "elastic/<repo>"
      ]
    }
    ```
@@ -140,8 +137,8 @@ Draft placeholder for `additional_permissions` (not valid YAML until substituted
 |--------------------|-------------------------------------------------------|
 | [distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml) | `token-policy-63405ab45244` |
 | [sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml) | `token-policy-8b60ba56dd3f` |
-| [oblt-aw-security-detector.yml](../../.github/workflows/oblt-aw-security-detector.yml) | `-` (no explicit `with.token-policy` on `create-token`) |
-| [oblt-aw-automerge.yml](../../.github/workflows/oblt-aw-automerge.yml) (ephemeral token step) | `-` (no explicit `with.token-policy` on `create-token`) |
+| [oblt-aw-security-detector.yml](../../.github/workflows/oblt-aw-security-detector.yml) | Vault auto policy (no `with.token-policy` on `create-token`) |
+| [oblt-aw-automerge.yml](../../.github/workflows/oblt-aw-automerge.yml) (ephemeral token step) | Vault auto policy (no `with.token-policy` on `create-token`) |
 
 ## Troubleshooting
 

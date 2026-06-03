@@ -33,7 +33,7 @@ Core behavior:
 
 ### Input and output contracts
 
-- Target config input is an object with `repositories: [{ "repository": "owner/repo", "token-policy": "" }, ...]`
+- Target config input is an object with `repositories: ["owner/repo", ...]` (or legacy objects with `repository` only)
 - The target builder step exposes:
   - `targets` (JSON matrix entries with `repository`, `operation`, `files`, and for install ops `remove_files`)
   - `has_targets` (`true`/`false`)

@@ -5,7 +5,7 @@
 Central ingress reusable for Observability agentic workflows. Called from consumer `oblt-aw.yml` via `workflow_call` with relayed event context from `trigger-oblt-aw.yml`.
 
 1. **`aw-prelude`** — reads dashboard `enabled-workflows` / `effective-raw`, PR/issue allow lists, and token policy once per ingress run
-2. **Route jobs** — Each `route-*` job carries an `if:` gate for event eligibility and dashboard enablement; only matching routes call the corresponding `oblt-aw-*` reusable with relayed event context and prelude outputs (`ingress-token-policy`, allow lists). Individual `oblt-aw-*` workflows do **not** call `aw-prelude`; route eligibility is decided entirely in ingress.
+2. **Route jobs** — Each `route-*` job carries an `if:` gate for event eligibility and dashboard enablement; only matching routes call the corresponding `oblt-aw-*` reusable with relayed event context and prelude allow lists. Individual `oblt-aw-*` workflows do **not** call `aw-prelude`; route eligibility is decided entirely in ingress.
 
 Route ids and workflow files are declared in [`config/obs/workflow-registry.json`](../../config/obs/workflow-registry.json) `ingress_routes`; CI validates that registry entries match `route-*` jobs in this workflow and that each `route-*` job declares `permissions` covering the called `oblt-aw-*` workflow (reusable-workflow token ceiling).
 

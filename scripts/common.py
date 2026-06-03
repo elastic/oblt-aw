@@ -71,7 +71,6 @@ class ActiveRepositoryEntry:
     """One repository row from active-repositories.json."""
 
     repository: str
-    token_policy: str
 
 
 def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
@@ -81,7 +80,7 @@ def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
             raise SystemExit(
                 f"Invalid repository entry: {item!r}. Expected 'owner/repo'"
             )
-        return ActiveRepositoryEntry(repository=repo, token_policy="")
+        return ActiveRepositoryEntry(repository=repo)
     if isinstance(item, dict):
         raw_repo = item.get("repository")
         if not isinstance(raw_repo, str) or "/" not in raw_repo.strip():
@@ -89,18 +88,7 @@ def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
                 f"Invalid repository entry: {item!r}. "
                 "Object entries require string 'repository' in 'owner/repo' form"
             )
-        repo = raw_repo.strip()
-        policy = item.get("token-policy", "")
-        if policy is None:
-            policy = ""
-        if not isinstance(policy, str):
-            raise SystemExit(
-                f"Invalid token-policy for {repo!r}: expected string, got {type(policy).__name__}"
-            )
-        return ActiveRepositoryEntry(
-            repository=repo,
-            token_policy=policy.strip(),
-        )
+        return ActiveRepositoryEntry(repository=raw_repo.strip())
     raise SystemExit(
         f"Invalid repository entry: {item!r}. "
         "Expected 'owner/repo' string or object with 'repository'"
@@ -113,9 +101,8 @@ def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]
 
     Supports:
 
-    - Object: ``{"repositories": [{"repository": "owner/repo", "token-policy": ""}, ...]}``
-    - List: same object entry shapes at the top level (legacy migration)
-    - String entries in ``repositories`` (legacy migration only; prefer objects in config files)
+    - Object: ``{"repositories": ["owner/repo", {"repository": "owner/repo"}, ...]}``
+    - List: same entry shapes at the top level (legacy migration)
     """
     data = json.loads(content) if content else {"repositories": []}
     if isinstance(data, dict):
@@ -131,14 +118,7 @@ def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]
     entries = [_parse_repository_entry(item) for item in repositories]
     by_repo: dict[str, ActiveRepositoryEntry] = {}
     for entry in entries:
-        previous = by_repo.get(entry.repository)
-        if previous is not None:
-            if previous.token_policy != entry.token_policy:
-                raise SystemExit(
-                    f"Duplicate repository {entry.repository!r} with conflicting "
-                    f"token-policy values: {previous.token_policy!r} vs "
-                    f"{entry.token_policy!r}"
-                )
+        if entry.repository in by_repo:
             continue
         by_repo[entry.repository] = entry
     return sorted(by_repo.values(), key=lambda e: e.repository)
@@ -147,37 +127,6 @@ def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]
 def parse_repositories(content: str) -> list[str]:
     """Parse active-repositories.json content into a list of owner/repo strings."""
     return [entry.repository for entry in parse_active_repository_entries(content)]
-
-
-def merge_repository_token_policies_from_org_trees(config_dir: Path) -> dict[str, str]:
-    """
-    Map repository to a non-empty token-policy from org ``active-repositories.json`` files.
-
-    When the same repository appears in multiple org trees with different non-empty
-    policies, exits with an error.
-    """
-    policies: dict[str, str] = {}
-    for org_dir in discover_org_config_dirs(config_dir):
-        path = org_dir / "active-repositories.json"
-        for entry in parse_active_repository_entries(path.read_text(encoding="utf-8")):
-            if not entry.token_policy:
-                continue
-            previous = policies.get(entry.repository)
-            if previous is not None and previous != entry.token_policy:
-                raise SystemExit(
-                    f"Conflicting token-policy for {entry.repository!r} across org "
-                    f"config: {previous!r} vs {entry.token_policy!r} "
-                    f"(org {org_dir.name!r})"
-                )
-            policies[entry.repository] = entry.token_policy
-    return policies
-
-
-def lookup_repository_token_policy(config_dir: Path, repository: str) -> str:
-    """Return configured token-policy for ``repository``, or ``""`` when unset."""
-    return merge_repository_token_policies_from_org_trees(config_dir).get(
-        repository.strip(), ""
-    )
 
 
 def discover_org_config_dirs(config_dir: Path) -> list[Path]:

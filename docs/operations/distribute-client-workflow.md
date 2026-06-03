@@ -10,7 +10,7 @@ This workflow distributes or removes client files from each org’s subtree unde
 
 - Per-org [active-repositories.json](../../config/obs/active-repositories.json) files under `config/<org-key>/` list current target repositories (union used for distribution).
 - Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/trigger-oblt-aw-*.yml` → `.github/workflows/trigger-oblt-aw-*.yml`). Edit only under [remote-workflow-template](../../.github/remote-workflow-template/) (see [Client template doc](../workflows/oblt-aw-client-template.md)).
-- Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
+- Control-plane token policy for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) is set in [distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml) (`token-policy-63405ab45244`), not in `active-repositories.json`.
 
 ## Usage
 
@@ -34,14 +34,8 @@ Execution stages:
   ```json
   {
     "repositories": [
-      {
-        "repository": "elastic/oblt-aw",
-        "token-policy": ""
-      },
-      {
-        "repository": "elastic/oblt-cli",
-        "token-policy": "token-policy-abc123def456"
-      }
+      "elastic/oblt-aw",
+      "elastic/oblt-cli"
     ]
   }
   ```
@@ -49,15 +43,15 @@ Execution stages:
 Validation and normalization rules:
 
 - `repositories` must resolve to a JSON list.
-- Every entry is an object with required `repository` (`owner/repo`) and `token-policy` (string; use `""` when Vault auto policy / control-plane defaults apply).
-- When `token-policy` is non-empty, consumer `create-token` steps (via `aw-prelude`) use that policy for that repository; when empty, consumer workflows keep Vault auto policy per trigger workflow ref. Control-plane `distribute-client-workflow` and `sync-control-plane-dashboard` always use their fixed workflow token policies (`token-policy-63405ab45244` and `token-policy-8b60ba56dd3f`).
+- Each entry is either an `owner/repo` string or an object with required `repository` (`owner/repo`).
+- Consumer `create-token` steps use Vault auto policy per trigger workflow ref (no policy in config). Control-plane `distribute-client-workflow` and `sync-control-plane-dashboard` use fixed workflow token policies in their YAML (`token-policy-63405ab45244` and `token-policy-8b60ba56dd3f`).
 - Entries are normalized (trimmed), de-duplicated, and sorted before processing.
-- Invalid entries fail the step with: `Invalid repository entry: ... Expected object with 'repository'`.
+- Invalid entries fail the step with: `Invalid repository entry: ... Expected 'owner/repo' string or object with 'repository'`.
 
 Examples:
 
-- Valid: `{"repository": "elastic/oblt-aw", "token-policy": ""}`
-- Invalid: `"elastic/oblt-aw"` (bare string), `"elastic"` (missing slash in `repository`), `123` (non-object), `{"repo":"elastic/oblt-aw"}` (wrong key)
+- Valid: `"elastic/oblt-aw"`, `{"repository": "elastic/oblt-aw"}`
+- Invalid: `"elastic"` (missing slash), `123` (non-string/non-object), `{"repo":"elastic/oblt-aw"}` (wrong key)
 
 ## `build_target_operations.py` Contract
 
