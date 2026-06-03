@@ -203,6 +203,8 @@ def build_relayed_setup_commands(ctx: RelayedGitHubContext) -> list[str]:
     pr_number = ctx.pull_request_number
     return [
         "set -euo pipefail",
+        ': "${GH_TOKEN:=${GITHUB_TOKEN:?GitHub token required for relayed PR checkout}}"',
+        "gh auth setup-git",
         f"git fetch origin {shlex.quote(f'pull/{pr_number}/head:{ref}')}",
         f"git checkout {shlex.quote(ref)}",
     ]
