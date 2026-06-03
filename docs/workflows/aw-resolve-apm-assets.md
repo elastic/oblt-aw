@@ -37,7 +37,7 @@ Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.y
 
 ### Relayed GitHub context
 
-Consumer entrypoints relay the original webhook payload through ingress (`ingress-event-payload-json`). Upstream `gh-aw-*` lock files still read native `github.event`, which is empty under the `workflow_dispatch` entrypoint model. This workflow injects an authoritative **Relayed ingress context** block at the top of `resolved-additional-instructions` and, for pull requests, prepends authenticated PR checkout setup commands (`gh auth setup-git`, then `git fetch` / `git checkout`) to `resolved-setup-commands-json`. Callers should pass `setup-commands: ${{ join(fromJSON(needs.<resolve-job>.outputs.resolved-setup-commands-json), ' && ') }}` to `gh-aw-*` jobs that accept the input.
+Consumer entrypoints relay the original webhook payload through ingress (`ingress-event-payload-json`). Upstream `gh-aw-*` lock files still read native `github.event`, which is empty under the `workflow_dispatch` entrypoint model. This workflow injects an authoritative **Relayed ingress context** block at the top of `resolved-additional-instructions` and, for pull requests, prepends authenticated PR checkout setup commands (`gh auth setup-git`, then `git fetch pull/N/head` and `git checkout -B <head-ref> FETCH_HEAD`) to `resolved-setup-commands-json`. Fetching into the checked-out branch ref fails in CI when the runner already has the PR branch checked out; `checkout -B` resets safely from `FETCH_HEAD`. Callers should pass `setup-commands: ${{ join(fromJSON(needs.<resolve-job>.outputs.resolved-setup-commands-json), ' && ') }}` to `gh-aw-*` jobs that accept the input.
 
 ```yaml
   resolve-apm-assets:

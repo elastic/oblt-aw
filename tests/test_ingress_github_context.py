@@ -74,9 +74,27 @@ def test_apply_relayed_context_prepends_instructions_and_checkout() -> None:
     assert setup[0] == "set -euo pipefail"
     assert setup[1].startswith(': "${GH_TOKEN:=${GITHUB_TOKEN')
     assert setup[2] == "gh auth setup-git"
-    assert "pull/7/head:feature/test" in setup[3]
-    assert setup[4] == "git checkout feature/test"
+    assert setup[3] == "git fetch origin pull/7/head"
+    assert setup[4] == "git checkout -B feature/test FETCH_HEAD"
     assert setup[-1] == "npm ci"
+
+
+def test_build_relayed_setup_commands_uses_fetch_head_for_checked_out_branch() -> None:
+    ctx = igc.RelayedGitHubContext(
+        event_name="pull_request",
+        event_action="synchronize",
+        pull_request_number=55,
+        pull_request_title="Bump terragrunt",
+        pull_request_head_ref="updatecli_main_terragrunt/version",
+        pull_request_head_sha="abc123",
+        issue_number=None,
+        comment_id=None,
+        discussion_number=None,
+    )
+    setup = igc.build_relayed_setup_commands(ctx)
+    assert setup[3] == "git fetch origin pull/55/head"
+    assert setup[4] == "git checkout -B updatecli_main_terragrunt/version FETCH_HEAD"
+    assert ":updatecli_main_terragrunt/version" not in setup[3]
 
 
 def test_apply_relayed_context_noop_without_target() -> None:
