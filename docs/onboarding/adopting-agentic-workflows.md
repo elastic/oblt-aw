@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Adopting** a new workflow means: it is **defined in the remote control plane** (`elastic/oblt-aw` — reusable `oblt-aw-*` workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trigger-oblt-aw-<workflow-id>.yml`** client template that calls `elastic/oblt-aw/.github/workflows/oblt-aw-<name>.yml@main`.
+**Adopting** a new workflow means: it is **defined in the remote control plane** (`elastic/oblt-aw` — reusable `oblt-aw-*` workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through the unified client flow **`trigger-oblt-aw.yml` → `oblt-aw.yml` → `oblt-aw-ingress.yml`**, where ingress routes to matching `oblt-aw-*` workflows.
 
 You **cannot** meaningfully “enable” a workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](../../config/obs/workflow-registry.json), the **client template and `oblt-aw-*` wrapper** exist, and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane Dashboard (or until prelude sees no dashboard and treats the full catalog as enabled).
 
@@ -19,7 +19,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 1. Add the reusable workflow (and upstream lock, if applicable)
 
-- Add `.github/workflows/trigger-oblt-aw-<name>.yml (client); oblt-aw-<name>.yml` at the repository root.
+- Add `.github/workflows/oblt-aw-<name>.yml` at the repository root.
 - When the agent graph lives in **`elastic/ai-github-actions`**, add a thin wrapper that calls the pinned lock file and pass domain-specific `with:` / `secrets:`.
 
 ### 2. Add prelude and route conditions
@@ -39,9 +39,9 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 - Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, and `ingress_routes` (one entry per route leg that shares this dashboard id) under `config/<org-key>/workflow-registry.json`.
 
-### 6. Add a client template
+### 6. Update the unified client template when needed
 
-- Add `.github/remote-workflow-template/obs/.github/workflows/trigger-oblt-aw-<workflow-id>.yml` with **only** the triggers for this workflow ([oblt-aw client template](../workflows/oblt-aw-client-template.md)).
+- Use `.github/remote-workflow-template/obs/.github/workflows/trigger-oblt-aw.yml` and `.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml` as the only client entrypoint files; do **not** add per-workflow `trigger-oblt-aw-*.yml` files ([oblt-aw client template](../workflows/oblt-aw-client-template.md)).
 
 ### 7. Update documentation
 
@@ -55,7 +55,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 1. **Verify** the workflow row exists on the Control Plane Dashboard after sync.
 2. **Install secrets** and enable via dashboard when policy requires opt-in.
-3. **Remove** legacy `.github/workflows/oblt-aw.yml` if still present.
+3. **Remove** legacy per-workflow `.github/workflows/trigger-oblt-aw-*.yml` files if still present.
 
 ## Dashboard gating (reference)
 
@@ -67,7 +67,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ## Troubleshooting
 
-- **Workflow never runs after checking the box** — Wait for a supported trigger on the installed `trigger-oblt-aw-*.yml` client ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)).
+- **Workflow never runs after checking the box** — Wait for a supported trigger on the installed `trigger-oblt-aw.yml` client ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)).
 - **Validation fails on the PR** — Compare `permissions` with a sibling wrapper; confirm the wrapper is listed in `ingress_routes` and that a matching `route-*` job exists in the org ingress workflow.
 
 ## References

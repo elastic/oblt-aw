@@ -76,7 +76,7 @@ The dispatch step does **not** wait for `oblt-aw.yml` to finish. On `pull_reques
 | Scope | Job | Why |
 |-------|-----|-----|
 | `contents: read` | workflow root | Default |
-| `actions: write` | `ingress` | Ingress may dispatch nested workflows |
+| `actions: read` | `ingress` | Ingress route selection and metadata reads |
 | `contents: write` | `ingress` | Routed workflows that open or update PRs |
 | `discussions: write` | `ingress` | Routed GH-AW workflows that post discussions |
 | `id-token: write` | `ingress` | Ephemeral tokens in routed workflows |
