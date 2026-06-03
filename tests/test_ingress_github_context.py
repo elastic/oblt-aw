@@ -72,7 +72,10 @@ def test_apply_relayed_context_prepends_instructions_and_checkout() -> None:
         "Platform rules"
     )
     assert setup[0] == "set -euo pipefail"
-    assert "pull/7/head:feature/test" in setup[1]
+    assert setup[1].startswith(': "${GH_TOKEN:=${GITHUB_TOKEN')
+    assert setup[2] == "gh auth setup-git"
+    assert "pull/7/head:feature/test" in setup[3]
+    assert setup[4] == "git checkout feature/test"
     assert setup[-1] == "npm ci"
 
 
