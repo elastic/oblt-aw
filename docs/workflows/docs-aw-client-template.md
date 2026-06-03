@@ -41,7 +41,7 @@ Control-plane `docs-aw-*` workflows declare permissions on **each job** (workflo
 | Client workflow | Job permissions (minimum) |
 |-----------------|---------------------------|
 | `trigger-docs-aw.yml` | `actions: write`, `statuses: write` (dispatch job uses `GITHUB_TOKEN`; status used for PR traceability) |
-| `docs-aw.yml` | `actions: write`, `checks: read`, `contents: read`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` (ingress job ceiling for all routes) |
+| `docs-aw.yml` | `actions: write`, `checks: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` (ingress job ceiling for all routes) |
 
 Routed workflows (`docs-aw-ai-menu.yml`, `docs-aw-pr-ai-menu.yml`) require `issues: write`, `pull-requests: write`, and related scopes on agent jobs.
 
