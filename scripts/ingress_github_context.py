@@ -205,8 +205,9 @@ def build_relayed_setup_commands(ctx: RelayedGitHubContext) -> list[str]:
         "set -euo pipefail",
         ': "${GH_TOKEN:=${GITHUB_TOKEN:?GitHub token required for relayed PR checkout}}"',
         "gh auth setup-git",
-        f"git fetch origin {shlex.quote(f'pull/{pr_number}/head:{ref}')}",
-        f"git checkout {shlex.quote(ref)}",
+        # Fetch to FETCH_HEAD only: refspec updates to the checked-out branch fail in CI.
+        f"git fetch origin {shlex.quote(f'pull/{pr_number}/head')}",
+        f"git checkout -B {shlex.quote(ref)} FETCH_HEAD",
     ]
 
 
