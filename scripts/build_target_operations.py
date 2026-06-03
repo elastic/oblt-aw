@@ -19,11 +19,7 @@ import pathlib
 import subprocess
 import sys
 
-from common import (
-    discover_repo_org_assignments,
-    parse_repositories,
-    write_outputs,
-)
+from common import discover_repo_org_assignments, parse_repositories, write_outputs
 
 REMOTE_TEMPLATE_DIR = pathlib.Path(".github/remote-workflow-template")
 ZERO_SHA = "0000000000000000000000000000000000000000"
@@ -120,11 +116,54 @@ def parse_bool(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def has_relevant_git_changes(base_ref: str) -> bool:
+    """
+    True when ``config/`` or the remote template tree differ between ``base_ref`` and HEAD.
+
+    Used as a fallback when the changed-files action reports count 0 (for example git
+    renames under ``.github/remote-workflow-template/`` are not counted as added,
+    modified, or deleted).
+    """
+    if not base_ref or base_ref == ZERO_SHA:
+        return False
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "diff",
+                "--name-only",
+                base_ref,
+                "HEAD",
+                "--",
+                "config",
+                REMOTE_TEMPLATE_DIR.as_posix(),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return False
+    return bool(result.stdout.strip())
+
+
+def should_run_distribution(
+    changed_files_count: int, force_distribution: bool, base_ref: str
+) -> bool:
+    if force_distribution:
+        return True
+    if changed_files_count > 0:
+        return True
+    return has_relevant_git_changes(base_ref)
+
+
 def main() -> int:
     changed_files_count = int(os.getenv("CHANGED_FILES_COUNT", "0"))
     force_distribution = parse_bool(os.getenv("FORCE_DISTRIBUTION", "false"))
+    base_ref = os.getenv("BASE_REF", "").strip()
+    git_relevant = has_relevant_git_changes(base_ref)
 
-    if changed_files_count == 0 and not force_distribution:
+    if not should_run_distribution(changed_files_count, force_distribution, base_ref):
         write_outputs(
             {
                 "targets": "[]",
@@ -132,6 +171,7 @@ def main() -> int:
                 "install_count": "0",
                 "remove_count": "0",
                 "total_count": "0",
+                "relevant_git_changes": "false",
             }
         )
         return 0
@@ -139,7 +179,6 @@ def main() -> int:
     config_dir = pathlib.Path("config")
     current_assignments = discover_repo_org_assignments(config_dir)
 
-    base_ref = os.getenv("BASE_REF", "").strip()
     previous_assignments = read_previous_repo_org_assignments(base_ref)
 
     current_files_by_org: dict[str, list[dict[str, str]]] = {}
@@ -173,7 +212,8 @@ def main() -> int:
         previous_files = files_for_orgs(
             previous_assignments.get(repo, []), at_base_ref=True
         )
-        remove_files = sorted(dst_paths(previous_files) - dst_paths(files))
+        current_dsts = dst_paths(files)
+        remove_files = sorted(dst_paths(previous_files) - current_dsts)
         operations.append(
             {
                 "repository": repo,
@@ -205,6 +245,7 @@ def main() -> int:
             "install_count": str(install_count),
             "remove_count": str(remove_count),
             "total_count": str(total_count),
+            "relevant_git_changes": "true" if git_relevant else "false",
         }
     )
 

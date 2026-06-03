@@ -31,6 +31,7 @@ import json
 import os
 import re
 import secrets
+from dataclasses import dataclass
 from pathlib import Path
 
 # Default org for legacy two-part markers ``<!-- oblt-aw:<workflow-id> -->``.
@@ -65,8 +66,44 @@ def append_multiline_github_output(name: str, value: str) -> None:
         output_file.write(f"{delimiter}\n")
 
 
-def parse_repositories(content: str) -> list[str]:
-    """Parse active-repositories.json content into a list of owner/repo strings."""
+@dataclass(frozen=True)
+class ActiveRepositoryEntry:
+    """One repository row from active-repositories.json."""
+
+    repository: str
+
+
+def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
+    if isinstance(item, str):
+        repo = item.strip()
+        if "/" not in repo:
+            raise SystemExit(
+                f"Invalid repository entry: {item!r}. Expected 'owner/repo'"
+            )
+        return ActiveRepositoryEntry(repository=repo)
+    if isinstance(item, dict):
+        raw_repo = item.get("repository")
+        if not isinstance(raw_repo, str) or "/" not in raw_repo.strip():
+            raise SystemExit(
+                f"Invalid repository entry: {item!r}. "
+                "Object entries require string 'repository' in 'owner/repo' form"
+            )
+        return ActiveRepositoryEntry(repository=raw_repo.strip())
+    raise SystemExit(
+        f"Invalid repository entry: {item!r}. "
+        "Expected 'owner/repo' string or object with 'repository'"
+    )
+
+
+def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]:
+    """
+    Parse active-repositories.json into repository rows.
+
+    Supports:
+
+    - Object: ``{"repositories": ["owner/repo", {"repository": "owner/repo"}, ...]}``
+    - List: same entry shapes at the top level (legacy migration)
+    """
     data = json.loads(content) if content else {"repositories": []}
     if isinstance(data, dict):
         repositories = data.get("repositories", [])
@@ -78,14 +115,18 @@ def parse_repositories(content: str) -> list[str]:
         )
     if not isinstance(repositories, list):
         raise SystemExit("`repositories` must be a list")
-    normalized = []
-    for item in repositories:
-        if not isinstance(item, str) or "/" not in item:
-            raise SystemExit(
-                f"Invalid repository entry: {item!r}. Expected 'owner/repo'"
-            )
-        normalized.append(item.strip())
-    return sorted(set(normalized))
+    entries = [_parse_repository_entry(item) for item in repositories]
+    by_repo: dict[str, ActiveRepositoryEntry] = {}
+    for entry in entries:
+        if entry.repository in by_repo:
+            continue
+        by_repo[entry.repository] = entry
+    return sorted(by_repo.values(), key=lambda e: e.repository)
+
+
+def parse_repositories(content: str) -> list[str]:
+    """Parse active-repositories.json content into a list of owner/repo strings."""
+    return [entry.repository for entry in parse_active_repository_entries(content)]
 
 
 def discover_org_config_dirs(config_dir: Path) -> list[Path]:

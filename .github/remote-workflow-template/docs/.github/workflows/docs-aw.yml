@@ -1,41 +1,62 @@
 name: Docs Agentic Workflow Entrypoint
 
-# Distributed to repositories in config/docs/active-repositories.json.
-# Triggers must stay aligned with docs-aw-ingress routing conditions.
-
 on:
-  issues:
-    types: [opened]
-  issue_comment:
-    types: [edited]
-  pull_request_target:
-    types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
     inputs:
-      issue_number:
-        description: Issue number for Docs AI issue menu (manual refresh).
-        required: false
-        default: ''
+      trigger-source:
+        description: Client trigger workflow file that dispatched this run
+        required: true
         type: string
-      pull_request_number:
-        description: Pull request number for Docs PR AI menu (manual refresh).
+      event-name:
+        description: Original github.event_name from the trigger
+        required: true
+        type: string
+      event-action:
+        description: Original github.event.action from the trigger
         required: false
+        type: string
         default: ''
+      event-payload-json:
+        description: JSON-encoded original github.event from the trigger
+        required: true
+        type: string
+      caller-ref:
+        description: Original github.ref from the trigger
+        required: true
+        type: string
+      caller-sha:
+        description: Original github.sha from the trigger
+        required: true
+        type: string
+      caller-run-id:
+        description: Original github.run_id from the trigger
+        required: true
         type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: docs-aw-entrypoint-${{ github.event.inputs.event-name }}-${{ github.event.inputs.caller-run-id }}
+  cancel-in-progress: true
+
 jobs:
-  run-docs-aw:
+  ingress:
     permissions:
-      actions: read
+      actions: write
       checks: read
       contents: read
       discussions: write
-      id-token: write
       issues: write
       pull-requests: write
     uses: elastic/oblt-aw/.github/workflows/docs-aw-ingress.yml@main # ratchet:exclude
+    with:
+      trigger-source: ${{ github.event.inputs.trigger-source }}
+      ingress-event-name: ${{ github.event.inputs.event-name }}
+      ingress-event-action: ${{ github.event.inputs.event-action }}
+      ingress-event-payload-json: ${{ github.event.inputs.event-payload-json }}
+      caller-ref: ${{ github.event.inputs.caller-ref }}
+      caller-sha: ${{ github.event.inputs.caller-sha }}
+      caller-run-id: ${{ github.event.inputs.caller-run-id }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

@@ -30,7 +30,7 @@ This installs the hooks from [.pre-commit-config.yaml](../../.pre-commit-config.
 ### 3. Install Python dependencies
 
 ```bash
-pip install pytest==9.0.2
+pip install -r requirements-ci.txt  # includes requirements-runtime.txt (PyYAML) and pytest
 ```
 
 ### 4. Install Node.js dependencies

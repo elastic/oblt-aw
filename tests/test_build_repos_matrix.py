@@ -18,7 +18,10 @@ _root = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(_root / "scripts"))
 
 import build_repos_matrix as brm  # noqa: E402
-from common import parse_repositories  # noqa: E402
+from common import (  # noqa: E402
+    parse_active_repository_entries,
+    parse_repositories,
+)
 
 
 # ── parse_repositories (common) ───────────────────────────────────────────────
@@ -77,6 +80,30 @@ class TestParseRepositories:
         content = json.dumps({"repositories": "elastic/foo"})
         with pytest.raises(SystemExit, match=r"`repositories` must be a list"):
             parse_repositories(content)
+
+    def test_object_entry_with_repository_key(self) -> None:
+        content = json.dumps(
+            {
+                "repositories": [
+                    "elastic/foo",
+                    {"repository": "elastic/bar"},
+                ]
+            }
+        )
+        entries = parse_active_repository_entries(content)
+        assert [e.repository for e in entries] == ["elastic/bar", "elastic/foo"]
+
+    def test_duplicate_repo_entries_deduplicated(self) -> None:
+        content = json.dumps(
+            {
+                "repositories": [
+                    {"repository": "elastic/foo"},
+                    "elastic/foo",
+                ]
+            }
+        )
+        entries = parse_active_repository_entries(content)
+        assert [e.repository for e in entries] == ["elastic/foo"]
 
 
 # ── write_outputs ──────────────────────────────────────────────────────────────
@@ -177,3 +204,4 @@ class TestMain:
         assert len(matrix) == 2
         repos = {m["repository"] for m in matrix}
         assert repos == {"elastic/foo", "elastic/bar"}
+        assert all(set(entry) == {"repository"} for entry in matrix)

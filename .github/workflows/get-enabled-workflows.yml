@@ -18,10 +18,12 @@ on:
 
 permissions:
   contents: read
-  issues: read
 
 jobs:
   read-dashboard:
+    permissions:
+      contents: read
+      issues: read
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -39,12 +41,15 @@ jobs:
           sparse-checkout: |
             scripts/get_enabled_workflows.py
             scripts/common.py
+            requirements-runtime.txt
           sparse-checkout-cone-mode: false
 
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
+          cache: pip
+          cache-dependency-path: _oblt-aw/requirements-runtime.txt
 
       - name: Fetch dashboard, parse, and normalize enabled workflows
         id: run

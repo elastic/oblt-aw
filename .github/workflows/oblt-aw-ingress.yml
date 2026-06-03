@@ -1,9 +1,39 @@
 name: Observability Agentic Workflow Ingress
 
-# Gating uses effective-raw (no dashboard → '') and enabled-workflows (normalized JSON array).
-# Normalization runs in get-enabled-workflows.
+# Dynamic routing: each route-* job carries its own if: gate; only eligible workflows run.
+# Event context is relayed from trigger-oblt-aw.yml via oblt-aw.yml workflow_dispatch inputs.
 on:
   workflow_call:
+    inputs:
+      trigger-source:
+        description: Client trigger workflow that dispatched the entrypoint
+        required: true
+        type: string
+      ingress-event-name:
+        description: Original github.event_name from the client trigger
+        required: true
+        type: string
+      ingress-event-action:
+        description: Original github.event.action from the client trigger
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: JSON-encoded original github.event from the client trigger
+        required: true
+        type: string
+      caller-ref:
+        description: Original github.ref from the client trigger
+        required: true
+        type: string
+      caller-sha:
+        description: Original github.sha from the client trigger
+        required: true
+        type: string
+      caller-run-id:
+        description: Original github.run_id from the client trigger
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
@@ -11,222 +41,571 @@ on:
         required: false
 
 permissions:
-  actions: write
-  checks: read
-  contents: write
-  discussions: write
-  id-token: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  dashboard-enabled-workflows:
-    # Skip the entire ingress for status events that are not a failed Buildkite check.
-    # All other events run unconditionally. This avoids spawning downstream jobs that
-    # would all evaluate to false for non-actionable status events (e.g. success or
-    # non-Buildkite contexts), since only estc-pr-buildkite-detective handles status.
+  prelude:
+    permissions:
+      contents: read
+      issues: read
     if: >-
-      github.event_name != 'status' ||
-      (github.event_name == 'status' && github.event.state == 'failure' && contains(github.event.context, 'buildkite'))
-    uses: ./.github/workflows/get-enabled-workflows.yml
+      inputs.ingress-event-name != 'status' ||
+      (
+        inputs.ingress-event-name == 'status' &&
+        fromJSON(inputs.ingress-event-payload-json).state == 'failure' &&
+        contains(fromJSON(inputs.ingress-event-payload-json).context, 'buildkite')
+      )
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      load-allowed-authors: ${{ inputs.ingress-event-name == 'pull_request' || inputs.ingress-event-name == 'issues' }}
 
-  load-allowed-authors:
-    if: github.event_name == 'pull_request' || github.event_name == 'issues'
-    uses: ./.github/workflows/load-allowed-authors.yml
-
-  agent-suggestions:
-    needs: dashboard-enabled-workflows
+  route-agent-suggestions:
+    needs: prelude
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:agent-suggestions'))
-    uses: ./.github/workflows/gh-aw-agent-suggestions.yml
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'schedule' &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(fromJSON(needs.prelude.outputs.enabled-workflows || '[]'), 'obs:agent-suggestions')
+      )
+    uses: ./.github/workflows/oblt-aw-agent-suggestions.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
-  autodoc:
-    needs: dashboard-enabled-workflows
+  route-autodoc:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
     if: >-
-      contains(fromJSON('["schedule"]'), github.event_name) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:autodoc'))
-    uses: ./.github/workflows/gh-aw-autodoc.yml
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'schedule' &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(fromJSON(needs.prelude.outputs.enabled-workflows || '[]'), 'obs:autodoc')
+      )
+    uses: ./.github/workflows/oblt-aw-autodoc.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets: inherit
 
-  automerge:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
+  route-automerge:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      id-token: write
+      issues: write
+      pull-requests: write
     if: >-
-      github.event_name == 'pull_request' &&
-      contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action) &&
-      contains(fromJSON(needs['load-allowed-authors'].outputs['allowed_pr_authors_json']), github.event.pull_request.user.login) &&
-      contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready') &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:automerge'))
-    uses: ./.github/workflows/gh-aw-automerge.yml
-    with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_pr_authors_csv'] }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  dependency-review:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
-    if: >-
-      github.event_name == 'pull_request' &&
-      contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-      contains(fromJSON(needs['load-allowed-authors'].outputs['allowed_pr_authors_json']), github.event.pull_request.user.login) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:dependency-review'))
-    uses: ./.github/workflows/gh-aw-dependency-review.yml
-    with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_pr_authors_csv'] }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  duplicate-issue-detector:
-    needs: dashboard-enabled-workflows
-    if: >-
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'pull_request' &&
       (
-        (github.event_name == 'issues' && github.event.action == 'opened') ||
-        github.event_name == 'workflow_dispatch'
+        inputs.ingress-event-action == 'opened' ||
+        inputs.ingress-event-action == 'synchronize' ||
+        inputs.ingress-event-action == 'reopened' ||
+        inputs.ingress-event-action == 'labeled'
       ) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:duplicate-issue-detector'))
-    uses: ./.github/workflows/gh-aw-duplicate-issue-detector.yml
+      contains(
+        fromJSON(needs.prelude.outputs.allowed-pr-authors-json || '[]'),
+        fromJSON(inputs.ingress-event-payload-json).pull_request.user.login
+      ) &&
+      contains(
+        fromJSON(inputs.ingress-event-payload-json).pull_request.labels.*.name,
+        'oblt-aw/ai/merge-ready'
+      ) &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(fromJSON(needs.prelude.outputs.enabled-workflows || '[]'), 'obs:automerge')
+      )
+    uses: ./.github/workflows/oblt-aw-automerge.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
-  issue-triage:
-    needs: dashboard-enabled-workflows
+  route-dependency-review:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: write
     if: >-
-      github.event_name == 'issues' &&
-      github.event.action == 'opened' &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:issue-triage'))
-    uses: ./.github/workflows/gh-aw-issue-triage.yml
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'pull_request' &&
+      (
+        inputs.ingress-event-action == 'opened' ||
+        inputs.ingress-event-action == 'synchronize' ||
+        inputs.ingress-event-action == 'reopened'
+      ) &&
+      contains(
+        fromJSON(needs.prelude.outputs.allowed-pr-authors-json || '[]'),
+        fromJSON(inputs.ingress-event-payload-json).pull_request.user.login
+      ) &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(fromJSON(needs.prelude.outputs.enabled-workflows || '[]'), 'obs:dependency-review')
+      )
+    uses: ./.github/workflows/oblt-aw-dependency-review.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
-  issue-fixer:
-    needs: dashboard-enabled-workflows
+  route-duplicate-issue-detector:
+    needs: prelude
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
     if: >-
-      github.event_name == 'issue_comment' &&
-      github.event.action == 'created' &&
-      github.event.issue.pull_request == null &&
-      startsWith(github.event.comment.body, '/ai implement') &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
-      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
-      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration') &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:issue-fixer'))
-    uses: ./.github/workflows/gh-aw-issue-fixer.yml
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      (
+        (
+          inputs.ingress-event-name == 'issues' &&
+          inputs.ingress-event-action == 'opened'
+        ) ||
+        inputs.ingress-event-name == 'workflow_dispatch'
+      ) &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(
+          fromJSON(needs.prelude.outputs.enabled-workflows || '[]'),
+          'obs:duplicate-issue-detector'
+        )
+      )
+    uses: ./.github/workflows/oblt-aw-duplicate-issue-detector.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  route-issue-triage:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    if: >-
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'issues' &&
+      inputs.ingress-event-action == 'opened' &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(fromJSON(needs.prelude.outputs.enabled-workflows || '[]'), 'obs:issue-triage')
+      )
+    uses: ./.github/workflows/oblt-aw-issue-triage.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  route-issue-fixer:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+    if: >-
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'issue_comment' &&
+      inputs.ingress-event-action == 'created' &&
+      fromJSON(inputs.ingress-event-payload-json).issue.pull_request == null &&
+      startsWith(fromJSON(inputs.ingress-event-payload-json).comment.body, '/ai implement') &&
+      (
+        fromJSON(inputs.ingress-event-payload-json).comment.author_association == 'OWNER' ||
+        fromJSON(inputs.ingress-event-payload-json).comment.author_association == 'MEMBER' ||
+        fromJSON(inputs.ingress-event-payload-json).comment.author_association == 'COLLABORATOR'
+      ) &&
+      !contains(
+        join(fromJSON(inputs.ingress-event-payload-json).issue.labels.*.name, ','),
+        'oblt-aw/triage/security-'
+      ) &&
+      !contains(
+        join(fromJSON(inputs.ingress-event-payload-json).issue.labels.*.name, ','),
+        'oblt-aw/triage/res-not-accessible-by-integration'
+      ) &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(fromJSON(needs.prelude.outputs.enabled-workflows || '[]'), 'obs:issue-fixer')
+      )
+    uses: ./.github/workflows/oblt-aw-issue-fixer.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets: inherit
 
-  mention-in-issue:
-    needs: dashboard-enabled-workflows
+  route-mention-in-issue:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
     if: >-
-      github.event_name == 'issue_comment' &&
-      github.event.action == 'created' &&
-      github.event.issue.pull_request == null &&
-      startsWith(github.event.comment.body, '/ai') &&
-      !startsWith(github.event.comment.body, '/ai implement') &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:mention-in-issue'))
-    uses: ./.github/workflows/gh-aw-mention-in-issue.yml
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  resource-not-accessible-by-integration-detector:
-    needs: dashboard-enabled-workflows
-    if: >-
-      contains(fromJSON('["schedule"]'), github.event_name) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:resource-not-accessible-by-integration'))
-    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-detector.yml
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
-  resource-not-accessible-by-integration-fixer:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
-    if: >-
-      github.event_name == 'issues' &&
-      github.event.action == 'labeled' &&
-      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
-      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration') &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:resource-not-accessible-by-integration'))
-    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-fixer.yml
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'issue_comment' &&
+      inputs.ingress-event-action == 'created' &&
+      fromJSON(inputs.ingress-event-payload-json).issue.pull_request == null &&
+      startsWith(fromJSON(inputs.ingress-event-payload-json).comment.body, '/ai') &&
+      !startsWith(fromJSON(inputs.ingress-event-payload-json).comment.body, '/ai implement') &&
+      (
+        fromJSON(inputs.ingress-event-payload-json).comment.author_association == 'OWNER' ||
+        fromJSON(inputs.ingress-event-payload-json).comment.author_association == 'MEMBER' ||
+        fromJSON(inputs.ingress-event-payload-json).comment.author_association == 'COLLABORATOR'
+      ) &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(fromJSON(needs.prelude.outputs.enabled-workflows || '[]'), 'obs:mention-in-issue')
+      )
+    uses: ./.github/workflows/oblt-aw-mention-in-issue.yml
     with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  route-security-detector:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      pull-requests: read
+    if: >-
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      (
+        inputs.ingress-event-name == 'schedule' ||
+        inputs.ingress-event-name == 'workflow_dispatch'
+      ) &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(fromJSON(needs.prelude.outputs.enabled-workflows || '[]'), 'obs:security')
+      )
+    uses: ./.github/workflows/oblt-aw-security-detector.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
+
+  route-security-fixer:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+    if: >-
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'issues' &&
+      inputs.ingress-event-action == 'labeled' &&
+      (
+        (
+          fromJSON(inputs.ingress-event-payload-json).label.name == 'oblt-aw/ai/fix-ready' &&
+          contains(
+            join(fromJSON(inputs.ingress-event-payload-json).issue.labels.*.name, ','),
+            'oblt-aw/triage/security-'
+          )
+        ) ||
+        (
+          startsWith(fromJSON(inputs.ingress-event-payload-json).label.name, 'oblt-aw/triage/security-') &&
+          contains(
+            fromJSON(inputs.ingress-event-payload-json).issue.labels.*.name,
+            'oblt-aw/ai/fix-ready'
+          )
+        )
+      ) &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(fromJSON(needs.prelude.outputs.enabled-workflows || '[]'), 'obs:security')
+      )
+    uses: ./.github/workflows/oblt-aw-security-fixer.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets: inherit
 
-  resource-not-accessible-by-integration-triage:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
+  route-security-triage:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      id-token: write
+      issues: write
+      pull-requests: write
     if: >-
-      github.event_name == 'issues' &&
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'issues' &&
       (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration')
+        (
+          inputs.ingress-event-action == 'opened' &&
+          contains(
+            fromJSON(inputs.ingress-event-payload-json).issue.labels.*.name,
+            'oblt-aw/detector/security'
+          )
+        ) ||
+        (
+          inputs.ingress-event-action == 'labeled' &&
+          fromJSON(inputs.ingress-event-payload-json).label.name == 'oblt-aw/detector/security'
+        )
       ) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:resource-not-accessible-by-integration'))
-    uses: ./.github/workflows/gh-aw-resource-not-accessible-by-integration-triage.yml
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(fromJSON(needs.prelude.outputs.enabled-workflows || '[]'), 'obs:security')
+      )
+    uses: ./.github/workflows/oblt-aw-security-triage.yml
     with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
-  security-detector:
-    needs: dashboard-enabled-workflows
+  route-resource-not-accessible-by-integration-detector:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      issues: write
     if: >-
-      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:security'))
-    uses: ./.github/workflows/gh-aw-security-detector.yml
-
-  security-fixer:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
-    if: >-
-      github.event_name == 'issues' &&
-      github.event.action == 'labeled' &&
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'schedule' &&
       (
-        (github.event.label.name == 'oblt-aw/ai/fix-ready' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')) ||
-        (startsWith(github.event.label.name, 'oblt-aw/triage/security-') && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/ai/fix-ready'))
-      ) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:security'))
-    uses: ./.github/workflows/gh-aw-security-fixer.yml
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(
+          fromJSON(needs.prelude.outputs.enabled-workflows || '[]'),
+          'obs:resource-not-accessible-by-integration'
+        )
+      )
+    uses: ./.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml
     with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+  route-resource-not-accessible-by-integration-fixer:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+    if: >-
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'issues' &&
+      inputs.ingress-event-action == 'labeled' &&
+      fromJSON(inputs.ingress-event-payload-json).label.name == 'oblt-aw/ai/fix-ready' &&
+      contains(
+        join(fromJSON(inputs.ingress-event-payload-json).issue.labels.*.name, ','),
+        'oblt-aw/triage/res-not-accessible-by-integration'
+      ) &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(
+          fromJSON(needs.prelude.outputs.enabled-workflows || '[]'),
+          'obs:resource-not-accessible-by-integration'
+        )
+      )
+    uses: ./.github/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets: inherit
 
-  security-triage:
-    needs: [dashboard-enabled-workflows, load-allowed-authors]
+  route-resource-not-accessible-by-integration-triage:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      id-token: write
+      issues: write
+      pull-requests: write
     if: >-
-      github.event_name == 'issues' &&
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'issues' &&
       (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/security')
+        (
+          inputs.ingress-event-action == 'opened' &&
+          contains(
+            fromJSON(inputs.ingress-event-payload-json).issue.labels.*.name,
+            'oblt-aw/detector/res-not-accessible-by-integration'
+          )
+        ) ||
+        (
+          inputs.ingress-event-action == 'labeled' &&
+          fromJSON(inputs.ingress-event-payload-json).label.name ==
+          'oblt-aw/detector/res-not-accessible-by-integration'
+        )
       ) &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:security'))
-    uses: ./.github/workflows/gh-aw-security-triage.yml
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(
+          fromJSON(needs.prelude.outputs.enabled-workflows || '[]'),
+          'obs:resource-not-accessible-by-integration'
+        )
+      )
+    uses: ./.github/workflows/oblt-aw-resource-not-accessible-by-integration-triage.yml
     with:
-      allowed-bot-users: ${{ needs['load-allowed-authors'].outputs['allowed_issue_authors_csv'] }}
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
-  estc-pr-buildkite-detective:
-    needs: dashboard-enabled-workflows
+  route-estc-pr-buildkite-detective:
+    needs: prelude
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: write
     if: >-
-      github.event_name == 'status' &&
-      github.event.state == 'failure' &&
-      contains(github.event.context, 'buildkite') &&
-      (needs['dashboard-enabled-workflows'].outputs['effective-raw'] == '' || contains(fromJSON(needs['dashboard-enabled-workflows'].outputs['enabled-workflows']), 'obs:estc-pr-buildkite-detective'))
-    uses: ./.github/workflows/gh-aw-estc-pr-buildkite-detective.yml
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'status' &&
+      fromJSON(inputs.ingress-event-payload-json).state == 'failure' &&
+      contains(fromJSON(inputs.ingress-event-payload-json).context, 'buildkite') &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(
+          fromJSON(needs.prelude.outputs.enabled-workflows || '[]'),
+          'obs:estc-pr-buildkite-detective'
+        )
+      )
+    uses: ./.github/workflows/oblt-aw-estc-pr-buildkite-detective.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+      ingress-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      ingress-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}
 
   unsupported-trigger:
+    name: Unsupported trigger
+    needs: prelude
     if: >-
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
       !(
-        contains(fromJSON('["schedule","workflow_call"]'), github.event_name) ||
-        github.event_name == 'workflow_dispatch' ||
-        github.event_name == 'status' ||
-        (github.event_name == 'issues' && contains(fromJSON('["opened","labeled"]'), github.event.action)) ||
-        (github.event_name == 'issue_comment' && github.event.action == 'created') ||
-        (github.event_name == 'pull_request' && contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action))
+        inputs.ingress-event-name == 'schedule' ||
+        inputs.ingress-event-name == 'workflow_call' ||
+        inputs.ingress-event-name == 'workflow_dispatch' ||
+        inputs.ingress-event-name == 'status' ||
+        (
+          inputs.ingress-event-name == 'issues' &&
+          (
+            inputs.ingress-event-action == 'opened' ||
+            inputs.ingress-event-action == 'labeled'
+          )
+        ) ||
+        (
+          inputs.ingress-event-name == 'issue_comment' &&
+          inputs.ingress-event-action == 'created'
+        ) ||
+        (
+          inputs.ingress-event-name == 'pull_request' &&
+          (
+            inputs.ingress-event-action == 'opened' ||
+            inputs.ingress-event-action == 'synchronize' ||
+            inputs.ingress-event-action == 'reopened' ||
+            inputs.ingress-event-action == 'labeled'
+          )
+        )
       )
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
     steps:
       - name: Unsupported trigger
+        env:
+          EVENT_NAME: ${{ inputs.ingress-event-name }}
+          EVENT_ACTION: ${{ inputs.ingress-event-action }}
+          TRIGGER_SOURCE: ${{ inputs.trigger-source }}
         run: |
-          echo "This entrypoint does not support event '${{ github.event_name }}' with action '${{ github.event.action }}'."
+          echo "Trigger '${TRIGGER_SOURCE}' relayed unsupported event '${EVENT_NAME}' / '${EVENT_ACTION}'."
           exit 1

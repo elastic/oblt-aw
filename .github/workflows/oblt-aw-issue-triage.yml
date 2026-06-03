@@ -1,0 +1,59 @@
+---
+name: Issue Triage
+on:
+  workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from oblt-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-pr-authors-csv:
+        description: Allowed PR bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+      ingress-allowed-issue-authors-csv:
+        description: Allowed issue bot logins from oblt-aw-ingress prelude
+        required: false
+        type: string
+        default: ''
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  resolve-apm-assets:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-issue-triage.yml
+
+  issue-triage:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

@@ -1,0 +1,47 @@
+name: Docs PR AI menu collect
+
+# Fork-safe collector for the split-workflow pattern. Routed from docs-aw-ingress on pull_request.
+# The PR number artifact is consumed by docs-aw-pr-ai-menu.yml via workflow_run.
+
+on:
+  workflow_call:
+    inputs:
+      ingress-event-name:
+        description: Relayed event name from docs-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-action:
+        description: Relayed event action from docs-aw-ingress
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: Relayed github.event JSON from docs-aw-ingress
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    name: Save PR number artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Write pull request number
+        env:
+          PR_NUMBER: ${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).pull_request.number }}
+        run: echo "$PR_NUMBER" > pr_number.txt
+
+      - name: Upload pull request number artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-number
+          path: pr_number.txt
+          retention-days: 1

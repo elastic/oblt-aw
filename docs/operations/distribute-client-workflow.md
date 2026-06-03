@@ -9,8 +9,8 @@ This workflow distributes or removes client files from each org’s subtree unde
 ## Prerequisites
 
 - Per-org [active-repositories.json](../../config/obs/active-repositories.json) files under `config/<org-key>/` list current target repositories (union used for distribution).
-- Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/oblt-aw.yml` → `.github/workflows/oblt-aw.yml`). **Do not edit** [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) in this repository (see [Client template doc](../workflows/oblt-aw-client-template.md)).
-- Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
+- Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/trigger-oblt-aw-*.yml` → `.github/workflows/trigger-oblt-aw-*.yml`). Edit only under [remote-workflow-template](../../.github/remote-workflow-template/) (see [Client template doc](../workflows/oblt-aw-client-template.md)).
+- Control-plane token policy for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) is set in [distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml) (`token-policy-63405ab45244`), not in `active-repositories.json`.
 
 ## Usage
 
@@ -29,9 +29,7 @@ Execution stages:
 
 ## Distribution configuration contract (per-org `active-repositories.json`)
 
-[scripts/build_target_operations.py](../../scripts/build_target_operations.py) accepts either of these JSON shapes:
-
-- Object form:
+[scripts/build_target_operations.py](../../scripts/build_target_operations.py) expects this JSON shape:
 
   ```json
   {
@@ -42,26 +40,18 @@ Execution stages:
   }
   ```
 
-- List form:
-
-  ```json
-  [
-    "elastic/oblt-aw",
-    "elastic/oblt-cli"
-  ]
-  ```
-
 Validation and normalization rules:
 
 - `repositories` must resolve to a JSON list.
-- Every entry must be a string in `owner/repo` format.
+- Each entry is either an `owner/repo` string or an object with required `repository` (`owner/repo`).
+- Consumer `create-token` steps use Vault auto policy per trigger workflow ref (no policy in config). Control-plane `distribute-client-workflow` and `sync-control-plane-dashboard` use fixed workflow token policies in their YAML (`token-policy-63405ab45244` and `token-policy-8b60ba56dd3f`).
 - Entries are normalized (trimmed), de-duplicated, and sorted before processing.
-- Invalid entries fail the step with: `Invalid repository entry: ... Expected 'owner/repo'`.
+- Invalid entries fail the step with: `Invalid repository entry: ... Expected 'owner/repo' string or object with 'repository'`.
 
 Examples:
 
-- Valid: `"elastic/oblt-aw"`
-- Invalid: `"elastic"` (missing slash), `123` (non-string), `{"repo":"elastic/oblt-aw"}` (wrong type)
+- Valid: `"elastic/oblt-aw"`, `{"repository": "elastic/oblt-aw"}`
+- Invalid: `"elastic"` (missing slash), `123` (non-string/non-object), `{"repo":"elastic/oblt-aw"}` (wrong key)
 
 ## `build_target_operations.py` Contract
 
@@ -74,8 +64,9 @@ Inputs (environment variables):
 
 Behavior:
 
-- If `CHANGED_FILES_COUNT == 0` and `FORCE_DISTRIBUTION` is false, returns no targets.
+- If `CHANGED_FILES_COUNT == 0`, `FORCE_DISTRIBUTION` is false, and `git diff --name-only` between `BASE_REF` and `HEAD` under `config/` and `.github/remote-workflow-template/` is empty, returns no targets. The git fallback covers template **renames** (the changed-files action only counts added, modified, and deleted paths).
 - Always generates `install` operations for repositories in the current union of per-org lists (see [scripts/build_target_operations.py](../../scripts/build_target_operations.py)).
+- Each `install` target includes `remove_files`: destination paths that existed in the template tree at `BASE_REF` for that repository’s org assignments but are absent from the current tree.
 - Generates `remove` operations for repositories present at `BASE_REF` but absent from current config.
 
 Workflow outputs written by the script:

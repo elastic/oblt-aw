@@ -2,19 +2,32 @@
 
 ## Overview
 
-Reusable workflow ([.github/workflows/docs-aw-ingress.yml](../../.github/workflows/docs-aw-ingress.yml)) invoked from distributed [.github/remote-workflow-template/docs/.github/workflows/docs-aw.yml](../../.github/remote-workflow-template/docs/.github/workflows/docs-aw.yml). It routes the caller’s event to either the issue menu reusable ([.github/workflows/docs-ai-menu.yml](../../.github/workflows/docs-ai-menu.yml)) or the PR menu reusable ([.github/workflows/docs-pr-ai-menu.yml](../../.github/workflows/docs-pr-ai-menu.yml)).
+Central ingress reusable for Documentation agentic workflows. Called from consumer `docs-aw.yml` via `workflow_call` with relayed event context from `trigger-docs-aw.yml`.
 
-## Routing summary
+1. **`aw-prelude`** — reads dashboard `enabled-workflows` / `effective-raw` and token policy once per ingress run
+2. **Route jobs** — Each `route-*` job gates on event eligibility and dashboard enablement; only matching routes call the corresponding `docs-aw-*` reusable with relayed event context
 
-| Condition | Target reusable |
-| --- | --- |
-| `issues` `opened`, or `issue_comment` `edited` on a non-PR issue, or `workflow_dispatch` with `issue_number` set | [.github/workflows/docs-ai-menu.yml](../../.github/workflows/docs-ai-menu.yml) |
-| `pull_request_target`, or `issue_comment` `edited` on a PR, or `workflow_dispatch` with `pull_request_number` set | [.github/workflows/docs-pr-ai-menu.yml](../../.github/workflows/docs-pr-ai-menu.yml) |
-| `workflow_dispatch` with both inputs empty | `invalid-workflow-dispatch` job fails the run |
+Route ids and workflow files are declared in [`config/docs/workflow-registry.json`](../../config/docs/workflow-registry.json) `ingress_routes`; CI validates that registry entries match `route-*` jobs in this workflow and that each `route-*` job declares `permissions` covering the called `docs-aw-*` workflow.
 
-Unsupported event or action combinations are rejected by the `unsupported-trigger` job (mirrors the observability ingress pattern).
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| `trigger-source` | yes | Client trigger workflow basename |
+| `ingress-event-name` | yes | Original `github.event_name` |
+| `ingress-event-action` | no | Original `github.event.action` |
+| `ingress-event-payload-json` | yes | `toJSON(github.event)` from the trigger |
+| `caller-ref` | yes | Original `github.ref` |
+| `caller-sha` | yes | Original `github.sha` |
+| `caller-run-id` | yes | Original `github.run_id` |
+
+## Secrets
+
+| Secret | Required | Used by |
+|--------|----------|---------|
+| `COPILOT_GITHUB_TOKEN` | no | Routed workflows that call GH-AW locks |
 
 ## References
 
-- Client template: [docs/workflows/docs-aw-client-template.md](docs-aw-client-template.md)
-- Observability ingress (pattern reference): [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md)
+- [docs/workflows/docs-aw-client-template.md](docs-aw-client-template.md)
+- [docs/routing/README.md](../routing/README.md)

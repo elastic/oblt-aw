@@ -1,82 +1,154 @@
 {
-  "section_title": "Observability",
   "workflows": [
     {
       "id": "agent-suggestions",
       "name": "Agent Suggestions",
       "description": "Suggests agentic workflows and improvements for the repository based on analysis of current setup.",
       "maturity": "early-adoption",
-      "default_enabled": true
+      "default_enabled": true,
+      "ingress_routes": [
+        {
+          "id": "agent-suggestions"
+        }
+      ]
     },
     {
       "id": "autodoc",
       "name": "Automated Documentation",
       "description": "Analyzes documentation for gaps, outdated content, and inconsistencies; creates issues and PRs to improve docs.",
       "maturity": "early-adoption",
-      "default_enabled": true
+      "default_enabled": true,
+      "ingress_routes": [
+        {
+          "id": "autodoc"
+        }
+      ]
     },
     {
       "id": "automerge",
       "name": "Automerge",
       "description": "Enables auto-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready when validation and approval gates pass; GitHub enforces required checks at merge time.",
       "maturity": "early-adoption",
-      "default_enabled": true
+      "default_enabled": true,
+      "ingress_routes": [
+        {
+          "id": "automerge",
+          "allowed_bot_users_from": "allowed-pr"
+        }
+      ]
     },
     {
       "id": "dependency-review",
       "name": "Dependency Review",
       "description": "Analyzes dependency-update PRs from bots, applies merge-ready labels when criteria are met.",
       "maturity": "early-adoption",
-      "default_enabled": true
+      "default_enabled": true,
+      "ingress_routes": [
+        {
+          "id": "dependency-review",
+          "allowed_bot_users_from": "allowed-pr"
+        }
+      ]
     },
     {
       "id": "duplicate-issue-detector",
       "name": "Duplicate Issue Detector",
       "description": "Detects potential duplicate issues when a new issue is opened or when the entrypoint is run manually.",
       "maturity": "experimental",
-      "default_enabled": false
+      "default_enabled": false,
+      "ingress_routes": [
+        {
+          "id": "duplicate-issue-detector"
+        }
+      ]
     },
     {
       "id": "issue-triage",
       "name": "Issue Triage",
       "description": "Triages newly opened issues using the generic issue-triage agentic workflow.",
       "maturity": "experimental",
-      "default_enabled": false
+      "default_enabled": false,
+      "ingress_routes": [
+        {
+          "id": "issue-triage"
+        }
+      ]
     },
     {
       "id": "issue-fixer",
       "name": "Issue Fixer",
       "description": "Executes generic issue fixes requested with /ai implement comments, excluding specialized security and resource-not-accessible flows.",
       "maturity": "experimental",
-      "default_enabled": false
+      "default_enabled": false,
+      "ingress_routes": [
+        {
+          "id": "issue-fixer"
+        }
+      ]
     },
     {
       "id": "mention-in-issue",
       "name": "Mention in Issue",
       "description": "AI assistant for issues — answers questions, debugs problems, and creates PRs on demand when triggered with a /ai comment.",
       "maturity": "experimental",
-      "default_enabled": false
+      "default_enabled": false,
+      "ingress_routes": [
+        {
+          "id": "mention-in-issue"
+        }
+      ]
     },
     {
       "id": "security",
       "name": "Security",
       "description": "Runs static security checks on workflows, shell scripts, and dependency manifests per the security scanning ruleset; opens issues for findings.",
       "maturity": "experimental",
-      "default_enabled": false
+      "default_enabled": false,
+      "ingress_routes": [
+        {
+          "id": "security-detector"
+        },
+        {
+          "id": "security-fixer",
+          "allowed_bot_users_from": "allowed-issue"
+        },
+        {
+          "id": "security-triage",
+          "allowed_bot_users_from": "allowed-issue"
+        }
+      ]
     },
     {
       "id": "resource-not-accessible-by-integration",
       "name": "Resource Not Accessible by Integration",
       "description": "Detects 'Resource not accessible by integration' occurrences in workflow logs, creates triage issues, triages newly opened issues, and executes fixes for issues labeled ready to fix.",
       "maturity": "early-adoption",
-      "default_enabled": false
+      "default_enabled": false,
+      "ingress_routes": [
+        {
+          "id": "resource-not-accessible-by-integration-detector"
+        },
+        {
+          "id": "resource-not-accessible-by-integration-fixer",
+          "allowed_bot_users_from": "allowed-issue"
+        },
+        {
+          "id": "resource-not-accessible-by-integration-triage",
+          "allowed_bot_users_from": "allowed-issue"
+        }
+      ]
     },
     {
       "id": "estc-pr-buildkite-detective",
       "name": "PR Buildkite Detective",
       "description": "Analyzes Buildkite CI failures for a PR when a Buildkite status check fails; posts a diagnostic comment on the pull request.",
       "maturity": "early-adoption",
-      "default_enabled": false
+      "default_enabled": false,
+      "ingress_routes": [
+        {
+          "id": "estc-pr-buildkite-detective"
+        }
+      ]
     }
   ]
 }

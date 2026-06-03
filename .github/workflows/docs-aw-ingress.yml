@@ -1,8 +1,39 @@
 name: Docs Agentic Workflow Ingress
 
-# Routes caller events from distributed `docs-aw.yml` to reusable docs menu workflows.
+# Dynamic routing: each route-* job carries its own if: gate; only eligible workflows run.
+# Event context is relayed from trigger-docs-aw.yml via docs-aw.yml workflow_dispatch inputs.
 on:
   workflow_call:
+    inputs:
+      trigger-source:
+        description: Client trigger workflow that dispatched the entrypoint
+        required: true
+        type: string
+      ingress-event-name:
+        description: Original github.event_name from the client trigger
+        required: true
+        type: string
+      ingress-event-action:
+        description: Original github.event.action from the client trigger
+        required: false
+        type: string
+        default: ''
+      ingress-event-payload-json:
+        description: JSON-encoded original github.event from the client trigger
+        required: true
+        type: string
+      caller-ref:
+        description: Original github.ref from the client trigger
+        required: true
+        type: string
+      caller-sha:
+        description: Original github.sha from the client trigger
+        required: true
+        type: string
+      caller-run-id:
+        description: Original github.run_id from the client trigger
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
@@ -11,24 +42,17 @@ permissions:
   contents: read
 
 jobs:
-  invalid-workflow-dispatch:
-    name: Reject empty workflow_dispatch
-    if: >-
-      github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.issue_number || '') == '' &&
-      (github.event.inputs.pull_request_number || '') == ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+  prelude:
     permissions:
       contents: read
-    steps:
-      - name: Invalid workflow_dispatch inputs
-        run: |
-          echo "workflow_dispatch requires issue_number and/or pull_request_number."
-          exit 1
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      load-allowed-authors: false
 
-  docs-ai-menu:
-    name: Route Docs AI issue menu
+  route-ai-menu:
+    needs: prelude
     permissions:
       actions: read
       contents: read
@@ -36,54 +60,132 @@ jobs:
       issues: write
       pull-requests: write
     if: >-
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
       (
-        (github.event_name == 'issues' && github.event.action == 'opened') ||
         (
-          github.event_name == 'issue_comment' &&
-          github.event.action == 'edited' &&
-          github.event.issue.pull_request == null
+          inputs.ingress-event-name == 'issues' &&
+          inputs.ingress-event-action == 'opened'
         ) ||
         (
-          github.event_name == 'workflow_dispatch' &&
-          (github.event.inputs.issue_number || '') != ''
+          inputs.ingress-event-name == 'issue_comment' &&
+          inputs.ingress-event-action == 'edited' &&
+          fromJSON(inputs.ingress-event-payload-json).issue.pull_request == null
+        ) ||
+        inputs.ingress-event-name == 'workflow_dispatch'
+      ) &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(
+          fromJSON(needs.prelude.outputs.enabled-workflows || '[]'),
+          'docs:docs-issue-ai-menu'
         )
       )
-    uses: ./.github/workflows/docs-ai-menu.yml
+    uses: ./.github/workflows/docs-aw-ai-menu.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
-  docs-pr-ai-menu:
-    name: Route Docs PR AI menu
+  route-pr-ai-menu-collect:
+    needs: prelude
+    permissions:
+      actions: write
+      contents: read
+    if: >-
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
+      inputs.ingress-event-name == 'pull_request' &&
+      (
+        inputs.ingress-event-action == 'opened' ||
+        inputs.ingress-event-action == 'reopened' ||
+        inputs.ingress-event-action == 'synchronize' ||
+        inputs.ingress-event-action == 'ready_for_review'
+      ) &&
+      (
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(
+          fromJSON(needs.prelude.outputs.enabled-workflows || '[]'),
+          'docs:docs-pr-ai-menu'
+        )
+      )
+    uses: ./.github/workflows/docs-aw-pr-ai-menu-collect.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
+
+  route-pr-ai-menu:
+    needs: prelude
     permissions:
       actions: read
       checks: read
       contents: read
-      discussions: write
       issues: write
       pull-requests: write
     if: >-
-      github.event_name == 'pull_request_target' ||
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
       (
-        github.event_name == 'issue_comment' &&
-        github.event.action == 'edited' &&
-        github.event.issue.pull_request != null
-      ) ||
+        (
+          inputs.ingress-event-name == 'workflow_run' &&
+          fromJSON(inputs.ingress-event-payload-json).workflow_run.conclusion == 'success' &&
+          fromJSON(inputs.ingress-event-payload-json).workflow_run.event == 'pull_request'
+        ) ||
+        (
+          inputs.ingress-event-name == 'issue_comment' &&
+          inputs.ingress-event-action == 'edited' &&
+          fromJSON(inputs.ingress-event-payload-json).issue.pull_request != null
+        ) ||
+        inputs.ingress-event-name == 'workflow_dispatch'
+      ) &&
       (
-        github.event_name == 'workflow_dispatch' &&
-        (github.event.inputs.pull_request_number || '') != ''
+        needs.prelude.outputs.effective-raw == '' ||
+        contains(
+          fromJSON(needs.prelude.outputs.enabled-workflows || '[]'),
+          'docs:docs-pr-ai-menu'
+        )
       )
-    uses: ./.github/workflows/docs-pr-ai-menu.yml
+    uses: ./.github/workflows/docs-aw-pr-ai-menu.yml
+    with:
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
   unsupported-trigger:
     name: Unsupported trigger
+    needs: prelude
     if: >-
+      always() &&
+      (needs.prelude.result == 'success' || needs.prelude.result == 'skipped') &&
       !(
-        github.event_name == 'workflow_dispatch' ||
-        (github.event_name == 'issues' && github.event.action == 'opened') ||
-        (github.event_name == 'issue_comment' && github.event.action == 'edited') ||
-        github.event_name == 'pull_request_target'
+        (
+          inputs.ingress-event-name == 'issues' &&
+          inputs.ingress-event-action == 'opened'
+        ) ||
+        (
+          inputs.ingress-event-name == 'issue_comment' &&
+          inputs.ingress-event-action == 'edited'
+        ) ||
+        inputs.ingress-event-name == 'workflow_dispatch' ||
+        (
+          inputs.ingress-event-name == 'pull_request' &&
+          (
+            inputs.ingress-event-action == 'opened' ||
+            inputs.ingress-event-action == 'reopened' ||
+            inputs.ingress-event-action == 'synchronize' ||
+            inputs.ingress-event-action == 'ready_for_review'
+          )
+        ) ||
+        (
+          inputs.ingress-event-name == 'workflow_run' &&
+          fromJSON(inputs.ingress-event-payload-json).workflow_run.conclusion == 'success' &&
+          fromJSON(inputs.ingress-event-payload-json).workflow_run.event == 'pull_request'
+        )
       )
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -92,8 +194,9 @@ jobs:
     steps:
       - name: Unsupported trigger
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          EVENT_ACTION: ${{ github.event.action }}
+          EVENT_NAME: ${{ inputs.ingress-event-name }}
+          EVENT_ACTION: ${{ inputs.ingress-event-action }}
+          TRIGGER_SOURCE: ${{ inputs.trigger-source }}
         run: |
-          echo "This entrypoint does not support event '${EVENT_NAME}' with action '${EVENT_ACTION}'."
+          echo "Trigger '${TRIGGER_SOURCE}' relayed unsupported event '${EVENT_NAME}' / '${EVENT_ACTION}'."
           exit 1

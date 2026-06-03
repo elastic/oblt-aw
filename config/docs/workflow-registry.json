@@ -1,12 +1,31 @@
 {
-  "section_title": "Documentation",
   "workflows": [
     {
-      "id": "example-workflow",
-      "name": "Example workflow",
-      "description": "Minimal second-org entry for tests and multi-section dashboard behavior.",
+      "id": "docs-issue-ai-menu",
+      "name": "Docs Issue AI Menu",
+      "description": "Adds a documentation issue AI menu.",
       "maturity": "experimental",
-      "default_enabled": false
+      "default_enabled": false,
+      "ingress_routes": [
+        {
+          "id": "ai-menu"
+        }
+      ]
+    },
+    {
+      "id": "docs-pr-ai-menu",
+      "name": "Docs PR AI Menu",
+      "description": "Adds a documentation PR AI menu.",
+      "maturity": "experimental",
+      "default_enabled": false,
+      "ingress_routes": [
+        {
+          "id": "pr-ai-menu-collect"
+        },
+        {
+          "id": "pr-ai-menu"
+        }
+      ]
     }
   ]
 }

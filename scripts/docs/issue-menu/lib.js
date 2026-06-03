@@ -20,12 +20,12 @@ const MENU_END = '<!-- docs-ai-menu:end -->';
 const WORKFLOW_CONFIG = {
   triage: {
     label:
-      'Triage ([`docs-triage`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-issue-triage.md)).',
+      'Triage ([`docs-triage`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/oblt-aw-issue-triage.md)).',
     marker: '<!-- docs-ai-menu:triage -->',
   },
   issueScope: {
     label:
-      'Scope the docs work ([`docs-issue-scope`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-issue-scope.md)).',
+      'Scope the docs work ([`docs-issue-scope`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/oblt-aw-docs-issue-scope.md)).',
     marker: '<!-- docs-ai-menu:issue-scope -->',
   },
 };

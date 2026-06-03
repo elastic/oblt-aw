@@ -1,52 +1,103 @@
-# Workflow: Client Template `oblt-aw.yml`
+# Workflow: Client templates `trigger-oblt-aw.yml` and `oblt-aw.yml`
 
 ## Overview
 
-**Source of truth (edit here only):** [.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml](../../.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml)
+**Source of truth (edit here only):** [.github/remote-workflow-template/obs/.github/workflows/](../../.github/remote-workflow-template/obs/.github/workflows/)
 
-**Do not edit** [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) in this repository. That path is not maintained as a hand-edited copy of the template; avoid changing it in PRs and automation. `distribute-client-workflow` installs the **remote template** tree into **other** repositories (for example their [.github/workflows/oblt-aw.yml](../../.github/workflows/oblt-aw.yml) from the `obs` org payload).
+Consumer repositories install **two** client workflows:
 
-This workflow is the client-facing entrypoint template distributed to target repositories.
+| File | Role |
+|------|------|
+| `trigger-oblt-aw.yml` | Declares all supported GitHub events; one job dispatches the entrypoint via [`benc-uk/workflow-dispatch`](https://github.com/benc-uk/workflow-dispatch) and posts a PR commit status linking to the dispatched run |
+| `oblt-aw.yml` | `workflow_dispatch` receiver; calls `elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main` with relayed event context |
 
-## Usage
+Split per-workflow `trigger-oblt-aw-*.yml` files are **not** distributed anymore.
 
-Triggers (must stay aligned with `oblt-aw-ingress` so dashboard-gated jobs can run):
+### Architecture
 
-- `schedule` (`0 6 * * *`)
-- `workflow_dispatch` (required for ingress routes that run only on manual entrypoint runs, e.g. duplicate-issue-detector)
-- `issues` (`opened`, `labeled`) — `opened` drives issue-triage and duplicate-issue-detector; `labeled` supports other flows
-- `issue_comment` (`created`) — drives mention-in-issue for `/ai` issue comments and issue-fixer for `/ai implement` issue comments (not PR comments); both routes require `github.event.comment.author_association` to be `OWNER`, `MEMBER`, or `COLLABORATOR`
-- `pull_request` (`opened`, `synchronize`, `reopened`, `labeled`) — automerge runs only when the PR author matches the dependency-review allow list and the PR already has `oblt-aw/ai/merge-ready` (automerge is not triggered on `schedule`)
-- `status` — drives PR Buildkite Detective when a Buildkite status check fails (`github.event.state == 'failure'` and `github.event.context` contains `buildkite`); requires `BUILDKITE_LOGS_API_TOKEN` secret in the consumer repository
+```mermaid
+flowchart TB
+  subgraph Consumer["Consumer .github/workflows/"]
+    EVT["GitHub event"]
+    TRG["trigger-oblt-aw.yml\nall supported on:"]
+    AW["oblt-aw.yml\non: workflow_dispatch"]
+    EVT --> TRG
+    TRG -->|"workflow-dispatch action + event payload"| AW
+  end
 
-Execution flow:
+  subgraph OBLT["elastic/oblt-aw"]
+    ING["oblt-aw-ingress.yml\nroute-* if gates → matching oblt-aw-*"]
+    AW -->|workflow_call| ING
+    ING --> R1["oblt-aw-automerge.yml"]
+    ING --> R2["oblt-aw-dependency-review.yml"]
+    ING --> R3["other planned routes"]
+  end
+```
 
-1. **run-aw job** calls [elastic/oblt-aw/.github/workflows/oblt-aw-ingress.yml@main](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/oblt-aw-ingress.yml). The ingress runs `get-enabled-workflows` first (in the consumer repo context): it looks up an open issue labeled `oblt-aw/dashboard`, parses checkboxes (`^- [x] <!-- oblt-aw:<org-key>:<workflow-id> -->` at line start in each org’s Enable/Disable list; legacy `obs` markers without an org segment are accepted), and derives normalized `enabled-workflows` (always `[]` or `["org:workflow-id", ...]`). Use `effective-raw`: empty means no dashboard issue → all workflows enabled; otherwise `[]` or `["org:workflow-id", ...]` from the issue. Consumers do not need to call `get-enabled-workflows` separately; the ingress invokes it.
+### Trigger events (`trigger-oblt-aw.yml`)
 
-## Configuration
+| Trigger | Types / notes |
+|---------|----------------|
+| `schedule` | `0 6 * * *` |
+| `workflow_dispatch` | Manual replay |
+| `issues` | `opened`, `labeled` |
+| `issue_comment` | `created` |
+| `pull_request` | `opened`, `synchronize`, `reopened`, `labeled` |
+| `status` | Buildkite failure routing handled in ingress |
 
-Top-level permissions:
+### Context relayed to `oblt-aw.yml`
 
-- `contents: read`
+| Input | Source |
+|-------|--------|
+| `trigger-source` | `github.workflow` |
+| `event-name` | `github.event_name` |
+| `event-action` | `github.event.action` |
+| `event-payload-json` | `toJSON(github.event)` |
+| `caller-ref` | `github.ref` |
+| `caller-sha` | `github.sha` |
+| `caller-run-id` | `github.run_id` |
 
-Job-level permissions (`run-aw`; must stay at least as permissive as nested ingress and downstream reusable workflows):
+### Permissions
 
-- `actions: write`
-- `checks: read`
-- `contents: write`
-- `discussions: write`
-- `id-token: write` (required so [oblt-aw-ingress](oblt-aw-ingress.md) can call [gh-aw-security-detector](gh-aw-security-detector.md), which uses OIDC for `create-token`)
-- `issues: write`
-- `pull-requests: write`
+**`trigger-oblt-aw.yml`**
 
-Required secret mapping:
+| Scope | Job | Why |
+|-------|-----|-----|
+| `contents: read` | workflow root | Default |
+| `actions: write` | `dispatch-entrypoint` | `GITHUB_TOKEN` — REST `workflow_dispatch` for `oblt-aw.yml` in the same repository |
+| `statuses: write` | `dispatch-entrypoint` | `GITHUB_TOKEN` — PR commit status with link to dispatched `oblt-aw.yml` run |
 
-- `COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`
-- `BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_LOGS_API_TOKEN }}` (only required when `estc-pr-buildkite-detective` is enabled; consumers without Buildkite CI can omit this secret — ingress skips the job when the secret is absent)
+The trigger uses `secrets.GITHUB_TOKEN` only (no `create-token`); same-repo dispatch and commit statuses do not need Backstage OIDC.
 
-Migration note: if your repository previously used `BUILDKITE_API_TOKEN` as the consumer-facing secret name, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN`.
+The dispatch step does **not** wait for `oblt-aw.yml` to finish. On `pull_request` events, a follow-up step posts commit status context `Observability Agentic Workflow Execution` on the PR head SHA with `target_url` set to the `runUrlHtml` output from `workflow-dispatch` (traceability only; `state: success` means dispatch succeeded, not that ingress or routed workflows completed). Do not add this context as a required check unless you intend to gate merges on dispatch alone.
+
+**`oblt-aw.yml`**
+
+| Scope | Job | Why |
+|-------|-----|-----|
+| `contents: read` | workflow root | Default |
+| `actions: write` | `ingress` | Ingress may dispatch nested workflows |
+| `contents: write` | `ingress` | Routed workflows that open or update PRs |
+| `discussions: write` | `ingress` | Routed GH-AW workflows that post discussions |
+| `id-token: write` | `ingress` | Ephemeral tokens in routed workflows |
+| `issues: write` | `ingress` | Routed workflows that create or update issues |
+| `pull-requests: write` | `ingress` | Routed workflows that create or update PRs |
+
+### Secrets
+
+| Secret | Templates |
+|--------|-----------|
+| `COPILOT_GITHUB_TOKEN` | `oblt-aw.yml` (forwarded to ingress and routed workflows) |
+| `BUILDKITE_LOGS_API_TOKEN` | `oblt-aw.yml` → ingress as `BUILDKITE_API_TOKEN` (Buildkite detective route) |
+
+## Migration from split triggers
+
+1. Merge distribution PRs that install `trigger-oblt-aw.yml` and `oblt-aw.yml`.
+2. Remove legacy `trigger-oblt-aw-*.yml` per-workflow client files (distribution `remove_files` handles drops).
+3. Register Backstage `workflow_ref` for **`oblt-aw.yml`** (and routed control-plane workflows) when your vault model requires `create-token`; **`trigger-oblt-aw.yml` does not call `create-token`**.
 
 ## References
 
-- Distribution process: [docs/operations/distribute-client-workflow.md](../operations/distribute-client-workflow.md)
-- Ingress doc: [docs/workflows/oblt-aw-ingress.md](oblt-aw-ingress.md)
+- [docs/operations/distribute-client-workflow.md](../operations/distribute-client-workflow.md)
+- [oblt-aw-ingress.md](oblt-aw-ingress.md)
+- [aw-prelude.md](aw-prelude.md)
