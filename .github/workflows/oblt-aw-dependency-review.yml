@@ -14,9 +14,8 @@ on:
         default: ''
       ingress-event-payload-json:
         description: Relayed github.event JSON from oblt-aw-ingress
-        required: false
+        required: true
         type: string
-        default: ''
       ingress-allowed-pr-authors-csv:
         description: Allowed PR bot logins from oblt-aw-ingress prelude
         required: false
@@ -105,12 +104,18 @@ jobs:
 
       - name: Re-apply merge-ready label to emit installation-token labeled event
         uses: actions/github-script@v9
+        env:
+          PR_NUMBER: ${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number }}
         with:
           github-token: ${{ steps.create-token.outputs.token }}
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const prNumber = context.payload.pull_request.number;
+            const prNumber = Number(process.env.PR_NUMBER);
+            if (!Number.isFinite(prNumber) || prNumber <= 0) {
+              core.info('No pull_request.number in relayed event; skipping re-apply.');
+              return;
+            }
             const { data: issue } = await github.rest.issues.get({
               owner,
               repo,

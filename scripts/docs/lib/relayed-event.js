@@ -15,21 +15,17 @@
 
 'use strict';
 
-const { relayedPayload } = require('../lib/relayed-event.js');
-const { upsertMenuComment } = require('./lib.js');
+/**
+ * Original webhook payload for workflow_call routes that relay
+ * ingress-event-payload-json. github-script context.payload is the
+ * workflow_call envelope, not the consumer pull_request/issue event.
+ */
+function relayedPayload(context) {
+  const raw = process.env.INGRESS_EVENT_JSON;
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    return JSON.parse(raw);
+  }
+  return context.payload;
+}
 
-module.exports = async ({ github, context, core }) => {
-  const pullRequestNumber = relayedPayload(context).issue?.number;
-  const progressUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-
-  await upsertMenuComment({
-    core,
-    createIfMissing: false,
-    github,
-    context,
-    pullRequestNumber,
-    statusOverrides: {
-      docsReview: { detailsUrl: progressUrl, status: 'in_progress' },
-    },
-  });
-};
+module.exports = { relayedPayload };

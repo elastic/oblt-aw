@@ -14,9 +14,8 @@ on:
         default: ''
       ingress-event-payload-json:
         description: Relayed github.event JSON from oblt-aw-ingress
-        required: false
+        required: true
         type: string
-        default: ''
       ingress-allowed-pr-authors-csv:
         description: Allowed PR bot logins from oblt-aw-ingress prelude
         required: false
@@ -152,12 +151,18 @@ jobs:
 
       - name: Re-apply fix-ready label to emit installation-token labeled event
         uses: actions/github-script@v9
+        env:
+          ISSUE_NUMBER: ${{ fromJSON(inputs.ingress-event-payload-json).issue.number }}
         with:
           github-token: ${{ steps.create-token.outputs.token }}
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const issueNumber = context.issue.number;
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
+            if (!Number.isFinite(issueNumber) || issueNumber <= 0) {
+              core.info('No issue.number in relayed event; skipping re-apply.');
+              return;
+            }
             const { data: issue } = await github.rest.issues.get({
               owner,
               repo,

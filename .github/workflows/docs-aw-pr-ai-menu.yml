@@ -18,9 +18,8 @@ on:
         default: ''
       ingress-event-payload-json:
         description: Relayed github.event JSON from docs-aw-ingress
-        required: false
+        required: true
         type: string
-        default: ''
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
@@ -37,7 +36,7 @@ jobs:
           inputs.ingress-event-name != '' && inputs.ingress-event-name ||
           github.event_name
         ) == 'workflow_run' &&
-        fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).workflow_run.conclusion == 'success'
+        fromJSON(inputs.ingress-event-payload-json).workflow_run.conclusion == 'success'
       ) ||
       (
         inputs.ingress-event-name != '' && inputs.ingress-event-name ||
@@ -52,7 +51,7 @@ jobs:
       issues: write
       pull-requests: write
     concurrency:
-      group: docs-pr-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).workflow_run.id || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).pull_request.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.pull_request_number }}
+      group: docs-pr-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json).workflow_run.id || fromJSON(inputs.ingress-event-payload-json).pull_request.number || fromJSON(inputs.ingress-event-payload-json).issue.number || fromJSON(inputs.ingress-event-payload-json).inputs.pull_request_number }}
       cancel-in-progress: false
     steps:
       - name: Download pull request number artifact
@@ -64,14 +63,14 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: pr-number
-          run-id: ${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).workflow_run.id }}
+          run-id: ${{ fromJSON(inputs.ingress-event-payload-json).workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Resolve pull request number
         id: resolve-pr
         env:
           EVENT_NAME: ${{ inputs.ingress-event-name != '' && inputs.ingress-event-name || github.event_name }}
-          WORKFLOW_DISPATCH_PR: ${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.pull_request_number }}
+          WORKFLOW_DISPATCH_PR: ${{ fromJSON(inputs.ingress-event-payload-json).inputs.pull_request_number }}
         run: |
           if [ "${EVENT_NAME}" = "workflow_run" ]; then
             echo "number=$(cat pr_number.txt)" >> "$GITHUB_OUTPUT"
@@ -87,12 +86,14 @@ jobs:
           path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
+            scripts/docs/lib
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
 
       - name: Create or update AI PR menu comment
         uses: actions/github-script@v9
         env:
+          INGRESS_EVENT_JSON: ${{ inputs.ingress-event-payload-json }}
           PULL_REQUEST_NUMBER: ${{ steps.resolve-pr.outputs.number }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -107,11 +108,11 @@ jobs:
         inputs.ingress-event-name != '' && inputs.ingress-event-name ||
         github.event_name
       ) == 'issue_comment' &&
-      fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.pull_request != null &&
+      fromJSON(inputs.ingress-event-payload-json).issue.pull_request != null &&
       github.actor != 'github-actions[bot]' &&
-      fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.user.login == 'github-actions[bot]' &&
-      contains(fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.body, '<!-- docs-pr-ai-menu:start -->') &&
-      contains(fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).comment.body, '<!-- docs-pr-ai-menu:end -->')
+      fromJSON(inputs.ingress-event-payload-json).comment.user.login == 'github-actions[bot]' &&
+      contains(fromJSON(inputs.ingress-event-payload-json).comment.body, '<!-- docs-pr-ai-menu:start -->') &&
+      contains(fromJSON(inputs.ingress-event-payload-json).comment.body, '<!-- docs-pr-ai-menu:end -->')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -128,12 +129,15 @@ jobs:
           path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
+            scripts/docs/lib
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
 
       - name: Parse AI PR menu transition
         id: evaluate
         uses: actions/github-script@v9
+        env:
+          INGRESS_EVENT_JSON: ${{ inputs.ingress-event-payload-json }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -152,7 +156,7 @@ jobs:
       issues: write
       pull-requests: write
     concurrency:
-      group: docs-pr-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).pull_request.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).issue.number || fromJSON(inputs.ingress-event-payload-json != '' && inputs.ingress-event-payload-json || toJSON(github.event)).inputs.pull_request_number }}
+      group: docs-pr-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number || fromJSON(inputs.ingress-event-payload-json).issue.number || fromJSON(inputs.ingress-event-payload-json).inputs.pull_request_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
@@ -163,11 +167,14 @@ jobs:
           path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
+            scripts/docs/lib
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
 
       - name: Refresh AI PR menu status
         uses: actions/github-script@v9
+        env:
+          INGRESS_EVENT_JSON: ${{ inputs.ingress-event-payload-json }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -214,7 +221,7 @@ jobs:
       issues: write
       pull-requests: write
     concurrency:
-      group: docs-pr-ai-menu-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pull_request_number }}
+      group: docs-pr-ai-menu-${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number || fromJSON(inputs.ingress-event-payload-json).issue.number || fromJSON(inputs.ingress-event-payload-json).inputs.pull_request_number }}
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
@@ -225,12 +232,14 @@ jobs:
           path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
+            scripts/docs/lib
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
 
       - name: Refresh AI PR menu status
         uses: actions/github-script@v9
         env:
+          INGRESS_EVENT_JSON: ${{ inputs.ingress-event-payload-json }}
           DOCS_REVIEW_RESULT: ${{ needs.run-docs-review.result }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

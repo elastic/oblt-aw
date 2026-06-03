@@ -15,11 +15,13 @@
 
 'use strict';
 
+const { relayedPayload } = require('../lib/relayed-event.js');
 const { parseMenuState } = require('./lib.js');
 
 module.exports = async ({ context, core }) => {
-  const body = context.payload.comment.body || '';
-  const previousBody = context.payload.changes?.body?.from || '';
+  const payload = relayedPayload(context);
+  const body = payload.comment?.body || '';
+  const previousBody = payload.changes?.body?.from || '';
 
   const previousState = parseMenuState(previousBody);
   const currentState = parseMenuState(body);
