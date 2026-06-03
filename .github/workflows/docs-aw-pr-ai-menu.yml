@@ -188,6 +188,9 @@ jobs:
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: docs-aw-pr-ai-menu.yml
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
         This repository stores documentation as markdown across the repository.
         Prefer concise, high-signal review comments with exact replacement text when possible.
@@ -206,6 +209,7 @@ jobs:
     with:
       review-scope: repo-wide-markdown
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), ' && ') }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 

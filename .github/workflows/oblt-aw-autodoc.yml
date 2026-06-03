@@ -42,6 +42,9 @@ jobs:
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-autodoc.yml
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
         Your task is to analyze ALL documentation in this repository, identify gaps and areas for improvement, and file an issue with concrete findings.
 
@@ -81,6 +84,7 @@ jobs:
       lookback-window: 1 day ago
       title-prefix: "[oblt-aw][autodoc]"
       additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets-audit.outputs.resolved-setup-commands-json), ' && ') }}
     secrets: inherit
 
   resolve-apm-assets-fix:
@@ -91,6 +95,9 @@ jobs:
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-autodoc.yml
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
         Your task is to implement the documentation improvements described in the issue.
 
@@ -138,6 +145,7 @@ jobs:
       target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
       draft-prs: true
       additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets-fix.outputs.resolved-setup-commands-json), ' && ') }}
     secrets: inherit
 
   # Step 3: Finalize autodoc PR — assign reviewer and apply labels

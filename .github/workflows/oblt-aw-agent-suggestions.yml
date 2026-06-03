@@ -40,6 +40,9 @@ jobs:
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-agent-suggestions.yml
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
         Additional requirements for this repository:
 
@@ -66,4 +69,5 @@ jobs:
     with:
       title-prefix: "[oblt-aw][agent-suggestions]"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), ' && ') }}
     secrets: inherit

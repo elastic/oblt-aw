@@ -160,6 +160,9 @@ jobs:
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-automerge.yml
+      ingress-event-name: ${{ inputs.ingress-event-name }}
+      ingress-event-action: ${{ inputs.ingress-event-action }}
+      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
         Target pull request number: ${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number }}.
 
@@ -178,6 +181,7 @@ jobs:
     with:
       allowed-bot-users: ${{ inputs.ingress-allowed-pr-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), ' && ') }}
       prompt: |
         For pull request #${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number }}: evaluate automerge eligibility.
 
