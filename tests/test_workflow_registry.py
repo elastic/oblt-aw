@@ -31,40 +31,49 @@ def _write_org(
     )
 
 
-class TestBuildControlPlaneWorkflowIndex:
-    def test_maps_files_to_compound_ids(self, tmp_path: pathlib.Path) -> None:
+class TestResolveCompoundId:
+    def test_single_file_entry(self, tmp_path: pathlib.Path) -> None:
         _write_org(
             tmp_path,
             "obs",
             [
                 {
                     "id": "automerge",
-                    "ingress_routes": [{"id": "automerge"}],
-                },
-                {
-                    "id": "security",
-                    "ingress_routes": [
-                        {"id": "security-detector"},
-                        {"id": "security-fixer"},
-                    ],
-                },
+                    "control_plane_workflows": ["oblt-aw-automerge.yml"],
+                }
             ],
-        )
-        index = wr.build_control_plane_workflow_index(tmp_path)
-        assert index["oblt-aw-automerge.yml"].compound_id == "obs:automerge"
-        assert index["oblt-aw-security-fixer.yml"].compound_id == "obs:security"
-
-
-class TestResolveCompoundId:
-    def test_resolves_control_plane_workflow(self, tmp_path: pathlib.Path) -> None:
-        _write_org(
-            tmp_path,
-            "obs",
-            [{"id": "automerge", "ingress_routes": [{"id": "automerge"}]}],
         )
         assert (
             wr.resolve_compound_id(tmp_path, "oblt-aw-automerge.yml") == "obs:automerge"
         )
+
+    def test_multi_file_entry(self, tmp_path: pathlib.Path) -> None:
+        _write_org(
+            tmp_path,
+            "obs",
+            [
+                {
+                    "id": "security",
+                    "control_plane_workflows": [
+                        "oblt-aw-security-detector.yml",
+                        "oblt-aw-security-fixer.yml",
+                    ],
+                }
+            ],
+        )
+        assert (
+            wr.resolve_compound_id(tmp_path, "oblt-aw-security-fixer.yml")
+            == "obs:security"
+        )
+
+    def test_unknown_file_raises(self, tmp_path: pathlib.Path) -> None:
+        _write_org(
+            tmp_path,
+            "obs",
+            [{"id": "automerge", "control_plane_workflows": ["oblt-aw-automerge.yml"]}],
+        )
+        with pytest.raises(ValueError, match="not listed"):
+            wr.resolve_compound_id(tmp_path, "oblt-aw-missing.yml")
 
 
 class TestValidateRegistryAgainstWorkflows:
@@ -74,7 +83,7 @@ class TestValidateRegistryAgainstWorkflows:
         _write_org(
             tmp_path,
             "obs",
-            [{"id": "automerge", "ingress_routes": [{"id": "automerge"}]}],
+            [{"id": "automerge", "control_plane_workflows": ["oblt-aw-automerge.yml"]}],
         )
         workflows = tmp_path / "workflows"
         workflows.mkdir()

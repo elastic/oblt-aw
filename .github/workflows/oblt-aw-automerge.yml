@@ -2,30 +2,25 @@ name: Automerge
 on:
   workflow_call:
     inputs:
-      ingress-event-name:
-        description: Relayed event name from oblt-aw-ingress
-        required: false
-        type: string
-        default: ''
-      ingress-event-action:
-        description: Relayed event action from oblt-aw-ingress
-        required: false
-        type: string
-        default: ''
-      ingress-event-payload-json:
-        description: Relayed github.event JSON from oblt-aw-ingress
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
-      ingress-allowed-pr-authors-csv:
-        description: Allowed PR bot logins from oblt-aw-ingress prelude
-        required: false
+      shared-allowed-pr-authors-json:
+        required: true
         type: string
-        default: ''
-      ingress-allowed-issue-authors-csv:
-        description: Allowed issue bot logins from oblt-aw-ingress prelude
-        required: false
+      shared-allowed-pr-authors-csv:
+        required: true
         type: string
-        default: ''
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         description: "Token for GH-AW mention-in-pr (Copilot); must be supplied by the ingress caller."
@@ -36,7 +31,7 @@ permissions:
 
 jobs:
 
-  # Single PR from fromJSON(inputs.ingress-event-payload-json).pull_request (relayed consumer event).
+  # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
   verify:
     runs-on: ubuntu-latest
     permissions:
@@ -76,7 +71,7 @@ jobs:
         id: validate
         uses: actions/github-script@v9
         env:
-          PR_NUMBER: ${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -135,7 +130,7 @@ jobs:
         id: check-collection
         uses: actions/github-script@v9
         env:
-          PR_NUMBER: ${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -155,16 +150,11 @@ jobs:
     if: >-
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true'
-    permissions:
-      contents: read
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-automerge.yml
-      ingress-event-name: ${{ inputs.ingress-event-name }}
-      ingress-event-action: ${{ inputs.ingress-event-action }}
-      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
-        Target pull request number: ${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number }}.
+        Target pull request number: ${{ github.event.pull_request.number }}.
 
   approve:
     needs: [verify, check-dependency-collection, resolve-apm-assets]
@@ -179,11 +169,10 @@ jobs:
       pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
-      allowed-bot-users: ${{ inputs.ingress-allowed-pr-authors-csv }}
+      allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), ' && ') }}
       prompt: |
-        For pull request #${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number }}: evaluate automerge eligibility.
+        For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
         This PR already passed automerge validation in the workflow (GITHUB_TOKEN) for author, label, draft/fork/ref, and dependency collection `${{ needs.check-dependency-collection.outputs.collection-id }}` (file-path classification; no extra repo labels).
         Do not call check-run or commit status APIs. Required checks are enforced by GitHub when auto-merge is enabled.
@@ -223,7 +212,7 @@ jobs:
         uses: pascalgn/automerge-action@7961b8b5eec56cc088c140b56d864285eabd3f67 # v0.16.4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PULL_REQUEST: ${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
           MERGE_LABELS: "oblt-aw/ai/merge-ready"
           UPDATE_LABELS: "oblt-aw/ai/merge-ready"
           MERGE_METHOD: squash
@@ -244,14 +233,22 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - name: Create ephemeral GitHub token
-        id: create-token
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ inputs.shared-token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
+      - name: Create ephemeral GitHub token (Vault auto policy)
+        id: create-token-auto
+        if: ${{ inputs.shared-token-policy == '' }}
         uses: elastic/oblt-actions/github/create-token@v1
 
       - name: Enable merge when ready (merge queue fallback)
         env:
-          GH_TOKEN: ${{ steps.create-token.outputs.token }}
-          PR_NUMBER: ${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number }}
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail

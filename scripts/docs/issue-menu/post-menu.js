@@ -15,16 +15,14 @@
 
 'use strict';
 
-const { relayedPayload } = require('../lib/relayed-event.js');
 const { upsertMenuComment } = require('./lib.js');
 
 module.exports = async ({ github, context, core }) => {
-  const payload = relayedPayload(context);
-  const workflowDispatchIssueNumber = payload.inputs?.issue_number;
+  const workflowDispatchIssueNumber = context.payload.inputs?.issue_number;
   const issueNumber =
     context.eventName === 'workflow_dispatch'
       ? Number(workflowDispatchIssueNumber)
-      : payload.issue?.number;
+      : context.payload.issue.number;
 
   if (!issueNumber) {
     core.setFailed('Issue number is required for workflow_dispatch runs.');

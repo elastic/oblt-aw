@@ -1,0 +1,47 @@
+name: Observability Agentic Workflow — Status Event
+
+# Event-scoped orchestrator for status-triggered routes.
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: true
+      BUILDKITE_API_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflows: '["oblt-aw-estc-pr-buildkite-detective.yml"]'
+      load-allowed-authors: false
+
+  estc-pr-buildkite-detective:
+    needs: prelude
+    if: >-
+      fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-estc-pr-buildkite-detective.yml'] == 'true' &&
+      github.event_name == 'status' &&
+      github.event.state == 'failure' &&
+      contains(github.event.context, 'buildkite')
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: write
+    uses: ./.github/workflows/oblt-aw-estc-pr-buildkite-detective.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-estc-pr-buildkite-detective.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.prelude.outputs.token-policy }}
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}

@@ -2,30 +2,25 @@ name: Automated Documentation Analysis and Improvement
 on:
   workflow_call:
     inputs:
-      ingress-event-name:
-        description: Relayed event name from oblt-aw-ingress
-        required: false
-        type: string
-        default: ''
-      ingress-event-action:
-        description: Relayed event action from oblt-aw-ingress
-        required: false
-        type: string
-        default: ''
-      ingress-event-payload-json:
-        description: Relayed github.event JSON from oblt-aw-ingress
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
-      ingress-allowed-pr-authors-csv:
-        description: Allowed PR bot logins from oblt-aw-ingress prelude
-        required: false
+      shared-allowed-pr-authors-json:
+        required: true
         type: string
-        default: ''
-      ingress-allowed-issue-authors-csv:
-        description: Allowed issue bot logins from oblt-aw-ingress prelude
-        required: false
+      shared-allowed-pr-authors-csv:
+        required: true
         type: string
-        default: ''
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -37,14 +32,9 @@ jobs:
 
   # Step 1: Detect docs drift from recent code changes and create an issue with findings
   resolve-apm-assets-audit:
-    permissions:
-      contents: read
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-autodoc.yml
-      ingress-event-name: ${{ inputs.ingress-event-name }}
-      ingress-event-action: ${{ inputs.ingress-event-action }}
-      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
         Your task is to analyze ALL documentation in this repository, identify gaps and areas for improvement, and file an issue with concrete findings.
 
@@ -84,20 +74,14 @@ jobs:
       lookback-window: 1 day ago
       title-prefix: "[oblt-aw][autodoc]"
       additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
-      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets-audit.outputs.resolved-setup-commands-json), ' && ') }}
     secrets: inherit
 
   resolve-apm-assets-fix:
     needs: audit
     if: needs.audit.outputs.created_issue_number != ''
-    permissions:
-      contents: read
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-autodoc.yml
-      ingress-event-name: ${{ inputs.ingress-event-name }}
-      ingress-event-action: ${{ inputs.ingress-event-action }}
-      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
         Your task is to implement the documentation improvements described in the issue.
 
@@ -145,7 +129,6 @@ jobs:
       target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
       draft-prs: true
       additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
-      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets-fix.outputs.resolved-setup-commands-json), ' && ') }}
     secrets: inherit
 
   # Step 3: Finalize autodoc PR — assign reviewer and apply labels

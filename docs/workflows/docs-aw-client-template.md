@@ -1,59 +1,78 @@
-# Workflow: Client templates `trigger-docs-aw.yml` and `docs-aw.yml`
+# Workflow: Client templates `trigger-docs-aw-*.yml`
 
 ## Overview
 
-Consumer Documentation repositories install workflows from [`.github/remote-workflow-template/docs/.github/workflows/`](../../.github/remote-workflow-template/docs/.github/workflows/) via [distribute-client-workflow](distribute-client-workflow.md).
+**Source of truth (edit here only):** [.github/remote-workflow-template/docs/.github/workflows/](../../.github/remote-workflow-template/docs/.github/workflows/)
 
-Flow: **`trigger-docs-aw.yml`** (events) → **`docs-aw.yml`** (`workflow_dispatch`) → **`docs-aw-ingress.yml`** (routing).
+`distribute-client-workflow` installs these files into consumer repositories for every repository listed under [config/docs/active-repositories.json](../../config/docs/active-repositories.json).
 
-Control-plane reusables are referenced from `elastic/oblt-aw`:
+## Event-scoped client model
+
+Client templates are grouped by **GitHub event family** so co-triggered routes share one dashboard read per workflow run. Each event-scoped client calls an orchestrator reusable (`docs-aw-event-*.yml`) that runs [aw-prelude.yml](aw-prelude.md) once, then fans out to per-route `docs-aw-*` workflows.
 
 ```yaml
-uses: elastic/oblt-aw/.github/workflows/docs-aw-ingress.yml@main
+uses: elastic/oblt-aw/.github/workflows/docs-aw-event-pull-request.yml@main
 ```
 
-Shared dashboard gating and prelude run in ingress, not in the client trigger file.
+Per-route dashboard gating uses the required `shared-proceed` input (and related shared allow-list fields) passed from [aw-prelude.yml](aw-prelude.md) via each `docs-aw-event-*` orchestrator.
 
-## Installed client workflows
+### Template index
 
-| File | Triggers | Role |
-|------|----------|------|
-| `trigger-docs-aw.yml` | `issues` opened; `issue_comment` edited; `pull_request` (opened, reopened, synchronize, ready_for_review); `workflow_run` on this workflow when the completed run succeeded and its originating event was `pull_request`; `workflow_dispatch` (optional `issue_number`, `pull_request_number`) | Dispatches `docs-aw.yml` with relayed event JSON |
-| `docs-aw.yml` | `workflow_dispatch` only | Entrypoint; calls `docs-aw-ingress.yml` |
+| Client template | Triggers | Orchestrator → routes |
+|-----------------|----------|------------------------|
+| `trigger-docs-aw-issues.yml` | `issues` opened; `workflow_dispatch` (`issue_number` required) | `docs-aw-event-issues.yml` → `docs-aw-ai-menu.yml` |
+| `trigger-docs-aw-issue-comment.yml` | `issue_comment` edited | `docs-aw-event-issue-comment.yml` → `docs-aw-ai-menu.yml`, `docs-aw-pr-ai-menu.yml` |
+| `trigger-docs-aw-pull-request.yml` | `pull_request` (opened, reopened, synchronize, ready_for_review) | `docs-aw-event-pull-request.yml` → `docs-aw-pr-ai-menu-collect.yml` |
+| `trigger-docs-aw-workflow-run.yml` | `workflow_run` on collect workflow (completed); `workflow_dispatch` (`pull_request_number` required) | `docs-aw-event-workflow-run.yml` → `docs-aw-pr-ai-menu.yml` |
 
-Route-specific conditions (for example PR vs non-PR issue comments, menu checkbox transitions) are enforced inside the `docs-aw-*` reusable workflows after ingress routing.
+Route-specific conditions (for example PR vs non-PR issue comments, menu checkbox transitions) are enforced inside each `docs-aw-*` reusable workflow after prelude gating.
 
-## Split PR menu pattern
+### Fork PRs and SEC-043 (split-workflow)
 
-The PR AI menu uses a fork-safe collect leg and a privileged post leg within one trigger:
+Fork PRs cannot post issue comments with a write-capable `GITHUB_TOKEN` from a `pull_request` workflow. `pull_request_target` is unsafe (runs in the base repo with elevated token on untrusted fork events). The PR menu therefore uses a **split-workflow** pattern:
 
-1. **`pull_request`** on `trigger-docs-aw.yml` → ingress `route-pr-ai-menu-collect` uploads a `pr-number` artifact.
-2. **`workflow_run`** when that trigger completes successfully (`workflow_run.event == pull_request`) → ingress `route-pr-ai-menu` downloads the artifact and posts the menu from trusted base-repo context. The dispatch job runs only for that privileged leg (not for `workflow_run` chains where the parent event was already `workflow_run`), preventing an infinite re-dispatch loop.
+1. **`trigger-docs-aw-pull-request.yml`** — `pull_request` only; uploads a `pr-number` artifact via [docs-aw-pr-ai-menu-collect.yml](../../.github/workflows/docs-aw-pr-ai-menu-collect.yml).
+2. **`trigger-docs-aw-workflow-run.yml`** — `workflow_run` when the collect workflow completes successfully; calls [docs-aw-pr-ai-menu.yml](../../.github/workflows/docs-aw-pr-ai-menu.yml) to download the artifact and post the menu from trusted base-repo context.
 
-Menu checkbox handling (`issue_comment`) and manual refresh (`workflow_dispatch`) use the same unified trigger.
+Menu checkbox handling (`issue_comment`) uses `trigger-docs-aw-issue-comment.yml`. Manual refresh uses `workflow_dispatch` on `trigger-docs-aw-issues.yml` (issue menu) or `trigger-docs-aw-workflow-run.yml` (PR menu). Fork checkbox triggers require org membership (enforced in `scripts/docs/pr-menu/evaluate-trigger.js`).
 
-On `pull_request` and on the privileged `workflow_run` leg (`workflow_run.event == pull_request`), the trigger posts commit status context `Documentation Agentic Workflow Execution` on the PR head SHA with `target_url` pointing at the dispatched `docs-aw.yml` run (`runUrlHtml` from `workflow-dispatch`). This is traceability only; the trigger does not wait for ingress or routed workflows to finish.
+## Configuration
 
-## Permissions
+Top-level permissions on every client template:
 
-Control-plane `docs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only).
+- `contents: read`
 
-| Client workflow | Job permissions (minimum) |
-|-----------------|---------------------------|
-| `trigger-docs-aw.yml` | `actions: write`, `statuses: write` (dispatch job uses `GITHUB_TOKEN`; status used for PR traceability) |
-| `docs-aw.yml` | `actions: write`, `checks: read`, `contents: read`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` (ingress job ceiling for all routes) |
+Control-plane `docs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
 
-Routed workflows (`docs-aw-ai-menu.yml`, `docs-aw-pr-ai-menu.yml`) require `issues: write`, `pull-requests: write`, and related scopes on agent jobs.
+Job-level permissions on `run-aw` must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below).
 
-## Migration from per-workflow `trigger-docs-aw-*.yml`
+| Client template | `run-aw` job permissions (union of callee jobs) |
+|-----------------|-----------------------------------------------|
+| `trigger-docs-aw-issues.yml` | `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trigger-docs-aw-issue-comment.yml` | `actions: read`, `checks: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trigger-docs-aw-pull-request.yml` | `actions: write`, `contents: read` |
+| `trigger-docs-aw-workflow-run.yml` | `actions: read`, `checks: read`, `contents: read`, `issues: write`, `pull-requests: write` |
 
-1. Merge distribution PRs that add `trigger-docs-aw.yml` and `docs-aw.yml`.
-2. Delete legacy `trigger-docs-aw-ai-menu.yml`, `trigger-docs-aw-pr-ai-menu-collect.yml`, and `trigger-docs-aw-pr-ai-menu.yml` from the consumer repository.
-3. Update Backstage `workflow_ref` / token policies to reference **`trigger-docs-aw.yml`**.
+Required secret mapping (templates that call agent lock workflows):
+
+- `COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`
+
+## Migration from per-route client templates
+
+1. Merge distribution PRs that replace `trigger-docs-aw-ai-menu.yml`, `trigger-docs-aw-pr-ai-menu-collect.yml`, and `trigger-docs-aw-pr-ai-menu.yml` with the four event-scoped clients above.
+2. Distribution removes client paths that are no longer in the template tree.
+3. Update Backstage `workflow_ref` / token policies to reference the new client workflow files.
+
+## Migration from monolithic `docs-aw.yml`
+
+1. Merge distribution PRs that add event-scoped `trigger-docs-aw-*.yml` files.
+2. Delete `.github/workflows/docs-aw.yml` in the consumer repository. Remove legacy per-route client files if present; distribution drops paths that are no longer in the template tree.
+3. Update Backstage `workflow_ref` / token policies to reference each installed **`trigger-docs-aw-*.yml`** client workflow file.
 
 ## References
 
-- [docs-aw-ingress.md](docs-aw-ingress.md)
 - [docs-aw-ai-menu.md](docs-aw-ai-menu.md)
 - [docs-aw-pr-ai-menu.md](docs-aw-pr-ai-menu.md)
+- [docs/operations/distribute-client-workflow.md](../operations/distribute-client-workflow.md)
 - [aw-prelude.md](aw-prelude.md)
+- [oblt-aw-client-template.md](oblt-aw-client-template.md)

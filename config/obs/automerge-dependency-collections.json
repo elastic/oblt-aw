@@ -54,21 +54,6 @@
       ]
     },
     {
-      "id": "terraform",
-      "description": "Terraform/OpenTofu/Terragrunt dependency and lockfile updates",
-      "active": true,
-      "file-glob": [
-        "**/*.tf",
-        "**/*.tfvars",
-        "**/*.tfvars.json",
-        "**/.terraform.lock.hcl",
-        "**/terragrunt.hcl",
-        "**/.opentofu-version",
-        "**/.terraform-version",
-        "**/.terragrunt-version"
-      ]
-    },
-    {
       "id": "vm-images",
       "description": "CI runner or container image pin updates",
       "active": false,

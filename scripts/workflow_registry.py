@@ -18,22 +18,20 @@
 Load and validate per-org workflow-registry.json files.
 
 Each workflow entry maps a dashboard ``id`` to one or more control-plane reusable
-workflow files under ``.github/workflows/``, derived from ``ingress_routes``.
+workflow files under ``.github/workflows/`` via ``control_plane_workflows``.
 """
 
 from __future__ import annotations
 
 import json
 import re
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 from common import compound_workflow_key, discover_org_config_dirs
-from oblt_aw_route_specs import RegistryParseError, parse_workflow_ingress_routes
 
 CONTROL_PLANE_WORKFLOW_NAME = re.compile(r"^[a-z0-9-]+-aw-[a-z0-9-]+\.ya?ml$")
-LEGACY_CONTROL_PLANE_WORKFLOW = re.compile(
+PRELUDE_CONTROL_PLANE_WORKFLOW = re.compile(
     r"control-plane-workflow:\s*([^\s#]+)",
     re.MULTILINE,
 )
@@ -81,23 +79,18 @@ def parse_registry_entries(org_dir: Path) -> list[RegistryWorkflowEntry]:
                 f"{org_dir}: workflows[{index}].id must be a non-empty string"
             )
 
-        context = f"{org_dir}: workflows[{index}]"
-        try:
-            route_specs = parse_workflow_ingress_routes(
-                item,
-                org_key=org_key,
-                context=context,
+        files = item.get("control_plane_workflows")
+        if not isinstance(files, list) or not files:
+            raise ValueError(
+                f"{org_dir}: workflows[{index}] ({workflow_id!r}) must define a "
+                "non-empty control_plane_workflows array"
             )
-        except RegistryParseError as exc:
-            raise ValueError(str(exc)) from exc
-
         normalized: list[str] = []
-        for route_spec in route_specs:
-            name = route_spec.workflow_file
-            if not CONTROL_PLANE_WORKFLOW_NAME.match(name):
+        for file_index, name in enumerate(files):
+            if not isinstance(name, str) or not CONTROL_PLANE_WORKFLOW_NAME.match(name):
                 raise ValueError(
-                    f"{org_dir}: workflows[{index}] ingress route "
-                    f"{route_spec.route_id!r} must resolve to *-aw-*.yml, got {name!r}"
+                    f"{org_dir}: workflows[{index}].control_plane_workflows[{file_index}] "
+                    f"must match *-aw-*.yml, got {name!r}"
                 )
             normalized.append(name)
         entries.append(
@@ -108,19 +101,6 @@ def parse_registry_entries(org_dir: Path) -> list[RegistryWorkflowEntry]:
             )
         )
     return entries
-
-
-def resolve_compound_id(config_dir: Path, control_plane_workflow: str) -> str:
-    """Map a control-plane workflow basename to its compound dashboard id."""
-    index = build_control_plane_workflow_index(config_dir)
-    entry = index.get(control_plane_workflow)
-    if entry is None:
-        known = ", ".join(sorted(index))
-        raise ValueError(
-            f"control-plane workflow {control_plane_workflow!r} is not listed in any "
-            f"workflow-registry.json ingress_routes (known: {known})"
-        )
-    return entry.compound_id
 
 
 def build_control_plane_workflow_index(
@@ -134,12 +114,24 @@ def build_control_plane_workflow_index(
                 if filename in index:
                     previous = index[filename]
                     raise ValueError(
-                        f"ingress route workflow {filename!r} is listed under both "
+                        f"control_plane_workflows[{filename!r}] is listed under both "
                         f"{previous.org_key}:{previous.workflow_id} and "
                         f"{entry.org_key}:{entry.workflow_id}"
                     )
                 index[filename] = entry
     return index
+
+
+def resolve_compound_id(config_dir: Path, control_plane_workflow: str) -> str:
+    index = build_control_plane_workflow_index(config_dir)
+    entry = index.get(control_plane_workflow)
+    if entry is None:
+        known = ", ".join(sorted(index))
+        raise ValueError(
+            f"control-plane workflow {control_plane_workflow!r} is not listed in any "
+            f"workflow-registry.json control_plane_workflows (known: {known})"
+        )
+    return entry.compound_id
 
 
 def validate_registry_against_workflows(
@@ -160,7 +152,7 @@ def validate_registry_against_workflows(
         for name in sorted(missing):
             errors.append(
                 f"{workflows_dir / name}: not listed in any "
-                "workflow-registry.json ingress_routes"
+                "workflow-registry.json control_plane_workflows"
             )
 
     stale = registered - subject_workflow_names
@@ -178,57 +170,20 @@ def validate_registry_against_workflows(
         text = path.read_text(encoding="utf-8")
         if LEGACY_ENABLED_WORKFLOW_ID.search(text):
             errors.append(
-                f"{path}: remove enabled-workflow-id "
-                "(dashboard gating is enforced in ingress route jobs)"
+                f"{path}: use control-plane-workflow instead of enabled-workflow-id "
+                "(compound id is resolved from workflow-registry.json)"
             )
-        # control-plane-workflow is required on aw-resolve-apm-assets calls; only
-        # forbid legacy passes to aw-prelude.
-        if re.search(
-            r"uses:\s*\./\.github/workflows/aw-prelude\.ya?ml[\s\S]{0,800}?"
-            r"control-plane-workflow:",
-            text,
-        ):
+            continue
+        match = PRELUDE_CONTROL_PLANE_WORKFLOW.search(text)
+        if not match:
             errors.append(
-                f"{path}: remove control-plane-workflow from aw-prelude "
-                "(prelude runs in ingress without per-wrapper gating)"
+                f"{path}: prelude must pass control-plane-workflow matching this file"
             )
+            continue
+        declared = match.group(1)
+        if declared != path_name:
+            errors.append(
+                f"{path}: control-plane-workflow is {declared!r}, expected {path_name!r}"
+            )
+            continue
     return errors
-
-
-def main() -> int:
-    """CLI: resolve a control-plane workflow file to org:workflow-id."""
-    import argparse
-    import os
-
-    from common import write_outputs
-
-    parser = argparse.ArgumentParser(
-        description="Resolve control-plane workflow file to org:workflow-id"
-    )
-    parser.add_argument(
-        "control_plane_workflow",
-        help="Workflow basename under .github/workflows/ (for example oblt-aw-automerge.yml)",
-    )
-    parser.add_argument(
-        "--config-dir",
-        type=Path,
-        default=Path("config"),
-        help="Config root containing per-org workflow-registry.json trees",
-    )
-    args = parser.parse_args()
-
-    try:
-        compound_id = resolve_compound_id(args.config_dir, args.control_plane_workflow)
-    except ValueError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-
-    if os.getenv("GITHUB_OUTPUT"):
-        write_outputs({"compound-workflow-id": compound_id})
-    else:
-        print(compound_id)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

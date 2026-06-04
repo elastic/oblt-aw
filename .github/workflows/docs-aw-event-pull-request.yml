@@ -1,0 +1,36 @@
+name: Docs Agentic Workflow — Pull Request Event
+
+# Event-scoped orchestrator: fork-safe PR number collection for the Docs PR AI menu.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflows: '["docs-aw-pr-ai-menu-collect.yml"]'
+      load-allowed-authors: true
+
+  pr-ai-menu-collect:
+    needs: prelude
+    if: >-
+      fromJSON(needs.prelude.outputs.proceed-by-workflow)['docs-aw-pr-ai-menu-collect.yml'] == 'true' &&
+      github.event_name == 'pull_request' &&
+      contains(fromJSON('["opened","reopened","synchronize","ready_for_review"]'), github.event.action)
+    permissions:
+      actions: write
+      contents: read
+    uses: ./.github/workflows/docs-aw-pr-ai-menu-collect.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['docs-aw-pr-ai-menu-collect.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.prelude.outputs.token-policy }}

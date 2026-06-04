@@ -81,29 +81,35 @@ class TestParseRepositories:
         with pytest.raises(SystemExit, match=r"`repositories` must be a list"):
             parse_repositories(content)
 
-    def test_object_entry_with_repository_key(self) -> None:
+    def test_object_entry_with_token_policy(self) -> None:
         content = json.dumps(
             {
                 "repositories": [
                     "elastic/foo",
-                    {"repository": "elastic/bar"},
+                    {
+                        "repository": "elastic/bar",
+                        "token-policy": "token-policy-abc123",
+                    },
                 ]
             }
         )
         entries = parse_active_repository_entries(content)
-        assert [e.repository for e in entries] == ["elastic/bar", "elastic/foo"]
+        assert [(e.repository, e.token_policy) for e in entries] == [
+            ("elastic/bar", "token-policy-abc123"),
+            ("elastic/foo", ""),
+        ]
 
-    def test_duplicate_repo_entries_deduplicated(self) -> None:
+    def test_duplicate_repo_conflicting_policy_raises(self) -> None:
         content = json.dumps(
             {
                 "repositories": [
-                    {"repository": "elastic/foo"},
-                    "elastic/foo",
+                    {"repository": "elastic/foo", "token-policy": "token-policy-a"},
+                    {"repository": "elastic/foo", "token-policy": "token-policy-b"},
                 ]
             }
         )
-        entries = parse_active_repository_entries(content)
-        assert [e.repository for e in entries] == ["elastic/foo"]
+        with pytest.raises(SystemExit, match="conflicting token-policy"):
+            parse_active_repository_entries(content)
 
 
 # ── write_outputs ──────────────────────────────────────────────────────────────
@@ -204,4 +210,59 @@ class TestMain:
         assert len(matrix) == 2
         repos = {m["repository"] for m in matrix}
         assert repos == {"elastic/foo", "elastic/bar"}
-        assert all(set(entry) == {"repository"} for entry in matrix)
+        assert all(m["token-policy"] == "" for m in matrix)
+
+    def test_matrix_includes_configured_token_policy(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        import importlib.util
+
+        output_file = tmp_path / "github_output"
+        output_file.touch()
+        monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
+        (tmp_path / "scripts").mkdir(parents=True)
+        script_src = pathlib.Path(brm.__file__).read_text()
+        (tmp_path / "scripts" / "build_repos_matrix.py").write_text(script_src)
+        (tmp_path / "scripts" / "common.py").write_text(
+            pathlib.Path(__file__)
+            .parent.parent.joinpath("scripts", "common.py")
+            .read_text()
+        )
+        (tmp_path / "config" / "obs").mkdir(parents=True)
+        (tmp_path / "config" / "obs" / "workflow-registry.json").write_text(
+            json.dumps({"workflows": []})
+        )
+        (tmp_path / "config" / "obs" / "active-repositories.json").write_text(
+            json.dumps(
+                {
+                    "repositories": [
+                        {
+                            "repository": "elastic/foo",
+                            "token-policy": "token-policy-custom",
+                        }
+                    ]
+                }
+            )
+        )
+
+        spec = importlib.util.spec_from_file_location(
+            "brm_test",
+            tmp_path / "scripts" / "build_repos_matrix.py",
+        )
+        assert spec and spec.loader
+        brm_test = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(brm_test)
+
+        assert brm_test.main() == 0
+        repos_line = next(
+            line
+            for line in output_file.read_text().splitlines()
+            if line.startswith("repos=")
+        )
+        matrix = json.loads(repos_line.split("=", 1)[1])
+        assert matrix == [
+            {
+                "repository": "elastic/foo",
+                "token-policy": "token-policy-custom",
+            }
+        ]

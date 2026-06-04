@@ -6,6 +6,7 @@ import json
 import pathlib
 import sys
 
+import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
 
@@ -63,6 +64,33 @@ class TestMergeActiveRepositories:
         )
         merged = common.merge_active_repositories_from_org_trees(tmp_path)
         assert merged == ["elastic/from-obs"]
+
+    def test_merge_token_policies_detects_cross_org_conflict(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        for org, policy in (
+            ("obs", "token-policy-obs"),
+            ("docs", "token-policy-docs"),
+        ):
+            (tmp_path / org).mkdir()
+            (tmp_path / org / "workflow-registry.json").write_text(
+                json.dumps({"workflows": []}), encoding="utf-8"
+            )
+            (tmp_path / org / "active-repositories.json").write_text(
+                json.dumps(
+                    {
+                        "repositories": [
+                            {
+                                "repository": "elastic/shared",
+                                "token-policy": policy,
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+        with pytest.raises(SystemExit, match="Conflicting token-policy"):
+            common.merge_repository_token_policies_from_org_trees(tmp_path)
 
 
 class TestEnabledCompoundIdsFromBody:
