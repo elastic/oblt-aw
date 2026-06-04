@@ -15,20 +15,13 @@
 
 'use strict';
 
-const { relayedPayload } = require('../lib/relayed-event.js');
 const { parseMenuState } = require('./lib.js');
 
 module.exports = async ({ github, context, core }) => {
-  const payload = relayedPayload(context);
-  const pullNumber = payload.issue?.number;
-  if (!pullNumber) {
-    core.setFailed('Pull request number is required.');
-    return;
-  }
   const { data: pullRequest } = await github.rest.pulls.get({
     owner: context.repo.owner,
     repo: context.repo.repo,
-    pull_number: pullNumber,
+    pull_number: context.payload.issue.number,
   });
   const baseRepoFullName = `${context.repo.owner}/${context.repo.repo}`;
   const isForkPR = pullRequest.head.repo.full_name !== baseRepoFullName;
@@ -50,8 +43,8 @@ module.exports = async ({ github, context, core }) => {
     }
   }
 
-  const body = payload.comment?.body || '';
-  const previousBody = payload.changes?.body?.from || '';
+  const body = context.payload.comment.body || '';
+  const previousBody = context.payload.changes?.body?.from || '';
 
   const previousState = parseMenuState(previousBody);
   const currentState = parseMenuState(body);

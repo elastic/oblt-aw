@@ -1,4 +1,5 @@
 {
+  "section_title": "Observability",
   "workflows": [
     {
       "id": "agent-suggestions",
@@ -6,11 +7,7 @@
       "description": "Suggests agentic workflows and improvements for the repository based on analysis of current setup.",
       "maturity": "early-adoption",
       "default_enabled": true,
-      "ingress_routes": [
-        {
-          "id": "agent-suggestions"
-        }
-      ]
+      "control_plane_workflows": ["oblt-aw-agent-suggestions.yml"]
     },
     {
       "id": "autodoc",
@@ -18,11 +15,7 @@
       "description": "Analyzes documentation for gaps, outdated content, and inconsistencies; creates issues and PRs to improve docs.",
       "maturity": "early-adoption",
       "default_enabled": true,
-      "ingress_routes": [
-        {
-          "id": "autodoc"
-        }
-      ]
+      "control_plane_workflows": ["oblt-aw-autodoc.yml"]
     },
     {
       "id": "automerge",
@@ -30,12 +23,7 @@
       "description": "Enables auto-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready when validation and approval gates pass; GitHub enforces required checks at merge time.",
       "maturity": "early-adoption",
       "default_enabled": true,
-      "ingress_routes": [
-        {
-          "id": "automerge",
-          "allowed_bot_users_from": "allowed-pr"
-        }
-      ]
+      "control_plane_workflows": ["oblt-aw-automerge.yml"]
     },
     {
       "id": "dependency-review",
@@ -43,12 +31,7 @@
       "description": "Analyzes dependency-update PRs from bots, applies merge-ready labels when criteria are met.",
       "maturity": "early-adoption",
       "default_enabled": true,
-      "ingress_routes": [
-        {
-          "id": "dependency-review",
-          "allowed_bot_users_from": "allowed-pr"
-        }
-      ]
+      "control_plane_workflows": ["oblt-aw-dependency-review.yml"]
     },
     {
       "id": "duplicate-issue-detector",
@@ -56,11 +39,7 @@
       "description": "Detects potential duplicate issues when a new issue is opened or when the entrypoint is run manually.",
       "maturity": "experimental",
       "default_enabled": false,
-      "ingress_routes": [
-        {
-          "id": "duplicate-issue-detector"
-        }
-      ]
+      "control_plane_workflows": ["oblt-aw-duplicate-issue-detector.yml"]
     },
     {
       "id": "issue-triage",
@@ -68,11 +47,7 @@
       "description": "Triages newly opened issues using the generic issue-triage agentic workflow.",
       "maturity": "experimental",
       "default_enabled": false,
-      "ingress_routes": [
-        {
-          "id": "issue-triage"
-        }
-      ]
+      "control_plane_workflows": ["oblt-aw-issue-triage.yml"]
     },
     {
       "id": "issue-fixer",
@@ -80,11 +55,7 @@
       "description": "Executes generic issue fixes requested with /ai implement comments, excluding specialized security and resource-not-accessible flows.",
       "maturity": "experimental",
       "default_enabled": false,
-      "ingress_routes": [
-        {
-          "id": "issue-fixer"
-        }
-      ]
+      "control_plane_workflows": ["oblt-aw-issue-fixer.yml"]
     },
     {
       "id": "mention-in-issue",
@@ -92,11 +63,7 @@
       "description": "AI assistant for issues — answers questions, debugs problems, and creates PRs on demand when triggered with a /ai comment.",
       "maturity": "experimental",
       "default_enabled": false,
-      "ingress_routes": [
-        {
-          "id": "mention-in-issue"
-        }
-      ]
+      "control_plane_workflows": ["oblt-aw-mention-in-issue.yml"]
     },
     {
       "id": "security",
@@ -104,18 +71,10 @@
       "description": "Runs static security checks on workflows, shell scripts, and dependency manifests per the security scanning ruleset; opens issues for findings.",
       "maturity": "experimental",
       "default_enabled": false,
-      "ingress_routes": [
-        {
-          "id": "security-detector"
-        },
-        {
-          "id": "security-fixer",
-          "allowed_bot_users_from": "allowed-issue"
-        },
-        {
-          "id": "security-triage",
-          "allowed_bot_users_from": "allowed-issue"
-        }
+      "control_plane_workflows": [
+        "oblt-aw-security-detector.yml",
+        "oblt-aw-security-fixer.yml",
+        "oblt-aw-security-triage.yml"
       ]
     },
     {
@@ -124,18 +83,10 @@
       "description": "Detects 'Resource not accessible by integration' occurrences in workflow logs, creates triage issues, triages newly opened issues, and executes fixes for issues labeled ready to fix.",
       "maturity": "early-adoption",
       "default_enabled": false,
-      "ingress_routes": [
-        {
-          "id": "resource-not-accessible-by-integration-detector"
-        },
-        {
-          "id": "resource-not-accessible-by-integration-fixer",
-          "allowed_bot_users_from": "allowed-issue"
-        },
-        {
-          "id": "resource-not-accessible-by-integration-triage",
-          "allowed_bot_users_from": "allowed-issue"
-        }
+      "control_plane_workflows": [
+        "oblt-aw-resource-not-accessible-by-integration-detector.yml",
+        "oblt-aw-resource-not-accessible-by-integration-fixer.yml",
+        "oblt-aw-resource-not-accessible-by-integration-triage.yml"
       ]
     },
     {
@@ -144,11 +95,7 @@
       "description": "Analyzes Buildkite CI failures for a PR when a Buildkite status check fails; posts a diagnostic comment on the pull request.",
       "maturity": "early-adoption",
       "default_enabled": false,
-      "ingress_routes": [
-        {
-          "id": "estc-pr-buildkite-detective"
-        }
-      ]
+      "control_plane_workflows": ["oblt-aw-estc-pr-buildkite-detective.yml"]
     }
   ]
 }

@@ -1,4 +1,5 @@
 {
+  "section_title": "Documentation",
   "workflows": [
     {
       "id": "docs-issue-ai-menu",
@@ -6,10 +7,8 @@
       "description": "Adds a documentation issue AI menu.",
       "maturity": "experimental",
       "default_enabled": false,
-      "ingress_routes": [
-        {
-          "id": "ai-menu"
-        }
+      "control_plane_workflows": [
+        "docs-aw-ai-menu.yml"
       ]
     },
     {
@@ -18,13 +17,9 @@
       "description": "Adds a documentation PR AI menu.",
       "maturity": "experimental",
       "default_enabled": false,
-      "ingress_routes": [
-        {
-          "id": "pr-ai-menu-collect"
-        },
-        {
-          "id": "pr-ai-menu"
-        }
+      "control_plane_workflows": [
+        "docs-aw-pr-ai-menu-collect.yml",
+        "docs-aw-pr-ai-menu.yml"
       ]
     }
   ]

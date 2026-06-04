@@ -24,9 +24,6 @@ Environment:
   REPO_ROOT            Repository root (default: cwd)
   PLATFORM_ADDITIONAL_INSTRUCTIONS  Multiline platform baseline text
   PLATFORM_INPUTS_JSON JSON object of platform workflow_call inputs
-  INGRESS_EVENT_NAME  Relayed github.event_name from ingress (optional)
-  INGRESS_EVENT_ACTION  Relayed github.event.action from ingress (optional)
-  INGRESS_EVENT_PAYLOAD_JSON  Relayed github.event JSON from ingress (optional)
   CONTROL_PLANE_CONFIG_DIR  Optional path to config/ for registry validation
 """
 
@@ -40,7 +37,6 @@ from typing import Any, cast
 
 from apm_agentic_assets import resolve_agentic_assets
 from common import append_multiline_github_output, write_outputs
-from ingress_github_context import apply_relayed_ingress_context
 
 
 def main() -> int:
@@ -92,21 +88,8 @@ def main() -> int:
         return 1
 
     additional = resolved["additional_instructions"]
-    setup_commands = list(resolved["setup_commands"])
-
-    ingress_payload = os.environ.get("INGRESS_EVENT_PAYLOAD_JSON", "").strip()
-    if ingress_payload:
-        additional, setup_commands = apply_relayed_ingress_context(
-            ingress_payload,
-            additional,
-            setup_commands,
-            ingress_event_name=os.environ.get("INGRESS_EVENT_NAME", "").strip() or None,
-            ingress_event_action=os.environ.get("INGRESS_EVENT_ACTION", "").strip()
-            or None,
-        )
-
     inputs_json = json.dumps(resolved["inputs"], ensure_ascii=False)
-    setup_json = json.dumps(setup_commands, ensure_ascii=False)
+    setup_json = json.dumps(resolved["setup_commands"], ensure_ascii=False)
 
     write_outputs(
         {

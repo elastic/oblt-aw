@@ -20,7 +20,8 @@ Build a matrix of repositories from org ``active-repositories.json`` files for w
 Unions ``config/<org-key>/active-repositories.json`` for each discovered org tree, then writes
 to GITHUB_OUTPUT:
 
-- repos: JSON array of {"repository": "owner/repo"} for matrix strategy
+- repos: JSON array of {"repository": "owner/repo", "token-policy": "..."} for matrix strategy
+  (``token-policy`` is empty when not configured in active-repositories.json)
 - has_repos: "true" or "false"
 - repos_count: number of repositories
 
@@ -33,7 +34,11 @@ import json
 import sys
 from pathlib import Path
 
-from common import merge_active_repositories_from_org_trees, write_outputs
+from common import (
+    merge_active_repositories_from_org_trees,
+    merge_repository_token_policies_from_org_trees,
+    write_outputs,
+)
 
 
 def main() -> int:
@@ -41,7 +46,14 @@ def main() -> int:
     root = Path(__file__).resolve().parent.parent
     config_dir = root / "config"
     repos = merge_active_repositories_from_org_trees(config_dir)
-    matrix = [{"repository": repo} for repo in repos]
+    token_policies = merge_repository_token_policies_from_org_trees(config_dir)
+    matrix = [
+        {
+            "repository": repo,
+            "token-policy": token_policies.get(repo, ""),
+        }
+        for repo in repos
+    ]
 
     write_outputs(
         {

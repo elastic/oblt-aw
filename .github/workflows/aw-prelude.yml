@@ -1,24 +1,27 @@
 name: Agentic Workflow Prelude
 
-# Shared dashboard read and optional allow-list loading for ingress workflows.
-# APM asset resolution lives in aw-resolve-apm-assets.yml (per gh-aw-* invocation).
+# Shared dashboard read, optional allow-list loading, and per-route proceed flags
+# for event-scoped orchestrators (one prelude chain per GitHub event family).
+# APM asset resolution lives in aw-resolve-apm-assets.yml (per gh-aw-* invocation in route reusables).
 on:
   workflow_call:
     inputs:
+      control-plane-workflows:
+        description: >-
+          JSON array of control-plane workflow basenames (for example
+          ["oblt-aw-automerge.yml","oblt-aw-dependency-review.yml"]).
+        required: true
+        type: string
       load-allowed-authors:
         description: Load PR and issue allow lists from elastic/oblt-aw config
         required: false
         type: boolean
         default: false
-      ingress-event-name:
-        description: Relayed event name from ingress (empty uses github.event_name)
-        required: false
-        type: string
-        default: ''
     outputs:
-      proceed:
-        description: Always true; route jobs gate on enabled-workflows in ingress
-        value: ${{ jobs.evaluate.outputs.proceed }}
+      proceed-by-workflow:
+        description: >-
+          JSON map of control-plane workflow basename to proceed (true/false).
+        value: ${{ jobs.evaluate.outputs.proceed-by-workflow }}
       effective-raw:
         description: Raw dashboard read before normalization ('' means all enabled)
         value: ${{ jobs.dashboard.outputs.effective-raw }}
@@ -37,6 +40,11 @@ on:
       allowed-issue-authors-csv:
         description: Comma-separated allowed issue bot logins (empty when not loaded)
         value: ${{ jobs.evaluate.outputs.allowed-issue-authors-csv }}
+      token-policy:
+        description: >-
+          Token policy from config/<org>/active-repositories.json for this repository
+          when set; empty when not configured (create-token uses Vault auto policy).
+        value: ${{ jobs.evaluate.outputs.token-policy }}
 
 permissions:
   contents: read
@@ -53,10 +61,7 @@ jobs:
       contents: read
     if: >-
       inputs.load-allowed-authors &&
-      (
-        (inputs.ingress-event-name != '' && inputs.ingress-event-name || github.event_name) == 'pull_request' ||
-        (inputs.ingress-event-name != '' && inputs.ingress-event-name || github.event_name) == 'issues'
-      )
+      (github.event_name == 'pull_request' || github.event_name == 'issues')
     uses: ./.github/workflows/load-allowed-authors.yml
 
   evaluate:
@@ -70,15 +75,50 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
-      proceed: ${{ steps.gate.outputs.proceed }}
+      proceed-by-workflow: ${{ steps.gates.outputs.proceed-by-workflow }}
       allowed-pr-authors-json: ${{ steps.pack.outputs.allowed-pr-authors-json }}
       allowed-pr-authors-csv: ${{ steps.pack.outputs.allowed-pr-authors-csv }}
       allowed-issue-authors-json: ${{ steps.pack.outputs.allowed-issue-authors-json }}
       allowed-issue-authors-csv: ${{ steps.pack.outputs.allowed-issue-authors-csv }}
+      token-policy: ${{ steps.token-policy.outputs.token-policy }}
     steps:
-      - name: Set proceed output
-        id: gate
-        run: echo "proceed=true" >> "${GITHUB_OUTPUT}"
+      - name: Checkout oblt-aw (registry scripts + config)
+        uses: actions/checkout@v6
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/evaluate_workflow_gates.py
+            scripts/workflow_registry.py
+            scripts/common.py
+            scripts/resolve_repository_token_policy.py
+            config/
+          sparse-checkout-cone-mode: false
+
+      - name: Resolve repository token policy
+        id: token-policy
+        env:
+          CONFIG_DIR: _oblt-aw/config
+          TARGET_REPOSITORY: ${{ github.repository }}
+        run: python _oblt-aw/scripts/resolve_repository_token_policy.py
+
+      - name: Evaluate dashboard gates for event routes
+        id: gates
+        env:
+          CONFIG_DIR: _oblt-aw/config
+          CONTROL_PLANE_WORKFLOWS: ${{ inputs.control-plane-workflows }}
+          EFFECTIVE_RAW: ${{ needs.dashboard.outputs.effective-raw }}
+          ENABLED_WORKFLOWS: ${{ needs.dashboard.outputs.enabled-workflows }}
+        run: |
+          set -euo pipefail
+          python _oblt-aw/scripts/evaluate_workflow_gates.py \
+            --config-dir "${CONFIG_DIR}" \
+            --control-plane-workflows "${CONTROL_PLANE_WORKFLOWS}" \
+            --effective-raw "${EFFECTIVE_RAW}" \
+            --enabled-workflows "${ENABLED_WORKFLOWS}"
 
       - name: Pack allow-list outputs
         id: pack

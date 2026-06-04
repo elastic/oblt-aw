@@ -15,10 +15,10 @@
 # under the License.
 
 """
-Validate aw-prelude placement for control-plane workflows.
+Validate local *-aw-* route workflows and registry coherence.
 
-- *-aw-* wrappers (except ingress) must not call aw-prelude; ingress owns prelude.
-- oblt-aw-ingress.yml and docs-aw-ingress.yml must call aw-prelude.yml and define route-* jobs.
+Route reusables (oblt-aw-*, docs-aw-*) receive shared event context from
+*-aw-event-* orchestrators and declare workflow_call input shared-proceed.
 """
 
 from __future__ import annotations
@@ -32,16 +32,17 @@ from workflow_registry import validate_registry_against_workflows
 WORKFLOWS_DIR = pathlib.Path(".github/workflows")
 CONFIG_DIR = pathlib.Path("config")
 AW_WORKFLOW_PATTERN = re.compile(r".+-aw-.+\.ya?ml$")
+EVENT_ORCHESTRATOR_PATTERN = re.compile(r".+-aw-event-.+\.ya?ml$")
+ROUTE_PATTERN = re.compile(r"^(?:oblt|docs)-aw-.+\.ya?ml$")
 PRELUDE_USES = re.compile(
     r"uses:\s*\./\.github/workflows/aw-prelude\.ya?ml\b",
     re.MULTILINE,
 )
 PRELUDE_JOB = re.compile(r"^\s+prelude:\s*$", re.MULTILINE)
-INGRESS_FILES = ("oblt-aw-ingress.yml", "docs-aw-ingress.yml")
-ROUTE_JOB_PATTERN = re.compile(r"^\s+route-[\w-]+:\s*$", re.MULTILINE)
+SHARED_PROCEED_INPUT = re.compile(r"^\s+shared-proceed:\s*$", re.MULTILINE)
 
 
-def list_workflow_files() -> list[pathlib.Path]:
+def list_subject_workflows() -> list[pathlib.Path]:
     if not WORKFLOWS_DIR.is_dir():
         raise SystemExit(f"Missing directory: {WORKFLOWS_DIR}")
     paths = sorted(WORKFLOWS_DIR.glob("*.yml")) + sorted(WORKFLOWS_DIR.glob("*.yaml"))
@@ -50,86 +51,66 @@ def list_workflow_files() -> list[pathlib.Path]:
         for p in paths
         if AW_WORKFLOW_PATTERN.match(p.name)
         and p.name != "aw-prelude.yml"
-        and p.name not in INGRESS_FILES
+        and not EVENT_ORCHESTRATOR_PATTERN.match(p.name)
         and not p.name.startswith(("trg-", "trigger-"))
     ]
 
 
-def list_aw_wrappers(paths: list[pathlib.Path]) -> list[pathlib.Path]:
-    return [p for p in paths if p.name not in INGRESS_FILES]
-
-
-def list_subject_workflows() -> list[pathlib.Path]:
-    """Workflows subject to resolve-apm-assets validation (wrappers, not ingress)."""
-    return [
-        p
-        for p in list_aw_wrappers(list_workflow_files())
-        if p.name != "aw-resolve-apm-assets.yml"
-    ]
-
-
-def validate_aw_wrapper_no_prelude(path: pathlib.Path) -> list[str]:
+def validate_route(path: pathlib.Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     errors: list[str] = []
     if PRELUDE_JOB.search(text):
-        errors.append(
-            f"{path}: must not define a prelude job (aw-prelude runs in ingress only)"
-        )
+        errors.append(f"{path}: route workflows must not define a prelude job")
     if PRELUDE_USES.search(text):
-        errors.append(
-            f"{path}: must not call aw-prelude.yml (prelude and route gating run in ingress)"
-        )
+        errors.append(f"{path}: route workflows must not call aw-prelude.yml")
+    if not SHARED_PROCEED_INPUT.search(text):
+        errors.append(f"{path}: must declare workflow_call input shared-proceed")
     return errors
 
 
-def validate_ingress(path: pathlib.Path) -> list[str]:
-    text = path.read_text(encoding="utf-8")
-    errors: list[str] = []
-    if not PRELUDE_JOB.search(text):
-        errors.append(f"{path}: missing job id 'prelude'")
-    if not PRELUDE_USES.search(text):
-        errors.append(f"{path}: must call './.github/workflows/aw-prelude.yml'")
-    if not ROUTE_JOB_PATTERN.search(text):
-        errors.append(f"{path}: missing route-* dispatch job(s)")
-    return errors
+def validate_workflow(path: pathlib.Path) -> list[str]:
+    if ROUTE_PATTERN.match(path.name):
+        return validate_route(path)
+    return []
+
+
+def validate_registry_for_subjects(subject_workflow_names: set[str]) -> list[str]:
+    errors = validate_registry_against_workflows(
+        CONFIG_DIR,
+        WORKFLOWS_DIR,
+        subject_workflow_names,
+    )
+    routes = {name for name in subject_workflow_names if ROUTE_PATTERN.match(name)}
+    filtered: list[str] = []
+    for err in errors:
+        path_name = err.split(":", 1)[0].split("/")[-1]
+        if path_name in routes and "prelude must pass control-plane-workflow" in err:
+            continue
+        filtered.append(err)
+    return filtered
 
 
 def main() -> int:
-    paths = list_workflow_files()
-    if not paths:
+    errors: list[str] = []
+    subjects = list_subject_workflows()
+    if not subjects:
         print("No *-aw-* workflows found to validate.", file=sys.stderr)
         return 1
 
-    wrappers = list_aw_wrappers(paths)
-    errors: list[str] = []
-    for path in wrappers:
-        errors.extend(validate_aw_wrapper_no_prelude(path))
+    for path in subjects:
+        errors.extend(validate_workflow(path))
 
-    for ingress_name in INGRESS_FILES:
-        ingress = WORKFLOWS_DIR / ingress_name
-        if ingress.is_file():
-            errors.extend(validate_ingress(ingress))
-        else:
-            errors.append(f"{ingress}: missing ingress workflow")
-
-    registry_subjects = {path.name for path in wrappers}
-    errors.extend(
-        validate_registry_against_workflows(
-            CONFIG_DIR,
-            WORKFLOWS_DIR,
-            registry_subjects,
-        )
-    )
+    errors.extend(validate_registry_for_subjects({path.name for path in subjects}))
 
     if errors:
-        print("aw-prelude enforcement failed:", file=sys.stderr)
+        print("aw workflow route validation failed:", file=sys.stderr)
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         return 1
 
     print(
-        f"Validated {len(wrappers)} *-aw wrapper(s) and "
-        f"{len(INGRESS_FILES)} ingress workflow(s)."
+        f"Validated {len(subjects)} *-aw-* workflow(s): "
+        "routes declare shared-proceed; event orchestrators call aw-prelude.yml."
     )
     return 0
 

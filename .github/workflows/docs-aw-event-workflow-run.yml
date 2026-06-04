@@ -1,0 +1,46 @@
+name: Docs Agentic Workflow — Workflow Run Event
+
+# Event-scoped orchestrator: privileged PR AI menu post after collect workflow_run.
+on:
+  workflow_call:
+    secrets:
+      COPILOT_GITHUB_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflows: '["docs-aw-pr-ai-menu.yml"]'
+      load-allowed-authors: false
+
+  pr-ai-menu:
+    needs: prelude
+    if: >-
+      fromJSON(needs.prelude.outputs.proceed-by-workflow)['docs-aw-pr-ai-menu.yml'] == 'true' &&
+      (
+        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+        github.event_name == 'workflow_dispatch'
+      )
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/docs-aw-pr-ai-menu.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['docs-aw-pr-ai-menu.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.prelude.outputs.token-policy }}
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

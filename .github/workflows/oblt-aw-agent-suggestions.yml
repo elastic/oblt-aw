@@ -2,30 +2,25 @@ name: Agent Suggestions
 on:
   workflow_call:
     inputs:
-      ingress-event-name:
-        description: Relayed event name from oblt-aw-ingress
-        required: false
-        type: string
-        default: ''
-      ingress-event-action:
-        description: Relayed event action from oblt-aw-ingress
-        required: false
-        type: string
-        default: ''
-      ingress-event-payload-json:
-        description: Relayed github.event JSON from oblt-aw-ingress
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
-      ingress-allowed-pr-authors-csv:
-        description: Allowed PR bot logins from oblt-aw-ingress prelude
-        required: false
+      shared-allowed-pr-authors-json:
+        required: true
         type: string
-        default: ''
-      ingress-allowed-issue-authors-csv:
-        description: Allowed issue bot logins from oblt-aw-ingress prelude
-        required: false
+      shared-allowed-pr-authors-csv:
+        required: true
         type: string
-        default: ''
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -34,15 +29,11 @@ permissions:
   contents: read
 
 jobs:
+
   resolve-apm-assets:
-    permissions:
-      contents: read
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-agent-suggestions.yml
-      ingress-event-name: ${{ inputs.ingress-event-name }}
-      ingress-event-action: ${{ inputs.ingress-event-action }}
-      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
         Additional requirements for this repository:
 
@@ -69,5 +60,4 @@ jobs:
     with:
       title-prefix: "[oblt-aw][agent-suggestions]"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), ' && ') }}
     secrets: inherit

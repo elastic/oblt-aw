@@ -2,30 +2,25 @@ name: Dependency Review
 on:
   workflow_call:
     inputs:
-      ingress-event-name:
-        description: Relayed event name from oblt-aw-ingress
-        required: false
-        type: string
-        default: ''
-      ingress-event-action:
-        description: Relayed event action from oblt-aw-ingress
-        required: false
-        type: string
-        default: ''
-      ingress-event-payload-json:
-        description: Relayed github.event JSON from oblt-aw-ingress
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
-      ingress-allowed-pr-authors-csv:
-        description: Allowed PR bot logins from oblt-aw-ingress prelude
-        required: false
+      shared-allowed-pr-authors-json:
+        required: true
         type: string
-        default: ''
-      ingress-allowed-issue-authors-csv:
-        description: Allowed issue bot logins from oblt-aw-ingress prelude
-        required: false
+      shared-allowed-pr-authors-csv:
+        required: true
         type: string
-        default: ''
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -36,14 +31,9 @@ permissions:
 jobs:
 
   resolve-apm-assets:
-    permissions:
-      contents: read
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-dependency-review.yml
-      ingress-event-name: ${{ inputs.ingress-event-name }}
-      ingress-event-action: ${{ inputs.ingress-event-action }}
-      ingress-event-payload-json: ${{ inputs.ingress-event-payload-json }}
       platform-additional-instructions: |
         Noop when not applicable (mandatory):
         - If the PR has NO dependency updates to review (e.g. no version bumps in manifest files, no changes to lockfiles that indicate dependency updates, or changes that do not match any supported ecosystem), you MUST call `noop` — do NOT create any comment.
@@ -82,10 +72,9 @@ jobs:
       pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
     with:
-      allowed-bot-users: ${{ inputs.ingress-allowed-pr-authors-csv }}
+      allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
       classification-labels: "oblt-aw/ai/merge-ready"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), ' && ') }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -102,24 +91,26 @@ jobs:
       id-token: write
       pull-requests: write
     steps:
-      - name: Create ephemeral GitHub token
-        id: create-token
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ inputs.shared-token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
+      - name: Create ephemeral GitHub token (Vault auto policy)
+        id: create-token-auto
+        if: ${{ inputs.shared-token-policy == '' }}
         uses: elastic/oblt-actions/github/create-token@v1
 
       - name: Re-apply merge-ready label to emit installation-token labeled event
         uses: actions/github-script@v9
-        env:
-          PR_NUMBER: ${{ fromJSON(inputs.ingress-event-payload-json).pull_request.number }}
         with:
-          github-token: ${{ steps.create-token.outputs.token }}
+          github-token: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const prNumber = Number(process.env.PR_NUMBER);
-            if (!Number.isFinite(prNumber) || prNumber <= 0) {
-              core.info('No pull_request.number in relayed event; skipping re-apply.');
-              return;
-            }
+            const prNumber = context.payload.pull_request.number;
             const { data: issue } = await github.rest.issues.get({
               owner,
               repo,

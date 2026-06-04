@@ -15,17 +15,15 @@
 
 'use strict';
 
-const { relayedPayload } = require('../lib/relayed-event.js');
 const { upsertMenuComment } = require('./lib.js');
 
 module.exports = async ({ github, context, core }) => {
-  const payload = relayedPayload(context);
-  const workflowDispatchPrNumber = payload.inputs?.pull_request_number;
+  const workflowDispatchPrNumber = context.payload.inputs?.pull_request_number;
   const envPrNumber = process.env.PULL_REQUEST_NUMBER;
   const pullRequestNumber = Number(
     context.eventName === 'workflow_dispatch'
       ? workflowDispatchPrNumber
-      : envPrNumber || payload.pull_request?.number || payload.issue?.number,
+      : envPrNumber || context.payload.pull_request?.number,
   );
 
   if (!pullRequestNumber || Number.isNaN(pullRequestNumber)) {
