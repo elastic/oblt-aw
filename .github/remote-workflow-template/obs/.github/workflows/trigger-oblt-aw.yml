@@ -27,6 +27,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Prepare github.event for workflow_dispatch relay
+        id: prepare-relayed-event
+        uses: elastic/oblt-aw/.github/actions/prepare-relayed-github-event@main # ratchet:exclude
+
       - name: Dispatch oblt-aw entrypoint
         id: dispatch
         uses: benc-uk/workflow-dispatch@31e2b3319479a63f0ab15bf800eff9e913504e26 # v1.3.2
@@ -38,7 +42,7 @@ jobs:
               "trigger-source": ${{ toJSON(github.workflow) }},
               "event-name": ${{ toJSON(github.event_name) }},
               "event-action": ${{ toJSON(github.event.action || '') }},
-              "event-payload-json": ${{ toJSON(toJSON(github.event)) }},
+              "event-payload-json": ${{ toJSON(steps.prepare-relayed-event.outputs.payload-json) }},
               "caller-ref": ${{ toJSON(github.ref) }},
               "caller-sha": ${{ toJSON(github.sha) }},
               "caller-run-id": ${{ toJSON(github.run_id) }}

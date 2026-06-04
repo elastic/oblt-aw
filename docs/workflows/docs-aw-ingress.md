@@ -16,7 +16,7 @@ Route ids and workflow files are declared in [`config/docs/workflow-registry.jso
 | `trigger-source` | yes | Client trigger workflow basename |
 | `ingress-event-name` | yes | Original `github.event_name` |
 | `ingress-event-action` | no | Original `github.event.action` |
-| `ingress-event-payload-json` | yes | `toJSON(github.event)` from the trigger |
+| `ingress-event-payload-json` | yes | Prepared `github.event` JSON from the trigger ([relayed-event-payload.md](relayed-event-payload.md)) |
 | `caller-ref` | yes | Original `github.ref` |
 | `caller-sha` | yes | Original `github.sha` |
 | `caller-run-id` | yes | Original `github.run_id` |

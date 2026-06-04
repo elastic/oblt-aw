@@ -2,7 +2,11 @@
 
 ## Client entrypoint changes
 
-Use **[`.github/remote-workflow-template/`](.github/remote-workflow-template/)** as the source for distributed client workflows (for example `obs/.github/workflows/trigger-oblt-aw.yml` and `obs/.github/workflows/oblt-aw.yml`, plus `docs/.github/workflows/trigger-docs-aw.yml` and `docs/.github/workflows/docs-aw.yml`). See [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md), [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
+Edit client triggers and entrypoints **only** under [`.github/remote-workflow-template/`](.github/remote-workflow-template/) (for example `obs/.github/workflows/trigger-oblt-aw.yml` and `oblt-aw.yml`). **Do not** hand-edit the distributed copies under [`.github/workflows/`](.github/workflows/) (`trigger-oblt-aw.yml`, `oblt-aw.yml`, docs equivalents)—those are installed by [`distribute-client-workflow.yml`](.github/workflows/distribute-client-workflow.yml). See [.cursor/rules/distribute-client-workflow-protected.mdc](.cursor/rules/distribute-client-workflow-protected.mdc).
+
+Ingress and route reusables (`oblt-aw-ingress.yml`, `oblt-aw-*.yml`, `docs-aw-*.yml`, …) are control-plane workflows in `.github/workflows/` and are not distribution template outputs.
+
+See [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md), [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Consumer Observability repos use **`trigger-oblt-aw.yml`** (events) → **`oblt-aw.yml`** (`workflow_dispatch`) → **`oblt-aw-ingress.yml`** (routing).
 

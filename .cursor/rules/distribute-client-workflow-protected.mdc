@@ -1,0 +1,42 @@
+---
+description: Client entrypoints — edit remote-workflow-template only; do not edit distributed copies under .github/workflows/.
+alwaysApply: true
+---
+
+# distribute-client-workflow — where to edit client workflows
+
+[`distribute-client-workflow.yml`](.github/workflows/distribute-client-workflow.yml) installs files from [`.github/remote-workflow-template/<org-key>/`](.github/remote-workflow-template/) into each target repository at **`.github/workflows/`** (see [docs/operations/distribute-client-workflow.md](docs/operations/distribute-client-workflow.md)).
+
+## Edit here (source of truth)
+
+When client trigger/entrypoint workflows need to change, edit **only** under:
+
+- `.github/remote-workflow-template/obs/.github/workflows/` — e.g. `trigger-oblt-aw.yml`, `oblt-aw.yml`
+- `.github/remote-workflow-template/docs/.github/workflows/` — e.g. `trigger-docs-aw.yml`, `docs-aw.yml`
+
+Do **not** add per-workflow `trigger-oblt-aw-*.yml` files; extend the unified triggers in that tree.
+
+## Do not edit (distributed copies)
+
+**Do not** create, edit, delete, or rename the **installed copies** under **`.github/workflows/`** that come from the template, including in this repository when they are distribution targets (e.g. [`trigger-oblt-aw.yml`](.github/workflows/trigger-oblt-aw.yml), [`oblt-aw.yml`](.github/workflows/oblt-aw.yml)).
+
+Those paths are updated **only** when `distribute-client-workflow` syncs from `remote-workflow-template` (install PRs on consumer repos). Hand-editing them causes drift from the template and the next distribution may overwrite or conflict.
+
+| Template (edit) | Distributed destination (preserve) |
+|-----------------|-------------------------------------|
+| `remote-workflow-template/obs/.github/workflows/trigger-oblt-aw.yml` | `.github/workflows/trigger-oblt-aw.yml` |
+| `remote-workflow-template/obs/.github/workflows/oblt-aw.yml` | `.github/workflows/oblt-aw.yml` |
+| `remote-workflow-template/docs/.github/workflows/trigger-docs-aw.yml` | `.github/workflows/trigger-docs-aw.yml` |
+| `remote-workflow-template/docs/.github/workflows/docs-aw.yml` | `.github/workflows/docs-aw.yml` |
+
+## Control-plane workflows (safe to edit)
+
+Reusable ingress, routes, CI, and platform workflows under `.github/workflows/` that are **not** distribution template outputs remain in this repo, for example:
+
+- `oblt-aw-ingress.yml`, `docs-aw-ingress.yml`, `oblt-aw-*.yml`, `docs-aw-*.yml`, `aw-prelude.yml`, `aw-resolve-apm-assets.yml`, `distribute-client-workflow.yml`, `ci.yml`, etc.
+
+Consumer repos call these via `workflow_call` from `elastic/oblt-aw`; they are not installed from `remote-workflow-template`.
+
+## After template changes
+
+Tell the user that consumers (and this repo if listed in `config/*/active-repositories.json`) need a **distribution run** or sync PR for `.github/workflows/` copies to match the template.

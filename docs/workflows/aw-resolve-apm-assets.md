@@ -22,7 +22,7 @@ Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.y
 | `install-apm-packages` | boolean | `true` | Run `apm install` when `apm.yml` is present |
 | `ingress-event-name` | string | `""` | Relayed `github.event_name` from ingress (prepended gh-aw context block) |
 | `ingress-event-action` | string | `""` | Relayed `github.event.action` from ingress |
-| `ingress-event-payload-json` | string | `""` | Relayed `github.event` JSON from ingress; drives authoritative PR/issue numbers in agent prompts and optional PR checkout setup commands |
+| `ingress-event-payload-json` | string | `""` | Prepared relayed `github.event` JSON from ingress ([relayed-event-payload.md](relayed-event-payload.md)); drives authoritative PR/issue numbers in agent prompts and optional PR checkout setup commands |
 
 ### Outputs
 
@@ -37,7 +37,7 @@ Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.y
 
 ### Relayed GitHub context
 
-Consumer entrypoints relay the original webhook payload through ingress (`ingress-event-payload-json`). Upstream `gh-aw-*` lock files still read native `github.event`, which is empty under the `workflow_dispatch` entrypoint model. This workflow injects an authoritative **Relayed ingress context** block at the top of `resolved-additional-instructions` and, for pull requests, prepends authenticated PR checkout setup commands (`gh auth setup-git`, then `git fetch pull/N/head` and `git checkout -B <head-ref> FETCH_HEAD`) to `resolved-setup-commands-json`. Fetching into the checked-out branch ref fails in CI when the runner already has the PR branch checked out; `checkout -B` resets safely from `FETCH_HEAD`. Callers should pass `setup-commands: ${{ join(fromJSON(needs.<resolve-job>.outputs.resolved-setup-commands-json), ' && ') }}` to `gh-aw-*` jobs that accept the input.
+Consumer entrypoints relay a prepared webhook payload through ingress (`ingress-event-payload-json`), built by `prepare-relayed-github-event` (passthrough, slim, or truncate) so `workflow_dispatch` inputs stay within GitHub size limits. Upstream `gh-aw-*` lock files still read native `github.event`, which is empty under the `workflow_dispatch` entrypoint model. This workflow injects an authoritative **Relayed ingress context** block at the top of `resolved-additional-instructions` and, for pull requests, prepends authenticated PR checkout setup commands (`gh auth setup-git`, then `git fetch pull/N/head` and `git checkout -B <head-ref> FETCH_HEAD`) to `resolved-setup-commands-json`. Fetching into the checked-out branch ref fails in CI when the runner already has the PR branch checked out; `checkout -B` resets safely from `FETCH_HEAD`. Callers should pass `setup-commands: ${{ join(fromJSON(needs.<resolve-job>.outputs.resolved-setup-commands-json), ' && ') }}` to `gh-aw-*` jobs that accept the input.
 
 ```yaml
   resolve-apm-assets:
@@ -72,3 +72,4 @@ Examples with upstream gates: [oblt-aw-automerge.yml](../../.github/workflows/ob
 - [Agentic Workflow Prelude](aw-prelude.md)
 - [scripts/resolve_apm_agentic_assets.py](../../scripts/resolve_apm_agentic_assets.py)
 - [scripts/ingress_github_context.py](../../scripts/ingress_github_context.py)
+- [relayed-event-payload.md](relayed-event-payload.md)

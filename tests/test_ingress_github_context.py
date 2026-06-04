@@ -50,6 +50,24 @@ def test_extract_issue_context_from_pr_issue_object() -> None:
     assert ctx.issue_number == 99
 
 
+def test_apply_relayed_context_instructs_mcp_for_missing_webhook_fields() -> None:
+    payload = {
+        "pull_request": {
+            "number": 3,
+            "head": {"ref": "fix", "sha": "abc"},
+        },
+    }
+    additional, _setup = igc.apply_relayed_ingress_context(
+        json.dumps(payload),
+        "",
+        [],
+        ingress_event_name="pull_request",
+    )
+    assert "GitHub data not guaranteed in the relay payload" in additional
+    assert "pull_request_read" in additional
+    assert "issue_read" in additional
+
+
 def test_apply_relayed_context_prepends_instructions_and_checkout() -> None:
     payload = {
         "action": "opened",
@@ -101,3 +119,85 @@ def test_apply_relayed_context_noop_without_target() -> None:
     additional, setup = igc.apply_relayed_ingress_context("{}", "Platform rules", [])
     assert additional == "Platform rules"
     assert setup == []
+
+
+def test_prepare_relayed_event_passthrough_when_small() -> None:
+    event = {"action": "opened", "pull_request": {"number": 1, "extra": "kept"}}
+    payload, mode = igc.prepare_relayed_github_event(event, max_chars=10_000)
+    assert mode == igc.RELAY_PREPARE_MODE_PASSTHROUGH
+    assert payload["pull_request"]["extra"] == "kept"
+
+
+def test_prepare_relayed_event_slims_large_pull_request() -> None:
+    event = {
+        "action": "synchronize",
+        "pull_request": {
+            "number": 1234,
+            "title": "Large change",
+            "head": {"ref": "feature/x", "sha": "abc"},
+            "user": {"login": "dependabot[bot]", "id": 999},
+            "labels": [{"id": 1, "name": "oblt-aw/triage/foo"}],
+            "body": "x" * 50_000,
+            "commits": [{"sha": "a" * 40}] * 200,
+            "files": [{"filename": f"path/{i}.go"} for i in range(500)],
+        },
+    }
+    payload, mode = igc.prepare_relayed_github_event(event)
+    payload_json, json_mode = igc.prepare_relayed_github_event_json(event)
+
+    assert mode == igc.RELAY_PREPARE_MODE_SLIM
+    assert json_mode == igc.RELAY_PREPARE_MODE_SLIM
+    assert payload["pull_request"]["number"] == 1234
+    assert payload["pull_request"]["head"] == {"ref": "feature/x", "sha": "abc"}
+    assert payload["pull_request"]["labels"] == [{"name": "oblt-aw/triage/foo"}]
+    assert "body" not in payload["pull_request"]
+    assert "commits" not in payload["pull_request"]
+    assert len(payload_json) < igc.RELAY_EVENT_JSON_MAX_CHARS
+    assert len(json.dumps(event)) > igc.RELAY_EVENT_JSON_MAX_CHARS
+
+
+def test_prepare_relayed_event_truncates_huge_comment_body() -> None:
+    event = {
+        "action": "created",
+        "issue": {"number": 1, "labels": [{"name": "x"}]},
+        "comment": {
+            "id": 9,
+            "body": "/ai implement\n" + ("z" * 70_000),
+            "author_association": "MEMBER",
+            "user": {"login": "alice"},
+        },
+    }
+    slim = igc.slim_relayed_github_event(event)
+    assert igc._relay_json_size(slim) > igc.RELAY_EVENT_JSON_MAX_CHARS
+
+    payload, mode = igc.prepare_relayed_github_event(event)
+    assert mode == igc.RELAY_PREPARE_MODE_TRUNCATED
+    assert payload["comment"]["body"].startswith("/ai implement")
+    assert len(payload["comment"]["body"]) < len(event["comment"]["body"])
+    assert igc._relay_json_size(payload) <= igc.RELAY_EVENT_JSON_MAX_CHARS
+
+
+def test_slim_relayed_github_event_preserves_issue_comment_routing_fields() -> None:
+    event = {
+        "action": "created",
+        "issue": {
+            "number": 9,
+            "labels": [{"name": "oblt-aw/ai/fix-ready"}],
+        },
+        "comment": {
+            "id": 42,
+            "body": "/ai implement",
+            "author_association": "MEMBER",
+            "user": {"login": "octocat"},
+        },
+    }
+    slim = igc.slim_relayed_github_event(event)
+    assert slim["issue"]["number"] == 9
+    assert slim["comment"]["body"] == "/ai implement"
+    assert slim["comment"]["author_association"] == "MEMBER"
+
+
+def test_slim_relayed_github_event_marks_pr_issues() -> None:
+    event = {"issue": {"number": 5, "pull_request": {"url": "https://example/pr"}}}
+    slim = igc.slim_relayed_github_event(event)
+    assert slim["issue"]["pull_request"] == {}

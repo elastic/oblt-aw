@@ -1,14 +1,15 @@
 ---
-description: Client workflows — `.github/remote-workflow-template/obs/`
+description: Client workflows — edit remote-workflow-template; preserve distributed .github/workflows/ copies.
 alwaysApply: true
 ---
 
-# Client workflows — `.github/remote-workflow-template/obs/`
+# Client workflows — template vs distributed copies
 
-**Do not** add per-workflow `trigger-oblt-aw-*.yml` client entrypoints.
+See **[distribute-client-workflow-protected.mdc](distribute-client-workflow-protected.mdc)**.
 
-**Where to change consumer entrypoints:** [`.github/remote-workflow-template/obs/.github/workflows/trigger-oblt-aw.yml`](.github/remote-workflow-template/obs/.github/workflows/trigger-oblt-aw.yml) and [`.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml`](.github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml) only. Distribution installs that tree into target repositories.
+- **Edit:** `.github/remote-workflow-template/<org-key>/.github/workflows/` (e.g. `trigger-oblt-aw.yml`, `oblt-aw.yml`).
+- **Do not edit:** matching files under **`.github/workflows/`** in distribution targets — updated only via [`distribute-client-workflow.yml`](.github/workflows/distribute-client-workflow.yml).
 
-**Control-plane reusables** live under `.github/workflows/oblt-aw-*.yml` (ingress: `oblt-aw-ingress.yml`; shared prelude: `aw-prelude.yml`). **Do not** edit consumer copies under target repos from this repository except via distribution.
+**Control-plane** reusables (`oblt-aw-ingress.yml`, `oblt-aw-*.yml`, `docs-aw-*.yml`, …) live under `.github/workflows/` and are not part of that template install.
 
-**Docs:** [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md), [CONTRIBUTING.md](CONTRIBUTING.md).
+**Docs:** [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md), [docs/operations/distribute-client-workflow.md](docs/operations/distribute-client-workflow.md), [CONTRIBUTING.md](CONTRIBUTING.md).

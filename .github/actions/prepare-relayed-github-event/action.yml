@@ -1,0 +1,30 @@
+name: Prepare relayed GitHub event
+description: >-
+  Passthrough, slim, or truncate github.event JSON for workflow_dispatch relay
+  inputs when the webhook exceeds GitHub size limits. See docs/workflows/relayed-event-payload.md.
+outputs:
+  payload-json:
+    description: JSON for event-payload-json / ingress-event-payload-json
+    value: ${{ steps.prepare.outputs.payload-json }}
+  relay-mode:
+    description: passthrough, slim, or truncated
+    value: ${{ steps.prepare.outputs.relay-mode }}
+runs:
+  using: composite
+  steps:
+    - name: Prepare github.event for dispatch relay
+      id: prepare
+      shell: bash
+      run: |
+        set -euo pipefail
+        mode_file="$(mktemp)"
+        export RELAY_PREPARE_MODE_OUTPUT="$mode_file"
+        payload="$(python3 "${{ github.action_path }}/../../scripts/prepare_relayed_github_event.py")"
+        relay_mode="$(cat "$mode_file")"
+        rm -f "$mode_file"
+        {
+          echo 'payload-json<<EOF'
+          printf '%s' "$payload"
+          echo 'EOF'
+          echo "relay-mode=$relay_mode"
+        } >> "$GITHUB_OUTPUT"

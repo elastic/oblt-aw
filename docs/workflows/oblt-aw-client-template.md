@@ -52,7 +52,7 @@ flowchart TB
 | `trigger-source` | `github.workflow` |
 | `event-name` | `github.event_name` |
 | `event-action` | `github.event.action` |
-| `event-payload-json` | `toJSON(github.event)` |
+| `event-payload-json` | Prepared `github.event` JSON via `elastic/oblt-aw/.github/actions/prepare-relayed-github-event` (passthrough when small; otherwise slim/truncate — see [relayed-event-payload.md](relayed-event-payload.md)) |
 | `caller-ref` | `github.ref` |
 | `caller-sha` | `github.sha` |
 | `caller-run-id` | `github.run_id` |
