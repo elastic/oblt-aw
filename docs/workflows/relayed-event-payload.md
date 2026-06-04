@@ -12,7 +12,7 @@ Preparation is implemented in [scripts/ingress_github_context.py](../../scripts/
 | `slim` | Full event exceeds budget; slimmed fits | Only the attributes listed below (bloat removed) |
 | `truncated` | Slimmed still exceeds budget | Slim shape; long **non-routing** strings shortened (see truncation) |
 
-Budget defaults to 62,000 characters for the relay JSON string so sibling dispatch inputs (`trigger-source`, `event-name`, `caller-ref`, etc.) stay within the documented 65,535-character combined `workflow_dispatch` inputs payload.
+Budget defaults to **63,487** characters for the relay JSON string (`RELAY_EVENT_JSON_MAX_CHARS` in [scripts/ingress_github_context.py](../../scripts/ingress_github_context.py)): GitHub’s documented **65,535**-character combined `workflow_dispatch` inputs limit minus **2,048** reserved for sibling dispatch inputs (`trigger-source`, `event-name`, `caller-ref`, and related metadata).
 
 ## Attributes used by control-plane workflows
 
