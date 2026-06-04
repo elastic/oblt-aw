@@ -29,7 +29,7 @@ These paths are the **contract** for ingress routing, wrapper `if:` expressions,
 | `context` | Buildkite status routing (`buildkite` in context) |
 | `sha` | Status events (optional) |
 | `description` | Status events (optional; truncatable) |
-| `target_url` | Status events (optional; truncatable) |
+| `target_url` | Status events (optional; preserved in slim, not truncated) |
 
 ### `pull_request`
 
