@@ -19,7 +19,7 @@ runs:
         set -euo pipefail
         mode_file="$(mktemp)"
         export RELAY_PREPARE_MODE_OUTPUT="$mode_file"
-        payload="$(python3 "${{ github.action_path }}/../../scripts/prepare_relayed_github_event.py")"
+        payload="$(python3 "${{ github.action_path }}/../../../scripts/prepare_relayed_github_event.py")"
         relay_mode="$(cat "$mode_file")"
         rm -f "$mode_file"
         {
