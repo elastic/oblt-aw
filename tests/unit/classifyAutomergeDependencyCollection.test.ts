@@ -133,6 +133,25 @@ test('classifyChangedFiles allows active terraform collection', () => {
   });
 });
 
+test('classifyChangedFiles allows active open-policy-agent collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'open-policy-agent',
+      active: true,
+      'file-glob': ['**/*.rego', '**/.opa-version', '**/opa.yaml', '**/opa.yml'],
+    },
+  ];
+  const outcome = classifyChangedFiles(
+    ['policies/authz.rego', '.opa-version'],
+    collections
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'open-policy-agent',
+  });
+});
+
 test('buildGateCommentBody includes inactive collection and active list', () => {
   const body = buildGateCommentBody(
     { status: 'inactive', collectionId: 'python-dependencies' },

@@ -69,6 +69,17 @@
       ]
     },
     {
+      "id": "open-policy-agent",
+      "description": "Open Policy Agent policy and version file updates",
+      "active": true,
+      "file-glob": [
+        "**/*.rego",
+        "**/.opa-version",
+        "**/opa.yaml",
+        "**/opa.yml"
+      ]
+    },
+    {
       "id": "vm-images",
       "description": "CI runner or container image pin updates",
       "active": false,
