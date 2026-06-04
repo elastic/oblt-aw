@@ -30,7 +30,7 @@
     },
     {
       "repository": "elastic/observability-catalog",
-      "token-policy": ""
+      "token-policy": "token-policy-d542feeb05ea"
     },
     {
       "repository": "elastic/observability-github-secrets",
