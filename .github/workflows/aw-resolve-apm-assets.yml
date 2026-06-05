@@ -135,10 +135,10 @@ jobs:
           curl -fsSL "${BASE_URL}/${TARBALL}.sha256" -o "/tmp/${TARBALL}.sha256"
           EXPECTED="$(awk '{print $1}' "/tmp/${TARBALL}.sha256")"
           echo "${EXPECTED}  /tmp/${TARBALL}" | sha256sum -c
-          mkdir -p "${HOME}/.local/bin"
-          tar -xzf "/tmp/${TARBALL}" -C /tmp "apm-${OS}-${ARCH}/apm"
-          install -m 0755 "/tmp/apm-${OS}-${ARCH}/apm" "${HOME}/.local/bin/apm"
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+          APM_DIR="${HOME}/.local/apm"
+          mkdir -p "${APM_DIR}"
+          tar -xzf "/tmp/${TARBALL}" -C "${APM_DIR}" --strip-components=1
+          echo "${APM_DIR}" >> "${GITHUB_PATH}"
 
       - name: Install agent packages from apm.yml
         if: >-
