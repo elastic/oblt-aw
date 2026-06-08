@@ -105,9 +105,10 @@ jobs:
 
       - name: Create ephemeral GitHub token
         id: create-token
-        uses: elastic/oblt-actions/github/create-token@v1
+        uses: elastic/ci-gh-actions/fetch-github-token@v1.5.0
         with:
-          token-policy: token-policy-63405ab45244
+          vault-instance: ci-prod
+          vault-role: token-policy-63405ab45244
 
       - name: Checkout target repository
         uses: actions/checkout@v6
