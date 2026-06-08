@@ -36,11 +36,13 @@ Execution stages:
     "repositories": [
       {
         "repository": "elastic/oblt-aw",
-        "token-policy": ""
+        "workflow-token-policy": "",
+        "ai-assets-token-policy": ""
       },
       {
         "repository": "elastic/oblt-cli",
-        "token-policy": "token-policy-abc123def456"
+        "workflow-token-policy": "token-policy-abc123def456",
+        "ai-assets-token-policy": ""
       }
     ]
   }
@@ -49,14 +51,14 @@ Execution stages:
 Validation and normalization rules:
 
 - `repositories` must resolve to a JSON list.
-- Every entry is an object with required `repository` (`owner/repo`) and `token-policy` (string; use `""` when Vault auto policy / control-plane defaults apply).
-- When `token-policy` is non-empty, consumer `create-token` steps (via `aw-prelude`) use that policy for that repository; when empty, consumer workflows keep Vault auto policy per trigger workflow ref. Control-plane `distribute-client-workflow` and `sync-control-plane-dashboard` always use their fixed workflow token policies (`token-policy-63405ab45244` and `token-policy-8b60ba56dd3f`).
+- Every entry is an object with required `repository` (`owner/repo`), `workflow-token-policy` (string; use `""` when Vault auto policy / control-plane defaults apply for agentic workflow `create-token`), and `ai-assets-token-policy` (string; use `""` when `apm install` can use the job `GITHUB_TOKEN`).
+- When `workflow-token-policy` is non-empty, consumer `create-token` steps (via `aw-prelude`) use that policy for that repository; when empty, consumer workflows keep Vault auto policy per trigger workflow ref. When `ai-assets-token-policy` is non-empty, [aw-resolve-apm-assets.yml](../../.github/workflows/aw-resolve-apm-assets.yml) mints an ephemeral token for APM private package clones. Control-plane `distribute-client-workflow` and `sync-control-plane-dashboard` always use their fixed workflow token policies (`token-policy-63405ab45244` and `token-policy-8b60ba56dd3f`).
 - Entries are normalized (trimmed), de-duplicated, and sorted before processing.
 - Invalid entries fail the step with: `Invalid repository entry: ... Expected object with 'repository'`.
 
 Examples:
 
-- Valid: `{"repository": "elastic/oblt-aw", "token-policy": ""}`
+- Valid: `{"repository": "elastic/oblt-aw", "workflow-token-policy": "", "ai-assets-token-policy": ""}`
 - Invalid: `"elastic/oblt-aw"` (bare string), `"elastic"` (missing slash in `repository`), `123` (non-object), `{"repo":"elastic/oblt-aw"}` (wrong key)
 
 ## `build_target_operations.py` Contract

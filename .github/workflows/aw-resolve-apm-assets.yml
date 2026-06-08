@@ -57,6 +57,7 @@ jobs:
   resolve:
     permissions:
       contents: read
+      id-token: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -82,6 +83,7 @@ jobs:
             scripts/apm_agentic_assets.py
             scripts/resolve_apm_agentic_assets.py
             scripts/resolve_control_plane_workflow_id.py
+            scripts/resolve_repository_token_policy.py
             scripts/workflow_registry.py
             scripts/common.py
             config/
@@ -103,6 +105,18 @@ jobs:
           else
             echo "present=false" >> "${GITHUB_OUTPUT}"
           fi
+
+      - name: Resolve AI assets token policy
+        id: ai-assets-token-policy
+        if: >-
+          inputs.install-apm-packages &&
+          steps.detect.outputs.present == 'true'
+        env:
+          CONFIG_DIR: _oblt-aw/config
+          TARGET_REPOSITORY: ${{ github.repository }}
+        run: >-
+          python _oblt-aw/scripts/resolve_repository_token_policy.py
+          --policy-field ai-assets-token-policy
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -140,12 +154,23 @@ jobs:
           tar -xzf "/tmp/${TARBALL}" -C "${APM_DIR}" --strip-components=1
           echo "${APM_DIR}" >> "${GITHUB_PATH}"
 
+      - name: Create ephemeral GitHub token for APM private dependencies
+        id: create-apm-token
+        if: >-
+          inputs.install-apm-packages &&
+          steps.detect.outputs.present == 'true' &&
+          steps.ai-assets-token-policy.outputs.ai-assets-token-policy != ''
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ steps.ai-assets-token-policy.outputs.ai-assets-token-policy }}
+
       - name: Install agent packages from apm.yml
         if: >-
           inputs.install-apm-packages &&
           steps.detect.outputs.present == 'true'
         env:
-          GITHUB_APM_PAT: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_APM_PAT: >-
+            ${{ steps.create-apm-token.outputs.token || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           apm install

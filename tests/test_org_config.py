@@ -82,15 +82,16 @@ class TestMergeActiveRepositories:
                         "repositories": [
                             {
                                 "repository": "elastic/shared",
-                                "token-policy": policy,
+                                "workflow-token-policy": policy,
+                                "ai-assets-token-policy": "",
                             }
                         ]
                     }
                 ),
                 encoding="utf-8",
             )
-        with pytest.raises(SystemExit, match="Conflicting token-policy"):
-            common.merge_repository_token_policies_from_org_trees(tmp_path)
+        with pytest.raises(SystemExit, match="Conflicting workflow-token-policy"):
+            common.merge_repository_workflow_token_policies_from_org_trees(tmp_path)
 
 
 class TestEnabledCompoundIdsFromBody:

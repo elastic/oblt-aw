@@ -42,8 +42,8 @@ on:
         value: ${{ jobs.evaluate.outputs.allowed-issue-authors-csv }}
       token-policy:
         description: >-
-          Token policy from config/<org>/active-repositories.json for this repository
-          when set; empty when not configured (create-token uses Vault auto policy).
+          workflow-token-policy from config/<org>/active-repositories.json for this
+          repository when set; empty when not configured (create-token uses Vault auto policy).
         value: ${{ jobs.evaluate.outputs.token-policy }}
 
 permissions:

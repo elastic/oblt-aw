@@ -71,7 +71,19 @@ class ActiveRepositoryEntry:
     """One repository row from active-repositories.json."""
 
     repository: str
-    token_policy: str
+    workflow_token_policy: str
+    ai_assets_token_policy: str
+
+
+def _optional_policy_string(item: dict[str, object], key: str, repo: str) -> str:
+    value = item.get(key, "")
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise SystemExit(
+            f"Invalid {key} for {repo!r}: expected string, got {type(value).__name__}"
+        )
+    return value.strip()
 
 
 def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
@@ -81,7 +93,11 @@ def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
             raise SystemExit(
                 f"Invalid repository entry: {item!r}. Expected 'owner/repo'"
             )
-        return ActiveRepositoryEntry(repository=repo, token_policy="")
+        return ActiveRepositoryEntry(
+            repository=repo,
+            workflow_token_policy="",
+            ai_assets_token_policy="",
+        )
     if isinstance(item, dict):
         raw_repo = item.get("repository")
         if not isinstance(raw_repo, str) or "/" not in raw_repo.strip():
@@ -90,16 +106,14 @@ def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
                 "Object entries require string 'repository' in 'owner/repo' form"
             )
         repo = raw_repo.strip()
-        policy = item.get("token-policy", "")
-        if policy is None:
-            policy = ""
-        if not isinstance(policy, str):
-            raise SystemExit(
-                f"Invalid token-policy for {repo!r}: expected string, got {type(policy).__name__}"
-            )
         return ActiveRepositoryEntry(
             repository=repo,
-            token_policy=policy.strip(),
+            workflow_token_policy=_optional_policy_string(
+                item, "workflow-token-policy", repo
+            ),
+            ai_assets_token_policy=_optional_policy_string(
+                item, "ai-assets-token-policy", repo
+            ),
         )
     raise SystemExit(
         f"Invalid repository entry: {item!r}. "
@@ -113,7 +127,7 @@ def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]
 
     Supports:
 
-    - Object: ``{"repositories": [{"repository": "owner/repo", "token-policy": ""}, ...]}``
+    - Object: ``{"repositories": [{"repository": "owner/repo", "workflow-token-policy": "", "ai-assets-token-policy": ""}, ...]}``
     - List: same object entry shapes at the top level (legacy migration)
     - String entries in ``repositories`` (legacy migration only; prefer objects in config files)
     """
@@ -133,11 +147,17 @@ def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]
     for entry in entries:
         previous = by_repo.get(entry.repository)
         if previous is not None:
-            if previous.token_policy != entry.token_policy:
+            if previous.workflow_token_policy != entry.workflow_token_policy:
                 raise SystemExit(
                     f"Duplicate repository {entry.repository!r} with conflicting "
-                    f"token-policy values: {previous.token_policy!r} vs "
-                    f"{entry.token_policy!r}"
+                    f"workflow-token-policy values: {previous.workflow_token_policy!r} vs "
+                    f"{entry.workflow_token_policy!r}"
+                )
+            if previous.ai_assets_token_policy != entry.ai_assets_token_policy:
+                raise SystemExit(
+                    f"Duplicate repository {entry.repository!r} with conflicting "
+                    f"ai-assets-token-policy values: {previous.ai_assets_token_policy!r} vs "
+                    f"{entry.ai_assets_token_policy!r}"
                 )
             continue
         by_repo[entry.repository] = entry
@@ -149,9 +169,14 @@ def parse_repositories(content: str) -> list[str]:
     return [entry.repository for entry in parse_active_repository_entries(content)]
 
 
-def merge_repository_token_policies_from_org_trees(config_dir: Path) -> dict[str, str]:
+def _merge_repository_policy_field_from_org_trees(
+    config_dir: Path,
+    *,
+    field_name: str,
+    policy_attr: str,
+) -> dict[str, str]:
     """
-    Map repository to a non-empty token-policy from org ``active-repositories.json`` files.
+    Map repository to a non-empty policy value from org ``active-repositories.json`` files.
 
     When the same repository appears in multiple org trees with different non-empty
     policies, exits with an error.
@@ -160,24 +185,64 @@ def merge_repository_token_policies_from_org_trees(config_dir: Path) -> dict[str
     for org_dir in discover_org_config_dirs(config_dir):
         path = org_dir / "active-repositories.json"
         for entry in parse_active_repository_entries(path.read_text(encoding="utf-8")):
-            if not entry.token_policy:
+            value = getattr(entry, policy_attr)
+            if not value:
                 continue
             previous = policies.get(entry.repository)
-            if previous is not None and previous != entry.token_policy:
+            if previous is not None and previous != value:
                 raise SystemExit(
-                    f"Conflicting token-policy for {entry.repository!r} across org "
-                    f"config: {previous!r} vs {entry.token_policy!r} "
+                    f"Conflicting {field_name} for {entry.repository!r} across org "
+                    f"config: {previous!r} vs {value!r} "
                     f"(org {org_dir.name!r})"
                 )
-            policies[entry.repository] = entry.token_policy
+            policies[entry.repository] = value
     return policies
 
 
-def lookup_repository_token_policy(config_dir: Path, repository: str) -> str:
-    """Return configured token-policy for ``repository``, or ``""`` when unset."""
-    return merge_repository_token_policies_from_org_trees(config_dir).get(
+def merge_repository_workflow_token_policies_from_org_trees(
+    config_dir: Path,
+) -> dict[str, str]:
+    """Map repository to a non-empty workflow-token-policy."""
+    return _merge_repository_policy_field_from_org_trees(
+        config_dir,
+        field_name="workflow-token-policy",
+        policy_attr="workflow_token_policy",
+    )
+
+
+def merge_repository_ai_assets_token_policies_from_org_trees(
+    config_dir: Path,
+) -> dict[str, str]:
+    """Map repository to a non-empty ai-assets-token-policy."""
+    return _merge_repository_policy_field_from_org_trees(
+        config_dir,
+        field_name="ai-assets-token-policy",
+        policy_attr="ai_assets_token_policy",
+    )
+
+
+def merge_repository_token_policies_from_org_trees(config_dir: Path) -> dict[str, str]:
+    """Backward-compatible alias for workflow token policies."""
+    return merge_repository_workflow_token_policies_from_org_trees(config_dir)
+
+
+def lookup_repository_workflow_token_policy(config_dir: Path, repository: str) -> str:
+    """Return configured workflow-token-policy for ``repository``, or ``""`` when unset."""
+    return merge_repository_workflow_token_policies_from_org_trees(config_dir).get(
         repository.strip(), ""
     )
+
+
+def lookup_repository_ai_assets_token_policy(config_dir: Path, repository: str) -> str:
+    """Return configured ai-assets-token-policy for ``repository``, or ``""`` when unset."""
+    return merge_repository_ai_assets_token_policies_from_org_trees(config_dir).get(
+        repository.strip(), ""
+    )
+
+
+def lookup_repository_token_policy(config_dir: Path, repository: str) -> str:
+    """Backward-compatible alias for workflow token policy lookup."""
+    return lookup_repository_workflow_token_policy(config_dir, repository)
 
 
 def discover_org_config_dirs(config_dir: Path) -> list[Path]:

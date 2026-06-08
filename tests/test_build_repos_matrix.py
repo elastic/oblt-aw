@@ -88,27 +88,37 @@ class TestParseRepositories:
                     "elastic/foo",
                     {
                         "repository": "elastic/bar",
-                        "token-policy": "token-policy-abc123",
+                        "workflow-token-policy": "token-policy-abc123",
+                        "ai-assets-token-policy": "token-policy-ai-456",
                     },
                 ]
             }
         )
         entries = parse_active_repository_entries(content)
-        assert [(e.repository, e.token_policy) for e in entries] == [
-            ("elastic/bar", "token-policy-abc123"),
-            ("elastic/foo", ""),
+        assert [
+            (e.repository, e.workflow_token_policy, e.ai_assets_token_policy)
+            for e in entries
+        ] == [
+            ("elastic/bar", "token-policy-abc123", "token-policy-ai-456"),
+            ("elastic/foo", "", ""),
         ]
 
     def test_duplicate_repo_conflicting_policy_raises(self) -> None:
         content = json.dumps(
             {
                 "repositories": [
-                    {"repository": "elastic/foo", "token-policy": "token-policy-a"},
-                    {"repository": "elastic/foo", "token-policy": "token-policy-b"},
+                    {
+                        "repository": "elastic/foo",
+                        "workflow-token-policy": "token-policy-a",
+                    },
+                    {
+                        "repository": "elastic/foo",
+                        "workflow-token-policy": "token-policy-b",
+                    },
                 ]
             }
         )
-        with pytest.raises(SystemExit, match="conflicting token-policy"):
+        with pytest.raises(SystemExit, match="conflicting workflow-token-policy"):
             parse_active_repository_entries(content)
 
 
@@ -210,7 +220,7 @@ class TestMain:
         assert len(matrix) == 2
         repos = {m["repository"] for m in matrix}
         assert repos == {"elastic/foo", "elastic/bar"}
-        assert all(m["token-policy"] == "" for m in matrix)
+        assert all(m["workflow-token-policy"] == "" for m in matrix)
 
     def test_matrix_includes_configured_token_policy(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
@@ -238,7 +248,8 @@ class TestMain:
                     "repositories": [
                         {
                             "repository": "elastic/foo",
-                            "token-policy": "token-policy-custom",
+                            "workflow-token-policy": "token-policy-custom",
+                            "ai-assets-token-policy": "",
                         }
                     ]
                 }
@@ -263,6 +274,6 @@ class TestMain:
         assert matrix == [
             {
                 "repository": "elastic/foo",
-                "token-policy": "token-policy-custom",
+                "workflow-token-policy": "token-policy-custom",
             }
         ]
