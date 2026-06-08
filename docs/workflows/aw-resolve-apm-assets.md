@@ -21,6 +21,8 @@ Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.y
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
 | `install-apm-packages` | boolean | `true` | Run `apm install` when `apm.yml` is present |
 
+Private GitHub dependencies are cloned with `GITHUB_APM_PAT` set from the job `GITHUB_TOKEN` (`contents: read`). Same-repository private packages (for example path deps in `elastic/observability-robots`) work without extra secrets.
+
 ### Outputs
 
 | Output | Description |

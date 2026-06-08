@@ -144,6 +144,8 @@ jobs:
         if: >-
           inputs.install-apm-packages &&
           steps.detect.outputs.present == 'true'
+        env:
+          GITHUB_APM_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           apm install
