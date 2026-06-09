@@ -23,7 +23,7 @@ Per-route dashboard gating uses the required `shared-proceed` input (and related
 | `trigger-docs-aw-issues.yml` | `issues` opened; `workflow_dispatch` (`issue_number` required) | `docs-aw-event-issues.yml` → `docs-aw-ai-menu.yml` |
 | `trigger-docs-aw-issue-comment.yml` | `issue_comment` edited | `docs-aw-event-issue-comment.yml` → `docs-aw-ai-menu.yml`, `docs-aw-pr-ai-menu.yml` |
 | `trigger-docs-aw-pull-request.yml` | `pull_request` (opened, reopened, synchronize, ready_for_review) | `docs-aw-event-pull-request.yml` → `docs-aw-pr-ai-menu-collect.yml` |
-| `trigger-docs-aw-workflow-run.yml` | `workflow_run` on collect workflow (completed); `workflow_dispatch` (`pull_request_number` required) | `docs-aw-event-workflow-run.yml` → `docs-aw-pr-ai-menu.yml` |
+| `trigger-docs-aw-workflow-run.yml` | `workflow_run` on collect workflow (completed, `main` branch only); `workflow_dispatch` (`pull_request_number` required) | `docs-aw-event-workflow-run.yml` → `docs-aw-pr-ai-menu.yml` |
 
 Route-specific conditions (for example PR vs non-PR issue comments, menu checkbox transitions) are enforced inside each `docs-aw-*` reusable workflow after prelude gating.
 
@@ -32,7 +32,7 @@ Route-specific conditions (for example PR vs non-PR issue comments, menu checkbo
 Fork PRs cannot post issue comments with a write-capable `GITHUB_TOKEN` from a `pull_request` workflow. `pull_request_target` is unsafe (runs in the base repo with elevated token on untrusted fork events). The PR menu therefore uses a **split-workflow** pattern:
 
 1. **`trigger-docs-aw-pull-request.yml`** — `pull_request` only; uploads a `pr-number` artifact via [docs-aw-pr-ai-menu-collect.yml](../../.github/workflows/docs-aw-pr-ai-menu-collect.yml).
-2. **`trigger-docs-aw-workflow-run.yml`** — `workflow_run` when the collect workflow completes successfully; calls [docs-aw-pr-ai-menu.yml](../../.github/workflows/docs-aw-pr-ai-menu.yml) to download the artifact and post the menu from trusted base-repo context.
+2. **`trigger-docs-aw-workflow-run.yml`** — `workflow_run` when the collect workflow completes successfully on `main`; calls [docs-aw-pr-ai-menu.yml](../../.github/workflows/docs-aw-pr-ai-menu.yml) to download the artifact and post the menu from trusted base-repo context.
 
 Menu checkbox handling (`issue_comment`) uses `trigger-docs-aw-issue-comment.yml`. Manual refresh uses `workflow_dispatch` on `trigger-docs-aw-issues.yml` (issue menu) or `trigger-docs-aw-workflow-run.yml` (PR menu). Fork checkbox triggers require org membership (enforced in `scripts/docs/pr-menu/evaluate-trigger.js`).
 
