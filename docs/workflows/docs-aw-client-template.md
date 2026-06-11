@@ -23,7 +23,7 @@ Per-route dashboard gating uses the required `shared-proceed` input (and related
 | `trigger-docs-aw-issues.yml` | `issues` opened; `workflow_dispatch` (`issue_number` required) | `docs-aw-event-issues.yml` → `docs-aw-ai-menu.yml` |
 | `trigger-docs-aw-issue-comment.yml` | `issue_comment` edited | `docs-aw-event-issue-comment.yml` → `docs-aw-ai-menu.yml`, `docs-aw-pr-ai-menu.yml` |
 | `trigger-docs-aw-pull-request.yml` | `pull_request` (opened, reopened, synchronize, ready_for_review) | `docs-aw-event-pull-request.yml` → `docs-aw-pr-ai-menu-collect.yml` |
-| `trigger-docs-aw-workflow-run.yml` | `workflow_run` on collect workflow (completed); `workflow_dispatch` (`pull_request_number` required) | `docs-aw-event-workflow-run.yml` → `docs-aw-pr-ai-menu.yml` |
+| `trigger-docs-aw-workflow-run.yml` | `workflow_run` on collect workflow (completed on `main`); `workflow_dispatch` (`pull_request_number` required) | `docs-aw-event-workflow-run.yml` → `docs-aw-pr-ai-menu.yml` |
 
 Route-specific conditions (for example PR vs non-PR issue comments, menu checkbox transitions) are enforced inside each `docs-aw-*` reusable workflow after prelude gating.
 
