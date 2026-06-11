@@ -41,7 +41,7 @@ jobs:
   prelude:
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      control-plane-workflow: oblt-aw-example.yml
+      control-plane-workflows: '["oblt-aw-example.yml"]'
 
   # ... optional intermediate jobs (verify, discover, menu scripts, etc.) ...
 
