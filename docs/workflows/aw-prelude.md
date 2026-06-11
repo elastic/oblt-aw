@@ -28,7 +28,7 @@ APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the pre
 | `enabled-workflows` | Normalized JSON array of compound ids |
 | `allowed-pr-authors-json` / `allowed-pr-authors-csv` | PR allow list (empty when not loaded) |
 | `allowed-issue-authors-json` / `allowed-issue-authors-csv` | Issue allow list (empty when not loaded) |
-| `token-policy` | Repository token policy when configured |
+| `token-policy` | `workflow-token-policy` from `active-repositories.json` when configured |
 
 ### Gating rule
 

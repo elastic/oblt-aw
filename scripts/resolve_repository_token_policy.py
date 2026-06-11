@@ -15,10 +15,10 @@
 # under the License.
 
 """
-Write the configured token-policy for a repository to GITHUB_OUTPUT.
+Write a configured repository token policy from active-repositories.json to GITHUB_OUTPUT.
 
-Reads per-org ``active-repositories.json`` under ``--config-dir``. When no
-policy is configured for the repository, writes an empty ``token-policy`` value.
+Reads per-org ``active-repositories.json`` under ``--config-dir``. When no policy is
+configured for the repository, writes an empty value for the selected output key.
 """
 
 from __future__ import annotations
@@ -28,12 +28,36 @@ import os
 import sys
 from pathlib import Path
 
-from common import lookup_repository_token_policy, write_outputs
+from collections.abc import Callable
+from typing import TypedDict
+
+from common import (
+    lookup_repository_ai_assets_token_policy,
+    lookup_repository_workflow_token_policy,
+    write_outputs,
+)
+
+
+class PolicyFieldSpec(TypedDict):
+    lookup: Callable[[Path, str], str]
+    output_key: str
+
+
+POLICY_FIELD_CHOICES: dict[str, PolicyFieldSpec] = {
+    "workflow-token-policy": {
+        "lookup": lookup_repository_workflow_token_policy,
+        "output_key": "token-policy",
+    },
+    "ai-assets-token-policy": {
+        "lookup": lookup_repository_ai_assets_token_policy,
+        "output_key": "ai-assets-token-policy",
+    },
+}
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Resolve token-policy for a repository from active-repositories.json"
+        description="Resolve a repository token policy from active-repositories.json"
     )
     parser.add_argument(
         "--config-dir",
@@ -46,11 +70,19 @@ def main() -> int:
         default=os.environ.get("TARGET_REPOSITORY", "").strip(),
         help="Repository in owner/repo form (defaults to TARGET_REPOSITORY env)",
     )
+    parser.add_argument(
+        "--policy-field",
+        choices=sorted(POLICY_FIELD_CHOICES),
+        default="workflow-token-policy",
+        help="Policy field to resolve from active-repositories.json",
+    )
     args = parser.parse_args()
     if not args.repository:
         raise SystemExit("--repository or TARGET_REPOSITORY is required")
-    policy = lookup_repository_token_policy(args.config_dir, args.repository)
-    write_outputs({"token-policy": policy})
+
+    spec = POLICY_FIELD_CHOICES[args.policy_field]
+    policy = spec["lookup"](args.config_dir, args.repository)
+    write_outputs({spec["output_key"]: policy})
     return 0
 
 

@@ -21,6 +21,13 @@ Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.y
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
 | `install-apm-packages` | boolean | `true` | Run `apm install` when `apm.yml` is present |
 
+Private GitHub dependencies use one of two auth paths during `apm install`:
+
+- When `ai-assets-token-policy` is set for the consumer repository in `config/<org>/active-repositories.json`, the workflow mints an ephemeral token via `elastic/oblt-actions/github/create-token@v1` and forwards it as `GITHUB_APM_PAT`.
+- When `ai-assets-token-policy` is empty, `GITHUB_APM_PAT` falls back to the job `GITHUB_TOKEN` (`contents: read`), which is sufficient for same-repository private path dependencies.
+
+The `workflow-token-policy` field (exposed to route workflows as `shared-token-policy` via `aw-prelude`) is separate and covers agentic workflow `create-token` steps, not APM package clones.
+
 ### Outputs
 
 | Output | Description |
