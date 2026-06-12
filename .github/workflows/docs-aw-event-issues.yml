@@ -32,6 +32,7 @@ jobs:
       actions: read
       contents: read
       discussions: write
+      id-token: write
       issues: write
       pull-requests: write
     uses: ./.github/workflows/docs-aw-ai-menu.yml

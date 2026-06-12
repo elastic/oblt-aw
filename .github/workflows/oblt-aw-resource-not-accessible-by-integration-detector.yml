@@ -51,6 +51,9 @@ jobs:
   resolve-apm-assets:
     needs: [discover]
     if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-resource-not-accessible-by-integration-detector.yml

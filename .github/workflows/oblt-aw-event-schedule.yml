@@ -27,6 +27,7 @@ jobs:
       fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-agent-suggestions.yml'] == 'true'
     permissions:
       contents: read
+      id-token: write
       issues: write
       pull-requests: read
     uses: ./.github/workflows/oblt-aw-agent-suggestions.yml
@@ -47,6 +48,7 @@ jobs:
     permissions:
       actions: read
       contents: write
+      id-token: write
       issues: write
       pull-requests: write
     uses: ./.github/workflows/oblt-aw-autodoc.yml
@@ -88,6 +90,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      id-token: write
       issues: write
     uses: ./.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml
     with:
