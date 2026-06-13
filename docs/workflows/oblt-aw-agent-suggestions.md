@@ -9,11 +9,15 @@ This reusable wrapper runs the upstream agent-suggestions workflow with reposito
 ## Prerequisites
 
 - Triggered via `workflow_call`.
+- Called by the schedule event orchestrator (`oblt-aw-event-schedule.yml`) after [aw-prelude.yml](aw-prelude.md) computes shared gating and allow-list inputs.
 - Required secret: `COPILOT_GITHUB_TOKEN`.
 
 ## Usage
 
-The job `agent-suggestions` delegates to:
+This wrapper runs two jobs in sequence:
+
+- `resolve-apm-assets`: calls [aw-resolve-apm-assets.yml](aw-resolve-apm-assets.md) to resolve platform/APM prompt assets before invoking the upstream lock workflow. This job requires `id-token: write`.
+- `agent-suggestions`: delegates to the upstream lock workflow and passes `additional-instructions` from `resolve-apm-assets`.
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-agent-suggestions.lock.yml)
 
@@ -28,15 +32,20 @@ Repository-specific instructions enforce:
 
 Permissions:
 
-- `actions: read`
-- `contents: read`
-- `issues: write`
-- `pull-requests: read`
+- Workflow-level: `contents: read`
+- `resolve-apm-assets` job: `contents: read`, `id-token: write`
+- `agent-suggestions` job: `contents: read`, `issues: write`, `pull-requests: read`
 
 ## API / Interface
 
 `workflow_call` contract:
 
+- Input: `shared-proceed` (`required: true`, `type: string`)
+- Input: `shared-allowed-pr-authors-json` (`required: true`, `type: string`)
+- Input: `shared-allowed-pr-authors-csv` (`required: true`, `type: string`)
+- Input: `shared-allowed-issue-authors-json` (`required: true`, `type: string`)
+- Input: `shared-allowed-issue-authors-csv` (`required: true`, `type: string`)
+- Input: `shared-token-policy` (`required: true`, `type: string`)
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
 
 ## References
