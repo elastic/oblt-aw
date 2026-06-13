@@ -4,11 +4,11 @@
 
 Source file: `.github/workflows/oblt-aw-mention-in-issue.yml`
 
-Reusable wrapper that calls the locked mention-in-issue workflow in `elastic/ai-github-actions`. The client template `trigger-oblt-aw-mention-in-issue.yml` calls this workflow on `issue_comment` events when prelude allows `obs:mention-in-issue`.
+Reusable wrapper that calls the locked mention-in-issue workflow in `elastic/ai-github-actions`. The event-scoped client/orchestrator path is `trigger-oblt-aw-issue-comment.yml` → `oblt-aw-event-issue-comment.yml` → this workflow when prelude allows `obs:mention-in-issue`.
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from `trigger-oblt-aw-mention-in-issue.yml` client templates.
+- Triggered via `workflow_call` from `oblt-aw-event-issue-comment.yml` (invoked by the `trigger-oblt-aw-issue-comment.yml` client template).
 - Required secret: `COPILOT_GITHUB_TOKEN`.
 
 ## Usage
@@ -22,7 +22,7 @@ Ingress routes here when:
 - `github.event.comment.author_association` is one of `OWNER`, `MEMBER`, or `COLLABORATOR`, and
 - Dashboard gating allows `mention-in-issue` (or no dashboard issue is present, so all workflows are enabled).
 
-Comment prefix and author-association checks are enforced in `oblt-aw-mention-in-issue.yml` after prelude.
+This wrapper first runs `resolve-apm-assets` with the same route predicate used by `mention-in-issue` and then passes resolved `additional-instructions` to the upstream lock workflow. `resolve-apm-assets` requires `id-token: write`.
 
 The job `mention-in-issue` calls:
 
@@ -32,22 +32,26 @@ Behavior and agent instructions for the locked workflow are defined in `elastic/
 
 ## Troubleshooting
 
-- A `/ai` comment from non-collaborators (for example, `CONTRIBUTOR`, `NONE`, or `FIRST_TIMER`) will not route to `oblt-aw-mention-in-issue` because ingress blocks author associations outside `OWNER`/`MEMBER`/`COLLABORATOR`.
+- A `/ai` comment from non-collaborators (for example, `CONTRIBUTOR`, `NONE`, or `FIRST_TIMER`) will not run this route because `oblt-aw-mention-in-issue.yml` requires author association `OWNER`/`MEMBER`/`COLLABORATOR`.
 
 ## Configuration
 
 Permissions:
 
-- `actions: read`
-- `contents: write`
-- `discussions: write`
-- `issues: write`
-- `pull-requests: write`
+- Workflow-level: `contents: read`
+- `resolve-apm-assets` job: `contents: read`, `id-token: write`
+- `mention-in-issue` job: `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`
 
 ## API / Interface
 
 `workflow_call` contract:
 
+- Input: `shared-proceed` (`required: true`, `type: string`)
+- Input: `shared-allowed-pr-authors-json` (`required: true`, `type: string`)
+- Input: `shared-allowed-pr-authors-csv` (`required: true`, `type: string`)
+- Input: `shared-allowed-issue-authors-json` (`required: true`, `type: string`)
+- Input: `shared-allowed-issue-authors-csv` (`required: true`, `type: string`)
+- Input: `shared-token-policy` (`required: true`, `type: string`)
 - Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
 
 ## References
