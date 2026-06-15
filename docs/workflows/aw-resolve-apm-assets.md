@@ -19,12 +19,12 @@ Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.y
 | `control-plane-workflow` | string | (required) | Basename of the calling wrapper; used to resolve org key and registry workflow id for `x-oblt-aw.<org-key>.workflows.<id>` selection |
 | `platform-additional-instructions` | string | `""` | Control-plane baseline text for this agent invocation (prepended before repo APM instructions) |
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
-| `install-apm-packages` | boolean | `true` | Run `apm install` when `apm.yml` is present |
+| `install-apm-packages` | boolean | `true` | Run [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI and runs `apm install`) |
 
 Private GitHub dependencies use one of two auth paths during `apm install`:
 
-- When `ai-assets-token-policy` is set for the consumer repository in `config/<org>/active-repositories.json`, the workflow mints an ephemeral token via `elastic/oblt-actions/github/create-token@v1` and forwards it as `GITHUB_APM_PAT`.
-- When `ai-assets-token-policy` is empty, `GITHUB_APM_PAT` falls back to the job `GITHUB_TOKEN` (`contents: read`), which is sufficient for same-repository private path dependencies.
+- When `ai-assets-token-policy` is set for the consumer repository in `config/<org>/active-repositories.json`, the workflow mints an ephemeral token via `elastic/oblt-actions/github/create-token@v1` and passes it to `apm-action` as `github-token` (forwarded internally as `GITHUB_APM_PAT`).
+- When `ai-assets-token-policy` is empty, `github-token` falls back to the job `GITHUB_TOKEN` (`contents: read`), which is sufficient for same-repository private path dependencies.
 
 The `workflow-token-policy` field (exposed to route workflows as `shared-token-policy` via `aw-prelude`) is separate and covers agentic workflow `create-token` steps, not APM package clones.
 
