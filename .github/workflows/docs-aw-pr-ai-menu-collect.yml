@@ -1,0 +1,53 @@
+name: Docs PR AI menu collect
+
+# Fork-safe collector for the split-workflow pattern. Consumer repositories install
+# `trigger-docs-aw-pull-request.yml`, which calls the pull_request event orchestrator.
+# The PR number artifact is consumed by `docs-aw-pr-ai-menu.yml` via `workflow_run`.
+
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    name: Save PR number artifact
+    if: inputs.shared-proceed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Write pull request number
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: echo "$PR_NUMBER" > pr_number.txt
+
+      - name: Upload pull request number artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-number
+          path: pr_number.txt
+          retention-days: 1

@@ -7,6 +7,8 @@ on:
     paths:
       - config/**/active-repositories.json
       - .github/remote-workflow-template/**
+      - .github/workflows/distribute-client-workflow.yml
+      - scripts/build_target_operations.py
   workflow_dispatch:
     inputs:
       force:
@@ -29,6 +31,7 @@ jobs:
     outputs:
       targets: ${{ steps.targets.outputs.targets }}
       has_targets: ${{ steps.targets.outputs.has_targets }}
+      relevant_git_changes: ${{ steps.targets.outputs.relevant_git_changes }}
       install_count: ${{ steps.targets.outputs.install_count }}
       remove_count: ${{ steps.targets.outputs.remove_count }}
       total_count: ${{ steps.targets.outputs.total_count }}
@@ -45,12 +48,14 @@ jobs:
         with:
           base-ref: ${{ github.event.before }}
           ref: ${{ github.sha }}
-          filter: '["*config/**/active-repositories.json","*.github/remote-workflow-template/**"]'
+          filter: '["config/**/active-repositories.json",".github/remote-workflow-template/**"]'
 
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-runtime.txt
 
       - name: Build target operations matrix
         id: targets
@@ -66,12 +71,14 @@ jobs:
           REMOVE_COUNT: ${{ steps.targets.outputs.remove_count }}
           TOTAL_COUNT: ${{ steps.targets.outputs.total_count }}
           CHANGED_FILES_COUNT: ${{ steps.changed-files.outputs.count || 0 }}
+          RELEVANT_GIT_CHANGES: ${{ steps.targets.outputs.relevant_git_changes || 'false' }}
           FORCE_DISTRIBUTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force || 'false' }}
         run: |
           {
             echo "## Distribution target summary"
             echo
-            echo "- Relevant changed files: ${CHANGED_FILES_COUNT}"
+            echo "- Relevant changed files (changed-files action): ${CHANGED_FILES_COUNT}"
+            echo "- Relevant git diff (config + templates): ${RELEVANT_GIT_CHANGES}"
             echo "- Force distribution: ${FORCE_DISTRIBUTION}"
             echo "- Install/update targets: ${INSTALL_COUNT}"
             echo "- Removal targets: ${REMOVE_COUNT}"

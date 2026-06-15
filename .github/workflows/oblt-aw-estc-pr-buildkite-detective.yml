@@ -2,6 +2,26 @@
 name: PR Buildkite Detective
 on:
   workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -12,30 +32,31 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
+
+  resolve-apm-assets:
+    if: >-
+      github.event_name == 'status' &&
+      github.event.state == 'failure' &&
+      contains(github.event.context, 'buildkite')
     permissions:
       contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
-      enabled-workflow-id: obs:estc-pr-buildkite-detective
+      control-plane-workflow: oblt-aw-estc-pr-buildkite-detective.yml
+      platform-additional-instructions: |
+        If a step fails, check if the failure is reported as a GitHub issue labeled `flaky-test`. Reference the GitHub issue if so.
 
   estc-pr-buildkite-detective:
-    needs: prelude
+    needs: [resolve-apm-assets]
     permissions:
       actions: read
       contents: read
       issues: read
       pull-requests: write
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'status' &&
-      github.event.state == 'failure' &&
-      contains(github.event.context, 'buildkite')
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@copilot/reduce-comment-spamming
     with:
-      additional-instructions: |
-        If a step fails, check if the failure is reported as a GitHub issue labeled `flaky-test`. Reference the GitHub issue if so.
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}

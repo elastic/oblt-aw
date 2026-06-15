@@ -15,10 +15,10 @@
 # under the License.
 
 """
-Validate that every local *-aw-* workflow under .github/workflows/ calls aw-prelude.yml.
+Validate local *-aw-* route workflows and registry coherence.
 
-Excludes aw-prelude.yml itself (the shared prelude implementation) and distributed
-trg-* and trigger-* client entrypoints, which call elastic/oblt-aw reusable workflows remotely.
+Route reusables (oblt-aw-*, docs-aw-*) receive shared event context from
+*-aw-event-* orchestrators and declare workflow_call input shared-proceed.
 """
 
 from __future__ import annotations
@@ -27,13 +27,19 @@ import pathlib
 import re
 import sys
 
+from workflow_registry import validate_registry_against_workflows
+
 WORKFLOWS_DIR = pathlib.Path(".github/workflows")
+CONFIG_DIR = pathlib.Path("config")
 AW_WORKFLOW_PATTERN = re.compile(r".+-aw-.+\.ya?ml$")
+EVENT_ORCHESTRATOR_PATTERN = re.compile(r".+-aw-event-.+\.ya?ml$")
+ROUTE_PATTERN = re.compile(r"^(?:oblt|docs)-aw-.+\.ya?ml$")
 PRELUDE_USES = re.compile(
     r"uses:\s*\./\.github/workflows/aw-prelude\.ya?ml\b",
     re.MULTILINE,
 )
 PRELUDE_JOB = re.compile(r"^\s+prelude:\s*$", re.MULTILINE)
+SHARED_PROCEED_INPUT = re.compile(r"^\s+shared-proceed:\s*$", re.MULTILINE)
 
 
 def list_subject_workflows() -> list[pathlib.Path]:
@@ -45,20 +51,43 @@ def list_subject_workflows() -> list[pathlib.Path]:
         for p in paths
         if AW_WORKFLOW_PATTERN.match(p.name)
         and p.name != "aw-prelude.yml"
+        and not EVENT_ORCHESTRATOR_PATTERN.match(p.name)
         and not p.name.startswith(("trg-", "trigger-"))
     ]
 
 
-def validate_workflow(path: pathlib.Path) -> list[str]:
+def validate_route(path: pathlib.Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     errors: list[str] = []
-    if not PRELUDE_JOB.search(text):
-        errors.append(f"{path}: missing job id 'prelude'")
-    if not PRELUDE_USES.search(text):
-        errors.append(
-            f"{path}: must call './.github/workflows/aw-prelude.yml' via a prelude job"
-        )
+    if PRELUDE_JOB.search(text):
+        errors.append(f"{path}: route workflows must not define a prelude job")
+    if PRELUDE_USES.search(text):
+        errors.append(f"{path}: route workflows must not call aw-prelude.yml")
+    if not SHARED_PROCEED_INPUT.search(text):
+        errors.append(f"{path}: must declare workflow_call input shared-proceed")
     return errors
+
+
+def validate_workflow(path: pathlib.Path) -> list[str]:
+    if ROUTE_PATTERN.match(path.name):
+        return validate_route(path)
+    return []
+
+
+def validate_registry_for_subjects(subject_workflow_names: set[str]) -> list[str]:
+    errors = validate_registry_against_workflows(
+        CONFIG_DIR,
+        WORKFLOWS_DIR,
+        subject_workflow_names,
+    )
+    routes = {name for name in subject_workflow_names if ROUTE_PATTERN.match(name)}
+    filtered: list[str] = []
+    for err in errors:
+        path_name = err.split(":", 1)[0].split("/")[-1]
+        if path_name in routes and "prelude must pass control-plane-workflow" in err:
+            continue
+        filtered.append(err)
+    return filtered
 
 
 def main() -> int:
@@ -71,13 +100,18 @@ def main() -> int:
     for path in subjects:
         errors.extend(validate_workflow(path))
 
+    errors.extend(validate_registry_for_subjects({path.name for path in subjects}))
+
     if errors:
-        print("aw-prelude enforcement failed:", file=sys.stderr)
+        print("aw workflow route validation failed:", file=sys.stderr)
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         return 1
 
-    print(f"Validated {len(subjects)} *-aw-* workflow(s) call aw-prelude.yml.")
+    print(
+        f"Validated {len(subjects)} *-aw-* workflow(s): "
+        "routes declare shared-proceed; event orchestrators call aw-prelude.yml."
+    )
     return 0
 
 

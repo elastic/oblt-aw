@@ -18,7 +18,10 @@ _root = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(_root / "scripts"))
 
 import build_repos_matrix as brm  # noqa: E402
-from common import parse_repositories  # noqa: E402
+from common import (  # noqa: E402
+    parse_active_repository_entries,
+    parse_repositories,
+)
 
 
 # ── parse_repositories (common) ───────────────────────────────────────────────
@@ -77,6 +80,46 @@ class TestParseRepositories:
         content = json.dumps({"repositories": "elastic/foo"})
         with pytest.raises(SystemExit, match=r"`repositories` must be a list"):
             parse_repositories(content)
+
+    def test_object_entry_with_token_policy(self) -> None:
+        content = json.dumps(
+            {
+                "repositories": [
+                    "elastic/foo",
+                    {
+                        "repository": "elastic/bar",
+                        "workflow-token-policy": "token-policy-abc123",
+                        "ai-assets-token-policy": "token-policy-ai-456",
+                    },
+                ]
+            }
+        )
+        entries = parse_active_repository_entries(content)
+        assert [
+            (e.repository, e.workflow_token_policy, e.ai_assets_token_policy)
+            for e in entries
+        ] == [
+            ("elastic/bar", "token-policy-abc123", "token-policy-ai-456"),
+            ("elastic/foo", "", ""),
+        ]
+
+    def test_duplicate_repo_conflicting_policy_raises(self) -> None:
+        content = json.dumps(
+            {
+                "repositories": [
+                    {
+                        "repository": "elastic/foo",
+                        "workflow-token-policy": "token-policy-a",
+                    },
+                    {
+                        "repository": "elastic/foo",
+                        "workflow-token-policy": "token-policy-b",
+                    },
+                ]
+            }
+        )
+        with pytest.raises(SystemExit, match="conflicting workflow-token-policy"):
+            parse_active_repository_entries(content)
 
 
 # ── write_outputs ──────────────────────────────────────────────────────────────
@@ -177,3 +220,60 @@ class TestMain:
         assert len(matrix) == 2
         repos = {m["repository"] for m in matrix}
         assert repos == {"elastic/foo", "elastic/bar"}
+        assert all(m["workflow-token-policy"] == "" for m in matrix)
+
+    def test_matrix_includes_configured_token_policy(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        import importlib.util
+
+        output_file = tmp_path / "github_output"
+        output_file.touch()
+        monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
+        (tmp_path / "scripts").mkdir(parents=True)
+        script_src = pathlib.Path(brm.__file__).read_text()
+        (tmp_path / "scripts" / "build_repos_matrix.py").write_text(script_src)
+        (tmp_path / "scripts" / "common.py").write_text(
+            pathlib.Path(__file__)
+            .parent.parent.joinpath("scripts", "common.py")
+            .read_text()
+        )
+        (tmp_path / "config" / "obs").mkdir(parents=True)
+        (tmp_path / "config" / "obs" / "workflow-registry.json").write_text(
+            json.dumps({"workflows": []})
+        )
+        (tmp_path / "config" / "obs" / "active-repositories.json").write_text(
+            json.dumps(
+                {
+                    "repositories": [
+                        {
+                            "repository": "elastic/foo",
+                            "workflow-token-policy": "token-policy-custom",
+                            "ai-assets-token-policy": "",
+                        }
+                    ]
+                }
+            )
+        )
+
+        spec = importlib.util.spec_from_file_location(
+            "brm_test",
+            tmp_path / "scripts" / "build_repos_matrix.py",
+        )
+        assert spec and spec.loader
+        brm_test = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(brm_test)
+
+        assert brm_test.main() == 0
+        repos_line = next(
+            line
+            for line in output_file.read_text().splitlines()
+            if line.startswith("repos=")
+        )
+        matrix = json.loads(repos_line.split("=", 1)[1])
+        assert matrix == [
+            {
+                "repository": "elastic/foo",
+                "workflow-token-policy": "token-policy-custom",
+            }
+        ]

@@ -1,6 +1,26 @@
 name: Security Issue Triage
 on:
   workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -10,35 +30,21 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      enabled-workflow-id: obs:security
-      load-allowed-authors: true
 
-  security-issue-triage:
-    needs: prelude
-    permissions:
-      actions: read
-      contents: read
-      discussions: write
-      issues: write
-      pull-requests: write
+  resolve-apm-assets:
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
       github.event_name == 'issues' &&
       (
         (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security')) ||
         (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/security')
       )
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
-      allowed-bot-users: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
-      classification-labels: "oblt-aw/triage/security-injection,oblt-aw/triage/security-secrets,oblt-aw/triage/security-supply-chain,oblt-aw/triage/security-least-privilege,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
-      additional-instructions: |
+      control-plane-workflow: oblt-aw-security-triage.yml
+      platform-additional-instructions: |
         Your task is to triage newly opened security-related issues in this repository. Security issues include vulnerabilities in GitHub Actions workflows and shell scripts: injection (expression, command, YAML), secret management (token exposure via CLI args, secrets in command strings), supply chain (action pinning, checksums), and least privilege (excessive permissions).
 
         **Strict No-Output Rule (MUST be enforced first):**
@@ -112,6 +118,26 @@ jobs:
         ### Additional Resources
         - [GitHub Actions Security Hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions)
         - [Workflow Permission Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions)
+
+  security-issue-triage:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+    if: >-
+      github.event_name == 'issues' &&
+      (
+        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security')) ||
+        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/security')
+      )
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    with:
+      allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
+      classification-labels: "oblt-aw/triage/security-injection,oblt-aw/triage/security-secrets,oblt-aw/triage/security-supply-chain,oblt-aw/triage/security-least-privilege,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -119,7 +145,7 @@ jobs:
   # mint only in this follow-up job; remove+re-add `oblt-aw/ai/fix-ready` when the fixer preconditions
   # hold so ingress sees a `labeled` event from the installation token.
   signal-security-triage-followups:
-    needs: security-issue-triage
+    needs: [security-issue-triage]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -127,14 +153,22 @@ jobs:
       id-token: write
       issues: write
     steps:
-      - name: Create ephemeral GitHub token
-        id: create-token
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ inputs.shared-token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
+      - name: Create ephemeral GitHub token (Vault auto policy)
+        id: create-token-auto
+        if: ${{ inputs.shared-token-policy == '' }}
         uses: elastic/oblt-actions/github/create-token@v1
 
       - name: Re-apply fix-ready label to emit installation-token labeled event
         uses: actions/github-script@v9
         with:
-          github-token: ${{ steps.create-token.outputs.token }}
+          github-token: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;

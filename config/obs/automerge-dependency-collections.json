@@ -54,6 +54,32 @@
       ]
     },
     {
+      "id": "terraform",
+      "description": "Terraform/OpenTofu/Terragrunt dependency and lockfile updates",
+      "active": true,
+      "file-glob": [
+        "**/*.tf",
+        "**/*.tfvars",
+        "**/*.tfvars.json",
+        "**/.terraform.lock.hcl",
+        "**/terragrunt.hcl",
+        "**/.opentofu-version",
+        "**/.terraform-version",
+        "**/.terragrunt-version"
+      ]
+    },
+    {
+      "id": "open-policy-agent",
+      "description": "Open Policy Agent policy and version file updates",
+      "active": true,
+      "file-glob": [
+        "**/*.rego",
+        "**/.opa-version",
+        "**/opa.yaml",
+        "**/opa.yml"
+      ]
+    },
+    {
       "id": "vm-images",
       "description": "CI runner or container image pin updates",
       "active": false,

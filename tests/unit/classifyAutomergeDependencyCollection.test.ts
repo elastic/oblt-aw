@@ -96,6 +96,62 @@ test('classifyChangedFiles is ambiguous when multiple collections match', () => 
   assert.equal(outcome.collectionIds.length, 2);
 });
 
+test('classifyChangedFiles allows active terraform collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'terraform',
+      active: true,
+      'file-glob': [
+        '**/*.tf',
+        '**/*.tfvars',
+        '**/*.tfvars.json',
+        '**/.terraform.lock.hcl',
+        '**/terragrunt.hcl',
+        '**/.opentofu-version',
+        '**/.terraform-version',
+        '**/.terragrunt-version',
+      ],
+    },
+  ];
+  const outcome = classifyChangedFiles(
+    [
+      'environments/dev/main.tf',
+      'environments/dev/vars.tfvars',
+      'environments/dev/vars.tfvars.json',
+      'environments/dev/.terraform.lock.hcl',
+      'environments/dev/terragrunt.hcl',
+      'environments/dev/.opentofu-version',
+      'environments/dev/.terraform-version',
+      'environments/dev/.terragrunt-version',
+    ],
+    collections
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'terraform',
+  });
+});
+
+test('classifyChangedFiles allows active open-policy-agent collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'open-policy-agent',
+      active: true,
+      'file-glob': ['**/*.rego', '**/.opa-version', '**/opa.yaml', '**/opa.yml'],
+    },
+  ];
+  const outcome = classifyChangedFiles(
+    ['policies/authz.rego', '.opa-version'],
+    collections
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'open-policy-agent',
+  });
+});
+
 test('buildGateCommentBody includes inactive collection and active list', () => {
   const body = buildGateCommentBody(
     { status: 'inactive', collectionId: 'python-dependencies' },

@@ -1,11 +1,31 @@
 name: Docs PR AI menu
 
 # Reusable implementation for the Elastic Docs PR AI menu. Consumer repositories
-# install `.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-pr-ai-menu.yml`.
+# install event-scoped client templates under `.github/remote-workflow-template/docs/.github/workflows/`.
 # Scripts: `scripts/docs/pr-menu/`.
 
 on:
   workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
@@ -14,31 +34,45 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      enabled-workflow-id: docs:example-workflow
-
   post-menu:
     name: Post or refresh AI PR menu
-    needs: prelude
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      (github.event_name == 'pull_request_target' || github.event_name == 'workflow_dispatch')
+      inputs.shared-proceed == 'true' &&
+      (
+        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+        github.event_name == 'workflow_dispatch'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      actions: read
       checks: read
       contents: read
       issues: write
       pull-requests: write
     concurrency:
-      group: docs-pr-ai-menu-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pull_request_number }}
+      group: docs-pr-ai-menu-${{ github.event.workflow_run.id || github.event.pull_request.number || github.event.issue.number || github.event.inputs.pull_request_number }}
       cancel-in-progress: false
     steps:
+      - name: Download pull request number artifact
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v8
+        with:
+          name: pr-number
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve pull request number
+        id: resolve-pr
+        env:
+          WORKFLOW_DISPATCH_PR: ${{ github.event.inputs.pull_request_number }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "number=$(cat pr_number.txt)" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${WORKFLOW_DISPATCH_PR}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout oblt-aw for Docs PR AI menu scripts
         uses: actions/checkout@v6
         with:
@@ -52,15 +86,18 @@ jobs:
 
       - name: Create or update AI PR menu comment
         uses: actions/github-script@v9
+        env:
+          PULL_REQUEST_NUMBER: ${{ steps.resolve-pr.outputs.number }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/pr-menu/post-menu.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/post-menu.js')
+            await fn({github, context, core})
 
   evaluate-trigger:
     name: Evaluate AI PR menu trigger
-    needs: prelude
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
+      inputs.shared-proceed == 'true' &&
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request != null &&
       github.actor != 'github-actions[bot]' &&
@@ -71,6 +108,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      pull-requests: read
     outputs:
       docs_review_triggered: ${{ steps.evaluate.outputs.docs_review_triggered }}
     steps:
@@ -90,7 +128,9 @@ jobs:
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/pr-menu/evaluate-trigger.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/evaluate-trigger.js')
+            await fn({github, context, core})
 
   refresh-menu-after-trigger:
     name: Refresh AI PR menu after trigger
@@ -122,12 +162,31 @@ jobs:
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-trigger.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-trigger.js')
+            await fn({github, context, core})
+
+  resolve-apm-assets:
+    needs: [evaluate-trigger]
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: docs-aw-pr-ai-menu.yml
+      platform-additional-instructions: |
+        This repository stores documentation as markdown across the repository.
+        Prefer concise, high-signal review comments with exact replacement text when possible.
 
   run-docs-review:
     name: Docs AI / docs review
-    needs: [evaluate-trigger]
-    if: needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
+    needs: [evaluate-trigger, resolve-apm-assets]
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
     permissions:
       actions: read
       contents: read
@@ -136,9 +195,7 @@ jobs:
     uses: elastic/docs-actions/.github/workflows/gh-aw-docs-review.lock.yml@v1
     with:
       review-scope: repo-wide-markdown
-      additional-instructions: |
-        This repository stores documentation as markdown across the repository.
-        Prefer concise, high-signal review comments with exact replacement text when possible.
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -174,4 +231,6 @@ jobs:
           DOCS_REVIEW_RESULT: ${{ needs.run-docs-review.result }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-docs-review.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-docs-review.js')
+            await fn({github, context, core})

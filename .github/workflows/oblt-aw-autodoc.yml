@@ -1,6 +1,26 @@
 name: Automated Documentation Analysis and Improvement
 on:
   workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -9,27 +29,16 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      enabled-workflow-id: obs:autodoc
 
   # Step 1: Detect docs drift from recent code changes and create an issue with findings
-  audit:
-    needs: prelude
+  resolve-apm-assets-audit:
     permissions:
       contents: read
-      issues: write
-      pull-requests: read
-    if: needs.prelude.outputs.proceed == 'true'
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
-      lookback-window: 1 day ago
-      title-prefix: "[oblt-aw][autodoc]"
-      additional-instructions: |
+      control-plane-workflow: oblt-aw-autodoc.yml
+      platform-additional-instructions: |
         Your task is to analyze ALL documentation in this repository, identify gaps and areas for improvement, and file an issue with concrete findings.
 
         Do NOT search for open issues. Instead, perform a direct documentation audit of this repository.
@@ -56,22 +65,31 @@ jobs:
         **Issue format:** For each finding, include a clear, actionable checklist of specific documentation changes to make. Each item should reference file paths and describe the change needed.
 
         **Team notification (mandatory):** Always @mention @elastic/observablt-ci at the top of the issue body so the team receives notifications. Example: "cc @elastic/observablt-ci" or "Notify: @elastic/observablt-ci" at the start of the body.
-    secrets: inherit
 
-  # Step 2: Create a PR implementing the audit findings (only when an issue was created)
-  fix:
-    needs: audit
+  audit:
+    needs: [resolve-apm-assets-audit]
     permissions:
       actions: read
-      contents: write
+      contents: read
       issues: write
-      pull-requests: write
-    if: needs.audit.outputs.created_issue_number != ''
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
+      pull-requests: read
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
     with:
-      target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
-      draft-prs: true
-      additional-instructions: |
+      lookback-window: 1 day ago
+      title-prefix: "[oblt-aw][autodoc]"
+      additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
+    secrets: inherit
+
+  resolve-apm-assets-fix:
+    needs: audit
+    if: needs.audit.outputs.created_issue_number != ''
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-autodoc.yml
+      platform-additional-instructions: |
         Your task is to implement the documentation improvements described in the issue.
 
         **Pull Request Requirements:**
@@ -92,7 +110,7 @@ jobs:
 
         **Secret documentation:** When implementing any documentation changes related to secret definitions or usage, first consult the [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) repository and its root `README.md` as the Observability org source of truth for secret management. Do not add guidance that contradicts or extends beyond that source.
 
-        **Markdown tables:** Preserve deliberate cell content such as a leading `-` used as an icon or status placeholder; do not rewrite table rows into bullet lists or “clean up” punctuation unless it is clearly a mistake.
+        **Markdown tables:** Preserve deliberate cell content such as a leading `-` used as an icon or status placeholder; do not rewrite table rows into bullet lists or "clean up" punctuation unless it is clearly a mistake.
 
         **Markdown link fragments / anchors:** When editing markdown links with `#fragment`, first validate the fragment against the target document heading slug(s). Preserve the existing fragment unless verification proves it is incorrect. Do not remove a leading `-` when it is part of the valid computed slug (for example icon-prefixed headings): the `-` character is a valid replacement for a leading icon in heading text and therefore a valid part of the anchor slug. Rewriting `[Lab 01: Troubleshooting](01-installation-setup.md#-troubleshooting-quick-reference)` to `[Lab 01: Troubleshooting](01-installation-setup.md#troubleshooting-quick-reference)` is invalid when the verified heading slug is `#-troubleshooting-quick-reference`.
 
@@ -103,6 +121,21 @@ jobs:
         **AI assets / agent configuration files:** Never modify AI-related assets in this workflow. AI assets, skills files, instruction/configuration files, and lock files (for example `*.lock*` and `*.lock.yml`) are always out of scope.
 
         **Helm chart internals:** Never modify Helm chart internal files. Template files (`helm-charts/**/templates/**`), notes files (`helm-charts/**/NOTES.txt`), and markdown files under `helm-charts/` are always out of scope.
+
+  # Step 2: Create a PR implementing the audit findings (only when an issue was created)
+  fix:
+    needs: [audit, resolve-apm-assets-fix]
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+    if: needs.audit.outputs.created_issue_number != ''
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
+    with:
+      target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
+      draft-prs: true
+      additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
     secrets: inherit
 
   # Step 3: Finalize autodoc PR — assign reviewer and apply labels

@@ -1,11 +1,31 @@
 name: Docs AI menu
 
 # Reusable implementation for the Elastic Docs issue AI menu. Consumer repositories
-# install `.github/remote-workflow-template/docs/.github/workflows/trigger-docs-aw-ai-menu.yml`.
+# install event-scoped client templates under `.github/remote-workflow-template/docs/.github/workflows/`.
 # Scripts: `scripts/docs/issue-menu/`.
 
 on:
   workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
@@ -14,19 +34,10 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      enabled-workflow-id: docs:example-workflow
-
   post-menu:
     name: Post or refresh AI menu
-    needs: prelude
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
+      inputs.shared-proceed == 'true' &&
       (github.event_name == 'issues' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -52,13 +63,14 @@ jobs:
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/issue-menu/post-menu.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/post-menu.js')
+            await fn({github, context, core})
 
   evaluate-trigger:
     name: Evaluate AI menu trigger
-    needs: prelude
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
+      inputs.shared-proceed == 'true' &&
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request == null &&
       github.actor != 'github-actions[bot]' &&
@@ -89,7 +101,9 @@ jobs:
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/issue-menu/evaluate-trigger.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/evaluate-trigger.js')
+            await fn({github, context, core})
 
   refresh-menu-after-trigger:
     name: Refresh AI menu after trigger
@@ -124,25 +138,57 @@ jobs:
           ISSUE_SCOPE_TRIGGERED: ${{ needs.evaluate-trigger.outputs.issue_scope_triggered }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-trigger.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-trigger.js')
+            await fn({github, context, core})
+
+  resolve-apm-assets-triage:
+    needs: [evaluate-trigger]
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      needs.evaluate-trigger.outputs.triage_triggered == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: docs-aw-ai-menu.yml
 
   run-docs-triage:
     name: Docs AI / triage
-    needs: [evaluate-trigger]
-    if: needs.evaluate-trigger.outputs.triage_triggered == 'true'
+    needs: [evaluate-trigger, resolve-apm-assets-triage]
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      needs.evaluate-trigger.outputs.triage_triggered == 'true'
     permissions:
       actions: read
       contents: read
       issues: write
       pull-requests: write
     uses: elastic/docs-actions/.github/workflows/gh-aw-issue-triage.lock.yml@v1
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets-triage.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
+  resolve-apm-assets-issue-scope:
+    needs: [evaluate-trigger]
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: docs-aw-ai-menu.yml
+
   run-docs-issue-scope:
     name: Docs AI / issue scope
-    needs: [evaluate-trigger]
-    if: needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
+    needs: [evaluate-trigger, resolve-apm-assets-issue-scope]
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
     permissions:
       actions: read
       contents: read
@@ -150,6 +196,8 @@ jobs:
       issues: write
       pull-requests: write
     uses: elastic/docs-actions/.github/workflows/gh-aw-docs-issue-scope.lock.yml@v1
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets-issue-scope.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 
@@ -183,7 +231,9 @@ jobs:
           TRIAGE_RESULT: ${{ needs.run-docs-triage.result }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-triage.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-triage.js')
+            await fn({github, context, core})
 
   refresh-menu-after-docs-issue-scope:
     name: Refresh AI menu after docs issue scope
@@ -215,4 +265,6 @@ jobs:
           ISSUE_SCOPE_RESULT: ${{ needs.run-docs-issue-scope.result }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script-path: oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-issue-scope.js
+          script: |
+            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-issue-scope.js')
+            await fn({github, context, core})

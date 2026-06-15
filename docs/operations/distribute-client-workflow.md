@@ -29,39 +29,37 @@ Execution stages:
 
 ## Distribution configuration contract (per-org `active-repositories.json`)
 
-[scripts/build_target_operations.py](../../scripts/build_target_operations.py) accepts either of these JSON shapes:
-
-- Object form:
+[scripts/build_target_operations.py](../../scripts/build_target_operations.py) expects this JSON shape:
 
   ```json
   {
     "repositories": [
-      "elastic/oblt-aw",
-      "elastic/oblt-cli"
+      {
+        "repository": "elastic/oblt-aw",
+        "workflow-token-policy": "",
+        "ai-assets-token-policy": ""
+      },
+      {
+        "repository": "elastic/oblt-cli",
+        "workflow-token-policy": "token-policy-abc123def456",
+        "ai-assets-token-policy": ""
+      }
     ]
   }
-  ```
-
-- List form:
-
-  ```json
-  [
-    "elastic/oblt-aw",
-    "elastic/oblt-cli"
-  ]
   ```
 
 Validation and normalization rules:
 
 - `repositories` must resolve to a JSON list.
-- Every entry must be a string in `owner/repo` format.
+- Every entry is an object with required `repository` (`owner/repo`), `workflow-token-policy` (string; use `""` when Vault auto policy / control-plane defaults apply for agentic workflow `create-token`), and `ai-assets-token-policy` (string; use `""` when `apm install` can use the job `GITHUB_TOKEN`).
+- When `workflow-token-policy` is non-empty, consumer `create-token` steps (via `aw-prelude`) use that policy for that repository; when empty, consumer workflows keep Vault auto policy per trigger workflow ref. When `ai-assets-token-policy` is non-empty, [aw-resolve-apm-assets.yml](../../.github/workflows/aw-resolve-apm-assets.yml) mints an ephemeral token for APM private package clones. Control-plane `distribute-client-workflow` and `sync-control-plane-dashboard` always use their fixed workflow token policies (`token-policy-63405ab45244` and `token-policy-8b60ba56dd3f`).
 - Entries are normalized (trimmed), de-duplicated, and sorted before processing.
-- Invalid entries fail the step with: `Invalid repository entry: ... Expected 'owner/repo'`.
+- Invalid entries fail the step with: `Invalid repository entry: ... Expected object with 'repository'`.
 
 Examples:
 
-- Valid: `"elastic/oblt-aw"`
-- Invalid: `"elastic"` (missing slash), `123` (non-string), `{"repo":"elastic/oblt-aw"}` (wrong type)
+- Valid: `{"repository": "elastic/oblt-aw", "workflow-token-policy": "", "ai-assets-token-policy": ""}`
+- Invalid: `"elastic/oblt-aw"` (bare string), `"elastic"` (missing slash in `repository`), `123` (non-object), `{"repo":"elastic/oblt-aw"}` (wrong key)
 
 ## `build_target_operations.py` Contract
 
@@ -74,7 +72,7 @@ Inputs (environment variables):
 
 Behavior:
 
-- If `CHANGED_FILES_COUNT == 0` and `FORCE_DISTRIBUTION` is false, returns no targets.
+- If `CHANGED_FILES_COUNT == 0`, `FORCE_DISTRIBUTION` is false, and `git diff --name-only` between `BASE_REF` and `HEAD` under `config/` and `.github/remote-workflow-template/` is empty, returns no targets. The git fallback covers template **renames** (the changed-files action only counts added, modified, and deleted paths).
 - Always generates `install` operations for repositories in the current union of per-org lists (see [scripts/build_target_operations.py](../../scripts/build_target_operations.py)).
 - Each `install` target includes `remove_files`: destination paths that existed in the template tree at `BASE_REF` for that repository’s org assignments but are absent from the current tree.
 - Generates `remove` operations for repositories present at `BASE_REF` but absent from current config.

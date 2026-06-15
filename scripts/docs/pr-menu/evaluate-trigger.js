@@ -17,7 +17,32 @@
 
 const { parseMenuState } = require('./lib.js');
 
-module.exports = async ({ context, core }) => {
+module.exports = async ({ github, context, core }) => {
+  const { data: pullRequest } = await github.rest.pulls.get({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    pull_number: context.payload.issue.number,
+  });
+  const baseRepoFullName = `${context.repo.owner}/${context.repo.repo}`;
+  const isForkPR = pullRequest.head.repo.full_name !== baseRepoFullName;
+  if (isForkPR) {
+    let isOrgMember = false;
+    try {
+      const { status } = await github.rest.orgs.checkMembershipForUser({
+        org: context.repo.owner,
+        username: context.actor,
+      });
+      isOrgMember = status === 204;
+    } catch {
+      isOrgMember = false;
+    }
+    if (!isOrgMember) {
+      core.info('Fork PR: skipping docs review for non-org member.');
+      core.setOutput('docs_review_triggered', 'false');
+      return;
+    }
+  }
+
   const body = context.payload.comment.body || '';
   const previousBody = context.payload.changes?.body?.from || '';
 

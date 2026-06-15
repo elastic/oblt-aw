@@ -1,6 +1,26 @@
 name: Automerge
 on:
   workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         description: "Token for GH-AW mention-in-pr (Copilot); must be supplied by the ingress caller."
@@ -10,24 +30,9 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
-    permissions:
-      contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
-    with:
-      enabled-workflow-id: obs:automerge
-      load-allowed-authors: true
 
   # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
   verify:
-    needs: prelude
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'pull_request' &&
-      contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action) &&
-      contains(fromJSON(needs.prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login) &&
-      contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready')
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -140,8 +145,22 @@ jobs:
             core.setOutput('allowed', allowed ? 'true' : 'false');
             core.setOutput('collection-id', collectionId || '');
 
+  resolve-apm-assets:
+    needs: [verify, check-dependency-collection]
+    if: >-
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    with:
+      control-plane-workflow: oblt-aw-automerge.yml
+      platform-additional-instructions: |
+        Target pull request number: ${{ github.event.pull_request.number }}.
+
   approve:
-    needs: [prelude, verify, check-dependency-collection]
+    needs: [verify, check-dependency-collection, resolve-apm-assets]
     if: >-
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true'
@@ -153,9 +172,8 @@ jobs:
       pull-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
-      allowed-bot-users: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
-      additional-instructions: |
-        Target pull request number: ${{ github.event.pull_request.number }}.
+      allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
@@ -178,7 +196,6 @@ jobs:
   # and pascalgn/automerge-action config. Author/label rules are enforced in `verify` (validateAutomergePr).
   automerge:
     needs:
-      - prelude
       - verify
       - check-dependency-collection
       - approve
@@ -212,20 +229,28 @@ jobs:
   # "merge queue" is required. Enabling native "merge when ready" enqueues the PR instead.
   # Do not pass --delete-branch here: gh rejects it when merge queue is enabled.
   enable-merge-when-ready:
-    needs: automerge
+    needs: [automerge]
     if: always() && needs.automerge.outputs.merge_result == 'merge_failed'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       id-token: write
     steps:
-      - name: Create ephemeral GitHub token
-        id: create-token
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ inputs.shared-token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
+      - name: Create ephemeral GitHub token (Vault auto policy)
+        id: create-token-auto
+        if: ${{ inputs.shared-token-policy == '' }}
         uses: elastic/oblt-actions/github/create-token@v1
 
       - name: Enable merge when ready (merge queue fallback)
         env:
-          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |

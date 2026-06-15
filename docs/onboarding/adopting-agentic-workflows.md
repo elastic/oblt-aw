@@ -22,10 +22,10 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 - Add `.github/workflows/trigger-oblt-aw-<name>.yml (client); oblt-aw-<name>.yml` at the repository root.
 - When the agent graph lives in **`elastic/ai-github-actions`**, add a thin wrapper that calls the pinned lock file and pass domain-specific `with:` / `secrets:`.
 
-### 2. Add prelude and route conditions
+### 2. Add route contract and event orchestration
 
-- First job: `uses: ./.github/workflows/aw-prelude.yml` with `enabled-workflow-id: <org-key>:<workflow-id>` and `load-allowed-authors: true` when PR/issue allow lists apply.
-- Downstream jobs: `needs: prelude` and `if: needs.prelude.outputs.proceed == 'true'` plus event/label/comment guards ([aw-prelude](../workflows/aw-prelude.md)).
+- Route reusable (`oblt-aw-*` / `docs-aw-*`): declare required `shared-proceed` (and shared allow-list / token-policy inputs); gate agent jobs with `if: inputs.shared-proceed == 'true'` plus event/label/comment guards. Do **not** call `aw-prelude.yml` from route workflows.
+- Event orchestrator (`*-aw-event-*.yml`): first job calls [aw-prelude.yml](../workflows/aw-prelude.md) with `control-plane-workflows` listing every route basename for that GitHub event family; fan out with `fromJSON(needs.prelude.outputs.proceed-by-workflow)['<basename>']` ([aw-prelude](../workflows/aw-prelude.md)).
 
 ### 3. Mirror permissions from similar workflows
 
@@ -37,7 +37,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 5. Register in `workflow-registry.json`
 
-- Add one object with unique `id`, `name`, `description`, `maturity`, and `default_enabled` under `config/<org-key>/workflow-registry.json`.
+- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, and `control_plane_workflows` (basenames of every `oblt-aw-*` / `docs-aw-*` wrapper that share this dashboard id) under `config/<org-key>/workflow-registry.json`.
 
 ### 6. Add a client template
 
@@ -68,7 +68,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 ## Troubleshooting
 
 - **Workflow never runs after checking the box** — Wait for a supported trigger on the installed `trigger-oblt-aw-*.yml` client ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)).
-- **Validation fails on the PR** — Compare `permissions` with a sibling wrapper; confirm prelude `enabled-workflow-id` matches registry `obs:<id>`.
+- **Validation fails on the PR** — Compare `permissions` with a sibling wrapper; confirm the route basename is listed under the correct `control_plane_workflows` entry in `workflow-registry.json` and appears in the matching event orchestrator’s `control-plane-workflows` input.
 
 ## References
 

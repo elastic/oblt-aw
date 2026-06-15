@@ -2,6 +2,26 @@
 name: Issue Triage
 on:
   workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: true
@@ -10,26 +30,28 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
+
+  resolve-apm-assets:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'opened'
     permissions:
       contents: read
-      issues: read
-    uses: ./.github/workflows/aw-prelude.yml
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
-      enabled-workflow-id: obs:issue-triage
+      control-plane-workflow: oblt-aw-issue-triage.yml
 
   issue-triage:
-    needs: prelude
+    needs: [resolve-apm-assets]
     permissions:
       actions: read
       contents: read
       discussions: write
       issues: write
       pull-requests: write
-    if: >-
-      needs.prelude.outputs.proceed == 'true' &&
-      github.event_name == 'issues' &&
-      github.event.action == 'opened'
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

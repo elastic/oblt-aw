@@ -7,6 +7,6 @@
         "test": "tsx --test tests/unit/*.test.ts"
     },
     "dependencies": {
-        "tsx": "^4.20.5"
+        "tsx": "^4.22.4"
     }
 }
