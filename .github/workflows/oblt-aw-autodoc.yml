@@ -66,6 +66,7 @@ jobs:
   audit:
     needs: [resolve-apm-assets-audit]
     permissions:
+      actions: read
       contents: read
       issues: write
       pull-requests: read

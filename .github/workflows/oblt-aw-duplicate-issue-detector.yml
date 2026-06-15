@@ -44,6 +44,7 @@ jobs:
   duplicate-issue-detector:
     needs: [resolve-apm-assets]
     permissions:
+      actions: read
       contents: read
       issues: write
       pull-requests: read
