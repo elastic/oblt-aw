@@ -89,7 +89,7 @@ When the dashboard gate passes (`proceed == true`), each agent job’s preceding
 
 1. Checks out the **consumer** repository (caller context).
 2. Installs [`requirements-runtime.txt`](../../requirements-runtime.txt) with pip cache via `actions/setup-python`.
-3. Runs [`apm install`](https://microsoft.github.io/apm/) when `apm.yml` is present (installs declared skills, plugins, MCP servers, and other APM dependencies). Private GitHub packages use `ai-assets-token-policy` from `config/<org>/active-repositories.json` when set; otherwise the job `GITHUB_TOKEN` is forwarded as `GITHUB_APM_PAT` (see [aw-resolve-apm-assets](../workflows/aw-resolve-apm-assets.md)).
+3. Runs [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI with tool-cache reuse and runs `apm install` for declared skills, plugins, MCP servers, and other APM dependencies). Private GitHub packages use `ai-assets-token-policy` from `config/<org>/active-repositories.json` when set; otherwise the job `GITHUB_TOKEN` is passed as `github-token` (see [aw-resolve-apm-assets](../workflows/aw-resolve-apm-assets.md)).
 4. Runs [`scripts/resolve_apm_agentic_assets.py`](../../scripts/resolve_apm_agentic_assets.py) with the compound workflow id (`org-key:workflow-id`) to select the org block and produce:
    - `resolved-additional-instructions`
    - `resolved-inputs-json` (merged platform + APM inputs)

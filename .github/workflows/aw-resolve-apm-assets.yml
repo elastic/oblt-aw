@@ -128,32 +128,6 @@ jobs:
       - name: Install Python dependencies for resolver
         run: pip install -r _oblt-aw/requirements-runtime.txt
 
-      - name: Install APM CLI
-        if: >-
-          inputs.install-apm-packages &&
-          steps.detect.outputs.present == 'true'
-        env:
-          APM_VERSION: "v0.16.0"
-        run: |
-          set -euo pipefail
-          OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-          ARCH="$(uname -m)"
-          case "${ARCH}" in
-            x86_64) ARCH="x86_64" ;;
-            arm64|aarch64) ARCH="arm64" ;;
-            *) echo "Unsupported architecture: ${ARCH}"; exit 1 ;;
-          esac
-          TARBALL="apm-${OS}-${ARCH}.tar.gz"
-          BASE_URL="https://github.com/microsoft/apm/releases/download/${APM_VERSION}"
-          curl -fsSL "${BASE_URL}/${TARBALL}" -o "/tmp/${TARBALL}"
-          curl -fsSL "${BASE_URL}/${TARBALL}.sha256" -o "/tmp/${TARBALL}.sha256"
-          EXPECTED="$(awk '{print $1}' "/tmp/${TARBALL}.sha256")"
-          echo "${EXPECTED}  /tmp/${TARBALL}" | sha256sum -c
-          APM_DIR="${HOME}/.local/apm"
-          mkdir -p "${APM_DIR}"
-          tar -xzf "/tmp/${TARBALL}" -C "${APM_DIR}" --strip-components=1
-          echo "${APM_DIR}" >> "${GITHUB_PATH}"
-
       - name: Create ephemeral GitHub token for APM private dependencies
         id: create-apm-token
         if: >-
@@ -168,12 +142,10 @@ jobs:
         if: >-
           inputs.install-apm-packages &&
           steps.detect.outputs.present == 'true'
-        env:
-          GITHUB_APM_PAT: >-
-            ${{ steps.create-apm-token.outputs.token || secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          apm install
+        uses: microsoft/apm-action@e5650fb81c4b5965090a17bd1ed1956071e95d17 # v1.9.1
+        with:
+          apm-version: "0.20.0"
+          github-token: ${{ steps.create-apm-token.outputs.token || github.token }}
 
       - name: Resolve agentic assets from apm.yml
         id: resolve
