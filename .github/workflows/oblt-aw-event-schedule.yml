@@ -26,6 +26,7 @@ jobs:
     if: >-
       fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-agent-suggestions.yml'] == 'true'
     permissions:
+      actions: read
       contents: read
       id-token: write
       issues: write
