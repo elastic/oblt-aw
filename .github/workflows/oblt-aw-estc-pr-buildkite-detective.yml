@@ -38,6 +38,9 @@ jobs:
       github.event_name == 'status' &&
       github.event.state == 'failure' &&
       contains(github.event.context, 'buildkite')
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-estc-pr-buildkite-detective.yml

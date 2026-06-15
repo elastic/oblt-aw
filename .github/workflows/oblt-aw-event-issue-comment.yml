@@ -36,6 +36,7 @@ jobs:
       actions: read
       contents: write
       discussions: write
+      id-token: write
       issues: write
       pull-requests: write
     uses: ./.github/workflows/oblt-aw-issue-fixer.yml
@@ -62,6 +63,7 @@ jobs:
       actions: read
       contents: write
       discussions: write
+      id-token: write
       issues: write
       pull-requests: write
     uses: ./.github/workflows/oblt-aw-mention-in-issue.yml

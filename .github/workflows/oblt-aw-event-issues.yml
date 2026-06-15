@@ -31,6 +31,7 @@ jobs:
       actions: read
       contents: read
       discussions: write
+      id-token: write
       issues: write
       pull-requests: write
     uses: ./.github/workflows/oblt-aw-issue-triage.yml
@@ -55,6 +56,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      id-token: write
       issues: write
       pull-requests: read
     uses: ./.github/workflows/oblt-aw-duplicate-issue-detector.yml
@@ -109,6 +111,7 @@ jobs:
       actions: read
       contents: write
       discussions: write
+      id-token: write
       issues: write
       pull-requests: write
     uses: ./.github/workflows/oblt-aw-security-fixer.yml
@@ -161,6 +164,7 @@ jobs:
       actions: read
       contents: write
       discussions: write
+      id-token: write
       issues: write
       pull-requests: write
     uses: ./.github/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.yml

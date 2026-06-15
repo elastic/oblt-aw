@@ -38,6 +38,9 @@ jobs:
         (github.event.label.name == 'oblt-aw/ai/fix-ready' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')) ||
         (startsWith(github.event.label.name, 'oblt-aw/triage/security-') && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/ai/fix-ready'))
       )
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/aw-resolve-apm-assets.yml
     with:
       control-plane-workflow: oblt-aw-security-fixer.yml

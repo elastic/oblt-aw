@@ -32,6 +32,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      id-token: write
       issues: read
       pull-requests: write
     uses: ./.github/workflows/oblt-aw-estc-pr-buildkite-detective.yml
