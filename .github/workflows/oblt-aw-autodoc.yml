@@ -23,7 +23,7 @@ on:
         type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -74,6 +74,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: read
+      copilot-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
     with:
       lookback-window: 1 day ago
@@ -133,6 +134,7 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      copilot-requests: write
     if: needs.audit.outputs.created_issue_number != ''
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
     with:

@@ -9,7 +9,7 @@ This reusable workflow automates documentation maintenance in two stages: audit 
 ## Prerequisites
 
 - Triggered via `workflow_call`.
-- Required secret: `COPILOT_GITHUB_TOKEN`.
+- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
@@ -50,7 +50,7 @@ Permissions:
 
 `workflow_call` contract:
 
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
+- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## References
 

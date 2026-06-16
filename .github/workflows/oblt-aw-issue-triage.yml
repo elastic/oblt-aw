@@ -24,7 +24,7 @@ on:
         type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -50,6 +50,7 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+      copilot-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}

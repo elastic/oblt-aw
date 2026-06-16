@@ -64,9 +64,9 @@ The detector targets the full ruleset in [docs/workflows/security-scanning-rules
 | **Triage** | `gh-aw-issue-triage.lock.yml` | Triggered for issues labeled `oblt-aw/detector/security`; classifies with `oblt-aw/triage/security-*`, `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`; adds `oblt-aw/ai/fix-ready` when ready to fix. |
 | **Fixer** | `gh-aw-issue-fixer.lock.yml` | Triggered when a `oblt-aw/triage/security-*` label and `oblt-aw/ai/fix-ready` are present; security-specific instructions; least-privilege and env-indirection patterns. |
 
-### Required Secret
+### Optional Secret
 
-- `COPILOT_GITHUB_TOKEN` — Required for **triage** and **fixer** (ai-github-actions agents: issue/PR updates, API access). The **detector** uses the default `GITHUB_TOKEN` for issues in the caller repo and does not require this secret.
+- `COPILOT_GITHUB_TOKEN` — Optional for **triage** and **fixer** at this workflow boundary (forwarded when present for backward compatibility). The **detector** uses the default `GITHUB_TOKEN` for issues in the caller repo and does not require this secret.
 
 ## Deliverables
 

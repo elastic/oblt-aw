@@ -23,7 +23,7 @@ on:
         type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -73,6 +73,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
+      copilot-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}

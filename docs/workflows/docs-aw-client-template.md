@@ -53,7 +53,7 @@ Job-level permissions on `run-aw` must be at least as permissive as the union of
 | `trigger-docs-aw-pull-request.yml` | `actions: write`, `contents: read` |
 | `trigger-docs-aw-workflow-run.yml` | `actions: read`, `checks: read`, `contents: read`, `issues: write`, `pull-requests: write` |
 
-Required secret mapping (templates that call agent lock workflows):
+Optional secret mapping (keep forwarding for backward compatibility when present):
 
 - `COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`
 
