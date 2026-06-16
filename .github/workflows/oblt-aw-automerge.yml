@@ -24,7 +24,7 @@ on:
     secrets:
       COPILOT_GITHUB_TOKEN:
         description: "Token for GH-AW mention-in-pr (Copilot); must be supplied by the ingress caller."
-        required: true
+        required: false
 
 permissions:
   contents: read

@@ -23,7 +23,7 @@ on:
         type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
 
 # Ephemeral token minting for label API runs only in signal-security-triage-followups (see #4374 workaround).
 permissions:

@@ -9,7 +9,7 @@ Reusable wrapper that calls the locked mention-in-issue workflow in `elastic/ai-
 ## Prerequisites
 
 - Triggered via `workflow_call` from `trigger-oblt-aw-mention-in-issue.yml` client templates.
-- Required secret: `COPILOT_GITHUB_TOKEN`.
+- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
@@ -48,7 +48,7 @@ Permissions:
 
 `workflow_call` contract:
 
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
+- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## References
 

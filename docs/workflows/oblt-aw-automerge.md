@@ -43,7 +43,7 @@ There is no discover step. Prelude supplies **`allowed-pr-authors-csv`** into th
 `workflow_call` contract:
 
 - **Allow list:** `needs.prelude.outputs.allowed-pr-authors-csv` for `gh-aw-mention-in-pr.lock.yml` (from [load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml) via prelude).
-- **Secrets:** `COPILOT_GITHUB_TOKEN` (required) — forwarded from the client caller for the GH-AW approval job.
+- **Secrets:** `COPILOT_GITHUB_TOKEN` (optional) — forwarded from the client caller for backward compatibility with PAT-based setups.
 
 ## References
 

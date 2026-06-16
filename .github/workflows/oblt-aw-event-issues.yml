@@ -5,7 +5,7 @@ on:
   workflow_call:
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
 
 permissions:
   contents: read
