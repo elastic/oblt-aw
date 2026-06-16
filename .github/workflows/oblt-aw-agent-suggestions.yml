@@ -60,6 +60,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: read
+      models: read
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main
     with:
       title-prefix: "[oblt-aw][agent-suggestions]"

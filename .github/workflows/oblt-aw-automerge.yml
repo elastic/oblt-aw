@@ -170,6 +170,7 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+      models: read
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}

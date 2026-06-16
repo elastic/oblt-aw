@@ -35,6 +35,7 @@ jobs:
       id-token: write
       issues: read
       pull-requests: write
+      models: read
     uses: ./.github/workflows/oblt-aw-estc-pr-buildkite-detective.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-estc-pr-buildkite-detective.yml'] }}

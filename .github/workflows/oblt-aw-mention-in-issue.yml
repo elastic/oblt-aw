@@ -61,6 +61,7 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+      models: read
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-issue.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}

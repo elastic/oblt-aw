@@ -238,6 +238,7 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+      models: read
     if: >-
       github.event_name == 'issues' &&
       (
