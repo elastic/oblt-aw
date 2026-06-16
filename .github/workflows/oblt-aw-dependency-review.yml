@@ -73,7 +73,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
-      models: read
+      copilot-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}

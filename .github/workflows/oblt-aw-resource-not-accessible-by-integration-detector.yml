@@ -103,7 +103,7 @@ jobs:
       actions: read
       contents: read
       issues: write
-      models: read
+      copilot-requests: write
     if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
     strategy:
       matrix:

@@ -90,7 +90,7 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
-      models: read
+      copilot-requests: write
     if: >-
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&

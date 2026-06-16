@@ -31,7 +31,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: read
-      models: read
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-agent-suggestions.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-agent-suggestions.yml'] }}
@@ -53,7 +53,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-      models: read
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-autodoc.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-autodoc.yml'] }}
@@ -95,7 +95,7 @@ jobs:
       contents: read
       id-token: write
       issues: write
-      models: read
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-resource-not-accessible-by-integration-detector.yml'] }}

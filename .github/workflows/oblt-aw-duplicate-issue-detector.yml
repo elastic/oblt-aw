@@ -51,7 +51,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: read
-      models: read
+      copilot-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}

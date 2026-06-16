@@ -34,7 +34,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-      models: read
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-issue-triage.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-issue-triage.yml'] }}
@@ -60,7 +60,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: read
-      models: read
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-duplicate-issue-detector.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-duplicate-issue-detector.yml'] }}
@@ -88,7 +88,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-      models: read
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-security-triage.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-security-triage.yml'] }}
@@ -117,7 +117,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-      models: read
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-security-fixer.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-security-fixer.yml'] }}
@@ -145,7 +145,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-      models: read
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-resource-not-accessible-by-integration-triage.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-resource-not-accessible-by-integration-triage.yml'] }}
@@ -172,7 +172,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-      models: read
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-resource-not-accessible-by-integration-fixer.yml'] }}
