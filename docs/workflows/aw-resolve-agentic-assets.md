@@ -1,12 +1,12 @@
-# Workflow: `aw-resolve-apm-assets.yml`
+# Workflow: `aw-resolve-agentic-assets.yml`
 
 ## Overview
 
-Source file: [.github/workflows/aw-resolve-apm-assets.yml](../../.github/workflows/aw-resolve-apm-assets.yml)
+Source file: [.github/workflows/aw-resolve-agentic-assets.yml](../../.github/workflows/aw-resolve-agentic-assets.yml)
 
-Resolves consumer [`apm.yml`](https://github.com/microsoft/apm) agentic assets for **one** `gh-aw-*` invocation. Call this reusable immediately before each job that `uses` an upstream agentic workflow lock file.
+Resolves consumer agentic assets for **one** `gh-aw-*` invocation: [`apm.yml`](https://github.com/microsoft/apm) / `x-oblt-aw` blocks, workflow-specific consumer files (for example `.oblt-aw.autodocignore`), and platform baseline instructions. Call this reusable immediately before each job that `uses` an upstream agentic workflow lock file.
 
-CI enforces the contract via [scripts/validate_aw_workflow_resolve_apm_assets.py](../../scripts/validate_aw_workflow_resolve_apm_assets.py): every local `*-aw-*` workflow with at least one `gh-aw-*` call must invoke `aw-resolve-apm-assets.yml` at least once per agent job (for example `oblt-aw-autodoc.yml` uses two resolve jobs for audit and fix).
+CI enforces the contract via [scripts/validate_aw_workflow_resolve_agentic_assets.py](../../scripts/validate_aw_workflow_resolve_agentic_assets.py): every local `*-aw-*` workflow with at least one `gh-aw-*` call must invoke `aw-resolve-agentic-assets.yml` at least once per agent job (for example `oblt-aw-autodoc.yml` uses two resolve jobs for audit and fix).
 
 Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.yml`) do not call this workflow.
 
@@ -35,7 +35,7 @@ The `workflow-token-policy` field (exposed to route workflows as `shared-token-p
 | `apm-manifest-present` | Consumer has `apm.yml` / `apm.yaml` |
 | `apm-extension-present` | Manifest contains `x-oblt-aw` |
 | `asset-source` | `none`, `common`, or `workflow` |
-| `resolved-additional-instructions` | Merged platform + APM instructions |
+| `resolved-additional-instructions` | Merged platform, APM, and consumer-side instructions |
 | `resolved-inputs-json` | Merged platform + APM inputs |
 | `resolved-setup-commands-json` | JSON array of shell commands from the selected asset block (`setup-commands` inline string/list and optional `setup-commands-file`) |
 
@@ -57,7 +57,7 @@ jobs:
     if: >-
       needs.prelude.outputs.proceed == 'true' &&
       <same conditions as the agent job below>
-    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       control-plane-workflow: oblt-aw-example.yml
       platform-additional-instructions: |
@@ -80,4 +80,5 @@ Examples with upstream gates: [oblt-aw-automerge.yml](../../.github/workflows/ob
 - [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format and vendor extension fields
 - [APM agentic assets architecture](../architecture/apm-agentic-assets.md)
 - [Agentic Workflow Prelude](aw-prelude.md)
-- [scripts/resolve_apm_agentic_assets.py](../../scripts/resolve_apm_agentic_assets.py)
+- [scripts/agentic_assets_resolver.py](../../scripts/agentic_assets_resolver.py)
+- [scripts/resolve_agentic_assets.py](../../scripts/resolve_agentic_assets.py)

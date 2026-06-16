@@ -288,7 +288,7 @@ def merge_platform_and_apm_inputs(
     return merged
 
 
-def resolve_agentic_assets(
+def resolve_apm_assets(
     *,
     repo_root: Path,
     workflow_id: str,
@@ -298,7 +298,7 @@ def resolve_agentic_assets(
     config_dir: Path | None = None,
 ) -> dict[str, Any]:
     """
-    Resolve assets for one agentic workflow run.
+    Resolve APM assets from ``apm.yml`` for one agentic workflow run.
 
     Returns a dict with keys:
     - apm_manifest_present (bool)

@@ -35,7 +35,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       control-plane-workflow: oblt-aw-autodoc.yml
       platform-additional-instructions: |
@@ -61,6 +61,7 @@ jobs:
         - **Legacy inline comments** — Comments that explain past incidents, migrations, or non-obvious rationale may still be worth keeping for context even when nearby prose is refreshed. Prefer “update in place” or a short clarifying suffix over recommending deletion when the history remains accurate or useful.
         - **AI assets / agent configuration files** — Do not propose changes to AI-related assets. Treat AI assets, skills files, instruction/configuration files, and lock files (for example `*.lock*` and `*.lock.yml`) as strictly out of scope for autodoc findings.
         - **Helm chart internals** — Do not propose changes to Helm chart internal files. Treat template files (`helm-charts/**/templates/**`), notes files (`helm-charts/**/NOTES.txt`), and any markdown files under `helm-charts/` as strictly out of scope for autodoc findings.
+        - **Repository autodoc ignore file** — When `.oblt-aw.autodocignore` exists at the repository root, treat its patterns with `.gitignore` (gitwildmatch) semantics. Never propose documentation findings that require editing ignored paths. Active patterns from that file are appended to these instructions at runtime when present.
 
         **Issue format:** For each finding, include a clear, actionable checklist of specific documentation changes to make. Each item should reference file paths and describe the change needed.
 
@@ -86,7 +87,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: ./.github/workflows/aw-resolve-apm-assets.yml
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       control-plane-workflow: oblt-aw-autodoc.yml
       platform-additional-instructions: |
@@ -121,6 +122,8 @@ jobs:
         **AI assets / agent configuration files:** Never modify AI-related assets in this workflow. AI assets, skills files, instruction/configuration files, and lock files (for example `*.lock*` and `*.lock.yml`) are always out of scope.
 
         **Helm chart internals:** Never modify Helm chart internal files. Template files (`helm-charts/**/templates/**`), notes files (`helm-charts/**/NOTES.txt`), and markdown files under `helm-charts/` are always out of scope.
+
+        **Repository autodoc ignore file:** When `.oblt-aw.autodocignore` exists at the repository root, treat its patterns with `.gitignore` (gitwildmatch) semantics. Never modify paths that match those patterns, even when an issue requests it; note any skipped items in the PR body. Active patterns from that file are appended to these instructions at runtime when present.
 
   # Step 2: Create a PR implementing the audit findings (only when an issue was created)
   fix:

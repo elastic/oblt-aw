@@ -1,7 +1,8 @@
-name: Resolve APM Agentic Assets
+name: Resolve Agentic Assets
 
-# Resolves consumer apm.yml assets for one agentic workflow invocation. Call immediately
-# before each job that uses a gh-aw-* reusable workflow (not from aw-prelude).
+# Resolves consumer agentic assets for one workflow invocation (apm.yml, autodocignore,
+# and other consumer-side configuration). Call immediately before each job that uses a
+# gh-aw-* reusable workflow (not from aw-prelude).
 on:
   workflow_call:
     inputs:
@@ -80,8 +81,10 @@ jobs:
           fetch-depth: 1
           token: ${{ github.token }}
           sparse-checkout: |
+            scripts/agentic_assets_resolver.py
             scripts/apm_agentic_assets.py
-            scripts/resolve_apm_agentic_assets.py
+            scripts/autodocignore.py
+            scripts/resolve_agentic_assets.py
             scripts/resolve_control_plane_workflow_id.py
             scripts/resolve_repository_token_policy.py
             scripts/workflow_registry.py
@@ -147,7 +150,7 @@ jobs:
           apm-version: "0.20.0"
           github-token: ${{ steps.create-apm-token.outputs.token || github.token }}
 
-      - name: Resolve agentic assets from apm.yml
+      - name: Resolve agentic assets
         id: resolve
         env:
           ENABLED_WORKFLOW_ID: ${{ steps.registry.outputs.compound-workflow-id }}
@@ -155,4 +158,4 @@ jobs:
           CONTROL_PLANE_CONFIG_DIR: ${{ github.workspace }}/_oblt-aw/config
           PLATFORM_ADDITIONAL_INSTRUCTIONS: ${{ inputs.platform-additional-instructions }}
           PLATFORM_INPUTS_JSON: ${{ inputs.platform-inputs-json }}
-        run: python _oblt-aw/scripts/resolve_apm_agentic_assets.py
+        run: python _oblt-aw/scripts/resolve_agentic_assets.py

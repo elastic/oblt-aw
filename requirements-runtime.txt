@@ -1,2 +1,3 @@
 # Python dependencies for control-plane scripts invoked from GitHub Actions workflows.
 PyYAML==6.0.2
+pathspec==1.1.1
