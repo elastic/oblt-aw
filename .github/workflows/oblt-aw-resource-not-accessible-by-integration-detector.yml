@@ -23,7 +23,7 @@ on:
         type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -103,6 +103,7 @@ jobs:
       actions: read
       contents: read
       issues: write
+      copilot-requests: write
     if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
     strategy:
       matrix:

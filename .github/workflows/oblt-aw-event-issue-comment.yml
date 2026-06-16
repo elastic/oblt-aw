@@ -5,7 +5,7 @@ on:
   workflow_call:
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -39,6 +39,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-issue-fixer.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-issue-fixer.yml'] }}
@@ -66,6 +67,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-mention-in-issue.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-mention-in-issue.yml'] }}

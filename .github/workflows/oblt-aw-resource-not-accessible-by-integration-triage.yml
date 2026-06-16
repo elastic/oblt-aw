@@ -23,7 +23,7 @@ on:
         type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
 
 # Ephemeral token minting for label API runs only in signal-res-not-accessible-triage-followups (see #4374 workaround).
 # Omit token-policy on create-token so Vault uses the auto role token-policy-<12-char sha256(workflow ref base)>; register in catalog-info.
@@ -238,6 +238,7 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
+      copilot-requests: write
     if: >-
       github.event_name == 'issues' &&
       (

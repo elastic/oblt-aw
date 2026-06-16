@@ -52,7 +52,7 @@ Fallback path: when `automerge` returns `merge_failed` (for example with require
 
 ## Configuration
 
-The routed workflow uses `GITHUB_TOKEN` with the permissions listed in `oblt-aw-automerge.md`. `COPILOT_GITHUB_TOKEN` is required for the approval job.
+The routed workflow uses `GITHUB_TOKEN` with the permissions listed in `oblt-aw-automerge.md`. `COPILOT_GITHUB_TOKEN` is optional and forwarded for backward compatibility.
 
 ## References
 

@@ -9,7 +9,7 @@ This reusable workflow triages issues that carry the detector label `oblt-aw/det
 ## Prerequisites
 
 - Triggered via `workflow_call`.
-- Required secret: `COPILOT_GITHUB_TOKEN`.
+- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
@@ -41,7 +41,7 @@ Permissions:
 `workflow_call` contract:
 
 - Input: `allowed-bot-users` (`required: true`) — comma-separated GitHub logins for the upstream issue triage lock; ingress passes `allowed_issue_authors_csv` from [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json).
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
+- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## References
 

@@ -26,6 +26,7 @@ jobs:
     permissions:
       actions: write
       contents: read
+      copilot-requests: write
     uses: ./.github/workflows/docs-aw-pr-ai-menu-collect.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['docs-aw-pr-ai-menu-collect.yml'] }}

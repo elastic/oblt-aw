@@ -24,7 +24,7 @@ on:
         type: string
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
       BUILDKITE_API_TOKEN:
         required: true
 
@@ -54,6 +54,7 @@ jobs:
       contents: read
       issues: read
       pull-requests: write
+      copilot-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@copilot/reduce-comment-spamming
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}

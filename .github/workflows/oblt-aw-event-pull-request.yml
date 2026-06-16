@@ -5,7 +5,7 @@ on:
   workflow_call:
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -36,6 +36,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-automerge.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-automerge.yml'] }}
@@ -60,6 +61,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-dependency-review.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-dependency-review.yml'] }}

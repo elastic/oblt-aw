@@ -5,7 +5,7 @@ on:
   workflow_call:
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
       BUILDKITE_API_TOKEN:
         required: true
 
@@ -35,6 +35,7 @@ jobs:
       id-token: write
       issues: read
       pull-requests: write
+      copilot-requests: write
     uses: ./.github/workflows/oblt-aw-estc-pr-buildkite-detective.yml
     with:
       shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-estc-pr-buildkite-detective.yml'] }}

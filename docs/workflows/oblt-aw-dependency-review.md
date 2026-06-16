@@ -10,7 +10,7 @@ This reusable workflow delegates dependency-update PR analysis to a locked workf
 
 - Triggered via `workflow_call`.
 - Allow list: `needs.prelude.outputs.allowed-pr-authors-csv` from [aw-prelude](aw-prelude.md) / [load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml), derived from [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json).
-- Required secret: `COPILOT_GITHUB_TOKEN`.
+- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
@@ -48,7 +48,7 @@ Permissions:
 `workflow_call` contract:
 
 - Inputs: `allowed-bot-users` (`required: true`) — comma-separated GitHub logins for bot PR filtering
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: true`)
+- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## References
 
