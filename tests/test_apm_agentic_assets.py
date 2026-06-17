@@ -112,7 +112,7 @@ class TestExtractSetupCommands:
         ) == ["echo inline", "echo from-file", "./scripts/extra.sh"]
 
 
-class TestResolveAgenticAssets:
+class TestResolveApmAssets:
     def test_no_manifest_platform_only(self, repo: pathlib.Path) -> None:
         out = aaa.resolve_apm_assets(
             repo_root=repo,
