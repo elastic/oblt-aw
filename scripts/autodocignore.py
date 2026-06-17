@@ -53,12 +53,10 @@ def _load_autodocignore_spec(repo_root: Path) -> PathSpec[Pattern] | None:
     return PathSpec.from_lines("gitignore", patterns)
 
 
-def path_matches_autodocignore(repo_root: Path, relative_path: str) -> bool:
-    """Return True when *relative_path* matches `.oblt-aw.autodocignore` patterns."""
-    spec = _load_autodocignore_spec(repo_root)
-    if spec is None:
-        return False
-    normalized = relative_path.replace("\\", "/").lstrip("./")
+    normalized = relative_path.replace("\\", "/")
+    if normalized.startswith("./"):
+        normalized = normalized[2:]
+    normalized = normalized.lstrip("/")
     return bool(spec.match_file(normalized))
 
 
