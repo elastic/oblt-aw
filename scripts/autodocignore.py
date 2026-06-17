@@ -53,13 +53,6 @@ def _load_autodocignore_spec(repo_root: Path) -> PathSpec[Pattern] | None:
     return PathSpec.from_lines("gitignore", patterns)
 
 
-    normalized = relative_path.replace("\\", "/")
-    if normalized.startswith("./"):
-        normalized = normalized[2:]
-    normalized = normalized.lstrip("/")
-    return bool(spec.match_file(normalized))
-
-
 def build_autodocignore_instructions(repo_root: Path) -> str | None:
     """
     Build additional agent instructions when `.oblt-aw.autodocignore` exists.
