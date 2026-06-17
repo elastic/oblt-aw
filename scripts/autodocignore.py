@@ -53,6 +53,15 @@ def _load_autodocignore_spec(repo_root: Path) -> PathSpec[Pattern] | None:
     return PathSpec.from_lines("gitignore", patterns)
 
 
+def path_matches_autodocignore(repo_root: Path, relative_path: str) -> bool:
+    """Return True when relative_path matches an active autodocignore pattern."""
+    spec = _load_autodocignore_spec(repo_root)
+    if spec is None:
+        return False
+    normalized = relative_path.replace("\\", "/")
+    return spec.match_file(normalized)
+
+
 def build_autodocignore_instructions(repo_root: Path) -> str | None:
     """
     Build additional agent instructions when `.oblt-aw.autodocignore` exists.
