@@ -15,7 +15,11 @@
 # under the License.
 
 """
-CLI entrypoint for GitHub Actions: resolve agentic assets for one invocation.
+GitHub Actions CLI for agentic asset resolution.
+
+Reads workflow env vars, delegates to :func:`agentic_assets_resolver.resolve_agentic_assets`,
+and writes ``GITHUB_OUTPUT``. For importable composition logic, use
+``agentic_assets_resolver`` directly.
 
 Environment:
   ENABLED_WORKFLOW_ID  Compound org-key:workflow-id (preferred; from registry resolution)
@@ -84,7 +88,10 @@ def main() -> int:
             config_dir=config_dir,
         )
     except (OSError, ValueError, FileNotFoundError) as exc:
-        print(f"resolve_agentic_assets failed: {exc}", file=sys.stderr)
+        print(
+            f"agentic_assets_resolver.resolve_agentic_assets failed: {exc}",
+            file=sys.stderr,
+        )
         return 1
 
     additional = resolved["additional_instructions"]

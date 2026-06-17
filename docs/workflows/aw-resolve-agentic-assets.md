@@ -80,5 +80,5 @@ Examples with upstream gates: [oblt-aw-automerge.yml](../../.github/workflows/ob
 - [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format and vendor extension fields
 - [APM agentic assets architecture](../architecture/apm-agentic-assets.md)
 - [Agentic Workflow Prelude](aw-prelude.md)
-- [scripts/agentic_assets_resolver.py](../../scripts/agentic_assets_resolver.py)
-- [scripts/resolve_agentic_assets.py](../../scripts/resolve_agentic_assets.py)
+- [scripts/agentic_assets_resolver.py](../../scripts/agentic_assets_resolver.py) — importable library (APM + consumer config)
+- [scripts/resolve_agentic_assets_cli.py](../../scripts/resolve_agentic_assets_cli.py) — GitHub Actions CLI entrypoint

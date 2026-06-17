@@ -15,10 +15,11 @@
 # under the License.
 
 """
-Orchestrate agentic asset resolution for one workflow invocation.
+Importable library: compose agentic assets for one workflow invocation.
 
-Composes APM manifest assets (``apm.yml`` / ``x-oblt-aw``) with workflow-specific
-consumer configuration files (for example ``.oblt-aw.autodocignore``).
+Combines APM manifest assets (``apm.yml`` / ``x-oblt-aw``) with consumer-side
+configuration (for example ``.oblt-aw.autodocignore``). Used by unit tests and by
+``resolve_agentic_assets_cli.py`` (GitHub Actions entrypoint).
 """
 
 from __future__ import annotations

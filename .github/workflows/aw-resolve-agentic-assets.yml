@@ -84,7 +84,7 @@ jobs:
             scripts/agentic_assets_resolver.py
             scripts/apm_agentic_assets.py
             scripts/autodocignore.py
-            scripts/resolve_agentic_assets.py
+            scripts/resolve_agentic_assets_cli.py
             scripts/resolve_control_plane_workflow_id.py
             scripts/resolve_repository_token_policy.py
             scripts/workflow_registry.py
@@ -158,4 +158,4 @@ jobs:
           CONTROL_PLANE_CONFIG_DIR: ${{ github.workspace }}/_oblt-aw/config
           PLATFORM_ADDITIONAL_INSTRUCTIONS: ${{ inputs.platform-additional-instructions }}
           PLATFORM_INPUTS_JSON: ${{ inputs.platform-inputs-json }}
-        run: python _oblt-aw/scripts/resolve_agentic_assets.py
+        run: python _oblt-aw/scripts/resolve_agentic_assets_cli.py
