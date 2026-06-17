@@ -2,7 +2,7 @@ name: Agentic Workflow Prelude
 
 # Shared dashboard read, optional allow-list loading, and per-route proceed flags
 # for event-scoped orchestrators (one prelude chain per GitHub event family).
-# APM asset resolution lives in aw-resolve-apm-assets.yml (per gh-aw-* invocation in route reusables).
+# APM asset resolution lives in aw-resolve-agentic-assets.yml (per gh-aw-* invocation in route reusables).
 on:
   workflow_call:
     inputs:

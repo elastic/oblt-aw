@@ -58,8 +58,8 @@ jobs:
       - name: Validate *-aw-* workflows call aw-prelude
         run: python scripts/validate_aw_workflow_prelude.py
 
-      - name: Validate gh-aw-* workflows call resolve-apm-assets
-        run: python scripts/validate_aw_workflow_resolve_apm_assets.py
+      - name: Validate gh-aw-* workflows call resolve-agentic-assets
+        run: python scripts/validate_aw_workflow_resolve_agentic_assets.py
 
       - name: Validate COPILOT_GITHUB_TOKEN is optional in *-aw-* workflows
         run: python scripts/validate_aw_workflow_copilot_token_optional.py

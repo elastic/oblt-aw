@@ -34,6 +34,7 @@ Additional guidance encoded in `additional-instructions` for both audit and fix 
 - Preserve or lightly refresh **legacy inline comments** that still document useful context or history; avoid deleting them only for brevity.
 - AI-related files are always out of scope for autodoc changes: AI assets, skills files, instruction/configuration files, and lock files (for example `*.lock*` and `*.lock.yml`).
 - Helm chart internal files are always out of scope for autodoc changes: template files (`helm-charts/**/templates/**`), notes files (`helm-charts/**/NOTES.txt`), and markdown files under `helm-charts/`.
+- When `.oblt-aw.autodocignore` exists at the repository root, patterns in that file use `.gitignore` (gitwildmatch) semantics. The audit must not propose findings that require editing ignored paths; the fix stage must not modify ignored paths. Active patterns are appended to agent instructions at runtime by `aw-resolve-agentic-assets`.
 
 ## Configuration
 

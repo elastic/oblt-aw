@@ -112,9 +112,9 @@ class TestExtractSetupCommands:
         ) == ["echo inline", "echo from-file", "./scripts/extra.sh"]
 
 
-class TestResolveAgenticAssets:
+class TestResolveApmAssets:
     def test_no_manifest_platform_only(self, repo: pathlib.Path) -> None:
-        out = aaa.resolve_agentic_assets(
+        out = aaa.resolve_apm_assets(
             repo_root=repo,
             workflow_id="agent-suggestions",
             org_key="obs",
@@ -140,7 +140,7 @@ x-oblt-aw:
 """,
             encoding="utf-8",
         )
-        out = aaa.resolve_agentic_assets(
+        out = aaa.resolve_apm_assets(
             repo_root=repo,
             workflow_id="issue-triage",
             org_key="obs",
@@ -171,7 +171,7 @@ x-oblt-aw:
 """,
             encoding="utf-8",
         )
-        out = aaa.resolve_agentic_assets(
+        out = aaa.resolve_apm_assets(
             repo_root=repo,
             workflow_id="agent-suggestions",
             org_key="obs",
@@ -197,7 +197,7 @@ x-oblt-aw:
 """,
             encoding="utf-8",
         )
-        out = aaa.resolve_agentic_assets(
+        out = aaa.resolve_apm_assets(
             repo_root=repo,
             workflow_id="autodoc",
             org_key="obs",
@@ -226,7 +226,7 @@ x-oblt-aw:
 """,
             encoding="utf-8",
         )
-        out = aaa.resolve_agentic_assets(
+        out = aaa.resolve_apm_assets(
             repo_root=repo,
             workflow_id="security",
             org_key="obs",
@@ -245,7 +245,7 @@ x-oblt-aw:
 """,
             encoding="utf-8",
         )
-        out = aaa.resolve_agentic_assets(
+        out = aaa.resolve_apm_assets(
             repo_root=repo,
             workflow_id="autodoc",
             org_key="obs",
@@ -269,12 +269,12 @@ x-oblt-aw:
 """,
             encoding="utf-8",
         )
-        obs_out = aaa.resolve_agentic_assets(
+        obs_out = aaa.resolve_apm_assets(
             repo_root=repo,
             workflow_id="agent-suggestions",
             org_key="obs",
         )
-        docs_out = aaa.resolve_agentic_assets(
+        docs_out = aaa.resolve_apm_assets(
             repo_root=repo,
             workflow_id="docs-pr-ai-menu",
             org_key="docs",
@@ -299,7 +299,7 @@ x-oblt-aw:
 """,
             encoding="utf-8",
         )
-        out = aaa.resolve_agentic_assets(
+        out = aaa.resolve_apm_assets(
             repo_root=repo,
             workflow_id="docs-pr-ai-menu",
             org_key="docs",
@@ -322,7 +322,7 @@ x-oblt-aw:
             encoding="utf-8",
         )
         with pytest.raises(ValueError, match="nest assets under org keys"):
-            aaa.resolve_agentic_assets(
+            aaa.resolve_apm_assets(
                 repo_root=repo,
                 workflow_id="agent-suggestions",
                 org_key="obs",

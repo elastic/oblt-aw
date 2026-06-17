@@ -1,6 +1,6 @@
 # APM agentic assets (consumer repositories)
 
-Consumer repositories can declare **shared** and **per-workflow** agentic assets in [`apm.yml`](https://github.com/microsoft/apm) using the `x-oblt-aw` extension. The control plane resolves those assets in [`aw-resolve-apm-assets.yml`](../../.github/workflows/aw-resolve-apm-assets.yml) immediately before each upstream `gh-aw-*` invocation (not in [`aw-prelude.yml`](../../.github/workflows/aw-prelude.yml)).
+Consumer repositories can declare **shared** and **per-workflow** agentic assets in [`apm.yml`](https://github.com/microsoft/apm) using the `x-oblt-aw` extension. The control plane resolves those assets in [`aw-resolve-agentic-assets.yml`](../../.github/workflows/aw-resolve-agentic-assets.yml) immediately before each upstream `gh-aw-*` invocation (not in [`aw-prelude.yml`](../../.github/workflows/aw-prelude.yml)).
 
 ## Workflow identifiers
 
@@ -89,8 +89,8 @@ When the dashboard gate passes (`proceed == true`), each agent job’s preceding
 
 1. Checks out the **consumer** repository (caller context).
 2. Installs [`requirements-runtime.txt`](../../requirements-runtime.txt) with pip cache via `actions/setup-python`.
-3. Runs [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI with tool-cache reuse and runs `apm install` for declared skills, plugins, MCP servers, and other APM dependencies). Private GitHub packages use `ai-assets-token-policy` from `config/<org>/active-repositories.json` when set; otherwise the job `GITHUB_TOKEN` is passed as `github-token` (see [aw-resolve-apm-assets](../workflows/aw-resolve-apm-assets.md)).
-4. Runs [`scripts/resolve_apm_agentic_assets.py`](../../scripts/resolve_apm_agentic_assets.py) with the compound workflow id (`org-key:workflow-id`) to select the org block and produce:
+3. Runs [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI with tool-cache reuse and runs `apm install` for declared skills, plugins, MCP servers, and other APM dependencies). Private GitHub packages use `ai-assets-token-policy` from `config/<org>/active-repositories.json` when set; otherwise the job `GITHUB_TOKEN` is passed as `github-token` (see [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md)).
+4. Runs [`scripts/resolve_agentic_assets_cli.py`](../../scripts/resolve_agentic_assets_cli.py), which calls [`agentic_assets_resolver.resolve_agentic_assets`](../../scripts/agentic_assets_resolver.py), with the compound workflow id (`org-key:workflow-id`) to select the org block and produce:
    - `resolved-additional-instructions`
    - `resolved-inputs-json` (merged platform + APM inputs)
    - `resolved-setup-commands-json`
@@ -108,5 +108,5 @@ JSON Schema for this extension block: [`config/schema/apm-agentic-workflows.sche
 - [APM (Agent Package Manager)](https://github.com/microsoft/apm)
 - [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format and vendor extension fields
 - [Multi-org agentic workflows](./multi-org-agentic-workflows.md)
-- [Resolve APM agentic assets](../../.github/workflows/aw-resolve-apm-assets.yml)
+- [Resolve agentic assets](../../.github/workflows/aw-resolve-agentic-assets.yml)
 - [Agentic Workflow Prelude](../../.github/workflows/aw-prelude.yml)
