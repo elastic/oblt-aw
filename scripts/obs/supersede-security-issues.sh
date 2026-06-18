@@ -95,8 +95,7 @@ find_open_linked_prs() {
   local search_query="repo:${repo} is:pr is:open \"#${issue_number}\""
   gh search prs "$search_query" \
     --json number,author,isDraft,title,body \
-    --limit 20 \
-    2>/dev/null || printf '[]\n'
+    --limit 20
 }
 
 linked_pr_references_issue() {
