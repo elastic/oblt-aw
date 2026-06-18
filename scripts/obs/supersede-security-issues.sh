@@ -103,7 +103,7 @@ linked_pr_references_issue() {
   local issue_number="$1"
   local pr_json="$2"
   local haystack
-  haystack="$(jq -r '[.title, .body] | join("\n")' <<< "$pr_json" | tr '[:upper:]' '[:lower:]')"
+  haystack="$(jq -r '[.title // "", .body // ""] | join("\n")' <<< "$pr_json" | tr '[:upper:]' '[:lower:]')"
   [[ "$haystack" == *"fixes #${issue_number}"* ]] \
     || [[ "$haystack" == *"closes #${issue_number}"* ]] \
     || [[ "$haystack" == *"resolves #${issue_number}"* ]]
