@@ -7,16 +7,18 @@ Client templates: `trigger-oblt-aw-security-*.yml` → matching `oblt-aw-securit
 Routed workflows (`oblt-aw-security-*`; registry id `security`):
 
 - [.github/workflows/oblt-aw-security-detector.yml](../../.github/workflows/oblt-aw-security-detector.yml)
+- [.github/workflows/oblt-aw-security-issue-superseder.yml](../../.github/workflows/oblt-aw-security-issue-superseder.yml)
 - [.github/workflows/oblt-aw-security-triage.yml](../../.github/workflows/oblt-aw-security-triage.yml)
 - [.github/workflows/oblt-aw-security-fixer.yml](../../.github/workflows/oblt-aw-security-fixer.yml)
 
-All three workflows use the same Control Plane dashboard gate: prelude allows `obs:security` when [workflow-registry.json](../../config/obs/workflow-registry.json) id `security` is enabled ([aw-prelude](../workflows/aw-prelude.md)).
+All four workflows use the same Control Plane dashboard gate: prelude allows `obs:security` when [workflow-registry.json](../../config/obs/workflow-registry.json) id `security` is enabled ([aw-prelude](../workflows/aw-prelude.md)).
 
 ## Usage
 
 Routing rules in `oblt-aw-security-*.yml` (issue routes follow the same label pattern as `resource-not-accessible-by-integration-*`):
 
 - **Detector** — `schedule` or `workflow_dispatch`.
+- **Superseder** — `issues` + `opened` when the issue has `oblt-aw/detector/security` (closes older open issues for the same SEC rule; see [docs/workflows/oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)).
 - **Triage** — `issues` + (`opened` and issue already has `oblt-aw/detector/security`) **or** (`labeled` and the label applied is `oblt-aw/detector/security`).
 - **Fixer** — `issues` + `labeled` with `oblt-aw/ai/fix-ready`, and the issue has at least one label matching `oblt-aw/triage/security-*`.
 
@@ -26,6 +28,13 @@ Routing rules in `oblt-aw-security-*.yml` (issue routes follow the same label pa
 
 - **Events**: `schedule`, `workflow_dispatch`
 - **Role**: Static scan of the repository; opens issues with label `oblt-aw/detector/security` for findings (see [docs/workflows/oblt-aw-security-detector.md](../workflows/oblt-aw-security-detector.md)).
+
+### Superseder
+
+- **Event**: `issues`
+- **Action**: `opened`
+- **Required label**: `oblt-aw/detector/security` on the **new** (canonical) issue
+- **Role**: Closes older open detector issues for the same SEC id; skips issues in triage/fixer and those with open non-bot fix PRs ([docs/workflows/oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)).
 
 ### Triage
 
@@ -61,5 +70,6 @@ The ingress uses `contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw
 ## References
 
 - [docs/workflows/oblt-aw-security-detector.md](../workflows/oblt-aw-security-detector.md)
+- [docs/workflows/oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)
 - [docs/workflows/oblt-aw-security-triage.md](../workflows/oblt-aw-security-triage.md)
 - [docs/workflows/oblt-aw-security-fixer.md](../workflows/oblt-aw-security-fixer.md)

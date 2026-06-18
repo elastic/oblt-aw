@@ -17,13 +17,16 @@ This document defines the architecture for proactive security bug hunting and re
 The security agent pipeline follows this flow:
 
 1. **Detector** — Scheduled or manually triggered. Scans code (shell scripts, workflow YAML) for security vulnerabilities. When it creates an issue (using the title prefix `[oblt-aw][security]`) for a finding, it must add the label `oblt-aw/detector/security` and include structured findings.
-2. **Triage** — Triggered on issues labeled `oblt-aw/detector/security`. Classifies using `oblt-aw/triage/security-*` (injection, secrets, supply-chain, least-privilege), `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`. Produces a resolution plan where applicable. When an issue is ready for automated fix, triage adds `oblt-aw/ai/fix-ready` (the fixer path requires this together with a `oblt-aw/triage/security-*` label).
-3. **Fixer** — Triggered on issues that have both `oblt-aw/triage/security-*` and `oblt-aw/ai/fix-ready`. Implements fixes per triage plan and opens draft PRs.
+2. **Superseder** — Triggered when a new detector issue is **opened**. Closes older open issues for the **same SEC rule** (deterministic script; see [oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)). Skips issues already in triage/fixer or with open non-bot fix PRs.
+3. **Triage** — Triggered on issues labeled `oblt-aw/detector/security`. Classifies using `oblt-aw/triage/security-*` (injection, secrets, supply-chain, least-privilege), `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`. Produces a resolution plan where applicable. When an issue is ready for automated fix, triage adds `oblt-aw/ai/fix-ready` (the fixer path requires this together with a `oblt-aw/triage/security-*` label).
+4. **Fixer** — Triggered on issues that have both `oblt-aw/triage/security-*` and `oblt-aw/ai/fix-ready`. Implements fixes per triage plan and opens draft PRs.
 
 ```mermaid
 flowchart TD
   A[Schedule / workflow_dispatch] --> B[Security Detector]
   B --> C[Creates issue + label oblt-aw/detector/security]
+  C --> S[Security Issue Superseder]
+  S --> C2[Closes older open issues same SEC id]
   C --> D[Security Triage]
   D --> E["oblt-aw/triage/security-*, other, or needs-info"]
   E --> F[oblt-aw/ai/fix-ready when ready to fix]
@@ -61,6 +64,7 @@ The detector targets the full ruleset in [docs/workflows/security-scanning-rules
 | Stage | ai-github-actions Workflow | Usage |
 |-------|----------------------------|-------|
 | **Detector** | None (code-scanning) | Custom job runs shellcheck, actionlint, zizmor, semgrep, and npm audit; creates issues. If a code-scanning agent is added later, oblt-aw can migrate to it. |
+| **Superseder** | None (shell script) | [`supersede-security-issues.sh`](../../scripts/obs/supersede-security-issues.sh) on `issues` `opened` for `oblt-aw/detector/security`; closes stale open issues per SEC id ([oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)). |
 | **Triage** | `gh-aw-issue-triage.lock.yml` | Triggered for issues labeled `oblt-aw/detector/security`; classifies with `oblt-aw/triage/security-*`, `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`; adds `oblt-aw/ai/fix-ready` when ready to fix. |
 | **Fixer** | `gh-aw-issue-fixer.lock.yml` | Triggered when a `oblt-aw/triage/security-*` label and `oblt-aw/ai/fix-ready` are present; security-specific instructions; least-privilege and env-indirection patterns. |
 
@@ -72,8 +76,9 @@ The detector targets the full ruleset in [docs/workflows/security-scanning-rules
 
 1. **Detector** — Workflow that checks out the caller repository and runs checks for currently implemented SEC-* rules (shellcheck, pattern scanners, optional ecosystem audits), with additional ruleset IDs tracked for future detector expansion.
 2. **Issues** — Created with prefix `[oblt-aw][security]` and label `oblt-aw/detector/security`.
-3. **Triage** — Runs on `oblt-aw/detector/security` issues; applies granular `oblt-aw/triage/security-*` labels; adds `oblt-aw/ai/fix-ready` when appropriate.
-4. **Fixer** — Produces draft PRs per triage plan (env indirection, pinning, permissions, and other remediations as specified).
+3. **Superseder** — Closes superseded open detector issues for the same SEC rule when a newer scan opens a replacement issue ([elastic/observability-robots#4424](https://github.com/elastic/observability-robots/issues/4424)).
+4. **Triage** — Runs on `oblt-aw/detector/security` issues; applies granular `oblt-aw/triage/security-*` labels; adds `oblt-aw/ai/fix-ready` when appropriate.
+5. **Fixer** — Produces draft PRs per triage plan (env indirection, pinning, permissions, and other remediations as specified).
 
 **Coverage:** The ruleset document defines full SEC-* coverage aligned with [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758), and the detector currently emits the subset listed in the ruleset overview/traceability sections. Token exposure via command-line args remains a documented class ([oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500)).
 
