@@ -21,7 +21,7 @@ Repository-specific instructions enforce:
 
 - no issue creation when there are no net-new recommendations
 - label `agentic-workflow` on created report issues
-- expiration window `24h` for created report issues
+- automatic issue expiration via upstream safe-outputs (`expires: 7d` in `gh-aw-agent-suggestions.lock.yml`); do not pass `expires` or custom issue `fields` from agent output
 - detailed analysis per recommendation (pain points, gaps, benefits, trade-offs)
 
 ## Configuration
