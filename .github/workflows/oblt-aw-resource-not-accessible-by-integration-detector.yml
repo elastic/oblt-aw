@@ -21,10 +21,6 @@ on:
       shared-token-policy:
         required: true
         type: string
-    secrets:
-      COPILOT_GITHUB_TOKEN:
-        required: false
-
 permissions:
   contents: read
 

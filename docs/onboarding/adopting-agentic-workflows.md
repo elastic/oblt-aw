@@ -13,7 +13,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 ## Prerequisites
 
 - **Control plane:** Permission to change `elastic/oblt-aw` on `main` via reviewed pull requests.
-- **Consumer repos:** Target repositories listed in `active-repositories.json`, per-workflow client YAML installed, and **`COPILOT_GITHUB_TOKEN`** (or other secrets) only where the workflow requires them ([Client template](../workflows/oblt-aw-client-template.md); the **security detector** uses an ephemeral token — [oblt-aw-security-detector](../workflows/oblt-aw-security-detector.md)).
+- **Consumer repos:** Target repositories listed in `active-repositories.json` and per-workflow client YAML installed ([Client template](../workflows/oblt-aw-client-template.md); the **security detector** uses an ephemeral token — [oblt-aw-security-detector](../workflows/oblt-aw-security-detector.md)).
 
 ## Control plane checklist (`elastic/oblt-aw`)
 

@@ -9,7 +9,6 @@ Reusable wrapper that calls the locked duplicate-issue-detector workflow in [ela
 ## Prerequisites
 
 - Triggered via `workflow_call` from `trigger-oblt-aw-duplicate-issue-detector.yml` client templates.
-- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
@@ -37,7 +36,6 @@ Permissions (job-level on the control-plane reusable; union mirrored on the clie
 
 `workflow_call` contract:
 
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## References
 

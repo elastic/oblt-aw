@@ -85,7 +85,6 @@ Job-level permissions on `run-aw` must be at least as permissive as the union of
 
 | Secret | Templates |
 |--------|-----------|
-| `COPILOT_GITHUB_TOKEN` (optional) | All event-scoped templates except resource-not-accessible fixer routes inside orchestrators (those use `secrets: inherit` on the route job) |
 | `BUILDKITE_LOGS_API_TOKEN` → `BUILDKITE_API_TOKEN` | `trigger-oblt-aw-status.yml` only |
 
 ## Migration from per-route client templates

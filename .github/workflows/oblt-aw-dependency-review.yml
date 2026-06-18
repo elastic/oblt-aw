@@ -21,10 +21,6 @@ on:
       shared-token-policy:
         required: true
         type: string
-    secrets:
-      COPILOT_GITHUB_TOKEN:
-        required: false
-
 permissions:
   contents: read
 
@@ -79,9 +75,6 @@ jobs:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
       classification-labels: "oblt-aw/ai/merge-ready"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
   # Workaround until we can mint ephemeral tokens inside agentic-workflows (elastic/observability-robots#4374):
   # the nested workflow must not receive a cross-job token output. After it runs, mint here and
   # remove+re-add `oblt-aw/ai/merge-ready` when present so ingress sees a `labeled` event from the

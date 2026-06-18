@@ -26,10 +26,6 @@ on:
       shared-token-policy:
         required: true
         type: string
-    secrets:
-      COPILOT_GITHUB_TOKEN:
-        required: false
-
 permissions:
   contents: read
 
@@ -196,9 +192,6 @@ jobs:
     with:
       review-scope: repo-wide-markdown
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
   refresh-menu-after-docs-review:
     name: Refresh AI PR menu after docs review
     needs: [evaluate-trigger, run-docs-review]

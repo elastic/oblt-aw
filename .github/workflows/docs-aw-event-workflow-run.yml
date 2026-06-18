@@ -3,10 +3,6 @@ name: Docs Agentic Workflow — Workflow Run Event
 # Event-scoped orchestrator: privileged PR AI menu post after collect workflow_run.
 on:
   workflow_call:
-    secrets:
-      COPILOT_GITHUB_TOKEN:
-        required: false
-
 permissions:
   contents: read
 
@@ -44,5 +40,3 @@ jobs:
       shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
       shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.prelude.outputs.token-policy }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
