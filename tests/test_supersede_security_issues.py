@@ -56,6 +56,12 @@ def test_linked_pr_references_issue_detects_fixes_keyword() -> None:
     assert result.returncode == 0
 
 
+def test_linked_pr_references_issue_handles_null_body() -> None:
+    pr_json = '{"title":"Fixes #42","body":null}'
+    result = _bash(f"linked_pr_references_issue 42 '{pr_json}'")
+    assert result.returncode == 0
+
+
 def test_linked_pr_references_issue_ignores_unrelated_prs() -> None:
     pr_json = '{"title":"Unrelated","body":"No issue link here"}'
     result = _bash(f"linked_pr_references_issue 42 '{pr_json}'")
