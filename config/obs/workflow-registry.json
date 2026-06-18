@@ -74,6 +74,7 @@
       "control_plane_workflows": [
         "oblt-aw-security-detector.yml",
         "oblt-aw-security-fixer.yml",
+        "oblt-aw-security-issue-superseder.yml",
         "oblt-aw-security-triage.yml"
       ]
     },
