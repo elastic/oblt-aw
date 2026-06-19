@@ -92,10 +92,24 @@ author_is_allowed_bot() {
 find_open_linked_prs() {
   local issue_number="$1"
   local repo="$2"
-  local search_query="repo:${repo} is:pr is:open \"#${issue_number}\""
-  gh search prs "$search_query" \
-    --json number,author,isDraft,title,body \
-    --limit 20
+  local pr_number pr_json results="[]"
+
+  # Use issue cross-references (Issues/PRs API) instead of gh search prs, which
+  # requires the Search API scope that ephemeral workflow tokens often lack.
+  while IFS= read -r pr_number; do
+    [[ -z "$pr_number" ]] && continue
+    pr_json="$(gh pr view "$pr_number" --repo "$repo" --json number,author,isDraft,title,body,state)"
+    if [[ "$(jq -r '.state' <<< "$pr_json")" != "OPEN" ]]; then
+      continue
+    fi
+    results="$(jq -c --argjson pr "$pr_json" '. + [$pr]' <<< "$results")"
+  done < <(
+    gh issue view "$issue_number" --repo "$repo" \
+      --json closedByPullRequestsReferences \
+      | jq -r '.closedByPullRequestsReferences[]?.number // empty'
+  )
+
+  printf '%s\n' "$results"
 }
 
 linked_pr_references_issue() {

@@ -35,7 +35,7 @@ Job **supersede-security-issues**:
 | **Equivalence** | Same **SEC id** parsed from title `[oblt-aw][security] SEC-XXX — findings (…)` and label `oblt-aw/detector/security` |
 | **Direction** | Newer issue (higher number) is canonical; only **older** open issues are candidates |
 | **Skip close** | Candidate has `oblt-aw/ai/fix-ready`, any `oblt-aw/triage/security-*`, `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info` |
-| **Skip close** | Candidate has an **open** PR referencing it (`Fixes` / `Closes` / `Resolves #N`) authored by a login **not** in the issue allow-list |
+| **Skip close** | Candidate has an **open** PR with closing keywords (`Fixes` / `Closes` / `Resolves #N`) authored by a login **not** in the issue allow-list (resolved via issue cross-references, not Search API) |
 | **Close PR** | Open bot-authored PRs (allow-list from prelude) that reference a superseded issue are closed with a comment |
 
 On supersede, the script posts a comment on the older issue linking to the canonical issue, then closes it.
