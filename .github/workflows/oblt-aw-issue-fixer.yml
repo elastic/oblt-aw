@@ -94,7 +94,6 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-      model: gpt-5-mini
     secrets: inherit
 
   request-reviewers:
