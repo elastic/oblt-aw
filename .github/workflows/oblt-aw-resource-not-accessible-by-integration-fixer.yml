@@ -94,6 +94,7 @@ jobs:
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      model: gpt-5-mini
     secrets: inherit
 
   request-reviewers:
