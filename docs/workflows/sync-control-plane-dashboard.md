@@ -20,21 +20,28 @@ Triggers:
 - `push` to `main` when any of these paths change:
   - `config/**/workflow-registry.json` and `config/**/active-repositories.json` (per-org trees)
   - [.github/workflows/sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml)
-- `workflow_dispatch`
+- `workflow_dispatch` with optional input `force-sync-defaults` (boolean, default `false`)
 
 *Note: Editing the dashboard issue does not trigger this workflow. Dashboard opt-in/opt-out is read at runtime by the ingress (`get-enabled-workflows`); there is no `issues.edited` trigger.*
 
 Execution:
 
 1. **prepare-repos job:** Builds repos matrix from the union of org active-repository lists via [scripts/build_repos_matrix.py](../../scripts/build_repos_matrix.py); outputs JSON for matrix strategy
-2. **sync-dashboard job:** Matrix job (one job per repo); each invokes `scripts/sync_control_plane_dashboard.py --repo <owner/repo>`:
+2. **sync-dashboard job:** Matrix job (one job per repo); each invokes `scripts/sync_control_plane_dashboard.py --repo <owner/repo>` (and `--force-sync-defaults` when the dispatch input is `true`):
     - Search for existing open issue with label `oblt-aw/dashboard`
     - Create or update the issue with title `[oblt-aw] Control Plane Dashboard`, body merged from each applicable org registry (sections per org, three-part checkbox markers)
     - Pin the issue via `gh issue pin` (if limit of 3 pins reached, log and continue)
 
+### `force-sync-defaults` (workflow_dispatch)
+
+Set `force-sync-defaults: true` when manually running the workflow to **reset every checkbox** on all target dashboards to the current `default_enabled` value from each org’s `workflow-registry.json`. This overwrites user-edited checkbox state. Use after changing registry defaults (for example switching obs workflows to opt-in) to roll out the new baseline across active repositories.
+
+Regular `push`-triggered runs and dispatches with `force-sync-defaults: false` preserve existing checkbox state.
+
 ### `scripts/sync_control_plane_dashboard.py` runtime contract
 
 - `--repo OWNER/REPO` is required. Invalid values that are not in `owner/repo` format fail with exit code `1`.
+- `--force-sync-defaults` is optional. When set, every checkbox is rebuilt from registry `default_enabled` instead of preserving user-edited state from the existing dashboard body.
 - Authentication is required via `GH_TOKEN` or `GITHUB_TOKEN`. If neither is set, the script fails with exit code `1`.
 - The target repository must be listed in at least one `config/<org-key>/active-repositories.json`. If it is not present in any org config, the script fails with exit code `1` and does not create or update an issue.
 
@@ -43,6 +50,7 @@ Minimal local invocation example:
 ```bash
 export GH_TOKEN="<github-token-with-issue-write-permissions>"
 python3 scripts/sync_control_plane_dashboard.py --repo elastic/oblt-aw
+python3 scripts/sync_control_plane_dashboard.py --repo elastic/oblt-aw --force-sync-defaults
 ```
 
 Expected error behavior examples:
@@ -58,7 +66,7 @@ python3 scripts/sync_control_plane_dashboard.py --repo elastic/not-in-active-rep
 `default_enabled` behavior:
 
 - Used when building checkbox state for workflows that are not present in an existing dashboard body.
-- Existing checkbox state in the dashboard issue remains authoritative and is preserved during updates.
+- Existing checkbox state in the dashboard issue remains authoritative and is preserved during updates (unless `force-sync-defaults` is used).
 - For newly added workflows in `workflow-registry.json`, `default_enabled` determines the initial checkbox state until users edit that workflow's checkbox.
 
 ## Configuration

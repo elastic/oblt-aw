@@ -9,6 +9,13 @@ on:
       - config/**/active-repositories.json
       - .github/workflows/sync-control-plane-dashboard.yml
   workflow_dispatch:
+    inputs:
+      force-sync-defaults:
+        description: >-
+          Reset every dashboard checkbox to the current registry default_enabled
+          value (overwrites user-edited checkbox state on all target repositories).
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -83,4 +90,10 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.create-token.outputs.token }}
           TARGET_REPO: ${{ matrix.repository }}
-        run: python scripts/sync_control_plane_dashboard.py --repo "$TARGET_REPO"
+          FORCE_SYNC_DEFAULTS: ${{ github.event_name == 'workflow_dispatch' && inputs.force-sync-defaults && 'true' || 'false' }}
+        run: |
+          args=(--repo "$TARGET_REPO")
+          if [ "$FORCE_SYNC_DEFAULTS" = "true" ]; then
+            args+=(--force-sync-defaults)
+          fi
+          python scripts/sync_control_plane_dashboard.py "${args[@]}"

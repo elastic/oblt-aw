@@ -30,7 +30,7 @@ Called by ingress:
 
 Semantics used by ingress:
 
-- `effective-raw == ''`: no open dashboard issue exists; ingress treats all registry workflows as enabled.
+- `effective-raw == ''`: no open dashboard issue exists; gated workflows do not run.
 - `effective-raw != ''` and `enabled-workflows == []`: dashboard exists but nothing is selected; gated workflows do not run.
 - `effective-raw != ''` and non-empty `enabled-workflows`: only listed compound ids (`org:workflow-id`) are enabled.
 

@@ -133,7 +133,7 @@ def main() -> None:
         raw = "[]"
     elif body is None:
         raw = ""
-        print("No dashboard issue found, defaulting to all workflows enabled")
+        print("No dashboard issue found, no workflows will run")
     else:
         enabled = parse_enabled_ids_from_body(body)
         if enabled == "[]":

@@ -150,11 +150,11 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 1. **Dashboard sync** (`sync-control-plane-dashboard`): Reads per-org `config/<org-key>/workflow-registry.json` and `active-repositories.json`; creates or updates the **single** dashboard issue in each target repository with sections per org; pins the issue when possible
 2. **User edit:** Users check or uncheck workflow checkboxes in the dashboard issue (no config file; no PRs on checkbox edits)
 3. **Runtime check** (`get-enabled-workflows`): When a `oblt-aw-*` workflow runs, prelude invokes this reusable workflow first. It parses the dashboard (or `effective-raw` is empty when no issue exists) and emits normalized `enabled-workflows`.
-4. **Prelude gating:** Downstream jobs use `needs.prelude.outputs.proceed`; empty `effective-raw` → all workflows; empty array → none; non-empty array → only listed compound ids
+4. **Prelude gating:** Downstream jobs use `needs.prelude.outputs.proceed`; empty `effective-raw` or empty `enabled-workflows` → none; non-empty `enabled-workflows` → only listed compound ids
 
 ### Opt-in / Opt-out
 
-- **No dashboard exists:** All workflows are activated by default
+- **No dashboard exists:** All workflows are deactivated
 - **Dashboard exists, all unchecked:** All workflows are deactivated
 - **Dashboard exists, some checked:** Only checked workflows are executed
 
