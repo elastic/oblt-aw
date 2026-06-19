@@ -39,8 +39,6 @@ on:
 jobs:
   run-aw:
     uses: elastic/oblt-aw/.github/workflows/oblt-aw-automerge.yml@main
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
 ```
 
 ## Control Plane and Consumer Interaction Diagram

@@ -11,7 +11,6 @@ When the agent creates an issue for findings, its instructions require adding th
 ## Prerequisites
 
 - Triggered via `workflow_call`.
-- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
@@ -43,7 +42,6 @@ Permissions:
 
 `workflow_call` contract:
 
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## References
 

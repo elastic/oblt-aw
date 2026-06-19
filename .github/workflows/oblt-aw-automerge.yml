@@ -21,11 +21,6 @@ on:
       shared-token-policy:
         required: true
         type: string
-    secrets:
-      COPILOT_GITHUB_TOKEN:
-        description: "Token for GH-AW mention-in-pr (Copilot); must be supplied by the ingress caller."
-        required: false
-
 permissions:
   contents: read
 
@@ -190,9 +185,6 @@ jobs:
 
         If any gate is false, do not approve and do not request changes.
         Keep output minimal.
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
   # Same repository as the PR: GITHUB_TOKEN can merge when checks/reviews satisfy branch protection
   # and pascalgn/automerge-action config. Author/label rules are enforced in `verify` (validateAutomergePr).
   automerge:

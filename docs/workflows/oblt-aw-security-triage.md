@@ -9,7 +9,6 @@ This reusable workflow triages newly opened security-related issues and prepares
 ## Prerequisites
 
 - Triggered via `workflow_call`.
-- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
@@ -17,7 +16,7 @@ The job `security-issue-triage` calls:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
 
-The nested workflow receives `COPILOT_GITHUB_TOKEN` and **`classification-labels`** matching the security triage allowlist below.
+The nested workflow receives **`classification-labels`** matching the security triage allowlist below.
 
 Configured instructions define:
 
@@ -41,7 +40,6 @@ Permissions:
 `workflow_call` contract:
 
 - Input: `allowed-bot-users` (`required: true`) — comma-separated GitHub logins for the upstream issue triage lock; ingress passes `allowed_issue_authors_csv` from [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json).
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## Resolution Plan Structure
 

@@ -22,10 +22,6 @@ on:
       shared-token-policy:
         required: true
         type: string
-    secrets:
-      COPILOT_GITHUB_TOKEN:
-        required: false
-
 permissions:
   contents: read
 
@@ -55,5 +51,3 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}

@@ -9,7 +9,6 @@ This reusable workflow triages issues that carry the detector label `oblt-aw/det
 ## Prerequisites
 
 - Triggered via `workflow_call`.
-- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
@@ -17,7 +16,7 @@ The job `res-not-accessible-integration-triage` calls:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
 
-The nested workflow receives `COPILOT_GITHUB_TOKEN` and **`classification-labels`** for `oblt-aw/triage/res-not-accessible-by-integration`, `oblt-aw/triage/other`, `oblt-aw/triage/needs-info`, and `oblt-aw/ai/fix-ready`.
+The nested workflow receives **`classification-labels`** for `oblt-aw/triage/res-not-accessible-by-integration`, `oblt-aw/triage/other`, `oblt-aw/triage/needs-info`, and `oblt-aw/ai/fix-ready`.
 
 Configured instructions define:
 
@@ -41,7 +40,6 @@ Permissions:
 `workflow_call` contract:
 
 - Input: `allowed-bot-users` (`required: true`) — comma-separated GitHub logins for the upstream issue triage lock; ingress passes `allowed_issue_authors_csv` from [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json).
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## References
 

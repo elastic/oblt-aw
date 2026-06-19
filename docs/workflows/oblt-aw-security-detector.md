@@ -63,7 +63,7 @@ Additional rules in the ruleset may be added to the scripts over time.
 
 `workflow_call` contract:
 
-- No `secrets` are declared; callers do not pass `COPILOT_GITHUB_TOKEN` for this workflow.
+- No `secrets` are declared.
 
 Callers that trigger on a **schedule** cannot rely on `workflow_call` inputs for the host script ref; this workflow always clones detector scripts from **[elastic/oblt-aw](https://github.com/elastic/oblt-aw)** at **`main`**.
 
