@@ -43,7 +43,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout oblt-aw (supersession script)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main

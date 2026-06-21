@@ -83,7 +83,7 @@ jobs:
       token-policy: ${{ steps.token-policy.outputs.token-policy }}
     steps:
       - name: Checkout oblt-aw (registry scripts + config)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main

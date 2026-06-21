@@ -31,7 +31,7 @@ jobs:
       effective-raw: ${{ steps.run.outputs['effective-raw'] }}
     steps:
       - name: Checkout oblt-aw (dashboard script + common)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main

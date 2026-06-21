@@ -37,7 +37,7 @@ jobs:
       proceed: ${{ steps.validate.outputs.proceed }}
     steps:
       - name: Checkout elastic/oblt-aw (automerge verify only)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -94,7 +94,7 @@ jobs:
       collection-id: ${{ steps.check-collection.outputs.collection-id }}
     steps:
       - name: Checkout elastic/oblt-aw (dependency collection gate only)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
