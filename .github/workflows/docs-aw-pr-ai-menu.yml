@@ -70,7 +70,7 @@ jobs:
           fi
 
       - name: Checkout oblt-aw for Docs PR AI menu scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -109,7 +109,7 @@ jobs:
       docs_review_triggered: ${{ steps.evaluate.outputs.docs_review_triggered }}
     steps:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -144,7 +144,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -208,7 +208,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
