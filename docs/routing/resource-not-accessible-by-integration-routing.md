@@ -24,7 +24,7 @@ Routing rules from ingress:
   - issue contains label `oblt-aw/triage/res-not-accessible-by-integration`
   -> fixer
 
-All three routes (detector, triage, fixer) also require the shared dashboard gate to pass: `enabled-workflows` must contain `obs:resource-not-accessible-by-integration` when `effective-raw` is non-empty.
+All three routes (detector, triage, fixer) also require the shared dashboard gate to pass: `enabled-workflows` must contain `obs:resource-not-accessible-by-integration`.
 
 For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/aw-prelude.md](../workflows/aw-prelude.md).
 

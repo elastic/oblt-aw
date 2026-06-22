@@ -18,7 +18,7 @@ Ingress routes here when:
 - `github.event_name == 'status'`,
 - `github.event.state == 'failure'`, and
 - `github.event.context` contains `buildkite`, and
-- Dashboard gating allows `estc-pr-buildkite-detective` (or no dashboard issue is present, so all workflows are enabled).
+- Dashboard gate passes for registry id `estc-pr-buildkite-detective` (`enabled-workflows` contains `obs:estc-pr-buildkite-detective`).
 
 The job `estc-pr-buildkite-detective` calls:
 

@@ -15,7 +15,7 @@ Reusable wrapper that calls the locked generic issue-triage workflow in [elastic
 Ingress routes here when:
 
 - `github.event_name == 'issues'` and `github.event.action == 'opened'`, and
-- Dashboard gating allows `issue-triage` (or no dashboard issue is present, so all workflows are enabled).
+- Dashboard gate passes for registry id `issue-triage` (`enabled-workflows` contains `obs:issue-triage`).
 
 The job `issue-triage` calls:
 

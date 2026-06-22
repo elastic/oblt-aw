@@ -24,7 +24,7 @@ APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the pre
 | Output | Description |
 |--------|-------------|
 | `proceed-by-workflow` | JSON map of workflow basename → `true`/`false` proceed flags |
-| `effective-raw` | Raw dashboard read (`''` means all workflows enabled) |
+| `effective-raw` | Raw dashboard read (`''` means no open dashboard issue) |
 | `enabled-workflows` | Normalized JSON array of compound ids |
 | `allowed-pr-authors-json` / `allowed-pr-authors-csv` | PR allow list (empty when not loaded) |
 | `allowed-issue-authors-json` / `allowed-issue-authors-csv` | Issue allow list (empty when not loaded) |
@@ -32,7 +32,7 @@ APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the pre
 
 ### Gating rule
 
-- `effective-raw` empty → all listed routes proceed
+- `effective-raw` empty → no listed routes proceed
 - Otherwise each route proceeds only when its registry-resolved compound id is in `enabled-workflows`
 
 ## References
