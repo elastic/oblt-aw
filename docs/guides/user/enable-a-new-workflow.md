@@ -2,7 +2,7 @@
 
 ## Overview
 
-The workflow **already exists** in your org’s `workflow-registry.json`, the control-plane wrappers are shipped, and your repository is registered. You only need to opt in from the Control Plane Dashboard and confirm the client template is installed.
+The workflow **already exists** in your org’s `workflow-registry.json`, the control-plane wrappers are shipped, and your repository is registered. You only need to opt in from the Control Plane Dashboard and confirm the event-scoped client for its trigger type is installed.
 
 This guide does **not** cover shipping a **new** workflow on the control plane — that is a maintainer task. See [Add a new agentic workflow](../maintainer/add-a-new-agentic-workflow.md).
 
@@ -15,7 +15,7 @@ This guide does **not** cover shipping a **new** workflow on the control plane �
 
 1. **Confirm the workflow row on the dashboard** — Open the issue labeled `oblt-aw/dashboard`. If the workflow is missing, wait for dashboard sync after a control-plane merge, or ask a maintainer to confirm the workflow is registered in `workflow-registry.json`.
 
-2. **Confirm the client template is installed** — Check that the matching `trigger-oblt-aw-*.yml` file exists under `.github/workflows/` in your repository. The mapping from registry id to client template is in [Client template index](../../workflows/oblt-aw-client-template.md). If the file is missing, see [distribute-client-workflow](../../operations/distribute-client-workflow.md).
+2. **Confirm the event-scoped client is installed** — Workflows share client templates by GitHub event family (for example `trigger-oblt-aw-issues.yml` for `issues` events), not one file per workflow id. Check that the client for your workflow’s trigger type exists under `.github/workflows/`. See the template index in [Client template index](../../workflows/oblt-aw-client-template.md). If it is missing, see [distribute-client-workflow](../../operations/distribute-client-workflow.md).
 
 3. **Configure secrets (if required)** — Read the workflow’s doc under [docs/workflows/](../../workflows/) (for example `oblt-aw-<name>.md`). Some workflows need no repository secrets (for example [oblt-aw-security-detector](../../workflows/oblt-aw-security-detector.md) uses ephemeral tokens only). See [Configure a GitHub secret](../operator/configure-a-github-secret.md).
 
