@@ -51,7 +51,7 @@ def config_dir(tmp_path: pathlib.Path) -> pathlib.Path:
     return tmp_path / "config"
 
 
-def test_all_enabled_when_no_dashboard(config_dir: pathlib.Path) -> None:
+def test_no_workflows_when_no_dashboard(config_dir: pathlib.Path) -> None:
     result = evaluate_gates(
         config_dir,
         ["oblt-aw-automerge.yml", "oblt-aw-dependency-review.yml"],
@@ -59,8 +59,8 @@ def test_all_enabled_when_no_dashboard(config_dir: pathlib.Path) -> None:
         enabled_workflows_json="[]",
     )
     assert result == {
-        "oblt-aw-automerge.yml": "true",
-        "oblt-aw-dependency-review.yml": "true",
+        "oblt-aw-automerge.yml": "false",
+        "oblt-aw-dependency-review.yml": "false",
     }
 
 
