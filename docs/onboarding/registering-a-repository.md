@@ -62,25 +62,9 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
 6. **Verify the Control Plane Dashboard issue** — Confirm **sync-control-plane-dashboard** created or updated the open issue labeled **`oblt-aw/dashboard`** with title **`[oblt-aw] Control Plane Dashboard`** in **`elastic/<repo>`** ([sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md), [control-plane-dashboard](../operations/control-plane-dashboard.md)).
 
-7. **Configure Action secrets through `elastic/observability-github-secrets` (optional for `COPILOT_GITHUB_TOKEN`)** — Do **not** rely only on per-repository **Settings → Secrets** in GitHub unless your process explicitly allows it. `COPILOT_GITHUB_TOKEN` is now optional at the client/workflow boundary. Keep or provision it only when needed for backward-compatible PAT-based operation. Other workflow secrets, if any, are listed in [docs/workflows/](../workflows/) in **`elastic/oblt-aw`**. Use either option below (or follow additional processes in **[`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets)**).
+7. **Configure Action secrets through `elastic/observability-github-secrets`** — Do **not** rely only on per-repository **Settings → Secrets** in GitHub unless your process explicitly allows it. Workflow secrets, if any, are listed in [docs/workflows/](../workflows/) in **`elastic/oblt-aw`**. Follow the processes in **[`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets)** to provision any required secrets.
 
-   - **Humans** — Open the pre-filled new-issue form to request the Agentic Copilot credential for the target repository: [Create `COPILOT_GITHUB_TOKEN` (new secret as input) — `elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets/issues/new?template=new-secret-issue-as-input.yaml&title=%5Bnew+secret%5D:+Add+Agentic+Copilot+Credentials&secret=github/copilot/agentic.tf). Complete and submit the issue per that template’s instructions.
-
-   - **Agents** — Create a new issue in **`elastic/observability-github-secrets`** with label **`new-secret-as-input`**. Use a title aligned with the secret request (for example **`[new secret]: Add Agentic Copilot Credentials`**). Set the body to:
-
-     ```markdown
-     ### Secret Name to be created
-
-     github/copilot/agentic.tf
-
-     ### Your project name (apm-server, beats, etc)
-
-     {{repo}}
-     ```
-
-     Replace **`{{repo}}`** with the target repository **slug** (the same value as **`<repo>`** in this guide; not `elastic/<repo>`).
-
-8. **Humans — Opt workflows in or out from the Control Plane Dashboard** — **Humans** complete this step in the GitHub web UI by editing the dashboard issue. Workflow enablement is **not** configured in `active-repositories.json`; it is controlled only through the **Control Plane Dashboard** issue in **`elastic/<repo>`** (task-list checkboxes and `<!-- oblt-aw:<org-key>:<workflow-id> -->` markers). Read [Dashboard gating](adopting-agentic-workflows.md#dashboard-gating-reference) and complete [steps 1–2 in *Adopting a new remote agentic workflow*](adopting-agentic-workflows.md#consumer-repositories): confirm rows exist after sync, then check or uncheck workflows to match policy; save the issue and wait for a **client** run for changes to apply ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)).
+8. **Humans — Opt workflows in or out from the Control Plane Dashboard** — **Humans** complete this step in the GitHub web UI by checking or unchecking task-list checkboxes on the dashboard issue (GitHub saves on click). Workflow enablement is **not** configured in `active-repositories.json`; it is controlled only through the **Control Plane Dashboard** issue in **`elastic/<repo>`** (task-list checkboxes and `<!-- oblt-aw:<org-key>:<workflow-id> -->` markers). Read [Dashboard gating](adopting-agentic-workflows.md#dashboard-gating-reference) and complete [steps 1–2 in *Adopting a new remote agentic workflow*](adopting-agentic-workflows.md#consumer-repositories): confirm rows exist after sync, then check or uncheck workflows to match policy; wait for a **client** run for changes to apply ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)).
 
 ## Appendix: Token policy YAML template
 

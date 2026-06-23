@@ -9,7 +9,6 @@ Reusable wrapper that calls the locked mention-in-issue workflow in `elastic/ai-
 ## Prerequisites
 
 - Triggered via `workflow_call` from `trigger-oblt-aw-mention-in-issue.yml` client templates.
-- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
@@ -20,7 +19,7 @@ Ingress routes here when:
 - `startsWith(github.event.comment.body, '/ai')`, and
 - comment does not start with `/ai implement` (reserved for the generic issue-fixer route), and
 - `github.event.comment.author_association` is one of `OWNER`, `MEMBER`, or `COLLABORATOR`, and
-- Dashboard gating allows `mention-in-issue` (or no dashboard issue is present, so all workflows are enabled).
+- Dashboard gate passes for registry id `mention-in-issue` (`enabled-workflows` contains `obs:mention-in-issue`).
 
 Comment prefix and author-association checks are enforced in `oblt-aw-mention-in-issue.yml` after prelude.
 
@@ -48,7 +47,6 @@ Permissions:
 
 `workflow_call` contract:
 
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## References
 

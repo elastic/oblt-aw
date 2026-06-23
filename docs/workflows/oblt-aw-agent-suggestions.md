@@ -9,7 +9,6 @@ This reusable wrapper runs the upstream agent-suggestions workflow with reposito
 ## Prerequisites
 
 - Triggered via `workflow_call`.
-- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
@@ -21,7 +20,7 @@ Repository-specific instructions enforce:
 
 - no issue creation when there are no net-new recommendations
 - label `agentic-workflow` on created report issues
-- expiration window `24h` for created report issues
+- automatic issue expiration via upstream safe-outputs (`expires: 7d` in `gh-aw-agent-suggestions.lock.yml`); do not pass `expires` or custom issue `fields` from agent output
 - detailed analysis per recommendation (pain points, gaps, benefits, trade-offs)
 
 ## Configuration
@@ -37,7 +36,6 @@ Permissions:
 
 `workflow_call` contract:
 
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## References
 

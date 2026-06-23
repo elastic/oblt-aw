@@ -24,8 +24,9 @@ Sync Control Plane Dashboard issue for a single repository.
 4. Pin issue via gh issue pin; if pin fails (e.g. 3 already pinned), log and continue
 
 On every run: title and table format are updated to current spec; user's enabled
-state is preserved per compound ``org:workflow-id``. Legacy two-part markers map
-to the ``obs`` org.
+state is preserved per compound ``org:workflow-id`` unless ``--force-sync-defaults``
+is set, in which case every checkbox is reset from registry ``default_enabled``.
+Legacy two-part markers map to the ``obs`` org.
 
 Invoked per-repo by the sync-control-plane-dashboard workflow matrix.
 
@@ -138,14 +139,16 @@ def org_config_dirs_for_target_repo(config_dir: Path, target_repo: str) -> list[
 def build_dashboard_body(
     org_sections: list[tuple[str, str, list[dict[str, Any]]]],
     existing_body: str | None,
+    *,
+    force_sync_defaults: bool = False,
 ) -> str:
     """Build one dashboard body with a Markdown section per org.
 
     Each ``org_sections`` item is ``(org_key, section_heading, workflows)``.
     Preserves enabled/disabled state from ``existing_body`` for compound ids and
-    legacy two-part ``obs`` markers.
+    legacy two-part ``obs`` markers unless ``force_sync_defaults`` is true.
     """
-    parsed = parse_checkbox_state(existing_body)
+    parsed = {} if force_sync_defaults else parse_checkbox_state(existing_body)
     lines = [
         "## Control Plane Dashboard",
         "",
@@ -181,7 +184,7 @@ def build_dashboard_body(
         for wf in workflows:
             wf_id = wf["id"]
             name = wf.get("name", wf_id)
-            default = wf.get("default_enabled", True)
+            default = wf.get("default_enabled", False)
             cmp_key = compound_workflow_key(org_key, wf_id)
             enabled = parsed.get(cmp_key, default)
             checkbox = "- [x]" if enabled else "- [ ]"
@@ -298,6 +301,8 @@ def sync_repo(
     repo: str,
     token: str,
     org_sections: list[tuple[str, str, list[dict[str, Any]]]],
+    *,
+    force_sync_defaults: bool = False,
 ) -> None:
     """Sync dashboard issue for one repository."""
     owner, _, repo_name = repo.partition("/")
@@ -305,11 +310,23 @@ def sync_repo(
         logger.error("Invalid repo format: %s", repo)
         return
     existing = find_dashboard_issue(owner, repo_name, token)
-    body = build_dashboard_body(org_sections, existing["body"] if existing else None)
+    body = build_dashboard_body(
+        org_sections,
+        existing["body"] if existing else None,
+        force_sync_defaults=force_sync_defaults,
+    )
     if existing:
         issue_number = existing["number"]
         update_issue(owner, repo_name, issue_number, token, body)
-        logger.info("Updated dashboard issue #%s in %s", issue_number, repo)
+        if force_sync_defaults:
+            logger.info(
+                "Updated dashboard issue #%s in %s (checkboxes reset to "
+                "registry default_enabled)",
+                issue_number,
+                repo,
+            )
+        else:
+            logger.info("Updated dashboard issue #%s in %s", issue_number, repo)
     else:
         created = create_issue(owner, repo_name, token, body)
         issue_number = created["number"]
@@ -327,6 +344,14 @@ def main() -> int:
         metavar="OWNER/REPO",
         required=True,
         help="Repository to sync (e.g. elastic/oblt-aw)",
+    )
+    parser.add_argument(
+        "--force-sync-defaults",
+        action="store_true",
+        help=(
+            "Reset every dashboard checkbox to registry default_enabled, "
+            "overwriting user-edited state"
+        ),
     )
     args = parser.parse_args()
 
@@ -356,7 +381,12 @@ def main() -> int:
         logger.warning("No workflows in org registries for %s", args.repo)
 
     try:
-        sync_repo(args.repo, token, org_sections)
+        sync_repo(
+            args.repo,
+            token,
+            org_sections,
+            force_sync_defaults=args.force_sync_defaults,
+        )
     except Exception as e:
         logger.exception("Failed to sync %s: %s", args.repo, e)
         return 1

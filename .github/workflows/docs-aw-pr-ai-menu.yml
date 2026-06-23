@@ -26,10 +26,6 @@ on:
       shared-token-policy:
         required: true
         type: string
-    secrets:
-      COPILOT_GITHUB_TOKEN:
-        required: false
-
 permissions:
   contents: read
 
@@ -74,7 +70,7 @@ jobs:
           fi
 
       - name: Checkout oblt-aw for Docs PR AI menu scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -113,7 +109,7 @@ jobs:
       docs_review_triggered: ${{ steps.evaluate.outputs.docs_review_triggered }}
     steps:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -148,7 +144,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -196,9 +192,6 @@ jobs:
     with:
       review-scope: repo-wide-markdown
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
   refresh-menu-after-docs-review:
     name: Refresh AI PR menu after docs review
     needs: [evaluate-trigger, run-docs-review]
@@ -215,7 +208,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main

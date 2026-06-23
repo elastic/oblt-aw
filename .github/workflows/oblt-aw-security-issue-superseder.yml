@@ -1,0 +1,74 @@
+---
+name: Security Issue Superseder
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+
+  supersede-security-issues:
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      github.event_name == 'issues' &&
+      github.event.action == 'opened' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout oblt-aw (supersession script)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          sparse-checkout: |
+            scripts/obs/supersede-security-issues.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: inputs.shared-token-policy != ''
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
+      - name: Create ephemeral GitHub token (Vault auto policy)
+        id: create-token-auto
+        if: inputs.shared-token-policy == ''
+        uses: elastic/oblt-actions/github/create-token@v1
+
+      - name: Supersede older security detector issues
+        env:
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ALLOWED_BOT_AUTHORS: ${{ inputs.shared-allowed-issue-authors-csv }}
+        run: |
+          chmod +x _oblt-aw/scripts/obs/supersede-security-issues.sh
+          _oblt-aw/scripts/obs/supersede-security-issues.sh "${{ github.event.issue.number }}"

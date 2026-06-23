@@ -6,7 +6,7 @@
       "name": "Agent Suggestions",
       "description": "Suggests agentic workflows and improvements for the repository based on analysis of current setup.",
       "maturity": "early-adoption",
-      "default_enabled": true,
+      "default_enabled": false,
       "control_plane_workflows": ["oblt-aw-agent-suggestions.yml"]
     },
     {
@@ -14,7 +14,7 @@
       "name": "Automated Documentation",
       "description": "Analyzes documentation for gaps, outdated content, and inconsistencies; creates issues and PRs to improve docs.",
       "maturity": "early-adoption",
-      "default_enabled": true,
+      "default_enabled": false,
       "control_plane_workflows": ["oblt-aw-autodoc.yml"]
     },
     {
@@ -22,7 +22,7 @@
       "name": "Automerge",
       "description": "Enables auto-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready when validation and approval gates pass; GitHub enforces required checks at merge time.",
       "maturity": "early-adoption",
-      "default_enabled": true,
+      "default_enabled": false,
       "control_plane_workflows": ["oblt-aw-automerge.yml"]
     },
     {
@@ -30,7 +30,7 @@
       "name": "Dependency Review",
       "description": "Analyzes dependency-update PRs from bots, applies merge-ready labels when criteria are met.",
       "maturity": "early-adoption",
-      "default_enabled": true,
+      "default_enabled": false,
       "control_plane_workflows": ["oblt-aw-dependency-review.yml"]
     },
     {
@@ -74,6 +74,7 @@
       "control_plane_workflows": [
         "oblt-aw-security-detector.yml",
         "oblt-aw-security-fixer.yml",
+        "oblt-aw-security-issue-superseder.yml",
         "oblt-aw-security-triage.yml"
       ]
     },

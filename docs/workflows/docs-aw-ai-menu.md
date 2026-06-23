@@ -9,7 +9,6 @@ Reusable implementation for the Docs issue AI menu. Event-scoped client template
 ## Prerequisites
 
 - Triggered via `workflow_call` from [docs-aw-event-issues.yml](../../.github/workflows/docs-aw-event-issues.yml) or [docs-aw-event-issue-comment.yml](../../.github/workflows/docs-aw-event-issue-comment.yml) after client templates in [docs-aw-client-template.md](docs-aw-client-template.md).
-- Optional secret input: `COPILOT_GITHUB_TOKEN` (`required: false` at this workflow boundary).
 
 ## Usage
 
@@ -38,7 +37,6 @@ Key job-level permissions:
 
 `workflow_call` contract:
 
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## References
 

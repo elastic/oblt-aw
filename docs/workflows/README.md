@@ -27,6 +27,7 @@ This section provides documentation for each workflow source in [.github/workflo
 - Resource Not Accessible by Integration fixer workflow: [docs/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.md](oblt-aw-resource-not-accessible-by-integration-fixer.md)
 - Security scanning ruleset: [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md)
 - Security detector workflow: [docs/workflows/oblt-aw-security-detector.md](oblt-aw-security-detector.md)
+- Security issue superseder workflow: [docs/workflows/oblt-aw-security-issue-superseder.md](oblt-aw-security-issue-superseder.md)
 - Security triage workflow: [docs/workflows/oblt-aw-security-triage.md](oblt-aw-security-triage.md)
 - Security fixer workflow: [docs/workflows/oblt-aw-security-fixer.md](oblt-aw-security-fixer.md)
 - Security routing: [docs/routing/security-routing.md](../routing/security-routing.md)

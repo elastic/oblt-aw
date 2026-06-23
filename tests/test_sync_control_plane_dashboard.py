@@ -148,6 +148,30 @@ class TestBuildDashboardBody:
         assert "- [ ]" in wf_a_line
         assert "- [x]" in wf_b_line
 
+    def test_force_sync_defaults_overwrites_existing_checkbox_state(self) -> None:
+        workflows = [
+            {
+                "id": "wf-a",
+                "name": "A",
+                "description": "Desc",
+                "default_enabled": False,
+            },
+            {"id": "wf-b", "name": "B", "description": "Desc", "default_enabled": True},
+        ]
+        existing = (
+            "- [x] <!-- oblt-aw:obs:wf-a --> A\n- [ ] <!-- oblt-aw:obs:wf-b --> B"
+        )
+        body = scpd.build_dashboard_body(
+            _obs_section(workflows),
+            existing,
+            force_sync_defaults=True,
+        )
+        lines = body.split("\n")
+        wf_a_line = next(line for line in lines if "oblt-aw:obs:wf-a" in line)
+        wf_b_line = next(line for line in lines if "oblt-aw:obs:wf-b" in line)
+        assert "- [ ]" in wf_a_line
+        assert "- [x]" in wf_b_line
+
     def test_uses_default_enabled_when_workflow_not_in_existing_body(self) -> None:
         workflows = [
             {

@@ -75,6 +75,7 @@ scripts/
     validateAutomergePr.ts                  # Automerge verify step
     security-scan.sh                        # Security detector scan driver
     create-security-issues.sh               # Open grouped SEC issues from findings
+    supersede-security-issues.sh            # Close older open SEC detector issues on new scan
     install_security_detector_tools.sh      # Tooling bootstrap for detector
   docs/
     issue-menu/                             # Docs AI issue menu (github-script modules)

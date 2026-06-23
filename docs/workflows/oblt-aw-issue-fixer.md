@@ -24,7 +24,7 @@ Ingress routes here when:
 - `startsWith(github.event.comment.body, '/ai implement')`, and
 - `github.event.comment.author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR`, and
 - issue labels do not match the specialized security or resource-not-accessible fixer routes, and
-- dashboard gating allows `obs:issue-fixer` (or no dashboard issue is present, so all workflows are enabled).
+- Dashboard gate passes for registry id `issue-fixer` (`enabled-workflows` contains `obs:issue-fixer`).
 
 The job `run` calls:
 

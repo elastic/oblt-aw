@@ -37,7 +37,7 @@ jobs:
       total_count: ${{ steps.targets.outputs.total_count }}
     steps:
       - name: Checkout source repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -99,7 +99,7 @@ jobs:
         target: ${{ fromJSON(needs.prepare-targets.outputs.targets) }}
     steps:
       - name: Checkout source repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: source
 
@@ -110,7 +110,7 @@ jobs:
           token-policy: token-policy-63405ab45244
 
       - name: Checkout target repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: ${{ matrix.target.repository }}
           token: ${{ steps.create-token.outputs.token }}
@@ -278,7 +278,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout source repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download all PR result artifacts
         uses: actions/download-artifact@v8

@@ -56,7 +56,7 @@ Full platform view (distribution, dashboard sync, before/after ingress): [archit
 | Client template | Triggers | Reusable workflow |
 |-----------------|----------|-------------------|
 | `trigger-oblt-aw-pull-request.yml` | `pull_request` (opened, synchronize, reopened, labeled) | `oblt-aw-event-pull-request.yml` → automerge, dependency-review |
-| `trigger-oblt-aw-issues.yml` | `issues` (opened, labeled), `workflow_dispatch` | `oblt-aw-event-issues.yml` → issue-triage, duplicate-issue-detector, security triage/fixer, resource triage/fixer |
+| `trigger-oblt-aw-issues.yml` | `issues` (opened, labeled), `workflow_dispatch` | `oblt-aw-event-issues.yml` → issue-triage, duplicate-issue-detector, security superseder/triage/fixer, resource triage/fixer |
 | `trigger-oblt-aw-issue-comment.yml` | `issue_comment` created | `oblt-aw-event-issue-comment.yml` → issue-fixer, mention-in-issue |
 | `trigger-oblt-aw-schedule.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `oblt-aw-event-schedule.yml` → agent-suggestions, autodoc, security-detector, resource-not-accessible detector |
 | `trigger-oblt-aw-status.yml` | `status` (Buildkite failure only, job `if`) | `oblt-aw-event-status.yml` → estc-pr-buildkite-detective |
@@ -85,7 +85,6 @@ Job-level permissions on `run-aw` must be at least as permissive as the union of
 
 | Secret | Templates |
 |--------|-----------|
-| `COPILOT_GITHUB_TOKEN` (optional) | All event-scoped templates except resource-not-accessible fixer routes inside orchestrators (those use `secrets: inherit` on the route job) |
 | `BUILDKITE_LOGS_API_TOKEN` → `BUILDKITE_API_TOKEN` | `trigger-oblt-aw-status.yml` only |
 
 ## Migration from per-route client templates

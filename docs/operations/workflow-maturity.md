@@ -50,6 +50,6 @@ Maturity is set in each org’s [workflow-registry.json](../../config/obs/workfl
 - `maturity`: one of `stable`, `early-adoption`, or `experimental`
 - `default_enabled`: default checkbox state used by dashboard sync when a workflow is not yet present in an existing dashboard issue body
 
-`default_enabled` does not override user-edited dashboard checkbox state. It defines the initial state for newly introduced workflow IDs until users change them in the dashboard issue.
+`default_enabled` does not override user-edited dashboard checkbox state during normal dashboard sync runs. It defines the initial state for newly introduced workflow IDs until users change them in the dashboard issue (unless `force-sync-defaults` is used to reset checkboxes). All Observability (`config/obs/`) workflows use `default_enabled: false` (opt-in).
 
 Future enhancement: maturity could be derived automatically from metrics (e.g., successful execution ratio, proposed actions taken).
