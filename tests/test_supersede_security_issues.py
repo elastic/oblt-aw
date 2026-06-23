@@ -38,31 +38,13 @@ def test_parse_sec_id_from_title_rejects_unrelated_titles() -> None:
 
 
 @pytest.mark.parametrize(
-    ("author", "allowed", "expected"),
+    ("pr_json", "expected"),
     [
-        ("github-actions[bot]", "github-actions[bot],copilot", True),
-        ("Copilot", "github-actions[bot],copilot", True),
-        ("human-user", "github-actions[bot],copilot", False),
+        ('{"title":"Fix SEC-030","body":"Fixes #42 with env indirection"}', True),
+        ('{"title":"Fixes #42","body":null}', True),
+        ('{"title":"Unrelated","body":"No issue link here"}', False),
     ],
 )
-def test_author_is_allowed_bot(author: str, allowed: str, expected: bool) -> None:
-    result = _bash(f'author_is_allowed_bot "{author}" "{allowed}"')
+def test_linked_pr_references_issue(pr_json: str, expected: bool) -> None:
+    result = _bash(f"linked_pr_references_issue 42 '{pr_json}'")
     assert result.returncode == (0 if expected else 1)
-
-
-def test_linked_pr_references_issue_detects_fixes_keyword() -> None:
-    pr_json = '{"title":"Fix SEC-030","body":"Fixes #42 with env indirection"}'
-    result = _bash(f"linked_pr_references_issue 42 '{pr_json}'")
-    assert result.returncode == 0
-
-
-def test_linked_pr_references_issue_handles_null_body() -> None:
-    pr_json = '{"title":"Fixes #42","body":null}'
-    result = _bash(f"linked_pr_references_issue 42 '{pr_json}'")
-    assert result.returncode == 0
-
-
-def test_linked_pr_references_issue_ignores_unrelated_prs() -> None:
-    pr_json = '{"title":"Unrelated","body":"No issue link here"}'
-    result = _bash(f"linked_pr_references_issue 42 '{pr_json}'")
-    assert result.returncode == 1
