@@ -37,7 +37,7 @@ def _proceed_for_compound_id(
     effective_raw: str, enabled_workflows_json: str, compound_id: str
 ) -> bool:
     if not effective_raw:
-        return True
+        return False
     enabled = json.loads(enabled_workflows_json)
     if not isinstance(enabled, list):
         raise ValueError("enabled-workflows must be a JSON array")
@@ -85,7 +85,7 @@ def main() -> int:
     parser.add_argument(
         "--effective-raw",
         default="",
-        help="Raw dashboard read ('' means all workflows enabled)",
+        help="Raw dashboard read ('' means no dashboard issue; no workflows enabled)",
     )
     parser.add_argument(
         "--enabled-workflows",

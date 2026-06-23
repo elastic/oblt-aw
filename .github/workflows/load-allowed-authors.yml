@@ -36,7 +36,7 @@ jobs:
       allowed_issue_authors_csv: ${{ steps.pack.outputs.allowed_issue_authors_csv }}
     steps:
       - name: Checkout elastic/oblt-aw (allow-list files only)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main

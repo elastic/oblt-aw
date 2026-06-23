@@ -4,7 +4,7 @@
 
 **Adopting** a new workflow means: it is **defined in the remote control plane** (`elastic/oblt-aw` — reusable `oblt-aw-*` workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trigger-oblt-aw-<workflow-id>.yml`** client template that calls `elastic/oblt-aw/.github/workflows/oblt-aw-<name>.yml@main`.
 
-You **cannot** meaningfully “enable” a workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](../../config/obs/workflow-registry.json), the **client template and `oblt-aw-*` wrapper** exist, and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane Dashboard (or until prelude sees no dashboard and treats the full catalog as enabled).
+You **cannot** meaningfully “enable” a workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](../../config/obs/workflow-registry.json), the **client template and `oblt-aw-*` wrapper** exist, and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane Dashboard. A workflow runs only when its checkbox is checked on that dashboard (or after sync creates the dashboard and you enable it).
 
 Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`workflow-registry.json`](../../config/obs/workflow-registry.json) and [`active-repositories.json`](../../config/obs/active-repositories.json). Gating uses compound ids `org-key:workflow-id` ([`get-enabled-workflows`](../workflows/get-enabled-workflows.md), [Control Plane Dashboard format](../operations/control-plane-dashboard-format.md), [multi-org design](../architecture/multi-org-agentic-workflows.md)).
 
@@ -61,7 +61,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 | Dashboard state | Effect |
 |-----------------|--------|
-| No open dashboard issue (`effective-raw` empty) | All registry workflows enabled |
+| No open dashboard issue (`effective-raw` empty) | None |
 | Dashboard exists, all unchecked | None |
 | Dashboard exists, some checked | Only checked `org-key:workflow-id` values |
 

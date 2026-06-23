@@ -12,7 +12,7 @@ on:
       effective-raw:
         description: >-
           Pre-normalization string from the dashboard read ('', '[]', or '["id",...]');
-          empty means no open dashboard issue (ingress enables all workflows).
+          empty means no open dashboard issue (no workflows enabled).
         value: ${{ jobs['read-dashboard'].outputs['effective-raw'] }}
   workflow_dispatch:
 
@@ -31,7 +31,7 @@ jobs:
       effective-raw: ${{ steps.run.outputs['effective-raw'] }}
     steps:
       - name: Checkout oblt-aw (dashboard script + common)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main

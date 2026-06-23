@@ -48,9 +48,9 @@ The ingress dashboard stage excludes the workflow from `enabled-workflows` at ru
 
 1. **You edit the issue** — Check or uncheck one or more workflow checkboxes (no immediate action; no PRs)
 2. **Client runs** — On the next trigger (schedule, workflow_dispatch, pull_request, etc.), the client workflow starts
-3. **`get-enabled-workflows` runs inside the ingress** — If there is no open dashboard issue, `effective-raw` is empty and normalized `enabled-workflows` is `[]` (ingress enables all workflows). Otherwise it fetches the issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:<org-key>:<workflow-id> -->` at line start; legacy `obs` lines without an org segment are accepted), and writes normalized `enabled-workflows` as a JSON array string (`[]` or `["org:workflow-id", ...]`).
+3. **`get-enabled-workflows` runs inside the ingress** — If there is no open dashboard issue, `effective-raw` is empty and normalized `enabled-workflows` is `[]` (no workflows run). Otherwise it fetches the issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:<org-key>:<workflow-id> -->` at line start; legacy `obs` lines without an org segment are accepted), and writes normalized `enabled-workflows` as a JSON array string (`[]` or `["org:workflow-id", ...]`).
 4. **Ingress gating** — The ingress uses `enabled-workflows` and `effective-raw` from `get-enabled-workflows` to gate downstream jobs.
-5. **Ingress gates execution** — Empty string → all workflows; `[]` → none; non-empty array → only listed compound ids. See [Default Behavior](#default-behavior).
+5. **Ingress gates execution** — Empty `effective-raw` or `enabled-workflows == []` → none; non-empty `enabled-workflows` → only listed compound ids. See [Default Behavior](#default-behavior).
 
 ---
 
@@ -58,7 +58,7 @@ The ingress dashboard stage excludes the workflow from `enabled-workflows` at ru
 
 | Dashboard state | Result |
 |-----------------|--------|
-| **No dashboard exists** | All workflows are activated by default |
+| **No dashboard exists** | All workflows are deactivated |
 | **Dashboard exists, all checkboxes unchecked** | All workflows are deactivated |
 | **Dashboard exists, some checkboxes checked** | Only checked workflows are executed |
 
