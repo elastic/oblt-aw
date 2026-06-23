@@ -21,7 +21,7 @@ Single job **scan**:
 
 1. Checks out the **calling** repository into `target/` (the consumer workspace to scan).
 2. Checks out **[elastic/oblt-aw](https://github.com/elastic/oblt-aw)** at ref `main` into `_oblt-aw/` so host scripts exist on the runner; detector scripts are not copied into consumer repos.
-3. Installs **shellcheck**, **jq**, **curl**, **pip**, **actionlint** (pinned via upstream download script), **zizmor**, and **semgrep** (registry rules downloaded on first use).
+3. Installs **shellcheck**, **jq**, **curl**, **pip**, **actionlint** (pinned release archive verified through a pinned checksum manifest hash), **zizmor**, and **semgrep** (registry rules downloaded on first use).
 4. Optionally uses **actions/setup-node** when `target/**/package-lock.json` exists so **npm audit** can run for SEC-033.
 5. Runs `_oblt-aw/scripts/obs/security-scan.sh` with argument `target`, which emits findings as `file|line|rule|severity|message` (actionlint + zizmor + semgrep + shellcheck + custom heuristics + npm audit, with per-file/line deduplication).
 6. When there are findings, creates an ephemeral token then runs `_oblt-aw/scripts/obs/create-security-issues.sh` to open issues in **the caller** (`github.repository`) with label `oblt-aw/detector/security`. Findings are **grouped by rule (SEC id)**: **one issue per rule** per run, not one issue per line. The issue **title** is `[oblt-aw][security] <SEC-xxx> — findings (<YYYY-MM-DD>)`, where the date is the analysis date (UTC calendar day; the workflow sets `SECURITY_SCAN_DATE` when creating issues). The **body** lists every occurrence for that rule (file, line, severity, message). The current issue-creation step does **not** emit `oblt-aw/severity/*` labels; severity is represented in the issue body and mapped in [Security Scanning Ruleset → Severity Levels](security-scanning-ruleset.md#severity-levels).
@@ -29,6 +29,8 @@ Single job **scan**:
 Each new issue triggers the **issues** event orchestrator. When `obs:security` is enabled, [oblt-aw-security-issue-superseder.yml](../../.github/workflows/oblt-aw-security-issue-superseder.yml) runs [`supersede-security-issues.sh`](../../scripts/obs/supersede-security-issues.sh) to close older open issues for the same SEC id before triage proceeds on the canonical issue. See [oblt-aw-security-issue-superseder.md](oblt-aw-security-issue-superseder.md).
 
 Detector scripts are always taken from the public repository **`elastic/oblt-aw`** at ref **`main`** (no checkout token). Scheduled callers do not need a `workflow_call` input for the host ref.
+
+The actionlint installer downloads the pinned `v1.7.11` Linux AMD64 release archive and upstream checksum manifest, verifies the checksum manifest against a reviewed SHA-256 constant in `scripts/obs/install_security_detector_tools.sh`, verifies the archive with `sha256sum -c`, and only then extracts the `actionlint` binary.
 
 **Consumer example**:
 
