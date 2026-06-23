@@ -34,7 +34,7 @@ jobs:
       repos_count: ${{ steps.matrix.outputs.repos_count }}
     steps:
       - name: Checkout source repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -71,7 +71,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout source repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Create ephemeral GitHub token
         id: create-token
