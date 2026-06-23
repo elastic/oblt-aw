@@ -34,7 +34,7 @@ Routing rules in `oblt-aw-security-*.yml` (issue routes follow the same label pa
 - **Event**: `issues`
 - **Action**: `opened`
 - **Required label**: `oblt-aw/detector/security` on the **new** (canonical) issue
-- **Role**: Closes older open detector issues for the same SEC id; skips issues in triage/fixer and those with open non-bot fix PRs ([docs/workflows/oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)).
+- **Role**: Closes older open detector issues for the same SEC id; skips issues in triage/fixer and those with any open linked fix PR ([docs/workflows/oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)).
 
 ### Triage
 

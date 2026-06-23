@@ -20,7 +20,6 @@
 # Environment:
 #   GITHUB_REPOSITORY (required)
 #   GH_TOKEN (required unless DRY_RUN=1)
-#   ALLOWED_BOT_AUTHORS (optional, comma-separated logins; default: github-actions[bot])
 #   DRY_RUN (optional, set to 1 to log actions without mutating GitHub)
 set -euo pipefail
 
@@ -71,24 +70,6 @@ issue_has_block_label() {
   return 1
 }
 
-author_is_allowed_bot() {
-  local author="$1"
-  local csv="$2"
-  local item normalized item_normalized
-  normalized="$(printf '%s' "$author" | tr '[:upper:]' '[:lower:]')"
-  IFS=',' read -ra items <<< "$csv"
-  for item in "${items[@]}"; do
-    item="${item#"${item%%[![:space:]]*}"}"
-    item="${item%"${item##*[![:space:]]}"}"
-    [[ -z "$item" ]] && continue
-    item_normalized="$(printf '%s' "$item" | tr '[:upper:]' '[:lower:]')"
-    if [[ "$item_normalized" == "$normalized" ]]; then
-      return 0
-    fi
-  done
-  return 1
-}
-
 find_open_linked_prs() {
   local issue_number="$1"
   local repo="$2"
@@ -122,6 +103,21 @@ linked_pr_references_issue() {
     || [[ "$haystack" == *"resolves #${issue_number}"* ]]
 }
 
+issue_has_open_linked_fix_pr() {
+  local issue_number="$1"
+  local repo="$2"
+  local linked_prs pr_json
+
+  linked_prs="$(find_open_linked_prs "$issue_number" "$repo")"
+  while IFS= read -r pr_json; do
+    [[ -z "$pr_json" ]] && continue
+    if linked_pr_references_issue "$issue_number" "$pr_json"; then
+      return 0
+    fi
+  done < <(jq -c '.[]' <<< "$linked_prs")
+  return 1
+}
+
 supersession_comment() {
   local canonical="$1"
   local sec_id="$2"
@@ -129,14 +125,6 @@ supersession_comment() {
 Superseded by #${canonical} — a newer security detector issue replaces this report for the same rule (**${sec_id}**).
 
 This issue is closed automatically. See #${canonical} for the latest findings and analysis date.
-EOF
-}
-
-pr_supersession_comment() {
-  local canonical="$1"
-  local issue_number="$2"
-  cat <<EOF
-Closing as superseded: issue #${issue_number} was replaced by #${canonical} from a newer security detector scan.
 EOF
 }
 
@@ -157,29 +145,12 @@ close_superseded_issue() {
   gh issue close "$issue_number" --repo "$repo" --reason "not planned"
 }
 
-close_superseded_pr() {
-  local pr_number="$1"
-  local canonical="$2"
-  local issue_number="$3"
-  local repo="$4"
-  local comment
-  comment="$(pr_supersession_comment "$canonical" "$issue_number")"
-
-  if is_dry_run; then
-    log "[dry-run] would close PR #${pr_number} (linked to superseded issue #${issue_number})"
-    return 0
-  fi
-
-  gh pr close "$pr_number" --repo "$repo" --comment "$comment"
-}
-
 process_superseded_issue() {
   local issue_number="$1"
   local canonical="$2"
   local sec_id="$3"
   local repo="$4"
-  local allowed_bot_authors="$5"
-  local issue_json block_label linked_prs pr_json pr_number pr_author
+  local issue_json block_label
 
   issue_json="$(gh issue view "$issue_number" --repo "$repo" --json number,title,state,labels)"
   if [[ "$(jq -r '.state' <<< "$issue_json")" != "OPEN" ]]; then
@@ -192,38 +163,17 @@ process_superseded_issue() {
     return 0
   fi
 
-  linked_prs="$(find_open_linked_prs "$issue_number" "$repo")"
-  while IFS= read -r pr_json; do
-    [[ -z "$pr_json" ]] && continue
-    if ! linked_pr_references_issue "$issue_number" "$pr_json"; then
-      continue
-    fi
-    pr_author="$(jq -r '.author.login // empty' <<< "$pr_json")"
-    if [[ -n "$pr_author" ]] && ! author_is_allowed_bot "$pr_author" "$allowed_bot_authors"; then
-      log "Skipping #${issue_number}: open non-bot PR by ${pr_author}"
-      return 0
-    fi
-  done < <(jq -c '.[]' <<< "$linked_prs")
+  if issue_has_open_linked_fix_pr "$issue_number" "$repo"; then
+    log "Skipping #${issue_number}: open linked fix PR"
+    return 0
+  fi
 
   close_superseded_issue "$issue_number" "$canonical" "$sec_id" "$repo"
-
-  while IFS= read -r pr_json; do
-    [[ -z "$pr_json" ]] && continue
-    if ! linked_pr_references_issue "$issue_number" "$pr_json"; then
-      continue
-    fi
-    pr_number="$(jq -r '.number' <<< "$pr_json")"
-    pr_author="$(jq -r '.author.login // empty' <<< "$pr_json")"
-    if [[ -n "$pr_author" ]] && author_is_allowed_bot "$pr_author" "$allowed_bot_authors"; then
-      close_superseded_pr "$pr_number" "$canonical" "$issue_number" "$repo"
-    fi
-  done < <(jq -c '.[]' <<< "$linked_prs")
 }
 
 main() {
   local canonical_issue="${1:?canonical issue number required}"
   local repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
-  local allowed_bot_authors="${ALLOWED_BOT_AUTHORS:-github-actions[bot]}"
   local canonical_json canonical_title sec_id candidates issue_number row
 
   export DRY_RUN="${DRY_RUN:-0}"
@@ -278,7 +228,7 @@ main() {
   while IFS= read -r row; do
     [[ -z "$row" ]] && continue
     issue_number="$(jq -r '.number' <<< "$row")"
-    process_superseded_issue "$issue_number" "$canonical_issue" "$sec_id" "$repo" "$allowed_bot_authors"
+    process_superseded_issue "$issue_number" "$canonical_issue" "$sec_id" "$repo"
   done <<< "$candidates"
 }
 
