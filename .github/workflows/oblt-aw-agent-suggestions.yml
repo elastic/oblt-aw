@@ -38,7 +38,7 @@ jobs:
 
         - If there are no net-new recommendations, or if recommendations only suggest workflows/features already in use in this repository, call `noop` and do not create any issue.
         - If a report issue is created, include `agentic-workflow` in issue labels.
-        - If a report issue is created, set issue expiration to exactly `24h` and ensure it is auto-closed after that period.
+        - Do not pass `expires` or other custom issue `fields` in `create_issue` output; expiration is applied automatically by the workflow safe-outputs handler.
         - Add detailed analysis for every recommendation, including:
           - Current pain points and supporting evidence
           - Why existing workflows do not fully cover the gap
@@ -47,7 +47,6 @@ jobs:
 
         When calling `create_issue`, ensure the output includes:
         - `labels`: contains `agentic-workflow`
-        - `expires`: `24h`
 
   agent-suggestions:
     needs: [resolve-apm-assets]

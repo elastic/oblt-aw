@@ -21,7 +21,7 @@ The agent suggestions workflow adds repository-specific instructions to:
 
 - call `noop` and avoid issue creation when no net-new recommendations are found
 - add label `agentic-workflow` to created report issues
-- set report issue expiration to `24h` and auto-close after that period
+- rely on upstream safe-outputs expiration (`expires: 7d`); do not pass `expires` or custom issue `fields` from agent output
 - include detailed analysis and implementation benefits for each recommendation
 
 ## Upstream reusable workflow
