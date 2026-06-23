@@ -8,6 +8,8 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ## Guides
 
+Short **user stories** (start from scratch, enable a workflow, opt in/out) live under [docs/guides/user/](../guides/user/). Use those for goal-oriented steps; use the long-form pages below for full procedures.
+
 - **[Adopting a new remote agentic workflow](adopting-agentic-workflows.md)** — How to ship a new routed workflow on the `oblt-aw` control plane (reusable workflows, ingress, registry, docs, client template) and how consumer repositories verify and enable it via the dashboard.
 
 - **[Registering resources](registering-a-repository.md)** — How to list a repository for the fleet (`active-repositories.json`), align Backstage token policy in `elastic/catalog-info`, and complete post-merge verification (distribution, secrets, dashboard).

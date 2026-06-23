@@ -28,8 +28,7 @@ The Control Plane Dashboard is a single GitHub Issue in your repository that lis
 
 1. Open the Control Plane Dashboard issue
 2. Find the workflow you want to enable
-3. **Check** the checkbox next to the workflow (click it)
-4. Save or submit the edit
+3. **Check** the checkbox next to the workflow (click it). GitHub saves the change immediately.
 
 There is no config file. When the client workflow runs, the ingress (`get-enabled-workflows`) reads the dashboard issue at runtime and applies `enabled-workflows` gating. The workflow will run on the next trigger (e.g. `schedule`, `workflow_dispatch`, `pull_request`).
 
@@ -37,8 +36,7 @@ There is no config file. When the client workflow runs, the ingress (`get-enable
 
 1. Open the Control Plane Dashboard issue
 2. Find the workflow you want to disable
-3. **Uncheck** the checkbox next to the workflow (click it)
-4. Save or submit the edit
+3. **Uncheck** the checkbox next to the workflow (click it). GitHub saves the change immediately.
 
 The ingress dashboard stage excludes the workflow from `enabled-workflows` at runtime. The workflow will no longer run for your repository until you enable it again.
 
