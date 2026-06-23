@@ -21,6 +21,7 @@ The structure is organized by intent:
 
 Use this index as the starting point and then navigate by topic.
 
+- **Guides by role** (user, operator, maintainer stories): [docs/guides/README.md](guides/README.md)
 - Architecture overview: [docs/architecture/overview.md](architecture/overview.md)
 - Workflow catalog: [docs/workflows/README.md](workflows/README.md)
 - Routing guide: [docs/routing/README.md](routing/README.md)

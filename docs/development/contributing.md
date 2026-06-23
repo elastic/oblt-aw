@@ -4,6 +4,8 @@
 
 This guide covers local setup and quality checks for contributors. All changes must pass CI before merge.
 
+For goal-oriented **maintainer stories** (add a workflow, change maturity, ephemeral tokens), see [docs/guides/maintainer/](../guides/maintainer/).
+
 ## Prerequisites
 
 - Python 3.14
