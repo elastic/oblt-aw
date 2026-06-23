@@ -21,10 +21,6 @@ on:
       shared-token-policy:
         required: true
         type: string
-    secrets:
-      COPILOT_GITHUB_TOKEN:
-        required: false
-
 # Ephemeral token minting for label API runs only in signal-security-triage-followups (see #4374 workaround).
 permissions:
   contents: read
@@ -139,9 +135,6 @@ jobs:
       allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
       classification-labels: "oblt-aw/triage/security-injection,oblt-aw/triage/security-secrets,oblt-aw/triage/security-supply-chain,oblt-aw/triage/security-least-privilege,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
   # Workaround until we can mint ephemeral tokens inside agentic-workflows (elastic/observability-robots#4374):
   # mint only in this follow-up job; remove+re-add `oblt-aw/ai/fix-ready` when the fixer preconditions
   # hold so ingress sees a `labeled` event from the installation token.

@@ -9,14 +9,13 @@ Reusable wrapper that calls the locked duplicate-issue-detector workflow in [ela
 ## Prerequisites
 
 - Triggered via `workflow_call` from `trigger-oblt-aw-duplicate-issue-detector.yml` client templates.
-- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
 Ingress routes here when:
 
 - `github.event_name == 'issues'` and `github.event.action == 'opened'`, or `github.event_name == 'workflow_dispatch'`, and
-- Dashboard gating allows `duplicate-issue-detector` (or no dashboard issue is present, so all workflows are enabled).
+- Dashboard gate passes for registry id `duplicate-issue-detector` (`enabled-workflows` contains `obs:duplicate-issue-detector`).
 
 The job `duplicate-issue-detector` calls:
 
@@ -37,7 +36,6 @@ Permissions (job-level on the control-plane reusable; union mirrored on the clie
 
 `workflow_call` contract:
 
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 ## References
 

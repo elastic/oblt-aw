@@ -21,11 +21,6 @@ on:
       shared-token-policy:
         required: true
         type: string
-    secrets:
-      COPILOT_GITHUB_TOKEN:
-        description: "Token for GH-AW mention-in-pr (Copilot); must be supplied by the ingress caller."
-        required: false
-
 permissions:
   contents: read
 
@@ -42,7 +37,7 @@ jobs:
       proceed: ${{ steps.validate.outputs.proceed }}
     steps:
       - name: Checkout elastic/oblt-aw (automerge verify only)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -99,7 +94,7 @@ jobs:
       collection-id: ${{ steps.check-collection.outputs.collection-id }}
     steps:
       - name: Checkout elastic/oblt-aw (dependency collection gate only)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -190,9 +185,6 @@ jobs:
 
         If any gate is false, do not approve and do not request changes.
         Keep output minimal.
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-
   # Same repository as the PR: GITHUB_TOKEN can merge when checks/reviews satisfy branch protection
   # and pascalgn/automerge-action config. Author/label rules are enforced in `verify` (validateAutomergePr).
   automerge:

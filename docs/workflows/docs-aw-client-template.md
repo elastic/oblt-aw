@@ -53,10 +53,6 @@ Job-level permissions on `run-aw` must be at least as permissive as the union of
 | `trigger-docs-aw-pull-request.yml` | `actions: write`, `contents: read` |
 | `trigger-docs-aw-workflow-run.yml` | `actions: read`, `checks: read`, `contents: read`, `issues: write`, `pull-requests: write` |
 
-Optional secret mapping (keep forwarding for backward compatibility when present):
-
-- `COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}`
-
 ## Migration from per-route client templates
 
 1. Merge distribution PRs that replace `trigger-docs-aw-ai-menu.yml`, `trigger-docs-aw-pr-ai-menu-collect.yml`, and `trigger-docs-aw-pr-ai-menu.yml` with the four event-scoped clients above.

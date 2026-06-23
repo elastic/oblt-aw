@@ -9,14 +9,13 @@ Reusable wrapper that calls the locked generic issue-triage workflow in [elastic
 ## Prerequisites
 
 - Triggered via `workflow_call` from `trigger-oblt-aw-issue-triage.yml` client templates.
-- Optional secret: `COPILOT_GITHUB_TOKEN` (forwarded when present for backward compatibility).
 
 ## Usage
 
 Ingress routes here when:
 
 - `github.event_name == 'issues'` and `github.event.action == 'opened'`, and
-- Dashboard gating allows `issue-triage` (or no dashboard issue is present, so all workflows are enabled).
+- Dashboard gate passes for registry id `issue-triage` (`enabled-workflows` contains `obs:issue-triage`).
 
 The job `issue-triage` calls:
 
@@ -38,7 +37,6 @@ Permissions:
 
 `workflow_call` contract:
 
-- Secret: `COPILOT_GITHUB_TOKEN` (`required: false`)
 
 Ingress does not pass `allowed-bot-users` for this generic path; the upstream lock workflow uses its built-in defaults (no control-plane issue author list).
 
