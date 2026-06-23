@@ -10,7 +10,7 @@ This document defines the structure and format of the OBLT AW Control Plane Dash
 
 The Control Plane Dashboard is a **single** GitHub issue per consumer repository that lists all available agentic workflows, **grouped by owning org** (see `config/<org-key>/` in this repository). Users enable or disable each workflow by checking task-list items. When the client workflow runs, the ingress (`get-enabled-workflows`) looks for an open issue labeled `oblt-aw/dashboard` and sets gating from `effective-raw` and normalized `enabled-workflows`:
 
-- **No such issue** → `effective-raw` is empty (ingress enables **all** workflows by default).
+- **No such issue** → `effective-raw` is empty; no agentic workflows run until sync creates the dashboard and workflows are enabled.
 - **Dashboard exists** → normalized outputs are a JSON array string: `[]` if **no** checkboxes are checked (no agentic workflows run), or `["org:workflow-id", ...]` for only the checked workflows, using the **canonical compound id** (colon-separated).
 
 There is no config file (no `.github/oblt-aw-config.json`), no PRs when users toggle checkboxes, and no `issues.edited` trigger—the dashboard is read at runtime each time the client runs.
@@ -140,7 +140,7 @@ To extract enabled workflows from the issue body (when a dashboard issue exists)
    emit `obs:workflow-id`.
 4. Emit a compact JSON array string of those compound ids. That string is what `get-enabled-workflows` writes to the `enabled-workflows` output when the dashboard issue exists.
 
-**No open dashboard issue:** The job outputs `[]` for the normalized `enabled-workflows` output (same as an empty selection). The ingress uses `effective-raw` (empty string when no dashboard) to treat that as “all workflows enabled.”
+**No open dashboard issue:** The job outputs `[]` for the normalized `enabled-workflows` output (same as an empty selection). Prelude treats empty `effective-raw` the same way: no workflows run.
 
 ---
 
@@ -161,7 +161,7 @@ The dashboard MUST include clear instructions. Recommended text:
 - **Enable a workflow:** Check the checkbox next to the workflow. `get-enabled-workflows` will include its compound id in `enabled-workflows` at runtime.
 - **Disable a workflow:** Uncheck the checkbox. `get-enabled-workflows` will exclude it from `enabled-workflows` at runtime.
 - **When changes apply:** The dashboard is read at runtime when the client runs. No config file; no PRs on checkbox edits.
-- **Default behavior:** No dashboard → all workflows activated; dashboard exists with all unchecked → all workflows deactivated; dashboard exists with some checked → only checked workflows executed.
+- **Default behavior:** No dashboard or dashboard with all unchecked → no workflows run; dashboard exists with some checked → only checked workflows executed.
 
 ---
 
