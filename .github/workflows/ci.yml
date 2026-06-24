@@ -61,6 +61,11 @@ jobs:
       - name: Validate gh-aw-* workflows call resolve-agentic-assets
         run: python scripts/validate_aw_workflow_resolve_agentic_assets.py
 
+      - name: Validate reusable-workflow caller permissions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/validate_aw_workflow_permissions.py
+
   typescript-tests:
     name: TypeScript tests
     runs-on: ubuntu-latest
