@@ -159,6 +159,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      copilot-requests: write
       issues: write
       pull-requests: write
     uses: elastic/docs-actions/.github/workflows/gh-aw-issue-triage.lock.yml@v1
@@ -185,6 +186,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      copilot-requests: write
       discussions: write
       issues: write
       pull-requests: write

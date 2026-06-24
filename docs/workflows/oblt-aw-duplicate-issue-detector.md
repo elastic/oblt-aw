@@ -30,7 +30,7 @@ Permissions (job-level on the control-plane reusable; union mirrored on the clie
 | Job | Permissions |
 |-----|-------------|
 | `prelude` | `contents: read`, `issues: read` |
-| `duplicate-issue-detector` | `actions: read`, `contents: read`, `issues: write`, `pull-requests: read` (matches `gh-aw-duplicate-issue-detector.lock.yml`) |
+| `duplicate-issue-detector` | `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: read`, `copilot-requests: write` (matches `gh-aw-duplicate-issue-detector.lock.yml`) |
 
 ## API / Interface
 
