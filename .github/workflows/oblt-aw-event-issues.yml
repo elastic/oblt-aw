@@ -50,6 +50,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      discussions: write
       id-token: write
       issues: write
       pull-requests: read
