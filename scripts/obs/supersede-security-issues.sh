@@ -25,15 +25,7 @@ set -euo pipefail
 
 readonly DETECTOR_LABEL="oblt-aw/detector/security"
 readonly TITLE_PREFIX="[oblt-aw][security]"
-readonly BLOCK_LABELS=(
-  "oblt-aw/ai/fix-ready"
-  "oblt-aw/triage/security-injection"
-  "oblt-aw/triage/security-secrets"
-  "oblt-aw/triage/security-supply-chain"
-  "oblt-aw/triage/security-least-privilege"
-  "oblt-aw/triage/other"
-  "oblt-aw/triage/needs-info"
-)
+readonly KEEP_OPEN_LABEL="oblt-aw/keep-open"
 
 log() {
   printf '%s\n' "$*" >&2
@@ -58,18 +50,6 @@ issue_has_label() {
   jq -e --arg label "$wanted" '[.labels[].name] | index($label) != null' <<< "$labels_json" >/dev/null
 }
 
-issue_has_block_label() {
-  local labels_json="$1"
-  local label
-  for label in "${BLOCK_LABELS[@]}"; do
-    if issue_has_label "$labels_json" "$label"; then
-      printf '%s\n' "$label"
-      return 0
-    fi
-  done
-  return 1
-}
-
 find_open_linked_prs() {
   local issue_number="$1"
   local repo="$2"
@@ -79,7 +59,7 @@ find_open_linked_prs() {
   # requires the Search API scope that ephemeral workflow tokens often lack.
   while IFS= read -r pr_number; do
     [[ -z "$pr_number" ]] && continue
-    pr_json="$(gh pr view "$pr_number" --repo "$repo" --json number,author,isDraft,title,body,state)"
+    pr_json="$(gh pr view "$pr_number" --repo "$repo" --json number,state)"
     if [[ "$(jq -r '.state' <<< "$pr_json")" != "OPEN" ]]; then
       continue
     fi
@@ -93,28 +73,30 @@ find_open_linked_prs() {
   printf '%s\n' "$results"
 }
 
-linked_pr_references_issue() {
-  local issue_number="$1"
-  local pr_json="$2"
-  local haystack
-  haystack="$(jq -r '[.title // "", .body // ""] | join("\n")' <<< "$pr_json" | tr '[:upper:]' '[:lower:]')"
-  [[ "$haystack" == *"fixes #${issue_number}"* ]] \
-    || [[ "$haystack" == *"closes #${issue_number}"* ]] \
-    || [[ "$haystack" == *"resolves #${issue_number}"* ]]
-}
-
-issue_has_open_linked_fix_pr() {
+issue_has_open_linked_pr() {
   local issue_number="$1"
   local repo="$2"
-  local linked_prs pr_json
+  local linked_prs
 
   linked_prs="$(find_open_linked_prs "$issue_number" "$repo")"
-  while IFS= read -r pr_json; do
-    [[ -z "$pr_json" ]] && continue
-    if linked_pr_references_issue "$issue_number" "$pr_json"; then
-      return 0
-    fi
-  done < <(jq -c '.[]' <<< "$linked_prs")
+  [[ "$(jq 'length' <<< "$linked_prs")" -gt 0 ]]
+}
+
+issue_should_stay_open() {
+  local issue_number="$1"
+  local repo="$2"
+  local issue_json="$3"
+
+  if issue_has_label "$issue_json" "$KEEP_OPEN_LABEL"; then
+    printf '%s\n' "$KEEP_OPEN_LABEL"
+    return 0
+  fi
+
+  if issue_has_open_linked_pr "$issue_number" "$repo"; then
+    printf 'open linked PR\n'
+    return 0
+  fi
+
   return 1
 }
 
@@ -150,7 +132,7 @@ process_superseded_issue() {
   local canonical="$2"
   local sec_id="$3"
   local repo="$4"
-  local issue_json block_label
+  local issue_json stay_open_reason
 
   issue_json="$(gh issue view "$issue_number" --repo "$repo" --json number,title,state,labels)"
   if [[ "$(jq -r '.state' <<< "$issue_json")" != "OPEN" ]]; then
@@ -158,13 +140,8 @@ process_superseded_issue() {
     return 0
   fi
 
-  if block_label="$(issue_has_block_label "$issue_json")"; then
-    log "Skipping #${issue_number}: block label ${block_label}"
-    return 0
-  fi
-
-  if issue_has_open_linked_fix_pr "$issue_number" "$repo"; then
-    log "Skipping #${issue_number}: open linked fix PR"
+  if stay_open_reason="$(issue_should_stay_open "$issue_number" "$repo" "$issue_json")"; then
+    log "Skipping #${issue_number}: ${stay_open_reason}"
     return 0
   fi
 

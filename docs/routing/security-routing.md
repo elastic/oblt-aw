@@ -34,7 +34,7 @@ Routing rules in `oblt-aw-security-*.yml` (issue routes follow the same label pa
 - **Event**: `issues`
 - **Action**: `opened`
 - **Required label**: `oblt-aw/detector/security` on the **new** (canonical) issue
-- **Role**: Closes older open detector issues for the same SEC id; skips issues in triage/fixer and those with any open linked fix PR ([docs/workflows/oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)).
+- **Role**: Closes older open detector issues for the same SEC id; skips issues with `oblt-aw/keep-open` or any open linked PR ([docs/workflows/oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)).
 
 ### Triage
 
@@ -61,6 +61,7 @@ The ingress uses `contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw
 | `oblt-aw/triage/security-supply-chain` | Action pinning, checksums, untrusted actions |
 | `oblt-aw/triage/security-least-privilege` | Excessive permissions |
 | `oblt-aw/ai/fix-ready` | Issue is ready for automated remediation |
+| `oblt-aw/keep-open` | Superseder must not close this issue when a newer scan opens a replacement for the same SEC rule |
 
 ## Repository Filter
 

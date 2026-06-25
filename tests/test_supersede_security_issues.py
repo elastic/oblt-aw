@@ -38,13 +38,28 @@ def test_parse_sec_id_from_title_rejects_unrelated_titles() -> None:
 
 
 @pytest.mark.parametrize(
-    ("pr_json", "expected"),
+    ("labels_json", "expected"),
     [
-        ('{"title":"Fix SEC-030","body":"Fixes #42 with env indirection"}', True),
-        ('{"title":"Fixes #42","body":null}', True),
-        ('{"title":"Unrelated","body":"No issue link here"}', False),
+        ('{"labels":[{"name":"oblt-aw/keep-open"}]}', True),
+        ('{"labels":[{"name":"oblt-aw/detector/security"}]}', False),
+        ('{"labels":[]}', False),
     ],
 )
-def test_linked_pr_references_issue(pr_json: str, expected: bool) -> None:
-    result = _bash(f"linked_pr_references_issue 42 '{pr_json}'")
+def test_issue_has_label_keep_open(labels_json: str, expected: bool) -> None:
+    result = _bash(f"issue_has_label '{labels_json}' \"$KEEP_OPEN_LABEL\"")
     assert result.returncode == (0 if expected else 1)
+
+
+def test_issue_has_open_linked_pr_true_when_open_pr_present() -> None:
+    result = _bash(
+        'linked_prs=\'[{"number":7,"state":"OPEN"}]\'; '
+        '[[ "$(jq \'length\' <<< "$linked_prs")" -gt 0 ]]'
+    )
+    assert result.returncode == 0
+
+
+def test_issue_has_open_linked_pr_false_when_no_open_prs() -> None:
+    result = _bash(
+        "linked_prs='[]'; [[ \"$(jq 'length' <<< \"$linked_prs\")\" -gt 0 ]]"
+    )
+    assert result.returncode == 1
