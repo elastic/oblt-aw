@@ -1,6 +1,11 @@
 {
   "repositories": [
     {
+      "repository": "elastic/competitive-benchmarking",
+      "workflow-token-policy": "token-policy-71f4d0b64c84",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/gh-oblt",
       "workflow-token-policy": "token-policy-bea69d21b520",
       "ai-assets-token-policy": ""
