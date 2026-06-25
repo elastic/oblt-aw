@@ -17,7 +17,7 @@ This document defines the architecture for proactive security bug hunting and re
 The security agent pipeline follows this flow:
 
 1. **Detector** — Scheduled or manually triggered. Scans code (shell scripts, workflow YAML) for security vulnerabilities. When it creates an issue (using the title prefix `[oblt-aw][security]`) for a finding, it must add the label `oblt-aw/detector/security` and include structured findings.
-2. **Superseder** — Triggered when a new detector issue is **opened**. Closes older open issues for the **same SEC rule** (deterministic script; see [oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)). Skips issues already in triage/fixer or with any open linked fix PR.
+2. **Superseder** — Triggered when a new detector issue is **opened**. Closes older open issues for the **same SEC rule** (deterministic script; see [oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)). Skips issues with `oblt-aw/keep-open` or any open linked PR.
 3. **Triage** — Triggered on issues labeled `oblt-aw/detector/security`. Classifies using `oblt-aw/triage/security-*` (injection, secrets, supply-chain, least-privilege), `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`. Produces a resolution plan where applicable. When an issue is ready for automated fix, triage adds `oblt-aw/ai/fix-ready` (the fixer path requires this together with a `oblt-aw/triage/security-*` label).
 4. **Fixer** — Triggered on issues that have both `oblt-aw/triage/security-*` and `oblt-aw/ai/fix-ready`. Implements fixes per triage plan and opens draft PRs.
 
