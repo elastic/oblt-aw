@@ -10,7 +10,7 @@ CI enforces the contract via [scripts/validate_aw_workflow_resolve_agentic_asset
 
 Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.yml`) do not call this workflow.
 
-The reusable workflow job id is `resolve-apm-agentic-assets`. Route wrappers typically call it from a job named `resolve-apm-assets`.
+The reusable workflow job id is `resolve-agentic-assets`. Route wrappers typically call it from a job named `resolve-apm-assets`.
 
 ## Contract
 

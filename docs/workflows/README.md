@@ -19,7 +19,7 @@ Shared control-plane jobs use **kebab-case, action-oriented** ids with domain co
 | Dashboard read | `read-oblt-aw-dashboard` |
 | Allow-list load | `load-oblt-aw-bot-allow-lists` |
 | Gate evaluation | `evaluate-workflow-gates` |
-| APM asset resolve (leaf reusable) | `resolve-apm-agentic-assets` |
+| Agentic asset resolve (leaf reusable) | `resolve-agentic-assets` |
 
 Route wrappers keep descriptive ids such as `resolve-apm-assets` and `automerge`. Upstream `gh-aw-*` agent lifecycle jobs (`pre_activation`, `activation`, `agent`) are owned by `elastic/ai-github-actions`.
 
