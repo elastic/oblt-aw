@@ -36,7 +36,7 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
    Commit on the branch and open a pull request to **`main`**, but **do not merge** that registration PR until **step 3** is complete.
 
-   - **`id-token: write` on the client** — Confirm each [client template](../workflows/oblt-aw-client-template.md) that needs OIDC grants **`id-token: write`** on `run-aw` so nested workflows can call `create-token`.
+   - **`id-token: write` on the client** — Confirm each [client template](../workflows/oblt-aw-client-template.md) that needs OIDC grants **`id-token: write`** on the client entrypoint job (for example `run-oblt-aw-pull-request`) so nested workflows can call `create-token`.
 
 2. **Add the GitHub token policy in `elastic/catalog-info` (mandatory)** — In **[`elastic/catalog-info`](https://github.com/elastic/catalog-info)**, add or update the Backstage **`Resource`** / **`TokenPolicy`** for this consumer repository. Follow the [appendix template](#appendix-token-policy-yaml-template) and complete every subpoint below before opening the catalog PR (or fold them into one catalog PR as your process allows).
 
@@ -132,7 +132,7 @@ Draft placeholder for `additional_permissions` (not valid YAML until substituted
 
 - **No install PR in the target repository** — See [distribute-client-workflow](../operations/distribute-client-workflow.md): path filters, matrix outputs, and `workflow_dispatch` / `force`.
 - **No dashboard issue** — Confirm **`elastic/<repo>`** is in the union of per-org `active-repositories.json` files and that [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) completed on **`main`**.
-- **Ephemeral token / OIDC failures** — Match `workflow_ref` exactly to the client workflow file that invoked `create-token`; confirm **`id-token: write`** on that client’s `run-aw` job ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)); confirm the catalog policy merged **before** merging **`elastic/oblt-aw`** registration to **`main`**.
+- **Ephemeral token / OIDC failures** — Match `workflow_ref` exactly to the client workflow file that invoked `create-token`; confirm **`id-token: write`** on that client’s `run-oblt-aw-<event>` job ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)); confirm the catalog policy merged **before** merging **`elastic/oblt-aw`** registration to **`main`**.
 
 ## References
 

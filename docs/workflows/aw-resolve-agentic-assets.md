@@ -10,6 +10,8 @@ CI enforces the contract via [scripts/validate_aw_workflow_resolve_agentic_asset
 
 Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.yml`) do not call this workflow.
 
+The reusable workflow job id is `resolve-apm-agentic-assets`. Route wrappers typically call it from a job named `resolve-apm-assets`.
+
 ## Contract
 
 ### Inputs
@@ -45,7 +47,7 @@ Place each `resolve-apm-assets` job **immediately before** the `gh-aw-*` job it 
 
 ```yaml
 jobs:
-  prelude:
+  run-aw-prelude:
     uses: ./.github/workflows/aw-prelude.yml
     with:
       control-plane-workflow: oblt-aw-example.yml
@@ -53,9 +55,9 @@ jobs:
   # ... optional intermediate jobs (verify, discover, menu scripts, etc.) ...
 
   resolve-apm-assets:
-    needs: [prelude]  # plus any jobs the agent also needs
+    needs: [run-aw-prelude]  # plus any jobs the agent also needs
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-example.yml'] == 'true' &&
       <same conditions as the agent job below>
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
@@ -64,9 +66,9 @@ jobs:
         Platform prompt for this agent invocation.
 
   agent:
-    needs: [prelude, resolve-apm-assets]  # resolve must be a direct dependency
+    needs: [run-aw-prelude, resolve-apm-assets]  # resolve must be a direct dependency
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-example.yml'] == 'true' &&
       <same conditions as resolve-apm-assets>
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-example.lock.yml@main
     with:

@@ -221,7 +221,7 @@ def test_validate_workflow_maps_elastic_oblt_aw_ref_to_local_file(
             "on": {"issues": None},
             "permissions": {"contents": "read"},
             "jobs": {
-                "run-aw": {
+                "run-oblt-aw-issues": {
                     "permissions": {"contents": "read", "issues": "write"},
                     "uses": (
                         "elastic/oblt-aw/.github/workflows/"

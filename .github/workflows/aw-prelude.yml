@@ -21,42 +21,42 @@ on:
       proceed-by-workflow:
         description: >-
           JSON map of control-plane workflow basename to proceed (true/false).
-        value: ${{ jobs.evaluate.outputs.proceed-by-workflow }}
+        value: ${{ jobs.evaluate-workflow-gates.outputs.proceed-by-workflow }}
       effective-raw:
         description: Raw dashboard read before normalization ('' means all enabled)
-        value: ${{ jobs.dashboard.outputs.effective-raw }}
+        value: ${{ jobs.read-oblt-aw-dashboard.outputs.effective-raw }}
       enabled-workflows:
         description: Normalized JSON array of compound ids from the dashboard
-        value: ${{ jobs.dashboard.outputs.enabled-workflows }}
+        value: ${{ jobs.read-oblt-aw-dashboard.outputs.enabled-workflows }}
       allowed-pr-authors-json:
         description: JSON array of allowed PR bot logins (empty when not loaded)
-        value: ${{ jobs.evaluate.outputs.allowed-pr-authors-json }}
+        value: ${{ jobs.evaluate-workflow-gates.outputs.allowed-pr-authors-json }}
       allowed-pr-authors-csv:
         description: Comma-separated allowed PR bot logins (empty when not loaded)
-        value: ${{ jobs.evaluate.outputs.allowed-pr-authors-csv }}
+        value: ${{ jobs.evaluate-workflow-gates.outputs.allowed-pr-authors-csv }}
       allowed-issue-authors-json:
         description: JSON array of allowed issue bot logins (empty when not loaded)
-        value: ${{ jobs.evaluate.outputs.allowed-issue-authors-json }}
+        value: ${{ jobs.evaluate-workflow-gates.outputs.allowed-issue-authors-json }}
       allowed-issue-authors-csv:
         description: Comma-separated allowed issue bot logins (empty when not loaded)
-        value: ${{ jobs.evaluate.outputs.allowed-issue-authors-csv }}
+        value: ${{ jobs.evaluate-workflow-gates.outputs.allowed-issue-authors-csv }}
       token-policy:
         description: >-
           workflow-token-policy from config/<org>/active-repositories.json for this
           repository when set; empty when not configured (create-token uses Vault auto policy).
-        value: ${{ jobs.evaluate.outputs.token-policy }}
+        value: ${{ jobs.evaluate-workflow-gates.outputs.token-policy }}
 
 permissions:
   contents: read
 
 jobs:
-  dashboard:
+  read-oblt-aw-dashboard:
     permissions:
       contents: read
       issues: read
     uses: ./.github/workflows/get-enabled-workflows.yml
 
-  allowed-authors:
+  load-oblt-aw-bot-allow-lists:
     permissions:
       contents: read
     if: >-
@@ -64,14 +64,14 @@ jobs:
       (github.event_name == 'pull_request' || github.event_name == 'issues')
     uses: ./.github/workflows/load-allowed-authors.yml
 
-  evaluate:
-    needs: [dashboard, allowed-authors]
+  evaluate-workflow-gates:
+    needs: [read-oblt-aw-dashboard, load-oblt-aw-bot-allow-lists]
     permissions:
       contents: read
     if: >-
       always() &&
-      needs.dashboard.result == 'success' &&
-      (needs.allowed-authors.result == 'success' || needs.allowed-authors.result == 'skipped')
+      needs.read-oblt-aw-dashboard.result == 'success' &&
+      (needs.load-oblt-aw-bot-allow-lists.result == 'success' || needs.load-oblt-aw-bot-allow-lists.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
@@ -110,8 +110,8 @@ jobs:
         env:
           CONFIG_DIR: _oblt-aw/config
           CONTROL_PLANE_WORKFLOWS: ${{ inputs.control-plane-workflows }}
-          EFFECTIVE_RAW: ${{ needs.dashboard.outputs.effective-raw }}
-          ENABLED_WORKFLOWS: ${{ needs.dashboard.outputs.enabled-workflows }}
+          EFFECTIVE_RAW: ${{ needs.read-oblt-aw-dashboard.outputs.effective-raw }}
+          ENABLED_WORKFLOWS: ${{ needs.read-oblt-aw-dashboard.outputs.enabled-workflows }}
         run: |
           set -euo pipefail
           python _oblt-aw/scripts/evaluate_workflow_gates.py \
@@ -123,10 +123,10 @@ jobs:
       - name: Pack allow-list outputs
         id: pack
         env:
-          PR_JSON: ${{ needs.allowed-authors.outputs.allowed_pr_authors_json }}
-          PR_CSV: ${{ needs.allowed-authors.outputs.allowed_pr_authors_csv }}
-          ISSUE_JSON: ${{ needs.allowed-authors.outputs.allowed_issue_authors_json }}
-          ISSUE_CSV: ${{ needs.allowed-authors.outputs.allowed_issue_authors_csv }}
+          PR_JSON: ${{ needs.load-oblt-aw-bot-allow-lists.outputs.allowed_pr_authors_json }}
+          PR_CSV: ${{ needs.load-oblt-aw-bot-allow-lists.outputs.allowed_pr_authors_csv }}
+          ISSUE_JSON: ${{ needs.load-oblt-aw-bot-allow-lists.outputs.allowed_issue_authors_json }}
+          ISSUE_CSV: ${{ needs.load-oblt-aw-bot-allow-lists.outputs.allowed_issue_authors_csv }}
         run: |
           set -euo pipefail
           {

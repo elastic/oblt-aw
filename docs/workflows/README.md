@@ -7,6 +7,22 @@ This section provides documentation for each workflow source in [.github/workflo
 ## Usage
 
 - CI workflow: [docs/workflows/ci.md](ci.md)
+
+### Job naming (Actions UI readability)
+
+Shared control-plane jobs use **kebab-case, action-oriented** ids with domain context:
+
+| Pattern | Example job ids |
+|---------|-----------------|
+| Consumer entrypoint | `run-oblt-aw-pull-request`, `run-docs-aw-issues` |
+| Event orchestrator prelude | `run-aw-prelude` |
+| Dashboard read | `read-oblt-aw-dashboard` |
+| Allow-list load | `load-oblt-aw-bot-allow-lists` |
+| Gate evaluation | `evaluate-workflow-gates` |
+| APM asset resolve (leaf reusable) | `resolve-apm-agentic-assets` |
+
+Route wrappers keep descriptive ids such as `resolve-apm-assets` and `automerge`. Upstream `gh-aw-*` agent lifecycle jobs (`pre_activation`, `activation`, `agent`) are owned by `elastic/ai-github-actions`.
+
 - Shared prelude (dashboard + allow lists): [docs/workflows/aw-prelude.md](aw-prelude.md)
 - Dashboard reader (reusable workflow): [docs/workflows/get-enabled-workflows.md](get-enabled-workflows.md)
 - PR and issue allow-list loader (reusable workflow): [docs/workflows/load-allowed-authors.md](load-allowed-authors.md)

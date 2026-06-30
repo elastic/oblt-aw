@@ -9,7 +9,7 @@ This reusable workflow delegates dependency-update PR analysis to a locked workf
 ## Prerequisites
 
 - Triggered via `workflow_call`.
-- Allow list: `needs.prelude.outputs.allowed-pr-authors-csv` from [aw-prelude](aw-prelude.md) / [load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml), derived from [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json).
+- Allow list: `needs.run-aw-prelude.outputs.allowed-pr-authors-csv` from [aw-prelude](aw-prelude.md) / [load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml), derived from [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json).
 
 ## Usage
 

@@ -9,7 +9,7 @@ For Platform Engineering policy and catalog authoring rules, see [Ephemeral toke
 ## Prerequisites
 
 - Consumer registration complete or in progress ([Registering resources](../../onboarding/registering-a-repository.md)).
-- Client templates grant `id-token: write` on `run-aw` when the call chain includes `create-token` ([Client template index](../../workflows/oblt-aw-client-template.md)).
+- Client templates grant `id-token: write` on the client entrypoint job (for example `run-oblt-aw-pull-request`) when the call chain includes `create-token` ([Client template index](../../workflows/oblt-aw-client-template.md)).
 
 ## Two token-policy fields (consumer repos)
 
@@ -44,12 +44,12 @@ See the reference table in [Registering resources — appendix](../../onboarding
 
 ## Example: workflow without repository secrets
 
-[oblt-aw-security-detector](../../workflows/oblt-aw-security-detector.md) declares no `secrets` on `workflow_call`. Issue creation uses an ephemeral token so downstream issue-triggered workflows can run. The client template must include `id-token: write` on `run-aw`.
+[oblt-aw-security-detector](../../workflows/oblt-aw-security-detector.md) declares no `secrets` on `workflow_call`. Issue creation uses an ephemeral token so downstream issue-triggered workflows can run. The client template must include `id-token: write` on the client entrypoint job (for example `run-oblt-aw-pull-request`).
 
 ## Troubleshooting OIDC / create-token failures
 
 - Match `workflow_ref` exactly to the invoking client workflow file.
-- Confirm `id-token: write` on the client `run-aw` job.
+- Confirm `id-token: write` on the client `run-oblt-aw-<event>` job.
 - Confirm catalog policy merged **before** `oblt-aw` registration merged to `main`.
 
 See [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting) and [Troubleshoot an error](../operator/troubleshoot-an-error.md).

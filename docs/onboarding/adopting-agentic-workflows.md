@@ -25,7 +25,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 ### 2. Add route contract and event orchestration
 
 - Route reusable (`oblt-aw-*` / `docs-aw-*`): declare required `shared-proceed` (and shared allow-list / token-policy inputs); gate agent jobs with `if: inputs.shared-proceed == 'true'` plus event/label/comment guards. Do **not** call `aw-prelude.yml` from route workflows.
-- Event orchestrator (`*-aw-event-*.yml`): first job calls [aw-prelude.yml](../workflows/aw-prelude.md) with `control-plane-workflows` listing every route basename for that GitHub event family; fan out with `fromJSON(needs.prelude.outputs.proceed-by-workflow)['<basename>']` ([aw-prelude](../workflows/aw-prelude.md)).
+- Event orchestrator (`*-aw-event-*.yml`): first job calls [aw-prelude.yml](../workflows/aw-prelude.md) with `control-plane-workflows` listing every route basename for that GitHub event family; fan out with `fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['<basename>']` ([aw-prelude](../workflows/aw-prelude.md)).
 
 ### 3. Mirror permissions from similar workflows
 

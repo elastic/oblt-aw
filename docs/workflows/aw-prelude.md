@@ -10,6 +10,16 @@ Event-scoped orchestrators (`oblt-aw-event-*`, `docs-aw-event-*`) call this work
 
 APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the prelude. Call [aw-resolve-agentic-assets.yml](aw-resolve-agentic-assets.md) once per `gh-aw-*` agent invocation instead.
 
+### Jobs (Actions UI)
+
+| Job id | Role |
+|--------|------|
+| `read-oblt-aw-dashboard` | Calls [get-enabled-workflows.yml](../../.github/workflows/get-enabled-workflows.yml) |
+| `load-oblt-aw-bot-allow-lists` | Calls [load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml) when `load-allowed-authors` input is true |
+| `evaluate-workflow-gates` | Resolves token policy, evaluates dashboard gates, packs allow-list outputs |
+
+Event orchestrators invoke this workflow as job `run-aw-prelude`.
+
 ## Contract
 
 ### Inputs

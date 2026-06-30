@@ -61,12 +61,12 @@ def test_validate_workflow_rejects_prelude_apm_outputs(
         "  resolve-apm-assets:\n    uses: ./.github/workflows/aw-resolve-agentic-assets.yml\n"
         "  agent:\n    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main\n"
         "    with:\n"
-        "      additional-instructions: ${{ needs.prelude.outputs.resolved-additional-instructions }}\n",
+        "      additional-instructions: ${{ needs.run-aw-prelude.outputs.resolved-additional-instructions }}\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "list_subject_workflows", lambda: [bad])
     errors = validator.validate_workflow(bad)
-    assert any("prelude.outputs.resolved" in err for err in errors)
+    assert any("resolve-agentic-assets outputs" in err for err in errors)
 
 
 def test_validate_workflow_accepts_resolve_per_agent_call(
