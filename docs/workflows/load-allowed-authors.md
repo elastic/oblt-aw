@@ -16,9 +16,11 @@ Triggers:
 
 Called by ingress:
 
-- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml), job `allowed-authors` (when `load-allowed-authors: true`)
+- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml), job `load-oblt-aw-bot-allow-lists` (when `load-allowed-authors: true`)
 
 Prelude runs this job only when `load-allowed-authors` is true and `github.event_name` is `pull_request` or `issues`.
+
+The reusable workflow job id is `load-oblt-aw-bot-allow-lists` (workflow filename remains `load-allowed-authors.yml`).
 
 ## API / Interface
 

@@ -71,15 +71,15 @@ Top-level permissions on every client template:
 
 Control-plane `oblt-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
 
-Job-level permissions on `run-aw` must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below).
+Job-level permissions on the client entrypoint job (for example `run-oblt-aw-pull-request`) must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below).
 
-| Client template | `run-aw` job permissions (union of callee jobs) |
-|-----------------|-----------------------------------------------|
-| `trigger-oblt-aw-pull-request.yml` | `actions: read`, `contents: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
-| `trigger-oblt-aw-issues.yml` | `actions: read`, `contents: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
-| `trigger-oblt-aw-issue-comment.yml` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
-| `trigger-oblt-aw-schedule.yml` | `actions: read`, `contents: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
-| `trigger-oblt-aw-status.yml` | `actions: read`, `contents: read`, `issues: read`, `pull-requests: write` |
+| Client template | Entrypoint job id | Job permissions (union of callee jobs) |
+|-----------------|-------------------|----------------------------------------|
+| `trigger-oblt-aw-pull-request.yml` | `run-oblt-aw-pull-request` | `actions: read`, `contents: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trigger-oblt-aw-issues.yml` | `run-oblt-aw-issues` | `actions: read`, `contents: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trigger-oblt-aw-issue-comment.yml` | `run-oblt-aw-issue-comment` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trigger-oblt-aw-schedule.yml` | `run-oblt-aw-schedule` | `actions: read`, `contents: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trigger-oblt-aw-status.yml` | `run-oblt-aw-status` | `actions: read`, `contents: read`, `issues: read`, `pull-requests: write` |
 
 ### Secrets
 

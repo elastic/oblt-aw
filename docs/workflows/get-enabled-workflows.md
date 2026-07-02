@@ -17,7 +17,9 @@ Triggers:
 
 Called by ingress:
 
-- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml), job `dashboard`
+- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml), job `read-oblt-aw-dashboard`
+
+The reusable workflow job id is `read-oblt-aw-dashboard`.
 
 ## API / Interface
 

@@ -38,7 +38,7 @@ PRELUDE_USES = re.compile(
     r"uses:\s*\./\.github/workflows/aw-prelude\.ya?ml\b",
     re.MULTILINE,
 )
-PRELUDE_JOB = re.compile(r"^\s+prelude:\s*$", re.MULTILINE)
+PRELUDE_JOB = re.compile(r"^\s+(?:prelude|run-aw-prelude):\s*$", re.MULTILINE)
 SHARED_PROCEED_INPUT = re.compile(r"^\s+shared-proceed:\s*$", re.MULTILINE)
 
 
@@ -60,7 +60,9 @@ def validate_route(path: pathlib.Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     errors: list[str] = []
     if PRELUDE_JOB.search(text):
-        errors.append(f"{path}: route workflows must not define a prelude job")
+        errors.append(
+            f"{path}: route workflows must not define a prelude or run-aw-prelude job"
+        )
     if PRELUDE_USES.search(text):
         errors.append(f"{path}: route workflows must not call aw-prelude.yml")
     if not SHARED_PROCEED_INPUT.search(text):

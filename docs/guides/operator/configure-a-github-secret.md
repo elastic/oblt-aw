@@ -18,7 +18,7 @@ Some workflows declare **no** repository secrets. Example: [oblt-aw-security-det
 For these workflows you still need:
 
 - Registration and catalog token policy ([Registering resources](../../onboarding/registering-a-repository.md))
-- `id-token: write` on the client `run-aw` job when `create-token` is in the call chain ([Client template index](../../workflows/oblt-aw-client-template.md))
+- `id-token: write` on the client `run-oblt-aw-<event>` job when `create-token` is in the call chain ([Client template index](../../workflows/oblt-aw-client-template.md))
 
 See [Use GitHub ephemeral tokens](../maintainer/use-gh-ephemeral-tokens.md) for the token-policy model.
 

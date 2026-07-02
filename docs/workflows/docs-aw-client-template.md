@@ -44,14 +44,14 @@ Top-level permissions on every client template:
 
 Control-plane `docs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
 
-Job-level permissions on `run-aw` must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below).
+Job-level permissions on the client entrypoint job (for example `run-docs-aw-pull-request`) must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below).
 
-| Client template | `run-aw` job permissions (union of callee jobs) |
-|-----------------|-----------------------------------------------|
-| `trigger-docs-aw-issues.yml` | `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
-| `trigger-docs-aw-issue-comment.yml` | `actions: read`, `checks: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
-| `trigger-docs-aw-pull-request.yml` | `actions: write`, `contents: read` |
-| `trigger-docs-aw-workflow-run.yml` | `actions: read`, `checks: read`, `contents: read`, `issues: write`, `pull-requests: write` |
+| Client template | Entrypoint job id | Job permissions (union of callee jobs) |
+|-----------------|-------------------|----------------------------------------|
+| `trigger-docs-aw-issues.yml` | `run-docs-aw-issues` | `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trigger-docs-aw-issue-comment.yml` | `run-docs-aw-issue-comment` | `actions: read`, `checks: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trigger-docs-aw-pull-request.yml` | `run-docs-aw-pull-request` | `actions: write`, `contents: read` |
+| `trigger-docs-aw-workflow-run.yml` | `run-docs-aw-workflow-run` | `actions: read`, `checks: read`, `contents: read`, `issues: write`, `pull-requests: write` |
 
 ## Migration from per-route client templates
 

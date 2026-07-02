@@ -47,13 +47,13 @@ def test_validate_workflow_rejects_inline_prelude(
     bad = workflows / "docs-aw-test.yml"
     bad.write_text(
         "name: Test\non:\n  workflow_call:\n    inputs:\n      shared-proceed:\n        required: true\n        type: string\njobs:\n"
-        "  prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n"
+        "  run-aw-prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n"
         "    with:\n      control-plane-workflows: '[\"docs-aw-test.yml\"]'\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(validator, "WORKFLOWS_DIR", workflows)
     errors = validator.validate_workflow(bad)
-    assert any("prelude job" in err for err in errors)
+    assert any("run-aw-prelude job" in err for err in errors)
     assert any("must not call aw-prelude.yml" in err for err in errors)
 
 

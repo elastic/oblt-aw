@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
+  run-aw-prelude:
     permissions:
       contents: read
       issues: read
@@ -18,12 +18,12 @@ jobs:
       load-allowed-authors: true
 
   automerge:
-    needs: prelude
+    needs: run-aw-prelude
     if: >-
-      fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-automerge.yml'] == 'true' &&
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-automerge.yml'] == 'true' &&
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action) &&
-      contains(fromJSON(needs.prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login) &&
+      contains(fromJSON(needs.run-aw-prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login) &&
       contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready')
     permissions:
       actions: read
@@ -35,19 +35,19 @@ jobs:
       copilot-requests: write
     uses: ./.github/workflows/oblt-aw-automerge.yml
     with:
-      shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-automerge.yml'] }}
-      shared-allowed-pr-authors-json: ${{ needs.prelude.outputs.allowed-pr-authors-json }}
-      shared-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
-      shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
-      shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
-      shared-token-policy: ${{ needs.prelude.outputs.token-policy }}
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-automerge.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
   dependency-review:
-    needs: prelude
+    needs: run-aw-prelude
     if: >-
-      fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-dependency-review.yml'] == 'true' &&
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-dependency-review.yml'] == 'true' &&
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
-      contains(fromJSON(needs.prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login)
+      contains(fromJSON(needs.run-aw-prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login)
     permissions:
       actions: read
       contents: read
@@ -57,9 +57,9 @@ jobs:
       copilot-requests: write
     uses: ./.github/workflows/oblt-aw-dependency-review.yml
     with:
-      shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['oblt-aw-dependency-review.yml'] }}
-      shared-allowed-pr-authors-json: ${{ needs.prelude.outputs.allowed-pr-authors-json }}
-      shared-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
-      shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
-      shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
-      shared-token-policy: ${{ needs.prelude.outputs.token-policy }}
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-dependency-review.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
