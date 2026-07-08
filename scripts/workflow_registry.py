@@ -123,7 +123,7 @@ def _normalize_control_plane_workflow_names(
         if not isinstance(name, str) or not CONTROL_PLANE_WORKFLOW_NAME.match(name):
             raise ValueError(
                 f"{org_dir}: {context} ({workflow_id!r}) "
-                f"control_plane_workflows[{file_index}] must match *-aw-*.yml, "
+                f"control_plane_workflows[{file_index}] must match *-aw-*.yml or *-aw-*.yaml, "
                 f"got {name!r}"
             )
         normalized.append(name)
