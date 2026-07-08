@@ -40,6 +40,18 @@ There is no config file. When the client workflow runs, the ingress (`get-enable
 
 The ingress dashboard stage excludes the workflow from `enabled-workflows` at runtime. The workflow will no longer run for your repository until you enable it again.
 
+### Sub-features (composite workflows)
+
+Some workflows expose **indented child checkboxes** under the parent on the Control Plane Dashboard. These let you enable or disable individual parts of a composite workflow (for example, specific dependency collections under Automerge).
+
+| Parent checkbox | Sub-feature checkbox | Effect |
+|-----------------|----------------------|--------|
+| Unchecked | Any | Parent and all sub-features are disabled |
+| Checked | Unchecked | Parent runs; that sub-feature does not |
+| Checked | Checked | Parent runs; that sub-feature runs |
+
+Sub-features only take effect while the parent workflow is enabled.
+
 ---
 
 ## What Happens at Runtime

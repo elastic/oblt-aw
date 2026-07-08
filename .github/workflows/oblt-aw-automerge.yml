@@ -21,6 +21,10 @@ on:
       shared-token-policy:
         required: true
         type: string
+      shared-enabled-workflows:
+        description: Normalized JSON array of compound workflow ids from aw-prelude.
+        required: true
+        type: string
 permissions:
   contents: read
 
@@ -126,6 +130,7 @@ jobs:
         uses: actions/github-script@v9
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          ENABLED_WORKFLOWS_JSON: ${{ inputs.shared-enabled-workflows }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -136,7 +141,13 @@ jobs:
             rq('tsx/cjs/api').register();
             const { run } = rq('./scripts/obs/checkAutomergeDependencyCollection.ts');
             const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            const { allowed, collectionId } = await run({ github, context, prNumber, core });
+            const { allowed, collectionId } = await run({
+              github,
+              context,
+              prNumber,
+              core,
+              enabledWorkflowsJson: process.env.ENABLED_WORKFLOWS_JSON || '[]',
+            });
             core.setOutput('allowed', allowed ? 'true' : 'false');
             core.setOutput('collection-id', collectionId || '');
 

@@ -17,11 +17,11 @@ def test_validate_workflow_skips_non_agent_wrappers(
 ) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
-    no_agent = workflows / "oblt-aw-security-detector.yml"
+    no_agent = workflows / "oblt-aw-security-injection-detector.yml"
     no_agent.write_text(
         "name: Test\non:\n  workflow_call:\njobs:\n"
         "  prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n"
-        "    with:\n      control-plane-workflow: oblt-aw-security-detector.yml\n"
+        "    with:\n      control-plane-workflow: oblt-aw-security-injection-detector.yml\n"
         "  scan:\n    needs: prelude\n    runs-on: ubuntu-latest\n    steps:\n"
         "      - run: echo scan\n",
         encoding="utf-8",

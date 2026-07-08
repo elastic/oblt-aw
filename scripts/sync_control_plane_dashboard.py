@@ -41,7 +41,6 @@ from typing import Any, cast
 import json
 import logging
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -49,10 +48,12 @@ from pathlib import Path
 from urllib.parse import quote
 
 from common import (
-    LEGACY_DEFAULT_ORG_KEY,
+    compound_subfeature_key,
     compound_workflow_key,
     discover_org_config_dirs,
     format_oblt_aw_marker,
+    format_oblt_aw_subfeature_marker,
+    parse_checkbox_states_from_dashboard_body,
     parse_repositories,
 )
 
@@ -72,28 +73,8 @@ def setup_logging() -> None:
 
 
 def parse_checkbox_state(body: str | None) -> dict[str, bool]:
-    """Extract ``org:workflow-id`` -> enabled from task list lines."""
-    state: dict[str, bool] = {}
-    if not body:
-        return state
-    for line in body.splitlines():
-        m3 = re.match(r"^- \[x\] <!-- oblt-aw:([a-z0-9-]+):([a-z0-9-]+) -->", line)
-        if m3:
-            state[compound_workflow_key(m3.group(1), m3.group(2))] = True
-            continue
-        m3d = re.match(r"^- \[ \] <!-- oblt-aw:([a-z0-9-]+):([a-z0-9-]+) -->", line)
-        if m3d:
-            state[compound_workflow_key(m3d.group(1), m3d.group(2))] = False
-            continue
-        m2 = re.match(r"^- \[x\] <!-- oblt-aw:([a-z0-9-]+) -->", line)
-        if m2:
-            state[compound_workflow_key(LEGACY_DEFAULT_ORG_KEY, m2.group(1))] = True
-            continue
-        m2d = re.match(r"^- \[ \] <!-- oblt-aw:([a-z0-9-]+) -->", line)
-        if m2d:
-            state[compound_workflow_key(LEGACY_DEFAULT_ORG_KEY, m2d.group(1))] = False
-            continue
-    return state
+    """Extract compound id -> enabled from parent and sub-feature task list lines."""
+    return parse_checkbox_states_from_dashboard_body(body or "")
 
 
 def maturity_badge(maturity: str) -> str:
@@ -190,6 +171,15 @@ def build_dashboard_body(
             checkbox = "- [x]" if enabled else "- [ ]"
             marker = format_oblt_aw_marker(org_key, wf_id)
             lines.append(f"{checkbox} {marker} {name}")
+            for sub in wf.get("sub_features") or []:
+                sub_id = sub["id"]
+                sub_name = sub.get("name", sub_id)
+                sub_default = sub.get("default_enabled", False)
+                sub_key = compound_subfeature_key(org_key, wf_id, sub_id)
+                sub_enabled = parsed.get(sub_key, sub_default)
+                sub_checkbox = "- [x]" if sub_enabled else "- [ ]"
+                sub_marker = format_oblt_aw_subfeature_marker(org_key, wf_id, sub_id)
+                lines.append(f"  {sub_checkbox} {sub_marker} {sub_name}")
         lines.append("")
     lines.extend(
         [
@@ -197,6 +187,9 @@ def build_dashboard_body(
             "",
             "- **Enable a workflow:** Check the checkbox next to the workflow.",
             "- **Disable a workflow:** Uncheck the checkbox.",
+            "- **Sub-features:** Indented checkboxes under a parent refine which "
+            "parts of that workflow run. Sub-features take effect only while the "
+            "parent workflow checkbox is enabled.",
             "- Changes are applied at runtime when the client runs.",
         ]
     )

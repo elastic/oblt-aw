@@ -1,5 +1,5 @@
 ---
-name: Security Detector
+name: Security Least-privilege Detector
 on:
   workflow_call:
     inputs:
@@ -58,11 +58,11 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Run security scan
+      - name: Run least-privilege security scan
         id: scan
         run: |
           chmod +x _oblt-aw/scripts/obs/security-scan.sh
-          _oblt-aw/scripts/obs/security-scan.sh target 2>/dev/null | tee findings.txt || true
+          _oblt-aw/scripts/obs/security-scan.sh target least-privilege 2>/dev/null | tee findings.txt || true
           count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
           echo "count=$count" >> "$GITHUB_OUTPUT"
 

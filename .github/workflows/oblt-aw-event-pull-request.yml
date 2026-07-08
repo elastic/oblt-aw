@@ -41,6 +41,7 @@ jobs:
       shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
       shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+      shared-enabled-workflows: ${{ needs.run-aw-prelude.outputs.enabled-workflows }}
   dependency-review:
     needs: run-aw-prelude
     if: >-

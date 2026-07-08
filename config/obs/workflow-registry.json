@@ -23,7 +23,57 @@
       "description": "Enables auto-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready when validation and approval gates pass; GitHub enforces required checks at merge time.",
       "maturity": "early-adoption",
       "default_enabled": false,
-      "control_plane_workflows": ["oblt-aw-automerge.yml"]
+      "control_plane_workflows": ["oblt-aw-automerge.yml"],
+      "sub_features": [
+        {
+          "id": "github-actions",
+          "name": "GitHub Actions bumps",
+          "description": "Auto-merge for GitHub Actions and composite action version bumps.",
+          "default_enabled": true
+        },
+        {
+          "id": "pre-commit",
+          "name": "pre-commit hook updates",
+          "description": "Auto-merge for pre-commit hook dependency updates.",
+          "default_enabled": true
+        },
+        {
+          "id": "python-dependencies",
+          "name": "Python dependencies",
+          "description": "Auto-merge for Python package and lockfile updates.",
+          "default_enabled": false
+        },
+        {
+          "id": "go-dependencies",
+          "name": "Go dependencies",
+          "description": "Auto-merge for Go module and sum updates.",
+          "default_enabled": false
+        },
+        {
+          "id": "node-dependencies",
+          "name": "Node dependencies",
+          "description": "Auto-merge for npm/yarn/pnpm manifest and lockfile updates.",
+          "default_enabled": false
+        },
+        {
+          "id": "terraform",
+          "name": "Terraform / OpenTofu",
+          "description": "Auto-merge for Terraform, OpenTofu, and Terragrunt dependency updates.",
+          "default_enabled": true
+        },
+        {
+          "id": "open-policy-agent",
+          "name": "Open Policy Agent",
+          "description": "Auto-merge for OPA policy and version file updates.",
+          "default_enabled": true
+        },
+        {
+          "id": "vm-images",
+          "name": "VM / container images",
+          "description": "Auto-merge for CI runner or container image pin updates.",
+          "default_enabled": false
+        }
+      ]
     },
     {
       "id": "dependency-review",
@@ -72,10 +122,39 @@
       "maturity": "experimental",
       "default_enabled": false,
       "control_plane_workflows": [
-        "oblt-aw-security-detector.yml",
         "oblt-aw-security-fixer.yml",
         "oblt-aw-security-issue-superseder.yml",
         "oblt-aw-security-triage.yml"
+      ],
+      "sub_features": [
+        {
+          "id": "injection",
+          "name": "Injection Detection",
+          "description": "Checks for script-injection vulnerabilities in workflow expressions.",
+          "default_enabled": true,
+          "control_plane_workflows": ["oblt-aw-security-injection-detector.yml"]
+        },
+        {
+          "id": "supply-chain",
+          "name": "Supply-chain Hardening",
+          "description": "Flags unpinned third-party actions and missing provenance checks.",
+          "default_enabled": true,
+          "control_plane_workflows": ["oblt-aw-security-supply-chain-detector.yml"]
+        },
+        {
+          "id": "secrets",
+          "name": "Secret Management",
+          "description": "Detects token exposure, secrets in command strings, and improper token scoping.",
+          "default_enabled": true,
+          "control_plane_workflows": ["oblt-aw-security-secrets-detector.yml"]
+        },
+        {
+          "id": "least-privilege",
+          "name": "Least Privilege",
+          "description": "Flags excessive workflow permissions and dangerous token patterns.",
+          "default_enabled": true,
+          "control_plane_workflows": ["oblt-aw-security-least-privilege-detector.yml"]
+        }
       ]
     },
     {
