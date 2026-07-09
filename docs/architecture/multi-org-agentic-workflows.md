@@ -120,7 +120,7 @@ scripts/
 - **Per-org** `active-repositories.json` still defines which repos each org cares about.
 - **Dashboard sync** for a given `owner/repo`: include workflows from **every org folder** that lists this repo (merge). If a repo is only in `obs`, only `obs` sections appear; if in multiple orgs, **all relevant sections** appear in the **same** issue.
 - **`build_repos_matrix.py`:** Runs with **no CLI arguments**. It discovers org trees under `config/<org-key>/`, unions and deduplicates `active-repositories.json` entries, and writes workflow outputs:
-  - `repos`: JSON array for matrix strategy in the shape `[{"repository":"owner/repo"}, ...]`
+  - `repos`: JSON array for matrix strategy in the shape `[{"repository":"owner/repo","workflow-token-policy":"..."}, ...]`; `workflow-token-policy` is `""` when unset for the repository
   - `has_repos`: `"true"` when at least one repository exists, otherwise `"false"`
   - `repos_count`: number of repositories in `repos`
 - **Distribution** ([distribute-client-workflow](../operations/distribute-client-workflow.md)):** Unchanged idea — per-org lists drive install/remove; implementation walks **`config/*/active-repositories.json`** for org directories (or enumerates org keys explicitly — see §3).
@@ -130,7 +130,7 @@ scripts/
 ## 7. Discoverability for users
 
 - **Dashboard body:** Mandatory **org section headers** and, where helpful, a summary table column **Org**.
-- **Registry:** Each workflow entry can include optional `display_name`; org is always implied by **`config/<org-key>/`** and reflected in the merged dashboard.
+- **Registry:** Each workflow entry can include optional `name`, which the dashboard displays instead of the workflow id. The optional top-level `section_title` sets the org section display label; org is always implied by **`config/<org-key>/`** and reflected in the merged dashboard.
 
 ---
 

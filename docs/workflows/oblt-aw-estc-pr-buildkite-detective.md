@@ -4,11 +4,11 @@
 
 Source file: [.github/workflows/oblt-aw-estc-pr-buildkite-detective.yml](../../.github/workflows/oblt-aw-estc-pr-buildkite-detective.yml)
 
-Reusable wrapper that calls the locked PR Buildkite Detective workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trigger-oblt-aw-estc-pr-buildkite-detective.yml` calls this workflow on failed Buildkite `status` events when prelude allows `obs:estc-pr-buildkite-detective`.
+Reusable wrapper that calls the locked PR Buildkite Detective workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The distributed client template `trigger-oblt-aw-status.yml` calls `oblt-aw-event-status.yml`, which runs prelude and routes failed Buildkite `status` events to this workflow when prelude allows `obs:estc-pr-buildkite-detective`.
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from `trigger-oblt-aw-estc-pr-buildkite-detective.yml` client templates.
+- Triggered via `workflow_call` from `oblt-aw-event-status.yml`, which is called by the distributed `trigger-oblt-aw-status.yml` client template.
 - Required secret: `BUILDKITE_API_TOKEN` — a Buildkite API token with read access to build logs for the repository's Buildkite organization. In consumer repositories, map this from `BUILDKITE_LOGS_API_TOKEN`.
 
 ## Usage
@@ -45,6 +45,6 @@ Migration note for consumers: if you previously configured the consumer-facing s
 
 ## References
 
-- Client template: [oblt-aw-client-template.md](oblt-aw-client-template.md) — registry id `estc-pr-buildkite-detective`
+- Client template: [oblt-aw-client-template.md](oblt-aw-client-template.md) — `trigger-oblt-aw-status.yml`, registry id `estc-pr-buildkite-detective`
 - Upstream lock: [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml`](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
 - Upstream documentation: [elastic.github.io/ai-github-actions](https://elastic.github.io/ai-github-actions/workflows/gh-agent-workflows/estc-pr-buildkite-detective/)
