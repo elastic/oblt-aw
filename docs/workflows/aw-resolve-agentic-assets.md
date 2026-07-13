@@ -8,7 +8,7 @@ Resolves consumer agentic assets for **one** `gh-aw-*` invocation: [`apm.yml`](h
 
 CI enforces the contract via [scripts/validate_aw_workflow_resolve_agentic_assets.py](../../scripts/validate_aw_workflow_resolve_agentic_assets.py): every local `*-aw-*` workflow with at least one `gh-aw-*` call must invoke `aw-resolve-agentic-assets.yml` at least once per agent job (for example `oblt-aw-autodoc.yml` uses two resolve jobs for audit and fix).
 
-Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.yml`) do not call this workflow.
+Wrappers that only gate or run scripts (for example `oblt-aw-security-injection-detector.yml`) do not call this workflow.
 
 The reusable workflow job id is `resolve-agentic-assets`. Route wrappers typically call it from a job named `resolve-apm-assets`.
 

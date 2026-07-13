@@ -58,7 +58,7 @@ Full platform view (distribution, dashboard sync, before/after ingress): [archit
 | `trigger-oblt-aw-pull-request.yml` | `pull_request` (opened, synchronize, reopened, labeled) | `oblt-aw-event-pull-request.yml` → automerge, dependency-review |
 | `trigger-oblt-aw-issues.yml` | `issues` (opened, labeled), `workflow_dispatch` | `oblt-aw-event-issues.yml` → issue-triage, duplicate-issue-detector, security superseder/triage/fixer, resource triage/fixer |
 | `trigger-oblt-aw-issue-comment.yml` | `issue_comment` created | `oblt-aw-event-issue-comment.yml` → issue-fixer, mention-in-issue |
-| `trigger-oblt-aw-schedule.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `oblt-aw-event-schedule.yml` → agent-suggestions, autodoc, security-detector, resource-not-accessible detector |
+| `trigger-oblt-aw-schedule.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `oblt-aw-event-schedule.yml` → agent-suggestions, autodoc, security category detectors, resource-not-accessible detector |
 | `trigger-oblt-aw-status.yml` | `status` (Buildkite failure only, job `if`) | `oblt-aw-event-status.yml` → estc-pr-buildkite-detective |
 
 Route-specific conditions (labels, `/ai` comment prefix, allow-listed PR authors, and so on) are enforced inside each `oblt-aw-*` reusable workflow after prelude gating.

@@ -14,7 +14,7 @@ jobs:
     uses: ./.github/workflows/aw-prelude.yml
     with:
       control-plane-workflows: >-
-        ["oblt-aw-agent-suggestions.yml","oblt-aw-autodoc.yml","oblt-aw-security-detector.yml","oblt-aw-resource-not-accessible-by-integration-detector.yml"]
+        ["oblt-aw-agent-suggestions.yml","oblt-aw-autodoc.yml","oblt-aw-security-injection-detector.yml","oblt-aw-security-supply-chain-detector.yml","oblt-aw-security-secrets-detector.yml","oblt-aw-security-least-privilege-detector.yml","oblt-aw-resource-not-accessible-by-integration-detector.yml"]
       load-allowed-authors: false
 
   agent-suggestions:
@@ -55,10 +55,10 @@ jobs:
       shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
       shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
-  security-detector:
+  security-injection-detector:
     needs: run-aw-prelude
     if: >-
-      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-security-detector.yml'] == 'true' &&
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-security-injection-detector.yml'] == 'true' &&
       contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
     permissions:
       actions: read
@@ -66,9 +66,69 @@ jobs:
       id-token: write
       issues: read
       pull-requests: read
-    uses: ./.github/workflows/oblt-aw-security-detector.yml
+    uses: ./.github/workflows/oblt-aw-security-injection-detector.yml
     with:
-      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-security-detector.yml'] }}
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-security-injection-detector.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+
+  security-supply-chain-detector:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-security-supply-chain-detector.yml'] == 'true' &&
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/oblt-aw-security-supply-chain-detector.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-security-supply-chain-detector.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+
+  security-secrets-detector:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-security-secrets-detector.yml'] == 'true' &&
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/oblt-aw-security-secrets-detector.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-security-secrets-detector.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+
+  security-least-privilege-detector:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-security-least-privilege-detector.yml'] == 'true' &&
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/oblt-aw-security-least-privilege-detector.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-security-least-privilege-detector.yml'] }}
       shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
       shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
       shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}

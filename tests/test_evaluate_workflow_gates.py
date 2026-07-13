@@ -84,3 +84,46 @@ def test_unknown_workflow_raises(config_dir: pathlib.Path) -> None:
             effective_raw="",
             enabled_workflows_json="[]",
         )
+
+
+def test_sub_feature_workflow_requires_parent_and_child(
+    config_dir: pathlib.Path,
+) -> None:
+    registry = {
+        "workflows": [
+            {
+                "id": "security",
+                "control_plane_workflows": ["oblt-aw-security-triage.yml"],
+                "sub_features": [
+                    {
+                        "id": "injection",
+                        "control_plane_workflows": [
+                            "oblt-aw-security-injection-detector.yml"
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+    obs = config_dir / "obs"
+    (obs / "workflow-registry.json").write_text(json.dumps(registry), encoding="utf-8")
+
+    enabled = json.dumps(
+        ["obs:security:injection", "obs:security:injection", "obs:security"]
+    )
+    result = evaluate_gates(
+        config_dir,
+        ["oblt-aw-security-injection-detector.yml"],
+        effective_raw="checked",
+        enabled_workflows_json=enabled,
+    )
+    assert result["oblt-aw-security-injection-detector.yml"] == "true"
+
+    child_only = json.dumps(["obs:security:injection"])
+    result_child_only = evaluate_gates(
+        config_dir,
+        ["oblt-aw-security-injection-detector.yml"],
+        effective_raw="checked",
+        enabled_workflows_json=child_only,
+    )
+    assert result_child_only["oblt-aw-security-injection-detector.yml"] == "false"

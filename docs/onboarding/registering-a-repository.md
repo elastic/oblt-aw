@@ -125,7 +125,7 @@ Draft placeholder for `additional_permissions` (not valid YAML until substituted
 |--------------------|-------------------------------------------------------|
 | [distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml) | `token-policy-63405ab45244` |
 | [sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml) | `token-policy-8b60ba56dd3f` |
-| [oblt-aw-security-detector.yml](../../.github/workflows/oblt-aw-security-detector.yml) | `-` (no explicit `with.token-policy` on `create-token`) |
+| Category detector workflows (for example `oblt-aw-security-injection-detector.yml`) | `-` (no explicit `with.token-policy` on `create-token`) |
 | [oblt-aw-automerge.yml](../../.github/workflows/oblt-aw-automerge.yml) (ephemeral token step) | `-` (no explicit `with.token-policy` on `create-token`) |
 
 ## Troubleshooting

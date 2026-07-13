@@ -37,8 +37,8 @@ The client template includes `labeled` in `pull_request` types (`trigger-oblt-aw
 | Requirement | Details |
 |---------------|---------|
 | Classification | Changed file paths on the PR are matched against [config/obs/automerge-dependency-collections.json](../../config/obs/automerge-dependency-collections.json) (`file-glob` per collection). No extra labels are required in consumer repositories. |
-| Active collections | Only collections with `"active": true` proceed to `approve` and `automerge`. |
-| Skipped PRs | When classification fails or the collection is inactive, the job posts or updates a single PR comment (marker `oblt-aw-automerge:dependency-collection-gate`) and downstream jobs do not run. |
+| Enabled collections | Only collections enabled on the Control Plane Dashboard (`obs:automerge:<collection-id>` sub-feature checkboxes under Automerge) proceed to `approve` and `automerge`. The parent `obs:automerge` checkbox must also be enabled. |
+| Skipped PRs | When classification fails or the collection is not enabled on the dashboard, the job posts or updates a single PR comment (marker `oblt-aw-automerge:dependency-collection-gate`) and downstream jobs do not run. |
 
 **`automerge` job** (after approval): **[pascalgn/automerge-action](https://github.com/pascalgn/automerge-action)** enforces `MERGE_LABELS` (`oblt-aw/ai/merge-ready`), `MERGE_REQUIRED_APPROVALS`, fork/branch settings, and merges with **squash** when GitHub reports the PR as ready (required checks and reviews per branch protection and action config). Author and label gates are enforced in `verify` (`validateAutomergePr.ts`, same allow list as dependency-review).
 
