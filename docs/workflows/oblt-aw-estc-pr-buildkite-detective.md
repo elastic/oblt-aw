@@ -28,12 +28,14 @@ Behavior and agent instructions for the locked workflow are defined in [elastic/
 
 ## Configuration
 
-Permissions:
+Permissions are scoped to the individual jobs:
 
-- `actions: read`
-- `contents: read`
-- `issues: write`
-- `pull-requests: write`
+- `check-pr`: `pull-requests: read`
+- `resolve-apm-assets`: `contents: read`, `id-token: write`
+- `estc-pr-buildkite-detective`: `actions: read`, `contents: read`, `issues: read`,
+  `pull-requests: write`, `copilot-requests: write`
+
+The agent job only reads issues; it does not require `issues: write`.
 
 ## API / Interface
 

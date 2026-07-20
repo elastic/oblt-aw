@@ -37,6 +37,36 @@ Key job-level permissions:
 
 `workflow_call` contract:
 
+- `shared-proceed` (`string`, required) — dashboard gate result for this route from
+  `aw-prelude`; the route runs only when this is `true`.
+- `shared-allowed-pr-authors-json` (`string`, required) — JSON array of allowed PR bot
+  logins from the prelude. This route currently receives the shared value for a
+  consistent reusable-workflow interface.
+- `shared-allowed-pr-authors-csv` (`string`, required) — comma-separated form of the
+  allowed PR bot logins.
+- `shared-allowed-issue-authors-json` (`string`, required) — JSON array of allowed
+  issue bot logins.
+- `shared-allowed-issue-authors-csv` (`string`, required) — comma-separated form of
+  the allowed issue bot logins.
+- `shared-token-policy` (`string`, required) — repository `workflow-token-policy`
+  resolved by the prelude; empty when no repository-specific policy is configured.
+
+The event-scoped orchestrator supplies these values from the shared prelude. A caller
+that already has equivalent prelude outputs can invoke the reusable workflow as
+follows:
+
+```yaml
+jobs:
+  ai-menu:
+    uses: ./.github/workflows/docs-aw-ai-menu.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['docs-aw-ai-menu.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+```
 
 ## References
 
