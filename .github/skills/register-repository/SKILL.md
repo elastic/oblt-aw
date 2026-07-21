@@ -61,11 +61,22 @@ Typical triggers:
 - Require the matching `elastic/catalog-info` TokenPolicy change to be merged and active before merging the `elastic/oblt-aw` registration PR.
 - Ensure `bound_claims.workflow_ref` uses `@refs/heads/main` for each installed client workflow that calls `create-token`.
 
-7. Verify downstream automation after merge to `main`.
+7. Create the secrets request issue in `elastic/observability-github-secrets`.
+- These secrets are required to enable observability for GitHub Agentic Workflows in the consumer repository.
+- Open this template URL and replace `<project>` with `elastic/<repo>`:
+
+  ```text
+  https://github.com/elastic/observability-github-secrets/issues/new?template=new-secret-issue-as-input.yaml&title=%5Bnew+secret%5D:+Add+Agentic+Workflows+Observability&secret=observability/agentic-workflows.tf&project=<project>
+  ```
+
+- For this skill, set `project` to `elastic/<repo>`.
+- Record the created issue URL/number as workflow state for later checks.
+
+8. Verify downstream automation after merge to `main`.
 - Confirm `distribute-client-workflow` creates or updates the client workflow PR in `elastic/<repo>`.
 - Confirm `sync-control-plane-dashboard` creates or updates issue `[oblt-aw] Control Plane Dashboard` with label `oblt-aw/dashboard`.
 
-8. Confirm enablement flow.
+9. Confirm enablement flow.
 - Note that workflow enablement is controlled in the dashboard issue task list, not in `active-repositories.json`.
 - Ask humans to check or uncheck workflows in the issue to opt in or out.
 
@@ -74,6 +85,7 @@ Typical triggers:
 Return a concise checklist with:
 - Updated file and exact entry added.
 - Catalog-info PR created and computed `workflow-token-policy` id.
+- `elastic/observability-github-secrets` issue URL/number created from the template.
 - Whether catalog-info TokenPolicy merge status is confirmed.
 - Whether distribution PR and dashboard issue were verified.
 - Any blockers or missing permissions.

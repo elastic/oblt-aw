@@ -62,7 +62,15 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
 6. **Verify the Control Plane Dashboard issue** — Confirm **sync-control-plane-dashboard** created or updated the open issue labeled **`oblt-aw/dashboard`** with title **`[oblt-aw] Control Plane Dashboard`** in **`elastic/<repo>`** ([sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md), [control-plane-dashboard](../operations/control-plane-dashboard.md)).
 
-7. **Configure Action secrets through `elastic/observability-github-secrets`** — Do **not** rely only on per-repository **Settings → Secrets** in GitHub unless your process explicitly allows it. Workflow secrets, if any, are listed in [docs/workflows/](../workflows/) in **`elastic/oblt-aw`**. Follow the processes in **[`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets)** to provision any required secrets.
+7. **Configure Action secrets through `elastic/observability-github-secrets`** — These secrets are required to enable observability for GitHub Agentic Workflows in the consumer repository. Do **not** rely only on per-repository **Settings → Secrets** in GitHub unless your process explicitly allows it. Workflow secrets, if any, are listed in [docs/workflows/](../workflows/) in **`elastic/oblt-aw`**. Follow the processes in **[`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets)** to provision any required secrets.
+
+  For Agentic Workflows onboarding, create the secrets request issue from this template URL and set `project` to `elastic/<repo>`:
+
+  ```text
+  https://github.com/elastic/observability-github-secrets/issues/new?template=new-secret-issue-as-input.yaml&title=%5Bnew+secret%5D:+Add+Agentic+Workflows+Observability&secret=observability/agentic-workflows.tf&project=<project>
+  ```
+
+  Example project value: `project=elastic/<repo>`.
 
 8. **Humans — Opt workflows in or out from the Control Plane Dashboard** — **Humans** complete this step in the GitHub web UI by checking or unchecking task-list checkboxes on the dashboard issue (GitHub saves on click). Workflow enablement is **not** configured in `active-repositories.json`; it is controlled only through the **Control Plane Dashboard** issue in **`elastic/<repo>`** (task-list checkboxes and `<!-- oblt-aw:<org-key>:<workflow-id> -->` markers). Read [Dashboard gating](adopting-agentic-workflows.md#dashboard-gating-reference) and complete [steps 1–2 in *Adopting a new remote agentic workflow*](adopting-agentic-workflows.md#consumer-repositories): confirm rows exist after sync, then check or uncheck workflows to match policy; wait for a **client** run for changes to apply ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)).
 
