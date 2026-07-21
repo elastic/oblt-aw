@@ -30,16 +30,21 @@ Typical triggers:
 
 2. Create the catalog-info token policy PR first.
 - In `elastic/catalog-info`, create the TokenPolicy change for `elastic/<repo>` and open a PR.
+- Use this resource/file naming in `elastic/catalog-info`:
+  - `metadata.name`: `token-policy-<repo>-oblt-aw`
+  - file path: `resources/github-token-policies/token-policy-<repo>-oblt-aw.yaml`
 - Record the created PR URL/number from this step as workflow state for later checks.
 
 3. Derive `workflow-token-policy` with a deterministic rule.
-- Compute the policy id from this exact base string pattern:
+- Start from `workflow_ref` used in the TokenPolicy claim (for this skill):
+  - `elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml@*`
+- Keep only the part before `@` (the workflow ref base):
   - `elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml`
 - Command:
 
   ```bash
-  policy_id=$(printf '%s' 'elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml' | shasum -a 256 | awk '{print $1}' | cut -c1-12)
-  policy_name="token-policy-${policy_id}"
+  base_ref='elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml'
+  policy_name=$(printf '%s' "$base_ref" | shasum -a 256 | awk '{print "token-policy-" substr($1,1,12)}')
   ```
  
 - Replace `<repo>` with the repository slug (for example `oblt-cli-buildkite-plugin`).

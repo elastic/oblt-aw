@@ -107,8 +107,7 @@ spec:
         type: oidc
         identity_provider: github
         bound_claims:
-          # workflow_ref is always this exact string (refs/heads/main only)
-          workflow_ref: elastic/<repo>/.github/workflows/trigger-oblt-aw-automerge.yml@refs/heads/main
+          workflow_ref: elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml@*
       cached: true
       permissionset:
         additional_permissions: {}
