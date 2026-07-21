@@ -40,19 +40,31 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
 2. **Add the GitHub token policy in `elastic/catalog-info` (mandatory)** — In **[`elastic/catalog-info`](https://github.com/elastic/catalog-info)**, add or update the Backstage **`Resource`** / **`TokenPolicy`** for this consumer repository. Follow the [appendix template](#appendix-token-policy-yaml-template) and complete every subpoint below before opening the catalog PR (or fold them into one catalog PR as your process allows).
 
-   - **a. `workflow_ref`** — Set `bound_claims.workflow_ref` to each installed client workflow that calls `create-token` (for example **`elastic/<repo>/.github/workflows/trigger-oblt-aw-security-detector.yml@refs/heads/main`**, **`…/trigger-oblt-aw-automerge.yml@refs/heads/main`**). Use one TokenPolicy per distinct `workflow_ref` when your vault model requires narrow claims. Branch ref is **always** `refs/heads/main` for this contract.
+  - **a. `workflow_ref`** — Set `bound_claims.workflow_ref` to the onboarding pattern used by the current catalog-info implementation: **`elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml@*`**.
 
-   - **b. `additional_permissions`** — Populate `permissionset.additional_permissions` with the **union** of GitHub permissions required to run **every** agentic workflow listed for the **selected org** in `elastic/oblt-aw`’s `config/<org-key>/workflow-registry.json` (all `workflows[].id` values for that org). For each registry entry, use the matching **`docs/workflows/oblt-aw-*.md`** (and routing docs where relevant) in `elastic/oblt-aw` to determine token, OIDC, and secret requirements. There is no single canonical YAML block maintained here (**Unknown**); Platform Engineering and **`elastic/catalog-info`** reviewers approve the final mapping ([Ephemeral tokens / GitHub Actions](https://docs.elastic.dev/platform-engineering-productivity/services/ephemeral-tokens/github-actions)). The shape is a mapping of permission names to access levels; for example (illustrative only—not the full union for any org):
+   - **b. `additional_permissions`** — For this onboarding flow, use the same permissions shape as the current catalog-info implementation:
 
      ```yaml
      additional_permissions:
-       contents: read
+       contents: write
        issues: write
+       pull_requests: write
      ```
 
-   - **c. `TokenPolicy.metadata.name` (`token-policy-<12-char sha256(workflow ref base)>`)** — Derive the suffix from each **workflow ref base** (the `workflow_ref` value without `@refs/heads/main`), for example **`elastic/<repo>/.github/workflows/trigger-oblt-aw-automerge.yml`**. Set the nested name to **`token-policy-<12-char sha256(workflow ref base)>`** per policy.
+     Keep the key name exactly as `pull_requests` (with underscore).
 
-   - **d. Author the manifest** — Write the YAML file(s) under paths required by **`elastic/catalog-info`**, filling the template fields from **a–c** and the [appendix](#appendix-token-policy-yaml-template).
+   - **c. `metadata.tags`** — Add permission tags that match the permissions block:
+
+     ```yaml
+     tags:
+       - permission-contents-write
+       - permission-issues-write
+       - permission-pull-requests-write
+     ```
+
+   - **d. `TokenPolicy.metadata.name` (`token-policy-<12-char sha256(workflow ref base)>`)** — Derive the suffix from each **workflow ref base** (the `workflow_ref` value without the suffix after `@`), for example **`elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml`** from `elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml@*`. Set the nested name to **`token-policy-<12-char sha256(workflow ref base)>`** per policy.
+
+   - **e. Author the manifest** — Write the YAML file(s) under paths required by **`elastic/catalog-info`**, filling the template fields from **a–d** and the [appendix](#appendix-token-policy-yaml-template).
 
 3. **Merge the `elastic/catalog-info` change** — Complete review and merge (or otherwise land) the token policy on the branch **`elastic/catalog-info`** uses for production so vault and OIDC configuration are **active** before you merge **`elastic/oblt-aw`** `main` in step 4.
 
@@ -76,7 +88,7 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
 ## Appendix: Token policy YAML template
 
-Validate against the current schema and reviewers in **`elastic/catalog-info`** before merging. **`<repo>`** is the slug only; **`elastic/<repo>`** is the full `owner/repo` ([convention](#convention-elastic-organization-and-repository-slug)). Apply step **2c** for **`token-policy-<12-char sha256(workflow ref base)>`**.
+Validate against the current schema and reviewers in **`elastic/catalog-info`** before merging. **`<repo>`** is the slug only; **`elastic/<repo>`** is the full `owner/repo` ([convention](#convention-elastic-organization-and-repository-slug)). Apply step **2d** for **`token-policy-<12-char sha256(workflow ref base)>`**.
 
 ```yaml
 # yaml-language-server: $schema=https://gist.githubusercontent.com/elasticmachine/988b80dae436cafea07d9a4a460a011d/raw/rre.schema.json
@@ -92,6 +104,10 @@ metadata:
     - url: https://github.com/elastic/catalog-info/tree/main/resources/github-token-policies/token-policy-<repo>-oblt-aw.yaml
       title: Definition
       icon: github
+  tags:
+    - permission-contents-write
+    - permission-issues-write
+    - permission-pull-requests-write
 spec:
   type: token-policy
   owner: group:observablt-ci
@@ -110,7 +126,10 @@ spec:
           workflow_ref: elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml@*
       cached: true
       permissionset:
-        additional_permissions: {}
+        additional_permissions:
+          contents: write
+          issues: write
+          pull_requests: write
         selector:
           - kind: Resource
             # selector.repository is the same owner/repo string elastic/<repo>

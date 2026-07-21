@@ -33,6 +33,19 @@ Typical triggers:
 - Use this resource/file naming in `elastic/catalog-info`:
   - `metadata.name`: `token-policy-<repo>-oblt-aw`
   - file path: `resources/github-token-policies/token-policy-<repo>-oblt-aw.yaml`
+- Use these token policy tags in `metadata.tags`:
+  - `permission-contents-write`
+  - `permission-issues-write`
+  - `permission-pull-requests-write`
+- Use this `permissionset.additional_permissions` block:
+
+  ```yaml
+  additional_permissions:
+    contents: write
+    issues: write
+    pull_requests: write
+  ```
+
 - Record the created PR URL/number from this step as workflow state for later checks.
 
 3. Derive `workflow-token-policy` with a deterministic rule.
@@ -64,7 +77,7 @@ Typical triggers:
 
 6. Confirm token policy ordering contract.
 - Require the matching `elastic/catalog-info` TokenPolicy change to be merged and active before merging the `elastic/oblt-aw` registration PR.
-- Ensure `bound_claims.workflow_ref` uses `@refs/heads/main` for each installed client workflow that calls `create-token`.
+- Ensure `bound_claims.workflow_ref` matches this onboarding pattern in catalog-info: `elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml@*`.
 
 7. Create the secrets request issue in `elastic/observability-github-secrets`.
 - These secrets are required to enable observability for GitHub Agentic Workflows in the consumer repository.
@@ -90,6 +103,7 @@ Typical triggers:
 Return a concise checklist with:
 - Updated file and exact entry added.
 - Catalog-info PR created and computed `workflow-token-policy` id.
+- Catalog-info TokenPolicy includes expected `additional_permissions` and `metadata.tags`.
 - `elastic/observability-github-secrets` issue URL/number created from the template.
 - Whether catalog-info TokenPolicy merge status is confirmed.
 - Whether distribution PR and dashboard issue were verified.
