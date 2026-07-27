@@ -1,0 +1,40 @@
+name: Observability Agentic Workflow — Workflow Run Event
+
+# Event-scoped orchestrator for failed GitHub Actions workflow runs.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  run-aw-prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflows: '["oblt-aw-pr-actions-detective.yml"]'
+      load-allowed-authors: false
+
+  pr-actions-detective:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-pr-actions-detective.yml'] == 'true' &&
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'failure'
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: read
+      pull-requests: write
+      copilot-requests: write
+    uses: ./.github/workflows/oblt-aw-pr-actions-detective.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['oblt-aw-pr-actions-detective.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}

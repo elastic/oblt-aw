@@ -176,6 +176,14 @@
       "maturity": "early-adoption",
       "default_enabled": false,
       "control_plane_workflows": ["oblt-aw-estc-pr-buildkite-detective.yml"]
+    },
+    {
+      "id": "pr-actions-detective",
+      "name": "PR Actions Detective",
+      "description": "Analyzes failed GitHub Actions workflow runs associated with a PR and posts diagnostic findings on the pull request.",
+      "maturity": "early-adoption",
+      "default_enabled": false,
+      "control_plane_workflows": ["oblt-aw-pr-actions-detective.yml"]
     }
   ]
 }
