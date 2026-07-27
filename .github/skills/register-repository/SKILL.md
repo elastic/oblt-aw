@@ -48,36 +48,42 @@ Typical triggers:
 
 - Record the created PR URL/number from this step as workflow state for later checks.
 
-3. Derive `workflow-token-policy` with a deterministic rule.
-- Start from `workflow_ref` used in the TokenPolicy claim (for this skill):
-  - `elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml@*`
-- Keep only the part before `@` (the workflow ref base):
-  - `elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml`
-- Command:
+3. Derive `workflow-token-policy` for the org-key (only when an explicit policy is needed).
+- `workflow-token-policy` in `active-repositories.json` is **optional**. Set it to `""` unless the repository needs an explicit policy for `create-token` calls via `aw-prelude`; when empty, Vault auto policy applies.
+- If an explicit policy is required, select the workflow glob pattern for the org-key:
+  - `obs`: `elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml`
+  - `docs`: `elastic/<repo>/.github/workflows/trigger-docs-aw-*.yml`
+- Keep only the part before `@` as the workflow ref base and derive the policy name:
 
   ```bash
+  # obs
   base_ref='elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml'
+  # docs
+  # base_ref='elastic/<repo>/.github/workflows/trigger-docs-aw-*.yml'
   policy_name=$(printf '%s' "$base_ref" | shasum -a 256 | awk '{print "token-policy-" substr($1,1,12)}')
   ```
 
 - Replace `<repo>` with the repository slug (for example `oblt-cli-buildkite-plugin`).
 - Expected format is `token-policy-[a-f0-9]{12}`.
 
-4. Derive the workflow token policy value from the PR.
-- Set `workflow-token-policy` to `policy_name` from step 3.
+4. Record the workflow token policy for the registration step.
+- If step 3 applies, set `workflow-token-policy` to `policy_name`.
 - Ensure the created catalog-info TokenPolicy uses the same value in `spec.implementation.metadata.name`.
+- If no explicit override is needed, `workflow-token-policy` will be `""` in step 5.
 
 5. Update repository registration in control plane.
 - Edit `config/<org-key>/active-repositories.json`.
 - Add an entry under `repositories` with:
   - `repository`: `elastic/<repo>`
-  - `workflow-token-policy`: PR-derived token policy id from step 4
+  - `workflow-token-policy`: `policy_name` from step 3, or `""` if no explicit override is needed
   - `ai-assets-token-policy`: input value or `""`
 - Keep JSON formatting consistent with the file style.
 
 6. Confirm token policy ordering contract.
 - Require the matching `elastic/catalog-info` TokenPolicy change to be merged and active before merging the `elastic/oblt-aw` registration PR.
-- Ensure `bound_claims.workflow_ref` matches this onboarding pattern in catalog-info: `elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml@*`.
+- Ensure `bound_claims.workflow_ref` matches this onboarding pattern in catalog-info:
+  - `obs`: `elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml@*`
+  - `docs`: `elastic/<repo>/.github/workflows/trigger-docs-aw-*.yml@*`
 
 7. Create the secrets request issue in `elastic/observability-github-secrets`.
 - These secrets are required to enable observability for GitHub Agentic Workflows in the consumer repository.
