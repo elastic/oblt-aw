@@ -59,7 +59,7 @@ Typical triggers:
   base_ref='elastic/<repo>/.github/workflows/trigger-oblt-aw-*.yml'
   policy_name=$(printf '%s' "$base_ref" | shasum -a 256 | awk '{print "token-policy-" substr($1,1,12)}')
   ```
- 
+
 - Replace `<repo>` with the repository slug (for example `oblt-cli-buildkite-plugin`).
 - Expected format is `token-policy-[a-f0-9]{12}`.
 
