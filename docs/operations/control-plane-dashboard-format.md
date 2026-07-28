@@ -57,7 +57,7 @@ Use this dashboard to enable or disable agentic workflows for this repository. C
 
 | Workflow | Maturity | Description |
 |----------|----------|-------------|
-| Agent Suggestions | 🟡 early-adoption | … |
+| [Agent Suggestions](https://github.com/elastic/oblt-aw/blob/main/docs/workflows/oblt-aw-agent-suggestions.md) | 🟡 early-adoption | … |
 
 #### Enable / Disable
 
@@ -176,7 +176,7 @@ To extract enabled workflows from the issue body (when a dashboard issue exists)
 
 | Column | Description |
 |--------|-------------|
-| **Workflow** | Human-readable name or ID of the workflow |
+| **Workflow** | Human-readable name from the org’s `workflow-registry.json`. When the entry sets `docs` (repo-relative path under `docs/workflows/`), the name is a Markdown link to `https://github.com/elastic/oblt-aw/blob/main/<docs>` |
 | **Maturity** | `stable`, `early-adoption`, or `experimental` (from the org’s `workflow-registry.json`) |
 | **Description** | Short description from the org’s `workflow-registry.json` |
 

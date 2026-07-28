@@ -37,7 +37,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 5. Register in `workflow-registry.json`
 
-- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, and `control_plane_workflows` (basenames of every `oblt-aw-*` / `docs-aw-*` wrapper that share this dashboard id) under `config/<org-key>/workflow-registry.json`.
+- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (repo-relative path under `docs/workflows/`), and `control_plane_workflows` (basenames of every `oblt-aw-*` / `docs-aw-*` wrapper that share this dashboard id) under `config/<org-key>/workflow-registry.json`.
 
 ### 6. Add a client template
 

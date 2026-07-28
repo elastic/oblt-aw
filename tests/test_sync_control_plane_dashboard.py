@@ -2,7 +2,8 @@
 Unit tests for scripts/sync_control_plane_dashboard.py
 
 Tests the pure-logic functions (parse_checkbox_state, maturity_badge,
-build_dashboard_body) in isolation, without touching the network or gh CLI.
+workflow_table_name, build_dashboard_body) in isolation, without touching the
+network or gh CLI.
 """
 
 from __future__ import annotations
@@ -123,6 +124,25 @@ class TestMaturityBadge:
         assert scpd.maturity_badge("custom") == "custom"
 
 
+# ── workflow_table_name ───────────────────────────────────────────────────────
+
+
+class TestWorkflowTableName:
+    def test_links_name_when_docs_set(self) -> None:
+        assert scpd.workflow_table_name(
+            "Dependency Review", "docs/workflows/oblt-aw-dependency-review.md"
+        ) == (
+            "[Dependency Review](https://github.com/elastic/oblt-aw/blob/main/"
+            "docs/workflows/oblt-aw-dependency-review.md)"
+        )
+
+    def test_returns_plain_name_when_docs_missing(self) -> None:
+        assert scpd.workflow_table_name("Example", None) == "Example"
+
+    def test_returns_plain_name_when_docs_blank(self) -> None:
+        assert scpd.workflow_table_name("Example", "  ") == "Example"
+
+
 # ── build_dashboard_body ────────────────────────────────────────────────────────
 
 
@@ -135,6 +155,7 @@ class TestBuildDashboardBody:
                 "description": "Suggests agentic workflows.",
                 "maturity": "stable",
                 "default_enabled": True,
+                "docs": "docs/workflows/oblt-aw-agent-suggestions.md",
             },
         ]
         body = scpd.build_dashboard_body(_obs_section(workflows), None)
@@ -143,6 +164,24 @@ class TestBuildDashboardBody:
         assert "- [x]" in body
         assert "🟢 stable" in body
         assert "### Observability (obs)" in body
+        assert (
+            "[Agent Suggestions](https://github.com/elastic/oblt-aw/blob/main/"
+            "docs/workflows/oblt-aw-agent-suggestions.md)"
+        ) in body
+
+    def test_builds_plain_workflow_name_when_docs_absent(self) -> None:
+        workflows = [
+            {
+                "id": "wf-a",
+                "name": "Workflow A",
+                "description": "Desc",
+                "maturity": "experimental",
+                "default_enabled": False,
+            },
+        ]
+        body = scpd.build_dashboard_body(_obs_section(workflows), None)
+        assert "| Workflow A | 🟠 experimental | Desc |" in body
+        assert "[Workflow A](" not in body
 
     def test_preserves_user_checkbox_state_from_existing_body(self) -> None:
         workflows = [
