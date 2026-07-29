@@ -2,7 +2,7 @@
 
 ## Overview
 
-Client template: `trigger-oblt-aw-issue-fixer.yml` → `oblt-aw-issue-fixer.yml`
+Client template chain: `trigger-oblt-aw-issue-comment.yml` → `oblt-aw-event-issue-comment.yml` → `oblt-aw-issue-fixer.yml`
 
 Routed workflow:
 
@@ -10,7 +10,7 @@ Routed workflow:
 
 ## Usage
 
-Routing rules from ingress:
+Routing rules in `oblt-aw-event-issue-comment.yml`:
 
 - `issue_comment` + `created` +
   - `github.event.issue.pull_request == null` (comment is on an issue, not a PR)
@@ -20,8 +20,9 @@ Routing rules from ingress:
   - issue does **not** include `oblt-aw/triage/res-not-accessible-by-integration`
   -> generic fixer
 
-The exclusions ensure specialized fixers remain authoritative for security and resource-not-accessible-by-integration issues. Ingress also excludes `/ai implement` from the generic mention-in-issue route to avoid overlap.
+The exclusions ensure specialized fixers remain authoritative for security and resource-not-accessible-by-integration issues. The event orchestrator also excludes `/ai implement` from the generic mention-in-issue route to avoid overlap.
 
 ## References
 
 - [docs/workflows/oblt-aw-issue-fixer.md](../workflows/oblt-aw-issue-fixer.md)
+- [docs/workflows/oblt-aw-client-template.md](../workflows/oblt-aw-client-template.md)
