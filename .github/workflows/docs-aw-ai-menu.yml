@@ -49,7 +49,7 @@ jobs:
         with:
           repository: elastic/oblt-aw
           ref: main
-          path: oblt-aw-scripts
+          path: obs-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
             scripts/docs/issue-menu
@@ -60,7 +60,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/post-menu.js')
+            const fn = require('./obs-aw-scripts/scripts/docs/issue-menu/post-menu.js')
             await fn({github, context, core})
 
   evaluate-trigger:
@@ -86,7 +86,7 @@ jobs:
         with:
           repository: elastic/oblt-aw
           ref: main
-          path: oblt-aw-scripts
+          path: obs-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
             scripts/docs/issue-menu
@@ -98,7 +98,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/evaluate-trigger.js')
+            const fn = require('./obs-aw-scripts/scripts/docs/issue-menu/evaluate-trigger.js')
             await fn({github, context, core})
 
   refresh-menu-after-trigger:
@@ -121,7 +121,7 @@ jobs:
         with:
           repository: elastic/oblt-aw
           ref: main
-          path: oblt-aw-scripts
+          path: obs-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
             scripts/docs/issue-menu
@@ -135,7 +135,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-trigger.js')
+            const fn = require('./obs-aw-scripts/scripts/docs/issue-menu/refresh-after-trigger.js')
             await fn({github, context, core})
 
   resolve-apm-assets-triage:
@@ -212,7 +212,7 @@ jobs:
         with:
           repository: elastic/oblt-aw
           ref: main
-          path: oblt-aw-scripts
+          path: obs-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
             scripts/docs/issue-menu
@@ -225,7 +225,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-triage.js')
+            const fn = require('./obs-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-triage.js')
             await fn({github, context, core})
 
   refresh-menu-after-docs-issue-scope:
@@ -246,7 +246,7 @@ jobs:
         with:
           repository: elastic/oblt-aw
           ref: main
-          path: oblt-aw-scripts
+          path: obs-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
             scripts/docs/issue-menu
@@ -259,5 +259,5 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fn = require('./oblt-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-issue-scope.js')
+            const fn = require('./obs-aw-scripts/scripts/docs/issue-menu/refresh-after-docs-issue-scope.js')
             await fn({github, context, core})

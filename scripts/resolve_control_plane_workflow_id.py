@@ -38,7 +38,7 @@ def main() -> int:
     )
     parser.add_argument(
         "control_plane_workflow",
-        help="Workflow basename under .github/workflows/ (for example oblt-aw-automerge.yml)",
+        help="Workflow basename under .github/workflows/ (for example obs-aw-automerge.yml)",
     )
     parser.add_argument(
         "--config-dir",
