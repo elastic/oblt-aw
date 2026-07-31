@@ -207,6 +207,8 @@ class TestBuildDashboardBody:
         assert "### Instructions" in body
         assert "Enable a workflow" in body
         assert "Disable a workflow" in body
+        assert "Audit trail" in body
+        assert "@elastic/observablt-ci" in body
 
     def test_multi_org_sections(self) -> None:
         obs_wf = [{"id": "a", "name": "A", "description": "", "default_enabled": True}]

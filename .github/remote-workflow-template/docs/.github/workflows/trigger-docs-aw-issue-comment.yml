@@ -4,7 +4,7 @@ name: Docs Agentic Workflow — Issue Comment
 
 on:
   issue_comment:
-    types: [edited]
+    types: [created, edited]
 
 permissions:
   contents: read

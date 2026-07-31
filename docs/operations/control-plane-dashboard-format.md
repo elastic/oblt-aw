@@ -13,7 +13,7 @@ The Control Plane Dashboard is a **single** GitHub issue per consumer repository
 - **No such issue** → `effective-raw` is empty; no agentic workflows run until sync creates the dashboard and workflows are enabled.
 - **Dashboard exists** → normalized outputs are a JSON array string: `[]` if **no** checkboxes are checked (no agentic workflows run), or `["org:workflow-id", ...]` for only the checked workflows, using the **canonical compound id** (colon-separated).
 
-There is no config file (no `.github/oblt-aw-config.json`), no PRs when users toggle checkboxes, and no `issues.edited` trigger—the dashboard is read at runtime each time the client runs.
+There is no config file (no `.github/oblt-aw-config.json`) and no PRs when users toggle checkboxes. Runtime gating is read each time the client runs via `get-enabled-workflows`. Separately, `issues.edited` on the dashboard issue triggers the shared [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) path to record enable/disable comments on that issue.
 
 ---
 

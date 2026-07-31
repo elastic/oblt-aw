@@ -17,6 +17,20 @@ jobs:
         ["oblt-aw-issue-fixer.yml","oblt-aw-mention-in-issue.yml"]
       load-allowed-authors: false
 
+  dashboard-audit-reason:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      github.event.issue.pull_request == null &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/dashboard') &&
+      !contains(github.event.comment.body, 'aw:dashboard-audit')
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/aw-dashboard-audit.yml
+    with:
+      mode: record-reason
+
   issue-fixer:
     needs: run-aw-prelude
     if: >-

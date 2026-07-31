@@ -50,7 +50,7 @@ def list_subject_workflows() -> list[pathlib.Path]:
         p
         for p in paths
         if AW_WORKFLOW_PATTERN.match(p.name)
-        and p.name != "aw-prelude.yml"
+        and not p.name.startswith("aw-")
         and not EVENT_ORCHESTRATOR_PATTERN.match(p.name)
         and not p.name.startswith(("trg-", "trigger-"))
     ]

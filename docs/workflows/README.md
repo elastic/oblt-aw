@@ -24,6 +24,7 @@ Shared control-plane jobs use **kebab-case, action-oriented** ids with domain co
 Route wrappers keep descriptive ids such as `resolve-apm-assets` and `automerge`. Upstream `gh-aw-*` agent lifecycle jobs (`pre_activation`, `activation`, `agent`) are owned by `elastic/ai-github-actions`.
 
 - Shared prelude (dashboard + allow lists): [docs/workflows/aw-prelude.md](aw-prelude.md)
+- Shared dashboard audit (enable/disable comments): [docs/workflows/aw-dashboard-audit.md](aw-dashboard-audit.md)
 - Dashboard reader (reusable workflow): [docs/workflows/get-enabled-workflows.md](get-enabled-workflows.md)
 - PR and issue allow-list loader (reusable workflow): [docs/workflows/load-allowed-authors.md](load-allowed-authors.md)
 - Observability client templates (`trigger-oblt-aw-*.yml` under remote-workflow-template): [docs/workflows/oblt-aw-client-template.md](oblt-aw-client-template.md)
