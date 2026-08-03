@@ -2,18 +2,18 @@
 
 ## Overview
 
-Client template: `trigger-oblt-aw-agent-suggestions.yml` → `oblt-aw-agent-suggestions.yml`
+Client template chain: `trigger-oblt-aw-schedule.yml` → `oblt-aw-event-schedule.yml` → `oblt-aw-agent-suggestions.yml`
 
 Routed workflow source: `.github/workflows/oblt-aw-agent-suggestions.yml`
 
 ## Usage
 
-Ingress routes to agent suggestions when:
+`oblt-aw-event-schedule.yml` routes to agent suggestions when:
 
 - `github.event_name == 'schedule'`
 - The Control Plane dashboard gate allows registry id `agent-suggestions` (see `docs/workflows/aw-prelude.md` — `get-enabled-workflows` / `enabled-workflows`)
 
-The event name is evaluated in the context of the workflow run that invoked the ingress (`workflow_call`).
+The event name is evaluated in the context of the workflow run that invoked the event orchestrator (`workflow_call`).
 
 ## Behavior extensions
 
@@ -33,3 +33,4 @@ The wrapper delegates to:
 ## References
 
 - `docs/workflows/oblt-aw-agent-suggestions.md`
+- `docs/workflows/oblt-aw-client-template.md`

@@ -2,13 +2,13 @@
 
 ## Overview
 
-Client template: `trigger-oblt-aw-dependency-review.yml` → `oblt-aw-dependency-review.yml`
+Client template chain: `trigger-oblt-aw-pull-request.yml` → `oblt-aw-event-pull-request.yml` → `oblt-aw-dependency-review.yml`
 
 Routed workflow source: [.github/workflows/oblt-aw-dependency-review.yml](../../.github/workflows/oblt-aw-dependency-review.yml)
 
 ## Usage
 
-Ingress routes to dependency review when all conditions are true:
+`oblt-aw-event-pull-request.yml` routes to dependency review when all conditions are true:
 
 - `github.event_name == 'pull_request'`
 - `github.event.action` is one of `opened`, `synchronize`, `reopened`
@@ -25,3 +25,4 @@ For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), 
 ## References
 
 - [docs/workflows/oblt-aw-dependency-review.md](../workflows/oblt-aw-dependency-review.md)
+- [docs/workflows/oblt-aw-client-template.md](../workflows/oblt-aw-client-template.md)
