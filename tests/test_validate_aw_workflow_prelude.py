@@ -15,6 +15,7 @@ import validate_aw_workflow_prelude as validator  # noqa: E402
 def test_list_subject_workflows_includes_route_wrappers() -> None:
     names = {p.name for p in validator.list_subject_workflows()}
     assert "oblt-aw-automerge.yml" in names
+    assert "oblt-aw-pr-actions-detective.yml" in names
     assert "docs-aw-ai-menu.yml" in names
     assert "docs-aw-pr-ai-menu-collect.yml" in names
     assert "docs-aw-pr-ai-menu.yml" in names

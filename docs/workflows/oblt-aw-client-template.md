@@ -60,6 +60,7 @@ Full platform view (distribution, dashboard sync, before/after ingress): [archit
 | `trigger-oblt-aw-issue-comment.yml` | `issue_comment` created | `oblt-aw-event-issue-comment.yml` → issue-fixer, mention-in-issue |
 | `trigger-oblt-aw-schedule.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `oblt-aw-event-schedule.yml` → agent-suggestions, autodoc, security category detectors, resource-not-accessible detector |
 | `trigger-oblt-aw-status.yml` | `status` (Buildkite failure only, job `if`) | `oblt-aw-event-status.yml` → estc-pr-buildkite-detective |
+| `trigger-oblt-aw-workflow-run.yml` | `workflow_run` (failed GitHub Actions runs only, job `if`) | `oblt-aw-event-workflow-run.yml` → pr-actions-detective |
 
 Route-specific conditions (labels, `/ai` comment prefix, allow-listed PR authors, and so on) are enforced inside each `oblt-aw-*` reusable workflow after prelude gating.
 
@@ -80,6 +81,7 @@ Job-level permissions on the client entrypoint job (for example `run-oblt-aw-pul
 | `trigger-oblt-aw-issue-comment.yml` | `run-oblt-aw-issue-comment` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
 | `trigger-oblt-aw-schedule.yml` | `run-oblt-aw-schedule` | `actions: read`, `contents: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-oblt-aw-status.yml` | `run-oblt-aw-status` | `actions: read`, `contents: read`, `issues: read`, `pull-requests: write` |
+| `trigger-oblt-aw-workflow-run.yml` | `run-oblt-aw-workflow-run` | `actions: read`, `contents: read`, `id-token: write`, `issues: read`, `pull-requests: write` |
 
 ### Secrets
 
