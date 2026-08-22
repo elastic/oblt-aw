@@ -30,7 +30,7 @@ Top-level permissions:
 Key job-level permissions:
 
 - Menu comment/update jobs: `checks: read`, `contents: read`, `issues: write`, `pull-requests: write`
-- Downstream docs-actions job: `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write`
+- Downstream docs-actions job (`run-docs-review`): `actions: read`, `contents: read`, `copilot-requests: write`, `issues: write`, `pull-requests: write`
 
 ## API / Interface
 
