@@ -17,7 +17,7 @@ Jobs and routing behavior:
 1. `post-menu` posts or refreshes the issue AI menu when the routed event is `issues` or `workflow_dispatch`.
 2. `evaluate-trigger` runs on routed `issue_comment` events for non-PR issues when an existing AI menu bot comment was edited (`<!-- docs-ai-menu:start -->` and `<!-- docs-ai-menu:end -->` markers).
 3. `run-docs-triage` calls `elastic/docs-actions/.github/workflows/gh-aw-issue-triage.lock.yml@v1` when `triage_triggered == 'true'`.
-4. `run-docs-issue-scope` calls `elastic/docs-actions/.github/workflows/gh-aw-docs-issue-scope.lock.yml@v1` when `issue_scope_triggered == 'true'`.
+4. `run-docs-issue-scope` calls `elastic/docs-actions/.github/workflows/gh-aw-issue-scope.lock.yml@v1` when `issue_scope_triggered == 'true'`.
 5. Refresh jobs update the AI menu comment after trigger evaluation and after each downstream run.
 
 Menu comment automation checks out `elastic/oblt-aw` with sparse checkout of `scripts/docs/issue-menu`.
