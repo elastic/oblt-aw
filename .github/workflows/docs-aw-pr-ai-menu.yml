@@ -74,7 +74,7 @@ jobs:
         with:
           repository: elastic/oblt-aw
           ref: main
-          path: obs-aw-scripts
+          path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
             scripts/docs/pr-menu
@@ -87,7 +87,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fn = require('./obs-aw-scripts/scripts/docs/pr-menu/post-menu.js')
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/post-menu.js')
             await fn({github, context, core})
 
   evaluate-trigger:
@@ -113,7 +113,7 @@ jobs:
         with:
           repository: elastic/oblt-aw
           ref: main
-          path: obs-aw-scripts
+          path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
             scripts/docs/pr-menu
@@ -125,7 +125,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fn = require('./obs-aw-scripts/scripts/docs/pr-menu/evaluate-trigger.js')
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/evaluate-trigger.js')
             await fn({github, context, core})
 
   refresh-menu-after-trigger:
@@ -148,7 +148,7 @@ jobs:
         with:
           repository: elastic/oblt-aw
           ref: main
-          path: obs-aw-scripts
+          path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
             scripts/docs/pr-menu
@@ -159,7 +159,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fn = require('./obs-aw-scripts/scripts/docs/pr-menu/refresh-after-trigger.js')
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-trigger.js')
             await fn({github, context, core})
 
   resolve-apm-assets:
@@ -213,7 +213,7 @@ jobs:
         with:
           repository: elastic/oblt-aw
           ref: main
-          path: obs-aw-scripts
+          path: oblt-aw-scripts
           fetch-depth: 1
           sparse-checkout: |
             scripts/docs/pr-menu
@@ -226,5 +226,5 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fn = require('./obs-aw-scripts/scripts/docs/pr-menu/refresh-after-docs-review.js')
+            const fn = require('./oblt-aw-scripts/scripts/docs/pr-menu/refresh-after-docs-review.js')
             await fn({github, context, core})
