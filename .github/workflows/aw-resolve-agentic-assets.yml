@@ -9,7 +9,7 @@ on:
       control-plane-workflow:
         description: >-
           Basename of the calling wrapper under .github/workflows/ (for example
-          oblt-aw-automerge.yml). Used to resolve the registry workflow id for apm.yml.
+          obs-aw-automerge.yml). Used to resolve the registry workflow id for apm.yml.
         required: true
         type: string
       platform-additional-instructions:

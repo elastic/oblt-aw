@@ -2,13 +2,13 @@
 
 ## Overview
 
-Client templates: `trigger-oblt-aw-resource-not-accessible-by-integration-*.yml` → matching `oblt-aw-*` workflows
+Client templates: `trigger-obs-aw-resource-not-accessible-by-integration-*.yml` → matching `obs-aw-*` workflows
 
 Routed workflows:
 
-- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml)
-- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-triage.yml)
-- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml)
 
 ## Usage
 
@@ -32,6 +32,6 @@ When called directly, **detector**, **triage**, and **fixer** all run in the rep
 
 ## References
 
-- [docs/workflows/oblt-aw-resource-not-accessible-by-integration-detector.md](../workflows/oblt-aw-resource-not-accessible-by-integration-detector.md)
-- [docs/workflows/oblt-aw-resource-not-accessible-by-integration-triage.md](../workflows/oblt-aw-resource-not-accessible-by-integration-triage.md)
-- [docs/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.md](../workflows/oblt-aw-resource-not-accessible-by-integration-fixer.md)
+- [docs/workflows/obs-aw-resource-not-accessible-by-integration-detector.md](../workflows/obs-aw-resource-not-accessible-by-integration-detector.md)
+- [docs/workflows/obs-aw-resource-not-accessible-by-integration-triage.md](../workflows/obs-aw-resource-not-accessible-by-integration-triage.md)
+- [docs/workflows/obs-aw-resource-not-accessible-by-integration-fixer.md](../workflows/obs-aw-resource-not-accessible-by-integration-fixer.md)

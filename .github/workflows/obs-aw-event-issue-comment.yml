@@ -1,0 +1,88 @@
+name: Observability Agentic Workflow — Issue Comment Event
+
+# Event-scoped orchestrator: one shared prelude chain for all issue_comment routes.
+on:
+  workflow_call:
+permissions:
+  contents: read
+
+jobs:
+  run-aw-prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflows: >-
+        ["obs-aw-issue-fixer.yml","obs-aw-mention-in-issue.yml"]
+      load-allowed-authors: false
+
+  dashboard-audit-reason:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      github.event.issue.pull_request == null &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/dashboard') &&
+      !contains(github.event.comment.body, 'aw:dashboard-audit')
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/aw-dashboard-audit.yml
+    with:
+      mode: record-reason
+
+  issue-fixer:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-issue-fixer.yml'] == 'true' &&
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      github.event.issue.pull_request == null &&
+      startsWith(github.event.comment.body, '/ai implement') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      id-token: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+    uses: ./.github/workflows/obs-aw-issue-fixer.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-issue-fixer.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+    secrets: inherit
+
+  mention-in-issue:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-mention-in-issue.yml'] == 'true' &&
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      github.event.issue.pull_request == null &&
+      startsWith(github.event.comment.body, '/ai') &&
+      !startsWith(github.event.comment.body, '/ai implement') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      id-token: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+    uses: ./.github/workflows/obs-aw-mention-in-issue.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-mention-in-issue.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
