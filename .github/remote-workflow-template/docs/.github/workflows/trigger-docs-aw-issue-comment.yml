@@ -11,7 +11,14 @@ permissions:
   issues: read
 
 jobs:
+  # edited: AI menus. created: dashboard deactivation-reason only (avoid every
+  # consumer comment paying for a reusable + prelude run).
   run-docs-aw-issue-comment:
+    if: >-
+      github.event.action == 'edited' ||
+      (github.event.action == 'created' &&
+       github.event.issue.pull_request == null &&
+       contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/dashboard'))
     permissions:
       actions: read
       checks: read

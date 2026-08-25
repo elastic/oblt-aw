@@ -7,7 +7,10 @@ permissions:
   contents: read
 
 jobs:
+  # Menus need prelude; dashboard-audit-reason does not. Skip prelude on
+  # issue_comment.created so reason recording does not pay for a dashboard read.
   run-aw-prelude:
+    if: github.event.action == 'edited'
     permissions:
       contents: read
       issues: read
