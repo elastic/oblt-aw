@@ -2,9 +2,9 @@
 
 ## Overview
 
-Client template: `trigger-oblt-aw-agent-suggestions.yml` → `oblt-aw-agent-suggestions.yml`
+Client template: `trigger-obs-aw-agent-suggestions.yml` → `obs-aw-agent-suggestions.yml`
 
-Routed workflow source: `.github/workflows/oblt-aw-agent-suggestions.yml`
+Routed workflow source: `.github/workflows/obs-aw-agent-suggestions.yml`
 
 ## Usage
 
@@ -32,4 +32,4 @@ The wrapper delegates to:
 
 ## References
 
-- `docs/workflows/oblt-aw-agent-suggestions.md`
+- `docs/workflows/obs-aw-agent-suggestions.md`

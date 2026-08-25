@@ -1,0 +1,134 @@
+name: Dependency Review
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+permissions:
+  contents: read
+
+jobs:
+
+  resolve-apm-assets:
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      control-plane-workflow: obs-aw-dependency-review.yml
+      platform-additional-instructions: |
+        Noop when not applicable (mandatory):
+        - If the PR has NO dependency updates to review (e.g. no version bumps in manifest files, no changes to lockfiles that indicate dependency updates, or changes that do not match any supported ecosystem), you MUST call `noop` — do NOT create any comment.
+        - Use the format: {"noop": {"message": "No action needed: [brief explanation]"}}
+        - Examples: "No action needed: no dependency version updates found in the PR diff" or "No action needed: PR changes do not match supported dependency ecosystems"
+        - Do not create comments for no-op outcomes. The noop tool provides transparency without creating GitHub artifacts.
+
+        Expand the analysis with a CVE-focused assessment based on changelog and release-note content for each updated dependency.
+
+        Required additions for each dependency:
+        - Identify vulnerability-related entries (CVE IDs, GHSA advisories, security fixes, patched classes/functions/modules).
+        - Analyze internal implementation changes in the new version that can affect vulnerability exposure (authn/authz logic, crypto/TLS handling, deserialization/parsing, input validation/sanitization, dependency graph updates, default security settings, sandboxing/isolation, permission scopes).
+        - Explain whether the internal changes reduce, preserve, or increase risk for this repository usage.
+        - Explicitly call out any potential regressions or newly introduced attack surface.
+
+        Labeling rule extension:
+        - First assign an overall risk level for the PR: **low**, **low-to-moderate**, **moderate**, or **high**, using the CVE-focused analysis above (scope of vulnerable surface in this repo, quality of the fix, blast radius, and whether behavior changes are contained).
+        - Apply `oblt-aw/ai/merge-ready` when ALL of the following are true:
+          - Overall risk is **low** OR **low-to-moderate** (including when changelogs mention CVEs, GHSAs, or security fixes—those entries do **not** disqualify the label in these two bands; they must still be documented in your analysis).
+          - No breaking changes to APIs, inputs, or features used by this repository.
+          - Ecosystem checks pass (commit verified for Actions, pin format acceptable for Buildkite, etc.).
+          - Workflows using the dependency are testable in PR context (pull_request or pull_request_target trigger), OR the dependency is dev-only (e.g. pre-commit, linters) with no production impact.
+        - Minor behavioral changes (e.g. ignore-pattern handling, formatting) that do not affect this repo's usage do NOT disqualify the label when risk is low or low-to-moderate.
+        - Do NOT add `oblt-aw/ai/merge-ready` when: overall risk is **moderate** or **high**, breaking changes affect this repo, ecosystem checks fail, or workflows are untestable and the dependency has production impact.
+
+        Label application (mandatory):
+        - When ALL criteria for `oblt-aw/ai/merge-ready` are met, you MUST call `add_labels` with that label. Do not only recommend it in the comment; apply it via the add_labels tool.
+        - The comment's "Labels Applied" section must reflect labels you actually applied via add_labels, not merely recommended. If you applied a label, say so; if you did not apply any, say "No labels applied."
+
+  dependency-review:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
+    with:
+      allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
+      classification-labels: "oblt-aw/ai/merge-ready"
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+  # Workaround until we can mint ephemeral tokens inside agentic-workflows (elastic/observability-robots#4374):
+  # the nested workflow must not receive a cross-job token output. After it runs, mint here and
+  # remove+re-add `oblt-aw/ai/merge-ready` when present so ingress sees a `labeled` event from the
+  # installation token (GITHUB_TOKEN label writes do not trigger downstream workflows).
+  signal-dependency-review-followups:
+    needs: [dependency-review]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ inputs.shared-token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
+      - name: Create ephemeral GitHub token (Vault auto policy)
+        id: create-token-auto
+        if: ${{ inputs.shared-token-policy == '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+
+      - name: Re-apply merge-ready label to emit installation-token labeled event
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = context.payload.pull_request.number;
+            const { data: issue } = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number: prNumber,
+            });
+            const names = issue.labels.map((l) => l.name);
+            const required = "oblt-aw/ai/merge-ready";
+            if (!names.includes(required)) {
+              core.info(`PR #${prNumber} missing ${required}; skipping re-apply.`);
+              return;
+            }
+            await github.rest.issues.removeLabel({
+              owner,
+              repo,
+              issue_number: prNumber,
+              name: required,
+            });
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: prNumber,
+              labels: [required],
+            });
+            core.info(`Re-applied ${required} on PR #${prNumber}.`);

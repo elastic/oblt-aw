@@ -16,7 +16,7 @@ Per-workflow routing (labels, triggers, and dispatch detail):
 - Resource-not-accessible-by-integration routing: [docs/routing/resource-not-accessible-by-integration-routing.md](resource-not-accessible-by-integration-routing.md)
 - Security routing: [docs/routing/security-routing.md](security-routing.md)
 
-Full registry and client template index: [docs/workflows/oblt-aw-client-template.md](../workflows/oblt-aw-client-template.md).
+Full registry and client template index: [docs/workflows/obs-aw-client-template.md](../workflows/obs-aw-client-template.md).
 
 *Note: Dashboard opt-in/opt-out is read at runtime inside the ingress (`get-enabled-workflows`); there is no `issues.edited` routing.*
 

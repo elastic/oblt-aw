@@ -71,4 +71,4 @@ Job-level permissions on the client entrypoint job (for example `run-docs-aw-pul
 - [docs-aw-pr-ai-menu.md](docs-aw-pr-ai-menu.md)
 - [docs/operations/distribute-client-workflow.md](../operations/distribute-client-workflow.md)
 - [aw-prelude.md](aw-prelude.md)
-- [oblt-aw-client-template.md](oblt-aw-client-template.md)
+- [obs-aw-client-template.md](obs-aw-client-template.md)
