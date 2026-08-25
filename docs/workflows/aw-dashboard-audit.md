@@ -47,7 +47,7 @@ Audit comments include an HTML marker such as:
 
 | Org | Issues trigger | Issues orchestrator | Issue-comment orchestrator |
 |-----|----------------|---------------------|----------------------------|
-| obs | `trigger-oblt-aw-issues.yml` (`edited`) | `oblt-aw-event-issues.yml` → `dashboard-audit` | `oblt-aw-event-issue-comment.yml` → `dashboard-audit-reason` |
+| obs | `trigger-obs-aw-issues.yml` (`edited`) | `obs-aw-event-issues.yml` → `dashboard-audit` | `obs-aw-event-issue-comment.yml` → `dashboard-audit-reason` |
 | docs | `trigger-docs-aw-issues.yml` (`edited`) | `docs-aw-event-issues.yml` → `dashboard-audit` | `docs-aw-event-issue-comment.yml` → `dashboard-audit-reason` |
 
 Script: [scripts/dashboard_audit.py](../../scripts/dashboard_audit.py)
