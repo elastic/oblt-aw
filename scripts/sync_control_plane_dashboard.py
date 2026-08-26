@@ -60,6 +60,7 @@ from dashboard_audit import AUDIT_TEAM_MENTION, post_sync_checkbox_audits
 
 DASHBOARD_LABEL = "oblt-aw/dashboard"
 DASHBOARD_TITLE = "[oblt-aw] Control Plane Dashboard"
+DOCS_BASE_URL = "https://github.com/elastic/oblt-aw/blob/main/"
 SYNC_AUDIT_ACTOR = "oblt-aw-sync"
 FORCE_SYNC_REASON = "force-sync-defaults"
 DASHBOARD_SYNC_REASON = "dashboard-sync"
@@ -89,6 +90,16 @@ def maturity_badge(maturity: str) -> str:
         "experimental": "🟠 experimental",
     }
     return badges.get(maturity, maturity)
+
+
+def workflow_table_name(name: str, docs: str | None) -> str:
+    """Return the Workflow column cell, linking to official docs when set."""
+    if not docs:
+        return name
+    docs_path = docs.strip()
+    if not docs_path:
+        return name
+    return f"[{name}]({DOCS_BASE_URL}{docs_path})"
 
 
 def default_section_heading(org_key: str) -> str:
@@ -156,7 +167,11 @@ def build_dashboard_body(
             maturity = wf.get("maturity", "experimental")
             desc = wf.get("description", "")
             badge = maturity_badge(maturity)
-            lines.append(f"| {name} | {badge} | {desc} |")
+            docs = wf.get("docs")
+            display_name = workflow_table_name(
+                name, docs if isinstance(docs, str) else None
+            )
+            lines.append(f"| {display_name} | {badge} | {desc} |")
         lines.extend(
             [
                 "",

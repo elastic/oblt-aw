@@ -5,24 +5,27 @@
       "id": "agent-suggestions",
       "name": "Agent Suggestions",
       "description": "Suggests agentic workflows and improvements for the repository based on analysis of current setup.",
-      "maturity": "early-adoption",
+      "maturity": "experimental",
       "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-agent-suggestions.md",
       "control_plane_workflows": ["obs-aw-agent-suggestions.yml"]
     },
     {
       "id": "autodoc",
       "name": "Automated Documentation",
       "description": "Analyzes documentation for gaps, outdated content, and inconsistencies; creates issues and PRs to improve docs.",
-      "maturity": "early-adoption",
+      "maturity": "stable",
       "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-autodoc.md",
       "control_plane_workflows": ["obs-aw-autodoc.yml"]
     },
     {
       "id": "automerge",
       "name": "Automerge",
       "description": "Enables auto-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready when validation and approval gates pass; GitHub enforces required checks at merge time.",
-      "maturity": "early-adoption",
+      "maturity": "stable",
       "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-automerge.md",
       "control_plane_workflows": ["obs-aw-automerge.yml"],
       "sub_features": [
         {
@@ -79,8 +82,9 @@
       "id": "dependency-review",
       "name": "Dependency Review",
       "description": "Analyzes dependency-update PRs from bots, applies merge-ready labels when criteria are met.",
-      "maturity": "early-adoption",
+      "maturity": "stable",
       "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-dependency-review.md",
       "control_plane_workflows": ["obs-aw-dependency-review.yml"]
     },
     {
@@ -89,14 +93,16 @@
       "description": "Detects potential duplicate issues when a new issue is opened or when the entrypoint is run manually.",
       "maturity": "experimental",
       "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-duplicate-issue-detector.md",
       "control_plane_workflows": ["obs-aw-duplicate-issue-detector.yml"]
     },
     {
       "id": "issue-triage",
       "name": "Issue Triage",
       "description": "Triages newly opened issues using the generic issue-triage agentic workflow.",
-      "maturity": "experimental",
+      "maturity": "early-adoption",
       "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-issue-triage.md",
       "control_plane_workflows": ["obs-aw-issue-triage.yml"]
     },
     {
@@ -105,22 +111,25 @@
       "description": "Executes generic issue fixes requested with /ai implement comments, excluding specialized security and resource-not-accessible flows.",
       "maturity": "experimental",
       "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-issue-fixer.md",
       "control_plane_workflows": ["obs-aw-issue-fixer.yml"]
     },
     {
       "id": "mention-in-issue",
       "name": "Mention in Issue",
       "description": "AI assistant for issues — answers questions, debugs problems, and creates PRs on demand when triggered with a /ai comment.",
-      "maturity": "experimental",
+      "maturity": "early-adoption",
       "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-mention-in-issue.md",
       "control_plane_workflows": ["obs-aw-mention-in-issue.yml"]
     },
     {
       "id": "security",
       "name": "Security",
       "description": "Runs static security checks on workflows, shell scripts, and dependency manifests per the security scanning ruleset; opens issues for findings.",
-      "maturity": "experimental",
+      "maturity": "early-adoption",
       "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-security-detector.md",
       "control_plane_workflows": [
         "obs-aw-security-fixer.yml",
         "obs-aw-security-issue-superseder.yml",
@@ -163,6 +172,7 @@
       "description": "Detects 'Resource not accessible by integration' occurrences in workflow logs, creates triage issues, triages newly opened issues, and executes fixes for issues labeled ready to fix.",
       "maturity": "early-adoption",
       "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-resource-not-accessible-by-integration-detector.md",
       "control_plane_workflows": [
         "obs-aw-resource-not-accessible-by-integration-detector.yml",
         "obs-aw-resource-not-accessible-by-integration-fixer.yml",
@@ -173,8 +183,9 @@
       "id": "estc-pr-buildkite-detective",
       "name": "PR Buildkite Detective",
       "description": "Analyzes Buildkite CI failures for a PR when a Buildkite status check fails; posts a diagnostic comment on the pull request.",
-      "maturity": "early-adoption",
+      "maturity": "stable",
       "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-estc-pr-buildkite-detective.md",
       "control_plane_workflows": ["obs-aw-estc-pr-buildkite-detective.yml"]
     }
   ]

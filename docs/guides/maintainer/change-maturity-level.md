@@ -22,6 +22,7 @@ Maturity (`stable`, `early-adoption`, `experimental`) is assigned centrally in e
      "description": "...",
      "maturity": "early-adoption",
      "default_enabled": false,
+     "docs": "docs/workflows/obs-aw-automerge.md",
      "control_plane_workflows": ["obs-aw-automerge.yml"]
    }
    ```
