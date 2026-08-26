@@ -17,6 +17,18 @@ jobs:
         ["obs-aw-issue-triage.yml","obs-aw-duplicate-issue-detector.yml","obs-aw-security-issue-superseder.yml","obs-aw-security-triage.yml","obs-aw-security-fixer.yml","obs-aw-resource-not-accessible-by-integration-triage.yml","obs-aw-resource-not-accessible-by-integration-fixer.yml"]
       load-allowed-authors: true
 
+  dashboard-audit:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'edited' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/dashboard')
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/aw-dashboard-audit.yml
+    with:
+      mode: checkbox-delta
+
   issue-triage:
     needs: run-aw-prelude
     if: >-

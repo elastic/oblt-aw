@@ -18,7 +18,7 @@ Per-workflow routing (labels, triggers, and dispatch detail):
 
 Full registry and client template index: [docs/workflows/obs-aw-client-template.md](../workflows/obs-aw-client-template.md).
 
-*Note: Dashboard opt-in/opt-out is read at runtime inside the ingress (`get-enabled-workflows`); there is no `issues.edited` routing.*
+*Note: Runtime gating for agentic workflows is still read inside the ingress (`get-enabled-workflows`) when a client workflow runs. Separately, `issues.edited` on the Control Plane Dashboard issue (`label:oblt-aw/dashboard`) triggers the shared [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) path (all orgs) to record enable/disable comments on that issue.*
 
 ## References
 

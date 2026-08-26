@@ -56,9 +56,13 @@ from common import (
     parse_checkbox_states_from_dashboard_body,
     parse_repositories,
 )
+from dashboard_audit import AUDIT_TEAM_MENTION, post_sync_checkbox_audits
 
 DASHBOARD_LABEL = "oblt-aw/dashboard"
 DASHBOARD_TITLE = "[oblt-aw] Control Plane Dashboard"
+SYNC_AUDIT_ACTOR = "oblt-aw-sync"
+FORCE_SYNC_REASON = "force-sync-defaults"
+DASHBOARD_SYNC_REASON = "dashboard-sync"
 
 logger = logging.getLogger(__name__)
 
@@ -186,10 +190,14 @@ def build_dashboard_body(
             "### Instructions",
             "",
             "- **Enable a workflow:** Check the checkbox next to the workflow.",
-            "- **Disable a workflow:** Uncheck the checkbox.",
+            "- **Disable a workflow:** Uncheck the checkbox, then reply on this "
+            "issue with a short **deactivation reason** (an audit comment will "
+            f"ask for it and mention {AUDIT_TEAM_MENTION}).",
             "- **Sub-features:** Indented checkboxes under a parent refine which "
             "parts of that workflow run. Sub-features take effect only while the "
             "parent workflow checkbox is enabled.",
+            "- **Audit trail:** Enable/disable changes are recorded as comments "
+            "on this issue (when / what / who).",
             "- Changes are applied at runtime when the client runs.",
         ]
     )
@@ -303,9 +311,10 @@ def sync_repo(
         logger.error("Invalid repo format: %s", repo)
         return
     existing = find_dashboard_issue(owner, repo_name, token)
+    existing_body = existing["body"] if existing else None
     body = build_dashboard_body(
         org_sections,
-        existing["body"] if existing else None,
+        existing_body,
         force_sync_defaults=force_sync_defaults,
     )
     if existing:
@@ -320,6 +329,24 @@ def sync_repo(
             )
         else:
             logger.info("Updated dashboard issue #%s in %s", issue_number, repo)
+        audit_reason = (
+            FORCE_SYNC_REASON if force_sync_defaults else DASHBOARD_SYNC_REASON
+        )
+        try:
+            post_sync_checkbox_audits(
+                owner=owner,
+                repo=repo_name,
+                issue_number=issue_number,
+                token=token,
+                before_body=existing_body,
+                after_body=body,
+                actor=SYNC_AUDIT_ACTOR,
+                reason=audit_reason,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to post sync audit comment on %s#%s", repo, issue_number
+            )
     else:
         created = create_issue(owner, repo_name, token, body)
         issue_number = created["number"]

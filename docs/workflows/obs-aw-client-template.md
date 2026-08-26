@@ -56,8 +56,8 @@ Full platform view (distribution, dashboard sync, before/after ingress): [archit
 | Client template | Triggers | Reusable workflow |
 |-----------------|----------|-------------------|
 | `trigger-obs-aw-pull-request.yml` | `pull_request` (opened, synchronize, reopened, labeled) | `obs-aw-event-pull-request.yml` → automerge, dependency-review |
-| `trigger-obs-aw-issues.yml` | `issues` (opened, labeled), `workflow_dispatch` | `obs-aw-event-issues.yml` → issue-triage, duplicate-issue-detector, security superseder/triage/fixer, resource triage/fixer |
-| `trigger-obs-aw-issue-comment.yml` | `issue_comment` created | `obs-aw-event-issue-comment.yml` → issue-fixer, mention-in-issue |
+| `trigger-obs-aw-issues.yml` | `issues` (opened, labeled, edited), `workflow_dispatch` | `obs-aw-event-issues.yml` → dashboard-audit (edited + `oblt-aw/dashboard`), issue-triage, duplicate-issue-detector, security superseder/triage/fixer, resource triage/fixer |
+| `trigger-obs-aw-issue-comment.yml` | `issue_comment` created | `obs-aw-event-issue-comment.yml` → dashboard-audit-reason (`oblt-aw/dashboard`), issue-fixer, mention-in-issue |
 | `trigger-obs-aw-schedule.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `obs-aw-event-schedule.yml` → agent-suggestions, autodoc, security category detectors, resource-not-accessible detector |
 | `trigger-obs-aw-status.yml` | `status` (Buildkite failure only, job `if`) | `obs-aw-event-status.yml` → estc-pr-buildkite-detective |
 
