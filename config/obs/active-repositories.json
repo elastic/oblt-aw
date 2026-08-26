@@ -26,6 +26,11 @@
       "ai-assets-token-policy": ""
     },
     {
+      "repository": "elastic/oblt-cli-buildkite-plugin",
+      "workflow-token-policy": "token-policy-ebea9d1bc665",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/oblt-framework",
       "workflow-token-policy": "token-policy-61df782fbc7e",
       "ai-assets-token-policy": ""
