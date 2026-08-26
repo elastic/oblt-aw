@@ -1,0 +1,63 @@
+name: Agent Suggestions
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+permissions:
+  contents: read
+
+jobs:
+
+  resolve-apm-assets:
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      control-plane-workflow: obs-aw-agent-suggestions.yml
+      platform-additional-instructions: |
+        Additional requirements for this repository:
+
+        - If there are no net-new recommendations, or if recommendations only suggest workflows/features already in use in this repository, call `noop` and do not create any issue.
+        - If a report issue is created, include `agentic-workflow` in issue labels.
+        - Do not pass `expires` or other custom issue `fields` in `create_issue` output; expiration is applied automatically by the workflow safe-outputs handler.
+        - Add detailed analysis for every recommendation, including:
+          - Current pain points and supporting evidence
+          - Why existing workflows do not fully cover the gap
+          - Expected benefits of implementation (engineering productivity, review quality, cycle time, risk reduction)
+          - Potential trade-offs and rollout considerations
+
+        When calling `create_issue`, ensure the output includes:
+        - `labels`: contains `agentic-workflow`
+
+  agent-suggestions:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: read
+      copilot-requests: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-agent-suggestions.lock.yml@main
+    with:
+      title-prefix: "[oblt-aw][agent-suggestions]"
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+    secrets: inherit

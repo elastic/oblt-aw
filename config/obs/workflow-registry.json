@@ -7,8 +7,8 @@
       "description": "Suggests agentic workflows and improvements for the repository based on analysis of current setup.",
       "maturity": "experimental",
       "default_enabled": false,
-      "docs": "docs/workflows/oblt-aw-agent-suggestions.md",
-      "control_plane_workflows": ["oblt-aw-agent-suggestions.yml"]
+      "docs": "docs/workflows/obs-aw-agent-suggestions.md",
+      "control_plane_workflows": ["obs-aw-agent-suggestions.yml"]
     },
     {
       "id": "autodoc",
@@ -16,8 +16,8 @@
       "description": "Analyzes documentation for gaps, outdated content, and inconsistencies; creates issues and PRs to improve docs.",
       "maturity": "stable",
       "default_enabled": false,
-      "docs": "docs/workflows/oblt-aw-autodoc.md",
-      "control_plane_workflows": ["oblt-aw-autodoc.yml"]
+      "docs": "docs/workflows/obs-aw-autodoc.md",
+      "control_plane_workflows": ["obs-aw-autodoc.yml"]
     },
     {
       "id": "automerge",
@@ -25,8 +25,8 @@
       "description": "Enables auto-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready when validation and approval gates pass; GitHub enforces required checks at merge time.",
       "maturity": "stable",
       "default_enabled": false,
-      "docs": "docs/workflows/oblt-aw-automerge.md",
-      "control_plane_workflows": ["oblt-aw-automerge.yml"],
+      "docs": "docs/workflows/obs-aw-automerge.md",
+      "control_plane_workflows": ["obs-aw-automerge.yml"],
       "sub_features": [
         {
           "id": "github-actions",
@@ -84,8 +84,8 @@
       "description": "Analyzes dependency-update PRs from bots, applies merge-ready labels when criteria are met.",
       "maturity": "stable",
       "default_enabled": false,
-      "docs": "docs/workflows/oblt-aw-dependency-review.md",
-      "control_plane_workflows": ["oblt-aw-dependency-review.yml"]
+      "docs": "docs/workflows/obs-aw-dependency-review.md",
+      "control_plane_workflows": ["obs-aw-dependency-review.yml"]
     },
     {
       "id": "duplicate-issue-detector",
@@ -93,8 +93,8 @@
       "description": "Detects potential duplicate issues when a new issue is opened or when the entrypoint is run manually.",
       "maturity": "experimental",
       "default_enabled": false,
-      "docs": "docs/workflows/oblt-aw-duplicate-issue-detector.md",
-      "control_plane_workflows": ["oblt-aw-duplicate-issue-detector.yml"]
+      "docs": "docs/workflows/obs-aw-duplicate-issue-detector.md",
+      "control_plane_workflows": ["obs-aw-duplicate-issue-detector.yml"]
     },
     {
       "id": "issue-triage",
@@ -102,8 +102,8 @@
       "description": "Triages newly opened issues using the generic issue-triage agentic workflow.",
       "maturity": "early-adoption",
       "default_enabled": false,
-      "docs": "docs/workflows/oblt-aw-issue-triage.md",
-      "control_plane_workflows": ["oblt-aw-issue-triage.yml"]
+      "docs": "docs/workflows/obs-aw-issue-triage.md",
+      "control_plane_workflows": ["obs-aw-issue-triage.yml"]
     },
     {
       "id": "issue-fixer",
@@ -111,8 +111,8 @@
       "description": "Executes generic issue fixes requested with /ai implement comments, excluding specialized security and resource-not-accessible flows.",
       "maturity": "experimental",
       "default_enabled": false,
-      "docs": "docs/workflows/oblt-aw-issue-fixer.md",
-      "control_plane_workflows": ["oblt-aw-issue-fixer.yml"]
+      "docs": "docs/workflows/obs-aw-issue-fixer.md",
+      "control_plane_workflows": ["obs-aw-issue-fixer.yml"]
     },
     {
       "id": "mention-in-issue",
@@ -120,8 +120,8 @@
       "description": "AI assistant for issues — answers questions, debugs problems, and creates PRs on demand when triggered with a /ai comment.",
       "maturity": "early-adoption",
       "default_enabled": false,
-      "docs": "docs/workflows/oblt-aw-mention-in-issue.md",
-      "control_plane_workflows": ["oblt-aw-mention-in-issue.yml"]
+      "docs": "docs/workflows/obs-aw-mention-in-issue.md",
+      "control_plane_workflows": ["obs-aw-mention-in-issue.yml"]
     },
     {
       "id": "security",
@@ -129,11 +129,11 @@
       "description": "Runs static security checks on workflows, shell scripts, and dependency manifests per the security scanning ruleset; opens issues for findings.",
       "maturity": "early-adoption",
       "default_enabled": false,
-      "docs": "docs/workflows/oblt-aw-security-detector.md",
+      "docs": "docs/workflows/obs-aw-security-detector.md",
       "control_plane_workflows": [
-        "oblt-aw-security-fixer.yml",
-        "oblt-aw-security-issue-superseder.yml",
-        "oblt-aw-security-triage.yml"
+        "obs-aw-security-fixer.yml",
+        "obs-aw-security-issue-superseder.yml",
+        "obs-aw-security-triage.yml"
       ],
       "sub_features": [
         {
@@ -141,28 +141,28 @@
           "name": "Injection Detection",
           "description": "Checks for script-injection vulnerabilities in workflow expressions.",
           "default_enabled": true,
-          "control_plane_workflows": ["oblt-aw-security-injection-detector.yml"]
+          "control_plane_workflows": ["obs-aw-security-injection-detector.yml"]
         },
         {
           "id": "supply-chain",
           "name": "Supply-chain Hardening",
           "description": "Flags unpinned third-party actions and missing provenance checks.",
           "default_enabled": true,
-          "control_plane_workflows": ["oblt-aw-security-supply-chain-detector.yml"]
+          "control_plane_workflows": ["obs-aw-security-supply-chain-detector.yml"]
         },
         {
           "id": "secrets",
           "name": "Secret Management",
           "description": "Detects token exposure, secrets in command strings, and improper token scoping.",
           "default_enabled": true,
-          "control_plane_workflows": ["oblt-aw-security-secrets-detector.yml"]
+          "control_plane_workflows": ["obs-aw-security-secrets-detector.yml"]
         },
         {
           "id": "least-privilege",
           "name": "Least Privilege",
           "description": "Flags excessive workflow permissions and dangerous token patterns.",
           "default_enabled": true,
-          "control_plane_workflows": ["oblt-aw-security-least-privilege-detector.yml"]
+          "control_plane_workflows": ["obs-aw-security-least-privilege-detector.yml"]
         }
       ]
     },
@@ -172,11 +172,11 @@
       "description": "Detects 'Resource not accessible by integration' occurrences in workflow logs, creates triage issues, triages newly opened issues, and executes fixes for issues labeled ready to fix.",
       "maturity": "early-adoption",
       "default_enabled": false,
-      "docs": "docs/workflows/oblt-aw-resource-not-accessible-by-integration-detector.md",
+      "docs": "docs/workflows/obs-aw-resource-not-accessible-by-integration-detector.md",
       "control_plane_workflows": [
-        "oblt-aw-resource-not-accessible-by-integration-detector.yml",
-        "oblt-aw-resource-not-accessible-by-integration-fixer.yml",
-        "oblt-aw-resource-not-accessible-by-integration-triage.yml"
+        "obs-aw-resource-not-accessible-by-integration-detector.yml",
+        "obs-aw-resource-not-accessible-by-integration-fixer.yml",
+        "obs-aw-resource-not-accessible-by-integration-triage.yml"
       ]
     },
     {
@@ -185,8 +185,8 @@
       "description": "Analyzes Buildkite CI failures for a PR when a Buildkite status check fails; posts a diagnostic comment on the pull request.",
       "maturity": "stable",
       "default_enabled": false,
-      "docs": "docs/workflows/oblt-aw-estc-pr-buildkite-detective.md",
-      "control_plane_workflows": ["oblt-aw-estc-pr-buildkite-detective.yml"]
+      "docs": "docs/workflows/obs-aw-estc-pr-buildkite-detective.md",
+      "control_plane_workflows": ["obs-aw-estc-pr-buildkite-detective.yml"]
     }
   ]
 }

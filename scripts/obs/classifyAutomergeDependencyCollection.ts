@@ -18,7 +18,7 @@ const fs = require('node:fs');
 
 const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
 
-const GATE_COMMENT_MARKER = '<!-- oblt-aw-automerge:dependency-collection-gate -->';
+const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate -->';
 const AUTOMERGE_PARENT_COMPOUND_ID = 'obs:automerge';
 
 /** @typedef {object} DependencyCollection
