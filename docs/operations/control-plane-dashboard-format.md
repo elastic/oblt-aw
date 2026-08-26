@@ -13,7 +13,7 @@ The Control Plane Dashboard is a **single** GitHub issue per consumer repository
 - **No such issue** → `effective-raw` is empty; no agentic workflows run until sync creates the dashboard and workflows are enabled.
 - **Dashboard exists** → normalized outputs are a JSON array string: `[]` if **no** checkboxes are checked (no agentic workflows run), or `["org:workflow-id", ...]` for only the checked workflows, using the **canonical compound id** (colon-separated).
 
-There is no config file (no `.github/oblt-aw-config.json`), no PRs when users toggle checkboxes, and no `issues.edited` trigger—the dashboard is read at runtime each time the client runs.
+There is no config file (no `.github/obs-aw-config.json`) and no PRs when users toggle checkboxes. Runtime gating is read each time the client runs via `get-enabled-workflows`. Separately, `issues.edited` on the dashboard issue triggers the shared [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) path to record enable/disable comments on that issue.
 
 ---
 
@@ -22,7 +22,7 @@ There is no config file (no `.github/oblt-aw-config.json`), no PRs when users to
 Every workflow in ingress gating is identified by **`org-key:workflow-id`**:
 
 - **`org-key`** — Directory name under `config/<org-key>/` in `elastic/oblt-aw` (for example `obs`, `docs`). Not to be confused with the repository’s root `docs/` Markdown tree.
-- **`workflow-id`** — Unique within that org’s [`workflow-registry.json`](../../config/obs/workflow-registry.json). Each registry entry lists every control-plane reusable it gates via `control_plane_workflows` (basenames under `.github/workflows/`, for example `oblt-aw-security-detector.yml`); multiple files may share one `id` (detector/fixer/triage).
+- **`workflow-id`** — Unique within that org’s [`workflow-registry.json`](../../config/obs/workflow-registry.json). Each registry entry lists every control-plane reusable it gates via `control_plane_workflows` (basenames under `.github/workflows/`, for example `obs-aw-security-detector.yml`); multiple files may share one `id` (detector/fixer/triage).
 
 **Examples:** `obs:agent-suggestions`, `docs:example-workflow`.
 
@@ -57,7 +57,7 @@ Use this dashboard to enable or disable agentic workflows for this repository. C
 
 | Workflow | Maturity | Description |
 |----------|----------|-------------|
-| Agent Suggestions | 🟡 early-adoption | … |
+| [Agent Suggestions](https://github.com/elastic/oblt-aw/blob/main/docs/workflows/obs-aw-agent-suggestions.md) | 🟠 experimental | … |
 
 #### Enable / Disable
 
@@ -176,7 +176,7 @@ To extract enabled workflows from the issue body (when a dashboard issue exists)
 
 | Column | Description |
 |--------|-------------|
-| **Workflow** | Human-readable name or ID of the workflow |
+| **Workflow** | Human-readable name from the org’s `workflow-registry.json`. When the entry sets `docs` (repo-relative path under `docs/workflows/`), the name is a Markdown link to `https://github.com/elastic/oblt-aw/blob/main/<docs>` |
 | **Maturity** | `stable`, `early-adoption`, or `experimental` (from the org’s `workflow-registry.json`) |
 | **Description** | Short description from the org’s `workflow-registry.json` |
 

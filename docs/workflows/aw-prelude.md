@@ -6,7 +6,7 @@ Source file: [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelu
 
 Shared reusable prelude for agentic workflows (dashboard gating and optional allow lists).
 
-Event-scoped orchestrators (`oblt-aw-event-*`, `docs-aw-event-*`) call this workflow once per GitHub event family, then fan out to per-route `*-aw-*` workflows with `shared-proceed` and related outputs. CI enforces that route reusables declare `shared-proceed` via [scripts/validate_aw_workflow_prelude.py](../../scripts/validate_aw_workflow_prelude.py).
+Event-scoped orchestrators (`obs-aw-event-*`, `docs-aw-event-*`) call this workflow once per GitHub event family, then fan out to per-route `*-aw-*` workflows with `shared-proceed` and related outputs. CI enforces that route reusables declare `shared-proceed` via [scripts/validate_aw_workflow_prelude.py](../../scripts/validate_aw_workflow_prelude.py).
 
 APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the prelude. Call [aw-resolve-agentic-assets.yml](aw-resolve-agentic-assets.md) once per `gh-aw-*` agent invocation instead.
 
@@ -26,7 +26,7 @@ Event orchestrators invoke this workflow as job `run-aw-prelude`.
 
 | Input | Type | Default | Purpose |
 |-------|------|---------|---------|
-| `control-plane-workflows` | string | (required) | JSON array of control-plane workflow basenames to evaluate (for example `["oblt-aw-automerge.yml","oblt-aw-dependency-review.yml"]`) |
+| `control-plane-workflows` | string | (required) | JSON array of control-plane workflow basenames to evaluate (for example `["obs-aw-automerge.yml","obs-aw-dependency-review.yml"]`) |
 | `load-allowed-authors` | boolean | `false` | When true, loads PR and issue bot allow lists on `pull_request` / `issues` events |
 
 ### Outputs
@@ -50,5 +50,5 @@ Event orchestrators invoke this workflow as job `run-aw-prelude`.
 - [get-enabled-workflows.md](get-enabled-workflows.md)
 - [load-allowed-authors.md](load-allowed-authors.md)
 - [aw-resolve-agentic-assets.md](aw-resolve-agentic-assets.md)
-- [oblt-aw-client-template.md](oblt-aw-client-template.md)
+- [obs-aw-client-template.md](obs-aw-client-template.md)
 - [docs-aw-client-template.md](docs-aw-client-template.md)
