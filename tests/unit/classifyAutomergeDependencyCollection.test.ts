@@ -39,7 +39,7 @@ const ENABLED = ['obs:automerge', 'obs:automerge:github-actions'];
 
 test('classifyChangedFiles allows dashboard-enabled github-actions-only PR', () => {
   const outcome = classifyChangedFiles(
-    ['.github/workflows/trigger-oblt-aw-automerge.yml'],
+    ['.github/workflows/trigger-obs-aw-automerge.yml'],
     COLLECTIONS,
     enabledAutomergeCollectionIds(ENABLED)
   );

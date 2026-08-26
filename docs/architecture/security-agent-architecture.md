@@ -17,7 +17,7 @@ This document defines the architecture for proactive security bug hunting and re
 The security agent pipeline follows this flow:
 
 1. **Detector** — Scheduled or manually triggered. Scans code (shell scripts, workflow YAML) for security vulnerabilities. When it creates an issue (using the title prefix `[oblt-aw][security]`) for a finding, it must add the label `oblt-aw/detector/security` and include structured findings.
-2. **Superseder** — Triggered when a new detector issue is **opened**. Closes older open issues for the **same SEC rule** (deterministic script; see [oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)). Skips issues with `oblt-aw/keep-open` or any open linked PR.
+2. **Superseder** — Triggered when a new detector issue is **opened**. Closes older open issues for the **same SEC rule** (deterministic script; see [obs-aw-security-issue-superseder.md](../workflows/obs-aw-security-issue-superseder.md)). Skips issues with `oblt-aw/keep-open` or any open linked PR.
 3. **Triage** — Triggered on issues labeled `oblt-aw/detector/security`. Classifies using `oblt-aw/triage/security-*` (injection, secrets, supply-chain, least-privilege), `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`. Produces a resolution plan where applicable. When an issue is ready for automated fix, triage adds `oblt-aw/ai/fix-ready` (the fixer path requires this together with a `oblt-aw/triage/security-*` label).
 4. **Fixer** — Triggered on issues that have both `oblt-aw/triage/security-*` and `oblt-aw/ai/fix-ready`. Implements fixes per triage plan and opens draft PRs.
 
@@ -40,7 +40,7 @@ The security detector must scan **code** (shell scripts, workflow YAML, and depe
 
 - Runs static analysis (shellcheck, actionlint, zizmor, semgrep, optional ecosystem audits) per [docs/workflows/security-scanning-ruleset.md](../workflows/security-scanning-ruleset.md).
 - Aggregates findings and creates issues via API; every issue opened for a finding must include the label `oblt-aw/detector/security`.
-- Reuses `oblt-aw-issue-triage` and `oblt-aw-issue-fixer` for triage and fixer stages.
+- Reuses `obs-aw-issue-triage` and `obs-aw-issue-fixer` for triage and fixer stages.
 
 ## Tool Selection (aligned with #3758 Phase 1)
 
@@ -53,7 +53,7 @@ The security detector must scan **code** (shell scripts, workflow YAML, and depe
 | **npm audit** / **pip-audit** / **govulncheck** (when lockfiles exist) | Known CVEs in dependencies | `package-lock.json`, Python/Go locks | Supply chain |
 | **Pattern scripts** | Downloads without checksum verification | Shell scripts | Supply chain (integrity) |
 
-**Complementary:** Repositories may enable **`oblt-aw-dependency-review`** via oblt-aw ingress for PR-time dependency review; the detector’s SEC-033–SEC-035 rules still cover scheduled/repo-wide manifest checks.
+**Complementary:** Repositories may enable **`obs-aw-dependency-review`** via oblt-aw ingress for PR-time dependency review; the detector’s SEC-033–SEC-035 rules still cover scheduled/repo-wide manifest checks.
 
 ### Implementation
 
@@ -64,7 +64,7 @@ The detector targets the full ruleset in [docs/workflows/security-scanning-rules
 | Stage | ai-github-actions Workflow | Usage |
 |-------|----------------------------|-------|
 | **Detector** | None (code-scanning) | Custom job runs shellcheck, actionlint, zizmor, semgrep, and npm audit; creates issues. If a code-scanning agent is added later, oblt-aw can migrate to it. |
-| **Superseder** | None (shell script) | [`supersede-security-issues.sh`](../../scripts/obs/supersede-security-issues.sh) on `issues` `opened` for `oblt-aw/detector/security`; closes stale open issues per SEC id ([oblt-aw-security-issue-superseder.md](../workflows/oblt-aw-security-issue-superseder.md)). |
+| **Superseder** | None (shell script) | [`supersede-security-issues.sh`](../../scripts/obs/supersede-security-issues.sh) on `issues` `opened` for `oblt-aw/detector/security`; closes stale open issues per SEC id ([obs-aw-security-issue-superseder.md](../workflows/obs-aw-security-issue-superseder.md)). |
 | **Triage** | `gh-aw-issue-triage.lock.yml` | Triggered for issues labeled `oblt-aw/detector/security`; classifies with `oblt-aw/triage/security-*`, `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`; adds `oblt-aw/ai/fix-ready` when ready to fix. |
 | **Fixer** | `gh-aw-issue-fixer.lock.yml` | Triggered when a `oblt-aw/triage/security-*` label and `oblt-aw/ai/fix-ready` are present; security-specific instructions; least-privilege and env-indirection patterns. |
 

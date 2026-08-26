@@ -2,11 +2,11 @@
 
 ## Overview
 
-Client template: `trigger-oblt-aw-issue-fixer.yml` → `oblt-aw-issue-fixer.yml`
+Client template: `trigger-obs-aw-issue-fixer.yml` → `obs-aw-issue-fixer.yml`
 
 Routed workflow:
 
-- [.github/workflows/oblt-aw-issue-fixer.yml](../../.github/workflows/oblt-aw-issue-fixer.yml)
+- [.github/workflows/obs-aw-issue-fixer.yml](../../.github/workflows/obs-aw-issue-fixer.yml)
 
 ## Usage
 
@@ -24,4 +24,4 @@ The exclusions ensure specialized fixers remain authoritative for security and r
 
 ## References
 
-- [docs/workflows/oblt-aw-issue-fixer.md](../workflows/oblt-aw-issue-fixer.md)
+- [docs/workflows/obs-aw-issue-fixer.md](../workflows/obs-aw-issue-fixer.md)

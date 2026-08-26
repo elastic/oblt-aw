@@ -9,7 +9,7 @@ on:
       control-plane-workflow:
         description: >-
           Basename of the calling wrapper under .github/workflows/ (for example
-          oblt-aw-automerge.yml). Used to resolve the registry workflow id for apm.yml.
+          obs-aw-automerge.yml). Used to resolve the registry workflow id for apm.yml.
         required: true
         type: string
       platform-additional-instructions:
@@ -122,7 +122,7 @@ jobs:
           --policy-field ai-assets-token-policy
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: pip

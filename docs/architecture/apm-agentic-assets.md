@@ -95,7 +95,7 @@ When the dashboard gate passes (`proceed == true`), each agent job’s preceding
    - `resolved-inputs-json` (merged platform + APM inputs)
    - `resolved-setup-commands-json`
 
-Downstream `gh-aw-*` jobs should pass `additional-instructions: ${{ needs.<resolve-job>.outputs.resolved-additional-instructions }}` and may read other keys from `resolved-inputs-json` when needed. Use one resolve job per agent invocation when platform prompts differ (see `oblt-aw-autodoc.yml`).
+Downstream `gh-aw-*` jobs should pass `additional-instructions: ${{ needs.<resolve-job>.outputs.resolved-additional-instructions }}` and may read other keys from `resolved-inputs-json` when needed. Use one resolve job per agent invocation when platform prompts differ (see `obs-aw-autodoc.yml`).
 
 ## Schema
 
