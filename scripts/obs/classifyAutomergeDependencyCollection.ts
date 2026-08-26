@@ -18,12 +18,12 @@ const fs = require('node:fs');
 
 const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
 
-const GATE_COMMENT_MARKER = '<!-- oblt-aw-automerge:dependency-collection-gate -->';
+const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate -->';
+const AUTOMERGE_PARENT_COMPOUND_ID = 'obs:automerge';
 
 /** @typedef {object} DependencyCollection
  * @property {string} id
  * @property {string} [description]
- * @property {boolean} active
  * @property {string[]} file-glob
  */
 
@@ -38,8 +38,8 @@ const GATE_COMMENT_MARKER = '<!-- oblt-aw-automerge:dependency-collection-gate -
  * @property {string} collectionId
  */
 
-/** @typedef {object} ClassificationOutcomeInactive
- * @property {'inactive'} status
+/** @typedef {object} ClassificationOutcomeDisabled
+ * @property {'disabled'} status
  * @property {string} collectionId
  */
 
@@ -53,7 +53,7 @@ const GATE_COMMENT_MARKER = '<!-- oblt-aw-automerge:dependency-collection-gate -
  * @property {string[]} collectionIds
  */
 
-/** @typedef {ClassificationOutcomeAllowed|ClassificationOutcomeInactive|ClassificationOutcomeUnclassified|ClassificationOutcomeAmbiguous} ClassificationOutcome
+/** @typedef {ClassificationOutcomeAllowed|ClassificationOutcomeDisabled|ClassificationOutcomeUnclassified|ClassificationOutcomeAmbiguous} ClassificationOutcome
  */
 
 const CONFIG_PATH = path.join(
@@ -69,8 +69,28 @@ function loadCollectionsConfig(configPath = CONFIG_PATH) {
   return JSON.parse(fs.readFileSync(configPath, 'utf8'));
 }
 
-function activeCollectionIds(collections) {
-  return collections.filter((c) => c.active).map((c) => c.id);
+function parseEnabledWorkflowsJson(raw) {
+  if (!raw || typeof raw !== 'string' || !raw.trim()) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((item) => typeof item === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function enabledAutomergeCollectionIds(enabledWorkflows, orgKey = 'obs') {
+  if (!enabledWorkflows.includes(AUTOMERGE_PARENT_COMPOUND_ID)) {
+    return [];
+  }
+  const prefix = `${orgKey}:automerge:`;
+  return enabledWorkflows
+    .filter((id) => id.startsWith(prefix))
+    .map((id) => id.slice(prefix.length));
 }
 
 function collectionMatchesAllFiles(collection, files) {
@@ -81,8 +101,9 @@ function collectionMatchesAllFiles(collection, files) {
   return files.every((file) => pathMatchesAnyGlob(file, globs));
 }
 
-function classifyChangedFiles(files, collections) {
+function classifyChangedFiles(files, collections, enabledCollectionIds) {
   const changed = [...new Set(files.map((f) => f.trim()).filter(Boolean))];
+  const enabledSet = new Set(enabledCollectionIds);
   if (changed.length === 0) {
     return { status: 'unclassified', collectionId: null };
   }
@@ -102,17 +123,17 @@ function classifyChangedFiles(files, collections) {
   }
 
   const collection = matched[0];
-  if (collection.active) {
+  if (enabledSet.has(collection.id)) {
     return { status: 'allowed', collectionId: collection.id };
   }
-  return { status: 'inactive', collectionId: collection.id };
+  return { status: 'disabled', collectionId: collection.id };
 }
 
-function buildGateCommentBody(outcome, changedFiles, activeIds) {
-  const activeList =
-    activeIds.length > 0
-      ? activeIds.map((id) => `\`${id}\``).join(', ')
-      : '_(none configured)_';
+function buildGateCommentBody(outcome, changedFiles, enabledCollectionIds) {
+  const enabledList =
+    enabledCollectionIds.length > 0
+      ? enabledCollectionIds.map((id) => `\`${id}\``).join(', ')
+      : '_(none enabled on the Control Plane Dashboard)_';
   const fileSample = changedFiles.slice(0, 20);
   const fileLines = fileSample.map((f) => `- \`${f}\``).join('\n');
   const fileSuffix =
@@ -121,8 +142,8 @@ function buildGateCommentBody(outcome, changedFiles, activeIds) {
       : '';
 
   let reason = '';
-  if (outcome.status === 'inactive') {
-    reason = `This pull request was classified as **\`${outcome.collectionId}\`**. The Observability automerge workflow does not support that dependency collection.`;
+  if (outcome.status === 'disabled') {
+    reason = `This pull request was classified as **\`${outcome.collectionId}\`**, but that dependency collection is not enabled on the Control Plane Dashboard for this repository.`;
   } else if (outcome.status === 'unclassified') {
     reason =
       'This pull request could not be matched to any configured dependency collection from its changed files.';
@@ -137,9 +158,9 @@ function buildGateCommentBody(outcome, changedFiles, activeIds) {
     '',
     reason,
     '',
-    `**Collections enabled for automerge:** ${activeList}`,
+    `**Collections enabled for automerge on this repository:** ${enabledList}`,
     '',
-    'Dependency-review may still have applied `oblt-aw/ai/merge-ready` for risk review. Only allow-listed collections proceed to Copilot approval and merge via this workflow.',
+    'Enable or disable collections under the Automerge workflow on the Control Plane Dashboard (`oblt-aw/dashboard` issue). Dependency-review may still have applied `oblt-aw/ai/merge-ready` for risk review. Only enabled collections proceed to Copilot approval and merge via this workflow.',
     '',
     '**Changed files considered for classification:**',
     fileLines || '- _(none)_',
@@ -149,8 +170,10 @@ function buildGateCommentBody(outcome, changedFiles, activeIds) {
 
 module.exports = {
   GATE_COMMENT_MARKER,
+  AUTOMERGE_PARENT_COMPOUND_ID,
   loadCollectionsConfig,
-  activeCollectionIds,
+  parseEnabledWorkflowsJson,
+  enabledAutomergeCollectionIds,
   classifyChangedFiles,
   buildGateCommentBody,
 };

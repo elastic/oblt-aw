@@ -7,6 +7,7 @@
       "description": "Adds a documentation issue AI menu.",
       "maturity": "experimental",
       "default_enabled": false,
+      "docs": "docs/workflows/docs-aw-ai-menu.md",
       "control_plane_workflows": [
         "docs-aw-ai-menu.yml"
       ]
@@ -17,6 +18,7 @@
       "description": "Adds a documentation PR AI menu.",
       "maturity": "experimental",
       "default_enabled": false,
+      "docs": "docs/workflows/docs-aw-pr-ai-menu.md",
       "control_plane_workflows": [
         "docs-aw-pr-ai-menu-collect.yml",
         "docs-aw-pr-ai-menu.yml"

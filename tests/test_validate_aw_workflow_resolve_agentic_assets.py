@@ -17,11 +17,11 @@ def test_validate_workflow_skips_non_agent_wrappers(
 ) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
-    no_agent = workflows / "oblt-aw-security-detector.yml"
+    no_agent = workflows / "obs-aw-security-injection-detector.yml"
     no_agent.write_text(
         "name: Test\non:\n  workflow_call:\njobs:\n"
         "  prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n"
-        "    with:\n      control-plane-workflow: oblt-aw-security-detector.yml\n"
+        "    with:\n      control-plane-workflow: obs-aw-security-injection-detector.yml\n"
         "  scan:\n    needs: prelude\n    runs-on: ubuntu-latest\n    steps:\n"
         "      - run: echo scan\n",
         encoding="utf-8",
@@ -35,11 +35,11 @@ def test_validate_workflow_rejects_gh_aw_without_resolve(
 ) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
-    bad = workflows / "oblt-aw-test.yml"
+    bad = workflows / "obs-aw-test.yml"
     bad.write_text(
         "name: Test\non:\n  workflow_call:\njobs:\n"
         "  prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n"
-        "    with:\n      control-plane-workflow: oblt-aw-test.yml\n"
+        "    with:\n      control-plane-workflow: obs-aw-test.yml\n"
         "  agent:\n    needs: prelude\n"
         "    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main\n",
         encoding="utf-8",
@@ -54,7 +54,7 @@ def test_validate_workflow_rejects_prelude_apm_outputs(
 ) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
-    bad = workflows / "oblt-aw-test.yml"
+    bad = workflows / "obs-aw-test.yml"
     bad.write_text(
         "name: Test\non:\n  workflow_call:\njobs:\n"
         "  prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n"
@@ -74,13 +74,13 @@ def test_validate_workflow_accepts_resolve_per_agent_call(
 ) -> None:
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
-    good = workflows / "oblt-aw-test.yml"
+    good = workflows / "obs-aw-test.yml"
     good.write_text(
         "name: Test\non:\n  workflow_call:\njobs:\n"
         "  prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n"
-        "    with:\n      control-plane-workflow: oblt-aw-test.yml\n"
+        "    with:\n      control-plane-workflow: obs-aw-test.yml\n"
         "  resolve-apm-assets:\n    uses: ./.github/workflows/aw-resolve-agentic-assets.yml\n"
-        "    with:\n      control-plane-workflow: oblt-aw-test.yml\n"
+        "    with:\n      control-plane-workflow: obs-aw-test.yml\n"
         "  agent:\n    needs: [prelude, resolve-apm-assets]\n"
         "    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main\n"
         "    with:\n"

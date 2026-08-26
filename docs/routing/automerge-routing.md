@@ -2,13 +2,13 @@
 
 ## Overview
 
-Client template: `trigger-oblt-aw-automerge.yml` → `oblt-aw-automerge.yml`
+Client template: `trigger-obs-aw-automerge.yml` → `obs-aw-automerge.yml`
 
-Routed workflow source: `.github/workflows/oblt-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, and conditional `enable-merge-when-ready` on the PR). Merge first uses **pascalgn/automerge-action** with `GITHUB_TOKEN`; when that step reports `merge_failed`, the workflow enables native GitHub auto-merge as a fallback.
+Routed workflow source: `.github/workflows/obs-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, and conditional `enable-merge-when-ready` on the PR). Merge first uses **pascalgn/automerge-action** with `GITHUB_TOKEN`; when that step reports `merge_failed`, the workflow enables native GitHub auto-merge as a fallback.
 
 ## Usage
 
-`oblt-aw-automerge.yml` runs when prelude allows registry id `obs:automerge` (see `docs/workflows/aw-prelude.md`) and all of the following hold:
+`obs-aw-automerge.yml` runs when prelude allows registry id `obs:automerge` (see `docs/workflows/aw-prelude.md`) and all of the following hold:
 
 There is **no** `schedule` trigger for automerge. The reusable workflow uses `github.event.pull_request` from the caller (no PR discovery).
 
@@ -18,11 +18,11 @@ There is **no** `schedule` trigger for automerge. The reusable workflow uses `gi
 - Author is in the same allow list as dependency-review: `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`, `elastic-vault-github-plugin-prod[bot]`
 - PR has label `oblt-aw/ai/merge-ready` at event time
 
-The client template includes `labeled` in `pull_request` types (`trigger-oblt-aw-automerge.yml`).
+The client template includes `labeled` in `pull_request` types (`trigger-obs-aw-automerge.yml`).
 
 ## Mandatory requirements evaluated at runtime
 
-**`oblt-aw-automerge.yml` — `verify` job** (`scripts/obs/validateAutomergePr.ts`):
+**`obs-aw-automerge.yml` — `verify` job** (`scripts/obs/validateAutomergePr.ts`):
 
 | Requirement | Details |
 |---------------|---------|
@@ -32,13 +32,13 @@ The client template includes `labeled` in `pull_request` types (`trigger-oblt-aw
 | Branch origin | Upstream branch (head repo equals base repo — not a fork) |
 | Refs | Head ref ≠ base ref |
 
-**`oblt-aw-automerge.yml` — `check-dependency-collection` job** (`scripts/obs/checkAutomergeDependencyCollection.ts`):
+**`obs-aw-automerge.yml` — `check-dependency-collection` job** (`scripts/obs/checkAutomergeDependencyCollection.ts`):
 
 | Requirement | Details |
 |---------------|---------|
 | Classification | Changed file paths on the PR are matched against [config/obs/automerge-dependency-collections.json](../../config/obs/automerge-dependency-collections.json) (`file-glob` per collection). No extra labels are required in consumer repositories. |
-| Active collections | Only collections with `"active": true` proceed to `approve` and `automerge`. |
-| Skipped PRs | When classification fails or the collection is inactive, the job posts or updates a single PR comment (marker `oblt-aw-automerge:dependency-collection-gate`) and downstream jobs do not run. |
+| Enabled collections | Only collections enabled on the Control Plane Dashboard (`obs:automerge:<collection-id>` sub-feature checkboxes under Automerge) proceed to `approve` and `automerge`. The parent `obs:automerge` checkbox must also be enabled. |
+| Skipped PRs | When classification fails or the collection is not enabled on the dashboard, the job posts or updates a single PR comment (marker `obs-aw-automerge:dependency-collection-gate`) and downstream jobs do not run. |
 
 **`automerge` job** (after approval): **[pascalgn/automerge-action](https://github.com/pascalgn/automerge-action)** enforces `MERGE_LABELS` (`oblt-aw/ai/merge-ready`), `MERGE_REQUIRED_APPROVALS`, fork/branch settings, and merges with **squash** when GitHub reports the PR as ready (required checks and reviews per branch protection and action config). Author and label gates are enforced in `verify` (`validateAutomergePr.ts`, same allow list as dependency-review).
 
@@ -52,8 +52,8 @@ Fallback path: when `automerge` returns `merge_failed` (for example with require
 
 ## Configuration
 
-The routed workflow uses `GITHUB_TOKEN` with the permissions listed in `oblt-aw-automerge.md`.
+The routed workflow uses `GITHUB_TOKEN` with the permissions listed in `obs-aw-automerge.md`.
 
 ## References
 
-- `docs/workflows/oblt-aw-automerge.md`
+- `docs/workflows/obs-aw-automerge.md`

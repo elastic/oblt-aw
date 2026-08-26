@@ -19,12 +19,12 @@
  * auto-merge is enabled, not here.
  *
  * Allowed authors are defined in `config/obs/allowed_pr_authors.json` (Observability
- * control-plane; also reflected in `oblt-aw-automerge.yml` via
- * `load-allowed-authors` and `oblt-aw-dependency-review.yml` (CSV input from the same
+ * control-plane; also reflected in `obs-aw-automerge.yml` via
+ * `load-allowed-authors` and `obs-aw-dependency-review.yml` (CSV input from the same
  * loader), which cannot load that file in expressions). Specialized issue triage/fixer
  * wrappers (security, resource-not-accessible) pass `allowed_issue_authors_csv` from
- * `config/obs/allowed_issue_authors.json` via the same loader; generic `oblt-aw-issue-triage`
- * / `oblt-aw-issue-fixer` do not.
+ * `config/obs/allowed_issue_authors.json` via the same loader; generic `obs-aw-issue-triage`
+ * / `obs-aw-issue-fixer` do not.
  */
 const path = require('node:path');
 const fs = require('node:fs');

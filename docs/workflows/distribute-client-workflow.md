@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml)
 
-This workflow creates PRs across target repositories to install, update, or remove the per-org template file set (for example `.github/workflows/trigger-oblt-aw-*.yml`, `.github/workflows/trigger-docs-aw-*.yml`, and any other paths under each org’s `.github/remote-workflow-template/<org-key>/` tree).
+This workflow creates PRs across target repositories to install, update, or remove the per-org template file set (for example `.github/workflows/trigger-obs-aw-*.yml`, `.github/workflows/trigger-docs-aw-*.yml`, and any other paths under each org’s `.github/remote-workflow-template/<org-key>/` tree).
 
 ## Prerequisites
 
@@ -55,4 +55,4 @@ Concurrency:
 ## References
 
 - Operational details: [docs/operations/distribute-client-workflow.md](../operations/distribute-client-workflow.md)
-- Client template: [docs/workflows/oblt-aw-client-template.md](oblt-aw-client-template.md)
+- Client template: [docs/workflows/obs-aw-client-template.md](obs-aw-client-template.md)

@@ -39,12 +39,12 @@ class TestResolveCompoundId:
             [
                 {
                     "id": "automerge",
-                    "control_plane_workflows": ["oblt-aw-automerge.yml"],
+                    "control_plane_workflows": ["obs-aw-automerge.yml"],
                 }
             ],
         )
         assert (
-            wr.resolve_compound_id(tmp_path, "oblt-aw-automerge.yml") == "obs:automerge"
+            wr.resolve_compound_id(tmp_path, "obs-aw-automerge.yml") == "obs:automerge"
         )
 
     def test_multi_file_entry(self, tmp_path: pathlib.Path) -> None:
@@ -55,25 +55,85 @@ class TestResolveCompoundId:
                 {
                     "id": "security",
                     "control_plane_workflows": [
-                        "oblt-aw-security-detector.yml",
-                        "oblt-aw-security-fixer.yml",
+                        "obs-aw-security-triage.yml",
+                        "obs-aw-security-fixer.yml",
+                    ],
+                    "sub_features": [
+                        {
+                            "id": "injection",
+                            "control_plane_workflows": [
+                                "obs-aw-security-injection-detector.yml"
+                            ],
+                        }
                     ],
                 }
             ],
         )
         assert (
-            wr.resolve_compound_id(tmp_path, "oblt-aw-security-fixer.yml")
+            wr.resolve_compound_id(tmp_path, "obs-aw-security-fixer.yml")
             == "obs:security"
+        )
+        assert (
+            wr.resolve_compound_id(tmp_path, "obs-aw-security-injection-detector.yml")
+            == "obs:security:injection"
         )
 
     def test_unknown_file_raises(self, tmp_path: pathlib.Path) -> None:
         _write_org(
             tmp_path,
             "obs",
-            [{"id": "automerge", "control_plane_workflows": ["oblt-aw-automerge.yml"]}],
+            [{"id": "automerge", "control_plane_workflows": ["obs-aw-automerge.yml"]}],
         )
         with pytest.raises(ValueError, match="not listed"):
-            wr.resolve_compound_id(tmp_path, "oblt-aw-missing.yml")
+            wr.resolve_compound_id(tmp_path, "obs-aw-missing.yml")
+
+    def test_sub_feature_file_resolves_to_three_part_id(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        _write_org(
+            tmp_path,
+            "obs",
+            [
+                {
+                    "id": "security",
+                    "control_plane_workflows": ["obs-aw-security-triage.yml"],
+                    "sub_features": [
+                        {
+                            "id": "injection",
+                            "control_plane_workflows": [
+                                "obs-aw-security-injection-detector.yml"
+                            ],
+                        }
+                    ],
+                }
+            ],
+        )
+        assert (
+            wr.resolve_compound_id(tmp_path, "obs-aw-security-injection-detector.yml")
+            == "obs:security:injection"
+        )
+
+    def test_rejects_duplicate_parent_and_sub_feature_files(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        _write_org(
+            tmp_path,
+            "obs",
+            [
+                {
+                    "id": "security",
+                    "control_plane_workflows": ["obs-aw-security-detector.yml"],
+                    "sub_features": [
+                        {
+                            "id": "injection",
+                            "control_plane_workflows": ["obs-aw-security-detector.yml"],
+                        }
+                    ],
+                }
+            ],
+        )
+        with pytest.raises(ValueError, match="also assigned to the parent"):
+            wr.build_control_plane_workflow_index(tmp_path)
 
 
 class TestValidateRegistryAgainstWorkflows:
@@ -83,12 +143,12 @@ class TestValidateRegistryAgainstWorkflows:
         _write_org(
             tmp_path,
             "obs",
-            [{"id": "automerge", "control_plane_workflows": ["oblt-aw-automerge.yml"]}],
+            [{"id": "automerge", "control_plane_workflows": ["obs-aw-automerge.yml"]}],
         )
         workflows = tmp_path / "workflows"
         workflows.mkdir()
-        (workflows / "oblt-aw-agent-suggestions.yml").write_text("", encoding="utf-8")
+        (workflows / "obs-aw-agent-suggestions.yml").write_text("", encoding="utf-8")
         errors = wr.validate_registry_against_workflows(
-            tmp_path, workflows, {"oblt-aw-agent-suggestions.yml"}
+            tmp_path, workflows, {"obs-aw-agent-suggestions.yml"}
         )
         assert any("not listed" in err for err in errors)

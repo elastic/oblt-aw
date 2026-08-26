@@ -20,26 +20,28 @@ const assert = require('node:assert/strict');
 const {
   classifyChangedFiles,
   buildGateCommentBody,
-  activeCollectionIds,
+  enabledAutomergeCollectionIds,
+  parseEnabledWorkflowsJson,
 } = require('../../scripts/obs/classifyAutomergeDependencyCollection.ts');
 
 const COLLECTIONS = [
   {
     id: 'github-actions',
-    active: true,
     'file-glob': ['.github/workflows/**'],
   },
   {
     id: 'python-dependencies',
-    active: false,
     'file-glob': ['**/pyproject.toml'],
   },
 ];
 
-test('classifyChangedFiles allows active github-actions-only PR', () => {
+const ENABLED = ['obs:automerge', 'obs:automerge:github-actions'];
+
+test('classifyChangedFiles allows dashboard-enabled github-actions-only PR', () => {
   const outcome = classifyChangedFiles(
-    ['.github/workflows/trigger-oblt-aw-automerge.yml'],
-    COLLECTIONS
+    ['.github/workflows/trigger-obs-aw-automerge.yml'],
+    COLLECTIONS,
+    enabledAutomergeCollectionIds(ENABLED)
   );
   assert.deepEqual(outcome, {
     status: 'allowed',
@@ -47,32 +49,48 @@ test('classifyChangedFiles allows active github-actions-only PR', () => {
   });
 });
 
-test('classifyChangedFiles allows active pre-commit-only PR', () => {
+test('classifyChangedFiles allows dashboard-enabled pre-commit-only PR', () => {
   const collections = [
     ...COLLECTIONS,
     {
       id: 'pre-commit',
-      active: true,
       'file-glob': ['.pre-commit-config.yaml'],
     },
   ];
-  const outcome = classifyChangedFiles(['.pre-commit-config.yaml'], collections);
+  const enabled = [
+    'obs:automerge',
+    'obs:automerge:github-actions',
+    'obs:automerge:pre-commit',
+  ];
+  const outcome = classifyChangedFiles(
+    ['.pre-commit-config.yaml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
   assert.deepEqual(outcome, {
     status: 'allowed',
     collectionId: 'pre-commit',
   });
 });
 
-test('classifyChangedFiles rejects inactive python collection', () => {
-  const outcome = classifyChangedFiles(['pyproject.toml'], COLLECTIONS);
+test('classifyChangedFiles rejects dashboard-disabled python collection', () => {
+  const outcome = classifyChangedFiles(
+    ['pyproject.toml'],
+    COLLECTIONS,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
   assert.deepEqual(outcome, {
-    status: 'inactive',
+    status: 'disabled',
     collectionId: 'python-dependencies',
   });
 });
 
 test('classifyChangedFiles is unclassified when no collection matches', () => {
-  const outcome = classifyChangedFiles(['README.md'], COLLECTIONS);
+  const outcome = classifyChangedFiles(
+    ['README.md'],
+    COLLECTIONS,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
   assert.deepEqual(outcome, {
     status: 'unclassified',
     collectionId: null,
@@ -84,24 +102,23 @@ test('classifyChangedFiles is ambiguous when multiple collections match', () => 
     ...COLLECTIONS,
     {
       id: 'also-workflows',
-      active: false,
       'file-glob': ['.github/workflows/**'],
     },
   ];
   const outcome = classifyChangedFiles(
     ['.github/workflows/x.yml'],
-    collections
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
   );
   assert.equal(outcome.status, 'ambiguous');
   assert.equal(outcome.collectionIds.length, 2);
 });
 
-test('classifyChangedFiles allows active terraform collection', () => {
+test('classifyChangedFiles allows dashboard-enabled terraform collection', () => {
   const collections = [
     ...COLLECTIONS,
     {
       id: 'terraform',
-      active: true,
       'file-glob': [
         '**/*.tf',
         '**/*.tfvars',
@@ -114,6 +131,7 @@ test('classifyChangedFiles allows active terraform collection', () => {
       ],
     },
   ];
+  const enabled = ['obs:automerge', 'obs:automerge:terraform'];
   const outcome = classifyChangedFiles(
     [
       'environments/dev/main.tf',
@@ -125,7 +143,8 @@ test('classifyChangedFiles allows active terraform collection', () => {
       'environments/dev/.terraform-version',
       'environments/dev/.terragrunt-version',
     ],
-    collections
+    collections,
+    enabledAutomergeCollectionIds(enabled)
   );
   assert.deepEqual(outcome, {
     status: 'allowed',
@@ -133,18 +152,19 @@ test('classifyChangedFiles allows active terraform collection', () => {
   });
 });
 
-test('classifyChangedFiles allows active open-policy-agent collection', () => {
+test('classifyChangedFiles allows dashboard-enabled open-policy-agent collection', () => {
   const collections = [
     ...COLLECTIONS,
     {
       id: 'open-policy-agent',
-      active: true,
       'file-glob': ['**/*.rego', '**/.opa-version', '**/opa.yaml', '**/opa.yml'],
     },
   ];
+  const enabled = ['obs:automerge', 'obs:automerge:open-policy-agent'];
   const outcome = classifyChangedFiles(
     ['policies/authz.rego', '.opa-version'],
-    collections
+    collections,
+    enabledAutomergeCollectionIds(enabled)
   );
   assert.deepEqual(outcome, {
     status: 'allowed',
@@ -152,13 +172,24 @@ test('classifyChangedFiles allows active open-policy-agent collection', () => {
   });
 });
 
-test('buildGateCommentBody includes inactive collection and active list', () => {
+test('enabledAutomergeCollectionIds returns empty when parent disabled', () => {
+  const enabled = ['obs:automerge:github-actions'];
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled), []);
+});
+
+test('parseEnabledWorkflowsJson handles invalid input', () => {
+  assert.deepEqual(parseEnabledWorkflowsJson(''), []);
+  assert.deepEqual(parseEnabledWorkflowsJson('not-json'), []);
+});
+
+test('buildGateCommentBody includes disabled collection and enabled list', () => {
   const body = buildGateCommentBody(
-    { status: 'inactive', collectionId: 'python-dependencies' },
+    { status: 'disabled', collectionId: 'python-dependencies' },
     ['pyproject.toml'],
-    activeCollectionIds(COLLECTIONS)
+    enabledAutomergeCollectionIds(ENABLED)
   );
   assert.match(body, /python-dependencies/);
   assert.match(body, /github-actions/);
   assert.match(body, /dependency-collection-gate/);
+  assert.match(body, /Control Plane Dashboard/);
 });

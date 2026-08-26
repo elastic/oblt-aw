@@ -278,36 +278,88 @@ def format_oblt_aw_marker(org_key: str, workflow_id: str) -> str:
     return f"<!-- oblt-aw:{org_key}:{workflow_id} -->"
 
 
+def format_oblt_aw_subfeature_marker(
+    org_key: str, workflow_id: str, sub_feature_id: str
+) -> str:
+    """HTML comment marker for an indented sub-feature task-list checkbox line."""
+    return f"<!-- oblt-aw:{org_key}:{workflow_id}:{sub_feature_id} -->"
+
+
 def compound_workflow_key(org_key: str, workflow_id: str) -> str:
     """Canonical ``org:workflow-id`` string for ingress and ``enabled-workflows``."""
     return f"{org_key}:{workflow_id}"
+
+
+def compound_subfeature_key(org_key: str, workflow_id: str, sub_feature_id: str) -> str:
+    """Canonical ``org:workflow-id:sub-feature-id`` for sub-feature gating."""
+    return f"{org_key}:{workflow_id}:{sub_feature_id}"
+
+
+_OBLT_AW_CHECKBOX_LINE = re.compile(
+    r"^\s*- \[(x| )\] <!-- oblt-aw:([a-z0-9-]+)(?::([a-z0-9-]+))?(?::([a-z0-9-]+))?\s*-->"
+)
+
+
+def _compound_id_from_marker_groups(
+    org: str, segment2: str, segment3: str | None
+) -> str:
+    """Map HTML comment segments to a compound id (two- or three-segment)."""
+    if segment3 is not None:
+        return compound_subfeature_key(org, segment2, segment3)
+    return compound_workflow_key(org, segment2)
 
 
 def enabled_compound_ids_from_dashboard_body(body: str) -> list[str]:
     """
     Collect enabled workflow compound ids from dashboard issue body.
 
-    Parses ``- [x]`` lines with ``<!-- oblt-aw:<org>:<workflow-id> -->`` or legacy
+    Parses checked ``- [x]`` lines with sub-feature markers
+    ``<!-- oblt-aw:<org>:<workflow-id>:<sub-feature-id> -->``, parent markers
+    ``<!-- oblt-aw:<org>:<workflow-id> -->``, or legacy
     ``<!-- oblt-aw:<workflow-id> -->`` (treated as ``obs:<workflow-id>``).
     Order is first-seen; duplicates are skipped.
     """
     seen: set[str] = set()
     ordered: list[str] = []
     for line in body.splitlines():
-        m3 = re.match(r"^- \[x\] <!-- oblt-aw:([a-z0-9-]+):([a-z0-9-]+) -->", line)
-        if m3:
-            key = compound_workflow_key(m3.group(1), m3.group(2))
-            if key not in seen:
-                seen.add(key)
-                ordered.append(key)
+        match = _OBLT_AW_CHECKBOX_LINE.match(line)
+        if not match or match.group(1) != "x":
             continue
-        m2 = re.match(r"^- \[x\] <!-- oblt-aw:([a-z0-9-]+) -->", line)
-        if m2:
-            key = compound_workflow_key(LEGACY_DEFAULT_ORG_KEY, m2.group(1))
-            if key not in seen:
-                seen.add(key)
-                ordered.append(key)
+        org = match.group(2)
+        segment2 = match.group(3)
+        segment3 = match.group(4)
+        if segment2 is None:
+            key = compound_workflow_key(LEGACY_DEFAULT_ORG_KEY, org)
+        else:
+            key = _compound_id_from_marker_groups(org, segment2, segment3)
+        if key not in seen:
+            seen.add(key)
+            ordered.append(key)
     return ordered
+
+
+def parse_checkbox_states_from_dashboard_body(body: str) -> dict[str, bool]:
+    """
+    Extract compound id -> enabled from parent and sub-feature task-list lines.
+
+    Legacy two-part markers map to ``obs:<workflow-id>``.
+    """
+    state: dict[str, bool] = {}
+    if not body:
+        return state
+    for line in body.splitlines():
+        match = _OBLT_AW_CHECKBOX_LINE.match(line)
+        if not match:
+            continue
+        org = match.group(2)
+        segment2 = match.group(3)
+        segment3 = match.group(4)
+        if segment2 is None:
+            key = compound_workflow_key(LEGACY_DEFAULT_ORG_KEY, org)
+        else:
+            key = _compound_id_from_marker_groups(org, segment2, segment3)
+        state[key] = match.group(1) == "x"
+    return state
 
 
 def merge_active_repositories_from_org_trees(config_dir: Path) -> list[str]:

@@ -15,16 +15,16 @@
 
 /**
  * Classifies a dependency-update PR by changed file paths (no extra repo labels),
- * allows automerge only for active collections in
- * `config/obs/automerge-dependency-collections.json`, and posts or removes a
+ * allows automerge only for dashboard-enabled collections, and posts or removes a
  * single gate comment on the PR when automerge is skipped.
  */
 const {
   GATE_COMMENT_MARKER,
-  activeCollectionIds,
   buildGateCommentBody,
   classifyChangedFiles,
+  enabledAutomergeCollectionIds,
   loadCollectionsConfig,
+  parseEnabledWorkflowsJson,
 } = require('./classifyAutomergeDependencyCollection.ts');
 
 async function listPullRequestFilePaths(github, owner, repo, prNumber) {
@@ -79,7 +79,13 @@ async function removeGateCommentIfPresent(github, owner, repo, prNumber) {
   });
 }
 
-module.exports.run = async function run({ github, context, prNumber, core }) {
+module.exports.run = async function run({
+  github,
+  context,
+  prNumber,
+  core,
+  enabledWorkflowsJson = '[]',
+}) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
 
@@ -90,7 +96,8 @@ module.exports.run = async function run({ github, context, prNumber, core }) {
 
   const config = loadCollectionsConfig();
   const collections = config.collections || [];
-  const activeIds = activeCollectionIds(collections);
+  const enabledWorkflows = parseEnabledWorkflowsJson(enabledWorkflowsJson);
+  const enabledCollectionIds = enabledAutomergeCollectionIds(enabledWorkflows);
 
   const changedFiles = await listPullRequestFilePaths(
     github,
@@ -98,11 +105,15 @@ module.exports.run = async function run({ github, context, prNumber, core }) {
     repo,
     prNumber
   );
-  const outcome = classifyChangedFiles(changedFiles, collections);
+  const outcome = classifyChangedFiles(
+    changedFiles,
+    collections,
+    enabledCollectionIds
+  );
 
   if (outcome.status === 'allowed') {
     core.info(
-      `PR #${prNumber}: dependency collection '${outcome.collectionId}' is active for automerge`
+      `PR #${prNumber}: dependency collection '${outcome.collectionId}' is enabled for automerge`
     );
     await removeGateCommentIfPresent(github, owner, repo, prNumber);
     return { allowed: true, collectionId: outcome.collectionId };
@@ -113,12 +124,16 @@ module.exports.run = async function run({ github, context, prNumber, core }) {
       ? outcome.collectionIds.join(',')
       : outcome.collectionId || '';
 
-  const commentBody = buildGateCommentBody(outcome, changedFiles, activeIds);
+  const commentBody = buildGateCommentBody(
+    outcome,
+    changedFiles,
+    enabledCollectionIds
+  );
   await upsertGateComment(github, owner, repo, prNumber, commentBody);
 
-  if (outcome.status === 'inactive') {
+  if (outcome.status === 'disabled') {
     core.info(
-      `PR #${prNumber}: collection '${outcome.collectionId}' is not active for automerge; posted gate comment`
+      `PR #${prNumber}: collection '${outcome.collectionId}' is not enabled on the dashboard; posted gate comment`
     );
   } else if (outcome.status === 'ambiguous') {
     core.info(

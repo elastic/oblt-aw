@@ -1,0 +1,94 @@
+---
+name: Security Injection Detector
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+
+  scan:
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      pull-requests: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout calling repository
+        uses: actions/checkout@v7
+        with:
+          path: target
+          fetch-depth: 0
+
+      - name: Checkout oblt-aw (detector scripts)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+
+      - name: Install tools
+        run: bash _oblt-aw/scripts/obs/install_security_detector_tools.sh
+
+      - name: Set up Node.js (npm audit for SEC-033 when lockfile present)
+        if: hashFiles('target/**/package-lock.json') != ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Run injection security scan
+        id: scan
+        run: |
+          chmod +x _oblt-aw/scripts/obs/security-scan.sh
+          _oblt-aw/scripts/obs/security-scan.sh target injection 2>/dev/null | tee findings.txt || true
+          count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: >-
+          steps.scan.outputs.count != '0' &&
+          inputs.shared-token-policy != ''
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
+      - name: Create ephemeral GitHub token (Vault auto policy)
+        id: create-token-auto
+        if: >-
+          steps.scan.outputs.count != '0' &&
+          inputs.shared-token-policy == ''
+        uses: elastic/oblt-actions/github/create-token@v1
+
+      - name: Create issues from findings
+        if: ${{ steps.scan.outputs.count != '0' }}
+        env:
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          SECURITY_SCAN_DATE="$(date -u +%Y-%m-%d)"
+          export SECURITY_SCAN_DATE
+          chmod +x _oblt-aw/scripts/obs/create-security-issues.sh
+          _oblt-aw/scripts/obs/create-security-issues.sh findings.txt
