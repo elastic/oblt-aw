@@ -57,7 +57,7 @@ Use this dashboard to enable or disable agentic workflows for this repository. C
 
 | Workflow | Maturity | Description |
 |----------|----------|-------------|
-| [Agent Suggestions](https://github.com/elastic/oblt-aw/blob/main/docs/workflows/obs-aw-agent-suggestions.md) | 🟡 early-adoption | … |
+| [Agent Suggestions](https://github.com/elastic/oblt-aw/blob/main/docs/workflows/obs-aw-agent-suggestions.md) | 🟠 experimental | … |
 
 #### Enable / Disable
 
