@@ -15,9 +15,9 @@ This guide does **not** cover shipping a **new** workflow on the control plane �
 
 1. **Confirm the workflow row on the dashboard** — Open the issue labeled `oblt-aw/dashboard`. If the workflow is missing, wait for dashboard sync after a control-plane merge, or ask a maintainer to confirm the workflow is registered in `workflow-registry.json`.
 
-2. **Confirm the event-scoped client is installed** — Workflows share client templates by GitHub event family (for example `trigger-oblt-aw-issues.yml` for `issues` events), not one file per workflow id. Check that the client for your workflow’s trigger type exists under `.github/workflows/`. See the template index in [Client template index](../../workflows/oblt-aw-client-template.md). If it is missing, see [distribute-client-workflow](../../operations/distribute-client-workflow.md).
+2. **Confirm the event-scoped client is installed** — Workflows share client templates by GitHub event family (for example `trigger-obs-aw-issues.yml` for `issues` events), not one file per workflow id. Check that the client for your workflow’s trigger type exists under `.github/workflows/`. See the template index in [Client template index](../../workflows/obs-aw-client-template.md). If it is missing, see [distribute-client-workflow](../../operations/distribute-client-workflow.md).
 
-3. **Configure secrets (if required)** — Read the workflow’s doc under [docs/workflows/](../../workflows/) (for example `oblt-aw-<name>.md`). Some workflows need no repository secrets (for example [oblt-aw-security-detector](../../workflows/oblt-aw-security-detector.md) uses ephemeral tokens only). See [Configure a GitHub secret](../operator/configure-a-github-secret.md).
+3. **Configure secrets (if required)** — Read the workflow’s doc under [docs/workflows/](../../workflows/) (for example `obs-aw-<name>.md`). Some workflows need no repository secrets (for example [obs-aw-security-detector](../../workflows/obs-aw-security-detector.md) uses ephemeral tokens only). See [Configure a GitHub secret](../operator/configure-a-github-secret.md).
 
 4. **Check the workflow on the dashboard** — Open the dashboard issue and check the checkbox for the workflow. GitHub saves immediately on click. See [Control Plane Dashboard — enabling a workflow](../../operations/control-plane-dashboard.md#enabling-a-workflow).
 
@@ -27,5 +27,5 @@ This guide does **not** cover shipping a **new** workflow on the control plane �
 
 - [Opt in or opt out](opt-in-opt-out.md)
 - [Control Plane Dashboard — user instructions](../../operations/control-plane-dashboard.md)
-- [Client template index](../../workflows/oblt-aw-client-template.md)
+- [Client template index](../../workflows/obs-aw-client-template.md)
 - [Adopting a new remote agentic workflow — consumer repositories](../../onboarding/adopting-agentic-workflows.md#consumer-repositories)

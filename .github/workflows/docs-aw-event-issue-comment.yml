@@ -7,7 +7,10 @@ permissions:
   contents: read
 
 jobs:
+  # Menus need prelude; dashboard-audit-reason does not. Skip prelude on
+  # issue_comment.created so reason recording does not pay for a dashboard read.
   run-aw-prelude:
+    if: github.event.action == 'edited'
     permissions:
       contents: read
       issues: read
@@ -16,6 +19,20 @@ jobs:
       control-plane-workflows: >-
         ["docs-aw-ai-menu.yml","docs-aw-pr-ai-menu.yml"]
       load-allowed-authors: false
+
+  dashboard-audit-reason:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      github.event.issue.pull_request == null &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/dashboard') &&
+      !contains(github.event.comment.body, 'aw:dashboard-audit')
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/aw-dashboard-audit.yml
+    with:
+      mode: record-reason
 
   ai-menu:
     needs: run-aw-prelude

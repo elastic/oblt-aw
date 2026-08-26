@@ -20,7 +20,7 @@ Background: [state-of-the-art analysis for agentic workflows](https://docs.googl
 
 In a very simplified way:
 
-1. Clients (`trigger-oblt-aw-*.yml`) are **installed** using an [automated distribution](docs/operations/distribute-client-workflow.md) ([client template](docs/workflows/oblt-aw-client-template.md)).
+1. Clients (`trigger-obs-aw-*.yml`) are **installed** using an [automated distribution](docs/operations/distribute-client-workflow.md) ([client template](docs/workflows/obs-aw-client-template.md)).
 2. On a matching event, the client calls [elastic/oblt-aw](https://github.com/elastic/oblt-aw).
 3. [Prelude](docs/workflows/aw-prelude.md) checks the [Control Plane Dashboard](docs/operations/control-plane-dashboard.md).
 4. If enabled, the route runs the pinned agent from [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
@@ -31,7 +31,7 @@ See the [architecture overview](docs/architecture/overview.md).
 
 Here are some of the most important features of the **oblt-aw** framework:
 
-- **Automatic client distribution** — no hand-copying entrypoints; [distribution](docs/operations/distribute-client-workflow.md) installs/updates `trigger-oblt-aw-*.yml` ([client template](docs/workflows/oblt-aw-client-template.md), [adopting workflows](docs/onboarding/adopting-agentic-workflows.md)).
+- **Automatic client distribution** — no hand-copying entrypoints; [distribution](docs/operations/distribute-client-workflow.md) installs/updates `trigger-obs-aw-*.yml` ([client template](docs/workflows/obs-aw-client-template.md), [adopting workflows](docs/onboarding/adopting-agentic-workflows.md)).
 - **Self-service dashboard** — enable/disable with checkboxes on `[oblt-aw] Control Plane Dashboard` ([dashboard](docs/operations/control-plane-dashboard.md), [opt-in / opt-out](docs/guides/user/opt-in-opt-out.md)).
 - **Shared prelude** — same gating and allow lists before every agent run ([aw-prelude](docs/workflows/aw-prelude.md)).
 - **Shared agentic assets** — resolved in the framework ([aw-resolve-agentic-assets](docs/workflows/aw-resolve-agentic-assets.md)).
@@ -46,9 +46,9 @@ Not Observability-only. Each org owns `config/<org-key>/`; [distribution](docs/o
 
 ## Quick Start
 
-Target repositories install event-scoped client templates from this repository (for example `trigger-oblt-aw-pull-request.yml`, `trigger-oblt-aw-issues.yml`). Each event client calls an `oblt-aw-event-*` orchestrator that runs shared dashboard gating via [aw-prelude.yml](.github/workflows/aw-prelude.yml) and passes `shared-proceed` (plus allow-list fields) into each route reusable.
+Target repositories install event-scoped client templates from this repository (for example `trigger-obs-aw-pull-request.yml`, `trigger-obs-aw-issues.yml`). Each event client calls an `obs-aw-event-*` orchestrator that runs shared dashboard gating via [aw-prelude.yml](.github/workflows/aw-prelude.yml) and passes `shared-proceed` (plus allow-list fields) into each route reusable.
 
-- Observability templates: [.github/remote-workflow-template/obs/.github/workflows/](.github/remote-workflow-template/obs/.github/workflows/) — see [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md)
+- Observability templates: [.github/remote-workflow-template/obs/.github/workflows/](.github/remote-workflow-template/obs/.github/workflows/) — see [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md)
 - Docs templates: [.github/remote-workflow-template/docs/.github/workflows/](.github/remote-workflow-template/docs/.github/workflows/) (`trigger-docs-aw-issues.yml`, `trigger-docs-aw-issue-comment.yml`, `trigger-docs-aw-pull-request.yml`, `trigger-docs-aw-workflow-run.yml`)
 
 Executable workflows live under [.github/workflows/](.github/workflows/); their docs live under [docs/workflows/](docs/workflows/).
