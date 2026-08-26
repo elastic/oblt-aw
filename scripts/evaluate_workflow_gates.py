@@ -41,7 +41,14 @@ def _proceed_for_compound_id(
     enabled = json.loads(enabled_workflows_json)
     if not isinstance(enabled, list):
         raise ValueError("enabled-workflows must be a JSON array")
-    return compound_id in enabled
+    enabled_set = set(enabled)
+    if compound_id not in enabled_set:
+        return False
+    parts = compound_id.split(":")
+    if len(parts) == 3:
+        parent_id = f"{parts[0]}:{parts[1]}"
+        return parent_id in enabled_set
+    return True
 
 
 def evaluate_gates(

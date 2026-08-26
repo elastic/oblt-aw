@@ -9,7 +9,7 @@ on:
       control-plane-workflow:
         description: >-
           Basename of the calling wrapper under .github/workflows/ (for example
-          oblt-aw-automerge.yml). Used to resolve the registry workflow id for apm.yml.
+          obs-aw-automerge.yml). Used to resolve the registry workflow id for apm.yml.
         required: true
         type: string
       platform-additional-instructions:
@@ -34,28 +34,28 @@ on:
     outputs:
       apm-manifest-present:
         description: True when the consumer repository contains apm.yml or apm.yaml
-        value: ${{ jobs.resolve.outputs.apm-manifest-present }}
+        value: ${{ jobs.resolve-agentic-assets.outputs.apm-manifest-present }}
       apm-extension-present:
         description: True when apm.yml contains an x-oblt-aw extension block
-        value: ${{ jobs.resolve.outputs.apm-extension-present }}
+        value: ${{ jobs.resolve-agentic-assets.outputs.apm-extension-present }}
       asset-source:
         description: none, common, or workflow (APM asset block used for resolution)
-        value: ${{ jobs.resolve.outputs.asset-source }}
+        value: ${{ jobs.resolve-agentic-assets.outputs.asset-source }}
       resolved-additional-instructions:
         description: Platform baseline plus resolved repo additional-instructions
-        value: ${{ jobs.resolve.outputs.resolved-additional-instructions }}
+        value: ${{ jobs.resolve-agentic-assets.outputs.resolved-additional-instructions }}
       resolved-inputs-json:
         description: JSON object of merged platform and APM workflow inputs
-        value: ${{ jobs.resolve.outputs.resolved-inputs-json }}
+        value: ${{ jobs.resolve-agentic-assets.outputs.resolved-inputs-json }}
       resolved-setup-commands-json:
         description: JSON array of setup shell commands from APM assets
-        value: ${{ jobs.resolve.outputs.resolved-setup-commands-json }}
+        value: ${{ jobs.resolve-agentic-assets.outputs.resolved-setup-commands-json }}
 
 permissions:
   contents: read
 
 jobs:
-  resolve:
+  resolve-agentic-assets:
     permissions:
       contents: read
       id-token: write
@@ -122,7 +122,7 @@ jobs:
           --policy-field ai-assets-token-policy
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: pip

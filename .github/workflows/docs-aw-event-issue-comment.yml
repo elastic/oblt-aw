@@ -7,7 +7,10 @@ permissions:
   contents: read
 
 jobs:
-  prelude:
+  # Menus need prelude; dashboard-audit-reason does not. Skip prelude on
+  # issue_comment.created so reason recording does not pay for a dashboard read.
+  run-aw-prelude:
+    if: github.event.action == 'edited'
     permissions:
       contents: read
       issues: read
@@ -17,10 +20,24 @@ jobs:
         ["docs-aw-ai-menu.yml","docs-aw-pr-ai-menu.yml"]
       load-allowed-authors: false
 
-  ai-menu:
-    needs: prelude
+  dashboard-audit-reason:
     if: >-
-      fromJSON(needs.prelude.outputs.proceed-by-workflow)['docs-aw-ai-menu.yml'] == 'true' &&
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      github.event.issue.pull_request == null &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/dashboard') &&
+      !contains(github.event.comment.body, 'aw:dashboard-audit')
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/aw-dashboard-audit.yml
+    with:
+      mode: record-reason
+
+  ai-menu:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['docs-aw-ai-menu.yml'] == 'true' &&
       github.event_name == 'issue_comment' &&
       github.event.action == 'edited' &&
       github.event.issue.pull_request == null
@@ -34,16 +51,16 @@ jobs:
       pull-requests: write
     uses: ./.github/workflows/docs-aw-ai-menu.yml
     with:
-      shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['docs-aw-ai-menu.yml'] }}
-      shared-allowed-pr-authors-json: ${{ needs.prelude.outputs.allowed-pr-authors-json }}
-      shared-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
-      shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
-      shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
-      shared-token-policy: ${{ needs.prelude.outputs.token-policy }}
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['docs-aw-ai-menu.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
   pr-ai-menu:
-    needs: prelude
+    needs: run-aw-prelude
     if: >-
-      fromJSON(needs.prelude.outputs.proceed-by-workflow)['docs-aw-pr-ai-menu.yml'] == 'true' &&
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['docs-aw-pr-ai-menu.yml'] == 'true' &&
       github.event_name == 'issue_comment' &&
       github.event.action == 'edited' &&
       github.event.issue.pull_request != null
@@ -57,9 +74,9 @@ jobs:
       pull-requests: write
     uses: ./.github/workflows/docs-aw-pr-ai-menu.yml
     with:
-      shared-proceed: ${{ fromJSON(needs.prelude.outputs.proceed-by-workflow)['docs-aw-pr-ai-menu.yml'] }}
-      shared-allowed-pr-authors-json: ${{ needs.prelude.outputs.allowed-pr-authors-json }}
-      shared-allowed-pr-authors-csv: ${{ needs.prelude.outputs.allowed-pr-authors-csv }}
-      shared-allowed-issue-authors-json: ${{ needs.prelude.outputs.allowed-issue-authors-json }}
-      shared-allowed-issue-authors-csv: ${{ needs.prelude.outputs.allowed-issue-authors-csv }}
-      shared-token-policy: ${{ needs.prelude.outputs.token-policy }}
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['docs-aw-pr-ai-menu.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}

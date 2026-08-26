@@ -17,7 +17,7 @@ For the full registration procedure (catalog token policy, secrets, verification
 
 2. **Merge the registration pull request** — After the catalog policy is active, merge the `oblt-aw` change to `main`. That triggers [distribute-client-workflow](../../operations/distribute-client-workflow.md) and [sync-control-plane-dashboard](../../workflows/sync-control-plane-dashboard.md).
 
-3. **Merge the client workflow distribution PR** — Confirm `distribute-client-workflow` opened a PR in your repository that installs `trigger-oblt-aw-*.yml` client templates from the remote workflow template. See [Client template index](../../workflows/oblt-aw-client-template.md).
+3. **Merge the client workflow distribution PR** — Confirm `distribute-client-workflow` opened a PR in your repository that installs `trigger-obs-aw-*.yml` client templates from the remote workflow template. See [Client template index](../../workflows/obs-aw-client-template.md).
 
 4. **Confirm the Control Plane Dashboard issue** — Look for an open issue titled `[oblt-aw] Control Plane Dashboard` with label `oblt-aw/dashboard`. See [Control Plane Dashboard — user instructions](../../operations/control-plane-dashboard.md).
 

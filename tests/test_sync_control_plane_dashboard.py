@@ -2,7 +2,8 @@
 Unit tests for scripts/sync_control_plane_dashboard.py
 
 Tests the pure-logic functions (parse_checkbox_state, maturity_badge,
-build_dashboard_body) in isolation, without touching the network or gh CLI.
+workflow_table_name, build_dashboard_body) in isolation, without touching the
+network or gh CLI.
 """
 
 from __future__ import annotations
@@ -92,6 +93,19 @@ class TestParseCheckboxState:
         body = "- [x] <!-- oblt-aw:automerge --> Automerge\n"
         assert scpd.parse_checkbox_state(body) == {"obs:automerge": True}
 
+    def test_parses_sub_feature_checkboxes(self) -> None:
+        body = """
+- [x] <!-- oblt-aw:obs:automerge --> Automerge
+  - [ ] <!-- oblt-aw:obs:automerge:github-actions --> GitHub Actions
+  - [x] <!-- oblt-aw:obs:automerge:terraform --> Terraform
+"""
+        result = scpd.parse_checkbox_state(body)
+        assert result == {
+            "obs:automerge": True,
+            "obs:automerge:github-actions": False,
+            "obs:automerge:terraform": True,
+        }
+
 
 # ── maturity_badge ────────────────────────────────────────────────────────────
 
@@ -110,6 +124,25 @@ class TestMaturityBadge:
         assert scpd.maturity_badge("custom") == "custom"
 
 
+# ── workflow_table_name ───────────────────────────────────────────────────────
+
+
+class TestWorkflowTableName:
+    def test_links_name_when_docs_set(self) -> None:
+        assert scpd.workflow_table_name(
+            "Dependency Review", "docs/workflows/obs-aw-dependency-review.md"
+        ) == (
+            "[Dependency Review](https://github.com/elastic/oblt-aw/blob/main/"
+            "docs/workflows/obs-aw-dependency-review.md)"
+        )
+
+    def test_returns_plain_name_when_docs_missing(self) -> None:
+        assert scpd.workflow_table_name("Example", None) == "Example"
+
+    def test_returns_plain_name_when_docs_blank(self) -> None:
+        assert scpd.workflow_table_name("Example", "  ") == "Example"
+
+
 # ── build_dashboard_body ────────────────────────────────────────────────────────
 
 
@@ -122,6 +155,7 @@ class TestBuildDashboardBody:
                 "description": "Suggests agentic workflows.",
                 "maturity": "stable",
                 "default_enabled": True,
+                "docs": "docs/workflows/obs-aw-agent-suggestions.md",
             },
         ]
         body = scpd.build_dashboard_body(_obs_section(workflows), None)
@@ -130,6 +164,24 @@ class TestBuildDashboardBody:
         assert "- [x]" in body
         assert "🟢 stable" in body
         assert "### Observability (obs)" in body
+        assert (
+            "[Agent Suggestions](https://github.com/elastic/oblt-aw/blob/main/"
+            "docs/workflows/obs-aw-agent-suggestions.md)"
+        ) in body
+
+    def test_builds_plain_workflow_name_when_docs_absent(self) -> None:
+        workflows = [
+            {
+                "id": "wf-a",
+                "name": "Workflow A",
+                "description": "Desc",
+                "maturity": "experimental",
+                "default_enabled": False,
+            },
+        ]
+        body = scpd.build_dashboard_body(_obs_section(workflows), None)
+        assert "| Workflow A | 🟠 experimental | Desc |" in body
+        assert "[Workflow A](" not in body
 
     def test_preserves_user_checkbox_state_from_existing_body(self) -> None:
         workflows = [
@@ -194,6 +246,8 @@ class TestBuildDashboardBody:
         assert "### Instructions" in body
         assert "Enable a workflow" in body
         assert "Disable a workflow" in body
+        assert "Audit trail" in body
+        assert "@elastic/observablt-ci" in body
 
     def test_multi_org_sections(self) -> None:
         obs_wf = [{"id": "a", "name": "A", "description": "", "default_enabled": True}]
@@ -209,3 +263,71 @@ class TestBuildDashboardBody:
         assert "### Documentation (docs)" in body
         assert "oblt-aw:obs:a" in body
         assert "oblt-aw:docs:b" in body
+
+    def test_renders_sub_feature_checkboxes_indented(self) -> None:
+        workflows = [
+            {
+                "id": "automerge",
+                "name": "Automerge",
+                "description": "Desc",
+                "default_enabled": False,
+                "sub_features": [
+                    {
+                        "id": "github-actions",
+                        "name": "GitHub Actions",
+                        "default_enabled": True,
+                    },
+                    {
+                        "id": "python-dependencies",
+                        "name": "Python",
+                        "default_enabled": False,
+                    },
+                ],
+            }
+        ]
+        body = scpd.build_dashboard_body(_obs_section(workflows), None)
+        lines = body.split("\n")
+        parent_line = next(
+            line for line in lines if "oblt-aw:obs:automerge -->" in line
+        )
+        gh_line = next(
+            line for line in lines if "oblt-aw:obs:automerge:github-actions -->" in line
+        )
+        py_line = next(
+            line
+            for line in lines
+            if "oblt-aw:obs:automerge:python-dependencies -->" in line
+        )
+        assert parent_line.startswith("- [ ]")
+        assert gh_line.startswith("  - [x]")
+        assert py_line.startswith("  - [ ]")
+
+    def test_renders_security_sub_features(self) -> None:
+        workflows = [
+            {
+                "id": "security",
+                "name": "Security",
+                "description": "Desc",
+                "default_enabled": False,
+                "sub_features": [
+                    {
+                        "id": "injection",
+                        "name": "Injection Detection",
+                        "default_enabled": True,
+                    },
+                    {
+                        "id": "supply-chain",
+                        "name": "Supply-chain Hardening",
+                        "default_enabled": True,
+                    },
+                ],
+            }
+        ]
+        body = scpd.build_dashboard_body(_obs_section(workflows), None)
+        assert "oblt-aw:obs:security:injection" in body
+        assert "oblt-aw:obs:security:supply-chain" in body
+        lines = body.split("\n")
+        injection_line = next(
+            line for line in lines if "oblt-aw:obs:security:injection" in line
+        )
+        assert injection_line.startswith("  - [x]")

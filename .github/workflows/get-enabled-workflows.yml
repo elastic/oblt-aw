@@ -8,19 +8,19 @@ on:
         description: >-
           Normalized JSON array string ([] or ["id", ...]).
           Use effective-raw to distinguish no-dashboard ('') from dashboard with nothing checked.
-        value: ${{ jobs['read-dashboard'].outputs['enabled-workflows'] }}
+        value: ${{ jobs['read-oblt-aw-dashboard'].outputs['enabled-workflows'] }}
       effective-raw:
         description: >-
           Pre-normalization string from the dashboard read ('', '[]', or '["id",...]');
           empty means no open dashboard issue (no workflows enabled).
-        value: ${{ jobs['read-dashboard'].outputs['effective-raw'] }}
+        value: ${{ jobs['read-oblt-aw-dashboard'].outputs['effective-raw'] }}
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  read-dashboard:
+  read-oblt-aw-dashboard:
     permissions:
       contents: read
       issues: read
@@ -45,7 +45,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: pip

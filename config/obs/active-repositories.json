@@ -2,62 +2,67 @@
   "repositories": [
     {
       "repository": "elastic/competitive-benchmarking",
-      "workflow-token-policy": "token-policy-36df0bfddde6",
+      "workflow-token-policy": "token-policy-faf88b4d1c57",
       "ai-assets-token-policy": ""
     },
     {
       "repository": "elastic/gh-oblt",
-      "workflow-token-policy": "token-policy-bea69d21b520",
+      "workflow-token-policy": "token-policy-4534153510b1",
       "ai-assets-token-policy": ""
     },
     {
       "repository": "elastic/oblt-actions",
-      "workflow-token-policy": "token-policy-dbe14d22fc0d",
+      "workflow-token-policy": "token-policy-d94f30d257c9",
       "ai-assets-token-policy": ""
     },
     {
       "repository": "elastic/oblt-aw",
-      "workflow-token-policy": "token-policy-267984e2662f",
+      "workflow-token-policy": "token-policy-26fea8cad514",
       "ai-assets-token-policy": ""
     },
     {
       "repository": "elastic/oblt-cli",
-      "workflow-token-policy": "token-policy-36401b7c6eba",
+      "workflow-token-policy": "token-policy-d7a3e6348fbd",
+      "ai-assets-token-policy": ""
+    },
+    {
+      "repository": "elastic/oblt-cli-buildkite-plugin",
+      "workflow-token-policy": "token-policy-ebea9d1bc665",
       "ai-assets-token-policy": ""
     },
     {
       "repository": "elastic/oblt-framework",
-      "workflow-token-policy": "token-policy-371e815a5a93",
+      "workflow-token-policy": "token-policy-61df782fbc7e",
       "ai-assets-token-policy": ""
     },
     {
       "repository": "elastic/oblt-infra",
-      "workflow-token-policy": "token-policy-65f0f52af128",
+      "workflow-token-policy": "token-policy-0b2000d047c6",
       "ai-assets-token-policy": ""
     },
     {
       "repository": "elastic/oblt-robot",
-      "workflow-token-policy": "token-policy-e2201d02661f",
+      "workflow-token-policy": "token-policy-25bd64508dc4",
       "ai-assets-token-policy": ""
     },
     {
       "repository": "elastic/observability-catalog",
-      "workflow-token-policy": "token-policy-d542feeb05ea",
+      "workflow-token-policy": "token-policy-b9e1a2856692",
       "ai-assets-token-policy": ""
     },
     {
       "repository": "elastic/observability-github-secrets",
-      "workflow-token-policy": "token-policy-1a20b562a03f",
+      "workflow-token-policy": "token-policy-98d905453287",
       "ai-assets-token-policy": ""
     },
     {
       "repository": "elastic/observability-github-settings",
-      "workflow-token-policy": "token-policy-b15759d51a6a",
+      "workflow-token-policy": "token-policy-e0355cf13ce3",
       "ai-assets-token-policy": ""
     },
     {
       "repository": "elastic/observability-robots",
-      "workflow-token-policy": "token-policy-711a6d8c9026",
+      "workflow-token-policy": "token-policy-c19b3dec3230",
       "ai-assets-token-policy": ""
     }
   ]

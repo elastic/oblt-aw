@@ -23,7 +23,7 @@ def test_validate_workflow_rejects_missing_discussions_for_gh_aw_callee(
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
 
-    callee = workflows / "oblt-aw-duplicate-issue-detector.yml"
+    callee = workflows / "obs-aw-duplicate-issue-detector.yml"
     _write_workflow(
         callee,
         {
@@ -48,7 +48,7 @@ def test_validate_workflow_rejects_missing_discussions_for_gh_aw_callee(
         },
     )
 
-    caller = workflows / "oblt-aw-event-issues.yml"
+    caller = workflows / "obs-aw-event-issues.yml"
     _write_workflow(
         caller,
         {
@@ -64,7 +64,7 @@ def test_validate_workflow_rejects_missing_discussions_for_gh_aw_callee(
                         "pull-requests": "read",
                         "copilot-requests": "write",
                     },
-                    "uses": "./.github/workflows/oblt-aw-duplicate-issue-detector.yml",
+                    "uses": "./.github/workflows/obs-aw-duplicate-issue-detector.yml",
                 }
             },
         },
@@ -105,7 +105,7 @@ def test_validate_workflow_accepts_aligned_local_and_remote_chain(
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
 
-    callee = workflows / "oblt-aw-duplicate-issue-detector.yml"
+    callee = workflows / "obs-aw-duplicate-issue-detector.yml"
     _write_workflow(
         callee,
         {
@@ -131,7 +131,7 @@ def test_validate_workflow_accepts_aligned_local_and_remote_chain(
         },
     )
 
-    caller = workflows / "oblt-aw-event-issues.yml"
+    caller = workflows / "obs-aw-event-issues.yml"
     _write_workflow(
         caller,
         {
@@ -148,7 +148,7 @@ def test_validate_workflow_accepts_aligned_local_and_remote_chain(
                         "pull-requests": "read",
                         "copilot-requests": "write",
                     },
-                    "uses": "./.github/workflows/oblt-aw-duplicate-issue-detector.yml",
+                    "uses": "./.github/workflows/obs-aw-duplicate-issue-detector.yml",
                 }
             },
         },
@@ -181,7 +181,7 @@ def test_validate_workflow_maps_elastic_oblt_aw_ref_to_local_file(
     workflows = tmp_path / ".github" / "workflows"
     workflows.mkdir(parents=True)
 
-    event = workflows / "oblt-aw-event-issues.yml"
+    event = workflows / "obs-aw-event-issues.yml"
     _write_workflow(
         event,
         {
@@ -191,13 +191,13 @@ def test_validate_workflow_maps_elastic_oblt_aw_ref_to_local_file(
             "jobs": {
                 "issue-triage": {
                     "permissions": {"contents": "read", "issues": "write"},
-                    "uses": "./.github/workflows/oblt-aw-issue-triage.yml",
+                    "uses": "./.github/workflows/obs-aw-issue-triage.yml",
                 }
             },
         },
     )
 
-    route = workflows / "oblt-aw-issue-triage.yml"
+    route = workflows / "obs-aw-issue-triage.yml"
     _write_workflow(
         route,
         {
@@ -213,7 +213,7 @@ def test_validate_workflow_maps_elastic_oblt_aw_ref_to_local_file(
         },
     )
 
-    trigger = workflows / "trigger-oblt-aw-issues.yml"
+    trigger = workflows / "trigger-obs-aw-issues.yml"
     _write_workflow(
         trigger,
         {
@@ -221,11 +221,10 @@ def test_validate_workflow_maps_elastic_oblt_aw_ref_to_local_file(
             "on": {"issues": None},
             "permissions": {"contents": "read"},
             "jobs": {
-                "run-aw": {
+                "run-obs-aw-issues": {
                     "permissions": {"contents": "read", "issues": "write"},
                     "uses": (
-                        "elastic/oblt-aw/.github/workflows/"
-                        "oblt-aw-event-issues.yml@main"
+                        "elastic/oblt-aw/.github/workflows/obs-aw-event-issues.yml@main"
                     ),
                 }
             },

@@ -41,7 +41,6 @@ from typing import Any, cast
 import json
 import logging
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -49,15 +48,22 @@ from pathlib import Path
 from urllib.parse import quote
 
 from common import (
-    LEGACY_DEFAULT_ORG_KEY,
+    compound_subfeature_key,
     compound_workflow_key,
     discover_org_config_dirs,
     format_oblt_aw_marker,
+    format_oblt_aw_subfeature_marker,
+    parse_checkbox_states_from_dashboard_body,
     parse_repositories,
 )
+from dashboard_audit import AUDIT_TEAM_MENTION, post_sync_checkbox_audits
 
 DASHBOARD_LABEL = "oblt-aw/dashboard"
 DASHBOARD_TITLE = "[oblt-aw] Control Plane Dashboard"
+DOCS_BASE_URL = "https://github.com/elastic/oblt-aw/blob/main/"
+SYNC_AUDIT_ACTOR = "oblt-aw-sync"
+FORCE_SYNC_REASON = "force-sync-defaults"
+DASHBOARD_SYNC_REASON = "dashboard-sync"
 
 logger = logging.getLogger(__name__)
 
@@ -72,28 +78,8 @@ def setup_logging() -> None:
 
 
 def parse_checkbox_state(body: str | None) -> dict[str, bool]:
-    """Extract ``org:workflow-id`` -> enabled from task list lines."""
-    state: dict[str, bool] = {}
-    if not body:
-        return state
-    for line in body.splitlines():
-        m3 = re.match(r"^- \[x\] <!-- oblt-aw:([a-z0-9-]+):([a-z0-9-]+) -->", line)
-        if m3:
-            state[compound_workflow_key(m3.group(1), m3.group(2))] = True
-            continue
-        m3d = re.match(r"^- \[ \] <!-- oblt-aw:([a-z0-9-]+):([a-z0-9-]+) -->", line)
-        if m3d:
-            state[compound_workflow_key(m3d.group(1), m3d.group(2))] = False
-            continue
-        m2 = re.match(r"^- \[x\] <!-- oblt-aw:([a-z0-9-]+) -->", line)
-        if m2:
-            state[compound_workflow_key(LEGACY_DEFAULT_ORG_KEY, m2.group(1))] = True
-            continue
-        m2d = re.match(r"^- \[ \] <!-- oblt-aw:([a-z0-9-]+) -->", line)
-        if m2d:
-            state[compound_workflow_key(LEGACY_DEFAULT_ORG_KEY, m2d.group(1))] = False
-            continue
-    return state
+    """Extract compound id -> enabled from parent and sub-feature task list lines."""
+    return parse_checkbox_states_from_dashboard_body(body or "")
 
 
 def maturity_badge(maturity: str) -> str:
@@ -104,6 +90,16 @@ def maturity_badge(maturity: str) -> str:
         "experimental": "🟠 experimental",
     }
     return badges.get(maturity, maturity)
+
+
+def workflow_table_name(name: str, docs: str | None) -> str:
+    """Return the Workflow column cell, linking to official docs when set."""
+    if not docs:
+        return name
+    docs_path = docs.strip()
+    if not docs_path:
+        return name
+    return f"[{name}]({DOCS_BASE_URL}{docs_path})"
 
 
 def default_section_heading(org_key: str) -> str:
@@ -171,7 +167,11 @@ def build_dashboard_body(
             maturity = wf.get("maturity", "experimental")
             desc = wf.get("description", "")
             badge = maturity_badge(maturity)
-            lines.append(f"| {name} | {badge} | {desc} |")
+            docs = wf.get("docs")
+            display_name = workflow_table_name(
+                name, docs if isinstance(docs, str) else None
+            )
+            lines.append(f"| {display_name} | {badge} | {desc} |")
         lines.extend(
             [
                 "",
@@ -190,13 +190,29 @@ def build_dashboard_body(
             checkbox = "- [x]" if enabled else "- [ ]"
             marker = format_oblt_aw_marker(org_key, wf_id)
             lines.append(f"{checkbox} {marker} {name}")
+            for sub in wf.get("sub_features") or []:
+                sub_id = sub["id"]
+                sub_name = sub.get("name", sub_id)
+                sub_default = sub.get("default_enabled", False)
+                sub_key = compound_subfeature_key(org_key, wf_id, sub_id)
+                sub_enabled = parsed.get(sub_key, sub_default)
+                sub_checkbox = "- [x]" if sub_enabled else "- [ ]"
+                sub_marker = format_oblt_aw_subfeature_marker(org_key, wf_id, sub_id)
+                lines.append(f"  {sub_checkbox} {sub_marker} {sub_name}")
         lines.append("")
     lines.extend(
         [
             "### Instructions",
             "",
             "- **Enable a workflow:** Check the checkbox next to the workflow.",
-            "- **Disable a workflow:** Uncheck the checkbox.",
+            "- **Disable a workflow:** Uncheck the checkbox, then reply on this "
+            "issue with a short **deactivation reason** (an audit comment will "
+            f"ask for it and mention {AUDIT_TEAM_MENTION}).",
+            "- **Sub-features:** Indented checkboxes under a parent refine which "
+            "parts of that workflow run. Sub-features take effect only while the "
+            "parent workflow checkbox is enabled.",
+            "- **Audit trail:** Enable/disable changes are recorded as comments "
+            "on this issue (when / what / who).",
             "- Changes are applied at runtime when the client runs.",
         ]
     )
@@ -310,9 +326,10 @@ def sync_repo(
         logger.error("Invalid repo format: %s", repo)
         return
     existing = find_dashboard_issue(owner, repo_name, token)
+    existing_body = existing["body"] if existing else None
     body = build_dashboard_body(
         org_sections,
-        existing["body"] if existing else None,
+        existing_body,
         force_sync_defaults=force_sync_defaults,
     )
     if existing:
@@ -327,6 +344,24 @@ def sync_repo(
             )
         else:
             logger.info("Updated dashboard issue #%s in %s", issue_number, repo)
+        audit_reason = (
+            FORCE_SYNC_REASON if force_sync_defaults else DASHBOARD_SYNC_REASON
+        )
+        try:
+            post_sync_checkbox_audits(
+                owner=owner,
+                repo=repo_name,
+                issue_number=issue_number,
+                token=token,
+                before_body=existing_body,
+                after_body=body,
+                actor=SYNC_AUDIT_ACTOR,
+                reason=audit_reason,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to post sync audit comment on %s#%s", repo, issue_number
+            )
     else:
         created = create_issue(owner, repo_name, token, body)
         issue_number = created["number"]

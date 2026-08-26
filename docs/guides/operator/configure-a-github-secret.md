@@ -13,22 +13,22 @@ Use this guide to decide which path applies, then follow the workflow-specific d
 
 ## When secrets are not required
 
-Some workflows declare **no** repository secrets. Example: [oblt-aw-security-detector](../../workflows/oblt-aw-security-detector.md) uses an ephemeral token for issue creation because `GITHUB_TOKEN` does not trigger downstream issue events.
+Some workflows declare **no** repository secrets. Example: [obs-aw-security-detector](../../workflows/obs-aw-security-detector.md) uses an ephemeral token for issue creation because `GITHUB_TOKEN` does not trigger downstream issue events.
 
 For these workflows you still need:
 
 - Registration and catalog token policy ([Registering resources](../../onboarding/registering-a-repository.md))
-- `id-token: write` on the client `run-aw` job when `create-token` is in the call chain ([Client template index](../../workflows/oblt-aw-client-template.md))
+- `id-token: write` on the client `run-obs-aw-<event>` job when `create-token` is in the call chain ([Client template index](../../workflows/obs-aw-client-template.md))
 
 See [Use GitHub ephemeral tokens](../maintainer/use-gh-ephemeral-tokens.md) for the token-policy model.
 
 ## When repository secrets are required
 
-1. **Read the workflow doc** — Each `docs/workflows/oblt-aw-*.md` (or `docs-aw-*.md`) states declared secrets, if any. Start at [docs/workflows/README.md](../../workflows/README.md).
+1. **Read the workflow doc** — Each `docs/workflows/obs-aw-*.md` (or `docs-aw-*.md`) states declared secrets, if any. Start at [docs/workflows/README.md](../../workflows/README.md).
 
 2. **Provision through Observability secrets** — Do not rely only on per-repository **Settings → Secrets** unless your process explicitly allows it. Follow [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) for provisioning. Registration step 7: [Registering resources](../../onboarding/registering-a-repository.md).
 
-3. **Example: workflow-specific secret** — [oblt-aw-estc-pr-buildkite-detective](../../workflows/oblt-aw-estc-pr-buildkite-detective.md) documents `BUILDKITE_LOGS_API_TOKEN` (migration note from `BUILDKITE_API_TOKEN`). Always use the name in the workflow doc, not a generic list.
+3. **Example: workflow-specific secret** — [obs-aw-estc-pr-buildkite-detective](../../workflows/obs-aw-estc-pr-buildkite-detective.md) documents `BUILDKITE_LOGS_API_TOKEN` (migration note from `BUILDKITE_API_TOKEN`). Always use the name in the workflow doc, not a generic list.
 
 ## Ephemeral tokens versus catalog policy
 
@@ -41,6 +41,6 @@ Consumer repositories use Backstage **TokenPolicy** resources in `elastic/catalo
 ## See also
 
 - [Registering resources — step 7 (secrets)](../../onboarding/registering-a-repository.md)
-- [oblt-aw-security-detector](../../workflows/oblt-aw-security-detector.md) — no secrets pattern
+- [obs-aw-security-detector](../../workflows/obs-aw-security-detector.md) — no secrets pattern
 - [Use GitHub ephemeral tokens](../maintainer/use-gh-ephemeral-tokens.md)
 - [Troubleshoot an error](troubleshoot-an-error.md)

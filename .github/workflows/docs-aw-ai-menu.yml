@@ -160,6 +160,7 @@ jobs:
       actions: read
       contents: read
       copilot-requests: write
+      discussions: write
       issues: write
       pull-requests: write
     uses: elastic/docs-actions/.github/workflows/gh-aw-issue-triage.lock.yml@v1
@@ -190,7 +191,7 @@ jobs:
       discussions: write
       issues: write
       pull-requests: write
-    uses: elastic/docs-actions/.github/workflows/gh-aw-docs-issue-scope.lock.yml@v1
+    uses: elastic/docs-actions/.github/workflows/gh-aw-issue-scope.lock.yml@v1
     with:
       additional-instructions: ${{ needs.resolve-apm-assets-issue-scope.outputs.resolved-additional-instructions }}
   refresh-menu-after-docs-triage:

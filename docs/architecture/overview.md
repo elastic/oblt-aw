@@ -2,7 +2,7 @@
 
 ## Overview
 
-`oblt-aw` exposes reusable `oblt-aw-*` workflows. Each consumer installs one or more **`trigger-oblt-aw-*.yml`** client templates (narrow `on:` triggers) that call the matching control-plane workflow. Shared dashboard gating and optional [APM agentic assets](./apm-agentic-assets.md) resolution run in [aw-prelude](../../.github/workflows/aw-prelude.yml) before agent-specific jobs.
+`oblt-aw` exposes reusable `obs-aw-*` workflows. Each consumer installs one or more **`trigger-obs-aw-*.yml`** client templates (narrow `on:` triggers) that call the matching control-plane workflow. Shared dashboard gating and optional [APM agentic assets](./apm-agentic-assets.md) resolution run in [aw-prelude](../../.github/workflows/aw-prelude.yml) before agent-specific jobs.
 
 Platform workflows:
 
@@ -11,39 +11,39 @@ Platform workflows:
 
 Specialized workflows:
 
-- [.github/workflows/oblt-aw-agent-suggestions.yml](../../.github/workflows/oblt-aw-agent-suggestions.yml)
-- [.github/workflows/oblt-aw-autodoc.yml](../../.github/workflows/oblt-aw-autodoc.yml)
-- [.github/workflows/oblt-aw-automerge.yml](../../.github/workflows/oblt-aw-automerge.yml)
-- [.github/workflows/oblt-aw-dependency-review.yml](../../.github/workflows/oblt-aw-dependency-review.yml)
-- [.github/workflows/oblt-aw-duplicate-issue-detector.yml](../../.github/workflows/oblt-aw-duplicate-issue-detector.yml)
-- [.github/workflows/oblt-aw-issue-fixer.yml](../../.github/workflows/oblt-aw-issue-fixer.yml)
-- [.github/workflows/oblt-aw-issue-triage.yml](../../.github/workflows/oblt-aw-issue-triage.yml)
-- [.github/workflows/oblt-aw-mention-in-issue.yml](../../.github/workflows/oblt-aw-mention-in-issue.yml)
-- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml)
-- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.yml)
-- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-triage.yml)
-- [.github/workflows/oblt-aw-security-detector.yml](../../.github/workflows/oblt-aw-security-detector.yml)
-- [.github/workflows/oblt-aw-security-issue-superseder.yml](../../.github/workflows/oblt-aw-security-issue-superseder.yml)
-- [.github/workflows/oblt-aw-security-fixer.yml](../../.github/workflows/oblt-aw-security-fixer.yml)
-- [.github/workflows/oblt-aw-security-triage.yml](../../.github/workflows/oblt-aw-security-triage.yml)
+- [.github/workflows/obs-aw-agent-suggestions.yml](../../.github/workflows/obs-aw-agent-suggestions.yml)
+- [.github/workflows/obs-aw-autodoc.yml](../../.github/workflows/obs-aw-autodoc.yml)
+- [.github/workflows/obs-aw-automerge.yml](../../.github/workflows/obs-aw-automerge.yml)
+- [.github/workflows/obs-aw-dependency-review.yml](../../.github/workflows/obs-aw-dependency-review.yml)
+- [.github/workflows/obs-aw-duplicate-issue-detector.yml](../../.github/workflows/obs-aw-duplicate-issue-detector.yml)
+- [.github/workflows/obs-aw-issue-fixer.yml](../../.github/workflows/obs-aw-issue-fixer.yml)
+- [.github/workflows/obs-aw-issue-triage.yml](../../.github/workflows/obs-aw-issue-triage.yml)
+- [.github/workflows/obs-aw-mention-in-issue.yml](../../.github/workflows/obs-aw-mention-in-issue.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml)
+- [.github/workflows/obs-aw-security-injection-detector.yml](../../.github/workflows/obs-aw-security-injection-detector.yml) (and supply-chain, secrets, least-privilege category detectors)
+- [.github/workflows/obs-aw-security-issue-superseder.yml](../../.github/workflows/obs-aw-security-issue-superseder.yml)
+- [.github/workflows/obs-aw-security-fixer.yml](../../.github/workflows/obs-aw-security-fixer.yml)
+- [.github/workflows/obs-aw-security-triage.yml](../../.github/workflows/obs-aw-security-triage.yml)
 
 ## Usage
 
 Consumer repositories install per-workflow client templates (example):
 
 ```yaml
-# .github/workflows/trigger-oblt-aw-automerge.yml
+# .github/workflows/trigger-obs-aw-automerge.yml
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled]
 jobs:
-  run-aw:
-    uses: elastic/oblt-aw/.github/workflows/oblt-aw-automerge.yml@main
+  run-obs-aw-pull-request:
+    uses: elastic/oblt-aw/.github/workflows/obs-aw-automerge.yml@main
 ```
 
 ## Control Plane and Consumer Interaction Diagram
 
-The diagram below summarizes **how operators configure the platform in `elastic/oblt-aw`**, **how automation reaches target repositories**, and **how a run delegates** into reusable workflows in this catalog. Each target repository installs **`trigger-oblt-aw-<workflow-id>.yml`** files from [remote-workflow-template/obs](../../.github/remote-workflow-template/obs/) with **event-specific `on:`** triggers; each client job calls the matching **`oblt-aw-*`** workflow, which runs **prelude** then agent steps.
+The diagram below summarizes **how operators configure the platform in `elastic/oblt-aw`**, **how automation reaches target repositories**, and **how a run delegates** into reusable workflows in this catalog. Each target repository installs **`trigger-obs-aw-<workflow-id>.yml`** files from [remote-workflow-template/obs](../../.github/remote-workflow-template/obs/) with **event-specific `on:`** triggers; each client job calls the matching **`obs-aw-*`** workflow, which runs **prelude** then agent steps.
 
 ```mermaid
 flowchart TB
@@ -53,7 +53,7 @@ flowchart TB
     SYNC["sync-control-plane-dashboard\nmaintains dashboard issue body"]
     PRE["aw-prelude.yml\ndashboard + allow lists"]
     GET["get-enabled-workflows.yml\nreads consumer dashboard"]
-    GHA["oblt-aw-* reusable workflows\nprelude then agent steps"]
+    GHA["obs-aw-* reusable workflows\nprelude then agent steps"]
     CFG --> DIST
     CFG --> SYNC
     PRE --> GET
@@ -66,7 +66,7 @@ flowchart TB
 
   subgraph CON["Target repository (consumer)"]
     EVT["Target-repo GitHub activity\nschedule, issues, pull_request, …"]
-    CLIENT["Client trigger-oblt-aw-*.yml per workflow\nfrom remote-workflow-template\nnarrow on: triggers"]
+    CLIENT["Client trigger-obs-aw-*.yml per workflow\nfrom remote-workflow-template\nnarrow on: triggers"]
     DASH["Issue: [oblt-aw] Control Plane Dashboard\nlabel oblt-aw/dashboard"]
     EVT --> CLIENT
     DASH -.->|checkbox state| GET
@@ -74,7 +74,7 @@ flowchart TB
 
   DIST -->|PR: add or update client file| CLIENT
   SYNC -->|create or update issue| DASH
-  CLIENT -->|uses: …/oblt-aw-*.yml@main| GHA
+  CLIENT -->|uses: …/obs-aw-*.yml@main| GHA
   GHA -->|uses: locked upstream workflows| LOCK
 ```
 
@@ -98,23 +98,23 @@ flowchart TB
   subgraph After["After: split-trigger"]
     A_EVT["Same consumer event"]
     A_EVT --> A_MATCH{"Which client on: matches?"}
-    A_MATCH -->|pull_request| A_PR["trigger-oblt-aw-automerge.yml\ntrigger-oblt-aw-dependency-review.yml\n…"]
-    A_MATCH -->|issues| A_ISS["trigger-oblt-aw-issue-triage.yml\n…"]
+    A_MATCH -->|pull_request| A_PR["trigger-obs-aw-automerge.yml\ntrigger-obs-aw-dependency-review.yml\n…"]
+    A_MATCH -->|issues| A_ISS["trigger-obs-aw-issue-triage.yml\n…"]
     A_MATCH -->|no match| A_NONE["Other client workflows\nnot scheduled — no skipped check"]
-    A_PR --> A_REU["Matching oblt-aw-* reusable"]
+    A_PR --> A_REU["Matching obs-aw-* reusable"]
     A_ISS --> A_REU
   end
 ```
 
 ### Single workflow run path
 
-Each installed client file has one `run-aw` job. The reusable runs **prelude** first, then agent-specific jobs when `proceed` is true.
+Each installed client file has one event-scoped entrypoint job (for example `run-obs-aw-pull-request`). The reusable runs **`run-aw-prelude`** first, then agent-specific jobs when `proceed` is true.
 
 ```mermaid
 sequenceDiagram
   participant GH as GitHub event
-  participant Client as Consumer trigger-oblt-aw-*.yml
-  participant Reuse as oblt-aw-* reusable
+  participant Client as Consumer trigger-obs-aw-*.yml
+  participant Reuse as obs-aw-* reusable
   participant Prelude as aw-prelude
   participant GET as get-enabled-workflows
   participant Agent as Agent jobs
@@ -149,8 +149,8 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 
 1. **Dashboard sync** (`sync-control-plane-dashboard`): Reads per-org `config/<org-key>/workflow-registry.json` and `active-repositories.json`; creates or updates the **single** dashboard issue in each target repository with sections per org; pins the issue when possible
 2. **User edit:** Users check or uncheck workflow checkboxes in the dashboard issue (no config file; no PRs on checkbox edits)
-3. **Runtime check** (`get-enabled-workflows`): When a `oblt-aw-*` workflow runs, prelude invokes this reusable workflow first. It parses the dashboard (or `effective-raw` is empty when no issue exists) and emits normalized `enabled-workflows`.
-4. **Prelude gating:** Downstream jobs use `needs.prelude.outputs.proceed`; empty `effective-raw` or empty `enabled-workflows` → none; non-empty `enabled-workflows` → only listed compound ids
+3. **Runtime check** (`get-enabled-workflows`): When a `obs-aw-*` workflow runs, prelude invokes this reusable workflow first. It parses the dashboard (or `effective-raw` is empty when no issue exists) and emits normalized `enabled-workflows`.
+4. **Prelude gating:** Downstream jobs use `needs.run-aw-prelude.outputs.proceed-by-workflow`; empty `effective-raw` or empty `enabled-workflows` → none; non-empty `enabled-workflows` → only listed compound ids
 
 ### Opt-in / Opt-out
 
@@ -173,7 +173,7 @@ Any issue opened by OBLT AW workflows must use a title that starts with `[oblt-a
 
 ## Routing Model
 
-Client templates declare **narrow** `on:` triggers; route-specific `if` conditions and dashboard gating live in **`oblt-aw-*`** (after prelude). See [docs/workflows/oblt-aw-client-template.md](../workflows/oblt-aw-client-template.md) and [docs/routing/README.md](../routing/README.md).
+Client templates declare **narrow** `on:` triggers; route-specific `if` conditions and dashboard gating live in **`obs-aw-*`** (after prelude). See [docs/workflows/obs-aw-client-template.md](../workflows/obs-aw-client-template.md) and [docs/routing/README.md](../routing/README.md).
 
 ## Examples
 
@@ -181,7 +181,7 @@ See [Split-trigger vs monolithic ingress](#split-trigger-vs-monolithic-ingress) 
 
 ```mermaid
 flowchart LR
-  A[Consumer trigger-oblt-aw-*.yml] --> G[oblt-aw-* reusable]
+  A[Consumer trigger-obs-aw-*.yml] --> G[obs-aw-* reusable]
   G --> P[aw-prelude]
   P --> B[get-enabled-workflows]
   G --> D[Agent steps]

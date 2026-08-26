@@ -1,5 +1,5 @@
 # Checks out elastic/oblt-aw (sparse: PR + issue allow-list JSON only).
-# ref=main matches consumers’ uses: elastic/oblt-aw/.../oblt-aw-*.yml@main via aw-prelude.
+# ref=main matches consumers’ uses: elastic/oblt-aw/.../obs-aw-*.yml@main via aw-prelude.
 # Invoked from aw-prelude when load-allowed-authors is true on pull_request / issues events.
 # Other callers (e.g. workflow_dispatch) can invoke this reusable workflow directly.
 name: Load allowed authors
@@ -9,22 +9,22 @@ on:
     outputs:
       allowed_pr_authors_json:
         description: Compact JSON array string of allowed GitHub logins for ingress if conditions
-        value: ${{ jobs.load-allowed-authors.outputs.allowed_pr_authors_json }}
+        value: ${{ jobs.load-oblt-aw-bot-allow-lists.outputs.allowed_pr_authors_json }}
       allowed_pr_authors_csv:
         description: Same logins comma-separated (for allowed-bot-users-style inputs)
-        value: ${{ jobs.load-allowed-authors.outputs.allowed_pr_authors_csv }}
+        value: ${{ jobs.load-oblt-aw-bot-allow-lists.outputs.allowed_pr_authors_csv }}
       allowed_issue_authors_json:
         description: Compact JSON array string of allowed logins for issue-scoped GH-AW allowed-bot-users
-        value: ${{ jobs.load-allowed-authors.outputs.allowed_issue_authors_json }}
+        value: ${{ jobs.load-oblt-aw-bot-allow-lists.outputs.allowed_issue_authors_json }}
       allowed_issue_authors_csv:
         description: Issue allow list comma-separated (for allowed-bot-users on issue triage/fixer paths)
-        value: ${{ jobs.load-allowed-authors.outputs.allowed_issue_authors_csv }}
+        value: ${{ jobs.load-oblt-aw-bot-allow-lists.outputs.allowed_issue_authors_csv }}
 
 permissions:
   contents: read
 
 jobs:
-  load-allowed-authors:
+  load-oblt-aw-bot-allow-lists:
     permissions:
       contents: read
     runs-on: ubuntu-slim
