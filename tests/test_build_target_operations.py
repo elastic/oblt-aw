@@ -205,7 +205,7 @@ class TestMain:
             / "workflows"
         )
         tmpl.mkdir(parents=True, exist_ok=True)
-        (tmpl / "trigger-oblt-aw-pull-request.yml").write_text("name: client\n")
+        (tmpl / "trigger-obs-aw-pull-request.yml").write_text("name: client\n")
         return output_file
 
     def test_no_changes_skips_work(
@@ -242,7 +242,7 @@ class TestMain:
             assert isinstance(t["files"], list)
             assert len(t["files"]) >= 1
             dsts = {f["dst"] for f in t["files"]}
-            assert ".github/workflows/trigger-oblt-aw-pull-request.yml" in dsts
+            assert ".github/workflows/trigger-obs-aw-pull-request.yml" in dsts
             assert "remove_files" in t
             assert t["remove_files"] == []
 
@@ -332,7 +332,7 @@ class TestMain:
         install = next(t for t in targets if t["repository"] == "elastic/foo")
         assert ".github/workflows/trg-oblt-aw-automerge.yml" in install["remove_files"]
         dsts = {f["dst"] for f in install["files"]}
-        assert ".github/workflows/trigger-oblt-aw-pull-request.yml" in dsts
+        assert ".github/workflows/trigger-obs-aw-pull-request.yml" in dsts
 
     def test_install_includes_remove_files_for_dropped_templates(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
@@ -357,8 +357,8 @@ class TestMain:
                     "dst": ".github/workflows/oblt-aw.yml",
                 },
                 {
-                    "src": ".github/remote-workflow-template/obs/.github/workflows/trigger-oblt-aw-pull-request.yml",
-                    "dst": ".github/workflows/trigger-oblt-aw-pull-request.yml",
+                    "src": ".github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-pull-request.yml",
+                    "dst": ".github/workflows/trigger-obs-aw-pull-request.yml",
                 },
             ]
 
@@ -379,4 +379,4 @@ class TestMain:
         assert install["operation"] == "install"
         assert ".github/workflows/oblt-aw.yml" in install["remove_files"]
         dsts = {f["dst"] for f in install["files"]}
-        assert ".github/workflows/trigger-oblt-aw-pull-request.yml" in dsts
+        assert ".github/workflows/trigger-obs-aw-pull-request.yml" in dsts

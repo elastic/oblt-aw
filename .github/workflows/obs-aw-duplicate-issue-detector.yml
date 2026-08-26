@@ -1,0 +1,54 @@
+---
+name: Duplicate Issue Detector
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+permissions:
+  contents: read
+
+jobs:
+
+  resolve-apm-assets:
+    if: >-
+      (
+        (github.event_name == 'issues' && github.event.action == 'opened') ||
+        github.event_name == 'workflow_dispatch'
+      )
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      control-plane-workflow: obs-aw-duplicate-issue-detector.yml
+
+  duplicate-issue-detector:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: read
+      copilot-requests: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}

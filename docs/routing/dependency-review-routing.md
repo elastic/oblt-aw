@@ -2,9 +2,9 @@
 
 ## Overview
 
-Client template: `trigger-oblt-aw-dependency-review.yml` → `oblt-aw-dependency-review.yml`
+Client template: `trigger-obs-aw-dependency-review.yml` → `obs-aw-dependency-review.yml`
 
-Routed workflow source: [.github/workflows/oblt-aw-dependency-review.yml](../../.github/workflows/oblt-aw-dependency-review.yml)
+Routed workflow source: [.github/workflows/obs-aw-dependency-review.yml](../../.github/workflows/obs-aw-dependency-review.yml)
 
 ## Usage
 
@@ -24,4 +24,4 @@ For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), 
 
 ## References
 
-- [docs/workflows/oblt-aw-dependency-review.md](../workflows/oblt-aw-dependency-review.md)
+- [docs/workflows/obs-aw-dependency-review.md](../workflows/obs-aw-dependency-review.md)

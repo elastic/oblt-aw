@@ -9,7 +9,7 @@ on:
       control-plane-workflows:
         description: >-
           JSON array of control-plane workflow basenames (for example
-          ["oblt-aw-automerge.yml","oblt-aw-dependency-review.yml"]).
+          ["obs-aw-automerge.yml","obs-aw-dependency-review.yml"]).
         required: true
         type: string
       load-allowed-authors:

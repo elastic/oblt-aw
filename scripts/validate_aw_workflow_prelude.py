@@ -17,7 +17,7 @@
 """
 Validate local *-aw-* route workflows and registry coherence.
 
-Route reusables (oblt-aw-*, docs-aw-*) receive shared event context from
+Route reusables (obs-aw-*, docs-aw-*) receive shared event context from
 *-aw-event-* orchestrators and declare workflow_call input shared-proceed.
 """
 
@@ -33,7 +33,7 @@ WORKFLOWS_DIR = pathlib.Path(".github/workflows")
 CONFIG_DIR = pathlib.Path("config")
 AW_WORKFLOW_PATTERN = re.compile(r".+-aw-.+\.ya?ml$")
 EVENT_ORCHESTRATOR_PATTERN = re.compile(r".+-aw-event-.+\.ya?ml$")
-ROUTE_PATTERN = re.compile(r"^(?:oblt|docs)-aw-.+\.ya?ml$")
+ROUTE_PATTERN = re.compile(r"^(?:obs|docs)-aw-.+\.ya?ml$")
 PRELUDE_USES = re.compile(
     r"uses:\s*\./\.github/workflows/aw-prelude\.ya?ml\b",
     re.MULTILINE,
@@ -50,7 +50,7 @@ def list_subject_workflows() -> list[pathlib.Path]:
         p
         for p in paths
         if AW_WORKFLOW_PATTERN.match(p.name)
-        and p.name != "aw-prelude.yml"
+        and not p.name.startswith("aw-")
         and not EVENT_ORCHESTRATOR_PATTERN.match(p.name)
         and not p.name.startswith(("trg-", "trigger-"))
     ]
