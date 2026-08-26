@@ -22,6 +22,11 @@ Jobs and routing behavior:
 
 Menu comment automation checks out `elastic/oblt-aw` with sparse checkout of `scripts/docs/issue-menu`.
 
+Menu copy references for docs-actions workflows use the `gh-aw-*` docs:
+
+- Triage: [elastic/docs-actions/.github/workflows/gh-aw-issue-triage.md](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-issue-triage.md)
+- Scope: [elastic/docs-actions/.github/workflows/gh-aw-issue-scope.md](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-issue-scope.md)
+
 ## Configuration
 
 Top-level permissions:
