@@ -45,7 +45,10 @@ class TestSelectAssetBlock:
                 }
             },
         )
-        block = aaa.select_asset_block(org["obs"], "agent-suggestions", org_key="obs")
+        block, source = aaa.select_asset_block(
+            org["obs"], "agent-suggestions", org_key="obs"
+        )
+        assert source == "workflow"
         assert block is not None
         assert block["inputs"]["additional-instructions"] == "specific text"
 
@@ -54,7 +57,10 @@ class TestSelectAssetBlock:
             common={"inputs": {"additional-instructions": "shared"}},
             workflows={"other": {"inputs": {"additional-instructions": "x"}}},
         )
-        block = aaa.select_asset_block(org["obs"], "agent-suggestions", org_key="obs")
+        block, source = aaa.select_asset_block(
+            org["obs"], "agent-suggestions", org_key="obs"
+        )
+        assert source == "common"
         assert block == org["obs"]["common"]
 
     def test_workflow_empty_block_still_overrides(self) -> None:
@@ -62,8 +68,59 @@ class TestSelectAssetBlock:
             common={"inputs": {"additional-instructions": "common"}},
             workflows={"agent-suggestions": {}},
         )
-        block = aaa.select_asset_block(org["obs"], "agent-suggestions", org_key="obs")
+        block, source = aaa.select_asset_block(
+            org["obs"], "agent-suggestions", org_key="obs"
+        )
+        assert source == "workflow"
         assert block == {}
+
+    def test_inner_workflow_overrides_parent(self) -> None:
+        org = _obs_org(
+            common={"inputs": {"additional-instructions": "common"}},
+            workflows={
+                "security": {
+                    "inputs": {"additional-instructions": "parent"},
+                    "inner-workflows": {
+                        "obs-aw-security-fixer.yml": {
+                            "inputs": {"additional-instructions": "fixer-only"}
+                        }
+                    },
+                }
+            },
+        )
+        block, source = aaa.select_asset_block(
+            org["obs"],
+            "security",
+            org_key="obs",
+            control_plane_workflow="obs-aw-security-fixer.yml",
+        )
+        assert source == "inner-workflow"
+        assert block is not None
+        assert block["inputs"]["additional-instructions"] == "fixer-only"
+
+    def test_missing_inner_falls_back_to_workflow_parent(self) -> None:
+        org = _obs_org(
+            common={"inputs": {"additional-instructions": "common"}},
+            workflows={
+                "security": {
+                    "inputs": {"additional-instructions": "parent"},
+                    "inner-workflows": {
+                        "obs-aw-security-fixer.yml": {
+                            "inputs": {"additional-instructions": "fixer-only"}
+                        }
+                    },
+                }
+            },
+        )
+        block, source = aaa.select_asset_block(
+            org["obs"],
+            "security",
+            org_key="obs",
+            control_plane_workflow="obs-aw-security-triage.yml",
+        )
+        assert source == "workflow"
+        assert block is not None
+        assert block["inputs"]["additional-instructions"] == "parent"
 
 
 class TestExtractOrgExtension:
@@ -327,3 +384,78 @@ x-oblt-aw:
                 workflow_id="agent-suggestions",
                 org_key="obs",
             )
+
+    def test_consumer_fragments_before_inline(self, repo: pathlib.Path) -> None:
+        frag_dir = repo / ".github" / "ai" / "fragments"
+        frag_dir.mkdir(parents=True)
+        (frag_dir / "repo-conventions.md").write_text(
+            "fragment body\n", encoding="utf-8"
+        )
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    fragments:
+      repo-conventions: .github/ai/fragments/repo-conventions.md
+    common:
+      additional-instructions-fragments:
+        - repo-conventions
+      inputs:
+        additional-instructions: |
+          inline tail
+""",
+            encoding="utf-8",
+        )
+        out = aaa.resolve_apm_assets(
+            repo_root=repo,
+            workflow_id="autodoc",
+            org_key="obs",
+            platform_additional_instructions="platform head",
+        )
+        text = out["additional_instructions"]
+        assert text.index("platform head") < text.index("fragment body")
+        assert text.index("fragment body") < text.index("inline tail")
+        consumer_layers = {
+            layer["layer"]: layer for layer in out["instruction_layers"]
+        }
+        assert consumer_layers["consumer-fragments"]["ids"] == ["repo-conventions"]
+        assert consumer_layers["consumer-inline"]["present"] is True
+
+    def test_inner_workflow_resolve_apm(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        additional-instructions: common
+    workflows:
+      security:
+        inputs:
+          additional-instructions: parent-security
+        inner-workflows:
+          obs-aw-security-fixer.yml:
+            inputs:
+              additional-instructions: fixer-only
+""",
+            encoding="utf-8",
+        )
+        fixer = aaa.resolve_apm_assets(
+            repo_root=repo,
+            workflow_id="security",
+            org_key="obs",
+            control_plane_workflow="obs-aw-security-fixer.yml",
+        )
+        triage = aaa.resolve_apm_assets(
+            repo_root=repo,
+            workflow_id="security",
+            org_key="obs",
+            control_plane_workflow="obs-aw-security-triage.yml",
+        )
+        assert fixer["asset_source"] == "inner-workflow"
+        assert "fixer-only" in fixer["additional_instructions"]
+        assert "parent-security" not in fixer["additional_instructions"]
+        assert triage["asset_source"] == "workflow"
+        assert "parent-security" in triage["additional_instructions"]

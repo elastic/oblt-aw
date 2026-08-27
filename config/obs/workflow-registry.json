@@ -8,7 +8,7 @@
       "maturity": "experimental",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-agent-suggestions.md",
-      "control_plane_workflows": ["obs-aw-agent-suggestions.yml"]
+      "inner_workflows": ["obs-aw-agent-suggestions.yml"]
     },
     {
       "id": "autodoc",
@@ -17,7 +17,7 @@
       "maturity": "stable",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-autodoc.md",
-      "control_plane_workflows": ["obs-aw-autodoc.yml"]
+      "inner_workflows": ["obs-aw-autodoc.yml"]
     },
     {
       "id": "automerge",
@@ -26,7 +26,7 @@
       "maturity": "stable",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-automerge.md",
-      "control_plane_workflows": ["obs-aw-automerge.yml"],
+      "inner_workflows": ["obs-aw-automerge.yml"],
       "sub_features": [
         {
           "id": "github-actions",
@@ -85,7 +85,7 @@
       "maturity": "stable",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-dependency-review.md",
-      "control_plane_workflows": ["obs-aw-dependency-review.yml"]
+      "inner_workflows": ["obs-aw-dependency-review.yml"]
     },
     {
       "id": "duplicate-issue-detector",
@@ -94,7 +94,7 @@
       "maturity": "experimental",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-duplicate-issue-detector.md",
-      "control_plane_workflows": ["obs-aw-duplicate-issue-detector.yml"]
+      "inner_workflows": ["obs-aw-duplicate-issue-detector.yml"]
     },
     {
       "id": "issue-triage",
@@ -103,7 +103,7 @@
       "maturity": "early-adoption",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-issue-triage.md",
-      "control_plane_workflows": ["obs-aw-issue-triage.yml"]
+      "inner_workflows": ["obs-aw-issue-triage.yml"]
     },
     {
       "id": "issue-fixer",
@@ -112,7 +112,7 @@
       "maturity": "experimental",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-issue-fixer.md",
-      "control_plane_workflows": ["obs-aw-issue-fixer.yml"]
+      "inner_workflows": ["obs-aw-issue-fixer.yml"]
     },
     {
       "id": "mention-in-issue",
@@ -121,7 +121,7 @@
       "maturity": "early-adoption",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-mention-in-issue.md",
-      "control_plane_workflows": ["obs-aw-mention-in-issue.yml"]
+      "inner_workflows": ["obs-aw-mention-in-issue.yml"]
     },
     {
       "id": "security",
@@ -130,7 +130,7 @@
       "maturity": "early-adoption",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-security-detector.md",
-      "control_plane_workflows": [
+      "inner_workflows": [
         "obs-aw-security-fixer.yml",
         "obs-aw-security-issue-superseder.yml",
         "obs-aw-security-triage.yml"
@@ -141,28 +141,28 @@
           "name": "Injection Detection",
           "description": "Checks for script-injection vulnerabilities in workflow expressions.",
           "default_enabled": true,
-          "control_plane_workflows": ["obs-aw-security-injection-detector.yml"]
+          "inner_workflows": ["obs-aw-security-injection-detector.yml"]
         },
         {
           "id": "supply-chain",
           "name": "Supply-chain Hardening",
           "description": "Flags unpinned third-party actions and missing provenance checks.",
           "default_enabled": true,
-          "control_plane_workflows": ["obs-aw-security-supply-chain-detector.yml"]
+          "inner_workflows": ["obs-aw-security-supply-chain-detector.yml"]
         },
         {
           "id": "secrets",
           "name": "Secret Management",
           "description": "Detects token exposure, secrets in command strings, and improper token scoping.",
           "default_enabled": true,
-          "control_plane_workflows": ["obs-aw-security-secrets-detector.yml"]
+          "inner_workflows": ["obs-aw-security-secrets-detector.yml"]
         },
         {
           "id": "least-privilege",
           "name": "Least Privilege",
           "description": "Flags excessive workflow permissions and dangerous token patterns.",
           "default_enabled": true,
-          "control_plane_workflows": ["obs-aw-security-least-privilege-detector.yml"]
+          "inner_workflows": ["obs-aw-security-least-privilege-detector.yml"]
         }
       ]
     },
@@ -173,7 +173,7 @@
       "maturity": "early-adoption",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-resource-not-accessible-by-integration-detector.md",
-      "control_plane_workflows": [
+      "inner_workflows": [
         "obs-aw-resource-not-accessible-by-integration-detector.yml",
         "obs-aw-resource-not-accessible-by-integration-fixer.yml",
         "obs-aw-resource-not-accessible-by-integration-triage.yml"
@@ -186,7 +186,7 @@
       "maturity": "stable",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-estc-pr-buildkite-detective.md",
-      "control_plane_workflows": ["obs-aw-estc-pr-buildkite-detective.yml"]
+      "inner_workflows": ["obs-aw-estc-pr-buildkite-detective.yml"]
     }
   ]
 }

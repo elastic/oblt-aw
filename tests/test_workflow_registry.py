@@ -39,7 +39,7 @@ class TestResolveCompoundId:
             [
                 {
                     "id": "automerge",
-                    "control_plane_workflows": ["obs-aw-automerge.yml"],
+                    "inner_workflows": ["obs-aw-automerge.yml"],
                 }
             ],
         )
@@ -54,14 +54,14 @@ class TestResolveCompoundId:
             [
                 {
                     "id": "security",
-                    "control_plane_workflows": [
+                    "inner_workflows": [
                         "obs-aw-security-triage.yml",
                         "obs-aw-security-fixer.yml",
                     ],
                     "sub_features": [
                         {
                             "id": "injection",
-                            "control_plane_workflows": [
+                            "inner_workflows": [
                                 "obs-aw-security-injection-detector.yml"
                             ],
                         }
@@ -82,7 +82,7 @@ class TestResolveCompoundId:
         _write_org(
             tmp_path,
             "obs",
-            [{"id": "automerge", "control_plane_workflows": ["obs-aw-automerge.yml"]}],
+            [{"id": "automerge", "inner_workflows": ["obs-aw-automerge.yml"]}],
         )
         with pytest.raises(ValueError, match="not listed"):
             wr.resolve_compound_id(tmp_path, "obs-aw-missing.yml")
@@ -96,11 +96,11 @@ class TestResolveCompoundId:
             [
                 {
                     "id": "security",
-                    "control_plane_workflows": ["obs-aw-security-triage.yml"],
+                    "inner_workflows": ["obs-aw-security-triage.yml"],
                     "sub_features": [
                         {
                             "id": "injection",
-                            "control_plane_workflows": [
+                            "inner_workflows": [
                                 "obs-aw-security-injection-detector.yml"
                             ],
                         }
@@ -122,11 +122,11 @@ class TestResolveCompoundId:
             [
                 {
                     "id": "security",
-                    "control_plane_workflows": ["obs-aw-security-detector.yml"],
+                    "inner_workflows": ["obs-aw-security-detector.yml"],
                     "sub_features": [
                         {
                             "id": "injection",
-                            "control_plane_workflows": ["obs-aw-security-detector.yml"],
+                            "inner_workflows": ["obs-aw-security-detector.yml"],
                         }
                     ],
                 }
@@ -143,7 +143,7 @@ class TestValidateRegistryAgainstWorkflows:
         _write_org(
             tmp_path,
             "obs",
-            [{"id": "automerge", "control_plane_workflows": ["obs-aw-automerge.yml"]}],
+            [{"id": "automerge", "inner_workflows": ["obs-aw-automerge.yml"]}],
         )
         workflows = tmp_path / "workflows"
         workflows.mkdir()

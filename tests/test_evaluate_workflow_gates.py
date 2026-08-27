@@ -36,11 +36,11 @@ def config_dir(tmp_path: pathlib.Path) -> pathlib.Path:
         "workflows": [
             {
                 "id": "automerge",
-                "control_plane_workflows": ["obs-aw-automerge.yml"],
+                "inner_workflows": ["obs-aw-automerge.yml"],
             },
             {
                 "id": "dependency-review",
-                "control_plane_workflows": ["obs-aw-dependency-review.yml"],
+                "inner_workflows": ["obs-aw-dependency-review.yml"],
             },
         ]
     }
@@ -93,11 +93,11 @@ def test_sub_feature_workflow_requires_parent_and_child(
         "workflows": [
             {
                 "id": "security",
-                "control_plane_workflows": ["obs-aw-security-triage.yml"],
+                "inner_workflows": ["obs-aw-security-triage.yml"],
                 "sub_features": [
                     {
                         "id": "injection",
-                        "control_plane_workflows": [
+                        "inner_workflows": [
                             "obs-aw-security-injection-detector.yml"
                         ],
                     }

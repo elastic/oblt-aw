@@ -50,6 +50,11 @@ on:
       resolved-setup-commands-json:
         description: JSON array of setup shell commands from APM assets
         value: ${{ jobs.resolve-agentic-assets.outputs.resolved-setup-commands-json }}
+      resolved-instruction-layers-json:
+        description: >-
+          JSON object describing which instruction fragments and inline/auto
+          layers were appended for this run
+        value: ${{ jobs.resolve-agentic-assets.outputs.resolved-instruction-layers-json }}
 
 permissions:
   contents: read
@@ -68,6 +73,7 @@ jobs:
       resolved-additional-instructions: ${{ steps.resolve.outputs.resolved-additional-instructions }}
       resolved-inputs-json: ${{ steps.resolve.outputs.resolved-inputs-json }}
       resolved-setup-commands-json: ${{ steps.resolve.outputs.resolved-setup-commands-json }}
+      resolved-instruction-layers-json: ${{ steps.resolve.outputs.resolved-instruction-layers-json }}
     steps:
       - name: Checkout consumer repository
         uses: actions/checkout@v7
@@ -84,6 +90,7 @@ jobs:
             scripts/agentic_assets_resolver.py
             scripts/apm_agentic_assets.py
             scripts/autodocignore.py
+            scripts/instruction_fragments.py
             scripts/resolve_agentic_assets_cli.py
             scripts/resolve_control_plane_workflow_id.py
             scripts/resolve_repository_token_policy.py
@@ -156,6 +163,7 @@ jobs:
           ENABLED_WORKFLOW_ID: ${{ steps.registry.outputs.compound-workflow-id }}
           REPO_ROOT: ${{ github.workspace }}
           CONTROL_PLANE_CONFIG_DIR: ${{ github.workspace }}/_oblt-aw/config
+          CONTROL_PLANE_WORKFLOW: ${{ inputs.control-plane-workflow }}
           PLATFORM_ADDITIONAL_INSTRUCTIONS: ${{ inputs.platform-additional-instructions }}
           PLATFORM_INPUTS_JSON: ${{ inputs.platform-inputs-json }}
         run: python _oblt-aw/scripts/resolve_agentic_assets_cli.py

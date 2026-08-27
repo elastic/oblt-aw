@@ -16,13 +16,16 @@ Keys under `x-oblt-aw.<org-key>.workflows` must match the `id` field in that org
 | `<org-key>` | Per org that configures assets | Container for that product line |
 | `<org-key>.common` | **Required** for each org block | Shared assets when no workflow override exists |
 | `<org-key>.workflows.<id>` | Optional | **Override:** when present, `common` is ignored entirely for that run |
+| `<org-key>.workflows.<id>.inner-workflows.<basename>` | Optional | **Override:** when the running control-plane basename matches, that block replaces the parent workflow block |
+| `<org-key>.fragments` | Optional | Map of local fragment id → repo-relative Markdown path |
 
-Each asset block (`common` or `workflows.<id>`) may include:
+Each asset block (`common`, `workflows.<id>`, or `inner-workflows.<basename>`) may include:
 
 | Field | Form | Behavior |
 |-------|------|----------|
 | `setup-commands` | Inline string or list of strings | Shell run before the agentic engine. Use a **list** for separate steps, a **single string** for one command, or a **multiline block** (`\|`) for several inline commands (one non-empty, non-`#` line per command). Entries may be repo script paths (for example `./scripts/bootstrap.sh`) or arbitrary inline shell (for example `npm ci`). |
 | `setup-commands-file` | Repo-relative path | Optional. UTF-8 file with one command per line; appended after `setup-commands`. Same line rules as multiline inline text. |
+| `additional-instructions-fragments` | List of ids | Ordered ids from `<org-key>.fragments`; materialized before inline `additional-instructions`. |
 | `inputs` | Mapping | Agentic workflow input overrides; `*-file` keys load repo file contents (see manifest example). |
 
 A repository in multiple org fleets may define separate `obs` and `docs` blocks with different `common` guidance.
@@ -31,13 +34,17 @@ A repository in multiple org fleets may define separate `obs` and `docs` blocks 
 
 | Layer | Behavior |
 |-------|----------|
-| **Platform** (`platform-additional-instructions` / `platform-inputs-json` on `resolve-apm-assets`) | Control-plane baseline for that agent invocation; always applied first for instructions (prepended). Input keys can be overridden by APM per key. |
+| **Control-plane fragments** | Org map under `config/<org-key>/` — see [instruction fragments](instruction-fragments.md). Appended before platform inline. |
+| **Platform** (`platform-additional-instructions` / `platform-inputs-json` on `resolve-apm-assets`) | Control-plane baseline for that agent invocation; applied after control-plane fragments. Input keys can be overridden by APM per key. |
+| **`x-oblt-aw.<org-key>.workflows.<id>.inner-workflows.<basename>`** | **Override:** when this key matches the calling wrapper basename, that block is used and parent `workflows.<id>` / `common` are ignored for asset fields. |
+| **`x-oblt-aw.<org-key>.workflows.<id>`** | **Override:** when this key exists and no matching inner-workflow block applies, that org’s `common` is ignored entirely for that run. The `inner-workflows` map on the parent is structural only (not instruction text). |
 | **`x-oblt-aw.<org-key>.common`** | Used when no `workflows.<id>` entry exists for the running workflow in that org. |
-| **`x-oblt-aw.<org-key>.workflows.<id>`** | **Override:** when this key exists, that org’s `common` is ignored entirely for that run. |
 
-There is no merge between `common` and `workflows.<id>` (no field-level fallback from common when a workflow block is present).
+There is no field-level merge between `common`, `workflows.<id>`, and `inner-workflows.<basename>` (override at the selected grain). Control-plane **fragments** append across grains; see [instruction fragments](instruction-fragments.md).
 
 If `x-oblt-aw` exists but the running org key is not configured, resolution returns platform-only assets (`asset-source: none`).
+
+`asset-source` is one of `none`, `common`, `workflow`, or `inner-workflow`.
 
 ## Manifest example
 
@@ -90,10 +97,11 @@ When the dashboard gate passes (`proceed == true`), each agent job’s preceding
 1. Checks out the **consumer** repository (caller context).
 2. Installs [`requirements-runtime.txt`](../../requirements-runtime.txt) with pip cache via `actions/setup-python`.
 3. Runs [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI with tool-cache reuse and runs `apm install` for declared skills, plugins, MCP servers, and other APM dependencies). Private GitHub packages use `ai-assets-token-policy` from `config/<org>/active-repositories.json` when set; otherwise the job `GITHUB_TOKEN` is passed as `github-token` (see [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md)).
-4. Runs [`scripts/resolve_agentic_assets_cli.py`](../../scripts/resolve_agentic_assets_cli.py), which calls [`agentic_assets_resolver.resolve_agentic_assets`](../../scripts/agentic_assets_resolver.py), with the compound workflow id (`org-key:workflow-id`) to select the org block and produce:
+4. Runs [`scripts/resolve_agentic_assets_cli.py`](../../scripts/resolve_agentic_assets_cli.py), which calls [`agentic_assets_resolver.resolve_agentic_assets`](../../scripts/agentic_assets_resolver.py), with the compound workflow id (`org-key:workflow-id`) and control-plane basename to select the org block (including optional `inner-workflows`) and produce:
    - `resolved-additional-instructions`
    - `resolved-inputs-json` (merged platform + APM inputs)
    - `resolved-setup-commands-json`
+   - `resolved-instruction-layers-json` (which fragments/inline/auto layers were appended)
 
 Downstream `gh-aw-*` jobs should pass `additional-instructions: ${{ needs.<resolve-job>.outputs.resolved-additional-instructions }}` and may read other keys from `resolved-inputs-json` when needed. Use one resolve job per agent invocation when platform prompts differ (see `obs-aw-autodoc.yml`).
 
@@ -105,6 +113,7 @@ JSON Schema for this extension block: [`config/schema/apm-agentic-workflows.sche
 
 ## References
 
+- [Instruction fragments](instruction-fragments.md) — control-plane prompt composition
 - [APM (Agent Package Manager)](https://github.com/microsoft/apm)
 - [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format and vendor extension fields
 - [Multi-org agentic workflows](./multi-org-agentic-workflows.md)

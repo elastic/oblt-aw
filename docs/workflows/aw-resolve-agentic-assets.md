@@ -36,10 +36,13 @@ The `workflow-token-policy` field (exposed to route workflows as `shared-token-p
 |--------|-------------|
 | `apm-manifest-present` | Consumer has `apm.yml` / `apm.yaml` |
 | `apm-extension-present` | Manifest contains `x-oblt-aw` |
-| `asset-source` | `none`, `common`, or `workflow` |
-| `resolved-additional-instructions` | Merged platform, APM, and consumer-side instructions |
+| `asset-source` | `none`, `common`, `workflow`, or `inner-workflow` |
+| `resolved-additional-instructions` | Merged control-plane fragments, platform, APM, and consumer-side instructions |
 | `resolved-inputs-json` | Merged platform + APM inputs |
 | `resolved-setup-commands-json` | JSON array of shell commands from the selected asset block (`setup-commands` inline string/list and optional `setup-commands-file`) |
+| `resolved-instruction-layers-json` | JSON object listing which fragment ids and inline/auto layers were appended (`org-key`, `workflow-id`, `control-plane-workflow`, `layers`) |
+
+Instruction merge order and control-plane fragment layout: [instruction fragments](../architecture/instruction-fragments.md). Consumer `apm.yml` contract: [APM agentic assets](../architecture/apm-agentic-assets.md).
 
 ### Typical caller pattern
 

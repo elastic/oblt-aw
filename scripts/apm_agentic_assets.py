@@ -22,12 +22,18 @@ Extension block: ``x-oblt-aw`` (see ``config/schema/apm-agentic-workflows.schema
 Structure (non-negotiable):
 - Top-level ``version`` plus one mapping per org key (e.g. ``obs``, ``docs``).
 - Each org block **must** include ``common`` and may include ``workflows``.
+- Optional org-level ``fragments`` maps local ids to repo-relative Markdown paths.
+- Optional ``inner-workflows.<basename>`` under a workflow block selects assets for one
+  control-plane wrapper when several wrappers share a registry workflow id.
 
 Precedence within the org block for the running ``org-key``:
-- If ``workflows.<workflow-id>`` is present, use that block only (ignore ``common``).
+- If ``workflows.<workflow-id>.inner-workflows.<basename>`` exists, use that block only.
+- Else if ``workflows.<workflow-id>`` is present, use that block only (ignore ``common``).
+  The ``inner-workflows`` key on the parent is structural and is not instruction content.
 - Otherwise use ``common``.
 - Platform / control-plane inputs are merged per-key on top: APM ``inputs`` override
-  platform keys; ``additional-instructions`` from APM are appended after platform text.
+  platform keys; consumer fragments then inline ``additional-instructions`` append after
+  platform text.
 
 ``setup-commands`` accepts inline shell (string, list, or multiline block) and optional
 ``setup-commands-file`` (one command per line). Entries may be script paths or shell.
@@ -108,6 +114,11 @@ def load_registry_workflow_ids(config_dir: Path, org_key: str) -> frozenset[str]
     return known
 
 
+def parent_registry_workflow_id(workflow_id: str) -> str:
+    """Strip sub-feature suffix from a compound-derived workflow id."""
+    return workflow_id.split(":", 1)[0]
+
+
 def validate_workflow_id(
     workflow_id: str,
     org_key: str,
@@ -117,9 +128,10 @@ def validate_workflow_id(
     if config_dir is None:
         return
     known = load_registry_workflow_ids(config_dir, org_key)
-    if known and workflow_id not in known:
+    registry_id = parent_registry_workflow_id(workflow_id)
+    if known and registry_id not in known:
         raise ValueError(
-            f"workflow-id {workflow_id!r} is not listed in "
+            f"workflow-id {registry_id!r} is not listed in "
             f"{config_dir / org_key / 'workflow-registry.json'}"
         )
 
@@ -150,32 +162,55 @@ def extract_org_extension(
 
 
 def select_asset_block(
-    org_extension: dict[str, Any], workflow_id: str, *, org_key: str
-) -> dict[str, Any] | None:
+    org_extension: dict[str, Any],
+    workflow_id: str,
+    *,
+    org_key: str,
+    control_plane_workflow: str = "",
+) -> tuple[dict[str, Any] | None, str]:
     """
-    Pick common or workflow-specific assets for one org.
+    Pick common, workflow, or inner-workflow assets for one org.
 
-    Workflow block wins entirely when the key exists (override semantics).
+    Returns ``(block, asset_source)`` where ``asset_source`` is one of
+    ``none``, ``common``, ``workflow``, or ``inner-workflow``.
+    Override semantics: the selected grain replaces coarser grains entirely.
     """
     prefix = f"{OBLT_AW_EXTENSION_KEY}.{org_key}"
+    registry_workflow_id = parent_registry_workflow_id(workflow_id)
+    basename = control_plane_workflow.strip()
     workflows = org_extension.get("workflows")
-    if isinstance(workflows, dict) and workflow_id in workflows:
-        block = workflows[workflow_id]
+
+    if isinstance(workflows, dict) and registry_workflow_id in workflows:
+        block = workflows[registry_workflow_id]
         if block is None:
-            return {}
+            return {}, "workflow"
         if not isinstance(block, dict):
             raise ValueError(
-                f"{prefix}.workflows.{workflow_id} must be a mapping, "
+                f"{prefix}.workflows.{registry_workflow_id} must be a mapping, "
                 f"got {type(block).__name__}"
             )
-        return block
+
+        inner = block.get("inner-workflows")
+        if basename and isinstance(inner, dict) and basename in inner:
+            inner_block = inner[basename]
+            if inner_block is None:
+                return {}, "inner-workflow"
+            if not isinstance(inner_block, dict):
+                raise ValueError(
+                    f"{prefix}.workflows.{registry_workflow_id}."
+                    f"inner-workflows.{basename} must be a mapping, "
+                    f"got {type(inner_block).__name__}"
+                )
+            return inner_block, "inner-workflow"
+
+        return block, "workflow"
 
     common = org_extension.get("common")
     if common is None:
-        return None
+        return None, "none"
     if not isinstance(common, dict):
         raise ValueError(f"{prefix}.common must be a mapping")
-    return common
+    return common, "common"
 
 
 def read_file_input(repo_root: Path, relative_path: str) -> str:
@@ -259,20 +294,103 @@ def extract_setup_commands(block: dict[str, Any], *, repo_root: Path) -> list[st
     return commands
 
 
+def _normalize_fragment_id_list(raw: Any, *, field: str) -> list[str]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise ValueError(f"{field} must be an array of fragment ids")
+    out: list[str] = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError(f"{field}[{index}] must be a non-empty string")
+        out.append(item.strip())
+    return out
+
+
+def materialize_consumer_fragments(
+    *,
+    repo_root: Path,
+    org_extension: dict[str, Any],
+    fragment_ids: list[str],
+    org_key: str,
+) -> str:
+    """Resolve ``additional-instructions-fragments`` via the org ``fragments`` map."""
+    if not fragment_ids:
+        return ""
+    fragments_map = org_extension.get("fragments")
+    if fragments_map is None:
+        raise ValueError(
+            f"{OBLT_AW_EXTENSION_KEY}.{org_key}.fragments is required when "
+            "additional-instructions-fragments is set"
+        )
+    if not isinstance(fragments_map, dict):
+        raise ValueError(
+            f"{OBLT_AW_EXTENSION_KEY}.{org_key}.fragments must be a mapping"
+        )
+
+    parts: list[str] = []
+    for fragment_id in fragment_ids:
+        if fragment_id not in fragments_map:
+            raise ValueError(
+                f"Unknown fragment id {fragment_id!r} in "
+                f"{OBLT_AW_EXTENSION_KEY}.{org_key}.fragments"
+            )
+        rel = fragments_map[fragment_id]
+        if not isinstance(rel, str) or not rel.strip():
+            raise ValueError(
+                f"{OBLT_AW_EXTENSION_KEY}.{org_key}.fragments.{fragment_id} "
+                "must be a non-empty repo-relative path"
+            )
+        text = read_file_input(repo_root, rel.strip()).strip()
+        if text:
+            parts.append(text)
+    return "\n\n".join(parts)
+
+
 def compose_additional_instructions(
     platform_text: str,
-    apm_inputs: dict[str, Any],
-) -> str:
+    *,
+    consumer_fragments_text: str = "",
+    apm_inputs: dict[str, Any] | None = None,
+) -> tuple[str, list[dict[str, Any]]]:
+    """
+    Join platform text, consumer fragments, then consumer inline instructions.
+
+    Returns ``(text, consumer_instruction_layers)``.
+    """
+    apm_inputs = apm_inputs or {}
     parts: list[str] = []
+    layers: list[dict[str, Any]] = []
+
     platform = platform_text.strip()
+    layers.append(
+        {"layer": "platform-inline", "kind": "inline", "present": bool(platform)}
+    )
     if platform:
         parts.append(platform)
 
-    apm_text = apm_inputs.get("additional-instructions")
-    if isinstance(apm_text, str) and apm_text.strip():
-        parts.append(apm_text.strip())
+    fragment_text = consumer_fragments_text.strip()
+    # ids are recorded by the caller; here we only note whether text was present
+    layers.append(
+        {
+            "layer": "consumer-fragments",
+            "kind": "fragment",
+            "ids": [],
+            "present": bool(fragment_text),
+        }
+    )
+    if fragment_text:
+        parts.append(fragment_text)
 
-    return "\n\n".join(parts)
+    apm_text = apm_inputs.get("additional-instructions")
+    inline = apm_text.strip() if isinstance(apm_text, str) else ""
+    layers.append(
+        {"layer": "consumer-inline", "kind": "inline", "present": bool(inline)}
+    )
+    if inline:
+        parts.append(inline)
+
+    return "\n\n".join(parts), layers
 
 
 def merge_platform_and_apm_inputs(
@@ -296,6 +414,7 @@ def resolve_apm_assets(
     platform_additional_instructions: str = "",
     platform_inputs: dict[str, Any] | None = None,
     config_dir: Path | None = None,
+    control_plane_workflow: str = "",
 ) -> dict[str, Any]:
     """
     Resolve APM assets from ``apm.yml`` for one agentic workflow run.
@@ -303,83 +422,77 @@ def resolve_apm_assets(
     Returns a dict with keys:
     - apm_manifest_present (bool)
     - apm_extension_present (bool)
-    - asset_source (str): none | common | workflow
+    - asset_source (str): none | common | workflow | inner-workflow
     - additional_instructions (str)
     - inputs (dict)
     - setup_commands (list[str])
+    - instruction_layers (list[dict]): consumer fragment/inline layers
     """
     validate_workflow_id(workflow_id, org_key, config_dir=config_dir)
     platform_inputs = platform_inputs or {}
 
-    manifest, manifest_present = load_apm_manifest(repo_root)
-    if not manifest_present or manifest is None:
+    def _platform_only(*, manifest_present: bool, extension_present: bool) -> dict[str, Any]:
+        additional, layers = compose_additional_instructions(
+            platform_additional_instructions
+        )
         return {
-            "apm_manifest_present": False,
-            "apm_extension_present": False,
+            "apm_manifest_present": manifest_present,
+            "apm_extension_present": extension_present,
             "asset_source": "none",
-            "additional_instructions": compose_additional_instructions(
-                platform_additional_instructions, {}
-            ),
+            "additional_instructions": additional,
             "inputs": dict(platform_inputs),
             "setup_commands": [],
+            "instruction_layers": layers,
         }
+
+    manifest, manifest_present = load_apm_manifest(repo_root)
+    if not manifest_present or manifest is None:
+        return _platform_only(manifest_present=False, extension_present=False)
 
     extension = manifest.get(OBLT_AW_EXTENSION_KEY)
     if extension is None:
-        return {
-            "apm_manifest_present": True,
-            "apm_extension_present": False,
-            "asset_source": "none",
-            "additional_instructions": compose_additional_instructions(
-                platform_additional_instructions, {}
-            ),
-            "inputs": dict(platform_inputs),
-            "setup_commands": [],
-        }
+        return _platform_only(manifest_present=True, extension_present=False)
 
     if not isinstance(extension, dict):
         raise ValueError(f"{OBLT_AW_EXTENSION_KEY} must be a mapping")
 
     org_extension = extract_org_extension(extension, org_key)
     if org_extension is None:
-        return {
-            "apm_manifest_present": True,
-            "apm_extension_present": True,
-            "asset_source": "none",
-            "additional_instructions": compose_additional_instructions(
-                platform_additional_instructions, {}
-            ),
-            "inputs": dict(platform_inputs),
-            "setup_commands": [],
-        }
+        return _platform_only(manifest_present=True, extension_present=True)
 
-    block = select_asset_block(org_extension, workflow_id, org_key=org_key)
+    block, asset_source = select_asset_block(
+        org_extension,
+        workflow_id,
+        org_key=org_key,
+        control_plane_workflow=control_plane_workflow,
+    )
     if block is None:
-        return {
-            "apm_manifest_present": True,
-            "apm_extension_present": True,
-            "asset_source": "none",
-            "additional_instructions": compose_additional_instructions(
-                platform_additional_instructions, {}
-            ),
-            "inputs": dict(platform_inputs),
-            "setup_commands": [],
-        }
+        return _platform_only(manifest_present=True, extension_present=True)
 
-    workflows = org_extension.get("workflows")
-    asset_source = (
-        "workflow"
-        if isinstance(workflows, dict) and workflow_id in workflows
-        else "common"
+    fragment_ids = _normalize_fragment_id_list(
+        block.get("additional-instructions-fragments"),
+        field="additional-instructions-fragments",
+    )
+    consumer_fragments = materialize_consumer_fragments(
+        repo_root=repo_root,
+        org_extension=org_extension,
+        fragment_ids=fragment_ids,
+        org_key=org_key,
     )
 
     apm_inputs = materialize_inputs(repo_root, block.get("inputs"))
     setup_commands = extract_setup_commands(block, repo_root=repo_root)
 
     merged_inputs = merge_platform_and_apm_inputs(platform_inputs, apm_inputs)
-    additional = compose_additional_instructions(
-        platform_additional_instructions, apm_inputs
+    additional, layers = compose_additional_instructions(
+        platform_additional_instructions,
+        consumer_fragments_text=consumer_fragments,
+        apm_inputs=apm_inputs,
     )
+    # Attach resolved consumer fragment ids to the fragments layer entry.
+    for layer in layers:
+        if layer.get("layer") == "consumer-fragments":
+            layer["ids"] = fragment_ids
 
     return {
         "apm_manifest_present": True,
@@ -388,4 +501,5 @@ def resolve_apm_assets(
         "additional_instructions": additional,
         "inputs": merged_inputs,
         "setup_commands": setup_commands,
+        "instruction_layers": layers,
     }

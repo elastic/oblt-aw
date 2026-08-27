@@ -37,7 +37,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 5. Register in `workflow-registry.json`
 
-- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (repo-relative path under `docs/workflows/`), and `control_plane_workflows` (basenames of every `obs-aw-*` / `docs-aw-*` wrapper that share this dashboard id) under `config/<org-key>/workflow-registry.json`.
+- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (repo-relative path under `docs/workflows/`), and `inner_workflows` (basenames of every `obs-aw-*` / `docs-aw-*` wrapper that share this dashboard id) under `config/<org-key>/workflow-registry.json`.
 
 ### 6. Add a client template
 
@@ -68,7 +68,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 ## Troubleshooting
 
 - **Workflow never runs after checking the box** — Wait for a supported trigger on the installed `trigger-obs-aw-*.yml` client ([obs-aw-client-template](../workflows/obs-aw-client-template.md)).
-- **Validation fails on the PR** — Compare `permissions` with a sibling wrapper; confirm the route basename is listed under the correct `control_plane_workflows` entry in `workflow-registry.json` and appears in the matching event orchestrator’s `control-plane-workflows` input.
+- **Validation fails on the PR** — Compare `permissions` with a sibling wrapper; confirm the route basename is listed under the correct `inner_workflows` entry in `workflow-registry.json` and appears in the matching event orchestrator’s `control-plane-workflows` input.
 
 ## References
 

@@ -64,7 +64,7 @@ def evaluate_gates(
             known = ", ".join(sorted(index))
             raise ValueError(
                 f"control-plane workflow {basename!r} is not listed in any "
-                f"workflow-registry.json control_plane_workflows (known: {known})"
+                f"workflow-registry.json inner_workflows (known: {known})"
             )
         compound_id = index[basename].compound_id
         allowed = _proceed_for_compound_id(
