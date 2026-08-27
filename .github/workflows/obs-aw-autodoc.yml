@@ -48,7 +48,11 @@ jobs:
         6. **Broken cross-references** — links to files, workflows, or sections that do not exist in the repository
         7. **Inconsistencies** — documentation that contradicts the actual source files in the repository
 
-        **Secret documentation:** Before proposing any documentation about secret definitions or usage, consult the [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) repository and its root `README.md` as the Observability org source of truth for secret management. Only propose secret-related documentation findings that are consistent with and grounded in that source.
+        **Secret documentation:** When proposing documentation about secret definitions or usage, follow the Observability org rules encoded here. Do **not** attempt to read private repositories (including [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets)) via GitHub tools or MCP. Ground secret-related findings only in these rules and in what is already documented in the target repository:
+        - Prefer ephemeral GitHub tokens (`elastic/oblt-actions/github/create-token`) and catalog TokenPolicy over long-lived repository secrets when that pattern applies.
+        - Do not recommend provisioning secrets only via GitHub **Settings → Secrets** unless the repository's own docs already document that exception.
+        - When long-lived Action secrets are required, tell readers to provision them through [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) per org process; do not invent alternate provisioning procedures.
+        - Use exact secret names from the repository's workflow documentation when present; do not invent secret names or procedures.
 
         **False positives to avoid when reporting findings:**
         - **Markdown tables** — A leading `-` (or similar punctuation) inside a table cell can be intentional (for example as a lightweight icon or status marker, not a broken nested list). Do not flag these as formatting defects unless you can show they break rendering or contradict repository conventions.
@@ -106,7 +110,11 @@ jobs:
         - All changes must be grounded in actual repository content — do not invent capability descriptions.
         - Do not add placeholder text or TODOs as improvements.
 
-        **Secret documentation:** When implementing any documentation changes related to secret definitions or usage, first consult the [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) repository and its root `README.md` as the Observability org source of truth for secret management. Do not add guidance that contradicts or extends beyond that source.
+        **Secret documentation:** When implementing documentation related to secret definitions or usage, follow the Observability org rules encoded here. Do **not** attempt to read private repositories (including [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets)) via GitHub tools or MCP. Do not add guidance that contradicts these rules or invent process beyond them and what is already documented in the target repository:
+        - Prefer ephemeral GitHub tokens (`elastic/oblt-actions/github/create-token`) and catalog TokenPolicy over long-lived repository secrets when that pattern applies.
+        - Do not recommend provisioning secrets only via GitHub **Settings → Secrets** unless the repository's own docs already document that exception.
+        - When long-lived Action secrets are required, tell readers to provision them through [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) per org process; do not invent alternate provisioning procedures.
+        - Use exact secret names from the repository's workflow documentation when present; do not invent secret names or procedures.
 
         **Markdown tables:** Preserve deliberate cell content such as a leading `-` used as an icon or status placeholder; do not rewrite table rows into bullet lists or "clean up" punctuation unless it is clearly a mistake.
 
