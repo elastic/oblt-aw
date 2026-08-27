@@ -79,7 +79,7 @@ Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull
 | `trigger-obs-aw-issues.yml` | `run-obs-aw-issues` | `actions: read`, `contents: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-issue-comment.yml` | `run-obs-aw-issue-comment` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-schedule.yml` | `run-obs-aw-schedule` | `actions: read`, `contents: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
-| `trigger-obs-aw-status.yml` | `run-obs-aw-status` | `actions: read`, `contents: read`, `issues: read`, `pull-requests: write` |
+| `trigger-obs-aw-status.yml` | `run-obs-aw-status` | `actions: read`, `contents: read`, `issues: write`, `pull-requests: write` |
 
 ### Secrets
 
