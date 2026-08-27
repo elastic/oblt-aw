@@ -19,9 +19,9 @@ Control-plane agentic prompts can be composed from reusable Markdown fragments u
   "workflows": {
     "issue-fixer": {
       "fragments": [
-        "fixer-draft-to-open",
-        "obs-review-assignment",
-        "obs-merge-policy"
+        "keep-pr-draft-until-validated",
+        "request-review-from-observablt-ci",
+        "do-not-merge-automatically"
       ]
     },
     "security": {
@@ -29,9 +29,9 @@ Control-plane agentic prompts can be composed from reusable Markdown fragments u
       "inner-workflows": {
         "obs-aw-security-fixer.yml": {
           "fragments": [
-            "fixer-draft-to-open",
-            "obs-review-assignment",
-            "obs-merge-policy"
+            "keep-pr-draft-until-validated",
+            "request-review-from-observablt-ci",
+            "do-not-merge-automatically"
           ]
         }
       }

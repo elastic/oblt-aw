@@ -175,9 +175,9 @@ class TestResolverWithFragments:
         assert "Keep PR as `Draft`" in text
         ids = _fragment_ids(resolved)
         assert ids == [
-            "fixer-draft-to-open",
-            "obs-review-assignment",
-            "obs-merge-policy",
+            "keep-pr-draft-until-validated",
+            "request-review-from-observablt-ci",
+            "do-not-merge-automatically",
         ]
 
     def test_repo_map_security_fixer_not_triage(self, tmp_path: pathlib.Path) -> None:
@@ -204,9 +204,9 @@ class TestResolverWithFragments:
             "Least-privilege (MANDATORY)"
         )
         assert _fragment_ids(fixer) == [
-            "fixer-draft-to-open",
-            "obs-review-assignment",
-            "obs-merge-policy",
+            "keep-pr-draft-until-validated",
+            "request-review-from-observablt-ci",
+            "do-not-merge-automatically",
         ]
         assert _fragment_ids(triage) == []
         assert triage["additional_instructions"] == "Triage-only inline"
@@ -233,9 +233,9 @@ class TestResolverWithFragments:
         )
         assert "elastic/observablt-ci" in fixer["additional_instructions"]
         assert _fragment_ids(fixer) == [
-            "fixer-draft-to-open",
-            "obs-review-assignment",
-            "obs-merge-policy",
+            "keep-pr-draft-until-validated",
+            "request-review-from-observablt-ci",
+            "do-not-merge-automatically",
         ]
         assert _fragment_ids(triage) == []
         assert triage["additional_instructions"] == ""

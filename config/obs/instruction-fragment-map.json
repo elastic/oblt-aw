@@ -3,9 +3,9 @@
   "workflows": {
     "issue-fixer": {
       "fragments": [
-        "fixer-draft-to-open",
-        "obs-review-assignment",
-        "obs-merge-policy"
+        "keep-pr-draft-until-validated",
+        "request-review-from-observablt-ci",
+        "do-not-merge-automatically"
       ]
     },
     "security": {
@@ -13,9 +13,9 @@
       "inner-workflows": {
         "obs-aw-security-fixer.yml": {
           "fragments": [
-            "fixer-draft-to-open",
-            "obs-review-assignment",
-            "obs-merge-policy"
+            "keep-pr-draft-until-validated",
+            "request-review-from-observablt-ci",
+            "do-not-merge-automatically"
           ]
         }
       }
@@ -25,9 +25,9 @@
       "inner-workflows": {
         "obs-aw-resource-not-accessible-by-integration-fixer.yml": {
           "fragments": [
-            "fixer-draft-to-open",
-            "obs-review-assignment",
-            "obs-merge-policy"
+            "keep-pr-draft-until-validated",
+            "request-review-from-observablt-ci",
+            "do-not-merge-automatically"
           ]
         }
       }
