@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
 
-import workflow_registry as wr  # noqa: E402
+import workflow_registry as wr
 
 
 def _write_org(

@@ -109,9 +109,7 @@ def resolve_agentic_assets(
 
     layers: list[dict[str, Any]] = list(cp_layers)
     layers.extend(resolved.get("instruction_layers") or [])
-    layers.append(
-        {"layer": "consumer-auto", "kind": "auto", "sources": auto_sources}
-    )
+    layers.append({"layer": "consumer-auto", "kind": "auto", "sources": auto_sources})
 
     resolved["additional_instructions"] = combined
     resolved["instruction_layers"] = {

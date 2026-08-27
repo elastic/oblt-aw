@@ -79,7 +79,7 @@ def load_apm_manifest(repo_root: Path) -> tuple[dict[str, Any] | None, bool]:
             if data is None:
                 return {}, True
             if not isinstance(data, dict):
-                raise ValueError(f"{name} must be a YAML mapping at the top level")
+                raise TypeError(f"{name} must be a YAML mapping at the top level")
             return data, True
     return None, False
 
@@ -154,7 +154,7 @@ def extract_org_extension(
     if org_block is None:
         return None
     if not isinstance(org_block, dict):
-        raise ValueError(
+        raise TypeError(
             f"{OBLT_AW_EXTENSION_KEY}.{org_key} must be a mapping, "
             f"got {type(org_block).__name__}"
         )
@@ -185,7 +185,7 @@ def select_asset_block(
         if block is None:
             return {}, "workflow"
         if not isinstance(block, dict):
-            raise ValueError(
+            raise TypeError(
                 f"{prefix}.workflows.{registry_workflow_id} must be a mapping, "
                 f"got {type(block).__name__}"
             )
@@ -196,7 +196,7 @@ def select_asset_block(
             if inner_block is None:
                 return {}, "inner-workflow"
             if not isinstance(inner_block, dict):
-                raise ValueError(
+                raise TypeError(
                     f"{prefix}.workflows.{registry_workflow_id}."
                     f"inner-workflows.{basename} must be a mapping, "
                     f"got {type(inner_block).__name__}"
@@ -209,7 +209,7 @@ def select_asset_block(
     if common is None:
         return None, "none"
     if not isinstance(common, dict):
-        raise ValueError(f"{prefix}.common must be a mapping")
+        raise TypeError(f"{prefix}.common must be a mapping")
     return common, "common"
 
 
@@ -230,12 +230,12 @@ def materialize_inputs(
     if raw_inputs is None:
         return {}
     if not isinstance(raw_inputs, dict):
-        raise ValueError("inputs must be a mapping of workflow input names to values")
+        raise TypeError("inputs must be a mapping of workflow input names to values")
 
     out: dict[str, Any] = {}
     for key, value in raw_inputs.items():
         if not isinstance(key, str):
-            raise ValueError("input keys must be strings")
+            raise TypeError("input keys must be strings")
         if key.endswith(FILE_INPUT_SUFFIX) and isinstance(value, str):
             text_key = key[: -len(FILE_INPUT_SUFFIX)]
             out[text_key] = read_file_input(repo_root, value)
@@ -298,7 +298,7 @@ def _normalize_fragment_id_list(raw: Any, *, field: str) -> list[str]:
     if raw is None:
         return []
     if not isinstance(raw, list):
-        raise ValueError(f"{field} must be an array of fragment ids")
+        raise TypeError(f"{field} must be an array of fragment ids")
     out: list[str] = []
     for index, item in enumerate(raw):
         if not isinstance(item, str) or not item.strip():
@@ -324,7 +324,7 @@ def materialize_consumer_fragments(
             "additional-instructions-fragments is set"
         )
     if not isinstance(fragments_map, dict):
-        raise ValueError(
+        raise TypeError(
             f"{OBLT_AW_EXTENSION_KEY}.{org_key}.fragments must be a mapping"
         )
 
@@ -431,7 +431,9 @@ def resolve_apm_assets(
     validate_workflow_id(workflow_id, org_key, config_dir=config_dir)
     platform_inputs = platform_inputs or {}
 
-    def _platform_only(*, manifest_present: bool, extension_present: bool) -> dict[str, Any]:
+    def _platform_only(
+        *, manifest_present: bool, extension_present: bool
+    ) -> dict[str, Any]:
         additional, layers = compose_additional_instructions(
             platform_additional_instructions
         )
@@ -454,7 +456,7 @@ def resolve_apm_assets(
         return _platform_only(manifest_present=True, extension_present=False)
 
     if not isinstance(extension, dict):
-        raise ValueError(f"{OBLT_AW_EXTENSION_KEY} must be a mapping")
+        raise TypeError(f"{OBLT_AW_EXTENSION_KEY} must be a mapping")
 
     org_extension = extract_org_extension(extension, org_key)
     if org_extension is None:

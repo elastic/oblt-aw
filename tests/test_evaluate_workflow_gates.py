@@ -25,7 +25,7 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from evaluate_workflow_gates import evaluate_gates  # noqa: E402
+from evaluate_workflow_gates import evaluate_gates
 
 
 @pytest.fixture
@@ -97,9 +97,7 @@ def test_sub_feature_workflow_requires_parent_and_child(
                 "sub_features": [
                     {
                         "id": "injection",
-                        "inner_workflows": [
-                            "obs-aw-security-injection-detector.yml"
-                        ],
+                        "inner_workflows": ["obs-aw-security-injection-detector.yml"],
                     }
                 ],
             }

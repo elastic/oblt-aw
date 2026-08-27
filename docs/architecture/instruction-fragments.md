@@ -43,10 +43,10 @@ Shorthand: a workflow entry may be a bare array of fragment ids instead of `{ "f
 
 ## Compose order (append)
 
-1. Control-plane `common` fragments  
-2. Control-plane `workflows.<id>.fragments`  
-3. Control-plane `inner-workflows.<basename>.fragments`  
-4. Platform inline `platform-additional-instructions`  
+1. Control-plane `common` fragments
+2. Control-plane `workflows.<id>.fragments`
+3. Control-plane `inner-workflows.<basename>.fragments`
+4. Platform inline `platform-additional-instructions`
 5. Consumer fragments / inline / auto (see [APM agentic assets](apm-agentic-assets.md))
 
 Absent map file ⇒ no control-plane fragments (existing callers unchanged). Unknown fragment ids or missing `.md` files fail the resolve job.

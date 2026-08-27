@@ -51,7 +51,7 @@ def _normalize_fragment_id_list(raw: Any, *, context: str) -> list[str]:
     if raw is None:
         return []
     if not isinstance(raw, list):
-        raise ValueError(f"{context}: fragments must be a JSON array of ids")
+        raise TypeError(f"{context}: fragments must be a JSON array of ids")
     out: list[str] = []
     for index, item in enumerate(raw):
         out.append(_require_fragment_id(item, context=f"{context}[{index}]"))
@@ -65,11 +65,13 @@ def _normalize_workflow_entry(raw: Any, *, context: str) -> dict[str, Any]:
     """
     if isinstance(raw, list):
         return {
-            "fragments": _normalize_fragment_id_list(raw, context=f"{context}.fragments"),
+            "fragments": _normalize_fragment_id_list(
+                raw, context=f"{context}.fragments"
+            ),
             "inner-workflows": {},
         }
     if not isinstance(raw, dict):
-        raise ValueError(
+        raise TypeError(
             f"{context}: must be a fragment-id array or an object with fragments"
         )
     unknown = set(raw) - {"fragments", "inner-workflows"}
@@ -80,7 +82,7 @@ def _normalize_workflow_entry(raw: Any, *, context: str) -> dict[str, Any]:
     inner: dict[str, list[str]] = {}
     if inner_raw is not None:
         if not isinstance(inner_raw, dict):
-            raise ValueError(f"{context}.inner-workflows must be a mapping")
+            raise TypeError(f"{context}.inner-workflows must be a mapping")
         for basename, entry in inner_raw.items():
             if not isinstance(basename, str) or not basename.strip():
                 raise ValueError(
@@ -102,7 +104,7 @@ def _normalize_workflow_entry(raw: Any, *, context: str) -> dict[str, Any]:
                     context=f"{context}.inner-workflows.{basename}.fragments",
                 )
             else:
-                raise ValueError(
+                raise TypeError(
                     f"{context}.inner-workflows.{basename}: "
                     "must be a fragment-id array or {fragments: [...]}"
                 )
@@ -125,7 +127,7 @@ def load_instruction_fragment_map(
 
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
-        raise ValueError(f"{path}: must be a JSON object")
+        raise TypeError(f"{path}: must be a JSON object")
 
     unknown = set(data) - {"common", "workflows"}
     if unknown:
@@ -137,7 +139,7 @@ def load_instruction_fragment_map(
     workflows: dict[str, dict[str, Any]] = {}
     if workflows_raw is not None:
         if not isinstance(workflows_raw, dict):
-            raise ValueError(f"{path}: workflows must be a mapping")
+            raise TypeError(f"{path}: workflows must be a mapping")
         for workflow_id, entry in workflows_raw.items():
             if not isinstance(workflow_id, str) or not FRAGMENT_ID_PATTERN.match(
                 workflow_id
@@ -190,7 +192,9 @@ def read_fragment_file(config_dir: Path, org_key: str, fragment_id: str) -> str:
     fragments_root = (config_dir / org_key / FRAGMENTS_DIRNAME).resolve()
     path = (fragments_root / f"{fragment_id}.md").resolve()
     if fragments_root not in path.parents and path != fragments_root:
-        raise ValueError(f"Refusing fragment path outside org fragments dir: {fragment_id}")
+        raise ValueError(
+            f"Refusing fragment path outside org fragments dir: {fragment_id}"
+        )
     if not path.is_file():
         raise FileNotFoundError(
             f"Instruction fragment not found: "

@@ -12,7 +12,7 @@ import pytest
 _root = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(_root / "scripts"))
 
-import apm_agentic_assets as aaa  # noqa: E402
+import apm_agentic_assets as aaa
 
 
 @pytest.fixture
@@ -416,9 +416,7 @@ x-oblt-aw:
         text = out["additional_instructions"]
         assert text.index("platform head") < text.index("fragment body")
         assert text.index("fragment body") < text.index("inline tail")
-        consumer_layers = {
-            layer["layer"]: layer for layer in out["instruction_layers"]
-        }
+        consumer_layers = {layer["layer"]: layer for layer in out["instruction_layers"]}
         assert consumer_layers["consumer-fragments"]["ids"] == ["repo-conventions"]
         assert consumer_layers["consumer-inline"]["present"] is True
 

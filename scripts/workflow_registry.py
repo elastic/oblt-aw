@@ -102,7 +102,7 @@ def load_workflow_registry(org_dir: Path) -> dict[str, object]:
     path = org_dir / "workflow-registry.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
-        raise ValueError(f"{org_dir}: workflow-registry.json must be a JSON object")
+        raise TypeError(f"{org_dir}: workflow-registry.json must be a JSON object")
     return data
 
 
@@ -114,7 +114,7 @@ def _normalize_control_plane_workflow_names(
     context: str,
 ) -> tuple[str, ...]:
     if not isinstance(files, list):
-        raise ValueError(
+        raise TypeError(
             f"{org_dir}: {context} ({workflow_id!r}) must define "
             "inner_workflows as an array"
         )
@@ -140,7 +140,7 @@ def _parse_sub_features(
     if raw_sub_features is None:
         return ()
     if not isinstance(raw_sub_features, list):
-        raise ValueError(
+        raise TypeError(
             f"{org_dir}: workflows entry {workflow_id!r} sub_features must be an array"
         )
 
@@ -149,7 +149,7 @@ def _parse_sub_features(
     entries: list[RegistrySubFeatureEntry] = []
     for index, item in enumerate(raw_sub_features):
         if not isinstance(item, dict):
-            raise ValueError(
+            raise TypeError(
                 f"{org_dir}: workflows entry {workflow_id!r} sub_features[{index}] "
                 "must be an object"
             )
@@ -195,7 +195,7 @@ def parse_registry_entries(org_dir: Path) -> list[RegistryWorkflowEntry]:
     raw = load_workflow_registry(org_dir)
     workflows = raw.get("workflows")
     if not isinstance(workflows, list):
-        raise ValueError(
+        raise TypeError(
             f"{org_dir}: workflow-registry.json must contain a workflows array"
         )
 
@@ -203,7 +203,7 @@ def parse_registry_entries(org_dir: Path) -> list[RegistryWorkflowEntry]:
     entries: list[RegistryWorkflowEntry] = []
     for index, item in enumerate(workflows):
         if not isinstance(item, dict):
-            raise ValueError(f"{org_dir}: workflows[{index}] must be an object")
+            raise TypeError(f"{org_dir}: workflows[{index}] must be an object")
         workflow_id = item.get("id")
         if not isinstance(workflow_id, str) or not workflow_id:
             raise ValueError(

@@ -11,8 +11,8 @@ import pytest
 _root = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(_root / "scripts"))
 
-import agentic_assets_resolver as resolver  # noqa: E402
-import instruction_fragments as ifr  # noqa: E402
+import agentic_assets_resolver as resolver
+import instruction_fragments as ifr
 
 
 @pytest.fixture
@@ -102,9 +102,7 @@ class TestInstructionFragments:
         by_name = {layer["layer"]: layer for layer in layers}
         assert by_name["control-plane-inner-workflow"]["ids"] == ["inner-c"]
 
-    def test_triage_does_not_get_fixer_inner(
-        self, config_dir: pathlib.Path
-    ) -> None:
+    def test_triage_does_not_get_fixer_inner(self, config_dir: pathlib.Path) -> None:
         text, layers = ifr.compose_control_plane_fragments(
             config_dir=config_dir,
             org_key="obs",
@@ -174,9 +172,7 @@ class TestResolverWithFragments:
         assert "issue-fixer-preamble" in ids
         assert "obs-merge-policy" in ids
 
-    def test_repo_map_security_fixer_not_triage(
-        self, tmp_path: pathlib.Path
-    ) -> None:
+    def test_repo_map_security_fixer_not_triage(self, tmp_path: pathlib.Path) -> None:
         config_dir = _root / "config"
         fixer = resolver.resolve_agentic_assets(
             repo_root=tmp_path,
