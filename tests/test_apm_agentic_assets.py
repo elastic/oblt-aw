@@ -92,7 +92,7 @@ class TestSelectAssetBlock:
             org["obs"],
             "security",
             org_key="obs",
-            control_plane_workflow="obs-aw-security-fixer.yml",
+            workflow_basename="obs-aw-security-fixer.yml",
         )
         assert source == "inner-workflow"
         assert block is not None
@@ -116,7 +116,7 @@ class TestSelectAssetBlock:
             org["obs"],
             "security",
             org_key="obs",
-            control_plane_workflow="obs-aw-security-triage.yml",
+            workflow_basename="obs-aw-security-triage.yml",
         )
         assert source == "workflow"
         assert block is not None
@@ -444,13 +444,13 @@ x-oblt-aw:
             repo_root=repo,
             workflow_id="security",
             org_key="obs",
-            control_plane_workflow="obs-aw-security-fixer.yml",
+            workflow_basename="obs-aw-security-fixer.yml",
         )
         triage = aaa.resolve_apm_assets(
             repo_root=repo,
             workflow_id="security",
             org_key="obs",
-            control_plane_workflow="obs-aw-security-triage.yml",
+            workflow_basename="obs-aw-security-triage.yml",
         )
         assert fixer["asset_source"] == "inner-workflow"
         assert "fixer-only" in fixer["additional_instructions"]

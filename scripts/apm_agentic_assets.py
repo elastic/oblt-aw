@@ -166,7 +166,7 @@ def select_asset_block(
     workflow_id: str,
     *,
     org_key: str,
-    control_plane_workflow: str = "",
+    workflow_basename: str = "",
 ) -> tuple[dict[str, Any] | None, str]:
     """
     Pick common, workflow, or inner-workflow assets for one org.
@@ -177,7 +177,7 @@ def select_asset_block(
     """
     prefix = f"{OBLT_AW_EXTENSION_KEY}.{org_key}"
     registry_workflow_id = parent_registry_workflow_id(workflow_id)
-    basename = control_plane_workflow.strip()
+    basename = workflow_basename.strip()
     workflows = org_extension.get("workflows")
 
     if isinstance(workflows, dict) and registry_workflow_id in workflows:
@@ -414,7 +414,7 @@ def resolve_apm_assets(
     platform_additional_instructions: str = "",
     platform_inputs: dict[str, Any] | None = None,
     config_dir: Path | None = None,
-    control_plane_workflow: str = "",
+    workflow_basename: str = "",
 ) -> dict[str, Any]:
     """
     Resolve APM assets from ``apm.yml`` for one agentic workflow run.
@@ -466,7 +466,7 @@ def resolve_apm_assets(
         org_extension,
         workflow_id,
         org_key=org_key,
-        control_plane_workflow=control_plane_workflow,
+        workflow_basename=workflow_basename,
     )
     if block is None:
         return _platform_only(manifest_present=True, extension_present=True)

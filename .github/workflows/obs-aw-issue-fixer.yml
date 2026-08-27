@@ -39,7 +39,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
-      control-plane-workflow: obs-aw-issue-fixer.yml
+      workflow-basename: obs-aw-issue-fixer.yml
       # Platform prompt text lives in config/obs/instruction-fragments/ via
       # instruction-fragment-map.json (workflows.issue-fixer).
 

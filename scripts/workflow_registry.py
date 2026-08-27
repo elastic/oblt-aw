@@ -36,8 +36,8 @@ from common import (
 )
 
 CONTROL_PLANE_WORKFLOW_NAME = re.compile(r"^[a-z0-9-]+-aw-[a-z0-9-]+\.ya?ml$")
-PRELUDE_CONTROL_PLANE_WORKFLOW = re.compile(
-    r"control-plane-workflow:\s*([^\s#]+)",
+WORKFLOW_BASENAME_INPUT = re.compile(
+    r"workflow-basename:\s*([^\s#]+)",
     re.MULTILINE,
 )
 LEGACY_ENABLED_WORKFLOW_ID = re.compile(
@@ -326,13 +326,13 @@ def build_control_plane_workflow_index(
     return index
 
 
-def resolve_compound_id(config_dir: Path, control_plane_workflow: str) -> str:
+def resolve_compound_id(config_dir: Path, workflow_basename: str) -> str:
     index = build_control_plane_workflow_index(config_dir)
-    entry = index.get(control_plane_workflow)
+    entry = index.get(workflow_basename)
     if entry is None:
         known = ", ".join(sorted(index))
         raise ValueError(
-            f"control-plane workflow {control_plane_workflow!r} is not listed in any "
+            f"workflow basename {workflow_basename!r} is not listed in any "
             f"workflow-registry.json inner_workflows (known: {known})"
         )
     return entry.compound_id
@@ -375,20 +375,20 @@ def validate_registry_against_workflows(
         text = path.read_text(encoding="utf-8")
         if LEGACY_ENABLED_WORKFLOW_ID.search(text):
             errors.append(
-                f"{path}: use control-plane-workflow instead of enabled-workflow-id "
+                f"{path}: use workflow-basename instead of enabled-workflow-id "
                 "(compound id is resolved from workflow-registry.json)"
             )
             continue
-        match = PRELUDE_CONTROL_PLANE_WORKFLOW.search(text)
+        match = WORKFLOW_BASENAME_INPUT.search(text)
         if not match:
             errors.append(
-                f"{path}: prelude must pass control-plane-workflow matching this file"
+                f"{path}: must pass workflow-basename matching this file"
             )
             continue
         declared = match.group(1)
         if declared != path_name:
             errors.append(
-                f"{path}: control-plane-workflow is {declared!r}, expected {path_name!r}"
+                f"{path}: workflow-basename is {declared!r}, expected {path_name!r}"
             )
             continue
     return errors

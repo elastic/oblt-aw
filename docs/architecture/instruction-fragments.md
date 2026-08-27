@@ -53,7 +53,7 @@ Absent map file ⇒ no control-plane fragments (existing callers unchanged). Unk
 
 ## Observability
 
-`aw-resolve-agentic-assets` exposes `resolved-instruction-layers-json` listing every layer that contributed (fragment ids, inline present flags, auto sources) plus `org-key`, `workflow-id`, and `control-plane-workflow`.
+`aw-resolve-agentic-assets` exposes `resolved-instruction-layers-json` listing every layer that contributed (fragment ids, inline present flags, auto sources) plus `org-key`, `workflow-id`, and `workflow-basename`.
 
 ## Registry vocabulary
 

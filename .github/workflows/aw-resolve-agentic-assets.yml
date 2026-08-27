@@ -6,10 +6,11 @@ name: Resolve Agentic Assets
 on:
   workflow_call:
     inputs:
-      control-plane-workflow:
+      workflow-basename:
         description: >-
           Basename of the calling wrapper under .github/workflows/ (for example
-          obs-aw-automerge.yml). Used to resolve the registry workflow id for apm.yml.
+          obs-aw-automerge.yml). Used to resolve the registry workflow id and
+          inner-workflow asset blocks.
         required: true
         type: string
       platform-additional-instructions:
@@ -105,8 +106,8 @@ jobs:
       - name: Resolve compound workflow id from registry
         id: registry
         env:
-          CONTROL_PLANE_WORKFLOW: ${{ inputs.control-plane-workflow }}
-        run: python _oblt-aw/scripts/resolve_control_plane_workflow_id.py "${CONTROL_PLANE_WORKFLOW}" --config-dir _oblt-aw/config
+          WORKFLOW_BASENAME: ${{ inputs.workflow-basename }}
+        run: python _oblt-aw/scripts/resolve_control_plane_workflow_id.py "${WORKFLOW_BASENAME}" --config-dir _oblt-aw/config
 
       - name: Detect apm manifest
         id: detect
@@ -165,7 +166,7 @@ jobs:
           ENABLED_WORKFLOW_ID: ${{ steps.registry.outputs.compound-workflow-id }}
           REPO_ROOT: ${{ github.workspace }}
           CONTROL_PLANE_CONFIG_DIR: ${{ github.workspace }}/_oblt-aw/config
-          CONTROL_PLANE_WORKFLOW: ${{ inputs.control-plane-workflow }}
+          WORKFLOW_BASENAME: ${{ inputs.workflow-basename }}
           PLATFORM_ADDITIONAL_INSTRUCTIONS: ${{ inputs.platform-additional-instructions }}
           PLATFORM_INPUTS_JSON: ${{ inputs.platform-inputs-json }}
         run: python _oblt-aw/scripts/resolve_agentic_assets_cli.py

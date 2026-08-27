@@ -66,7 +66,7 @@ def resolve_agentic_assets(
     platform_additional_instructions: str = "",
     platform_inputs: dict[str, Any] | None = None,
     config_dir: Path | None = None,
-    control_plane_workflow: str = "",
+    workflow_basename: str = "",
 ) -> dict[str, Any]:
     """
     Resolve all agentic assets for one workflow run.
@@ -79,7 +79,7 @@ def resolve_agentic_assets(
         config_dir=config_dir,
         org_key=org_key,
         workflow_id=workflow_id,
-        control_plane_workflow=control_plane_workflow,
+        workflow_basename=workflow_basename,
     )
 
     resolved = resolve_apm_assets(
@@ -89,7 +89,7 @@ def resolve_agentic_assets(
         platform_additional_instructions=platform_additional_instructions,
         platform_inputs=platform_inputs,
         config_dir=config_dir,
-        control_plane_workflow=control_plane_workflow,
+        workflow_basename=workflow_basename,
     )
 
     apm_instructions = resolved["additional_instructions"]
@@ -115,7 +115,7 @@ def resolve_agentic_assets(
     resolved["instruction_layers"] = {
         "org-key": org_key,
         "workflow-id": workflow_id,
-        "control-plane-workflow": control_plane_workflow,
+        "workflow-basename": workflow_basename,
         "layers": layers,
     }
     return resolved

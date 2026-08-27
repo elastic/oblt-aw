@@ -159,7 +159,7 @@ def resolve_control_plane_fragment_ids(
     fragment_map: dict[str, Any],
     *,
     workflow_id: str,
-    control_plane_workflow: str,
+    workflow_basename: str,
 ) -> tuple[list[str], list[str], list[str]]:
     """
     Return (common_ids, workflow_ids, inner_ids) in compose order.
@@ -179,7 +179,7 @@ def resolve_control_plane_fragment_ids(
         return common_ids, workflow_ids, inner_ids
 
     workflow_ids = list(entry.get("fragments") or [])
-    basename = control_plane_workflow.strip()
+    basename = workflow_basename.strip()
     if basename:
         inner_map = entry.get("inner-workflows") or {}
         inner_ids = list(inner_map.get(basename) or [])
@@ -208,7 +208,7 @@ def compose_control_plane_fragments(
     config_dir: Path | None,
     org_key: str,
     workflow_id: str,
-    control_plane_workflow: str = "",
+    workflow_basename: str = "",
 ) -> tuple[str, list[dict[str, Any]]]:
     """
     Compose control-plane fragment text and layer metadata.
@@ -235,7 +235,7 @@ def compose_control_plane_fragments(
     common_ids, workflow_ids, inner_ids = resolve_control_plane_fragment_ids(
         fragment_map,
         workflow_id=workflow_id,
-        control_plane_workflow=control_plane_workflow,
+        workflow_basename=workflow_basename,
     )
     layers[0]["ids"] = common_ids
     layers[1]["ids"] = workflow_ids

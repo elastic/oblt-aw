@@ -29,7 +29,7 @@ Environment:
   PLATFORM_ADDITIONAL_INSTRUCTIONS  Multiline platform baseline text
   PLATFORM_INPUTS_JSON JSON object of platform workflow_call inputs
   CONTROL_PLANE_CONFIG_DIR  Optional path to config/ for registry validation
-  CONTROL_PLANE_WORKFLOW    Basename of the calling wrapper (for inner-workflows)
+  WORKFLOW_BASENAME         Basename of the calling wrapper (for inner-workflows)
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ def main() -> int:
     compound = os.environ.get("ENABLED_WORKFLOW_ID", "").strip()
     workflow_id = os.environ.get("WORKFLOW_ID", "").strip()
     org_key = os.environ.get("ORG_KEY", "obs").strip() or "obs"
-    control_plane_workflow = os.environ.get("CONTROL_PLANE_WORKFLOW", "").strip()
+    workflow_basename = os.environ.get("WORKFLOW_BASENAME", "").strip()
 
     if compound:
         from apm_agentic_assets import parse_compound_workflow_id
@@ -88,7 +88,7 @@ def main() -> int:
             platform_additional_instructions=platform_text,
             platform_inputs=platform_inputs_typed,
             config_dir=config_dir,
-            control_plane_workflow=control_plane_workflow,
+            workflow_basename=workflow_basename,
         )
     except (OSError, ValueError, FileNotFoundError) as exc:
         print(
@@ -125,7 +125,7 @@ def main() -> int:
         f"manifest={resolved['apm_manifest_present']} "
         f"extension={resolved['apm_extension_present']} "
         f"source={resolved['asset_source']} "
-        f"control-plane-workflow={control_plane_workflow or '(none)'}"
+        f"workflow-basename={workflow_basename or '(none)'}"
     )
     return 0
 

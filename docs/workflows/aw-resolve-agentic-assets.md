@@ -18,7 +18,7 @@ The reusable workflow job id is `resolve-agentic-assets`. Route wrappers typical
 
 | Input | Type | Default | Purpose |
 |-------|------|---------|---------|
-| `control-plane-workflow` | string | (required) | Basename of the calling wrapper; used to resolve org key and registry workflow id for `x-oblt-aw.<org-key>.workflows.<id>` selection |
+| `workflow-basename` | string | (required) | Basename of the calling wrapper; used to resolve org key and registry workflow id for `x-oblt-aw.<org-key>.workflows.<id>` selection |
 | `platform-additional-instructions` | string | `""` | Control-plane baseline text for this agent invocation (prepended before repo APM instructions) |
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
 | `install-apm-packages` | boolean | `true` | Run [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI and runs `apm install`) |
@@ -40,7 +40,7 @@ The `workflow-token-policy` field (exposed to route workflows as `shared-token-p
 | `resolved-additional-instructions` | Merged control-plane fragments, platform, APM, and consumer-side instructions |
 | `resolved-inputs-json` | Merged platform + APM inputs |
 | `resolved-setup-commands-json` | JSON array of shell commands from the selected asset block (`setup-commands` inline string/list and optional `setup-commands-file`) |
-| `resolved-instruction-layers-json` | JSON object listing which fragment ids and inline/auto layers were appended (`org-key`, `workflow-id`, `control-plane-workflow`, `layers`) |
+| `resolved-instruction-layers-json` | JSON object listing which fragment ids and inline/auto layers were appended (`org-key`, `workflow-id`, `workflow-basename`, `layers`) |
 
 Instruction merge order and control-plane fragment layout: [instruction fragments](../architecture/instruction-fragments.md). Consumer `apm.yml` contract: [APM agentic assets](../architecture/apm-agentic-assets.md).
 
@@ -53,7 +53,7 @@ jobs:
   run-aw-prelude:
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      control-plane-workflow: obs-aw-example.yml
+      control-plane-workflows: '["obs-aw-example.yml"]'
 
   # ... optional intermediate jobs (verify, discover, menu scripts, etc.) ...
 
@@ -64,7 +64,7 @@ jobs:
       <same conditions as the agent job below>
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
-      control-plane-workflow: obs-aw-example.yml
+      workflow-basename: obs-aw-example.yml
       platform-additional-instructions: |
         Platform prompt for this agent invocation.
 

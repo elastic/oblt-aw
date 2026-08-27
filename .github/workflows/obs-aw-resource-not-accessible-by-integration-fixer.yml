@@ -38,7 +38,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
-      control-plane-workflow: obs-aw-resource-not-accessible-by-integration-fixer.yml
+      workflow-basename: obs-aw-resource-not-accessible-by-integration-fixer.yml
       platform-additional-instructions: |
         Your task is to fix issues labeled for the "Resource not accessible by integration" problem.
 

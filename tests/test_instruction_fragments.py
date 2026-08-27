@@ -73,7 +73,7 @@ class TestInstructionFragments:
             config_dir=tmp_path,
             org_key="obs",
             workflow_id="issue-fixer",
-            control_plane_workflow="obs-aw-issue-fixer.yml",
+            workflow_basename="obs-aw-issue-fixer.yml",
         )
         assert text == ""
         assert all(layer["ids"] == [] for layer in layers)
@@ -83,7 +83,7 @@ class TestInstructionFragments:
             config_dir=config_dir,
             org_key="obs",
             workflow_id="issue-fixer",
-            control_plane_workflow="obs-aw-issue-fixer.yml",
+            workflow_basename="obs-aw-issue-fixer.yml",
         )
         assert text == "COMMON_A\n\nWF_B"
         by_name = {layer["layer"]: layer for layer in layers}
@@ -96,7 +96,7 @@ class TestInstructionFragments:
             config_dir=config_dir,
             org_key="obs",
             workflow_id="security",
-            control_plane_workflow="obs-aw-security-fixer.yml",
+            workflow_basename="obs-aw-security-fixer.yml",
         )
         assert text == "COMMON_A\n\nINNER_C"
         by_name = {layer["layer"]: layer for layer in layers}
@@ -107,7 +107,7 @@ class TestInstructionFragments:
             config_dir=config_dir,
             org_key="obs",
             workflow_id="security",
-            control_plane_workflow="obs-aw-security-triage.yml",
+            workflow_basename="obs-aw-security-triage.yml",
         )
         assert text == "COMMON_A"
         by_name = {layer["layer"]: layer for layer in layers}
@@ -137,7 +137,7 @@ class TestResolverWithFragments:
             org_key="obs",
             platform_additional_instructions="PLATFORM_INLINE",
             config_dir=config_dir,
-            control_plane_workflow="obs-aw-issue-fixer.yml",
+            workflow_basename="obs-aw-issue-fixer.yml",
         )
         text = resolved["additional_instructions"]
         assert text.index("COMMON_A") < text.index("WF_B")
@@ -146,7 +146,7 @@ class TestResolverWithFragments:
         meta = resolved["instruction_layers"]
         assert meta["org-key"] == "obs"
         assert meta["workflow-id"] == "issue-fixer"
-        assert meta["control-plane-workflow"] == "obs-aw-issue-fixer.yml"
+        assert meta["workflow-basename"] == "obs-aw-issue-fixer.yml"
         by_name = {layer["layer"]: layer for layer in meta["layers"]}
         assert by_name["control-plane-common"]["ids"] == ["common-a"]
         assert by_name["control-plane-workflow"]["ids"] == ["wf-b"]
@@ -159,7 +159,7 @@ class TestResolverWithFragments:
             workflow_id="issue-fixer",
             org_key="obs",
             config_dir=config_dir,
-            control_plane_workflow="obs-aw-issue-fixer.yml",
+            workflow_basename="obs-aw-issue-fixer.yml",
         )
         text = resolved["additional_instructions"]
         assert "/ai implement" in text
@@ -179,14 +179,14 @@ class TestResolverWithFragments:
             workflow_id="security",
             org_key="obs",
             config_dir=config_dir,
-            control_plane_workflow="obs-aw-security-fixer.yml",
+            workflow_basename="obs-aw-security-fixer.yml",
         )
         triage = resolver.resolve_agentic_assets(
             repo_root=tmp_path,
             workflow_id="security",
             org_key="obs",
             config_dir=config_dir,
-            control_plane_workflow="obs-aw-security-triage.yml",
+            workflow_basename="obs-aw-security-triage.yml",
         )
         assert "Least-privilege (MANDATORY)" in fixer["additional_instructions"]
         assert "Least-privilege (MANDATORY)" not in triage["additional_instructions"]
