@@ -15,6 +15,14 @@ import agentic_assets_resolver as resolver
 import instruction_fragments as ifr
 
 
+def _fragment_ids(resolved: dict[str, object]) -> list[str]:
+    ids: list[str] = []
+    for layer in resolved["instruction_layers"]["layers"]:
+        if layer.get("kind") == "fragment":
+            ids.extend(layer.get("ids") or [])
+    return ids
+
+
 @pytest.fixture
 def config_dir(tmp_path: pathlib.Path) -> pathlib.Path:
     org = tmp_path / "obs"
@@ -162,15 +170,15 @@ class TestResolverWithFragments:
             workflow_basename="obs-aw-issue-fixer.yml",
         )
         text = resolved["additional_instructions"]
-        assert "/ai implement" in text
         assert "elastic/observablt-ci" in text
         assert "Do not merge automatically" in text
-        ids = []
-        for layer in resolved["instruction_layers"]["layers"]:
-            if layer.get("kind") == "fragment":
-                ids.extend(layer.get("ids") or [])
-        assert "issue-fixer-preamble" in ids
-        assert "obs-merge-policy" in ids
+        assert "Keep PR as `Draft`" in text
+        ids = _fragment_ids(resolved)
+        assert ids == [
+            "fixer-draft-to-open",
+            "obs-review-assignment",
+            "obs-merge-policy",
+        ]
 
     def test_repo_map_security_fixer_not_triage(self, tmp_path: pathlib.Path) -> None:
         config_dir = _root / "config"
@@ -180,6 +188,7 @@ class TestResolverWithFragments:
             org_key="obs",
             config_dir=config_dir,
             workflow_basename="obs-aw-security-fixer.yml",
+            platform_additional_instructions="Least-privilege (MANDATORY)",
         )
         triage = resolver.resolve_agentic_assets(
             repo_root=tmp_path,
@@ -187,7 +196,46 @@ class TestResolverWithFragments:
             org_key="obs",
             config_dir=config_dir,
             workflow_basename="obs-aw-security-triage.yml",
+            platform_additional_instructions="Triage-only inline",
         )
-        assert "Least-privilege (MANDATORY)" in fixer["additional_instructions"]
-        assert "Least-privilege (MANDATORY)" not in triage["additional_instructions"]
+        fixer_text = fixer["additional_instructions"]
+        assert "Do not merge automatically" in fixer_text
+        assert fixer_text.index("Do not merge automatically") < fixer_text.index(
+            "Least-privilege (MANDATORY)"
+        )
+        assert _fragment_ids(fixer) == [
+            "fixer-draft-to-open",
+            "obs-review-assignment",
+            "obs-merge-policy",
+        ]
+        assert _fragment_ids(triage) == []
+        assert triage["additional_instructions"] == "Triage-only inline"
+
+    def test_repo_map_rna_fixer_not_triage(self, tmp_path: pathlib.Path) -> None:
+        config_dir = _root / "config"
+        fixer = resolver.resolve_agentic_assets(
+            repo_root=tmp_path,
+            workflow_id="resource-not-accessible-by-integration",
+            org_key="obs",
+            config_dir=config_dir,
+            workflow_basename=(
+                "obs-aw-resource-not-accessible-by-integration-fixer.yml"
+            ),
+        )
+        triage = resolver.resolve_agentic_assets(
+            repo_root=tmp_path,
+            workflow_id="resource-not-accessible-by-integration",
+            org_key="obs",
+            config_dir=config_dir,
+            workflow_basename=(
+                "obs-aw-resource-not-accessible-by-integration-triage.yml"
+            ),
+        )
+        assert "elastic/observablt-ci" in fixer["additional_instructions"]
+        assert _fragment_ids(fixer) == [
+            "fixer-draft-to-open",
+            "obs-review-assignment",
+            "obs-merge-policy",
+        ]
+        assert _fragment_ids(triage) == []
         assert triage["additional_instructions"] == ""

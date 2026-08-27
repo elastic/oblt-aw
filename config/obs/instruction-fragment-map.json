@@ -3,9 +3,6 @@
   "workflows": {
     "issue-fixer": {
       "fragments": [
-        "issue-fixer-preamble",
-        "fixer-implementation-workflow",
-        "fixer-pr-requirements",
         "fixer-draft-to-open",
         "obs-review-assignment",
         "obs-merge-policy"
@@ -16,9 +13,18 @@
       "inner-workflows": {
         "obs-aw-security-fixer.yml": {
           "fragments": [
-            "security-fixer-preamble",
-            "security-fixer-implementation-workflow",
-            "security-fixer-pr-requirements",
+            "fixer-draft-to-open",
+            "obs-review-assignment",
+            "obs-merge-policy"
+          ]
+        }
+      }
+    },
+    "resource-not-accessible-by-integration": {
+      "fragments": [],
+      "inner-workflows": {
+        "obs-aw-resource-not-accessible-by-integration-fixer.yml": {
+          "fragments": [
             "fixer-draft-to-open",
             "obs-review-assignment",
             "obs-merge-policy"

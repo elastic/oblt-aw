@@ -15,18 +15,23 @@ Control-plane agentic prompts can be composed from reusable Markdown fragments u
 
 ```json
 {
-  "common": ["obs-review-assignment"],
+  "common": [],
   "workflows": {
     "issue-fixer": {
-      "fragments": ["issue-fixer-preamble", "fixer-pr-requirements"]
+      "fragments": [
+        "fixer-draft-to-open",
+        "obs-review-assignment",
+        "obs-merge-policy"
+      ]
     },
     "security": {
       "fragments": [],
       "inner-workflows": {
         "obs-aw-security-fixer.yml": {
           "fragments": [
-            "security-fixer-preamble",
-            "security-fixer-pr-requirements"
+            "fixer-draft-to-open",
+            "obs-review-assignment",
+            "obs-merge-policy"
           ]
         }
       }
@@ -34,6 +39,8 @@ Control-plane agentic prompts can be composed from reusable Markdown fragments u
   }
 }
 ```
+
+Keep only **shared** policy in fragments (text that is identical across multiple wrappers). Workflow-specific task, preconditions, implementation steps, and PR requirements stay in each wrapper's `platform-additional-instructions`.
 
 - **`common`** — appended for every workflow in the org when the map exists.
 - **`workflows.<workflow-id>.fragments`** — appended for that registry workflow id (dashboard unit).
