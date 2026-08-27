@@ -102,6 +102,46 @@ def workflow_table_name(name: str, docs: str | None) -> str:
     return f"[{name}]({DOCS_BASE_URL}{docs_path})"
 
 
+def collect_inner_workflows(workflow: dict[str, Any]) -> list[str]:
+    """Return wrapper basenames that map to apm.yml ``inner-workflows`` keys.
+
+    Parent ``inner_workflows`` first, then each sub-feature list. Duplicates
+    are dropped while preserving order.
+    """
+    names: list[str] = []
+    for raw in workflow.get("inner_workflows") or []:
+        if isinstance(raw, str) and raw.strip():
+            names.append(raw.strip())
+    for sub in workflow.get("sub_features") or []:
+        if not isinstance(sub, dict):
+            continue
+        for raw in sub.get("inner_workflows") or []:
+            if isinstance(raw, str) and raw.strip():
+                names.append(raw.strip())
+    seen: set[str] = set()
+    unique: list[str] = []
+    for name in names:
+        if name in seen:
+            continue
+        seen.add(name)
+        unique.append(name)
+    return unique
+
+
+def workflow_table_description(
+    description: str, inner_workflows: list[str]
+) -> str:
+    """Return the Description column cell, appending inner-workflow basenames."""
+    desc = description.strip() if description else ""
+    if not inner_workflows:
+        return desc
+    inner = ", ".join(f"`{name}`" for name in inner_workflows)
+    suffix = f"inner-workflows: {inner}"
+    if desc:
+        return f"{desc} {suffix}"
+    return suffix
+
+
 def default_section_heading(org_key: str) -> str:
     """Fallback section title when ``workflow-registry.json`` omits ``section_title``."""
     if org_key == "obs":
@@ -165,7 +205,10 @@ def build_dashboard_body(
             wf_id = wf["id"]
             name = wf.get("name", wf_id)
             maturity = wf.get("maturity", "experimental")
-            desc = wf.get("description", "")
+            desc = workflow_table_description(
+                str(wf.get("description", "") or ""),
+                collect_inner_workflows(wf),
+            )
             badge = maturity_badge(maturity)
             docs = wf.get("docs")
             display_name = workflow_table_name(
