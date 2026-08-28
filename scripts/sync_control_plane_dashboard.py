@@ -37,7 +37,6 @@ https://github.com/elastic/observability-robots/issues/4189
 from __future__ import annotations
 
 import argparse
-from typing import Any, cast
 import json
 import logging
 import os
@@ -45,6 +44,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any, cast
 from urllib.parse import quote
 
 from common import (
@@ -135,9 +135,7 @@ def collect_inner_workflows(workflow: dict[str, Any]) -> list[str]:
     return unique
 
 
-def workflow_table_description(
-    description: str, inner_workflows: list[str]
-) -> str:
+def workflow_table_description(description: str, inner_workflows: list[str]) -> str:
     """Return the Description column cell, appending inner-workflow basenames."""
     desc = description.strip() if description else ""
     if not inner_workflows:
@@ -255,14 +253,20 @@ def build_dashboard_body(
             "### Instructions",
             "",
             "- **Enable a workflow:** Check the checkbox next to the workflow.",
-            "- **Disable a workflow:** Uncheck the checkbox, then reply on this "
-            "issue with a short **deactivation reason** (an audit comment will "
-            f"ask for it and mention {AUDIT_TEAM_MENTION}).",
-            "- **Sub-features:** Indented checkboxes under a parent refine which "
-            "parts of that workflow run. Sub-features take effect only while the "
-            "parent workflow checkbox is enabled.",
-            "- **Audit trail:** Enable/disable changes are recorded as comments "
-            "on this issue (when / what / who).",
+            (
+                "- **Disable a workflow:** Uncheck the checkbox, then reply on this "
+                "issue with a short **deactivation reason** (an audit comment will "
+                f"ask for it and mention {AUDIT_TEAM_MENTION})."
+            ),
+            (
+                "- **Sub-features:** Indented checkboxes under a parent refine which "
+                "parts of that workflow run. Sub-features take effect only while the "
+                "parent workflow checkbox is enabled."
+            ),
+            (
+                "- **Audit trail:** Enable/disable changes are recorded as comments "
+                "on this issue (when / what / who)."
+            ),
             "- Changes are applied at runtime when the client runs.",
         ]
     )
@@ -285,7 +289,9 @@ def gh_api(
             f.flush()
             cmd.extend(["--input", f.name])
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, env=env, check=False
+            )
             if result.returncode != 0:
                 logger.error("gh api failed: %s", result.stderr)
                 raise RuntimeError(f"gh api failed: {result.stderr}")
@@ -296,7 +302,9 @@ def gh_api(
         finally:
             Path(f.name).unlink(missing_ok=True)
     else:
-        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, env=env, check=False
+        )
         if result.returncode != 0:
             logger.error("gh api failed: %s", result.stderr)
             raise RuntimeError(f"gh api failed: {result.stderr}")
@@ -350,6 +358,7 @@ def pin_issue(owner: str, repo: str, issue_number: int, token: str) -> bool:
         capture_output=True,
         text=True,
         env={**os.environ, "GH_TOKEN": token},
+        check=False,
     )
     if result.returncode == 0:
         return True
@@ -472,8 +481,8 @@ def main() -> int:
             org_sections,
             force_sync_defaults=args.force_sync_defaults,
         )
-    except Exception as e:
-        logger.exception("Failed to sync %s: %s", args.repo, e)
+    except Exception:
+        logger.exception("Failed to sync %s", args.repo)
         return 1
     return 0
 

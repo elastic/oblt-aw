@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
 
-import validate_aw_workflow_resolve_agentic_assets as validator  # noqa: E402
+import validate_aw_workflow_resolve_agentic_assets as validator
 
 
 def test_validate_workflow_skips_non_agent_wrappers(

@@ -381,9 +381,7 @@ def validate_registry_against_workflows(
             continue
         match = WORKFLOW_BASENAME_INPUT.search(text)
         if not match:
-            errors.append(
-                f"{path}: must pass workflow-basename matching this file"
-            )
+            errors.append(f"{path}: must pass workflow-basename matching this file")
             continue
         declared = match.group(1)
         if declared != path_name:
