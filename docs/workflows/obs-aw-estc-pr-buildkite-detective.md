@@ -32,13 +32,20 @@ Permissions:
 
 - `actions: read`
 - `contents: read`
-- `issues: write`
+- `issues: read`
 - `pull-requests: write`
+- `copilot-requests: write`
 
 ## API / Interface
 
 `workflow_call` contract:
 
+- Input `shared-proceed` (string, required)
+- Input `shared-allowed-pr-authors-json` (string, required)
+- Input `shared-allowed-pr-authors-csv` (string, required)
+- Input `shared-allowed-issue-authors-json` (string, required)
+- Input `shared-allowed-issue-authors-csv` (string, required)
+- Input `shared-token-policy` (string, required)
 - Secret: `BUILDKITE_API_TOKEN` (`required: true`)
 
 Migration note for consumers: if you previously configured the consumer-facing secret name as `BUILDKITE_API_TOKEN`, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN` in repository/organization secrets.

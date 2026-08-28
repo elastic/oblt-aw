@@ -27,27 +27,30 @@ The reusable workflow job id is `read-oblt-aw-dashboard`.
 
 | Output | Type | Meaning |
 |--------|------|---------|
-| `enabled-workflows` | JSON array string | Normalized array (`[]` or `["org:workflow-id", ...]`) used by ingress `contains(fromJSON(...), 'org:workflow-id')` checks |
-| `effective-raw` | string | Pre-normalization signal from dashboard read: `''` (no open dashboard issue), `[]`, or `["org:workflow-id", ...]` |
+| `enabled-workflows` | JSON array string | Normalized array (`[]`, `["org:workflow-id", ...]`, and/or `["org:workflow-id:sub-feature-id", ...]`) used by ingress and prelude gate checks |
+| `effective-raw` | string | Pre-normalization signal from dashboard read: `''` (no open dashboard issue), `[]`, or an array of compound ids |
 
 Semantics used by ingress:
 
 - `effective-raw == ''`: no open dashboard issue exists; gated workflows do not run.
 - `effective-raw != ''` and `enabled-workflows == []`: dashboard exists but nothing is selected; gated workflows do not run.
-- `effective-raw != ''` and non-empty `enabled-workflows`: only listed compound ids (`org:workflow-id`) are enabled.
+- `effective-raw != ''` and non-empty `enabled-workflows`: only listed compound ids are enabled.
+- For sub-feature ids (`org:workflow-id:sub-feature-id`), parent+sub-feature gating applies: the sub-feature entry only proceeds when both `org:workflow-id` and `org:workflow-id:sub-feature-id` are present.
 
 ## Dashboard Parsing and Normalization
 
-The workflow fetches the first open issue with label `oblt-aw/dashboard`, then parses checked task-list entries matching the three-part marker at line start:
+The workflow fetches the first open issue with label `oblt-aw/dashboard`, then parses checked task-list entries matching markers at line start:
 
-`^- [x] <!-- oblt-aw:<org-key>:<workflow-id> -->`
+- Workflow marker: `^- [x] <!-- oblt-aw:<org-key>:<workflow-id> -->`
+- Sub-feature marker: `^- [x] <!-- oblt-aw:<org-key>:<workflow-id>:<sub-feature-id> -->`
+- Legacy marker: `^- [x] <!-- oblt-aw:<workflow-id> -->` (treated as `obs:<workflow-id>`)
 
 Legacy two-part lines (`<!-- oblt-aw:<workflow-id> -->` without an org) are treated as **`obs:<workflow-id>`**.
 
 Normalization behavior:
 
 - Empty or missing dashboard content normalizes to `[]` for `enabled-workflows`.
-- Non-array payloads are normalized into unique compound ids (bare tokens get an `obs:` prefix).
+- Non-array payloads are normalized into unique compound ids (legacy bare tokens get an `obs:` prefix).
 - `effective-raw` is emitted separately to preserve the "no dashboard issue" signal.
 
 ## Configuration
