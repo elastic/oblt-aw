@@ -15,7 +15,7 @@
 # under the License.
 
 """
-Resolve a control-plane workflow filename to its compound dashboard id.
+Resolve a workflow basename to its compound dashboard id.
 
 Reads config/<org>/workflow-registry.json and writes compound-workflow-id to
 GITHUB_OUTPUT when set, otherwise prints to stdout.
@@ -34,10 +34,10 @@ from workflow_registry import resolve_compound_id
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Resolve control-plane workflow file to org:workflow-id"
+        description="Resolve workflow basename to org:workflow-id"
     )
     parser.add_argument(
-        "control_plane_workflow",
+        "workflow_basename",
         help="Workflow basename under .github/workflows/ (for example obs-aw-automerge.yml)",
     )
     parser.add_argument(
@@ -49,8 +49,8 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        compound_id = resolve_compound_id(args.config_dir, args.control_plane_workflow)
-    except ValueError as exc:
+        compound_id = resolve_compound_id(args.config_dir, args.workflow_basename)
+    except (ValueError, TypeError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 

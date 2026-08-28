@@ -22,7 +22,7 @@ There is no config file (no `.github/obs-aw-config.json`) and no PRs when users 
 Every workflow in ingress gating is identified by **`org-key:workflow-id`**:
 
 - **`org-key`** — Directory name under `config/<org-key>/` in `elastic/oblt-aw` (for example `obs`, `docs`). Not to be confused with the repository’s root `docs/` Markdown tree.
-- **`workflow-id`** — Unique within that org’s [`workflow-registry.json`](../../config/obs/workflow-registry.json). Each registry entry lists every control-plane reusable it gates via `control_plane_workflows` (basenames under `.github/workflows/`, for example `obs-aw-security-detector.yml`); multiple files may share one `id` (detector/fixer/triage).
+- **`workflow-id`** — Unique within that org’s [`workflow-registry.json`](../../config/obs/workflow-registry.json). Each registry entry lists every control-plane reusable it gates via `inner_workflows` (basenames under `.github/workflows/`, for example `obs-aw-security-detector.yml`); multiple files may share one `id` (detector/fixer/triage).
 
 **Examples:** `obs:agent-suggestions`, `docs:example-workflow`.
 
@@ -57,7 +57,7 @@ Use this dashboard to enable or disable agentic workflows for this repository. C
 
 | Workflow | Maturity | Description |
 |----------|----------|-------------|
-| [Agent Suggestions](https://github.com/elastic/oblt-aw/blob/main/docs/workflows/obs-aw-agent-suggestions.md) | 🟠 experimental | … |
+| [Agent Suggestions](https://github.com/elastic/oblt-aw/blob/main/docs/workflows/obs-aw-agent-suggestions.md) | 🟠 experimental | … inner-workflows: `obs-aw-agent-suggestions.yml` |
 
 #### Enable / Disable
 
@@ -72,7 +72,7 @@ Click a checkbox to enable or disable a workflow:
 
 | Workflow | Maturity | Description |
 |----------|----------|-------------|
-| Example workflow | 🟠 experimental | … |
+| Example workflow | 🟠 experimental | … inner-workflows: `docs-aw-example.yml` |
 
 #### Enable / Disable
 
@@ -150,7 +150,7 @@ If a workflow checkbox already exists in the issue body, the current issue state
 | checked | checked | Parent workflow runs; that sub-feature runs |
 | (no sub-features) | — | Existing single-checkbox behaviour, unchanged |
 
-When a control-plane workflow file is listed under a sub-feature’s `control_plane_workflows`, prelude gating requires **both** the parent compound id and the sub-feature compound id in `enabled-workflows`.
+When a control-plane workflow file is listed under a sub-feature’s `inner_workflows`, prelude gating requires **both** the parent compound id and the sub-feature compound id in `enabled-workflows`.
 
 ### Parsing Algorithm
 
@@ -178,7 +178,7 @@ To extract enabled workflows from the issue body (when a dashboard issue exists)
 |--------|-------------|
 | **Workflow** | Human-readable name from the org’s `workflow-registry.json`. When the entry sets `docs` (repo-relative path under `docs/workflows/`), the name is a Markdown link to `https://github.com/elastic/oblt-aw/blob/main/<docs>` |
 | **Maturity** | `stable`, `early-adoption`, or `experimental` (from the org’s `workflow-registry.json`) |
-| **Description** | Short description from the org’s `workflow-registry.json` |
+| **Description** | Short description from the org’s `workflow-registry.json`, followed by `inner-workflows:` and backtick-quoted wrapper basenames (parent `inner_workflows` then each sub-feature’s list, de-duplicated). Those basenames are the keys consumers use under `x-oblt-aw.<org-key>.workflows.<id>.inner-workflows` in `apm.yml`. |
 
 ---
 

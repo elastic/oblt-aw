@@ -6,10 +6,11 @@ name: Resolve Agentic Assets
 on:
   workflow_call:
     inputs:
-      control-plane-workflow:
+      workflow-basename:
         description: >-
           Basename of the calling wrapper under .github/workflows/ (for example
-          obs-aw-automerge.yml). Used to resolve the registry workflow id for apm.yml.
+          obs-aw-automerge.yml). Used to resolve the registry workflow id and
+          inner-workflow asset blocks.
         required: true
         type: string
       platform-additional-instructions:
@@ -39,10 +40,12 @@ on:
         description: True when apm.yml contains an x-oblt-aw extension block
         value: ${{ jobs.resolve-agentic-assets.outputs.apm-extension-present }}
       asset-source:
-        description: none, common, or workflow (APM asset block used for resolution)
+        description: none, common, workflow, or inner-workflow (APM asset block used for resolution)
         value: ${{ jobs.resolve-agentic-assets.outputs.asset-source }}
       resolved-additional-instructions:
-        description: Platform baseline plus resolved repo additional-instructions
+        description: >-
+          Control-plane fragments, platform inline text, and resolved repo
+          additional-instructions (APM plus consumer-side auto layers)
         value: ${{ jobs.resolve-agentic-assets.outputs.resolved-additional-instructions }}
       resolved-inputs-json:
         description: JSON object of merged platform and APM workflow inputs
@@ -50,6 +53,11 @@ on:
       resolved-setup-commands-json:
         description: JSON array of setup shell commands from APM assets
         value: ${{ jobs.resolve-agentic-assets.outputs.resolved-setup-commands-json }}
+      resolved-instruction-layers-json:
+        description: >-
+          JSON object describing which instruction fragments and inline/auto
+          layers were appended for this run
+        value: ${{ jobs.resolve-agentic-assets.outputs.resolved-instruction-layers-json }}
 
 permissions:
   contents: read
@@ -68,6 +76,7 @@ jobs:
       resolved-additional-instructions: ${{ steps.resolve.outputs.resolved-additional-instructions }}
       resolved-inputs-json: ${{ steps.resolve.outputs.resolved-inputs-json }}
       resolved-setup-commands-json: ${{ steps.resolve.outputs.resolved-setup-commands-json }}
+      resolved-instruction-layers-json: ${{ steps.resolve.outputs.resolved-instruction-layers-json }}
     steps:
       - name: Checkout consumer repository
         uses: actions/checkout@v7
@@ -84,6 +93,7 @@ jobs:
             scripts/agentic_assets_resolver.py
             scripts/apm_agentic_assets.py
             scripts/autodocignore.py
+            scripts/instruction_fragments.py
             scripts/resolve_agentic_assets_cli.py
             scripts/resolve_control_plane_workflow_id.py
             scripts/resolve_repository_token_policy.py
@@ -96,8 +106,8 @@ jobs:
       - name: Resolve compound workflow id from registry
         id: registry
         env:
-          CONTROL_PLANE_WORKFLOW: ${{ inputs.control-plane-workflow }}
-        run: python _oblt-aw/scripts/resolve_control_plane_workflow_id.py "${CONTROL_PLANE_WORKFLOW}" --config-dir _oblt-aw/config
+          WORKFLOW_BASENAME: ${{ inputs.workflow-basename }}
+        run: python _oblt-aw/scripts/resolve_control_plane_workflow_id.py "${WORKFLOW_BASENAME}" --config-dir _oblt-aw/config
 
       - name: Detect apm manifest
         id: detect
@@ -145,7 +155,7 @@ jobs:
         if: >-
           inputs.install-apm-packages &&
           steps.detect.outputs.present == 'true'
-        uses: microsoft/apm-action@e5650fb81c4b5965090a17bd1ed1956071e95d17 # v1.9.1
+        uses: microsoft/apm-action@d723bb64ed70c135bbaf87d126b721dd2dae0439 # v1.10.0
         with:
           apm-version: "0.20.0"
           github-token: ${{ steps.create-apm-token.outputs.token || github.token }}
@@ -156,6 +166,7 @@ jobs:
           ENABLED_WORKFLOW_ID: ${{ steps.registry.outputs.compound-workflow-id }}
           REPO_ROOT: ${{ github.workspace }}
           CONTROL_PLANE_CONFIG_DIR: ${{ github.workspace }}/_oblt-aw/config
+          WORKFLOW_BASENAME: ${{ inputs.workflow-basename }}
           PLATFORM_ADDITIONAL_INSTRUCTIONS: ${{ inputs.platform-additional-instructions }}
           PLATFORM_INPUTS_JSON: ${{ inputs.platform-inputs-json }}
         run: python _oblt-aw/scripts/resolve_agentic_assets_cli.py

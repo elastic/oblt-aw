@@ -40,7 +40,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
-      control-plane-workflow: obs-aw-mention-in-issue.yml
+      workflow-basename: obs-aw-mention-in-issue.yml
 
   mention-in-issue:
     needs: [resolve-apm-assets]

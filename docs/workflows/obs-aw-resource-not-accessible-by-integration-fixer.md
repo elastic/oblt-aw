@@ -27,6 +27,8 @@ Configured instructions require:
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
+Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared draft, review, and merge policy is composed from control-plane fragments under `workflows.resource-not-accessible-by-integration.inner-workflows.obs-aw-resource-not-accessible-by-integration-fixer.yml` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Detector and triage wrappers do not load those fixer fragments.
+
 ## Configuration
 
 Permissions:

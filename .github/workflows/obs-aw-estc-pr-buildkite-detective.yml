@@ -63,7 +63,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
-      control-plane-workflow: obs-aw-estc-pr-buildkite-detective.yml
+      workflow-basename: obs-aw-estc-pr-buildkite-detective.yml
       platform-additional-instructions: |
         If a step fails, check if the failure is reported as a GitHub issue labeled `flaky-test`. Reference the GitHub issue if so.
 
@@ -72,7 +72,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      issues: read
+      issues: write
       pull-requests: write
       copilot-requests: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@main
