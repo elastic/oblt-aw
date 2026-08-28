@@ -8,14 +8,13 @@ network or gh CLI.
 
 from __future__ import annotations
 
-import sys
 import pathlib
-
+import sys
 
 _root = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(_root / "scripts"))
 
-import sync_control_plane_dashboard as scpd  # noqa: E402
+import sync_control_plane_dashboard as scpd
 
 
 def _obs_section(workflows: list[dict]) -> list[tuple[str, str, list[dict]]]:
@@ -141,6 +140,93 @@ class TestWorkflowTableName:
 
     def test_returns_plain_name_when_docs_blank(self) -> None:
         assert scpd.workflow_table_name("Example", "  ") == "Example"
+
+
+# ── collect_inner_workflows / workflow_table_description ─────────────────────
+
+
+class TestCollectInnerWorkflows:
+    def test_returns_parent_basenames_in_order(self) -> None:
+        workflow = {
+            "inner_workflows": [
+                "obs-aw-security-fixer.yml",
+                "obs-aw-security-triage.yml",
+            ]
+        }
+        assert scpd.collect_inner_workflows(workflow) == [
+            "obs-aw-security-fixer.yml",
+            "obs-aw-security-triage.yml",
+        ]
+
+    def test_appends_sub_feature_basenames_after_parent(self) -> None:
+        workflow = {
+            "inner_workflows": ["obs-aw-security-fixer.yml"],
+            "sub_features": [
+                {
+                    "id": "injection",
+                    "inner_workflows": ["obs-aw-security-injection-detector.yml"],
+                },
+                {
+                    "id": "secrets",
+                    "inner_workflows": ["obs-aw-security-secrets-detector.yml"],
+                },
+            ],
+        }
+        assert scpd.collect_inner_workflows(workflow) == [
+            "obs-aw-security-fixer.yml",
+            "obs-aw-security-injection-detector.yml",
+            "obs-aw-security-secrets-detector.yml",
+        ]
+
+    def test_deduplicates_while_preserving_order(self) -> None:
+        workflow = {
+            "inner_workflows": ["obs-aw-automerge.yml", "obs-aw-automerge.yml"],
+            "sub_features": [
+                {"inner_workflows": ["obs-aw-automerge.yml"]},
+            ],
+        }
+        assert scpd.collect_inner_workflows(workflow) == ["obs-aw-automerge.yml"]
+
+    def test_returns_empty_when_inner_workflows_missing(self) -> None:
+        assert scpd.collect_inner_workflows({"id": "wf-a"}) == []
+
+    def test_ignores_non_list_inner_workflows(self) -> None:
+        # A string would iterate characters without an isinstance(list) guard.
+        assert (
+            scpd.collect_inner_workflows(
+                {"inner_workflows": "obs-aw-automerge.yml", "sub_features": "oops"}
+            )
+            == []
+        )
+
+    def test_ignores_non_list_sub_feature_inner_workflows(self) -> None:
+        workflow = {
+            "inner_workflows": ["obs-aw-security-fixer.yml"],
+            "sub_features": [
+                {"id": "injection", "inner_workflows": "not-a-list.yml"},
+            ],
+        }
+        assert scpd.collect_inner_workflows(workflow) == ["obs-aw-security-fixer.yml"]
+
+
+class TestWorkflowTableDescription:
+    def test_appends_inner_workflows_after_description(self) -> None:
+        assert scpd.workflow_table_description(
+            "Runs static security checks.",
+            ["obs-aw-security-fixer.yml", "obs-aw-security-triage.yml"],
+        ) == (
+            "Runs static security checks. inner-workflows: "
+            "`obs-aw-security-fixer.yml`, `obs-aw-security-triage.yml`"
+        )
+
+    def test_inner_workflows_only_when_description_empty(self) -> None:
+        assert (
+            scpd.workflow_table_description("", ["obs-aw-autodoc.yml"])
+            == "inner-workflows: `obs-aw-autodoc.yml`"
+        )
+
+    def test_returns_description_when_inner_workflows_empty(self) -> None:
+        assert scpd.workflow_table_description("Desc", []) == "Desc"
 
 
 # ── build_dashboard_body ────────────────────────────────────────────────────────
@@ -331,3 +417,46 @@ class TestBuildDashboardBody:
             line for line in lines if "oblt-aw:obs:security:injection" in line
         )
         assert injection_line.startswith("  - [x]")
+
+    def test_appends_inner_workflows_in_description_column(self) -> None:
+        workflows = [
+            {
+                "id": "security",
+                "name": "Security",
+                "description": "Runs static security checks.",
+                "maturity": "early-adoption",
+                "default_enabled": False,
+                "inner_workflows": [
+                    "obs-aw-security-fixer.yml",
+                    "obs-aw-security-triage.yml",
+                ],
+                "sub_features": [
+                    {
+                        "id": "injection",
+                        "name": "Injection Detection",
+                        "default_enabled": True,
+                        "inner_workflows": ["obs-aw-security-injection-detector.yml"],
+                    },
+                ],
+            }
+        ]
+        body = scpd.build_dashboard_body(_obs_section(workflows), None)
+        assert (
+            "| Security | 🟡 early-adoption | Runs static security checks. "
+            "inner-workflows: `obs-aw-security-fixer.yml`, "
+            "`obs-aw-security-triage.yml`, "
+            "`obs-aw-security-injection-detector.yml` |"
+        ) in body
+
+    def test_keeps_description_when_inner_workflows_absent(self) -> None:
+        workflows = [
+            {
+                "id": "wf-a",
+                "name": "Workflow A",
+                "description": "Desc",
+                "maturity": "experimental",
+                "default_enabled": False,
+            },
+        ]
+        body = scpd.build_dashboard_body(_obs_section(workflows), None)
+        assert "| Workflow A | 🟠 experimental | Desc |" in body

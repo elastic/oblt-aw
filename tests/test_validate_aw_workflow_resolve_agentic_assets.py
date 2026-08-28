@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
 
-import validate_aw_workflow_resolve_agentic_assets as validator  # noqa: E402
+import validate_aw_workflow_resolve_agentic_assets as validator
 
 
 def test_validate_workflow_skips_non_agent_wrappers(
@@ -21,7 +21,7 @@ def test_validate_workflow_skips_non_agent_wrappers(
     no_agent.write_text(
         "name: Test\non:\n  workflow_call:\njobs:\n"
         "  prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n"
-        "    with:\n      control-plane-workflow: obs-aw-security-injection-detector.yml\n"
+        "    with:\n      workflow-basename: obs-aw-security-injection-detector.yml\n"
         "  scan:\n    needs: prelude\n    runs-on: ubuntu-latest\n    steps:\n"
         "      - run: echo scan\n",
         encoding="utf-8",
@@ -39,7 +39,7 @@ def test_validate_workflow_rejects_gh_aw_without_resolve(
     bad.write_text(
         "name: Test\non:\n  workflow_call:\njobs:\n"
         "  prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n"
-        "    with:\n      control-plane-workflow: obs-aw-test.yml\n"
+        "    with:\n      workflow-basename: obs-aw-test.yml\n"
         "  agent:\n    needs: prelude\n"
         "    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main\n",
         encoding="utf-8",
@@ -78,9 +78,9 @@ def test_validate_workflow_accepts_resolve_per_agent_call(
     good.write_text(
         "name: Test\non:\n  workflow_call:\njobs:\n"
         "  prelude:\n    uses: ./.github/workflows/aw-prelude.yml\n"
-        "    with:\n      control-plane-workflow: obs-aw-test.yml\n"
+        "    with:\n      workflow-basename: obs-aw-test.yml\n"
         "  resolve-apm-assets:\n    uses: ./.github/workflows/aw-resolve-agentic-assets.yml\n"
-        "    with:\n      control-plane-workflow: obs-aw-test.yml\n"
+        "    with:\n      workflow-basename: obs-aw-test.yml\n"
         "  agent:\n    needs: [prelude, resolve-apm-assets]\n"
         "    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main\n"
         "    with:\n"

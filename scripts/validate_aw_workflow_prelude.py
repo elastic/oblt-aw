@@ -86,7 +86,10 @@ def validate_registry_for_subjects(subject_workflow_names: set[str]) -> list[str
     filtered: list[str] = []
     for err in errors:
         path_name = err.split(":", 1)[0].split("/")[-1]
-        if path_name in routes and "prelude must pass control-plane-workflow" in err:
+        if (
+            path_name in routes
+            and "must pass workflow-basename matching this file" in err
+        ):
             continue
         filtered.append(err)
     return filtered

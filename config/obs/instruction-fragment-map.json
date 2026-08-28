@@ -1,0 +1,36 @@
+{
+  "common": [],
+  "workflows": {
+    "issue-fixer": {
+      "fragments": [
+        "keep-pr-draft-until-validated",
+        "request-review-from-observablt-ci",
+        "do-not-merge-automatically"
+      ]
+    },
+    "security": {
+      "fragments": [],
+      "inner-workflows": {
+        "obs-aw-security-fixer.yml": {
+          "fragments": [
+            "keep-pr-draft-until-validated",
+            "request-review-from-observablt-ci",
+            "do-not-merge-automatically"
+          ]
+        }
+      }
+    },
+    "resource-not-accessible-by-integration": {
+      "fragments": [],
+      "inner-workflows": {
+        "obs-aw-resource-not-accessible-by-integration-fixer.yml": {
+          "fragments": [
+            "keep-pr-draft-until-validated",
+            "request-review-from-observablt-ci",
+            "do-not-merge-automatically"
+          ]
+        }
+      }
+    }
+  }
+}

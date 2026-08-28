@@ -33,7 +33,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
-      control-plane-workflow: obs-aw-autodoc.yml
+      workflow-basename: obs-aw-autodoc.yml
       platform-additional-instructions: |
         Your task is to analyze ALL documentation in this repository, identify gaps and areas for improvement, and file an issue with concrete findings.
 
@@ -90,7 +90,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
-      control-plane-workflow: obs-aw-autodoc.yml
+      workflow-basename: obs-aw-autodoc.yml
       platform-additional-instructions: |
         Your task is to implement the documentation improvements described in the issue.
 

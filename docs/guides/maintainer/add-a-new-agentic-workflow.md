@@ -19,7 +19,7 @@ Follow the control-plane checklist in [Adopting a new remote agentic workflow](.
 
 2. **Add route contract and event orchestration** — Route reusables declare `shared-proceed`; event orchestrators (`obs-aw-event-*.yml`) call [aw-prelude](../../workflows/aw-prelude.md) once and fan out. Add your route basename to the matching orchestrator’s `control-plane-workflows` input when the GitHub event family already exists. Route workflows must not call `aw-prelude` directly.
 
-3. **Register in `workflow-registry.json`** — Add `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (repo-relative path under `docs/workflows/`), and `control_plane_workflows` under `config/<org-key>/`.
+3. **Register in `workflow-registry.json`** — Add `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (repo-relative path under `docs/workflows/`), and `inner_workflows` under `config/<org-key>/`.
 
 4. **Wire consumer triggers** — Client templates are grouped by **GitHub event family**, not one file per workflow ([Client template index](../../workflows/obs-aw-client-template.md)).
    - **Existing event family** (`pull_request`, `issues`, `issue_comment`, `schedule`, or `status`): ensure the route is wired in the matching `obs-aw-event-*.yml` orchestrator (step 2). Consumer repos already have the corresponding `trigger-obs-aw-*.yml` — **no new client template**.

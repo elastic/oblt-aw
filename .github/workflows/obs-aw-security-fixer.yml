@@ -39,7 +39,9 @@ jobs:
       id-token: write
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
-      control-plane-workflow: obs-aw-security-fixer.yml
+      workflow-basename: obs-aw-security-fixer.yml
+      # Shared draft/review/merge policy: config/obs/instruction-fragments/ via
+      # instruction-fragment-map.json (workflows.security.inner-workflows).
       platform-additional-instructions: |
         Your task is to fix security issues labeled for remediation. This workflow uses agentic workflows from elastic/ai-github-actions.
 
@@ -65,18 +67,6 @@ jobs:
           - checklist of plan steps completed
           - evidence of successful tests/validation
           - explicit confirmation that least-privilege and env-indirection patterns were applied
-
-        **Draft to Open Transition:**
-        - Keep PR as `Draft` until all plan steps are fully implemented and validation passes.
-        - Once implementation and tests are successful, convert the PR from `Draft` to `Open` (Ready for review).
-
-        **Review Assignment:**
-        - Request review from the GitHub team `elastic/observablt-ci`.
-        - Wait for approval before any merge action.
-
-        **Merge Policy:**
-        - Do not merge automatically.
-        - Do not perform merge operations in this workflow.
 
   security-issue-fixer:
     needs: [resolve-apm-assets]
