@@ -109,15 +109,22 @@ def collect_inner_workflows(workflow: dict[str, Any]) -> list[str]:
     are dropped while preserving order.
     """
     names: list[str] = []
-    for raw in workflow.get("inner_workflows") or []:
-        if isinstance(raw, str) and raw.strip():
-            names.append(raw.strip())
-    for sub in workflow.get("sub_features") or []:
-        if not isinstance(sub, dict):
-            continue
-        for raw in sub.get("inner_workflows") or []:
+    parent_inner = workflow.get("inner_workflows")
+    if isinstance(parent_inner, list):
+        for raw in parent_inner:
             if isinstance(raw, str) and raw.strip():
                 names.append(raw.strip())
+    sub_features = workflow.get("sub_features")
+    if isinstance(sub_features, list):
+        for sub in sub_features:
+            if not isinstance(sub, dict):
+                continue
+            sub_inner = sub.get("inner_workflows")
+            if not isinstance(sub_inner, list):
+                continue
+            for raw in sub_inner:
+                if isinstance(raw, str) and raw.strip():
+                    names.append(raw.strip())
     seen: set[str] = set()
     unique: list[str] = []
     for name in names:

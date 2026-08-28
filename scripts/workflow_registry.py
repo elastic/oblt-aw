@@ -347,7 +347,7 @@ def validate_registry_against_workflows(
     errors: list[str] = []
     try:
         index = build_control_plane_workflow_index(config_dir)
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         return [str(exc)]
 
     registered = set(index)

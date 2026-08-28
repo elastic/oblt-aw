@@ -90,7 +90,7 @@ def main() -> int:
             config_dir=config_dir,
             workflow_basename=workflow_basename,
         )
-    except (OSError, ValueError, FileNotFoundError) as exc:
+    except (OSError, ValueError, TypeError, FileNotFoundError) as exc:
         print(
             f"agentic_assets_resolver.resolve_agentic_assets failed: {exc}",
             file=sys.stderr,

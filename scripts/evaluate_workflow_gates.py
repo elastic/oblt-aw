@@ -126,7 +126,7 @@ def main() -> int:
             args.effective_raw,
             args.enabled_workflows,
         )
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 

@@ -50,7 +50,7 @@ def main() -> int:
 
     try:
         compound_id = resolve_compound_id(args.config_dir, args.workflow_basename)
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 

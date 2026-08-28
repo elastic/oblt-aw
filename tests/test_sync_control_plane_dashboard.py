@@ -191,6 +191,24 @@ class TestCollectInnerWorkflows:
     def test_returns_empty_when_inner_workflows_missing(self) -> None:
         assert scpd.collect_inner_workflows({"id": "wf-a"}) == []
 
+    def test_ignores_non_list_inner_workflows(self) -> None:
+        # A string would iterate characters without an isinstance(list) guard.
+        assert (
+            scpd.collect_inner_workflows(
+                {"inner_workflows": "obs-aw-automerge.yml", "sub_features": "oops"}
+            )
+            == []
+        )
+
+    def test_ignores_non_list_sub_feature_inner_workflows(self) -> None:
+        workflow = {
+            "inner_workflows": ["obs-aw-security-fixer.yml"],
+            "sub_features": [
+                {"id": "injection", "inner_workflows": "not-a-list.yml"},
+            ],
+        }
+        assert scpd.collect_inner_workflows(workflow) == ["obs-aw-security-fixer.yml"]
+
 
 class TestWorkflowTableDescription:
     def test_appends_inner_workflows_after_description(self) -> None:
