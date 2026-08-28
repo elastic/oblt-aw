@@ -46,6 +46,10 @@ See the reference table in [Registering resources — appendix](../../onboarding
 
 [obs-aw-security-detector](../../workflows/obs-aw-security-detector.md) declares no `secrets` on `workflow_call`. Issue creation uses an ephemeral token so downstream issue-triggered workflows can run. The client template must include `id-token: write` on the client entrypoint job (for example `run-obs-aw-pull-request`).
 
+## Nested GH-AW lock workflows
+
+Issue-triage, dependency-review, and issue-fixer wrappers call locked workflows in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) with `mint-ephemeral-token: true` and `token-policy: ${{ inputs.shared-token-policy }}`. The lock jobs mint via `create-token` in the same job that writes labels, comments, or pull requests, so those writes re-trigger other workflows (`GITHUB_TOKEN` writes do not). The caller job must grant `id-token: write`. Empty `token-policy` uses Vault auto policy from the triggering client `workflow_ref`.
+
 ## Troubleshooting OIDC / create-token failures
 
 - Match `workflow_ref` exactly to the invoking client workflow file.

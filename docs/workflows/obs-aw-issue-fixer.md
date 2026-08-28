@@ -37,6 +37,8 @@ Configured instructions require:
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
+The nested lock workflow mints an OIDC ephemeral token (`mint-ephemeral-token: true`) so pull requests and comments re-trigger downstream routes.
+
 Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared draft, review, and merge policy is composed from control-plane fragments mapped under `workflows.issue-fixer` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)).
 
 ## Configuration
@@ -44,7 +46,7 @@ Workflow-specific prompt text lives in `platform-additional-instructions` on thi
 Permissions:
 
 - top-level: `actions: read`
-- job `run`: `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`
+- job `run`: `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write`
 - job `request-reviewers`: `pull-requests: write`
 
 ## API / Interface
