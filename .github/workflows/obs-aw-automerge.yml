@@ -196,6 +196,64 @@ jobs:
 
         If any gate is false, do not approve and do not request changes.
         Keep output minimal.
+
+  # Agent approve uses GITHUB_TOKEN (github-actions), which does not satisfy CODEOWNERS.
+  # When reviewDecision is still REVIEW_REQUIRED, mint shared-token-policy in this job and
+  # approve with that identity (no cross-job token handoff into nested GH-AW workflows).
+  codeowner-approve:
+    needs: [verify, check-dependency-collection, approve]
+    if: >-
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      id-token: write
+      pull-requests: read
+    steps:
+      - name: Check whether required review (e.g. CODEOWNERS) is still pending
+        id: need-codeowner
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          decision="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json reviewDecision -q .reviewDecision)"
+          echo "reviewDecision=${decision}"
+          if [ "$decision" = "REVIEW_REQUIRED" ]; then
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping codeowner approve (reviewDecision is not REVIEW_REQUIRED)."
+          fi
+
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ steps.need-codeowner.outputs.needed == 'true' && inputs.shared-token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
+      - name: Create ephemeral GitHub token (Vault auto policy)
+        id: create-token-auto
+        if: ${{ steps.need-codeowner.outputs.needed == 'true' && inputs.shared-token-policy == '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+
+      - name: Approve pull request with installation-token identity
+        if: ${{ steps.need-codeowner.outputs.needed == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "Ephemeral token was not minted; cannot submit CODEOWNERS-capable approval."
+            exit 1
+          fi
+          gh pr review "$PR_NUMBER" --repo "$REPO" --approve --body "Approved by obs-aw-automerge codeowner-approve (ephemeral installation token)."
+
   # Same repository as the PR: GITHUB_TOKEN can merge when checks/reviews satisfy branch protection
   # and pascalgn/automerge-action config. Author/label rules are enforced in `verify` (validateAutomergePr).
   automerge:
@@ -203,6 +261,7 @@ jobs:
       - verify
       - check-dependency-collection
       - approve
+      - codeowner-approve
     if: >-
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true'
@@ -231,10 +290,14 @@ jobs:
 
   # pascalgn/automerge-action uses the REST merge API, which branch rules can reject when
   # "merge queue" is required. Enabling native "merge when ready" enqueues the PR instead.
+  # Also run on not_ready (e.g. remaining protection gates) so native auto-merge can help.
   # Do not pass --delete-branch here: gh rejects it when merge queue is enabled.
   enable-merge-when-ready:
     needs: [automerge]
-    if: always() && needs.automerge.outputs.merge_result == 'merge_failed'
+    if: >-
+      always() &&
+      (needs.automerge.outputs.merge_result == 'merge_failed' ||
+       needs.automerge.outputs.merge_result == 'not_ready')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -260,3 +323,55 @@ jobs:
         run: |
           set -euo pipefail
           gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash
+
+  # Do not report workflow success when the PR is still open and auto-merge was not enabled.
+  report-automerge-outcome:
+    needs:
+      - verify
+      - check-dependency-collection
+      - automerge
+      - enable-merge-when-ready
+    if: >-
+      always() &&
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true' &&
+      needs.automerge.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Fail and comment when pull request remains unmerged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
+          FALLBACK_RESULT: ${{ needs.enable-merge-when-ready.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ "${MERGE_RESULT}" = "merged" ]; then
+            echo "PR merged by automerge action."
+            exit 0
+          fi
+          if [ "${FALLBACK_RESULT}" = "success" ]; then
+            echo "Native auto-merge enabled as fallback."
+            exit 0
+          fi
+
+          pr_json="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state,autoMergeRequest)"
+          pr_state="$(printf '%s' "$pr_json" | jq -r .state)"
+          auto_merge="$(printf '%s' "$pr_json" | jq -r 'if .autoMergeRequest == null then "false" else "true" end')"
+          if [ "$pr_state" = "MERGED" ] || [ "$auto_merge" = "true" ]; then
+            echo "PR is merged or has auto-merge enabled; treating as success."
+            exit 0
+          fi
+
+          body="$(printf '%s\n\n%s\n\n%s' \
+            "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
+            "Common causes include missing CODEOWNERS approval from the owning team (for example \`@elastic/observablt-ci\`) or other branch protection rules that block merge." \
+            "Workflow run: ${RUN_URL}")"
+          gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          echo "Automerge pipeline finished without merging PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, fallback=${FALLBACK_RESULT})."
+          exit 1
