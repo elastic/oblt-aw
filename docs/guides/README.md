@@ -28,6 +28,7 @@ Pick your audience:
 - [Add a new agentic workflow](maintainer/add-a-new-agentic-workflow.md) — Ship a new routed workflow on the control plane.
 - [Change maturity level](maintainer/change-maturity-level.md) — Update `workflow-registry.json` and dashboard sync behavior.
 - [Use GitHub ephemeral tokens](maintainer/use-gh-ephemeral-tokens.md) — `create-token`, OIDC, and token policy fields.
+- [Test mint ephemeral lock tokens](maintainer/test-mint-ephemeral-lock-tokens.md) — Throwaway PR workflow to validate in-lock minting before merge.
 
 ## References
 

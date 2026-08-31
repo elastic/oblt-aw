@@ -1,0 +1,193 @@
+# Temporary test entrypoint for minting OIDC ephemeral tokens inside GH-AW lock
+# workflows on branch feat/mint-ephemeral-tokens-in-lock-workflows (ai-github-actions#1949).
+#
+# Filename prefix trigger-obs-aw-* matches catalog TokenPolicy
+# token-policy-26fea8cad514 (workflow_ref: trigger-obs-aw-*.yml@*).
+#
+# Do not merge this workflow to main. Close the test PR after validation.
+# Runbook: docs/guides/maintainer/test-mint-ephemeral-lock-tokens.md
+name: Test Mint Ephemeral Lock Tokens
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+    inputs:
+      lock:
+        description: Which mint path to exercise
+        required: true
+        type: choice
+        options:
+          - probe
+          - issue-triage
+          - dependency-review
+          - issue-fixer
+      pull-request-number:
+        description: PR number for probe comments (required for lock=probe on dispatch)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-mint-ephemeral-${{ github.ref }}-${{ github.event_name }}-${{ github.event.action || 'dispatch' }}-${{ inputs.lock || 'label' }}
+  cancel-in-progress: true
+
+env:
+  TEST_TOKEN_POLICY: token-policy-26fea8cad514
+
+jobs:
+  register:
+    name: Register workflow on PR branch
+    if: >-
+      github.event_name == 'pull_request' &&
+      contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Confirm registration for branch dispatch
+        run: |
+          echo "Workflow registered from PR branch ${GITHUB_HEAD_REF}."
+          echo "Add label oblt-aw/test-mint-ephemeral on this PR, or run:"
+          echo "  gh workflow run trigger-obs-aw-test-mint-ephemeral.yml --ref ${GITHUB_HEAD_REF} -f lock=probe -f pull-request-number=${{ github.event.pull_request.number }}"
+
+  mint-probe:
+    name: Mint probe (create-token + PR comment)
+    if: >-
+      (
+        github.event_name == 'pull_request' &&
+        github.event.action == 'labeled' &&
+        github.event.label.name == 'oblt-aw/test-mint-ephemeral'
+      ) || (
+        github.event_name == 'workflow_dispatch' &&
+        inputs.lock == 'probe'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Resolve pull request number
+        id: pr
+        env:
+          EVENT_PR: ${{ github.event.pull_request.number }}
+          INPUT_PR: ${{ inputs.pull-request-number }}
+        run: |
+          pr_number="${EVENT_PR:-${INPUT_PR}}"
+          if [[ -z "${pr_number}" ]]; then
+            echo "::error::pull-request-number is required when dispatching lock=probe"
+            exit 1
+          fi
+          echo "number=${pr_number}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create ephemeral GitHub token
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ env.TEST_TOKEN_POLICY }}
+
+      - name: Comment on PR with minted token
+        env:
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body="$(cat <<EOF
+          ## Mint probe succeeded
+
+          Ephemeral token minted via \`create-token\` with policy \`${TEST_TOKEN_POLICY}\`.
+          This comment was posted with the minted token (not \`GITHUB_TOKEN\`).
+
+          Run: ${RUN_URL}
+          EOF
+          )"
+          gh pr comment "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body "${body}"
+
+  call-issue-triage:
+    name: Call issue-triage lock (@feat branch)
+    if: >-
+      (
+        github.event_name == 'pull_request' &&
+        github.event.action == 'labeled' &&
+        github.event.label.name == 'oblt-aw/test-mint-ephemeral'
+      ) || (
+        github.event_name == 'workflow_dispatch' &&
+        inputs.lock == 'issue-triage'
+      )
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+      id-token: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@feat/mint-ephemeral-tokens-in-lock-workflows
+    with:
+      mint-ephemeral-token: true
+      token-policy: token-policy-26fea8cad514
+      report-failure-as-issue: false
+      additional-instructions: |
+        Temporary mint-token validation run from elastic/oblt-aw.
+        Prefer noop if the event payload has no issue to triage.
+        Do not open issues. Keep side effects minimal.
+
+  call-dependency-review:
+    name: Call dependency-review lock (@feat branch)
+    if: >-
+      (
+        github.event_name == 'pull_request' &&
+        github.event.action == 'labeled' &&
+        github.event.label.name == 'oblt-aw/test-mint-ephemeral'
+      ) || (
+        github.event_name == 'workflow_dispatch' &&
+        inputs.lock == 'dependency-review'
+      )
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+      id-token: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@feat/mint-ephemeral-tokens-in-lock-workflows
+    with:
+      mint-ephemeral-token: true
+      token-policy: token-policy-26fea8cad514
+      report-failure-as-issue: false
+      classification-labels: "oblt-aw/ai/merge-ready"
+      additional-instructions: |
+        Temporary mint-token validation run from elastic/oblt-aw.
+        If this PR has no dependency updates, call noop and do not comment.
+        Do not apply labels unless criteria are clearly met.
+
+  call-issue-fixer:
+    name: Call issue-fixer lock (@feat branch)
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.lock == 'issue-fixer'
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+      id-token: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@feat/mint-ephemeral-tokens-in-lock-workflows
+    with:
+      mint-ephemeral-token: true
+      token-policy: token-policy-26fea8cad514
+      report-failure-as-issue: false
+      draft-prs: true
+      additional-instructions: |
+        Temporary mint-token validation run from elastic/oblt-aw.
+        Prefer noop unless a clear fixable issue context exists.
+        Any PR must remain Draft. Minimize side effects.
+    secrets: inherit
