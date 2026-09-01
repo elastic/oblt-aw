@@ -72,6 +72,7 @@ Before opening a PR:
 
 1. Install [pre-commit](https://pre-commit.com/) and run `pre-commit install`
 2. Run `pre-commit run --all-files` to validate locally
-3. Run `pytest tests/` and `npm test` for Python and TypeScript tests
+3. On a fresh checkout, install test dependencies once: `pip install pytest==9.0.2` and `npm ci`
+4. Run `pytest tests/` and `npm test` for Python and TypeScript tests
 
 See [docs/development/contributing.md](docs/development/contributing.md) for full setup and check details.
