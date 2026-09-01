@@ -21,7 +21,7 @@ on:
       shared-token-policy:
         required: true
         type: string
-# Nested GH-AW jobs mint OIDC ephemeral tokens when mint-ephemeral-token is true.
+# Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
 permissions:
   contents: read
 
@@ -85,8 +85,7 @@ jobs:
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-      mint-ephemeral-token: true
-      token-policy: ${{ inputs.shared-token-policy }}
+      github-token-policy: ${{ inputs.shared-token-policy }}
     secrets: inherit
 
   request-reviewers:

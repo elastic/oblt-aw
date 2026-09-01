@@ -25,7 +25,7 @@ Configured instructions define:
 - when to set `oblt-aw/ai/fix-ready`
 - required resolution plan structure: root cause, risk assessment, remediation steps, before/after examples
 
-The nested lock workflow mints an OIDC ephemeral token (`mint-ephemeral-token: true`) in the same job that applies labels, so `oblt-aw/ai/fix-ready` re-triggers the fixer route.
+The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty in the same job that applies labels, so `oblt-aw/ai/fix-ready` re-triggers the fixer route.
 
 ## Configuration
 

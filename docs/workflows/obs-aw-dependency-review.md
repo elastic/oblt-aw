@@ -22,8 +22,7 @@ Forwarded inputs include:
 - `allowed-bot-users`: from caller (CSV aligned with the control-plane allow list)
 - `classification-labels`: `oblt-aw/ai/merge-ready`
 - `additional-instructions`: Noop-when-not-applicable rules, CVE-focused and internal-change impact analysis instructions.
-- `mint-ephemeral-token`: `true` so the nested lock workflow mints an OIDC installation token in the same job that applies labels (labels then re-trigger downstream workflows).
-- `token-policy`: from `shared-token-policy` (`aw-prelude` / `workflow-token-policy`). Empty uses Vault auto policy.
+- `github-token-policy`: from `shared-token-policy` (`aw-prelude` / `workflow-token-policy`). When non-empty, the nested lock workflow mints an OIDC installation token in the same job that applies labels (labels then re-trigger downstream workflows). Empty keeps `GITHUB_TOKEN` (no re-trigger).
 
 Noop semantics (in additional-instructions):
 

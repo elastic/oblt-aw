@@ -21,7 +21,7 @@ on:
       shared-token-policy:
         required: true
         type: string
-# Nested GH-AW jobs mint OIDC ephemeral tokens when mint-ephemeral-token is true.
+# Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
 permissions:
   contents: read
 
@@ -77,5 +77,4 @@ jobs:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
       classification-labels: "oblt-aw/ai/merge-ready"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-      mint-ephemeral-token: true
-      token-policy: ${{ inputs.shared-token-policy }}
+      github-token-policy: ${{ inputs.shared-token-policy }}

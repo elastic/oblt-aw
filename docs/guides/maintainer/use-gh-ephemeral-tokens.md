@@ -48,7 +48,7 @@ See the reference table in [Registering resources — appendix](../../onboarding
 
 ## Nested GH-AW lock workflows
 
-Issue-triage, dependency-review, and issue-fixer wrappers call locked workflows in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) with `mint-ephemeral-token: true` and `token-policy: ${{ inputs.shared-token-policy }}`. The lock jobs mint via `create-token` in the same job that writes labels, comments, or pull requests, so those writes re-trigger other workflows (`GITHUB_TOKEN` writes do not). The caller job must grant `id-token: write`. Empty `token-policy` uses Vault auto policy from the triggering client `workflow_ref`.
+Issue-triage, dependency-review, and issue-fixer wrappers call locked workflows in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) with `github-token-policy: ${{ inputs.shared-token-policy }}`. When that value is non-empty, lock jobs mint via `create-token` in the same job that writes labels, comments, or pull requests, so those writes re-trigger other workflows (`GITHUB_TOKEN` writes do not). The caller job must grant `id-token: write`. Leave `github-token-policy` empty to keep `GITHUB_TOKEN` / `GH_AW_GITHUB_TOKEN` (no mint; label writes will not re-trigger downstream workflows).
 
 ## Troubleshooting OIDC / create-token failures
 
