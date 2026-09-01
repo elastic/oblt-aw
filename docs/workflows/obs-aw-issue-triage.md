@@ -21,7 +21,7 @@ The job `issue-triage` calls:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
 
-Behavior and agent instructions for the locked workflow are defined in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
+Behavior and agent instructions for the locked workflow are defined in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so label writes re-trigger downstream routes.
 
 ## Configuration
 
@@ -32,6 +32,7 @@ Permissions:
 - `discussions: write`
 - `issues: write`
 - `pull-requests: write`
+- `id-token: write`
 
 ## API / Interface
 

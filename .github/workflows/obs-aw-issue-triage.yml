@@ -22,6 +22,7 @@ on:
       shared-token-policy:
         required: true
         type: string
+# Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
 permissions:
   contents: read
 
@@ -47,6 +48,8 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
+      id-token: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      github-token-policy: ${{ inputs.shared-token-policy }}

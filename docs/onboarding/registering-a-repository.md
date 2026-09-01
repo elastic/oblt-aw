@@ -5,7 +5,7 @@
 This guide onboards:
 
 1. **GitHub repository** — Listed in `elastic/oblt-aw` under `config/<org-key>/active-repositories.json` so [distribute-client-workflow](../operations/distribute-client-workflow.md) can install the client template and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) can maintain the Control Plane Dashboard issue.
-2. **GitHub token policy (Backstage Resource) in `elastic/catalog-info`** — **Always** created for each newly registered consumer repository. It backs [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) for installed `trigger-obs-aw-*.yml` client workflows where `GITHUB_TOKEN` is insufficient ([obs-aw-security-detector](../workflows/obs-aw-security-detector.md), automerge, dependency-review follow-ups, and others).
+2. **GitHub token policy (Backstage Resource) in `elastic/catalog-info`** — **Always** created for each newly registered consumer repository. It backs [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) for installed `trigger-obs-aw-*.yml` client workflows where `GITHUB_TOKEN` is insufficient ([obs-aw-security-detector](../workflows/obs-aw-security-detector.md), automerge, nested GH-AW lock jobs such as issue-triage / dependency-review / issue-fixer, and others).
 
 The **catalog-info** token policy must be **merged and active** before you merge the **`elastic/oblt-aw`** change that adds the repository to `main`. Otherwise automation in the consumer repository can call `create-token` before the policy exists.
 

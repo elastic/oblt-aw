@@ -25,15 +25,14 @@ Configured instructions define:
 - when to set `oblt-aw/ai/fix-ready`
 - required resolution plan structure
 
-After triage, the workflow runs `signal-res-not-accessible-triage-followups`, which mints an ephemeral installation token and re-applies `oblt-aw/ai/fix-ready` (remove + add) only when both `oblt-aw/triage/res-not-accessible-by-integration` and `oblt-aw/ai/fix-ready` are present. This emits an installation-token `labeled` event so downstream fixer routing is triggered.
+The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty in the same job that applies labels, so `oblt-aw/ai/fix-ready` re-triggers the fixer route.
 
 ## Configuration
 
 Permissions:
 
-- **Workflow default:** `actions: read`, `contents: read`
-- **Job `res-not-accessible-integration-triage`:** `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write`
-- **Job `signal-res-not-accessible-triage-followups`:** `contents: read`, `id-token: write`, `issues: write` (OIDC for ephemeral `create-token` and fix-ready label re-apply signaling)
+- **Workflow default:** `contents: read`
+- **Job `res-not-accessible-integration-triage`:** `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write`
 
 ## API / Interface
 
