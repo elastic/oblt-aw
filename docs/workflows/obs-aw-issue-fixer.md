@@ -45,8 +45,8 @@ Workflow-specific prompt text lives in `platform-additional-instructions` on thi
 
 Permissions:
 
-- top-level: `actions: read`
-- job `run`: `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write`
+- top-level: `contents: read`
+- job `run`: `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write`
 - job `request-reviewers`: `pull-requests: write`
 
 ## API / Interface

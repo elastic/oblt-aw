@@ -37,7 +37,7 @@ Labeling semantics (in additional-instructions):
 
 Permissions:
 
-- **Workflow:** `actions: read`, `contents: read`.
+- **Workflow:** `contents: read`.
 - **Job `dependency-review`:** `actions: read`, `contents: read`, `issues: write`, `pull-requests: write`, `id-token: write` (OIDC for in-lock `create-token`).
 
 ## API / Interface
