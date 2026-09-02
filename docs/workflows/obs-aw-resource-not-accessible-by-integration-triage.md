@@ -8,7 +8,7 @@ This reusable workflow triages issues that carry the detector label `oblt-aw/det
 
 ## Prerequisites
 
-- Triggered via `workflow_call`.
+- Triggered via `workflow_call` on `issues` `labeled` when the applied label is `oblt-aw/detector/res-not-accessible-by-integration`.
 
 ## Usage
 
