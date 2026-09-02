@@ -40,6 +40,8 @@ jobs:
       github.event.issue.pull_request == null &&
       startsWith(github.event.comment.body, '/ai implement') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
     permissions:

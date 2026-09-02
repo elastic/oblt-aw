@@ -31,7 +31,11 @@ jobs:
   resolve-apm-assets:
     if: >-
       github.event_name == 'issues' &&
-      github.event.action == 'opened'
+      github.event.action == 'opened' &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
     permissions:
       contents: read
       id-token: write
@@ -41,6 +45,13 @@ jobs:
 
   issue-triage:
     needs: [resolve-apm-assets]
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'opened' &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
     permissions:
       actions: read
       contents: read

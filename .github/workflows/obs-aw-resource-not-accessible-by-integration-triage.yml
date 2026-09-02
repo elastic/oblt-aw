@@ -30,10 +30,8 @@ jobs:
   resolve-apm-assets:
     if: >-
       github.event_name == 'issues' &&
-      (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration')
-      )
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration'
     permissions:
       contents: read
       id-token: write
@@ -237,10 +235,8 @@ jobs:
       id-token: write
     if: >-
       github.event_name == 'issues' &&
-      (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration')
-      )
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration'
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
