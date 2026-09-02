@@ -190,12 +190,12 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo 'Autodoc created this issue, but the follow-up PR stage failed.'
+            echo "Autodoc created this issue, but the follow-up PR stage failed."
             echo
             echo "- Workflow run: ${RUN_URL}"
-            echo '- Common cause: transient Copilot API errors such as `CAPIError: 502 "Proxy error"`'
+            echo "- Common cause: transient Copilot API errors such as \`CAPIError: 502 \"Proxy error\"\`"
             echo
-            echo '**Recovery:** as an OWNER, MEMBER, or COLLABORATOR, comment `/ai implement` on this issue to retry PR creation via issue-fixer. You can also wait for the next successful autodoc schedule after the API recovers.'
+            echo "**Recovery:** as an OWNER, MEMBER, or COLLABORATOR, comment \`/ai implement\` on this issue to retry PR creation via issue-fixer. You can also wait for the next successful autodoc schedule after the API recovers."
           } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
       - name: Apply autodoc fix-failed label if it exists
         env:
