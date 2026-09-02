@@ -4,7 +4,7 @@
 
 Client template: `trigger-obs-aw-automerge.yml` → `obs-aw-automerge.yml`
 
-Routed workflow source: `.github/workflows/obs-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, conditional `enable-merge-when-ready`, and `report-automerge-outcome` on the PR). Merge first uses **pascalgn/automerge-action** with `GITHUB_TOKEN`; when that step reports `merge_failed` or `not_ready`, the workflow enables native GitHub auto-merge as a fallback. If the PR remains unmerged without auto-merge enabled, the workflow fails and comments on the PR.
+Routed workflow source: `.github/workflows/obs-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, conditional `enable-merge-when-ready`, and `report-automerge-outcome` on the PR). Merge first uses **pascalgn/automerge-action** with `GITHUB_TOKEN`; when that step reports `merge_failed` or `not_ready`, the workflow enables native GitHub auto-merge as a fallback. If the PR remains unmerged without auto-merge enabled, the workflow fails and upserts a PR comment.
 
 ## Usage
 
@@ -52,7 +52,7 @@ Primary path: squash merge via **pascalgn/automerge-action** when the PR satisfi
 
 Fallback path: when `automerge` returns `merge_failed` or `not_ready` (for example with required merge queue), `enable-merge-when-ready` mints an ephemeral token and runs `gh pr merge --auto --squash` to enqueue native GitHub auto-merge.
 
-Outcome gate: `report-automerge-outcome` fails the workflow (with a PR comment) when the PR is still open and auto-merge was not enabled after the pipeline completes.
+Outcome gate: `report-automerge-outcome` fails the workflow and upserts a single PR comment (marker `obs-aw-automerge:outcome-gate`) when the PR is still open and auto-merge was not enabled after the pipeline completes.
 
 ## Configuration
 

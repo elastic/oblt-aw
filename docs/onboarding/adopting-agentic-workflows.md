@@ -33,7 +33,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 4. Add exclusion guards for overlapping generic and specialized paths
 
-- When a **generic** workflow shares events with a **specialized** pipeline, add `if:` guards on the generic `obs-aw-*` job (for example generic issue-fixer excludes `oblt-aw/triage/security-*` and `oblt-aw/triage/res-not-accessible-by-integration`).
+- When a **generic** workflow shares events with a **specialized** pipeline, add `if:` guards on the generic `obs-aw-*` job (for example generic issue-triage / issue-fixer exclude `oblt-aw/detector/security`, `oblt-aw/detector/res-not-accessible-by-integration`, `oblt-aw/triage/security-*`, and `oblt-aw/triage/res-not-accessible-by-integration`).
 
 ### 5. Register in `workflow-registry.json`
 

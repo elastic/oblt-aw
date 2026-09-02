@@ -22,8 +22,10 @@ Routing rules in `obs-aw-security-*.yml` (issue routes follow the same label pat
 
 - **Detector** — `schedule` or `workflow_dispatch`.
 - **Superseder** — `issues` + `opened` when the issue has `oblt-aw/detector/security` (closes older open issues for the same SEC rule; see [docs/workflows/obs-aw-security-issue-superseder.md](../workflows/obs-aw-security-issue-superseder.md)).
-- **Triage** — `issues` + (`opened` and issue already has `oblt-aw/detector/security`) **or** (`labeled` and the label applied is `oblt-aw/detector/security`).
+- **Triage** — `issues` + `labeled` when the label applied is `oblt-aw/detector/security` (not on `opened`; create-with-label still emits `labeled`).
 - **Fixer** — `issues` + `labeled` with `oblt-aw/ai/fix-ready`, and the issue has at least one label matching `oblt-aw/triage/security-*`.
+
+Generic issue-triage and issue-fixer skip issues that carry security detector or triage labels so they do not compete with this pipeline.
 
 ## Trigger Conditions
 
@@ -42,7 +44,8 @@ Routing rules in `obs-aw-security-*.yml` (issue routes follow the same label pat
 ### Triage
 
 - **Event**: `issues`
-- **Action**: `opened` (issue must include label `oblt-aw/detector/security`) **or** `labeled` (when `github.event.label.name == 'oblt-aw/detector/security'`)
+- **Action**: `labeled`
+- **Required label**: `github.event.label.name == 'oblt-aw/detector/security'`
 - **Filter**: The triage workflow has its own `target-repositories` filter; default `[]` allows all repositories.
 
 ### Fixer

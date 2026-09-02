@@ -21,8 +21,7 @@ on:
       shared-token-policy:
         required: true
         type: string
-# Ephemeral token minting for label API runs only in signal-res-not-accessible-triage-followups (see #4374 workaround).
-# Omit token-policy on create-token so Vault uses the auto role token-policy-<12-char sha256(workflow ref base)>; register in catalog-info.
+# Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
 permissions:
   contents: read
 
@@ -31,10 +30,8 @@ jobs:
   resolve-apm-assets:
     if: >-
       github.event_name == 'issues' &&
-      (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration')
-      )
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration'
     permissions:
       contents: read
       id-token: write
@@ -235,71 +232,14 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
+      id-token: write
     if: >-
       github.event_name == 'issues' &&
-      (
-        (github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration')) ||
-        (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration')
-      )
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oblt-aw/detector/res-not-accessible-by-integration'
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
       classification-labels: "oblt-aw/triage/res-not-accessible-by-integration,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-  # Workaround until we can mint ephemeral tokens inside agentic-workflows (elastic/observability-robots#4374):
-  # mint only in this follow-up job; when the fixer preconditions hold, remove+re-add `oblt-aw/ai/fix-ready`
-  # so ingress sees a `labeled` event from the installation token.
-  signal-res-not-accessible-triage-followups:
-    needs: [res-not-accessible-integration-triage]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      id-token: write
-      issues: write
-    steps:
-      - name: Create ephemeral GitHub token (configured policy)
-        id: create-token-explicit
-        if: ${{ inputs.shared-token-policy != '' }}
-        uses: elastic/oblt-actions/github/create-token@v1
-        with:
-          token-policy: ${{ inputs.shared-token-policy }}
-
-      - name: Create ephemeral GitHub token (Vault auto policy)
-        id: create-token-auto
-        if: ${{ inputs.shared-token-policy == '' }}
-        uses: elastic/oblt-actions/github/create-token@v1
-
-      - name: Re-apply fix-ready label to emit installation-token labeled event
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const issueNumber = context.issue.number;
-            const { data: issue } = await github.rest.issues.get({
-              owner,
-              repo,
-              issue_number: issueNumber,
-            });
-            const names = issue.labels.map((l) => l.name);
-            const fixReady = "oblt-aw/ai/fix-ready";
-            const confirmed = "oblt-aw/triage/res-not-accessible-by-integration";
-            if (!names.includes(fixReady) || !names.includes(confirmed)) {
-              core.info(`Issue #${issueNumber} missing ${fixReady} or ${confirmed}; skipping re-apply.`);
-              return;
-            }
-            await github.rest.issues.removeLabel({
-              owner,
-              repo,
-              issue_number: issueNumber,
-              name: fixReady,
-            });
-            await github.rest.issues.addLabels({
-              owner,
-              repo,
-              issue_number: issueNumber,
-              labels: [fixReady],
-            });
-            core.info(`Re-applied ${fixReady} on issue #${issueNumber}.`);
+      github-token-policy: ${{ inputs.shared-token-policy }}

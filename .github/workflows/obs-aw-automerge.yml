@@ -313,10 +313,19 @@ jobs:
             exit 0
           fi
 
-          body="$(printf '%s\n\n%s\n\n%s' \
+          MARKER='<!-- obs-aw-automerge:outcome-gate -->'
+          body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
+            "$MARKER" \
             "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
             "Common causes include CODEOWNERS still requiring a listed owner (list \`elastic-vault-github-plugin-prod\` for automerge paths, or a human team), empty \`shared-token-policy\`, or other branch protection rules that block merge." \
             "Workflow run: ${RUN_URL}")"
-          gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+            | head -n 1)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          fi
           echo "Automerge pipeline finished without merging PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, fallback=${FALLBACK_RESULT})."
           exit 1

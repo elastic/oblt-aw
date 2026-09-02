@@ -11,7 +11,9 @@ Reusable wrapper that calls the locked generic issue-fixer workflow in [elastic/
 - Triggered via `workflow_call` from `trigger-obs-aw-issue-fixer.yml` client templates.
 - Triggering issue comment must start with `/ai implement` (for example, `/ai implement` or `/ai implement this`).
 - Triggering comment author association must be one of: `OWNER`, `MEMBER`, `COLLABORATOR`.
-- Issue must not include specialized triage labels:
+- Issue must not include specialized detector or triage labels:
+  - `oblt-aw/detector/security`
+  - `oblt-aw/detector/res-not-accessible-by-integration`
   - `oblt-aw/triage/security-*`
   - `oblt-aw/triage/res-not-accessible-by-integration`
 
@@ -37,14 +39,16 @@ Configured instructions require:
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
+The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
+
 Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared draft, review, and merge policy is composed from control-plane fragments mapped under `workflows.issue-fixer` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)).
 
 ## Configuration
 
 Permissions:
 
-- top-level: `actions: read`
-- job `run`: `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`
+- top-level: `contents: read`
+- job `run`: `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write`
 - job `request-reviewers`: `pull-requests: write`
 
 ## API / Interface

@@ -4,11 +4,11 @@
 
 Source file: [.github/workflows/obs-aw-security-triage.yml](../../.github/workflows/obs-aw-security-triage.yml)
 
-This reusable workflow triages newly opened security-related issues and prepares fix-ready issues for the security fixer workflow. It classifies vulnerabilities in GitHub Actions workflows and shell scripts: injection, secret management, supply chain, and least privilege—matching [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758). It runs in the **caller repository** (same as the detector).
+This reusable workflow triages security-related issues labeled `oblt-aw/detector/security` and prepares fix-ready issues for the security fixer workflow. It classifies vulnerabilities in GitHub Actions workflows and shell scripts: injection, secret management, supply chain, and least privilege—matching [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758). It runs in the **caller repository** (same as the detector).
 
 ## Prerequisites
 
-- Triggered via `workflow_call`.
+- Triggered via `workflow_call` on `issues` `labeled` when the applied label is `oblt-aw/detector/security`.
 
 ## Usage
 
@@ -25,15 +25,14 @@ Configured instructions define:
 - when to set `oblt-aw/ai/fix-ready`
 - required resolution plan structure: root cause, risk assessment, remediation steps, before/after examples
 
-After triage, the workflow runs `signal-security-triage-followups`, which mints an ephemeral installation token and re-applies `oblt-aw/ai/fix-ready` (remove + add) only when `oblt-aw/ai/fix-ready` and one security classification label are present. This emits an installation-token `labeled` event so downstream fixer routing is triggered.
+The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty in the same job that applies labels, so `oblt-aw/ai/fix-ready` re-triggers the fixer route.
 
 ## Configuration
 
 Permissions:
 
-- **Workflow default:** `actions: read`, `contents: read`
-- **Job `security-issue-triage`:** `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write`
-- **Job `signal-security-triage-followups`:** `contents: read`, `id-token: write`, `issues: write` (OIDC for ephemeral `create-token` and fix-ready label re-apply signaling)
+- **Workflow default:** `contents: read`
+- **Job `security-issue-triage`:** `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write`
 
 ## API / Interface
 

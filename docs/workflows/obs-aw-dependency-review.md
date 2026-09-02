@@ -22,8 +22,7 @@ Forwarded inputs include:
 - `allowed-bot-users`: from caller (CSV aligned with the control-plane allow list)
 - `classification-labels`: `oblt-aw/ai/merge-ready`
 - `additional-instructions`: Noop-when-not-applicable rules, CVE-focused and internal-change impact analysis instructions.
-
-After `dependency-review`, the workflow runs `signal-dependency-review-followups`, which mints an ephemeral installation token and re-applies `oblt-aw/ai/merge-ready` (remove + add) when present. This emits a `labeled` event from the installation token so downstream follow-up workflows can run.
+- `github-token-policy`: from `shared-token-policy` (`aw-prelude` / `workflow-token-policy`). When non-empty, the nested lock workflow mints an OIDC installation token in the same job that applies labels (labels then re-trigger downstream workflows). Empty keeps `GITHUB_TOKEN` (no re-trigger).
 
 Noop semantics (in additional-instructions):
 
@@ -38,9 +37,8 @@ Labeling semantics (in additional-instructions):
 
 Permissions:
 
-- **Workflow:** `actions: read`, `contents: read`.
-- **Job `dependency-review`:** `actions: read`, `contents: read`, `issues: write`, `pull-requests: write`.
-- **Job `signal-dependency-review-followups`:** `contents: read`, `id-token: write`, `pull-requests: write` (OIDC for ephemeral `create-token` and label re-apply signaling).
+- **Workflow:** `contents: read`.
+- **Job `dependency-review`:** `actions: read`, `contents: read`, `issues: write`, `pull-requests: write`, `id-token: write` (OIDC for in-lock `create-token`).
 
 ## API / Interface
 

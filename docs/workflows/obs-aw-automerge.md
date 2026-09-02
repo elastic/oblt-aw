@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/obs-aw-automerge.yml](../../.github/workflows/obs-aw-automerge.yml)
 
-This workflow runs for a **single** pull request from `github.event.pull_request` (`pull_request` trigger only). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes (ephemeral Vault-app token when `github-token-policy` is set), then runs **pascalgn/automerge-action** in the `automerge` job so the PR can squash-merge when labels, reviews, and checks satisfy configuration. If that merge attempt reports `merge_failed` or `not_ready` (for example when merge queue is required), the workflow runs `enable-merge-when-ready` to enable native GitHub auto-merge (`gh pr merge --auto --squash`) as a fallback. If the PR remains unmerged and auto-merge was not enabled, `report-automerge-outcome` fails the workflow and posts a PR comment. Required status checks are **not** queried in `verify`; branch protection and merge readiness checks handle gating before merge.
+This workflow runs for a **single** pull request from `github.event.pull_request` (`pull_request` trigger only). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes (ephemeral Vault-app token when `github-token-policy` is set), then runs **pascalgn/automerge-action** in the `automerge` job so the PR can squash-merge when labels, reviews, and checks satisfy configuration. If that merge attempt reports `merge_failed` or `not_ready` (for example when merge queue is required), the workflow runs `enable-merge-when-ready` to enable native GitHub auto-merge (`gh pr merge --auto --squash`) as a fallback. If the PR remains unmerged and auto-merge was not enabled, `report-automerge-outcome` fails the workflow and upserts a PR comment. Required status checks are **not** queried in `verify`; branch protection and merge readiness checks handle gating before merge.
 
 Ingress selects which events dispatch here; see [Automerge routing](../routing/automerge-routing.md).
 
@@ -22,7 +22,7 @@ Jobs:
 - `approve`: invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` when `verify` and `check-dependency-collection` pass (Copilot must not call check-run APIs for gating; branch protection handles required checks at merge time). Passes `github-token-policy` from `shared-token-policy` so the nested lock mints an OIDC ephemeral token when non-empty; the approval is submitted as the Vault app identity and can satisfy CODEOWNERS when that app is listed for the changed paths. Empty policy keeps `GITHUB_TOKEN` (CODEOWNERS-required repos stay blocked until policy is set and the app is a code owner).
 - `automerge`: runs **pascalgn/automerge-action** with `GITHUB_TOKEN` on the **same** repository as the PR (`PULL_REQUEST` is the PR number), after `approve`. Squash-merge when `MERGE_LABELS`, `MERGE_REQUIRED_APPROVALS`, and GitHub mergeability align with branch protection.
 - `enable-merge-when-ready`: runs when `automerge` outputs `merge_failed` or `not_ready`; creates an ephemeral token via `elastic/oblt-actions/github/create-token@v1` and enables native auto-merge queue behavior with `gh pr merge --auto --squash`.
-- `report-automerge-outcome`: after automerge (and optional fallback), succeeds when the PR was merged or native auto-merge is enabled; otherwise posts a PR comment explaining the blocker and fails the workflow so a successful conclusion cannot hide an unmerged PR.
+- `report-automerge-outcome`: after automerge (and optional fallback), succeeds when the PR was merged or native auto-merge is enabled; otherwise upserts a single PR comment (marker `obs-aw-automerge:outcome-gate`) explaining the blocker and fails the workflow so a successful conclusion cannot hide an unmerged PR.
 
 There is no discover step. Prelude supplies **`allowed-pr-authors-csv`** into the `approve` job’s `oblt-aw-mention-in-pr` call. Merge-ready label and PR author gating remain in `validateAutomergePr.ts` and workflow `if` conditions; the canonical PR author list is [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json).
 
@@ -38,7 +38,7 @@ There is no discover step. Prelude supplies **`allowed-pr-authors-csv`** into th
 | `approve` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write` (GH-AW mention-in-pr; OIDC mint when `github-token-policy` is set) |
 | `automerge` | `contents: write`, `pull-requests: write` (automerge action merges the PR) |
 | `enable-merge-when-ready` | `id-token: write` (required for ephemeral token minting before `gh pr merge --auto`) |
-| `report-automerge-outcome` | `pull-requests: write` (failure comment on the PR) |
+| `report-automerge-outcome` | `pull-requests: write` (upsert failure comment on the PR) |
 
 ### CODEOWNERS and ephemeral tokens
 
