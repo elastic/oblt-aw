@@ -25,6 +25,7 @@ on:
         description: Normalized JSON array of compound workflow ids from aw-prelude.
         required: true
         type: string
+# Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
 permissions:
   contents: read
 
@@ -177,10 +178,12 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
+      id-token: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      github-token-policy: ${{ inputs.shared-token-policy }}
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
@@ -196,6 +199,7 @@ jobs:
 
         If any gate is false, do not approve and do not request changes.
         Keep output minimal.
+
   # Same repository as the PR: GITHUB_TOKEN can merge when checks/reviews satisfy branch protection
   # and pascalgn/automerge-action config. Author/label rules are enforced in `verify` (validateAutomergePr).
   automerge:
@@ -231,10 +235,14 @@ jobs:
 
   # pascalgn/automerge-action uses the REST merge API, which branch rules can reject when
   # "merge queue" is required. Enabling native "merge when ready" enqueues the PR instead.
+  # Also run on not_ready (e.g. remaining protection gates) so native auto-merge can help.
   # Do not pass --delete-branch here: gh rejects it when merge queue is enabled.
   enable-merge-when-ready:
     needs: [automerge]
-    if: always() && needs.automerge.outputs.merge_result == 'merge_failed'
+    if: >-
+      always() &&
+      (needs.automerge.outputs.merge_result == 'merge_failed' ||
+       needs.automerge.outputs.merge_result == 'not_ready')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -260,3 +268,64 @@ jobs:
         run: |
           set -euo pipefail
           gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash
+
+  # Do not report workflow success when the PR is still open and auto-merge was not enabled.
+  report-automerge-outcome:
+    needs:
+      - verify
+      - check-dependency-collection
+      - automerge
+      - enable-merge-when-ready
+    if: >-
+      always() &&
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true' &&
+      needs.automerge.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Fail and comment when pull request remains unmerged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
+          FALLBACK_RESULT: ${{ needs.enable-merge-when-ready.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ "${MERGE_RESULT}" = "merged" ]; then
+            echo "PR merged by automerge action."
+            exit 0
+          fi
+          if [ "${FALLBACK_RESULT}" = "success" ]; then
+            echo "Native auto-merge enabled as fallback."
+            exit 0
+          fi
+
+          pr_json="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state,autoMergeRequest)"
+          pr_state="$(printf '%s' "$pr_json" | jq -r .state)"
+          auto_merge="$(printf '%s' "$pr_json" | jq -r 'if .autoMergeRequest == null then "false" else "true" end')"
+          if [ "$pr_state" = "MERGED" ] || [ "$auto_merge" = "true" ]; then
+            echo "PR is merged or has auto-merge enabled; treating as success."
+            exit 0
+          fi
+
+          MARKER='<!-- obs-aw-automerge:outcome-gate -->'
+          body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
+            "$MARKER" \
+            "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
+            "Common causes include CODEOWNERS still requiring a listed owner (list \`elastic-vault-github-plugin-prod\` for automerge paths, or a human team), empty \`shared-token-policy\`, or other branch protection rules that block merge." \
+            "Workflow run: ${RUN_URL}")"
+          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+            | head -n 1)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          fi
+          echo "Automerge pipeline finished without merging PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, fallback=${FALLBACK_RESULT})."
+          exit 1
