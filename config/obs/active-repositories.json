@@ -32,7 +32,7 @@
     },
     {
       "repository": "elastic/oblt-google-auth-buildkite-plugin",
-      "workflow-token-policy": "",
+      "workflow-token-policy": "token-policy-f36777a25870",
       "ai-assets-token-policy": ""
     },
     {
