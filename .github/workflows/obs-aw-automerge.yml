@@ -271,12 +271,15 @@ jobs:
           GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          # Pin merge to the head SHA evaluated in this run; 409 if the PR was updated mid-run.
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           # Direct REST merge honors classic BP pull_request_bypassers when using a Vault-app token.
           # Capture API errors for logs; failure is expected when falling back to --auto.
           if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
-            -f merge_method=squash 2>&1)"; then
+            -f merge_method=squash \
+            -f sha="${HEAD_SHA}" 2>&1)"; then
             echo "Merged via REST API."
             exit 0
           fi
