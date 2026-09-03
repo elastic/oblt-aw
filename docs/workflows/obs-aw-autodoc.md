@@ -17,6 +17,7 @@ Jobs:
 - `audit`: calls `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Created issues always @mention `@elastic/observablt-ci` in the body so the team receives notifications.
 - `fix`: calls `gh-aw-create-pr-from-issue.lock.yml` only when `audit` created an issue.
 - `finalize-pr`: requests a review from `@elastic/observablt-ci` and applies the `changelog:docs` label to the created PR if that label exists in the repository.
+- `notify-fix-failure`: when `fix` fails after an audit issue was created, comments recovery guidance on that issue (including `/ai implement`) and applies `oblt-aw/autodoc/fix-failed` when that label exists in the repository.
 
 Workflow-specific requirements passed to the PR stage:
 
@@ -44,6 +45,8 @@ Permissions:
 - `discussions: write`
 - `issues: write`
 - `pull-requests: write`
+
+`notify-fix-failure` uses job-level `issues: write` only.
 
 ## API / Interface
 
