@@ -281,12 +281,14 @@ jobs:
         run: |
           set -euo pipefail
           # Direct REST merge honors classic BP pull_request_bypassers for the Vault app.
-          if gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
-            -f merge_method=squash >/dev/null 2>&1; then
+          # Capture API errors for logs; failure is expected when falling back to --auto.
+          if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
+            -f merge_method=squash 2>&1)"; then
             echo "Merged via REST API as Vault app."
             exit 0
           fi
           echo "Direct merge failed; enabling native auto-merge as fallback."
+          echo "REST merge error: ${merge_out}"
           gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash
 
   # Do not report workflow success when the PR is still open and auto-merge was not enabled.

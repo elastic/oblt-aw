@@ -44,10 +44,10 @@ There is no discover step. Prelude supplies **`allowed-pr-authors-csv`** into th
 
 GitHub CODEOWNERS accepts **users and teams only**—not GitHub Apps. Listing `@elastic-vault-github-plugin-prod` in `CODEOWNERS` is rejected as an unknown owner.
 
-When `github-token-policy` / `shared-token-policy` is non-empty:
+Token minting differs by job:
 
-1. `approve` mints an ephemeral token in the nested lock and submits the review as [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) (covers required **review count** rules).
-2. `automerge` (and the merge fallback) mint the same Vault-app identity and call the REST merge API as that app.
+1. **`approve`:** When `github-token-policy` / `shared-token-policy` is non-empty, the nested lock mints an ephemeral token and submits the review as [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) (covers required **review count** rules). Empty policy keeps `GITHUB_TOKEN` for nested approve writes.
+2. **`automerge` / merge fallback:** Always mint a Vault-app token (configured `shared-token-policy`, or Vault auto-policy when that input is empty) and call the REST merge API as that app.
 
 **Consumer requirement for CODEOWNERS-protected repos:** Keep human/team entries in `CODEOWNERS`, and add the Vault app to classic branch-protection `pull_request_bypassers` (managed in [elastic/observability-github-settings](https://github.com/elastic/observability-github-settings)) so a Vault-app merge can bypass the CODEOWNERS gate. Example Terraform:
 
@@ -60,8 +60,6 @@ required_pull_request_reviews {
   required_approving_review_count = 1
 }
 ```
-
-Empty `shared-token-policy` keeps `GITHUB_TOKEN` for nested approve writes; merge still attempts Vault auto-policy mint in `automerge` / `enable-merge-when-ready`.
 
 
 ## API / Interface
