@@ -4,7 +4,7 @@
 
 Client template: `trigger-obs-aw-automerge.yml` → `obs-aw-automerge.yml`
 
-Routed workflow source: `.github/workflows/obs-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, conditional `enable-merge-when-ready`, and `report-automerge-outcome` on the PR). Merge first uses **pascalgn/automerge-action** with an ephemeral Vault-app token; when that step reports `merge_failed` or `not_ready`, the workflow retries a direct REST merge as the Vault app, then enables native GitHub auto-merge as a fallback. If the PR remains unmerged without auto-merge enabled, the workflow fails and upserts a PR comment.
+Routed workflow source: `.github/workflows/obs-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, conditional `enable-merge-when-ready`, and `report-automerge-outcome` on the PR). Merge first uses **pascalgn/automerge-action** with an ephemeral Vault-app token when `shared-token-policy` is set, otherwise `GITHUB_TOKEN`; when that step reports `merge_failed` or `not_ready`, the workflow retries a direct REST merge with the same token identity, then enables native GitHub auto-merge as a fallback. If the PR remains unmerged without auto-merge enabled, the workflow fails and upserts a PR comment.
 
 ## Usage
 
@@ -42,15 +42,15 @@ The client template includes `labeled` in `pull_request` types (`trigger-obs-aw-
 
 **`approve` job:** Nested `gh-aw-mention-in-pr` receives `github-token-policy` from prelude `shared-token-policy`. When non-empty, the lock mints an ephemeral Vault-app token and submits the review as that identity (satisfies required review **counts**; GitHub Apps cannot be CODEOWNERS). For repos with “Require review from Code Owners”, add the Vault app to classic branch-protection `pull_request_bypassers` and merge as that app (see [obs-aw-automerge.md](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens)).
 
-**`automerge` job** (after `approve`): Mints a Vault-app token and runs **[pascalgn/automerge-action](https://github.com/pascalgn/automerge-action)** with it. The action enforces `MERGE_LABELS` (`oblt-aw/ai/merge-ready`), `MERGE_REQUIRED_APPROVALS`, fork/branch settings, and merges with **squash** when GitHub reports the PR as ready (required checks and reviews per branch protection and action config). Author and label gates are enforced in `verify` (`validateAutomergePr.ts`, same allow list as dependency-review).
+**`automerge` job** (after `approve`): When `shared-token-policy` is non-empty, mints a Vault-app token and runs **[pascalgn/automerge-action](https://github.com/pascalgn/automerge-action)** with it; when empty, uses `GITHUB_TOKEN`. The action enforces `MERGE_LABELS` (`oblt-aw/ai/merge-ready`), `MERGE_REQUIRED_APPROVALS`, fork/branch settings, and merges with **squash** when GitHub reports the PR as ready (required checks and reviews per branch protection and action config). Author and label gates are enforced in `verify` (`validateAutomergePr.ts`, same allow list as dependency-review).
 
 **Required checks:** Validated by GitHub branch protection and the automerge action’s merge readiness logic, not by `validateAutomergePr.ts`.
 
 ## Merge strategy
 
-Primary path: squash merge via **pascalgn/automerge-action** as the Vault app when the PR satisfies labels, approvals, and checks.
+Primary path: squash merge via **pascalgn/automerge-action** (Vault app when `shared-token-policy` is set, otherwise `GITHUB_TOKEN`) when the PR satisfies labels, approvals, and checks.
 
-Fallback path: when `automerge` returns `merge_failed` or `not_ready` (for example with required merge queue), `enable-merge-when-ready` mints an ephemeral token, retries `PUT .../pulls/{n}/merge`, then runs `gh pr merge --auto --squash` to enqueue native GitHub auto-merge.
+Fallback path: when `automerge` returns `merge_failed` or `not_ready` (for example with required merge queue), `enable-merge-when-ready` uses the same token choice, retries `PUT .../pulls/{n}/merge`, then runs `gh pr merge --auto --squash` to enqueue native GitHub auto-merge.
 
 Outcome gate: `report-automerge-outcome` fails the workflow and upserts a single PR comment (marker `obs-aw-automerge:outcome-gate`) when the PR is still open and auto-merge was not enabled after the pipeline completes.
 

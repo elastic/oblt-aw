@@ -200,8 +200,9 @@ jobs:
         If any gate is false, do not approve and do not request changes.
         Keep output minimal.
 
-  # Merge as the Vault app (ephemeral token) so repo pull_request_bypassers for that app can
-  # skip CODEOWNERS. pascalgn uses the REST merge API, which honors classic BP bypassers.
+  # When shared-token-policy is set, merge as the Vault app (ephemeral token) so repo
+  # pull_request_bypassers for that app can skip CODEOWNERS. Otherwise use GITHUB_TOKEN.
+  # pascalgn uses the REST merge API, which honors classic BP bypassers for App tokens.
   # Author/label rules are enforced in `verify` (validateAutomergePr).
   automerge:
     needs:
@@ -227,16 +228,11 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
-      - name: Create ephemeral GitHub token (Vault auto policy)
-        id: create-token-auto
-        if: ${{ inputs.shared-token-policy == '' }}
-        uses: elastic/oblt-actions/github/create-token@v1
-
       - id: merge-pull-request
         name: Merge pull request when ready (squash)
         uses: pascalgn/automerge-action@7961b8b5eec56cc088c140b56d864285eabd3f67 # v0.16.4
         env:
-          GITHUB_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           PULL_REQUEST: ${{ github.event.pull_request.number }}
           MERGE_LABELS: "oblt-aw/ai/merge-ready"
           UPDATE_LABELS: "oblt-aw/ai/merge-ready"
@@ -247,9 +243,9 @@ jobs:
           MERGE_RETRIES: "10"
           MERGE_RETRY_SLEEP: "20000"
 
-  # When REST merge still fails (for example merge queue), try a direct Vault-app merge again,
-  # then fall back to native "merge when ready". Do not pass --delete-branch: gh rejects it
-  # when merge queue is enabled. Async --auto often ignores bypass actors.
+  # When REST merge still fails (for example merge queue), retry direct merge with the same
+  # token identity, then fall back to native "merge when ready". Do not pass --delete-branch:
+  # gh rejects it when merge queue is enabled. Async --auto often ignores bypass actors.
   enable-merge-when-ready:
     needs: [automerge]
     if: >-
@@ -259,6 +255,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      contents: write
+      pull-requests: write
       id-token: write
     steps:
       - name: Create ephemeral GitHub token (configured policy)
@@ -268,23 +266,18 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
-      - name: Create ephemeral GitHub token (Vault auto policy)
-        id: create-token-auto
-        if: ${{ inputs.shared-token-policy == '' }}
-        uses: elastic/oblt-actions/github/create-token@v1
-
-      - name: Merge or enable merge when ready (Vault app)
+      - name: Merge or enable merge when ready
         env:
-          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # Direct REST merge honors classic BP pull_request_bypassers for the Vault app.
+          # Direct REST merge honors classic BP pull_request_bypassers when using a Vault-app token.
           # Capture API errors for logs; failure is expected when falling back to --auto.
           if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
             -f merge_method=squash 2>&1)"; then
-            echo "Merged via REST API as Vault app."
+            echo "Merged via REST API."
             exit 0
           fi
           echo "Direct merge failed; enabling native auto-merge as fallback."
@@ -323,7 +316,7 @@ jobs:
             exit 0
           fi
           if [ "${FALLBACK_RESULT}" = "success" ]; then
-            echo "Merge fallback succeeded (direct Vault-app merge or native auto-merge)."
+            echo "Merge fallback succeeded (direct merge or native auto-merge)."
             exit 0
           fi
 
@@ -339,7 +332,7 @@ jobs:
           body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
             "$MARKER" \
             "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
-            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), merge attempted without an ephemeral Vault token, empty \`shared-token-policy\` where required, or other branch protection rules that block merge." \
+            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), or other branch protection rules that block merge." \
             "Workflow run: ${RUN_URL}")"
           comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
