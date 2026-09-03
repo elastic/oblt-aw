@@ -20,21 +20,21 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
 ## Steps
 
-1. **Create a new branch on `elastic/oblt-aw`, choose the org, and add the repository** — From an up-to-date `main`, create a **feature branch** (for example `git checkout -b feat/obs-aw-register-<repo>`; exact naming is your team’s convention). On that branch only, identify the owning **`config/<org-key>/`** folder ([multi-org design](../architecture/multi-org-agentic-workflows.md)) and edit **`active-repositories.json`** to add an object with **`repository`** set to **`elastic/<repo>`**, **`workflow-token-policy`** set to a Backstage policy name when this repo should use an explicit policy for agentic workflow `create-token` calls (via `aw-prelude`), or **`""`** otherwise, and **`ai-assets-token-policy`** set when `apm install` must clone private APM packages from other repositories ([distribute-client-workflow](../operations/distribute-client-workflow.md), [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md)):
+1. **Create the catalog token policy first, then add the repository to `elastic/oblt-aw`** — From an up-to-date `main`, start by preparing the consumer repository’s Backstage **`TokenPolicy`** change in **`elastic/catalog-info`** (open a PR once the manifest is authored, or use a draft PR if you need early review). Then take the policy name from the TokenPolicy manifest’s **`spec.implementation.metadata.name`** (the value under the nested `metadata.name` inside the `TokenPolicy` resource; for example `token-policy-f36777a25870`) and use that exact string in the `elastic/oblt-aw` registration entry’s **`workflow-token-policy`** field. Only use **`""`** when you intentionally want the repo to rely on Vault auto-policy / control-plane defaults instead of an explicit repository-scoped policy. On the `elastic/oblt-aw` branch, identify the owning **`config/<org-key>/`** folder ([multi-org design](../architecture/multi-org-agentic-workflows.md)) and edit **`active-repositories.json`** to add an object with **`repository`** set to **`elastic/<repo>`**, **`workflow-token-policy`** set to that catalog policy name, and **`ai-assets-token-policy`** set when `apm install` must clone private APM packages from other repositories ([distribute-client-workflow](../operations/distribute-client-workflow.md), [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md)):
 
    ```json
    {
      "repositories": [
        {
          "repository": "elastic/<repo>",
-         "workflow-token-policy": "",
+         "workflow-token-policy": "token-policy-<12-char sha256(workflow ref base)>",
          "ai-assets-token-policy": ""
        }
      ]
    }
    ```
 
-   Commit on the branch and open a pull request to **`main`**, but **do not merge** that registration PR until **step 3** is complete.
+   Commit on the `elastic/oblt-aw` branch and open a pull request to **`main`**, but **do not merge** that registration PR until **step 3** is complete.
 
    - **`id-token: write` on the client** — Confirm each [client template](../workflows/obs-aw-client-template.md) that needs OIDC grants **`id-token: write`** on the client entrypoint job (for example `run-obs-aw-pull-request`) so nested workflows can call `create-token`.
 
@@ -42,7 +42,7 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
    - **a. `workflow_ref`** — Set `bound_claims.workflow_ref` to each installed client workflow that calls `create-token` (for example **`elastic/<repo>/.github/workflows/trigger-obs-aw-security-detector.yml@refs/heads/main`**, **`…/trigger-obs-aw-automerge.yml@refs/heads/main`**). Use one TokenPolicy per distinct `workflow_ref` when your vault model requires narrow claims. Branch ref is **always** `refs/heads/main` for this contract.
 
-   - **b. `additional_permissions`** — Populate `permissionset.additional_permissions` with the **union** of GitHub permissions required to run **every** agentic workflow listed for the **selected org** in `elastic/oblt-aw`’s `config/<org-key>/workflow-registry.json` (all `workflows[].id` values for that org). For each registry entry, use the matching **`docs/workflows/obs-aw-*.md`** (and routing docs where relevant) in `elastic/oblt-aw` to determine token, OIDC, and secret requirements. There is no single canonical YAML block maintained here (**Unknown**); Platform Engineering and **`elastic/catalog-info`** reviewers approve the final mapping ([Ephemeral tokens / GitHub Actions](https://docs.elastic.dev/platform-engineering-productivity/services/ephemeral-tokens/github-actions)). The shape is a mapping of permission names to access levels; for example (illustrative only—not the full union for any org):
+   - **b. `additional_permissions`** — Populate `permissionset.additional_permissions` with the **union** of GitHub permissions required to run the workflows you intend to enable for the selected org in `elastic/oblt-aw`’s `config/<org-key>/workflow-registry.json`. For each registry entry, use the matching **`docs/workflows/obs-aw-*.md`** (and routing docs where relevant) in `elastic/oblt-aw` to determine token, OIDC, and secret requirements. There is no single canonical YAML block maintained here (**Unknown**); Platform Engineering and **`elastic/catalog-info`** reviewers approve the final mapping ([Ephemeral tokens / GitHub Actions](https://docs.elastic.dev/platform-engineering-productivity/services/ephemeral-tokens/github-actions)). The shape is a mapping of permission names to access levels; for example (illustrative only—not the full union for any org):
 
      ```yaml
      additional_permissions:
@@ -50,7 +50,7 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
        issues: write
      ```
 
-   - **c. `TokenPolicy.metadata.name` (`token-policy-<12-char sha256(workflow ref base)>`)** — Derive the suffix from each **workflow ref base** (the `workflow_ref` value without `@refs/heads/main`), for example **`elastic/<repo>/.github/workflows/trigger-obs-aw-automerge.yml`**. Set the nested name to **`token-policy-<12-char sha256(workflow ref base)>`** per policy.
+   - **c. `TokenPolicy.metadata.name` (`token-policy-<12-char sha256(workflow ref base)>`)** — Derive the suffix from each **workflow ref base** (the `workflow_ref` value without `@refs/heads/main`), for example **`elastic/<repo>/.github/workflows/trigger-obs-aw-automerge.yml`**. Set the nested name to **`token-policy-<12-char sha256(workflow ref base)>`** per policy. Use that exact **`metadata.name`** value in the `elastic/oblt-aw` registration entry’s **`workflow-token-policy`** field once the catalog PR exists.
 
    - **d. Author the manifest** — Write the YAML file(s) under paths required by **`elastic/catalog-info`**, filling the template fields from **a–c** and the [appendix](#appendix-token-policy-yaml-template).
 
