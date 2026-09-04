@@ -104,7 +104,7 @@ jobs:
     strategy:
       matrix:
         workflow: ${{ fromJSON(needs.discover.outputs.workflows) }}
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@fix/log-searching-agent-copilot-token-align
     with:
       workflow: ${{ matrix.workflow }}
       search-terms: "Resource not accessible by integration"
