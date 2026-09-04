@@ -168,3 +168,41 @@ jobs:
           if gh label list --repo "$GITHUB_REPOSITORY" --json name --jq '.[].name' | grep -qx "changelog:docs"; then
             gh pr edit "$PR_NUMBER" --add-label "changelog:docs" --repo "$GITHUB_REPOSITORY"
           fi
+
+  # When the PR stage fails after an audit issue was created (for example Copilot
+  # CAPI 502 proxy errors), leave recoverable guidance on the issue.
+  notify-fix-failure:
+    needs: [audit, fix]
+    if: >-
+      always() &&
+      needs.audit.result == 'success' &&
+      needs.audit.outputs.created_issue_number != '' &&
+      needs.fix.result == 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Comment recovery guidance on the audit issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.audit.outputs.created_issue_number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Autodoc created this issue, but the follow-up PR stage failed."
+            echo
+            echo "- Workflow run: ${RUN_URL}"
+            echo "- Common cause: transient Copilot API errors such as \`CAPIError: 502 \"Proxy error\"\`"
+            echo
+            echo "**Recovery:** as an OWNER, MEMBER, or COLLABORATOR, comment \`/ai implement\` on this issue to retry PR creation via issue-fixer. You can also wait for the next successful autodoc schedule after the API recovers."
+          } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
+      - name: Apply autodoc fix-failed label if it exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.audit.outputs.created_issue_number }}
+        run: |
+          set -euo pipefail
+          if gh label list --repo "$GITHUB_REPOSITORY" --json name --jq '.[].name' | grep -qx "oblt-aw/autodoc/fix-failed"; then
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "oblt-aw/autodoc/fix-failed"
+          fi

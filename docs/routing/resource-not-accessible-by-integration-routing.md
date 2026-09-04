@@ -16,13 +16,14 @@ Routing rules from ingress:
 
 - `schedule` -> detector
 - `issues` -> triage when:
-  - `opened` and the issue already includes label `oblt-aw/detector/res-not-accessible-by-integration`, or
   - `labeled` and `github.event.label.name` is `oblt-aw/detector/res-not-accessible-by-integration`
-  (The `opened` branch covers issues created with the detector label in the same request; GitHub does not emit `labeled` for labels set at creation.)
+  (Triage does not run on `opened`; create-with-label still emits `labeled` for the detector label.)
 - `issues` + `labeled` +
   - `github.event.label.name == 'oblt-aw/ai/fix-ready'`
   - issue contains label `oblt-aw/triage/res-not-accessible-by-integration`
   -> fixer
+
+Generic issue-triage and issue-fixer skip issues that carry this detector or triage label so they do not compete with this pipeline.
 
 All three routes (detector, triage, fixer) also require the shared dashboard gate to pass: `enabled-workflows` must contain `obs:resource-not-accessible-by-integration`.
 

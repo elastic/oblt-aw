@@ -25,6 +25,7 @@ on:
         description: Normalized JSON array of compound workflow ids from aw-prelude.
         required: true
         type: string
+# Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
 permissions:
   contents: read
 
@@ -177,10 +178,12 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
+      id-token: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      github-token-policy: ${{ inputs.shared-token-policy }}
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
@@ -196,8 +199,11 @@ jobs:
 
         If any gate is false, do not approve and do not request changes.
         Keep output minimal.
-  # Same repository as the PR: GITHUB_TOKEN can merge when checks/reviews satisfy branch protection
-  # and pascalgn/automerge-action config. Author/label rules are enforced in `verify` (validateAutomergePr).
+
+  # When shared-token-policy is set, merge as the Vault app (ephemeral token) so repo
+  # pull_request_bypassers for that app can skip CODEOWNERS. Otherwise use GITHUB_TOKEN.
+  # pascalgn uses the REST merge API, which honors classic BP bypassers for App tokens.
+  # Author/label rules are enforced in `verify` (validateAutomergePr).
   automerge:
     needs:
       - verify
@@ -211,14 +217,22 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      id-token: write
     outputs:
       merge_result: ${{ steps.merge-pull-request.outputs.mergeResult }}
     steps:
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ inputs.shared-token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
       - id: merge-pull-request
         name: Merge pull request when ready (squash)
         uses: pascalgn/automerge-action@7961b8b5eec56cc088c140b56d864285eabd3f67 # v0.16.4
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           PULL_REQUEST: ${{ github.event.pull_request.number }}
           MERGE_LABELS: "oblt-aw/ai/merge-ready"
           UPDATE_LABELS: "oblt-aw/ai/merge-ready"
@@ -229,15 +243,20 @@ jobs:
           MERGE_RETRIES: "10"
           MERGE_RETRY_SLEEP: "20000"
 
-  # pascalgn/automerge-action uses the REST merge API, which branch rules can reject when
-  # "merge queue" is required. Enabling native "merge when ready" enqueues the PR instead.
-  # Do not pass --delete-branch here: gh rejects it when merge queue is enabled.
+  # When REST merge still fails (for example merge queue), retry direct merge with the same
+  # token identity, then fall back to native "merge when ready". Do not pass --delete-branch:
+  # gh rejects it when merge queue is enabled. Async --auto often ignores bypass actors.
   enable-merge-when-ready:
     needs: [automerge]
-    if: always() && needs.automerge.outputs.merge_result == 'merge_failed'
+    if: >-
+      always() &&
+      (needs.automerge.outputs.merge_result == 'merge_failed' ||
+       needs.automerge.outputs.merge_result == 'not_ready')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      contents: write
+      pull-requests: write
       id-token: write
     steps:
       - name: Create ephemeral GitHub token (configured policy)
@@ -247,16 +266,84 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
-      - name: Create ephemeral GitHub token (Vault auto policy)
-        id: create-token-auto
-        if: ${{ inputs.shared-token-policy == '' }}
-        uses: elastic/oblt-actions/github/create-token@v1
-
-      - name: Enable merge when ready (merge queue fallback)
+      - name: Merge or enable merge when ready
         env:
-          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          # Pin merge to the head SHA evaluated in this run; 409 if the PR was updated mid-run.
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          # Direct REST merge honors classic BP pull_request_bypassers when using a Vault-app token.
+          # Capture API errors for logs; failure is expected when falling back to --auto.
+          if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
+            -f merge_method=squash \
+            -f sha="${HEAD_SHA}" 2>&1)"; then
+            echo "Merged via REST API."
+            exit 0
+          fi
+          echo "Direct merge failed; enabling native auto-merge as fallback."
+          echo "REST merge error: ${merge_out}"
           gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash
+
+  # Do not report workflow success when the PR is still open and auto-merge was not enabled.
+  report-automerge-outcome:
+    needs:
+      - verify
+      - check-dependency-collection
+      - automerge
+      - enable-merge-when-ready
+    if: >-
+      always() &&
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true' &&
+      needs.automerge.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Fail and comment when pull request remains unmerged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
+          FALLBACK_RESULT: ${{ needs.enable-merge-when-ready.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ "${MERGE_RESULT}" = "merged" ]; then
+            echo "PR merged by automerge action."
+            exit 0
+          fi
+          if [ "${FALLBACK_RESULT}" = "success" ]; then
+            echo "Merge fallback succeeded (direct merge or native auto-merge)."
+            exit 0
+          fi
+
+          pr_json="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state,autoMergeRequest)"
+          pr_state="$(printf '%s' "$pr_json" | jq -r .state)"
+          auto_merge="$(printf '%s' "$pr_json" | jq -r 'if .autoMergeRequest == null then "false" else "true" end')"
+          if [ "$pr_state" = "MERGED" ] || [ "$auto_merge" = "true" ]; then
+            echo "PR is merged or has auto-merge enabled; treating as success."
+            exit 0
+          fi
+
+          MARKER='<!-- obs-aw-automerge:outcome-gate -->'
+          body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
+            "$MARKER" \
+            "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
+            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), or other branch protection rules that block merge." \
+            "Workflow run: ${RUN_URL}")"
+          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+            | head -n 1)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          fi
+          echo "Automerge pipeline finished without merging PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, fallback=${FALLBACK_RESULT})."
+          exit 1
