@@ -3,6 +3,7 @@
   "workflows": {
     "issue-fixer": {
       "fragments": [
+        "fixer-github-read-and-safe-outputs",
         "keep-pr-draft-until-validated",
         "request-review-from-observablt-ci",
         "do-not-merge-automatically"
@@ -13,6 +14,7 @@
       "inner-workflows": {
         "obs-aw-security-fixer.yml": {
           "fragments": [
+            "fixer-github-read-and-safe-outputs",
             "keep-pr-draft-until-validated",
             "request-review-from-observablt-ci",
             "do-not-merge-automatically"
@@ -25,6 +27,7 @@
       "inner-workflows": {
         "obs-aw-resource-not-accessible-by-integration-fixer.yml": {
           "fragments": [
+            "fixer-github-read-and-safe-outputs",
             "keep-pr-draft-until-validated",
             "request-review-from-observablt-ci",
             "do-not-merge-automatically"
