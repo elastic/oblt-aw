@@ -23,7 +23,7 @@ Ingress routes to dependency review when all conditions are true:
 
 For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/aw-prelude.md](../workflows/aw-prelude.md).
 
-When the lock succeeds without a `comment_id`, `notify-no-comment` comments on the triggering PR (run URL + retry guidance). See [docs/workflows/obs-aw-dependency-review.md](../workflows/obs-aw-dependency-review.md) for the empty-safe-outputs failure mode.
+When the lock succeeds without a `comment_id`, `notify-no-comment` upserts a single comment on the triggering PR (marker `obs-aw-dependency-review:notify-no-comment`; run URL + retry guidance). See [docs/workflows/obs-aw-dependency-review.md](../workflows/obs-aw-dependency-review.md) for the empty-safe-outputs failure mode.
 
 ## References
 

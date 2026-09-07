@@ -81,6 +81,8 @@ jobs:
       classification-labels: "oblt-aw/ai/merge-ready"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       github-token-policy: ${{ inputs.shared-token-policy }}
+      # PR visibility is owned by notify-no-comment; do not open meta-issues.
+      report-failure-as-issue: false
 
   notify-no-comment:
     needs: dependency-review
@@ -92,19 +94,27 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - name: Comment on PR when dependency-review posted no analysis
+      - name: Upsert PR comment when dependency-review posted no analysis
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          {
-            echo "Dependency review finished without posting an analysis comment."
-            echo
-            echo "- Workflow run: ${RUN_URL}"
-            echo "- If the agent intentionally called \`noop\` (no dependency updates to review), treat that as the completion signal."
-            echo "- If you expected an analysis, check the run artifacts for empty safe outputs and any \`[aw] Dependency Review produced no safe outputs\` meta-issue."
-            echo
-            echo "To retry after a false bailout: push a new commit to the PR branch (or close/reopen) so \`pull_request\` re-runs dependency-review."
-          } | gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
+          MARKER='<!-- obs-aw-dependency-review:notify-no-comment -->'
+          body="$(printf '%s\n\n%s\n\n%s\n%s\n%s\n\n%s' \
+            "$MARKER" \
+            'Dependency review finished without posting an analysis comment.' \
+            "- Workflow run: ${RUN_URL}" \
+            '- If the agent intentionally called `noop` (no dependency updates to review), treat that as the completion signal.' \
+            '- If you expected an analysis, check the run artifacts for empty safe outputs.' \
+            'To retry after a false bailout: push a new commit to the PR branch (or close/reopen) so `pull_request` re-runs dependency-review.')"
+          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+            | head -n 1)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          fi

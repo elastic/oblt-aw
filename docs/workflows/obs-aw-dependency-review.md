@@ -30,18 +30,18 @@ Noop semantics (in additional-instructions):
 
 - When the PR has no dependency updates to review (no version bumps, no lockfile changes indicating dependency updates, or changes outside supported ecosystems), the agent MUST call `noop` and must NOT call `add_comment` (no analysis comment from the agent).
 - When the PR has dependency updates but the agent cannot gather enough context, it MUST call `report_incomplete` (or `missing_tool` / `missing_data`) — not a text-only exit.
-- Intentional `noop` still leaves `comment_id` empty, so `notify-no-comment` may still post a control-plane note on the PR (not an analysis comment).
+- Intentional `noop` still leaves `comment_id` empty, so `notify-no-comment` may still upsert a control-plane note on the PR (not an analysis comment).
 
 Labeling semantics (in additional-instructions):
 
 - The agent assigns overall risk (**low**, **low-to-moderate**, **moderate**, **high**). Add `oblt-aw/ai/merge-ready` when risk is **low** or **low-to-moderate**, including when changelogs include CVEs/GHSAs/security fixes (those do not block the label in those bands; document them in the analysis). Also require: no breaking changes affecting this repo, ecosystem checks pass, and workflows are testable or the dependency is dev-only. Do not add the label when risk is moderate or high, or when other gates fail.
 - Label application: when all criteria are met, the agent MUST call `add_labels` with that label (not only recommend in the comment). The comment's "Labels Applied" section must reflect labels actually applied via `add_labels`; if none were applied, it must say "No labels applied."
 
-`notify-no-comment` runs when the lock succeeds with an empty `comment_id` and comments on the **triggering PR** with the run URL and retry guidance (in addition to any upstream empty-safe-outputs meta-issue).
+`notify-no-comment` runs when the lock succeeds with an empty `comment_id` and **upserts** a single comment on the **triggering PR** (marker `obs-aw-dependency-review:notify-no-comment`) with the latest run URL and retry guidance. Re-runs on the same PR update that comment instead of posting duplicates. The lock call sets `report-failure-as-issue: false` so empty bailouts do not open a separate `[aw] … produced no safe outputs` meta-issue.
 
 ## Failure mode (empty safe outputs)
 
-If the agent exits with text only and zero safe outputs, the lock may still report success while opening a meta-issue such as `[aw] Dependency Review produced no safe outputs`. `notify-no-comment` then leaves a human-visible comment on the PR. Retry by pushing a new commit to the PR branch (or close/reopen) so `pull_request` re-runs dependency-review.
+If the agent exits with text only and zero safe outputs, the lock may still report success with an empty `comment_id`. `notify-no-comment` then upserts a human-visible comment on the PR (run URL + retry guidance). Retry by pushing a new commit to the PR branch (or close/reopen) so `pull_request` re-runs dependency-review.
 
 Empty-safe-outputs hardening for Elastic consumers is owned by this control-plane route (instruction fragment + `notify-no-comment`), not by duplicating that contract in the shared upstream prompt.
 
