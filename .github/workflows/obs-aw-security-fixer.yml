@@ -27,40 +27,7 @@ permissions:
 
 jobs:
 
-  load-issue-context:
-    if: >-
-      github.event_name == 'issues' &&
-      github.event.action == 'labeled' &&
-      (
-        (github.event.label.name == 'oblt-aw/ai/fix-ready' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')) ||
-        (startsWith(github.event.label.name, 'oblt-aw/triage/security-') && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/ai/fix-ready'))
-      )
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: read
-    outputs:
-      snapshot: ${{ steps.build.outputs.snapshot }}
-    steps:
-      - name: Checkout oblt-aw (snapshot script)
-        uses: actions/checkout@v7
-        with:
-          repository: elastic/oblt-aw
-          ref: ${{ github.repository == 'elastic/oblt-aw' && github.sha || 'main' }}
-          path: _oblt-aw
-          fetch-depth: 1
-          sparse-checkout: |
-            scripts/obs/build-fixer-issue-snapshot.sh
-      - name: Build issue snapshot for fixer prompt
-        id: build
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: _oblt-aw/scripts/obs/build-fixer-issue-snapshot.sh "$ISSUE_NUMBER"
-
   resolve-apm-assets:
-    needs: [load-issue-context]
     if: >-
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
@@ -85,10 +52,10 @@ jobs:
           - `oblt-aw/ai/fix-ready`
           - At least one of `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`
         - Do **not** refuse solely because shell `gh` cannot re-check those labels.
-        - The issue must already contain a triage-generated resolution plan (see the issue snapshot below and/or issue comments).
+        - The issue must already contain a triage-generated resolution plan in the issue body or comments. Read it via GitHub MCP / `github` CLI.
 
         **Implementation Workflow (sequential and methodical):**
-        1. Read the resolution plan from the issue snapshot below (or via GitHub MCP / `github` CLI if you need more detail) and extract ordered tasks.
+        1. Using GitHub MCP / `github` CLI, read the issue and its comments, extract the triage resolution plan, and list ordered tasks.
         2. Execute the plan strictly step by step, without skipping steps.
         3. For each step, document what changed and why in commit messages and PR description.
         4. **Least-privilege (MANDATORY):** Grant only the minimum permissions required. Never add broad scopes (e.g., avoid `contents: write` when `contents: read` suffices). Prefer job-level permissions over workflow-root permissions.
@@ -103,8 +70,6 @@ jobs:
           - checklist of plan steps completed
           - evidence of successful tests/validation
           - explicit confirmation that least-privilege and env-indirection patterns were applied
-
-        ${{ needs.load-issue-context.outputs.snapshot }}
 
   security-issue-fixer:
     needs: [resolve-apm-assets]

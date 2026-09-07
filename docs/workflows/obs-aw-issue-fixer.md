@@ -35,16 +35,13 @@ The job `run` calls:
 Configured instructions require:
 
 - workflow `if:` already enforced `/ai implement` and association gates — do not refuse solely because shell `gh` cannot re-check them
-- use GitHub MCP / `github` CLI for issue reads; mandatory safe-output tool before finishing
+- read the issue and triage plan via GitHub MCP / `github` CLI; mandatory safe-output tool before finishing
 - strict execution of the issue's triage-generated resolution plan as the source of truth
 - draft PR first, then ready-for-review after validation
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
-Jobs around the nested lock:
-
-- `load-issue-context` — injects a truncated issue/comments snapshot into the agent prompt
-- `notify-no-pr` — comments on the source issue when the lock succeeds without a `created_pr_number`
+`notify-no-pr` comments on the source issue when the lock succeeds without a `created_pr_number`.
 
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 
@@ -55,7 +52,6 @@ Workflow-specific prompt text lives in `platform-additional-instructions` on thi
 Permissions:
 
 - top-level: `contents: read`
-- job `load-issue-context`: `contents: read`, `issues: read`
 - job `run`: `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write`
 - job `request-reviewers`: `pull-requests: write`
 - job `notify-no-pr`: `issues: write`

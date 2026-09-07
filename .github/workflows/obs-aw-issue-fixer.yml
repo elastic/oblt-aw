@@ -27,41 +27,7 @@ permissions:
 
 jobs:
 
-  load-issue-context:
-    if: >-
-      github.event.issue.pull_request == null &&
-      startsWith(github.event.comment.body, '/ai implement') &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
-      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
-      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
-      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
-      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: read
-    outputs:
-      snapshot: ${{ steps.build.outputs.snapshot }}
-    steps:
-      - name: Checkout oblt-aw (snapshot script)
-        uses: actions/checkout@v7
-        with:
-          repository: elastic/oblt-aw
-          ref: ${{ github.repository == 'elastic/oblt-aw' && github.sha || 'main' }}
-          path: _oblt-aw
-          fetch-depth: 1
-          sparse-checkout: |
-            scripts/obs/build-fixer-issue-snapshot.sh
-      - name: Build issue snapshot for fixer prompt
-        id: build
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: _oblt-aw/scripts/obs/build-fixer-issue-snapshot.sh "$ISSUE_NUMBER"
-
   resolve-apm-assets:
-    needs: [load-issue-context]
     if: >-
       github.event.issue.pull_request == null &&
       startsWith(github.event.comment.body, '/ai implement') &&
@@ -90,10 +56,10 @@ jobs:
           - `oblt-aw/detector/res-not-accessible-by-integration`
           - `oblt-aw/triage/security-*`
           - `oblt-aw/triage/res-not-accessible-by-integration`
-        - The issue must already contain a triage-generated resolution plan (see the issue snapshot below and/or issue comments).
+        - The issue must already contain a triage-generated resolution plan in the issue body or comments. Read it via GitHub MCP / `github` CLI.
 
         **Implementation Workflow (sequential and methodical):**
-        1. Read the resolution plan from the issue snapshot below (or via GitHub MCP / `github` CLI if you need more detail) and extract ordered tasks. Treat this plan as the source of truth.
+        1. Using GitHub MCP / `github` CLI, read the issue and its comments, extract the triage resolution plan, and list ordered tasks. Treat this plan as the source of truth.
         2. Execute the plan strictly step by step, without skipping steps.
         3. For each step, document what changed and why in commit messages and PR description.
         4. Run validation/tests described in the plan and confirm the issue is resolved.
@@ -105,8 +71,6 @@ jobs:
           - `Closes #<issue-number>` at the top to link and auto-close the source issue on merge
           - checklist of plan steps completed
           - evidence of successful tests/validation
-
-        ${{ needs.load-issue-context.outputs.snapshot }}
 
   run:
     needs: [resolve-apm-assets]

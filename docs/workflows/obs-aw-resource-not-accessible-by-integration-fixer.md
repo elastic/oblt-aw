@@ -22,17 +22,14 @@ The job `res-not-accessible-integration-fixer` calls:
 Configured instructions require:
 
 - workflow `if:` already enforced label gates — do not refuse solely because shell `gh` cannot re-check labels
-- use GitHub MCP / `github` CLI for issue reads; mandatory safe-output tool before finishing
+- read the issue and triage plan via GitHub MCP / `github` CLI; mandatory safe-output tool before finishing
 - strict execution of triage-generated plan
 - least-privilege permission fixes
 - draft PR first, then ready-for-review after validation
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
-Jobs around the nested lock:
-
-- `load-issue-context` — injects a truncated issue/comments snapshot into the agent prompt
-- `notify-no-pr` — comments on the source issue when the lock succeeds without a `created_pr_number`
+`notify-no-pr` comments on the source issue when the lock succeeds without a `created_pr_number`.
 
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 
@@ -45,7 +42,7 @@ Permissions:
 - `actions: read`
 - `contents: write`
 - `discussions: write`
-- `issues: write` (also `issues: read` on `load-issue-context`)
+- `issues: write`
 - `pull-requests: write`
 - `id-token: write`
 
