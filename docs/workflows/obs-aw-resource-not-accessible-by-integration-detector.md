@@ -15,10 +15,11 @@ When the agent creates an issue for findings, its instructions require adding th
 
 ## Usage
 
-The workflow uses two jobs:
+The workflow uses three jobs:
 
 1. **discover** — Lists all workflow numeric IDs via the GitHub API (avoids 404 when the API expects exact workflow file names).
-2. **search** — Matrix job that calls `obs-aw-log-searching-agent` per workflow:
+2. **resolve-apm-assets** — Resolves agentic assets / additional instructions for the nested agent (via `aw-resolve-agentic-assets.yml`).
+3. **search** — Matrix job that calls `gh-aw-log-searching-agent.lock.yml` per workflow:
    - [elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-log-searching-agent.lock.yml)
 
 The detector is invoked by ingress only on scheduled runs (`github.event_name == schedule`). Ingress `workflow_dispatch` does not route this detector job.
