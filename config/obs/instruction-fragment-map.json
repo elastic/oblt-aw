@@ -1,6 +1,11 @@
 {
   "common": [],
   "workflows": {
+    "dependency-review": {
+      "fragments": [
+        "dependency-review-github-read-and-safe-outputs"
+      ]
+    },
     "issue-fixer": {
       "fragments": [
         "keep-pr-draft-until-validated",
