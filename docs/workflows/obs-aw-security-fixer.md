@@ -31,7 +31,7 @@ Configured instructions require:
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
-`notify-no-pr` runs when the lock succeeds with an empty `created_pr_number` and comments on the **source** issue with the run URL and retry guidance (in addition to any upstream empty-safe-outputs meta-issue).
+`notify-no-pr` runs when the lock succeeds with an empty `created_pr_number` and comments on the **source** issue with the run URL and retry guidance. The lock call sets `report-failure-as-issue: false` so empty bailouts do not open a separate `[aw] … produced no safe outputs` meta-issue.
 
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 
@@ -39,7 +39,7 @@ Workflow-specific prompt text (including least-privilege and env-indirection) li
 
 ## Failure mode (empty safe outputs)
 
-If the agent exits with text only and zero safe outputs, the lock may still report success while opening a meta-issue such as `[aw] Issue Fixer produced no safe outputs`. `notify-no-pr` then leaves a human-visible comment on the source issue. Retry by removing and re-applying `oblt-aw/ai/fix-ready` while keeping a `oblt-aw/triage/security-*` label.
+If the agent exits with text only and zero safe outputs, the lock may still report success with an empty `created_pr_number`. `notify-no-pr` then leaves a human-visible comment on the source issue (run URL + retry guidance). Retry by removing and re-applying `oblt-aw/ai/fix-ready` while keeping a `oblt-aw/triage/security-*` label.
 
 ## Configuration
 

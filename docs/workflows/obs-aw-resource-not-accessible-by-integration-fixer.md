@@ -29,7 +29,7 @@ Configured instructions require:
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
-`notify-no-pr` comments on the source issue when the lock succeeds without a `created_pr_number`.
+`notify-no-pr` comments on the source issue when the lock succeeds without a `created_pr_number`. The lock call sets `report-failure-as-issue: false` so empty bailouts do not open a separate meta-issue.
 
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 

@@ -88,6 +88,8 @@ jobs:
       allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       github-token-policy: ${{ inputs.shared-token-policy }}
+      # Source-issue visibility is owned by notify-no-pr; do not open meta-issues.
+      report-failure-as-issue: false
     secrets: inherit
 
   request-reviewers:
@@ -125,7 +127,7 @@ jobs:
             echo
             echo "- Workflow run: ${RUN_URL}"
             echo "- If the agent intentionally called \`noop\` / \`report_incomplete\`, treat that as the completion signal."
-            echo "- If you expected a PR, check the run artifacts for empty safe outputs and any \`[aw] Issue Fixer produced no safe outputs\` meta-issue."
+            echo "- If you expected a PR, check the run artifacts for empty safe outputs."
             echo
             echo "To retry after a false bailout: remove and re-apply \`oblt-aw/ai/fix-ready\` (keep \`oblt-aw/triage/res-not-accessible-by-integration\`)."
           } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
