@@ -18,6 +18,7 @@ Ingress routes to dependency review when all conditions are true:
   - `Dependabot`
   - `Renovate`
   - `elastic-vault-github-plugin-prod[bot]`
+  - `github-actions[bot]`
 - Dashboard gate passes for registry id `dependency-review` (`enabled-workflows` contains `obs:dependency-review`).
 
 For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/aw-prelude.md](../workflows/aw-prelude.md).
