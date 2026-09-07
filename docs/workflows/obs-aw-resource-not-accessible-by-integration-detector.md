@@ -11,14 +11,16 @@ When the agent creates an issue for findings, its instructions require adding th
 ## Prerequisites
 
 - Triggered via `workflow_call`.
+- Nested lock uses optional `GH_AW_GITHUB_TOKEN` / MCP secrets only (same pattern as other `ai-github-actions` agentic locks). Copilot runs with `github.token`; no repository `COPILOT_GITHUB_TOKEN` secret is required.
 
 ## Usage
 
-The workflow uses two jobs:
+The workflow uses three jobs:
 
 1. **discover** — Lists all workflow numeric IDs via the GitHub API (avoids 404 when the API expects exact workflow file names).
-2. **search** — Matrix job that calls `obs-aw-log-searching-agent` per workflow:
-   - [elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@copilot/log-searching-agent-preflight](https://github.com/elastic/ai-github-actions/blob/copilot/log-searching-agent-preflight/.github/workflows/gh-aw-log-searching-agent.lock.yml)
+2. **resolve-apm-assets** — Resolves agentic assets / additional instructions for the nested agent (via `aw-resolve-agentic-assets.yml`).
+3. **search** — Matrix job that calls `gh-aw-log-searching-agent.lock.yml` per workflow:
+   - [elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-log-searching-agent.lock.yml)
 
 The detector is invoked by ingress only on scheduled runs (`github.event_name == schedule`). Ingress `workflow_dispatch` does not route this detector job.
 
@@ -36,7 +38,7 @@ Permissions:
 - `actions: read`
 - `contents: read`
 - `issues: write`
-- `pull-requests: read`
+- `copilot-requests: write`
 
 ## API / Interface
 
