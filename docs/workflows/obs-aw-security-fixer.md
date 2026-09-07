@@ -21,6 +21,9 @@ The job `security-issue-fixer` calls:
 
 Configured instructions require:
 
+- workflow `if:` already enforced label gates — do not refuse solely because shell `gh` cannot re-check labels
+- use GitHub MCP / `github` CLI for issue reads (`gh` is unauthenticated in the agent sandbox)
+- mandatory safe-output tool before finishing (`create_pull_request`, `noop`, `report_incomplete`, `missing_tool`, or `missing_data`)
 - strict execution of triage-generated resolution plan
 - **least-privilege**: grant only minimum permissions required; no over-broad scopes
 - **env-indirection**: never interpolate secrets/tokens in command strings; always pass via `env:` blocks
@@ -28,9 +31,18 @@ Configured instructions require:
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
+Jobs around the nested lock:
+
+- `load-issue-context` — builds a truncated issue/labels/comments snapshot (`scripts/obs/build-fixer-issue-snapshot.sh`) and injects it into `platform-additional-instructions` so the agent can start from the triage plan without a blind GitHub fetch
+- `notify-no-pr` — when the lock succeeds with an empty `created_pr_number`, comments on the **source** issue with the run URL and retry guidance (in addition to any upstream empty-safe-outputs meta-issue)
+
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 
-Workflow-specific prompt text (including least-privilege and env-indirection) lives in `platform-additional-instructions` on this wrapper. Shared draft, review, and merge policy is composed from control-plane fragments under `workflows.security.inner-workflows.obs-aw-security-fixer.yml` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Triage does not load those fixer fragments.
+Workflow-specific prompt text (including least-privilege and env-indirection) lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from control-plane fragments under `workflows.security.inner-workflows.obs-aw-security-fixer.yml` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Triage does not load those fixer fragments.
+
+## Failure mode (empty safe outputs)
+
+If the agent exits with text only and zero safe outputs, the lock may still report success while opening a meta-issue such as `[aw] Issue Fixer produced no safe outputs`. `notify-no-pr` then leaves a human-visible comment on the source issue. Retry by removing and re-applying `oblt-aw/ai/fix-ready` while keeping a `oblt-aw/triage/security-*` label.
 
 ## Configuration
 
@@ -39,7 +51,7 @@ Permissions:
 - `actions: read`
 - `contents: write`
 - `discussions: write`
-- `issues: write`
+- `issues: write` (also `issues: read` on `load-issue-context`)
 - `pull-requests: write`
 - `id-token: write`
 
@@ -53,3 +65,4 @@ Permissions:
 
 - Routing rules: [docs/routing/security-routing.md](../routing/security-routing.md)
 - Security scanning ruleset: [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md)
+- Hardening follow-up: https://github.com/elastic/oblt-aw/issues/1855

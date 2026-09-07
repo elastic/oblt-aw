@@ -34,22 +34,31 @@ The job `run` calls:
 
 Configured instructions require:
 
+- workflow `if:` already enforced `/ai implement` and association gates — do not refuse solely because shell `gh` cannot re-check them
+- use GitHub MCP / `github` CLI for issue reads; mandatory safe-output tool before finishing
 - strict execution of the issue's triage-generated resolution plan as the source of truth
 - draft PR first, then ready-for-review after validation
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
+Jobs around the nested lock:
+
+- `load-issue-context` — injects a truncated issue/comments snapshot into the agent prompt
+- `notify-no-pr` — comments on the source issue when the lock succeeds without a `created_pr_number`
+
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 
-Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared draft, review, and merge policy is composed from control-plane fragments mapped under `workflows.issue-fixer` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)).
+Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from control-plane fragments mapped under `workflows.issue-fixer` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)).
 
 ## Configuration
 
 Permissions:
 
 - top-level: `contents: read`
+- job `load-issue-context`: `contents: read`, `issues: read`
 - job `run`: `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write`
 - job `request-reviewers`: `pull-requests: write`
+- job `notify-no-pr`: `issues: write`
 
 ## API / Interface
 
