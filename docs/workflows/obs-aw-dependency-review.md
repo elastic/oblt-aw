@@ -28,8 +28,9 @@ Shared GitHub-read/safe-output contract is composed from [`config/obs/instructio
 
 Noop semantics (in additional-instructions):
 
-- When the PR has no dependency updates to review (no version bumps, no lockfile changes indicating dependency updates, or changes outside supported ecosystems), the agent MUST call `noop` and must NOT add any comment to the PR.
+- When the PR has no dependency updates to review (no version bumps, no lockfile changes indicating dependency updates, or changes outside supported ecosystems), the agent MUST call `noop` and must NOT call `add_comment` (no analysis comment from the agent).
 - When the PR has dependency updates but the agent cannot gather enough context, it MUST call `report_incomplete` (or `missing_tool` / `missing_data`) — not a text-only exit.
+- Intentional `noop` still leaves `comment_id` empty, so `notify-no-comment` may still post a control-plane note on the PR (not an analysis comment).
 
 Labeling semantics (in additional-instructions):
 
@@ -42,7 +43,7 @@ Labeling semantics (in additional-instructions):
 
 If the agent exits with text only and zero safe outputs, the lock may still report success while opening a meta-issue such as `[aw] Dependency Review produced no safe outputs`. `notify-no-comment` then leaves a human-visible comment on the PR. Retry by pushing a new commit to the PR branch (or close/reopen) so `pull_request` re-runs dependency-review.
 
-Upstream prompt / fail-closed hardening: https://github.com/elastic/ai-github-actions/issues/2025
+Empty-safe-outputs hardening for Elastic consumers is owned by this control-plane route (instruction fragment + `notify-no-comment`), not by duplicating that contract in the shared upstream prompt.
 
 ## Configuration
 
