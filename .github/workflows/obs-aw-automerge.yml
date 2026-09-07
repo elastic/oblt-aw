@@ -152,11 +152,18 @@ jobs:
             core.setOutput('allowed', allowed ? 'true' : 'false');
             core.setOutput('collection-id', collectionId || '');
 
+  # Skip GH-AW approve when the PR author is the Vault app and merge uses that same
+  # identity: GitHub rejects self-APPROVE (422) and safe-outputs falls back to COMMENT.
+  # Merge still proceeds via Vault token + classic BP pull_request_bypassers.
   resolve-apm-assets:
     needs: [verify, check-dependency-collection]
     if: >-
       needs.verify.outputs.proceed == 'true' &&
-      needs.check-dependency-collection.outputs.allowed == 'true'
+      needs.check-dependency-collection.outputs.allowed == 'true' &&
+      !(
+        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]' &&
+        inputs.shared-token-policy != ''
+      )
     permissions:
       contents: read
       id-token: write
@@ -170,7 +177,11 @@ jobs:
     needs: [verify, check-dependency-collection, resolve-apm-assets]
     if: >-
       needs.verify.outputs.proceed == 'true' &&
-      needs.check-dependency-collection.outputs.allowed == 'true'
+      needs.check-dependency-collection.outputs.allowed == 'true' &&
+      !(
+        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]' &&
+        inputs.shared-token-policy != ''
+      )
     permissions:
       actions: read
       contents: write
@@ -204,14 +215,26 @@ jobs:
   # pull_request_bypassers for that app can skip CODEOWNERS. Otherwise use GITHUB_TOKEN.
   # pascalgn uses the REST merge API, which honors classic BP bypassers for App tokens.
   # Author/label rules are enforced in `verify` (validateAutomergePr).
+  # Vault-authored PRs skip approve (self-APPROVE is impossible); MERGE_REQUIRED_APPROVALS
+  # is 0 so pascalgn does not wait for a review the Vault app cannot grant itself.
   automerge:
     needs:
       - verify
       - check-dependency-collection
       - approve
     if: >-
+      always() &&
+      !cancelled() &&
       needs.verify.outputs.proceed == 'true' &&
-      needs.check-dependency-collection.outputs.allowed == 'true'
+      needs.check-dependency-collection.outputs.allowed == 'true' &&
+      (
+        needs.approve.result == 'success' ||
+        (
+          needs.approve.result == 'skipped' &&
+          github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]' &&
+          inputs.shared-token-policy != ''
+        )
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -239,19 +262,22 @@ jobs:
           MERGE_METHOD: squash
           MERGE_FORKS: "false"
           MERGE_DELETE_BRANCH: "true"
-          MERGE_REQUIRED_APPROVALS: "1"
+          # 0 when Vault app authored the PR and merge uses Vault token (bypassers); else 1.
+          MERGE_REQUIRED_APPROVALS: ${{ github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]' && inputs.shared-token-policy != '' && '0' || '1' }}
           MERGE_RETRIES: "10"
           MERGE_RETRY_SLEEP: "20000"
 
   # When REST merge still fails (for example merge queue), retry direct merge with the same
   # token identity, then fall back to native "merge when ready". Do not pass --delete-branch:
   # gh rejects it when merge queue is enabled. Async --auto often ignores bypass actors.
+  # Also retry on pascalgn `skipped` (for example missing approvals) so Vault bypass can merge.
   enable-merge-when-ready:
     needs: [automerge]
     if: >-
       always() &&
       (needs.automerge.outputs.merge_result == 'merge_failed' ||
-       needs.automerge.outputs.merge_result == 'not_ready')
+       needs.automerge.outputs.merge_result == 'not_ready' ||
+       needs.automerge.outputs.merge_result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -335,7 +361,7 @@ jobs:
           body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
             "$MARKER" \
             "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
-            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), or other branch protection rules that block merge." \
+            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), Vault self-approve limits (Apps cannot APPROVE their own PRs; merge must use Vault bypassers), or other branch protection rules that block merge." \
             "Workflow run: ${RUN_URL}")"
           comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
