@@ -1,13 +1,58 @@
 {
   "repositories": [
     {
+      "repository": "elastic/beats",
+      "workflow-token-policy": "token-policy-536406560ab7",
+      "ai-assets-token-policy": ""
+    },
+    {
+      "repository": "elastic/ci-agent-images",
+      "workflow-token-policy": "token-policy-d056909a4e2b",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/competitive-benchmarking",
       "workflow-token-policy": "token-policy-faf88b4d1c57",
       "ai-assets-token-policy": ""
     },
     {
+      "repository": "elastic/elastic-agent",
+      "workflow-token-policy": "token-policy-af29f6aabd90",
+      "ai-assets-token-policy": ""
+    },
+    {
+      "repository": "elastic/elastic-package",
+      "workflow-token-policy": "token-policy-7b9cd8e32fdf",
+      "ai-assets-token-policy": ""
+    },
+    {
+      "repository": "elastic/fleet-server",
+      "workflow-token-policy": "token-policy-400534dfd725",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/gh-oblt",
       "workflow-token-policy": "token-policy-4534153510b1",
+      "ai-assets-token-policy": ""
+    },
+    {
+      "repository": "elastic/hosted-otel-collector",
+      "workflow-token-policy": "token-policy-d19812c5c424",
+      "ai-assets-token-policy": ""
+    },
+    {
+      "repository": "elastic/hosted-otel-controller",
+      "workflow-token-policy": "token-policy-006f108097be",
+      "ai-assets-token-policy": ""
+    },
+    {
+      "repository": "elastic/integrations",
+      "workflow-token-policy": "token-policy-2d3ad1a9f6db",
+      "ai-assets-token-policy": ""
+    },
+    {
+      "repository": "elastic/logstash",
+      "workflow-token-policy": "token-policy-29559fe749f1",
       "ai-assets-token-policy": ""
     },
     {
@@ -31,13 +76,13 @@
       "ai-assets-token-policy": ""
     },
     {
-      "repository": "elastic/oblt-google-auth-buildkite-plugin",
-      "workflow-token-policy": "token-policy-f36777a25870",
+      "repository": "elastic/oblt-framework",
+      "workflow-token-policy": "token-policy-61df782fbc7e",
       "ai-assets-token-policy": ""
     },
     {
-      "repository": "elastic/oblt-framework",
-      "workflow-token-policy": "token-policy-61df782fbc7e",
+      "repository": "elastic/oblt-google-auth-buildkite-plugin",
+      "workflow-token-policy": "token-policy-f36777a25870",
       "ai-assets-token-policy": ""
     },
     {
@@ -66,8 +111,23 @@
       "ai-assets-token-policy": ""
     },
     {
+      "repository": "elastic/observability-perf",
+      "workflow-token-policy": "token-policy-ab8555093584",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/observability-robots",
       "workflow-token-policy": "token-policy-c19b3dec3230",
+      "ai-assets-token-policy": ""
+    },
+    {
+      "repository": "elastic/observability-robots-playground-public",
+      "workflow-token-policy": "token-policy-e35a9ce6e284",
+      "ai-assets-token-policy": ""
+    },
+    {
+      "repository": "elastic/package-registry",
+      "workflow-token-policy": "token-policy-1f19543daab0",
       "ai-assets-token-policy": ""
     }
   ]
