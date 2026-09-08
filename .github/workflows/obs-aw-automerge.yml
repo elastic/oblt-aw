@@ -25,7 +25,8 @@ on:
         description: Normalized JSON array of compound workflow ids from aw-prelude.
         required: true
         type: string
-# Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
+# Nested GH-AW approve uses GITHUB_TOKEN (empty github-token-policy). Merge jobs mint
+# OIDC ephemeral tokens when shared-token-policy is non-empty.
 permissions:
   contents: read
 
@@ -152,9 +153,9 @@ jobs:
             core.setOutput('allowed', allowed ? 'true' : 'false');
             core.setOutput('collection-id', collectionId || '');
 
-  # Vault-authored PRs cannot self-APPROVE. approve still runs, but with empty
-  # github-token-policy so the nested lock uses GITHUB_TOKEN (github-actions[bot]).
-  # Merge stays on the Vault ephemeral token + classic BP pull_request_bypassers.
+  # Approve always uses GITHUB_TOKEN (github-actions[bot]): satisfies required review
+  # counts / org rulesets without Vault self-APPROVE, and automerge continues via needs
+  # (no re-trigger required). Merge still uses Vault when shared-token-policy is set.
   resolve-apm-assets:
     needs: [verify, check-dependency-collection]
     if: >-
@@ -181,13 +182,12 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
-      id-token: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-      # Empty policy when Vault authored the PR (avoid self-APPROVE); else shared policy.
-      github-token-policy: ${{ github.event.pull_request.user.login != 'elastic-vault-github-plugin-prod[bot]' && inputs.shared-token-policy || '' }}
+      # Always GITHUB_TOKEN: distinct from bot authors; merge uses Vault separately.
+      github-token-policy: ''
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
@@ -208,7 +208,7 @@ jobs:
   # pull_request_bypassers for that app can skip CODEOWNERS. Otherwise use GITHUB_TOKEN.
   # pascalgn uses the REST merge API, which honors classic BP bypassers for App tokens.
   # Author/label rules are enforced in `verify` (validateAutomergePr).
-  # Vault-authored PRs are approved as github-actions[bot]; MERGE_REQUIRED_APPROVALS is 1.
+  # Approve is always github-actions[bot]; MERGE_REQUIRED_APPROVALS is 1.
   automerge:
     needs:
       - verify
@@ -344,7 +344,7 @@ jobs:
           body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
             "$MARKER" \
             "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
-            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; Vault-authored PRs must be approved as \`github-actions[bot]\`, not Vault), or other branch protection / ruleset gates that block merge." \
+            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge." \
             "Workflow run: ${RUN_URL}")"
           comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
