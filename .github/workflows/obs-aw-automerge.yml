@@ -182,6 +182,8 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
+      # Callee lock always declares id-token: write (mint is skipped when policy is empty).
+      id-token: write
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
