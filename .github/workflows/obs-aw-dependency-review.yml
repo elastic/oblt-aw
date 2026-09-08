@@ -107,9 +107,9 @@ jobs:
             "$MARKER" \
             'Dependency review finished without posting an analysis comment.' \
             "- Workflow run: ${RUN_URL}" \
-            '- If the agent intentionally called `noop` (no dependency updates to review), treat that as the completion signal.' \
+            "- If the agent intentionally called \`noop\` (no dependency updates to review), treat that as the completion signal." \
             '- If you expected an analysis, check the run artifacts for empty safe outputs.' \
-            'To retry after a false bailout: push a new commit to the PR branch (or close/reopen) so `pull_request` re-runs dependency-review.')"
+            "To retry after a false bailout: push a new commit to the PR branch (or close/reopen) so \`pull_request\` re-runs dependency-review.")"
           comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
             | head -n 1)"
