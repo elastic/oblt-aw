@@ -41,19 +41,21 @@ jobs:
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       workflow-basename: obs-aw-security-fixer.yml
-      # Shared draft/review/merge policy: config/obs/instruction-fragments/ via
-      # instruction-fragment-map.json (workflows.security.inner-workflows).
+      # Shared draft/review/merge policy + GitHub-read/safe-output contract:
+      # config/obs/instruction-fragments/ via instruction-fragment-map.json
+      # (workflows.security.inner-workflows).
       platform-additional-instructions: |
         Your task is to fix security issues labeled for remediation. This workflow uses agentic workflows from elastic/ai-github-actions.
 
         **Execution Preconditions:**
-        - Proceed only when the issue has both labels:
+        - This run was already gated by workflow `if:` for labels:
           - `oblt-aw/ai/fix-ready`
           - At least one of `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`
-        - The issue must already contain a triage-generated resolution plan.
+        - Do **not** refuse solely because shell `gh` cannot re-check those labels.
+        - The issue must already contain a triage-generated resolution plan in the issue body or comments. Read it via GitHub MCP / `github` CLI.
 
         **Implementation Workflow (sequential and methodical):**
-        1. Read the resolution plan from the issue and extract ordered tasks.
+        1. Using GitHub MCP / `github` CLI, read the issue and its comments, extract the triage resolution plan, and list ordered tasks.
         2. Execute the plan strictly step by step, without skipping steps.
         3. For each step, document what changed and why in commit messages and PR description.
         4. **Least-privilege (MANDATORY):** Grant only the minimum permissions required. Never add broad scopes (e.g., avoid `contents: write` when `contents: read` suffices). Prefer job-level permissions over workflow-root permissions.
@@ -91,6 +93,8 @@ jobs:
       allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       github-token-policy: ${{ inputs.shared-token-policy }}
+      # Source-issue visibility is owned by notify-no-pr; do not open meta-issues.
+      report-failure-as-issue: false
     secrets: inherit
 
   request-reviewers:
@@ -105,3 +109,30 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.security-issue-fixer.outputs.created_pr_number }}
         run: gh pr edit "$PR_NUMBER" --add-reviewer "elastic/observablt-ci" --repo "$GITHUB_REPOSITORY"
+
+  notify-no-pr:
+    needs: security-issue-fixer
+    if: >-
+      always() &&
+      needs.security-issue-fixer.result == 'success' &&
+      needs.security-issue-fixer.outputs.created_pr_number == ''
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Comment on source issue when fixer opened no PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Security issue fixer finished without opening a pull request."
+            echo
+            echo "- Workflow run: ${RUN_URL}"
+            echo "- If the agent intentionally called \`noop\` / \`report_incomplete\`, treat that as the completion signal."
+            echo "- If you expected a PR, check the run artifacts for empty safe outputs."
+            echo
+            echo "To retry after a false bailout: remove and re-apply \`oblt-aw/ai/fix-ready\` (keep a \`oblt-aw/triage/security-*\` label)."
+          } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -

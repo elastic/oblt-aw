@@ -21,15 +21,19 @@ The job `res-not-accessible-integration-fixer` calls:
 
 Configured instructions require:
 
+- workflow `if:` already enforced label gates — do not refuse solely because shell `gh` cannot re-check labels
+- read the issue and triage plan via GitHub MCP / `github` CLI; mandatory safe-output tool before finishing
 - strict execution of triage-generated plan
 - least-privilege permission fixes
 - draft PR first, then ready-for-review after validation
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
+`notify-no-pr` comments on the source issue when the lock succeeds without a `created_pr_number`. The lock call sets `report-failure-as-issue: false` so empty bailouts do not open a separate meta-issue.
+
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 
-Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared draft, review, and merge policy is composed from control-plane fragments under `workflows.resource-not-accessible-by-integration.inner-workflows.obs-aw-resource-not-accessible-by-integration-fixer.yml` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Detector and triage wrappers do not load those fixer fragments.
+Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from control-plane fragments under `workflows.resource-not-accessible-by-integration.inner-workflows.obs-aw-resource-not-accessible-by-integration-fixer.yml` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Detector and triage wrappers do not load those fixer fragments.
 
 ## Configuration
 
