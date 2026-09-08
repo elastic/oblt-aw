@@ -175,10 +175,12 @@ class TestResolverWithFragments:
         assert "Keep PR as `Draft`" in text
         ids = _fragment_ids(resolved)
         assert ids == [
+            "fixer-github-read-and-safe-outputs",
             "keep-pr-draft-until-validated",
             "request-review-from-observablt-ci",
             "do-not-merge-automatically",
         ]
+        assert "Shell `gh` is **not** authenticated" in text
 
     def test_repo_map_security_fixer_not_triage(self, tmp_path: pathlib.Path) -> None:
         config_dir = _root / "config"
@@ -204,10 +206,13 @@ class TestResolverWithFragments:
             "Least-privilege (MANDATORY)"
         )
         assert _fragment_ids(fixer) == [
+            "fixer-github-read-and-safe-outputs",
             "keep-pr-draft-until-validated",
             "request-review-from-observablt-ci",
             "do-not-merge-automatically",
         ]
+        assert "safe-output tool" in fixer_text
+        assert "Shell `gh` is **not** authenticated" in fixer_text
         assert _fragment_ids(triage) == []
         assert triage["additional_instructions"] == "Triage-only inline"
 
@@ -233,9 +238,31 @@ class TestResolverWithFragments:
         )
         assert "elastic/observablt-ci" in fixer["additional_instructions"]
         assert _fragment_ids(fixer) == [
+            "fixer-github-read-and-safe-outputs",
             "keep-pr-draft-until-validated",
             "request-review-from-observablt-ci",
             "do-not-merge-automatically",
         ]
         assert _fragment_ids(triage) == []
         assert triage["additional_instructions"] == ""
+
+    def test_repo_map_dependency_review(self, tmp_path: pathlib.Path) -> None:
+        config_dir = _root / "config"
+        resolved = resolver.resolve_agentic_assets(
+            repo_root=tmp_path,
+            workflow_id="dependency-review",
+            org_key="obs",
+            config_dir=config_dir,
+            workflow_basename="obs-aw-dependency-review.yml",
+            platform_additional_instructions="Noop when not applicable (mandatory)",
+        )
+        text = resolved["additional_instructions"]
+        assert _fragment_ids(resolved) == [
+            "dependency-review-github-read-and-safe-outputs",
+        ]
+        assert "safe-output tool" in text
+        assert "GITHUB_WORKSPACE" in text
+        assert "Shell `gh` is **not** authenticated" in text
+        assert text.index("safe-output tool") < text.index(
+            "Noop when not applicable (mandatory)"
+        )
