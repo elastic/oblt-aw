@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/obs-aw-automerge.yml](../../.github/workflows/obs-aw-automerge.yml)
 
-This workflow runs for a **single** pull request from `github.event.pull_request` (`pull_request` trigger only). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes, then runs **pascalgn/automerge-action** in the `automerge` job.
+This reusable `workflow_call` workflow handles a **single** pull request using `github.event.pull_request` from the caller (typically a client `pull_request` workflow). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes, then runs **pascalgn/automerge-action** in the `automerge` job.
 
 **Approve identity:** Always uses `GITHUB_TOKEN` (`github-actions[bot]`) — omit `github-token-policy` on the nested lock (defaults to empty). That is a different actor from Dependabot, Renovate, Vault, and other allowed bot authors, so it satisfies required review counts and org rulesets without Vault self-APPROVE. Automerge continues via job `needs` after `approve` (no workflow re-trigger required for the review). Consumer repos need “Allow GitHub Actions to create and approve pull requests” enabled.
 
