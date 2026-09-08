@@ -270,14 +270,17 @@ jobs:
   # When REST merge still fails (for example merge queue), retry direct merge with the same
   # token identity, then fall back to native "merge when ready". Do not pass --delete-branch:
   # gh rejects it when merge queue is enabled. Async --auto often ignores bypass actors.
-  # Also retry on pascalgn `skipped` (for example missing approvals) so Vault bypass can merge.
+  # Retry on pascalgn `skipped` only for Vault-authored + token-policy PRs (bypass path);
+  # other skipped reasons (label/approvals) must not trigger a bypass-capable REST merge.
   enable-merge-when-ready:
     needs: [automerge]
     if: >-
       always() &&
       (needs.automerge.outputs.merge_result == 'merge_failed' ||
        needs.automerge.outputs.merge_result == 'not_ready' ||
-       needs.automerge.outputs.merge_result == 'skipped')
+       (needs.automerge.outputs.merge_result == 'skipped' &&
+        github.event.pull_request.user.login == 'elastic-vault-github-plugin-prod[bot]' &&
+        inputs.shared-token-policy != ''))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

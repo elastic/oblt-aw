@@ -4,7 +4,7 @@
 
 Client template: `trigger-obs-aw-automerge.yml` → `obs-aw-automerge.yml`
 
-Routed workflow source: `.github/workflows/obs-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, conditional `enable-merge-when-ready`, and `report-automerge-outcome` on the PR). Merge first uses **pascalgn/automerge-action** with an ephemeral Vault-app token when `shared-token-policy` is set, otherwise `GITHUB_TOKEN`; when that step reports `merge_failed`, `not_ready`, or `skipped`, the workflow retries a direct REST merge with the same token identity, then enables native GitHub auto-merge as a fallback. Vault-authored PRs skip `approve` and use `MERGE_REQUIRED_APPROVALS=0` when the token policy is set (self-APPROVE is impossible; merge uses `pull_request_bypassers`). If the PR remains unmerged without auto-merge enabled, the workflow fails and upserts a PR comment.
+Routed workflow source: `.github/workflows/obs-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, conditional `enable-merge-when-ready`, and `report-automerge-outcome` on the PR). Merge first uses **pascalgn/automerge-action** with an ephemeral Vault-app token when `shared-token-policy` is set, otherwise `GITHUB_TOKEN`; when that step reports `merge_failed` or `not_ready`, the workflow retries a direct REST merge with the same token identity, then enables native GitHub auto-merge as a fallback. `mergeResult: skipped` retries only for Vault-authored PRs with a non-empty token policy (other skipped cases do not attempt a bypass-capable merge). Vault-authored PRs skip `approve` and use `MERGE_REQUIRED_APPROVALS=0` when the token policy is set (self-APPROVE is impossible; merge uses `pull_request_bypassers`). If the PR remains unmerged without auto-merge enabled, the workflow fails and upserts a PR comment.
 
 ## Usage
 
@@ -50,7 +50,7 @@ The client template includes `labeled` in `pull_request` types (`trigger-obs-aw-
 
 Primary path: squash merge via **pascalgn/automerge-action** (Vault app when `shared-token-policy` is set, otherwise `GITHUB_TOKEN`) when the PR satisfies labels, approvals, and checks.
 
-Fallback path: when `automerge` returns `merge_failed` or `not_ready` (for example with required merge queue), `enable-merge-when-ready` uses the same token choice, retries `PUT .../pulls/{n}/merge`, then runs `gh pr merge --auto --squash` to enqueue native GitHub auto-merge.
+Fallback path: when `automerge` returns `merge_failed` or `not_ready` (for example with required merge queue), or `skipped` for Vault-authored PRs with a non-empty `shared-token-policy`, `enable-merge-when-ready` uses the same token choice, retries `PUT .../pulls/{n}/merge`, then runs `gh pr merge --auto --squash` to enqueue native GitHub auto-merge.
 
 Outcome gate: `report-automerge-outcome` fails the workflow and upserts a single PR comment (marker `obs-aw-automerge:outcome-gate`) when the PR is still open and auto-merge was not enabled after the pipeline completes.
 
