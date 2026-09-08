@@ -7,7 +7,7 @@
     },
     {
       "repository": "elastic/golang-crossbuild",
-      "workflow-token-policy": "",
+      "workflow-token-policy": "token-policy-13d64af6b3ff",
       "ai-assets-token-policy": ""
     },
     {
