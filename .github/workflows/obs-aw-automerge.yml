@@ -25,8 +25,8 @@ on:
         description: Normalized JSON array of compound workflow ids from aw-prelude.
         required: true
         type: string
-# Nested GH-AW approve uses GITHUB_TOKEN (empty github-token-policy). Merge jobs mint
-# OIDC ephemeral tokens when shared-token-policy is non-empty.
+# Nested GH-AW approve omits github-token-policy (lock default → GITHUB_TOKEN).
+# Merge jobs mint OIDC ephemeral tokens when shared-token-policy is non-empty.
 permissions:
   contents: read
 
@@ -186,8 +186,7 @@ jobs:
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-      # Always GITHUB_TOKEN: distinct from bot authors; merge uses Vault separately.
-      github-token-policy: ''
+      # Omit github-token-policy: lock default is empty → GITHUB_TOKEN / github-actions[bot].
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
