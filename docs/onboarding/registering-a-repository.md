@@ -35,6 +35,20 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
    }
    ```
 
+   For example, registering **`elastic/golang-crossbuild`** in the Observability org uses the same shape, with an empty policy until a repository-scoped catalog policy exists:
+
+   ```json
+   {
+     "repositories": [
+       {
+         "repository": "elastic/golang-crossbuild",
+         "workflow-token-policy": "",
+         "ai-assets-token-policy": ""
+       }
+     ]
+   }
+   ```
+
    Commit on the `elastic/oblt-aw` branch and open a pull request to **`main`**, but **do not merge** that registration PR until **step 3** is complete.
 
    - **`id-token: write` on the client** — Confirm each [client template](../workflows/obs-aw-client-template.md) that needs OIDC grants **`id-token: write`** on the client entrypoint job (for example `run-obs-aw-pull-request`) so nested workflows can call `create-token`.
