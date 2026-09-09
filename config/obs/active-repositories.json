@@ -6,6 +6,11 @@
       "ai-assets-token-policy": ""
     },
     {
+      "repository": "elastic/golang-crossbuild",
+      "workflow-token-policy": "token-policy-13d64af6b3ff",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/gh-oblt",
       "workflow-token-policy": "token-policy-4534153510b1",
       "ai-assets-token-policy": ""
