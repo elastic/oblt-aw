@@ -90,9 +90,9 @@ jobs:
         (github.event.label.name == 'oblt-aw/ai/fix-ready' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')) ||
         (startsWith(github.event.label.name, 'oblt-aw/triage/security-') && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/ai/fix-ready'))
       )
-    # Workflow-capable lock: allows verified .github/ remediations (SEC injection/supply-chain).
-    # Depends on elastic/ai-github-actions#2038 (gh-aw-issue-fixer-workflows) on main.
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-workflows.lock.yml@main
+    # Unrestricted lock: same as issue-fixer, but may open verified PRs that change `.github/` (SEC injection/supply-chain).
+    # Depends on elastic/ai-github-actions#2038 (gh-aw-issue-fixer-unrestricted) on main.
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}

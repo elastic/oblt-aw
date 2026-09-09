@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/obs-aw-security-fixer.yml](../../.github/workflows/obs-aw-security-fixer.yml)
 
-This reusable workflow executes issue-based fixes for security vulnerabilities. It calls [elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-workflows.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer-workflows.lock.yml) via `workflow_call` with security-specific instructions (no separate clone of [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions)). That lock may open draft PRs that change `.github/` (including workflow YAML). Remediation scope follows the ruleset in [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) and triage resolution plans.
+This reusable workflow executes issue-based fixes for security vulnerabilities. It calls [elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml) via `workflow_call` with security-specific instructions (no separate clone of [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions)). That lock may open draft PRs that change `.github/` (including workflow YAML). Remediation scope follows the ruleset in [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) and triage resolution plans.
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ This reusable workflow executes issue-based fixes for security vulnerabilities. 
 
 The job `security-issue-fixer` calls:
 
-- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-workflows.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer-workflows.lock.yml)
+- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml)
 
 Configured instructions require:
 
@@ -57,11 +57,11 @@ Permissions:
 
 `workflow_call` contract:
 
-- Input: `allowed-bot-users` (`required: true`) — comma-separated GitHub logins for the upstream issue-fixer-workflows lock; ingress passes `allowed_issue_authors_csv` from [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json).
+- Input: `allowed-bot-users` (`required: true`) — comma-separated GitHub logins for the upstream issue-fixer-unrestricted lock; ingress passes `allowed_issue_authors_csv` from [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json).
 
 ## References
 
 - Routing rules: [docs/routing/security-routing.md](../routing/security-routing.md)
 - Security scanning ruleset: [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md)
-- Upstream workflow-capable lock: [elastic/ai-github-actions#2038](https://github.com/elastic/ai-github-actions/pull/2038)
+- Upstream unrestricted lock: [elastic/ai-github-actions#2038](https://github.com/elastic/ai-github-actions/pull/2038)
 - Hardening follow-up: https://github.com/elastic/oblt-aw/issues/1855
