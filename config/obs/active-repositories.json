@@ -6,11 +6,6 @@
       "ai-assets-token-policy": ""
     },
     {
-      "repository": "elastic/ci-agent-images",
-      "workflow-token-policy": "token-policy-d056909a4e2b",
-      "ai-assets-token-policy": ""
-    },
-    {
       "repository": "elastic/competitive-benchmarking",
       "workflow-token-policy": "token-policy-faf88b4d1c57",
       "ai-assets-token-policy": ""
