@@ -6,7 +6,7 @@ Client template: `trigger-obs-aw-automerge.yml` → `obs-aw-automerge.yml`
 
 Routed workflow source: `.github/workflows/obs-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, conditional `enable-merge-when-ready`, and `report-automerge-outcome` on the PR).
 
-**Approve:** Nested `gh-aw-mention-in-pr` omits `github-token-policy` (defaults to empty) so the review is submitted as `github-actions[bot]` (`GITHUB_TOKEN`). That distinct actor satisfies required review counts and org rulesets for Dependabot, Renovate, Vault, and other allowed authors. Automerge continues via job `needs` (no re-trigger needed for the review). Classic `pull_request_bypassers` alone do not bypass org rulesets.
+**Approve:** Nested `gh-aw-mention-in-pr` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]` (Vault, Dependabot, Renovate, and other allowed authors). When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review (`verify` requires a non-empty policy in that case). Automerge continues via job `needs` (no re-trigger needed for the review). Classic `pull_request_bypassers` alone do not bypass org rulesets.
 
 **Merge:** Uses **pascalgn/automerge-action** with an ephemeral Vault-app token when `shared-token-policy` is set, otherwise `GITHUB_TOKEN`. `MERGE_REQUIRED_APPROVALS` is `1`. When that step reports `merge_failed` or `not_ready`, the workflow retries a direct REST merge with the same token identity, then enables native GitHub auto-merge as a fallback. `mergeResult: skipped` does not trigger the fallback (missing label/approvals must not get a bypass-capable merge). If the PR remains unmerged without auto-merge enabled, the workflow fails and upserts a PR comment.
 
@@ -31,6 +31,7 @@ The client template includes `labeled` in `pull_request` types (`trigger-obs-aw-
 | Requirement | Details |
 |---------------|---------|
 | Author | Same allow list as dependency-review (see above) |
+| Token policy | Non-empty `shared-token-policy` required when author is `github-actions[bot]` (approve must use Vault, not self-APPROVE) |
 | Label | `oblt-aw/ai/merge-ready` must be present on the PR |
 | PR state | Not a draft |
 | Branch origin | Upstream branch (head repo equals base repo — not a fork) |
@@ -44,7 +45,7 @@ The client template includes `labeled` in `pull_request` types (`trigger-obs-aw-
 | Enabled collections | Only collections enabled on the Control Plane Dashboard (`obs:automerge:<collection-id>` sub-feature checkboxes under Automerge) proceed to `approve` and `automerge`. The parent `obs:automerge` checkbox must also be enabled. |
 | Skipped PRs | When classification fails or the collection is not enabled on the dashboard, the job posts or updates a single PR comment (marker `obs-aw-automerge:dependency-collection-gate`) and downstream jobs do not run. |
 
-**`approve` job:** Nested `gh-aw-mention-in-pr` omits `github-token-policy` (lock default → `GITHUB_TOKEN` / `github-actions[bot]`). For repos with “Require review from Code Owners”, add the Vault app to classic branch-protection `pull_request_bypassers` and merge as that app (see [obs-aw-automerge.md](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens)).
+**`approve` job:** Nested `gh-aw-mention-in-pr` uses author-aware `github-token-policy` (Vault only for `github-actions[bot]` authors; otherwise `GITHUB_TOKEN`). For repos with “Require review from Code Owners”, add the Vault app to classic branch-protection `pull_request_bypassers` and merge as that app (see [obs-aw-automerge.md](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens)).
 
 **`automerge` job** (after `approve` succeeds): When `shared-token-policy` is non-empty, mints a Vault-app token and runs **[pascalgn/automerge-action](https://github.com/pascalgn/automerge-action)** with it; when empty, uses `GITHUB_TOKEN`. The action enforces `MERGE_LABELS` (`oblt-aw/ai/merge-ready`), `MERGE_REQUIRED_APPROVALS` (`1`), fork/branch settings, and merges with **squash** when GitHub reports the PR as ready (required checks and reviews per branch protection, rulesets, and action config). Author and label gates are enforced in `verify` (`validateAutomergePr.ts`, same allow list as dependency-review).
 

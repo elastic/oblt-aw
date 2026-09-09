@@ -73,6 +73,7 @@ jobs:
         uses: actions/github-script@v9
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          SHARED_TOKEN_POLICY: ${{ inputs.shared-token-policy }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -83,7 +84,13 @@ jobs:
             rq('tsx/cjs/api').register();
             const { run } = rq('./scripts/obs/validateAutomergePr.ts');
             const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            const { ok } = await run({ github, context, prNumber, core });
+            const { ok } = await run({
+              github,
+              context,
+              prNumber,
+              core,
+              sharedTokenPolicy: process.env.SHARED_TOKEN_POLICY || '',
+            });
             core.setOutput('proceed', ok ? 'true' : 'false');
 
   # Classify dependency updates by changed file paths (no extra labels in consumer repos).
@@ -153,9 +160,10 @@ jobs:
             core.setOutput('allowed', allowed ? 'true' : 'false');
             core.setOutput('collection-id', collectionId || '');
 
-  # Approve always uses GITHUB_TOKEN (github-actions[bot]): satisfies required review
-  # counts / org rulesets without Vault self-APPROVE, and automerge continues via needs
-  # (no re-trigger required). Merge still uses Vault when shared-token-policy is set.
+  # Approve identity must differ from the PR author (GitHub rejects self-APPROVE).
+  # Default: GITHUB_TOKEN (github-actions[bot]). When the author is github-actions[bot],
+  # pass shared-token-policy so the nested lock mints Vault. Merge still uses Vault when
+  # shared-token-policy is set. Automerge continues via needs (no re-trigger for the review).
   resolve-apm-assets:
     needs: [verify, check-dependency-collection]
     if: >-
@@ -188,7 +196,8 @@ jobs:
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-      # Omit github-token-policy: lock default is empty → GITHUB_TOKEN / github-actions[bot].
+      # Empty → GITHUB_TOKEN; non-empty only when author is github-actions[bot] (avoid self-APPROVE).
+      github-token-policy: ${{ github.event.pull_request.user.login == 'github-actions[bot]' && inputs.shared-token-policy || '' }}
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
@@ -209,7 +218,7 @@ jobs:
   # pull_request_bypassers for that app can skip CODEOWNERS. Otherwise use GITHUB_TOKEN.
   # pascalgn uses the REST merge API, which honors classic BP bypassers for App tokens.
   # Author/label rules are enforced in `verify` (validateAutomergePr).
-  # Approve is always github-actions[bot]; MERGE_REQUIRED_APPROVALS is 1.
+  # Approve actor ≠ PR author; MERGE_REQUIRED_APPROVALS is 1.
   automerge:
     needs:
       - verify
