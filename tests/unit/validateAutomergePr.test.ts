@@ -141,7 +141,7 @@ test('validateAutomergePr allows elastic-vault-github-plugin-prod[bot]', async (
   assert.equal(r.ok, true);
 });
 
-test('validateAutomergePr allows github-actions[bot]', async () => {
+test('validateAutomergePr allows github-actions[bot] when shared-token-policy is set', async () => {
   const { core } = makeCore();
   const github = {
     rest: {
@@ -155,6 +155,27 @@ test('validateAutomergePr allows github-actions[bot]', async () => {
     context: { repo: { owner: 'elastic', repo: 'r' } },
     prNumber: 8,
     core,
+    sharedTokenPolicy: 'token-policy-example',
   });
   assert.equal(r.ok, true);
+});
+
+test('validateAutomergePr rejects github-actions[bot] when shared-token-policy is empty', async () => {
+  const { core, infoMessages } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr({ user: { login: 'github-actions[bot]' } }) }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 8,
+    core,
+    sharedTokenPolicy: '',
+  });
+  assert.equal(r.ok, false);
+  assert.match(infoMessages.join('\n'), /shared-token-policy/);
 });
