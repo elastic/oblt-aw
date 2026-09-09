@@ -13,7 +13,7 @@ The security workflow exposes four independently toggleable **category detectors
 
 **Parent** checkbox `obs:security` gates triage, fixer, and superseder. Each category detector additionally requires its sub-feature id (`obs:security:injection`, etc.) in `enabled-workflows`.
 
-This implements the detector stage of the pipeline in [docs/architecture/security-agent-architecture.md](../architecture/security-agent-architecture.md). Triage and fixer use **`gh-aw-issue-triage.lock.yml`** and **`gh-aw-issue-fixer.lock.yml`** from [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
+This implements the detector stage of the pipeline in [docs/architecture/security-agent-architecture.md](../architecture/security-agent-architecture.md). Triage and fixer use **`gh-aw-issue-triage.lock.yml`** and **`gh-aw-issue-fixer-unrestricted.lock.yml`** from [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
 
 ## Prerequisites
 

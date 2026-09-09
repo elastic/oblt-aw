@@ -64,6 +64,8 @@ jobs:
 
         **Pull Request Requirements:**
         - Create a pull request in `Draft` state first.
+        - This lock allows verified remediations under `.github/` (including `.github/workflows/**`). When a verified fix requires those paths, call `ready_to_make_pr` then `create_pull_request` — do not stop at `add_comment` alone.
+        - Do not refuse a workflow-file PR solely because classic `GITHUB_TOKEN` cannot push workflows; this route mints an ephemeral token via `github-token-policy` when configured.
         - PR title should reference fixing the security issue (e.g., "[oblt-aw][security] Fix token exposure in workflow X").
         - PR body must include:
           - `Closes #<issue-number>` at the top to link and auto-close the source issue on merge
@@ -88,7 +90,9 @@ jobs:
         (github.event.label.name == 'oblt-aw/ai/fix-ready' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')) ||
         (startsWith(github.event.label.name, 'oblt-aw/triage/security-') && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/ai/fix-ready'))
       )
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
+    # Unrestricted lock: same as issue-fixer, but may open verified PRs that change `.github/` (SEC injection/supply-chain).
+    # Depends on elastic/ai-github-actions#2038 (gh-aw-issue-fixer-unrestricted) on main.
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml@main
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
