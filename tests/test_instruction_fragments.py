@@ -176,13 +176,16 @@ class TestResolverWithFragments:
         ids = _fragment_ids(resolved)
         assert ids == [
             "fixer-github-read-and-safe-outputs",
+            "fixer-comment-format",
             "keep-pr-draft-until-validated",
             "request-review-from-observablt-ci",
             "do-not-merge-automatically",
         ]
         assert "Shell `gh` is **not** authenticated" in text
+        assert "## Issue Fixer" in text
+        assert "Related Items" in text
 
-    def test_repo_map_security_fixer_not_triage(self, tmp_path: pathlib.Path) -> None:
+    def test_repo_map_security_fixer_and_triage(self, tmp_path: pathlib.Path) -> None:
         config_dir = _root / "config"
         fixer = resolver.resolve_agentic_assets(
             repo_root=tmp_path,
@@ -207,16 +210,21 @@ class TestResolverWithFragments:
         )
         assert _fragment_ids(fixer) == [
             "fixer-github-read-and-safe-outputs",
+            "fixer-comment-format",
             "keep-pr-draft-until-validated",
             "request-review-from-observablt-ci",
             "do-not-merge-automatically",
         ]
         assert "safe-output tool" in fixer_text
         assert "Shell `gh` is **not** authenticated" in fixer_text
-        assert _fragment_ids(triage) == []
-        assert triage["additional_instructions"] == "Triage-only inline"
+        assert "## Issue Fixer" in fixer_text
+        assert _fragment_ids(triage) == ["triage-comment-format"]
+        assert "## Issue Triage" in triage["additional_instructions"]
+        assert triage["additional_instructions"].index("## Issue Triage") < triage[
+            "additional_instructions"
+        ].index("Triage-only inline")
 
-    def test_repo_map_rna_fixer_not_triage(self, tmp_path: pathlib.Path) -> None:
+    def test_repo_map_rna_fixer_and_triage(self, tmp_path: pathlib.Path) -> None:
         config_dir = _root / "config"
         fixer = resolver.resolve_agentic_assets(
             repo_root=tmp_path,
@@ -239,12 +247,26 @@ class TestResolverWithFragments:
         assert "elastic/observablt-ci" in fixer["additional_instructions"]
         assert _fragment_ids(fixer) == [
             "fixer-github-read-and-safe-outputs",
+            "fixer-comment-format",
             "keep-pr-draft-until-validated",
             "request-review-from-observablt-ci",
             "do-not-merge-automatically",
         ]
-        assert _fragment_ids(triage) == []
-        assert triage["additional_instructions"] == ""
+        assert "## Issue Fixer" in fixer["additional_instructions"]
+        assert _fragment_ids(triage) == ["triage-comment-format"]
+        assert "## Issue Triage" in triage["additional_instructions"]
+
+    def test_repo_map_issue_triage(self, tmp_path: pathlib.Path) -> None:
+        config_dir = _root / "config"
+        resolved = resolver.resolve_agentic_assets(
+            repo_root=tmp_path,
+            workflow_id="issue-triage",
+            org_key="obs",
+            config_dir=config_dir,
+            workflow_basename="obs-aw-issue-triage.yml",
+        )
+        assert _fragment_ids(resolved) == ["triage-comment-format"]
+        assert "## Issue Triage" in resolved["additional_instructions"]
 
     def test_repo_map_dependency_review(self, tmp_path: pathlib.Path) -> None:
         config_dir = _root / "config"
