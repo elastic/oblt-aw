@@ -21,7 +21,7 @@ Shared control-plane jobs use **kebab-case, action-oriented** ids with domain co
 | Gate evaluation | `evaluate-workflow-gates` |
 | Agentic asset resolve (leaf reusable) | `resolve-agentic-assets` |
 
-Route wrappers keep descriptive ids such as `resolve-apm-assets` and `automerge`. Upstream `gh-aw-*` agent lifecycle jobs (`pre_activation`, `activation`, `agent`) are owned by `elastic/ai-github-actions`.
+Route wrappers keep descriptive ids such as `resolve-apm-assets` and `automerge`. Agentic `gh-aw-*` lifecycle jobs (`pre_activation`, `activation`, `agent`) come from compiled locks — some live in this repo (for example [obs-aw-estc-pr-buildkite-detective](obs-aw-estc-pr-buildkite-detective.md)); others remain in `elastic/ai-github-actions` / `elastic/docs-actions` until migrated.
 
 - Shared prelude (dashboard + allow lists): [docs/workflows/aw-prelude.md](aw-prelude.md)
 - Shared dashboard audit (enable/disable comments): [docs/workflows/aw-dashboard-audit.md](aw-dashboard-audit.md)

@@ -21,6 +21,24 @@ def test_list_subject_workflows_includes_route_wrappers() -> None:
     assert "aw-prelude.yml" not in names
     assert "docs-aw-event-issues.yml" not in names
     assert "trg-oblt-aw-automerge.yml" not in names
+    assert "gh-aw-estc-pr-buildkite-detective.lock.yml" not in names
+
+
+def test_list_subject_workflows_excludes_gh_aw_locks(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "obs-aw-example.yml").write_text("name: Example\n", encoding="utf-8")
+    (workflows / "gh-aw-estc-pr-buildkite-detective.lock.yml").write_text(
+        "name: Lock\n", encoding="utf-8"
+    )
+    (workflows / "gh-aw-estc-pr-buildkite-detective.md").write_text(
+        "# source\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(validator, "WORKFLOWS_DIR", workflows)
+    names = {p.name for p in validator.list_subject_workflows()}
+    assert names == {"obs-aw-example.yml"}
 
 
 def test_validate_workflow_rejects_missing_shared_proceed(

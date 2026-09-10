@@ -12,5 +12,6 @@ Do not reintroduce a monolithic `oblt-aw.yml` or `oblt-aw-ingress.yml`.
 - Shared dashboard audit: `.github/workflows/aw-dashboard-audit.yml` (no org prefix; always-on from org event orchestrators, not prelude-gated).
 - Observability route reusables: `.github/workflows/obs-aw-<workflow-id>.yml` (declare `shared-proceed`; prelude runs in `obs-aw-event-*` orchestrators). Workflows that invoke `gh-aw-*` must call `aw-resolve-agentic-assets.yml` per agent job (`scripts/validate_aw_workflow_resolve_agentic_assets.py`).
 - Docs route reusables: `.github/workflows/docs-aw-*.yml` (same `shared-proceed` contract; prelude runs in `docs-aw-event-*` orchestrators).
-- Enforced by `scripts/validate_aw_workflow_prelude.py` in CI.
-- Upstream lock files in `elastic/ai-github-actions` / `elastic/docs-actions` keep the `gh-aw-*` prefix.
+- Enforced by `scripts/validate_aw_workflow_prelude.py` in CI (excludes in-repo `gh-aw-*` / `*.lock.yml` primitives from registry subject discovery).
+- Some Observability-owned agentic primitives live in-repo as `gh-aw-*.md` + generated `gh-aw-*.lock.yml` (pilot: `gh-aw-estc-pr-buildkite-detective`). Edit the `.md`, then `gh aw compile <workflow-id>`. Shared compile imports: `.github/workflows/gh-aw-fragments/` (fleet model default: `gh-aw-fragments/obs-defaults.md`).
+- Other upstream lock files in `elastic/ai-github-actions` / `elastic/docs-actions` keep the `gh-aw-*` prefix until migrated.
