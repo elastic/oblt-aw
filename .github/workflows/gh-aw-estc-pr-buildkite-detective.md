@@ -29,8 +29,6 @@ on:
     secrets:
       BUILDKITE_API_TOKEN:
         required: true
-      GH_AW_DEFAULT_OTLP_HEADERS:
-        required: false
   roles: [admin, maintainer, write]
   bots:
     - "github-actions[bot]"

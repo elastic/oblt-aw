@@ -12,7 +12,7 @@ Landing home for this primitive (pilot under [#1882](https://github.com/elastic/
 
 - Triggered via `workflow_call` from the status event orchestrator (`obs-aw-event-status.yml` ← client `trigger-obs-aw-status.yml`).
 - Required secret: `BUILDKITE_API_TOKEN` — a Buildkite API token with read access to build logs for the repository's Buildkite organization. In consumer repositories, map this from `BUILDKITE_LOGS_API_TOKEN`.
-- Optional secret: `GH_AW_DEFAULT_OTLP_HEADERS` — when configured in a consumer repository, the GH-AW runtime sends agent trace data to the repo's OTLP endpoint using the shared `GH_AW_DEFAULT_OTLP_ENDPOINT` variable. This is used for OpenTelemetry instrumentation of the workflow runtime.
+- Optional secret: `GH_AW_DEFAULT_OTLP_HEADERS` — when configured in a consumer repository, this wrapper forwards the secret to the in-repo GH-AW lock, which already includes the runtime OpenTelemetry export wiring for the shared `GH_AW_DEFAULT_OTLP_ENDPOINT` variable.
 
 ## Usage
 
@@ -38,7 +38,7 @@ Edit the GH-AW source [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`]
 | Model, failure-issue suppression (`report-failure-as-issue` / `report-failed-jobs` false; `noop` / `missing-tool` / `missing-data` / `report-incomplete` do not create issues), and GitHub `trusted-users` via [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) | `additional-instructions` (from `aw-resolve-agentic-assets`) |
 | Comment footer via [`.github/workflows/gh-aw-fragments/messages-footer.md`](../../.github/workflows/gh-aw-fragments/messages-footer.md) (What is this? → [oblt-aw README](https://github.com/elastic/oblt-aw/blob/main/README.md)) | `setup-commands` (joined from consumer `apm.yml` when non-empty) |
 | Bot actors hardcoded on the source (`github-actions[bot]`, `buildkite-limited-access[bot]`) — GH-AW does not allow `on.bots` in shared fragments | |
-| Wrapper exposes only `shared-proceed` (+ Buildkite secret) | |
+| Wrapper exposes `shared-proceed`, the required Buildkite secret, and the optional OTLP headers secret | |
 
 Shared compile imports for this workflow also include the other files under [`.github/workflows/gh-aw-fragments/`](../../.github/workflows/gh-aw-fragments/).
 
@@ -60,17 +60,23 @@ Wrapper `workflow_call` contract:
 
 - Input: `shared-proceed` (`required: true`)
 - Secret: `BUILDKITE_API_TOKEN` (`required: true`)
+- Secret: `GH_AW_DEFAULT_OTLP_HEADERS` (`required: false`)
 
 Lock inputs passed by the wrapper:
 
 - `additional-instructions` — resolved control-plane + consumer instructions
 - `setup-commands` — `join(fromJSON(resolved-setup-commands-json), '\n')` from resolve (empty when the consumer has none)
 
+Lock secrets forwarded by the wrapper:
+
+- `BUILDKITE_API_TOKEN`
+- `GH_AW_DEFAULT_OTLP_HEADERS` (optional)
+
 Migration note for consumers: if you previously configured the consumer-facing secret name as `BUILDKITE_API_TOKEN`, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN` in repository/organization secrets.
 
 ## Cutover and rollback
 
-**Cutover (this pilot):** the wrapper `uses` `elastic/oblt-aw/.../gh-aw-estc-pr-buildkite-detective.lock.yml@main` instead of `elastic/ai-github-actions/...@main`. Consumer secret mapping and event routing are unchanged.
+**Cutover (this pilot):** the wrapper `uses` `elastic/oblt-aw/.../gh-aw-estc-pr-buildkite-detective.lock.yml@main` instead of `elastic/ai-github-actions/...@main`. Existing Buildkite secret mapping and event routing are unchanged, and consumers may now also forward `GH_AW_DEFAULT_OTLP_HEADERS` when telemetry headers are needed.
 
 **Rollback:** point the wrapper job back at the previous upstream lock:
 
