@@ -26,22 +26,12 @@ on:
         type: string
         required: false
         default: ""
-      allowed-bot-users:
-        description: "Allowed bot actor usernames (comma-separated)"
-        type: string
-        required: false
-        default: "github-actions[bot]"
-      report-failure-as-issue:
-        description: "When true, agent failures and failed jobs are reported as GitHub issues"
-        type: boolean
-        required: false
-        default: false
     secrets:
       BUILDKITE_API_TOKEN:
         required: true
   roles: [admin, maintainer, write]
   bots:
-    - "${{ inputs.allowed-bot-users }}"
+    - "github-actions[bot]"
     - "buildkite-limited-access[bot]"
 concurrency:
   group: ${{ github.workflow }}-estc-pr-buildkite-detective-${{ github.event.check_run.id || github.run_id }}
@@ -54,8 +44,6 @@ permissions:
   pull-requests: read
 tools:
   github:
-    min-integrity: approved
-    trusted-users: ${{ inputs.allowed-bot-users }}
     toolsets: [repos, issues, pull_requests, search, actions]
   bash: true
   web-fetch:
