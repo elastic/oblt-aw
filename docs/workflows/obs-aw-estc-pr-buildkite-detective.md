@@ -34,7 +34,7 @@ Edit the GH-AW source [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`]
 
 | Opinionated (Observability-owned) | Preserved as lock inputs |
 |-----------------------------------|--------------------------|
-| Model, `report-failure-as-issue: false`, `report-failed-jobs: false`, and GitHub `trusted-users` via [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) | `additional-instructions` (from `aw-resolve-agentic-assets`) |
+| Model, failure-issue suppression (`report-failure-as-issue` / `report-failed-jobs` false; `noop` / `missing-tool` / `missing-data` / `report-incomplete` do not create issues), and GitHub `trusted-users` via [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) | `additional-instructions` (from `aw-resolve-agentic-assets`) |
 | Comment footer via [`.github/workflows/gh-aw-fragments/messages-footer.md`](../../.github/workflows/gh-aw-fragments/messages-footer.md) (What is this? → [oblt-aw README](https://github.com/elastic/oblt-aw/blob/main/README.md)) | `setup-commands` (joined from consumer `apm.yml` when non-empty) |
 | Bot actors hardcoded on the source (`github-actions[bot]`, `buildkite-limited-access[bot]`) — GH-AW does not allow `on.bots` in shared fragments | |
 | Wrapper exposes only `shared-proceed` (+ Buildkite secret) | |
@@ -47,9 +47,11 @@ Permissions on the agent job:
 
 - `actions: read`
 - `contents: read`
-- `issues: write`
-- `pull-requests: write`
+- `issues: read`
+- `pull-requests: read`
 - `copilot-requests: write`
+
+Conclusion and safe-outputs jobs request `pull-requests: write` only (no `issues: write`); failure fallbacks do not create tracking issues.
 
 ## API / Interface
 
