@@ -60,7 +60,7 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
-    uses: ./.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml
+    uses: elastic/oblt-aw/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), '\n') }}
