@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
 
-import validate_aw_workflow_prelude as validator  # noqa: E402
+import validate_aw_workflow_prelude as validator
 
 
 def test_list_subject_workflows_includes_route_wrappers() -> None:

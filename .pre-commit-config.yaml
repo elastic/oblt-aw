@@ -17,6 +17,8 @@ repos:
     rev: v1.7.12
     hooks:
       - id: actionlint
+        # Generated GH-AW locks are compile output; lint hand-authored wrappers only.
+        exclude: \.lock\.yml$
         args:
           - -ignore
           - 'unknown permission scope "copilot-requests"'

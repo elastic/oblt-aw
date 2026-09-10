@@ -48,7 +48,7 @@ steps:
       toolcache_bin="/opt/hostedtoolcache/gh-aw-tools/current/x64/bin"
       sudo mkdir -p "$toolcache_bin"
       sudo ln -sf "$UV_PATH" "$toolcache_bin/uv"
-  
+
   - name: Configure Copilot CLI settings
     shell: bash
     run: |
