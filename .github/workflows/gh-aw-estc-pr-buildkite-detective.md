@@ -52,6 +52,8 @@ network:
     - "buildkite.com"
 safe-outputs:
   activation-comments: false
+  # Also listed in obs-defaults; gh-aw v0.88.7 does not merge report-failed-jobs from imports.
+  report-failed-jobs: false
   noop:
 strict: false
 timeout-minutes: 30
