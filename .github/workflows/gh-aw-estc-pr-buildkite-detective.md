@@ -2,14 +2,14 @@
 inlined-imports: true
 description: "Analyze failed Buildkite PR checks and report findings"
 imports:
-  - gh-aw-fragments/obs-defaults.md
   - gh-aw-fragments/elastic-tools.md
-  - gh-aw-fragments/runtime-setup.md
   - gh-aw-fragments/formatting.md
-  - gh-aw-fragments/rigor.md
   - gh-aw-fragments/messages-footer.md
-  - gh-aw-fragments/safe-output-add-comment-pr-hide-older.md
   - gh-aw-fragments/network-ecosystems.md
+  - gh-aw-fragments/obs-defaults.md
+  - gh-aw-fragments/rigor.md
+  - gh-aw-fragments/runtime-setup.md
+  - gh-aw-fragments/safe-output-add-comment-pr-hide-older.md
 engine:
   id: copilot
 on:
