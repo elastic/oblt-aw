@@ -7,21 +7,6 @@ on:
         description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
-      shared-allowed-pr-authors-json:
-        required: true
-        type: string
-      shared-allowed-pr-authors-csv:
-        required: true
-        type: string
-      shared-allowed-issue-authors-json:
-        required: true
-        type: string
-      shared-allowed-issue-authors-csv:
-        required: true
-        type: string
-      shared-token-policy:
-        required: true
-        type: string
     secrets:
       BUILDKITE_API_TOKEN:
         required: true
@@ -75,8 +60,9 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@main
+    uses: elastic/oblt-aw/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), '\n') }}
     secrets:
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}
