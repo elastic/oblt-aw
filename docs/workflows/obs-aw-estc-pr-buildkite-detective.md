@@ -12,6 +12,7 @@ Landing home for this primitive (pilot under [#1882](https://github.com/elastic/
 
 - Triggered via `workflow_call` from the status event orchestrator (`obs-aw-event-status.yml` ← client `trigger-obs-aw-status.yml`).
 - Required secret: `BUILDKITE_API_TOKEN` — a Buildkite API token with read access to build logs for the repository's Buildkite organization. In consumer repositories, map this from `BUILDKITE_LOGS_API_TOKEN`.
+- Optional secret: `GH_AW_DEFAULT_OTLP_HEADERS` — when configured in a consumer repository, the GH-AW runtime sends agent trace data to the repo's OTLP endpoint using the shared `GH_AW_DEFAULT_OTLP_ENDPOINT` variable. This is used for OpenTelemetry instrumentation of the workflow runtime.
 
 ## Usage
 
