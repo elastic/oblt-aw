@@ -703,7 +703,7 @@ def resolve_buildkite_org_pipeline(cfg: dict[str, Any]) -> tuple[str, str]:
 
 def buildkite_api_token(cfg: dict[str, Any]) -> str | None:
     bk = _buildkite_cfg(cfg)
-    token_env = str(bk.get("token_env") or "E2E_BUILDKITE_API_TOKEN")
+    token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
     token = os.environ.get(token_env, "").strip()
     return token or None
 
@@ -828,7 +828,7 @@ def ensure_failed_buildkite_target_url(
     token = buildkite_api_token(cfg)
     if not token:
         bk = _buildkite_cfg(cfg)
-        token_env = str(bk.get("token_env") or "E2E_BUILDKITE_API_TOKEN")
+        token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
         raise RuntimeError(
             f"Missing {token_env} (write_builds + read). "
             f"Or set {override_env} to a readable failed build URL."
@@ -967,7 +967,7 @@ def run_live_case(
         override = os.environ.get(override_env, "").strip()
         if not override and not buildkite_api_token(cfg):
             bk = _buildkite_cfg(cfg)
-            token_env = str(bk.get("token_env") or "E2E_BUILDKITE_API_TOKEN")
+            token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
             return {
                 "workflow_id": workflow_id,
                 "case_id": case.get("id", case_dir.name),

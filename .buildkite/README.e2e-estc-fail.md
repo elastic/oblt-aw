@@ -10,7 +10,7 @@ After merge to `main`, wait for the Buildkite RRE to reconcile. Confirm the pipe
 
 ## Secrets (still required)
 
-1. Repo secret `E2E_BUILDKITE_API_TOKEN` with Buildkite scopes **`write_builds`** (+ read) so the harness can create and poll builds.
+1. Repo secret `BUILDKITE_TOKEN` with Buildkite scopes **`write_builds`** (+ read) so the harness can create and poll builds.
 2. Repo secret `BUILDKITE_LOGS_API_TOKEN` (mapped into the detective) must be able to **read** this pipeline’s builds/logs.
 
 Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE` (default `oblt-aw-e2e-estc-fail`).

@@ -24,7 +24,7 @@ Live mode is the E2E proof. On the happy path the intentional Buildkite pipeline
 
 1. **Dashboard** — enable `obs:estc-pr-buildkite-detective` on the Control Plane Dashboard for `elastic/oblt-aw` (issue labeled `oblt-aw/dashboard`). Currently required; the harness fails closed if the checkbox is off.
 2. **Secret** — `BUILDKITE_LOGS_API_TOKEN` on `elastic/oblt-aw` (mapped by `trigger-obs-aw-status.yml` into the wrapper). Must be able to **read** the E2E fail pipeline’s builds/logs.
-3. **Secret** — `E2E_BUILDKITE_API_TOKEN` with Buildkite scopes **`write_builds`** (+ read) so the harness can create and poll an intentional failure build.
+3. **Secret** — `BUILDKITE_TOKEN` with Buildkite scopes **`write_builds`** (+ read) so the harness can create and poll an intentional failure build.
 4. **Buildkite pipeline** — provisioned via [`catalog-info.yaml`](../../catalog-info.yaml) Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (steps: [`.buildkite/pipeline.e2e-estc-fail.yml`](../../.buildkite/pipeline.e2e-estc-fail.yml)). After merge to `main`, confirm RRE reconciliation at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail. See [`.buildkite/README.e2e-estc-fail.md`](../../.buildkite/README.e2e-estc-fail.md). Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE` (default `oblt-aw-e2e-estc-fail`).
 5. **E2E PR** — harness finds or creates an open PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective`.
 6. **Optional override** — Actions var `E2E_ESTC_BUILDKITE_TARGET_URL` skips create and reuses a fixed failed build URL (escape hatch only).
@@ -71,7 +71,7 @@ python3 scripts/oracle_estc_pr_buildkite_detective_e2e.py \
   --quarantine-path config/obs/e2e-quarantine.json
 ```
 
-Live mode needs `gh` auth, dashboard enablement, `E2E_BUILDKITE_API_TOKEN`, and the intentional-failure Buildkite pipeline (or the optional URL override).
+Live mode needs `gh` auth, dashboard enablement, `BUILDKITE_TOKEN`, and the intentional-failure Buildkite pipeline (or the optional URL override).
 
 Harness/oracle unit coverage (no live agent):
 

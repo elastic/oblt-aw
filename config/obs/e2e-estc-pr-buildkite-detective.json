@@ -6,7 +6,7 @@
   "status_context": "buildkite/elastic/oblt-aw-e2e",
   "buildkite_target_url_env": "E2E_ESTC_BUILDKITE_TARGET_URL",
   "buildkite_failure": {
-    "token_env": "E2E_BUILDKITE_API_TOKEN",
+    "token_env": "BUILDKITE_TOKEN",
     "org_env": "E2E_BUILDKITE_ORG",
     "pipeline_env": "E2E_BUILDKITE_PIPELINE",
     "org_default": "elastic",

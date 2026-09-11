@@ -67,7 +67,7 @@ class TestHarnessFixtureCase:
     ) -> None:
         monkeypatch.chdir(ROOT)
         monkeypatch.delenv("E2E_ESTC_BUILDKITE_TARGET_URL", raising=False)
-        monkeypatch.delenv("E2E_BUILDKITE_API_TOKEN", raising=False)
+        monkeypatch.delenv("BUILDKITE_TOKEN", raising=False)
 
         def fake_dashboard(repo: str, workflow_id: str) -> bool:
             return True
@@ -88,7 +88,7 @@ class TestHarnessFixtureCase:
         data = json.loads(outcome_path.read_text(encoding="utf-8"))
         assert data["blocked"] is True
         reason = str(data.get("block_reason"))
-        assert "E2E_BUILDKITE_API_TOKEN" in reason
+        assert "BUILDKITE_TOKEN" in reason
 
     def test_ensure_failed_build_uses_override_url(
         self, monkeypatch: pytest.MonkeyPatch

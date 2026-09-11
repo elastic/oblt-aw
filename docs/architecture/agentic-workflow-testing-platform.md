@@ -77,7 +77,7 @@ Scope for this layer:
 Scope for this layer:
 
 - Run the real status → `trigger-obs-aw-status` → `obs-aw-event-status` → `obs-aw-estc-pr-buildkite-detective` → in-repo `gh-aw-estc-pr-buildkite-detective.lock.yml` path against **`elastic/oblt-aw`** (this slice’s production consumer).
-- Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, dynamic intentional Buildkite failure via `E2E_BUILDKITE_API_TOKEN` + [`catalog-info.yaml`](../../catalog-info.yaml) pipeline `oblt-aw-e2e-estc-fail` with `publish_commit_status` (optional URL override `E2E_ESTC_BUILDKITE_TARGET_URL`), dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
+- Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, dynamic intentional Buildkite failure via `BUILDKITE_TOKEN` + [`catalog-info.yaml`](../../catalog-info.yaml) pipeline `oblt-aw-e2e-estc-fail` with `publish_commit_status` (optional URL override `E2E_ESTC_BUILDKITE_TARGET_URL`), dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
 - Capture artifacts: workflow run URL, agent job logs (redacted), resulting PR comment or issue side effects, structured safe-outputs if present.
 
 **Assert:** using the oracle strategy below — never free-text equality of the full agent narrative.
@@ -179,7 +179,7 @@ Exact workflow file names for promote jobs are **Unknown** until #1878 implement
 
 ### Implementation checklist
 
-- [x] Inventory secrets for live E2E (`BUILDKITE_LOGS_API_TOKEN` via client trigger; `E2E_BUILDKITE_API_TOKEN` + intentional-failure pipeline; optional URL override). See [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Inventory secrets for live E2E (`BUILDKITE_LOGS_API_TOKEN` via client trigger; `BUILDKITE_TOKEN` + intentional-failure pipeline; optional URL override). See [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Use **`elastic/oblt-aw`** as the E2E consumer (no separate sandbox). Enable `obs:estc-pr-buildkite-detective` on its Control Plane Dashboard before live runs. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [ ] Add resolve→wrapper integration suite ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Fixture/integration case inputs live under `testdata/agentic/estc-pr-buildkite-detective/`.
 - [x] Add E2E workflow [`.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` + weekly schedule + `workflow_call` for #1878); kept out of default PR `required`. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
@@ -205,7 +205,7 @@ Resolved by this design where noted; remaining items are for implementation issu
 | First E2E vertical slice | **Resolved:** `obs:estc-pr-buildkite-detective` |
 | Oracle strategy | **Resolved:** structured side effects + schema; no free-text golden |
 | E2E consumer repository | **Resolved:** `elastic/oblt-aw` (no separate sandbox for this slice) |
-| Exact credentials, runners, and isolation inventory | **Resolved for live:** `BUILDKITE_LOGS_API_TOKEN` + `E2E_BUILDKITE_API_TOKEN` + intentional-failure pipeline; dashboard checkbox must be enabled |
+| Exact credentials, runners, and isolation inventory | **Resolved for live:** `BUILDKITE_LOGS_API_TOKEN` + `BUILDKITE_TOKEN` + intentional-failure pipeline; dashboard checkbox must be enabled |
 | How closely E2E must match production models/tools | **Resolved policy:** match production fragment defaults for the slice; document any intentional drift; prefer recorded Buildkite payloads when live access is costly or unstable |
 | Promote workflow wiring | **Unknown** — owned with [#1878](https://github.com/elastic/oblt-aw/issues/1878) |
 
