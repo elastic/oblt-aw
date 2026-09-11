@@ -1,0 +1,30 @@
+{
+  "id": "00000000-0000-4000-8000-000000000042",
+  "number": 42,
+  "state": "failed",
+  "branch": "fixture/estc-status-failure",
+  "web_url": "https://buildkite.com/elastic/sandbox-ci/builds/42",
+  "pull_request": {
+    "id": 7,
+    "repository": "https://github.com/elastic/oblt-aw-sandbox.git"
+  },
+  "jobs": [
+    {
+      "id": "job-unit-tests",
+      "type": "script",
+      "name": "Unit tests",
+      "state": "failed",
+      "exit_status": 1,
+      "command": "make test",
+      "raw_log_url": "https://example.invalid/recorded-fixture-only"
+    },
+    {
+      "id": "job-passed",
+      "type": "script",
+      "name": "Lint",
+      "state": "passed",
+      "exit_status": 0,
+      "command": "make lint"
+    }
+  ]
+}

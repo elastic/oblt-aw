@@ -1,0 +1,176 @@
+---
+name: E2E — ESTC PR Buildkite Detective
+
+# Production E2E for obs:estc-pr-buildkite-detective against elastic/oblt-aw.
+# Live mode posts a real commit status and observes the client trigger → agent path.
+# Also callable from the future release/promote train (#1878).
+# Not part of the default PR required gate in ci.yml.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: live (production status→agent) or fixture (integration-only)
+        required: true
+        type: choice
+        options:
+          - live
+          - fixture
+        default: live
+      case-id:
+        description: Case id, or "all" for the live matrix
+        required: true
+        type: string
+        default: all
+  schedule:
+    # Weekly production smoke (paid agent on happy-path case).
+    - cron: "17 6 * * 1"
+  workflow_call:
+    inputs:
+      mode:
+        description: live or fixture
+        required: false
+        type: string
+        default: live
+      case-id:
+        description: Case id, or "all" for the live matrix
+        required: false
+        type: string
+        default: all
+    outputs:
+      pass:
+        description: Whether all matrix legs passed (summary.pass)
+        value: ${{ jobs.e2e-result.outputs.pass }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aw-e2e-estc-pr-buildkite-detective-${{ github.event_name }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  e2e-matrix:
+    name: Resolve E2E matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.resolve.outputs.mode }}
+      cases: ${{ steps.resolve.outputs.cases }}
+    steps:
+      - name: Resolve mode and cases
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_MODE: ${{ inputs.mode }}
+          INPUT_CASE_ID: ${{ inputs.case-id }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "schedule" ]; then
+            MODE=live
+            CASE_ID=all
+          else
+            MODE="${INPUT_MODE:-live}"
+            CASE_ID="${INPUT_CASE_ID:-all}"
+          fi
+          if [ "${MODE}" = "fixture" ]; then
+            if [ "${CASE_ID}" = "all" ]; then
+              CASE_ID=status-failure-open-pr
+            fi
+            CASES="$(printf '%s' "[\"${CASE_ID}\"]")"
+          elif [ "${CASE_ID}" = "all" ]; then
+            CASES='["status-failure-open-pr-live","status-success-skipped","status-failure-non-buildkite","status-failure-no-open-pr"]'
+          else
+            CASES="$(printf '%s' "[\"${CASE_ID}\"]")"
+          fi
+          echo "mode=${MODE}" >> "$GITHUB_OUTPUT"
+          echo "cases=${CASES}" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: ESTC detective E2E (${{ matrix.case-id }})
+    needs: e2e-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        case-id: ${{ fromJSON(needs.e2e-matrix.outputs.cases) }}
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: write
+      actions: read
+      issues: read
+      checks: read
+    env:
+      MODE: ${{ needs.e2e-matrix.outputs.mode }}
+      CASE_ID: ${{ matrix.case-id }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      BUILDKITE_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
+      E2E_BUILDKITE_ORG: ${{ vars.E2E_BUILDKITE_ORG }}
+      E2E_BUILDKITE_PIPELINE: ${{ vars.E2E_BUILDKITE_PIPELINE }}
+      # Optional escape hatch: skip create and reuse a fixed failed build URL.
+      E2E_ESTC_BUILDKITE_TARGET_URL: ${{ vars.E2E_ESTC_BUILDKITE_TARGET_URL }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Prepare artifact directory
+        run: mkdir -p "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}"
+
+      - name: Run harness
+        id: harness
+        continue-on-error: true
+        run: |
+          set +e
+          python3 scripts/estc_pr_buildkite_detective_e2e_harness.py \
+            --mode "${MODE}" \
+            --case-id "${CASE_ID}" \
+            --run-url "${RUN_URL}" \
+            --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json"
+          echo "harness_exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Run structured oracle
+        id: oracle
+        run: |
+          set -euo pipefail
+          python3 scripts/oracle_estc_pr_buildkite_detective_e2e.py \
+            --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json" \
+            --report-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/oracle-report.json" \
+            --summary-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/summary.json" \
+            --quarantine-path config/obs/e2e-quarantine.json
+
+      - name: Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-estc-pr-buildkite-detective-${{ matrix.case-id }}-${{ github.run_id }}
+          path: artifacts/e2e/estc-pr-buildkite-detective/${{ matrix.case-id }}/
+          if-no-files-found: warn
+          retention-days: 30
+
+  e2e-result:
+    name: E2E result gate
+    needs: e2e
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      pass: ${{ steps.gate.outputs.pass }}
+    steps:
+      - name: Aggregate matrix result
+        id: gate
+        run: |
+          set -euo pipefail
+          # needs.e2e.result is success only when every matrix leg succeeded.
+          if [ "${{ needs.e2e.result }}" = "success" ]; then
+            echo "pass=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pass=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
