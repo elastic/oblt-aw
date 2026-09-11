@@ -50,6 +50,7 @@ jobs:
           path: _oblt-aw
           fetch-depth: 1
           token: ${{ github.token }}
+          persist-credentials: false
           sparse-checkout: |
             config/obs/allowed_pr_authors.json
             scripts/obs/validateAutomergePr.ts
@@ -114,6 +115,7 @@ jobs:
           path: _oblt-aw
           fetch-depth: 1
           token: ${{ github.token }}
+          persist-credentials: false
           sparse-checkout: |
             config/obs/automerge-dependency-collections.json
             scripts/obs/checkAutomergeDependencyCollection.ts

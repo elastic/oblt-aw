@@ -134,7 +134,7 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
         "known-vulnerable-actions": "SEC-031",
         "forbidden-uses": "SEC-031",
         "archived-uses": "SEC-031",
-        "artipacked": "SEC-031",
+        "artipacked": "SEC-022",
         "anonymous-definition": "SEC-012",
         "bot-conditions": "SEC-012",
         "dependabot-execution": "SEC-035",
