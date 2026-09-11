@@ -13,7 +13,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-.PHONY: update-license update-license-check
+.PHONY: update-license update-license-check compile-aw
 
 ## Update license headers and NOTICE.txt
 update-license:
@@ -22,3 +22,7 @@ update-license:
 ## Verify license files; exit 1 if updates needed
 update-license-check:
 	python3 scripts/update_license_files.py --check
+
+## Compile agentic workflow Markdown into .lock.yml
+compile-aw:
+	gh aw compile
