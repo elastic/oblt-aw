@@ -91,15 +91,18 @@ jobs:
         (startsWith(github.event.label.name, 'oblt-aw/triage/security-') && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/ai/fix-ready'))
       )
     # Unrestricted lock: same as issue-fixer, but may open verified PRs that change `.github/` (SEC injection/supply-chain).
-    # Depends on elastic/ai-github-actions#2038 (gh-aw-issue-fixer-unrestricted) on main.
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml@main
+    # Pinned to immutable ref to satisfy SEC-030 (supply-chain hardening).
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml@622701bf4a007e6d8be4f4119a0f22d6ba085366
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       github-token-policy: ${{ inputs.shared-token-policy }}
       # Source-issue visibility is owned by notify-no-pr; do not open meta-issues.
       report-failure-as-issue: false
-    secrets: inherit
+    secrets:
+      EXTRA_COMMIT_GITHUB_TOKEN: ${{ secrets.EXTRA_COMMIT_GITHUB_TOKEN }}
+      GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+      GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
 
   request-reviewers:
     needs: security-issue-fixer

@@ -60,7 +60,7 @@ jobs:
       pull-requests: write
       copilot-requests: write
       id-token: write
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@622701bf4a007e6d8be4f4119a0f22d6ba085366
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       github-token-policy: ${{ inputs.shared-token-policy }}

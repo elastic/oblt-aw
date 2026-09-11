@@ -127,7 +127,7 @@ jobs:
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
       github.event.label.name == 'oblt-aw/detector/security'
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@622701bf4a007e6d8be4f4119a0f22d6ba085366
     with:
       allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
       classification-labels: "oblt-aw/triage/security-injection,oblt-aw/triage/security-secrets,oblt-aw/triage/security-supply-chain,oblt-aw/triage/security-least-privilege,oblt-aw/triage/other,oblt-aw/triage/needs-info,oblt-aw/ai/fix-ready"
