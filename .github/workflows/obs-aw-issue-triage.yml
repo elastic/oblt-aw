@@ -1,0 +1,66 @@
+---
+name: Issue Triage
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+# Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
+permissions:
+  contents: read
+
+jobs:
+
+  resolve-apm-assets:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'opened' &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      workflow-basename: obs-aw-issue-triage.yml
+
+  issue-triage:
+    needs: [resolve-apm-assets]
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'opened' &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
+    permissions:
+      actions: read
+      contents: read
+      discussions: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+      id-token: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      github-token-policy: ${{ inputs.shared-token-policy }}

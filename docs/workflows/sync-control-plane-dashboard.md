@@ -8,7 +8,7 @@ This workflow creates or updates the **single** Control Plane Dashboard issue in
 
 ## Prerequisites
 
-- Per-org `config/<org-key>/workflow-registry.json` — workflow metadata (`id`, `name`, `description`, `maturity`, `default_enabled`, `control_plane_workflows`, optional `section_title`)
+- Per-org `config/<org-key>/workflow-registry.json` — workflow metadata (`id`, `name`, `description`, `maturity`, `default_enabled`, `inner_workflows`, optional `section_title`)
 - Per-org `config/<org-key>/active-repositories.json` — target repositories for that org’s workflows
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/blob/v1/github/create-token/action.yml)
 - [GitHub CLI (`gh`)](https://cli.github.com/) available in `PATH` (required by `scripts/sync_control_plane_dashboard.py` for `gh api` and issue pinning)
@@ -22,7 +22,7 @@ Triggers:
   - [.github/workflows/sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml)
 - `workflow_dispatch` with optional input `force-sync-defaults` (boolean, default `false`)
 
-*Note: Editing the dashboard issue does not trigger this workflow. Dashboard opt-in/opt-out is read at runtime by the ingress (`get-enabled-workflows`); there is no `issues.edited` trigger.*
+*Note: Editing the dashboard issue does not trigger this sync workflow. Runtime opt-in/opt-out is still read by the ingress (`get-enabled-workflows`). Checkbox edits on the dashboard do trigger the shared [aw-dashboard-audit](aw-dashboard-audit.md) path via consumer `issues.edited` routing. Sync-driven checkbox resets (including `force-sync-defaults`) also post audit comments from this script with a fixed automation reason.*
 
 Execution:
 
@@ -30,6 +30,7 @@ Execution:
 2. **sync-dashboard job:** Matrix job (one job per repo); each invokes `scripts/sync_control_plane_dashboard.py --repo <owner/repo>` (and `--force-sync-defaults` when the dispatch input is `true`):
     - Search for existing open issue with label `oblt-aw/dashboard`
     - Create or update the issue with title `[oblt-aw] Control Plane Dashboard`, body merged from each applicable org registry (sections per org, three-part checkbox markers)
+    - When an update changes checkbox state, post an audit comment on the dashboard issue (actor `oblt-aw-sync`, reason `force-sync-defaults` or `dashboard-sync`)
     - Pin the issue via `gh issue pin` (if limit of 3 pins reached, log and continue)
 
 ### `force-sync-defaults` (workflow_dispatch)

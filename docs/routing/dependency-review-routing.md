@@ -2,9 +2,9 @@
 
 ## Overview
 
-Client template: `trigger-oblt-aw-dependency-review.yml` → `oblt-aw-dependency-review.yml`
+Client template: `trigger-obs-aw-dependency-review.yml` → `obs-aw-dependency-review.yml`
 
-Routed workflow source: [.github/workflows/oblt-aw-dependency-review.yml](../../.github/workflows/oblt-aw-dependency-review.yml)
+Routed workflow source: [.github/workflows/obs-aw-dependency-review.yml](../../.github/workflows/obs-aw-dependency-review.yml)
 
 ## Usage
 
@@ -18,10 +18,13 @@ Ingress routes to dependency review when all conditions are true:
   - `Dependabot`
   - `Renovate`
   - `elastic-vault-github-plugin-prod[bot]`
+  - `github-actions[bot]`
 - Dashboard gate passes for registry id `dependency-review` (`enabled-workflows` contains `obs:dependency-review`).
 
 For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/aw-prelude.md](../workflows/aw-prelude.md).
 
+When the lock succeeds without a `comment_id`, `notify-no-comment` upserts a single comment on the triggering PR (marker `obs-aw-dependency-review:notify-no-comment`; run URL + retry guidance). See [docs/workflows/obs-aw-dependency-review.md](../workflows/obs-aw-dependency-review.md) for the empty-safe-outputs failure mode.
+
 ## References
 
-- [docs/workflows/oblt-aw-dependency-review.md](../workflows/oblt-aw-dependency-review.md)
+- [docs/workflows/obs-aw-dependency-review.md](../workflows/obs-aw-dependency-review.md)

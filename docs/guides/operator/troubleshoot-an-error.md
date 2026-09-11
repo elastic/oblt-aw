@@ -12,7 +12,7 @@ Use this checklist when a workflow run fails or a user reports that agentic work
 ## Steps
 
 1. **Identify where the run lives** — Open the run URL.
-   - **Consumer repo** (`trigger-oblt-aw-*.yml`): start with the client template and event orchestrator. See [Client template index](../../workflows/oblt-aw-client-template.md).
+   - **Consumer repo** (`trigger-obs-aw-*.yml`): start with the client template and event orchestrator. See [Client template index](../../workflows/obs-aw-client-template.md).
    - **`elastic/oblt-aw`**: control-plane operation (distribution, dashboard sync, CI). See [docs/workflows/](../../workflows/) for the matching workflow doc.
 
 2. **Check dashboard gating** — If jobs were skipped or `shared-proceed` is false, the workflow may not be enabled on the Control Plane Dashboard.
@@ -26,7 +26,7 @@ Use this checklist when a workflow run fails or a user reports that agentic work
 
 4. **Check permissions, OIDC, and ephemeral tokens** — Failures on `create-token` or OIDC often mean:
    - `workflow_ref` in the catalog token policy does not match the client workflow file path.
-   - The client `run-aw` job is missing `id-token: write`. See [Client template index](../../workflows/oblt-aw-client-template.md).
+   - The client `run-obs-aw-<event>` job is missing `id-token: write`. See [Client template index](../../workflows/obs-aw-client-template.md).
    - Catalog policy was not merged before the `oblt-aw` registration merge.
 
    Registration troubleshooting: [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting). Maintainer detail: [Use GitHub ephemeral tokens](../maintainer/use-gh-ephemeral-tokens.md).

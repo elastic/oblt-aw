@@ -6,9 +6,11 @@ Source file: [.github/workflows/aw-resolve-agentic-assets.yml](../../.github/wor
 
 Resolves consumer agentic assets for **one** `gh-aw-*` invocation: [`apm.yml`](https://github.com/microsoft/apm) / `x-oblt-aw` blocks, workflow-specific consumer files (for example `.oblt-aw.autodocignore`), and platform baseline instructions. Call this reusable immediately before each job that `uses` an upstream agentic workflow lock file.
 
-CI enforces the contract via [scripts/validate_aw_workflow_resolve_agentic_assets.py](../../scripts/validate_aw_workflow_resolve_agentic_assets.py): every local `*-aw-*` workflow with at least one `gh-aw-*` call must invoke `aw-resolve-agentic-assets.yml` at least once per agent job (for example `oblt-aw-autodoc.yml` uses two resolve jobs for audit and fix).
+CI enforces the contract via [scripts/validate_aw_workflow_resolve_agentic_assets.py](../../scripts/validate_aw_workflow_resolve_agentic_assets.py): every local `*-aw-*` workflow with at least one `gh-aw-*` call must invoke `aw-resolve-agentic-assets.yml` at least once per agent job (for example `obs-aw-autodoc.yml` uses two resolve jobs for audit and fix).
 
-Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.yml`) do not call this workflow.
+Wrappers that only gate or run scripts (for example `obs-aw-security-injection-detector.yml`) do not call this workflow.
+
+The reusable workflow job id is `resolve-agentic-assets`. Route wrappers typically call it from a job named `resolve-apm-assets`.
 
 ## Contract
 
@@ -16,7 +18,7 @@ Wrappers that only gate or run scripts (for example `oblt-aw-security-detector.y
 
 | Input | Type | Default | Purpose |
 |-------|------|---------|---------|
-| `control-plane-workflow` | string | (required) | Basename of the calling wrapper; used to resolve org key and registry workflow id for `x-oblt-aw.<org-key>.workflows.<id>` selection |
+| `workflow-basename` | string | (required) | Basename of the calling wrapper; used to resolve org key and registry workflow id for `x-oblt-aw.<org-key>.workflows.<id>` selection |
 | `platform-additional-instructions` | string | `""` | Control-plane baseline text for this agent invocation (prepended before repo APM instructions) |
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
 | `install-apm-packages` | boolean | `true` | Run [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI and runs `apm install`) |
@@ -34,10 +36,13 @@ The `workflow-token-policy` field (exposed to route workflows as `shared-token-p
 |--------|-------------|
 | `apm-manifest-present` | Consumer has `apm.yml` / `apm.yaml` |
 | `apm-extension-present` | Manifest contains `x-oblt-aw` |
-| `asset-source` | `none`, `common`, or `workflow` |
-| `resolved-additional-instructions` | Merged platform, APM, and consumer-side instructions |
+| `asset-source` | `none`, `common`, `workflow`, or `inner-workflow` |
+| `resolved-additional-instructions` | Merged control-plane fragments, platform, APM, and consumer-side instructions |
 | `resolved-inputs-json` | Merged platform + APM inputs |
 | `resolved-setup-commands-json` | JSON array of shell commands from the selected asset block (`setup-commands` inline string/list and optional `setup-commands-file`) |
+| `resolved-instruction-layers-json` | JSON object listing which fragment ids and inline/auto layers were appended (`org-key`, `workflow-id`, `workflow-basename`, `layers`) |
+
+Instruction merge order and control-plane fragment layout: [instruction fragments](../architecture/instruction-fragments.md). Consumer `apm.yml` contract: [APM agentic assets](../architecture/apm-agentic-assets.md).
 
 ### Typical caller pattern
 
@@ -45,35 +50,35 @@ Place each `resolve-apm-assets` job **immediately before** the `gh-aw-*` job it 
 
 ```yaml
 jobs:
-  prelude:
+  run-aw-prelude:
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      control-plane-workflow: oblt-aw-example.yml
+      control-plane-workflows: '["obs-aw-example.yml"]'
 
   # ... optional intermediate jobs (verify, discover, menu scripts, etc.) ...
 
   resolve-apm-assets:
-    needs: [prelude]  # plus any jobs the agent also needs
+    needs: [run-aw-prelude]  # plus any jobs the agent also needs
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-example.yml'] == 'true' &&
       <same conditions as the agent job below>
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
-      control-plane-workflow: oblt-aw-example.yml
+      workflow-basename: obs-aw-example.yml
       platform-additional-instructions: |
         Platform prompt for this agent invocation.
 
   agent:
-    needs: [prelude, resolve-apm-assets]  # resolve must be a direct dependency
+    needs: [run-aw-prelude, resolve-apm-assets]  # resolve must be a direct dependency
     if: >-
-      needs.prelude.outputs.proceed == 'true' &&
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-example.yml'] == 'true' &&
       <same conditions as resolve-apm-assets>
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-example.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
 ```
 
-Examples with upstream gates: [oblt-aw-automerge.yml](../../.github/workflows/oblt-aw-automerge.yml) (resolve after verify + dependency collection), [oblt-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml) (resolve after discover). Multi-agent wrappers use one resolve job per `gh-aw-*` invocation — see [oblt-aw-autodoc.yml](../../.github/workflows/oblt-aw-autodoc.yml).
+Examples with upstream gates: [obs-aw-automerge.yml](../../.github/workflows/obs-aw-automerge.yml) (resolve after verify + dependency collection), [obs-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml) (resolve after discover). Multi-agent wrappers use one resolve job per `gh-aw-*` invocation — see [obs-aw-autodoc.yml](../../.github/workflows/obs-aw-autodoc.yml).
 
 ## References
 

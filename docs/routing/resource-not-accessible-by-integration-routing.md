@@ -2,13 +2,13 @@
 
 ## Overview
 
-Client templates: `trigger-oblt-aw-resource-not-accessible-by-integration-*.yml` → matching `oblt-aw-*` workflows
+Client templates: `trigger-obs-aw-resource-not-accessible-by-integration-*.yml` → matching `obs-aw-*` workflows
 
 Routed workflows:
 
-- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-detector.yml)
-- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-triage.yml)
-- [.github/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml)
 
 ## Usage
 
@@ -16,13 +16,14 @@ Routing rules from ingress:
 
 - `schedule` -> detector
 - `issues` -> triage when:
-  - `opened` and the issue already includes label `oblt-aw/detector/res-not-accessible-by-integration`, or
   - `labeled` and `github.event.label.name` is `oblt-aw/detector/res-not-accessible-by-integration`
-  (The `opened` branch covers issues created with the detector label in the same request; GitHub does not emit `labeled` for labels set at creation.)
+  (Triage does not run on `opened`; create-with-label still emits `labeled` for the detector label.)
 - `issues` + `labeled` +
   - `github.event.label.name == 'oblt-aw/ai/fix-ready'`
   - issue contains label `oblt-aw/triage/res-not-accessible-by-integration`
   -> fixer
+
+Generic issue-triage and issue-fixer skip issues that carry this detector or triage label so they do not compete with this pipeline.
 
 All three routes (detector, triage, fixer) also require the shared dashboard gate to pass: `enabled-workflows` must contain `obs:resource-not-accessible-by-integration`.
 
@@ -32,6 +33,6 @@ When called directly, **detector**, **triage**, and **fixer** all run in the rep
 
 ## References
 
-- [docs/workflows/oblt-aw-resource-not-accessible-by-integration-detector.md](../workflows/oblt-aw-resource-not-accessible-by-integration-detector.md)
-- [docs/workflows/oblt-aw-resource-not-accessible-by-integration-triage.md](../workflows/oblt-aw-resource-not-accessible-by-integration-triage.md)
-- [docs/workflows/oblt-aw-resource-not-accessible-by-integration-fixer.md](../workflows/oblt-aw-resource-not-accessible-by-integration-fixer.md)
+- [docs/workflows/obs-aw-resource-not-accessible-by-integration-detector.md](../workflows/obs-aw-resource-not-accessible-by-integration-detector.md)
+- [docs/workflows/obs-aw-resource-not-accessible-by-integration-triage.md](../workflows/obs-aw-resource-not-accessible-by-integration-triage.md)
+- [docs/workflows/obs-aw-resource-not-accessible-by-integration-fixer.md](../workflows/obs-aw-resource-not-accessible-by-integration-fixer.md)

@@ -53,3 +53,16 @@ class TestParseEnabledIdsFromBody:
     def test_none_checked(self) -> None:
         body = "- [ ] <!-- oblt-aw:obs:automerge\n"
         assert gew.parse_enabled_ids_from_body(body) == "[]"
+
+    def test_sub_feature_checkboxes(self) -> None:
+        body = (
+            "- [x] <!-- oblt-aw:obs:automerge -->\n"
+            "- [x] <!-- oblt-aw:obs:automerge:github-actions -->\n"
+        )
+        out = gew.parse_enabled_ids_from_body(body)
+        assert out == '["obs:automerge","obs:automerge:github-actions"]'
+
+    def test_indented_sub_feature_checkbox(self) -> None:
+        body = "  - [x] <!-- oblt-aw:obs:automerge:terraform -->\n"
+        out = gew.parse_enabled_ids_from_body(body)
+        assert out == '["obs:automerge:terraform"]'

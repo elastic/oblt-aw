@@ -1,0 +1,41 @@
+name: Observability Agentic Workflow — Status Event
+
+# Event-scoped orchestrator for status-triggered routes.
+on:
+  workflow_call:
+    secrets:
+      BUILDKITE_API_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  run-aw-prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflows: '["obs-aw-estc-pr-buildkite-detective.yml"]'
+      load-allowed-authors: false
+
+  estc-pr-buildkite-detective:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-estc-pr-buildkite-detective.yml'] == 'true' &&
+      github.event_name == 'status' &&
+      github.event.state == 'failure' &&
+      contains(github.event.context, 'buildkite')
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+    uses: ./.github/workflows/obs-aw-estc-pr-buildkite-detective.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-estc-pr-buildkite-detective.yml'] }}
+    secrets:
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}

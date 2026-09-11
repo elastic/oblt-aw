@@ -6,7 +6,7 @@ Source file: [.github/workflows/load-allowed-authors.yml](../../.github/workflow
 
 This reusable workflow reads [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json) and [config/obs/allowed_issue_authors.json](../../config/obs/allowed_issue_authors.json) from `elastic/oblt-aw` and exposes both allow lists as workflow outputs.
 
-Ingress uses the **PR** outputs to gate PR-only workflows by author login and to pass `allowed-bot-users` for dependency review. Ingress uses **`allowed_issue_authors_csv`** for specialized GH-AW issue wrappers (security and resource-not-accessible triage/fixer), not for generic `oblt-aw-issue-triage` / `oblt-aw-issue-fixer`.
+Ingress uses the **PR** outputs to gate PR-only workflows by author login and to pass `allowed-bot-users` for dependency review. Ingress uses **`allowed_issue_authors_csv`** for specialized GH-AW issue wrappers (security and resource-not-accessible triage/fixer), not for generic `obs-aw-issue-triage` / `obs-aw-issue-fixer`.
 
 ## Usage
 
@@ -16,9 +16,11 @@ Triggers:
 
 Called by ingress:
 
-- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml), job `allowed-authors` (when `load-allowed-authors: true`)
+- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml), job `load-oblt-aw-bot-allow-lists` (when `load-allowed-authors: true`)
 
 Prelude runs this job only when `load-allowed-authors` is true and `github.event_name` is `pull_request` or `issues`.
+
+The reusable workflow job id is `load-oblt-aw-bot-allow-lists` (workflow filename remains `load-allowed-authors.yml`).
 
 ## API / Interface
 

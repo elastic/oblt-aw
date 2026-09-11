@@ -1,0 +1,120 @@
+name: Dependency Review
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+# Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
+permissions:
+  contents: read
+
+jobs:
+
+  resolve-apm-assets:
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      workflow-basename: obs-aw-dependency-review.yml
+      # Shared GitHub-read/safe-output contract:
+      # config/obs/instruction-fragments/ via instruction-fragment-map.json
+      # (workflows.dependency-review).
+      platform-additional-instructions: |
+        Noop when not applicable (mandatory):
+        - If the PR has NO dependency updates to review (e.g. no version bumps in manifest files, no changes to lockfiles that indicate dependency updates, or changes that do not match any supported ecosystem), you MUST call `noop` — do NOT call `add_comment` (no analysis comment from the agent).
+        - Use the format: {"noop": {"message": "No action needed: [brief explanation]"}}
+        - Examples: "No action needed: no dependency version updates found in the PR diff" or "No action needed: PR changes do not match supported dependency ecosystems"
+        - Do not emit an analysis comment for no-op outcomes. The noop tool provides transparency; a separate control-plane job may still note an empty `comment_id` on the PR.
+
+        Expand the analysis with a CVE-focused assessment based on changelog and release-note content for each updated dependency.
+
+        Required additions for each dependency:
+        - Identify vulnerability-related entries (CVE IDs, GHSA advisories, security fixes, patched classes/functions/modules).
+        - Analyze internal implementation changes in the new version that can affect vulnerability exposure (authn/authz logic, crypto/TLS handling, deserialization/parsing, input validation/sanitization, dependency graph updates, default security settings, sandboxing/isolation, permission scopes).
+        - Explain whether the internal changes reduce, preserve, or increase risk for this repository usage.
+        - Explicitly call out any potential regressions or newly introduced attack surface.
+
+        Labeling rule extension:
+        - First assign an overall risk level for the PR: **low**, **low-to-moderate**, **moderate**, or **high**, using the CVE-focused analysis above (scope of vulnerable surface in this repo, quality of the fix, blast radius, and whether behavior changes are contained).
+        - Apply `oblt-aw/ai/merge-ready` when ALL of the following are true:
+          - Overall risk is **low** OR **low-to-moderate** (including when changelogs mention CVEs, GHSAs, or security fixes—those entries do **not** disqualify the label in these two bands; they must still be documented in your analysis).
+          - No breaking changes to APIs, inputs, or features used by this repository.
+          - Ecosystem checks pass (commit verified for Actions, pin format acceptable for Buildkite, etc.).
+          - Workflows using the dependency are testable in PR context (pull_request or pull_request_target trigger), OR the dependency is dev-only (e.g. pre-commit, linters) with no production impact.
+        - Minor behavioral changes (e.g. ignore-pattern handling, formatting) that do not affect this repo's usage do NOT disqualify the label when risk is low or low-to-moderate.
+        - Do NOT add `oblt-aw/ai/merge-ready` when: overall risk is **moderate** or **high**, breaking changes affect this repo, ecosystem checks fail, or workflows are untestable and the dependency has production impact.
+
+        Label application (mandatory):
+        - When ALL criteria for `oblt-aw/ai/merge-ready` are met, you MUST call `add_labels` with that label. Do not only recommend it in the comment; apply it via the add_labels tool.
+        - The comment's "Labels Applied" section must reflect labels you actually applied via add_labels, not merely recommended. If you applied a label, say so; if you did not apply any, say "No labels applied."
+
+  dependency-review:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+      id-token: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
+    with:
+      allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
+      classification-labels: "oblt-aw/ai/merge-ready"
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      github-token-policy: ${{ inputs.shared-token-policy }}
+      # PR visibility is owned by notify-no-comment; do not open meta-issues.
+      report-failure-as-issue: false
+
+  notify-no-comment:
+    needs: dependency-review
+    if: >-
+      always() &&
+      needs.dependency-review.result == 'success' &&
+      needs.dependency-review.outputs.comment_id == ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Upsert PR comment when dependency-review posted no analysis
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          MARKER='<!-- obs-aw-dependency-review:notify-no-comment -->'
+          body="$(printf '%s\n\n%s\n\n%s\n%s\n%s\n\n%s' \
+            "$MARKER" \
+            'Dependency review finished without posting an analysis comment.' \
+            "- Workflow run: ${RUN_URL}" \
+            "- If the agent intentionally called \`noop\` (no dependency updates to review), treat that as the completion signal." \
+            '- If you expected an analysis, check the run artifacts for empty safe outputs.' \
+            "To retry after a false bailout: push a new commit to the PR branch (or close/reopen) so \`pull_request\` re-runs dependency-review.")"
+          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+            | head -n 1)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          fi

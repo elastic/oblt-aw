@@ -9,7 +9,7 @@ For Platform Engineering policy and catalog authoring rules, see [Ephemeral toke
 ## Prerequisites
 
 - Consumer registration complete or in progress ([Registering resources](../../onboarding/registering-a-repository.md)).
-- Client templates grant `id-token: write` on `run-aw` when the call chain includes `create-token` ([Client template index](../../workflows/oblt-aw-client-template.md)).
+- Client templates grant `id-token: write` on the client entrypoint job (for example `run-obs-aw-pull-request`) when the call chain includes `create-token` ([Client template index](../../workflows/obs-aw-client-template.md)).
 
 ## Two token-policy fields (consumer repos)
 
@@ -26,7 +26,7 @@ Details: [distribute-client-workflow — distribution configuration contract](..
 
 Every newly registered consumer repository needs a Backstage **TokenPolicy** in `elastic/catalog-info` **before** merging the `oblt-aw` registration to `main`:
 
-- `bound_claims.workflow_ref` must match each client workflow that calls `create-token` (for example `elastic/<repo>/.github/workflows/trigger-oblt-aw-automerge.yml@refs/heads/main`).
+- `bound_claims.workflow_ref` must match each client workflow that calls `create-token` (for example `elastic/<repo>/.github/workflows/trigger-obs-aw-automerge.yml@refs/heads/main`).
 - `additional_permissions` is the union of permissions required by workflows in the org registry.
 
 Full procedure and YAML template: [Registering resources](../../onboarding/registering-a-repository.md).
@@ -44,12 +44,18 @@ See the reference table in [Registering resources — appendix](../../onboarding
 
 ## Example: workflow without repository secrets
 
-[oblt-aw-security-detector](../../workflows/oblt-aw-security-detector.md) declares no `secrets` on `workflow_call`. Issue creation uses an ephemeral token so downstream issue-triggered workflows can run. The client template must include `id-token: write` on `run-aw`.
+[obs-aw-security-detector](../../workflows/obs-aw-security-detector.md) declares no `secrets` on `workflow_call`. Issue creation uses an ephemeral token so downstream issue-triggered workflows can run. The client template must include `id-token: write` on the client entrypoint job (for example `run-obs-aw-pull-request`).
+
+## Nested GH-AW lock workflows
+
+Issue-triage, dependency-review, and issue-fixer wrappers call locked workflows in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) with `github-token-policy: ${{ inputs.shared-token-policy }}`. When that value is non-empty, lock jobs mint via `create-token` in the same job that writes labels, comments, pull requests, or reviews, so those writes re-trigger other workflows (`GITHUB_TOKEN` writes do not). The caller job must grant `id-token: write`. Leave `github-token-policy` empty to keep `GITHUB_TOKEN` / `GH_AW_GITHUB_TOKEN` for nested lock writes (no mint in the lock; label writes will not re-trigger downstream workflows).
+
+Automerge splits identities by PR author so approve never self-APPROVEs: `approve` / `gh-aw-mention-in-pr` passes empty `github-token-policy` (`GITHUB_TOKEN` / `github-actions[bot]`) for Vault, Dependabot, Renovate, and other authors; when the author is `github-actions[bot]`, it passes `shared-token-policy` so Vault submits the review (`verify` requires a non-empty policy in that case). Automerge continues via job `needs` and does not need review writes to re-trigger workflows. Merge jobs (`automerge` / merge-fallback) mint a Vault-app token when `shared-token-policy` is non-empty so REST merges run as that app (needed with `pull_request_bypassers` for CODEOWNERS-protected repos; Apps cannot be listed in `CODEOWNERS`); when empty they use `GITHUB_TOKEN`.
 
 ## Troubleshooting OIDC / create-token failures
 
 - Match `workflow_ref` exactly to the invoking client workflow file.
-- Confirm `id-token: write` on the client `run-aw` job.
+- Confirm `id-token: write` on the client `run-obs-aw-<event>` job.
 - Confirm catalog policy merged **before** `oblt-aw` registration merged to `main`.
 
 See [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting) and [Troubleshoot an error](../operator/troubleshoot-an-error.md).

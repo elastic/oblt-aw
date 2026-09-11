@@ -39,7 +39,7 @@ RESOLVE_AGENTIC_USES = re.compile(
     re.MULTILINE,
 )
 PRELUDE_RESOLVED_INSTRUCTIONS = re.compile(
-    r"needs\.prelude\.outputs\.resolved-(?:additional-instructions|inputs-json|setup-commands-json)",
+    r"needs\.(?:prelude|run-aw-prelude)\.outputs\.resolved-(?:additional-instructions|inputs-json|setup-commands-json)",
 )
 
 
@@ -62,7 +62,7 @@ def validate_workflow(path: pathlib.Path) -> list[str]:
     if PRELUDE_RESOLVED_INSTRUCTIONS.search(text):
         errors.append(
             f"{path}: must use resolve-agentic-assets outputs for asset resolution, "
-            "not needs.prelude.outputs.resolved-*"
+            "not needs.(prelude|run-aw-prelude).outputs.resolved-*"
         )
 
     return errors

@@ -8,7 +8,7 @@ For the full registration procedure (catalog token policy, secrets, verification
 
 ## Prerequisites
 
-- Permission to open pull requests to `elastic/oblt-aw`, `elastic/catalog-info`, and (when secrets are needed) `elastic/observability-github-secrets`.
+- Permission to open pull requests to `elastic/oblt-aw`, `elastic/catalog-info`, `elastic/observability-github-settings`, and (when secrets are needed) `elastic/observability-github-secrets`.
 - The target repository is under the `elastic` GitHub organization.
 
 ## Steps
@@ -17,13 +17,15 @@ For the full registration procedure (catalog token policy, secrets, verification
 
 2. **Merge the registration pull request** — After the catalog policy is active, merge the `oblt-aw` change to `main`. That triggers [distribute-client-workflow](../../operations/distribute-client-workflow.md) and [sync-control-plane-dashboard](../../workflows/sync-control-plane-dashboard.md).
 
-3. **Merge the client workflow distribution PR** — Confirm `distribute-client-workflow` opened a PR in your repository that installs `trigger-oblt-aw-*.yml` client templates from the remote workflow template. See [Client template index](../../workflows/oblt-aw-client-template.md).
+3. **Merge the client workflow distribution PR** — Confirm `distribute-client-workflow` opened a PR in your repository that installs `trigger-obs-aw-*.yml` client templates from the remote workflow template. See [Client template index](../../workflows/obs-aw-client-template.md).
 
 4. **Confirm the Control Plane Dashboard issue** — Look for an open issue titled `[oblt-aw] Control Plane Dashboard` with label `oblt-aw/dashboard`. See [Control Plane Dashboard — user instructions](../../operations/control-plane-dashboard.md).
 
 5. **Configure secrets (if required)** — Check the per-workflow docs in [docs/workflows/](../../workflows/) for any repository secrets. Provision them through [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) per your team’s process. See [Configure a GitHub secret](../operator/configure-a-github-secret.md).
 
-6. **Enable workflows on the dashboard** — Open the dashboard issue and check the workflows you want. GitHub saves immediately on click. Workflows run on the next supported client trigger (not immediately on the checkbox change). See [Opt in or opt out](opt-in-opt-out.md).
+6. **Add the Vault app as a `pull_request_bypasser`** — In [`elastic/observability-github-settings`](https://github.com/elastic/observability-github-settings), ensure classic branch protection for the default branch includes [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) in `pull_request_bypassers` (mandatory for every new consumer repo). Full procedure: [Registering resources — step 8](../../onboarding/registering-a-repository.md).
+
+7. **Enable workflows on the dashboard** — Open the dashboard issue and check the workflows you want. GitHub saves immediately on click. Workflows run on the next supported client trigger (not immediately on the checkbox change). See [Opt in or opt out](opt-in-opt-out.md).
 
 ## See also
 

@@ -1,0 +1,62 @@
+{
+  "common": [],
+  "workflows": {
+    "dependency-review": {
+      "fragments": [
+        "dependency-review-github-read-and-safe-outputs"
+      ]
+    },
+    "issue-triage": {
+      "fragments": [
+        "triage-comment-format"
+      ]
+    },
+    "issue-fixer": {
+      "fragments": [
+        "fixer-github-read-and-safe-outputs",
+        "fixer-comment-format",
+        "keep-pr-draft-until-validated",
+        "request-review-from-observablt-ci",
+        "do-not-merge-automatically"
+      ]
+    },
+    "security": {
+      "fragments": [],
+      "inner-workflows": {
+        "obs-aw-security-fixer.yml": {
+          "fragments": [
+            "fixer-github-read-and-safe-outputs",
+            "fixer-comment-format",
+            "keep-pr-draft-until-validated",
+            "request-review-from-observablt-ci",
+            "do-not-merge-automatically"
+          ]
+        },
+        "obs-aw-security-triage.yml": {
+          "fragments": [
+            "triage-comment-format"
+          ]
+        }
+      }
+    },
+    "resource-not-accessible-by-integration": {
+      "fragments": [],
+      "inner-workflows": {
+        "obs-aw-resource-not-accessible-by-integration-fixer.yml": {
+          "fragments": [
+            "fixer-github-read-and-safe-outputs",
+            "fixer-comment-format",
+            "keep-pr-draft-until-validated",
+            "request-review-from-observablt-ci",
+            "do-not-merge-automatically"
+          ]
+        },
+        "obs-aw-resource-not-accessible-by-integration-triage.yml": {
+          "fragments": [
+            "triage-comment-format"
+          ]
+        }
+      }
+    }
+  }
+}

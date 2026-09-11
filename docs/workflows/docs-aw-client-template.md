@@ -20,8 +20,8 @@ Per-route dashboard gating uses the required `shared-proceed` input (and related
 
 | Client template | Triggers | Orchestrator → routes |
 |-----------------|----------|------------------------|
-| `trigger-docs-aw-issues.yml` | `issues` opened; `workflow_dispatch` (`issue_number` required) | `docs-aw-event-issues.yml` → `docs-aw-ai-menu.yml` |
-| `trigger-docs-aw-issue-comment.yml` | `issue_comment` edited | `docs-aw-event-issue-comment.yml` → `docs-aw-ai-menu.yml`, `docs-aw-pr-ai-menu.yml` |
+| `trigger-docs-aw-issues.yml` | `issues` opened/edited; `workflow_dispatch` (`issue_number` required) | `docs-aw-event-issues.yml` → dashboard-audit (edited + `oblt-aw/dashboard`), `docs-aw-ai-menu.yml` |
+| `trigger-docs-aw-issue-comment.yml` | `issue_comment` created/edited (job runs on all `edited`; on `created` only when the issue has `oblt-aw/dashboard`) | `docs-aw-event-issue-comment.yml` → dashboard-audit-reason (created + `oblt-aw/dashboard`, no prelude); `docs-aw-ai-menu.yml` / `docs-aw-pr-ai-menu.yml` (edited + prelude) |
 | `trigger-docs-aw-pull-request.yml` | `pull_request` (opened, reopened, synchronize, ready_for_review) | `docs-aw-event-pull-request.yml` → `docs-aw-pr-ai-menu-collect.yml` |
 | `trigger-docs-aw-workflow-run.yml` | `workflow_run` on collect workflow (completed); `workflow_dispatch` (`pull_request_number` required) | `docs-aw-event-workflow-run.yml` → `docs-aw-pr-ai-menu.yml` |
 
@@ -44,14 +44,14 @@ Top-level permissions on every client template:
 
 Control-plane `docs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
 
-Job-level permissions on `run-aw` must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below).
+Job-level permissions on the client entrypoint job (for example `run-docs-aw-pull-request`) must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below).
 
-| Client template | `run-aw` job permissions (union of callee jobs) |
-|-----------------|-----------------------------------------------|
-| `trigger-docs-aw-issues.yml` | `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
-| `trigger-docs-aw-issue-comment.yml` | `actions: read`, `checks: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
-| `trigger-docs-aw-pull-request.yml` | `actions: write`, `contents: read` |
-| `trigger-docs-aw-workflow-run.yml` | `actions: read`, `checks: read`, `contents: read`, `issues: write`, `pull-requests: write` |
+| Client template | Entrypoint job id | Job permissions (union of callee jobs) |
+|-----------------|-------------------|----------------------------------------|
+| `trigger-docs-aw-issues.yml` | `run-docs-aw-issues` | `actions: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trigger-docs-aw-issue-comment.yml` | `run-docs-aw-issue-comment` | `actions: read`, `checks: read`, `contents: read`, `discussions: write`, `issues: write`, `pull-requests: write` |
+| `trigger-docs-aw-pull-request.yml` | `run-docs-aw-pull-request` | `actions: write`, `contents: read` |
+| `trigger-docs-aw-workflow-run.yml` | `run-docs-aw-workflow-run` | `actions: read`, `checks: read`, `contents: read`, `issues: write`, `pull-requests: write` |
 
 ## Migration from per-route client templates
 
@@ -71,4 +71,4 @@ Job-level permissions on `run-aw` must be at least as permissive as the union of
 - [docs-aw-pr-ai-menu.md](docs-aw-pr-ai-menu.md)
 - [docs/operations/distribute-client-workflow.md](../operations/distribute-client-workflow.md)
 - [aw-prelude.md](aw-prelude.md)
-- [oblt-aw-client-template.md](oblt-aw-client-template.md)
+- [obs-aw-client-template.md](obs-aw-client-template.md)

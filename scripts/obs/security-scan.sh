@@ -18,10 +18,25 @@
 # Uses actionlint, zizmor, semgrep (when installed), shellcheck, npm audit, and
 # minimal custom checks. Aligned with docs/workflows/security-scanning-ruleset.md.
 # Output format: file|line|rule|severity|message
+#
+# Usage: security-scan.sh <repo-root> [category]
+#   category (optional): injection | secrets | supply-chain | least-privilege
+#   When omitted, emits findings for all categories.
 set -euo pipefail
 
 REPO_ROOT="${1:-.}"
+SCAN_CATEGORY="${2:-${SECURITY_SCAN_CATEGORY:-}}"
 REPO_ROOT="$(cd "$REPO_ROOT" && pwd)"
+
+if [ -n "$SCAN_CATEGORY" ]; then
+  case "$SCAN_CATEGORY" in
+    injection|secrets|supply-chain|least-privilege) ;;
+    *)
+      echo "security-scan.sh: unknown category '$SCAN_CATEGORY'" >&2
+      exit 1
+      ;;
+  esac
+fi
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "security-scan.sh: jq is required" >&2
@@ -259,4 +274,16 @@ END {
     print a[1] "|" a[2] "|" outrule[k] "|" outsev[k] "|" outmsg[k]
   }
 }
-' "$FINDINGS_TMP" | sort -t'|' -k1,1 -k2,2n
+' "$FINDINGS_TMP" | sort -t'|' -k1,1 -k2,2n | awk -F'|' -v cat="$SCAN_CATEGORY" '
+function rule_category(rule) {
+  if (rule == "SEC-010" || rule == "SEC-011" || rule == "SEC-012") return "injection"
+  if (rule == "SEC-001" || rule == "SEC-002" || rule == "SEC-003" ||
+      rule == "SEC-020" || rule == "SEC-021" || rule == "SEC-022") return "secrets"
+  if (rule ~ /^SEC-03[0-5]$/) return "supply-chain"
+  if (rule ~ /^SEC-04[0-4]$/) return "least-privilege"
+  return ""
+}
+{
+  if (NF < 4) next
+  if (cat == "" || rule_category($3) == cat) print
+}'

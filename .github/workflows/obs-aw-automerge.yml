@@ -1,0 +1,368 @@
+name: Automerge
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+      shared-enabled-workflows:
+        description: Normalized JSON array of compound workflow ids from aw-prelude.
+        required: true
+        type: string
+# Nested GH-AW approve omits github-token-policy (lock default → GITHUB_TOKEN).
+# Merge jobs mint OIDC ephemeral tokens when shared-token-policy is non-empty.
+permissions:
+  contents: read
+
+jobs:
+
+  # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    outputs:
+      proceed: ${{ steps.validate.outputs.proceed }}
+    steps:
+      - name: Checkout elastic/oblt-aw (automerge verify only)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            config/obs/allowed_pr_authors.json
+            scripts/obs/validateAutomergePr.ts
+            package.json
+            package-lock.json
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: _oblt-aw/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: _oblt-aw
+        run: npm ci
+
+      - name: Validate pull request for automerge
+        id: validate
+        uses: actions/github-script@v9
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SHARED_TOKEN_POLICY: ${{ inputs.shared-token-policy }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const path = require('node:path');
+            const { createRequire } = require('node:module');
+            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
+            const rq = createRequire(path.join(root, 'package.json'));
+            rq('tsx/cjs/api').register();
+            const { run } = rq('./scripts/obs/validateAutomergePr.ts');
+            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
+            const { ok } = await run({
+              github,
+              context,
+              prNumber,
+              core,
+              sharedTokenPolicy: process.env.SHARED_TOKEN_POLICY || '',
+            });
+            core.setOutput('proceed', ok ? 'true' : 'false');
+
+  # Classify dependency updates by changed file paths (no extra labels in consumer repos).
+  # Posts a single PR comment when the collection is inactive, ambiguous, or unclassified.
+  check-dependency-collection:
+    needs: verify
+    if: needs.verify.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      allowed: ${{ steps.check-collection.outputs.allowed }}
+      collection-id: ${{ steps.check-collection.outputs.collection-id }}
+    steps:
+      - name: Checkout elastic/oblt-aw (dependency collection gate only)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            config/obs/automerge-dependency-collections.json
+            scripts/obs/checkAutomergeDependencyCollection.ts
+            scripts/obs/classifyAutomergeDependencyCollection.ts
+            scripts/obs/lib/matchPathGlob.ts
+            package.json
+            package-lock.json
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: _oblt-aw/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: _oblt-aw
+        run: npm ci
+
+      - name: Check dependency collection for automerge
+        id: check-collection
+        uses: actions/github-script@v9
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ENABLED_WORKFLOWS_JSON: ${{ inputs.shared-enabled-workflows }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const path = require('node:path');
+            const { createRequire } = require('node:module');
+            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
+            const rq = createRequire(path.join(root, 'package.json'));
+            rq('tsx/cjs/api').register();
+            const { run } = rq('./scripts/obs/checkAutomergeDependencyCollection.ts');
+            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
+            const { allowed, collectionId } = await run({
+              github,
+              context,
+              prNumber,
+              core,
+              enabledWorkflowsJson: process.env.ENABLED_WORKFLOWS_JSON || '[]',
+            });
+            core.setOutput('allowed', allowed ? 'true' : 'false');
+            core.setOutput('collection-id', collectionId || '');
+
+  # Approve identity must differ from the PR author (GitHub rejects self-APPROVE).
+  # Default: GITHUB_TOKEN (github-actions[bot]). When the author is github-actions[bot],
+  # pass shared-token-policy so the nested lock mints Vault. Merge still uses Vault when
+  # shared-token-policy is set. Automerge continues via needs (no re-trigger for the review).
+  resolve-apm-assets:
+    needs: [verify, check-dependency-collection]
+    if: >-
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      workflow-basename: obs-aw-automerge.yml
+      platform-additional-instructions: |
+        Target pull request number: ${{ github.event.pull_request.number }}.
+
+  approve:
+    needs: [verify, check-dependency-collection, resolve-apm-assets]
+    if: >-
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true'
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+      # Callee lock always declares id-token: write (mint is skipped when policy is empty).
+      id-token: write
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
+    with:
+      allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      # Empty → GITHUB_TOKEN; non-empty only when author is github-actions[bot] (avoid self-APPROVE).
+      github-token-policy: ${{ github.event.pull_request.user.login == 'github-actions[bot]' && inputs.shared-token-policy || '' }}
+      prompt: |
+        For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
+
+        This PR already passed automerge validation in the workflow (GITHUB_TOKEN) for author, label, draft/fork/ref, and dependency collection `${{ needs.check-dependency-collection.outputs.collection-id }}` (file-path classification; no extra repo labels).
+        Do not call check-run or commit status APIs. Required checks are enforced by GitHub when auto-merge is enabled.
+
+        Approve the PR only when all of these gates are true:
+        - PR author is one of: dependabot[bot], renovate[bot], Dependabot, Renovate, elastic-vault-github-plugin-prod[bot], github-actions[bot]
+        - PR has label `oblt-aw/ai/merge-ready`
+        - PR is not draft
+        - PR is not from a fork (head repo equals base repo)
+        - Head ref is different from base ref
+
+        If any gate is false, do not approve and do not request changes.
+        Keep output minimal.
+
+  # When shared-token-policy is set, merge as the Vault app (ephemeral token) so repo
+  # pull_request_bypassers for that app can skip CODEOWNERS. Otherwise use GITHUB_TOKEN.
+  # pascalgn uses the REST merge API, which honors classic BP bypassers for App tokens.
+  # Author/label rules are enforced in `verify` (validateAutomergePr).
+  # Approve actor ≠ PR author; MERGE_REQUIRED_APPROVALS is 1.
+  automerge:
+    needs:
+      - verify
+      - check-dependency-collection
+      - approve
+    if: >-
+      always() &&
+      !cancelled() &&
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true' &&
+      needs.approve.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    outputs:
+      merge_result: ${{ steps.merge-pull-request.outputs.mergeResult }}
+    steps:
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ inputs.shared-token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
+      - id: merge-pull-request
+        name: Merge pull request when ready (squash)
+        uses: pascalgn/automerge-action@7961b8b5eec56cc088c140b56d864285eabd3f67 # v0.16.4
+        env:
+          GITHUB_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+          MERGE_LABELS: "oblt-aw/ai/merge-ready"
+          UPDATE_LABELS: "oblt-aw/ai/merge-ready"
+          MERGE_METHOD: squash
+          MERGE_FORKS: "false"
+          MERGE_DELETE_BRANCH: "true"
+          MERGE_REQUIRED_APPROVALS: "1"
+          MERGE_RETRIES: "10"
+          MERGE_RETRY_SLEEP: "20000"
+
+  # When REST merge still fails (for example merge queue), retry direct merge with the same
+  # token identity, then fall back to native "merge when ready". Do not pass --delete-branch:
+  # gh rejects it when merge queue is enabled. Async --auto often ignores bypass actors.
+  # Do not retry on pascalgn `skipped` (missing label/approvals); that would hide review gates.
+  enable-merge-when-ready:
+    needs: [automerge]
+    if: >-
+      always() &&
+      (needs.automerge.outputs.merge_result == 'merge_failed' ||
+       needs.automerge.outputs.merge_result == 'not_ready')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ inputs.shared-token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
+      - name: Merge or enable merge when ready
+        env:
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          # Pin merge to the head SHA evaluated in this run; 409 if the PR was updated mid-run.
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Direct REST merge honors classic BP pull_request_bypassers when using a Vault-app token.
+          # Capture API errors for logs; failure is expected when falling back to --auto.
+          if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
+            -f merge_method=squash \
+            -f sha="${HEAD_SHA}" 2>&1)"; then
+            echo "Merged via REST API."
+            exit 0
+          fi
+          echo "Direct merge failed; enabling native auto-merge as fallback."
+          echo "REST merge error: ${merge_out}"
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash
+
+  # Do not report workflow success when the PR is still open and auto-merge was not enabled.
+  report-automerge-outcome:
+    needs:
+      - verify
+      - check-dependency-collection
+      - automerge
+      - enable-merge-when-ready
+    if: >-
+      always() &&
+      needs.verify.outputs.proceed == 'true' &&
+      needs.check-dependency-collection.outputs.allowed == 'true' &&
+      needs.automerge.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Fail and comment when pull request remains unmerged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
+          FALLBACK_RESULT: ${{ needs.enable-merge-when-ready.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ "${MERGE_RESULT}" = "merged" ]; then
+            echo "PR merged by automerge action."
+            exit 0
+          fi
+          if [ "${FALLBACK_RESULT}" = "success" ]; then
+            echo "Merge fallback succeeded (direct merge or native auto-merge)."
+            exit 0
+          fi
+
+          pr_json="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state,autoMergeRequest)"
+          pr_state="$(printf '%s' "$pr_json" | jq -r .state)"
+          auto_merge="$(printf '%s' "$pr_json" | jq -r 'if .autoMergeRequest == null then "false" else "true" end')"
+          if [ "$pr_state" = "MERGED" ] || [ "$auto_merge" = "true" ]; then
+            echo "PR is merged or has auto-merge enabled; treating as success."
+            exit 0
+          fi
+
+          MARKER='<!-- obs-aw-automerge:outcome-gate -->'
+          body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
+            "$MARKER" \
+            "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
+            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge." \
+            "Workflow run: ${RUN_URL}")"
+          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+            | head -n 1)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          fi
+          echo "Automerge pipeline finished without merging PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, fallback=${FALLBACK_RESULT})."
+          exit 1

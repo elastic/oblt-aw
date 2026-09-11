@@ -1,0 +1,133 @@
+name: Resource not accessible by Integration Issue Fixer
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+# Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
+permissions:
+  contents: read
+
+jobs:
+
+  resolve-apm-assets:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      workflow-basename: obs-aw-resource-not-accessible-by-integration-fixer.yml
+      # Shared draft/review/merge policy + GitHub-read/safe-output contract:
+      # config/obs/instruction-fragments/ via instruction-fragment-map.json
+      # (inner-workflows for this wrapper).
+      platform-additional-instructions: |
+        Your task is to fix issues labeled for the "Resource not accessible by integration" problem.
+
+        **Execution Preconditions:**
+        - This run was already gated by workflow `if:` for labels:
+          - `oblt-aw/ai/fix-ready`
+          - `oblt-aw/triage/res-not-accessible-by-integration`
+        - Do **not** refuse solely because shell `gh` cannot re-check those labels.
+        - The issue must already contain a triage-generated resolution plan in the issue body or comments. Read it via GitHub MCP / `github` CLI.
+
+        **Implementation Workflow (sequential and methodical):**
+        1. Using GitHub MCP / `github` CLI, read the issue and its comments, extract the triage resolution plan, and list ordered tasks.
+        2. Execute the plan strictly step by step, without skipping steps.
+        3. For each step, document what changed and why in commit messages and PR description.
+        4. Apply least-privilege permissions changes only (no over-broad permission grants).
+        5. Run validation/tests described in the plan and confirm the specific error/warning is resolved.
+
+        **Pull Request Requirements:**
+        - Create a pull request in `Draft` state first.
+        - PR title should reference fixing "Resource not accessible by integration".
+        - PR body must include:
+          - `Closes #<issue-number>` at the top to link and auto-close the source issue on merge
+          - checklist of plan steps completed
+          - evidence of successful tests/validation
+          - explicit confirmation that the target error/warning is fixed
+
+  res-not-accessible-integration-fixer:
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+      id-token: write
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'oblt-aw/ai/fix-ready' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/res-not-accessible-by-integration')
+    uses: elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main
+    with:
+      allowed-bot-users: ${{ inputs.shared-allowed-issue-authors-csv }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      github-token-policy: ${{ inputs.shared-token-policy }}
+      # Source-issue visibility is owned by notify-no-pr; do not open meta-issues.
+      report-failure-as-issue: false
+    secrets: inherit
+
+  request-reviewers:
+    needs: res-not-accessible-integration-fixer
+    if: needs.res-not-accessible-integration-fixer.outputs.created_pr_number != ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Request review from elastic/observablt-ci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.res-not-accessible-integration-fixer.outputs.created_pr_number }}
+        run: gh pr edit "$PR_NUMBER" --add-reviewer "elastic/observablt-ci" --repo "$GITHUB_REPOSITORY"
+
+  notify-no-pr:
+    needs: res-not-accessible-integration-fixer
+    if: >-
+      always() &&
+      needs.res-not-accessible-integration-fixer.result == 'success' &&
+      needs.res-not-accessible-integration-fixer.outputs.created_pr_number == ''
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Comment on source issue when fixer opened no PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Resource-not-accessible fixer finished without opening a pull request."
+            echo
+            echo "- Workflow run: ${RUN_URL}"
+            echo "- If the agent intentionally called \`noop\` / \`report_incomplete\`, treat that as the completion signal."
+            echo "- If you expected a PR, check the run artifacts for empty safe outputs."
+            echo
+            echo "To retry after a false bailout: remove and re-apply \`oblt-aw/ai/fix-ready\` (keep \`oblt-aw/triage/res-not-accessible-by-integration\`)."
+          } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
