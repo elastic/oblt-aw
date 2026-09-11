@@ -76,8 +76,8 @@ Scope for this layer:
 
 Scope for this layer:
 
-- Run the real status → `trigger-obs-aw-status` → `obs-aw-event-status` → `obs-aw-estc-pr-buildkite-detective` → in-repo `gh-aw-estc-pr-buildkite-detective.lock.yml` path (or the equivalent documented client/orchestrator chain at implementation time) against a **dedicated sandbox consumer**.
-- Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, known Buildkite failure fixture (or recorded logs), dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
+- Run the real status → `trigger-obs-aw-status` → `obs-aw-event-status` → `obs-aw-estc-pr-buildkite-detective` → in-repo `gh-aw-estc-pr-buildkite-detective.lock.yml` path against **`elastic/oblt-aw`** (this slice’s production consumer).
+- Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, Actions var `E2E_ESTC_BUILDKITE_TARGET_URL` for a readable failed Buildkite build, dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
 - Capture artifacts: workflow run URL, agent job logs (redacted), resulting PR comment or issue side effects, structured safe-outputs if present.
 
 **Assert:** using the oracle strategy below — never free-text equality of the full agent narrative.
@@ -167,9 +167,9 @@ Exact workflow file names for promote jobs are **Unknown** until #1878 implement
 ### Acceptance criteria for the slice (implementation follow-ups)
 
 1. Integration fixtures cover resolve → wrapper input mapping for this workflow.
-2. One sandbox E2E path exercises status failure → detective job with controlled Buildkite input.
+2. Production E2E on **`elastic/oblt-aw`** exercises status failure → detective agent with a controllable Buildkite target URL (Actions variable).
 3. Oracles: infrastructure success + structured side-effect check (stable marker or schema); no full free-text golden file.
-4. Results publish as artifacts consumable by a future #1878 promote job.
+4. Results publish as artifacts / `workflow_call` outputs consumable by a future #1878 promote job.
 5. Docs updated: this design remains authoritative; workflow doc links here instead of “not covered”.
 
 ### Follow-up issues
@@ -179,12 +179,12 @@ Exact workflow file names for promote jobs are **Unknown** until #1878 implement
 
 ### Implementation checklist
 
-- [x] Inventory secrets and token policies required for sandbox E2E (`BUILDKITE_LOGS_API_TOKEN` / wrapper secret mapping, create-token policies). Remaining gaps marked Unknown in [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
-- [ ] Choose or create sandbox consumer repository; enable `obs:estc-pr-buildkite-detective` on its Control Plane Dashboard. Recommended name `elastic/oblt-aw-sandbox` (not created yet). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
-- [ ] Add integration fixtures under a dedicated tree (suggested: `tests/integration/` or `testdata/agentic/estc-pr-buildkite-detective/`) — E2E case fixtures landed under `testdata/agentic/estc-pr-buildkite-detective/`; resolve→wrapper integration suite remains [#1910](https://github.com/elastic/oblt-aw/issues/1910).
-- [x] Add E2E workflow [`.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` + weekly schedule); kept out of default PR `required`. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Inventory secrets for live E2E (`BUILDKITE_LOGS_API_TOKEN` via client trigger; Actions var `E2E_ESTC_BUILDKITE_TARGET_URL`). See [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Use **`elastic/oblt-aw`** as the E2E consumer (no separate sandbox). Enable `obs:estc-pr-buildkite-detective` on its Control Plane Dashboard before live runs. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [ ] Add resolve→wrapper integration suite ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Fixture/integration case inputs live under `testdata/agentic/estc-pr-buildkite-detective/`.
+- [x] Add E2E workflow [`.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` + weekly schedule + `workflow_call` for #1878); kept out of default PR `required`. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Implement oracle script(s) that assert structured outcomes and emit a machine-readable report (`scripts/oracle_estc_pr_buildkite_detective_e2e.py`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
-- [x] Wire artifact upload; document how #1878 promote reads pass/fail (`summary.json` / `oracle-report.json`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Wire artifact upload + `outputs.pass`; document how #1878 promote reads pass/fail (`summary.json` / `oracle-report.json`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Quarantine policy: [`config/obs/e2e-quarantine.json`](../../config/obs/e2e-quarantine.json) with default owner `@elastic/observablt-robots`. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Update [obs-aw-estc-pr-buildkite-detective](../workflows/obs-aw-estc-pr-buildkite-detective.md) when the first E2E job lands. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 
@@ -204,8 +204,8 @@ Resolved by this design where noted; remaining items are for implementation issu
 | Platform home | **Resolved:** `elastic/oblt-aw` |
 | First E2E vertical slice | **Resolved:** `obs:estc-pr-buildkite-detective` |
 | Oracle strategy | **Resolved:** structured side effects + schema; no free-text golden |
-| Sandbox consumer repository name | **Unknown** — recommended `elastic/oblt-aw-sandbox`; see [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) |
-| Exact credentials, runners, and isolation inventory | **Partially inventoried** — fixture path needs none; live secrets/policies still Unknown in the E2E doc |
+| E2E consumer repository | **Resolved:** `elastic/oblt-aw` (no separate sandbox for this slice) |
+| Exact credentials, runners, and isolation inventory | **Resolved for live:** `BUILDKITE_LOGS_API_TOKEN` + Actions var `E2E_ESTC_BUILDKITE_TARGET_URL`; dashboard checkbox must be enabled |
 | How closely E2E must match production models/tools | **Resolved policy:** match production fragment defaults for the slice; document any intentional drift; prefer recorded Buildkite payloads when live access is costly or unstable |
 | Promote workflow wiring | **Unknown** — owned with [#1878](https://github.com/elastic/oblt-aw/issues/1878) |
 

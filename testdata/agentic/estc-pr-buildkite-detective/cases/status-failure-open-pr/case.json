@@ -1,5 +1,6 @@
 {
   "id": "status-failure-open-pr",
+  "mode": "fixture",
   "description": "Failed Buildkite status event with an open PR and one recorded failed script job.",
   "workflow_id": "obs:estc-pr-buildkite-detective",
   "expectations": {

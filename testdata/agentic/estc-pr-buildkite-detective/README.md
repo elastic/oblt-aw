@@ -1,27 +1,32 @@
-# ESTC PR Buildkite Detective — E2E fixtures
+# ESTC PR Buildkite Detective — test cases
 
-Recorded fixtures for the first vertical-slice E2E harness (`obs:estc-pr-buildkite-detective`).
+Fixtures and live case definitions for `obs:estc-pr-buildkite-detective`.
 
 ## Layout
 
 ```text
 testdata/agentic/estc-pr-buildkite-detective/
   cases/<case-id>/
-    case.json              # expectations (structured only)
-    status-event.json      # synthetic GitHub status failure
-    open-prs.json          # synthetic commit→PR association
-    buildkite-build.json   # recorded/synthetic Buildkite build payload
-    job-log.txt            # recorded/synthetic failed job log tail
+    case.json                 # expectations (structured only)
+    status-event.json         # fixture mode only
+    open-prs.json             # fixture mode only
+    buildkite-build.json      # fixture mode only
+    job-log.txt               # fixture mode only
 ```
 
 ## Cases
 
-| Case id | Purpose |
-|---------|---------|
-| `status-failure-open-pr` | Status failure + Buildkite context + open PR + one failed script job |
+| Case id | Mode | Purpose |
+|---------|------|---------|
+| `status-failure-open-pr` | fixture (integration) | Recorded status failure + open PR + failed script job |
+| `status-failure-open-pr-live` | live (E2E) | Production status→agent→PR comment |
+| `status-success-skipped` | live (E2E) | Success status must not run detective |
+| `status-failure-non-buildkite` | live (E2E) | Non-Buildkite failure must not run detective |
+| `status-failure-no-open-pr` | live (E2E) | Failed Buildkite status without open PR stops before agent |
 
 ## Notes
 
-- Payloads are **synthetic** for v1 (no live org scrape). Prefer keeping them recorded/fixture-shaped so CI stays deterministic and free of paid agent calls.
-- Integration-layer resolve→wrapper fixtures for this workflow are owned by [#1910](https://github.com/elastic/oblt-aw/issues/1910); this tree is the E2E case input for [#1911](https://github.com/elastic/oblt-aw/issues/1911).
+- Fixture payloads are **synthetic** so CI unit tests stay deterministic and free of paid agent calls.
+- Live cases drive the real `trigger-obs-aw-status.yml` path on `elastic/oblt-aw`.
+- Resolve→wrapper integration suite remains [#1910](https://github.com/elastic/oblt-aw/issues/1910).
 - See [docs/testing/estc-pr-buildkite-detective-e2e.md](../../../docs/testing/estc-pr-buildkite-detective-e2e.md).

@@ -14,7 +14,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Structured oracle for estc-pr-buildkite-detective E2E outcomes.
+"""Structured oracle for estc-pr-buildkite-detective E2E / integration outcomes.
 
 Asserts structured path/side-effect markers only — never full free-text
 golden equality of agent prose. Emits a machine-readable report for #1878.
@@ -55,8 +55,14 @@ def find_quarantine_entry(
     for entry in quarantine.get("cases") or []:
         if not isinstance(entry, dict):
             continue
-        if entry.get("workflow_id") == workflow_id and entry.get("case_id") == case_id:
-            return entry
+        if entry.get("workflow_id") != workflow_id or entry.get("case_id") != case_id:
+            continue
+        owner = entry.get("owner")
+        reason = entry.get("reason")
+        if not owner or not reason:
+            # Invalid quarantine rows are ignored (do not silently skip).
+            continue
+        return entry
     return None
 
 
@@ -66,6 +72,13 @@ def _check(
     checks.append({"id": check_id, "pass": passed, "detail": detail})
 
 
+def _as_bool(value: Any) -> bool:
+    """Strict boolean: only real bools; reject truthy strings/numbers."""
+    if isinstance(value, bool):
+        return value
+    raise TypeError(f"expected bool, got {type(value).__name__}: {value!r}")
+
+
 def evaluate_outcome(
     outcome: dict[str, Any],
     quarantine: dict[str, Any],
@@ -73,30 +86,30 @@ def evaluate_outcome(
     workflow_id = str(outcome.get("workflow_id") or WORKFLOW_ID)
     case_id = str(outcome.get("case_id") or "unknown")
     mode = str(outcome.get("mode") or "fixture")
+    layer = str(outcome.get("layer") or ("e2e" if mode == "live" else "integration"))
     checks: list[dict[str, Any]] = []
     quarantined = find_quarantine_entry(quarantine, workflow_id, case_id)
 
     if quarantined:
-        owner = quarantined.get("owner") or quarantine.get(
-            "default_owner_team", "@elastic/observablt-robots"
-        )
-        reason = quarantined.get("reason") or "quarantined"
         report = {
             "workflow_id": workflow_id,
             "case_id": case_id,
-            "layer": "e2e",
+            "layer": layer,
             "mode": mode,
             "pass": True,
             "skipped": True,
             "quarantined": True,
-            "quarantine_owner": owner,
-            "quarantine_reason": reason,
+            "quarantine_owner": quarantined["owner"],
+            "quarantine_reason": quarantined["reason"],
             "run_url": outcome.get("run_url"),
             "checks": [
                 {
                     "id": "quarantine",
                     "pass": True,
-                    "detail": f"Skipped quarantined case; owner={owner}; {reason}",
+                    "detail": (
+                        f"Skipped quarantined case; owner={quarantined['owner']}; "
+                        f"{quarantined['reason']}"
+                    ),
                 }
             ],
             "agent_invoked": bool(outcome.get("agent_invoked")),
@@ -110,14 +123,14 @@ def evaluate_outcome(
     if outcome.get("blocked"):
         _check(
             checks,
-            "live_not_blocked_unexpectedly",
+            "not_blocked",
             False,
             str(outcome.get("block_reason") or "blocked"),
         )
         return {
             "workflow_id": workflow_id,
             "case_id": case_id,
-            "layer": "e2e",
+            "layer": layer,
             "mode": mode,
             "pass": False,
             "skipped": False,
@@ -126,7 +139,7 @@ def evaluate_outcome(
             "checks": checks,
             "agent_invoked": bool(outcome.get("agent_invoked")),
             "notes": [
-                "Live mode remains blocked until a sandbox consumer exists.",
+                "Resolve block_reason (dashboard enablement or Buildkite URL var), then re-run.",
             ],
         }
 
@@ -142,57 +155,55 @@ def evaluate_outcome(
         outcome.get("workflow_id") == WORKFLOW_ID,
         f"workflow_id={outcome.get('workflow_id')!r}",
     )
+
+    # Explicit non-goal: never compare agent free text.
+    _check(
+        checks,
+        "no_free_text_golden",
+        "golden_free_text" not in outcome and "agent_prose" not in outcome,
+        "outcome has no free-text golden fields",
+    )
+
+    if mode == "live":
+        return _evaluate_live(outcome, expectations, checks, workflow_id, case_id, layer)
+
+    # Fixture / integration mode.
     _check(
         checks,
         "mode_fixture_no_agent",
         mode == "fixture" and outcome.get("agent_invoked") is False,
         f"mode={mode!r} agent_invoked={outcome.get('agent_invoked')!r}",
     )
+    _check(
+        checks,
+        "layer_integration",
+        layer == "integration",
+        f"layer={layer!r}",
+    )
 
-    if "state_failure" in path_exp:
-        actual = bool(path_gates.get("state_failure"))
-        expected = bool(path_exp["state_failure"])
+    for key, check_id in (
+        ("state_failure", "path_state_failure"),
+        ("context_contains_buildkite", "path_context_buildkite"),
+        ("has_open_pr", "path_has_open_pr"),
+        ("shared_proceed", "path_shared_proceed"),
+    ):
+        if key not in path_exp:
+            continue
+        try:
+            actual = _as_bool(path_gates.get(key))
+            expected = _as_bool(path_exp[key])
+        except TypeError as exc:
+            _check(checks, check_id, False, str(exc))
+            continue
         _check(
             checks,
-            "path_state_failure",
-            actual == expected,
-            f"expected={expected} actual={actual}",
-        )
-    if "context_contains_buildkite" in path_exp:
-        actual = bool(path_gates.get("context_contains_buildkite"))
-        expected = bool(path_exp["context_contains_buildkite"])
-        _check(
-            checks,
-            "path_context_buildkite",
-            actual == expected,
-            f"expected={expected} actual={actual}",
-        )
-    if "has_open_pr" in path_exp:
-        actual = bool(path_gates.get("has_open_pr"))
-        expected = bool(path_exp["has_open_pr"])
-        _check(
-            checks,
-            "path_has_open_pr",
-            actual == expected,
-            f"expected={expected} actual={actual}",
-        )
-    if "shared_proceed" in path_exp:
-        actual = bool(path_gates.get("shared_proceed"))
-        expected = bool(path_exp["shared_proceed"])
-        _check(
-            checks,
-            "path_shared_proceed",
+            check_id,
             actual == expected,
             f"expected={expected} actual={actual}",
         )
 
     path_ready = bool(path_gates.get("path_ready"))
-    _check(
-        checks,
-        "path_ready",
-        path_ready,
-        f"path_ready={path_ready}",
-    )
+    _check(checks, "path_ready", path_ready, f"path_ready={path_ready}")
 
     bk_ok = bool(buildkite.get("ok"))
     _check(checks, "buildkite_ok", bk_ok, str(buildkite.get("error") or "ok"))
@@ -223,6 +234,18 @@ def evaluate_outcome(
         f"failed_job_count={failed_count} min={min_failed}",
     )
 
+    if "log_has_content" in bk_exp or any(
+        job.get("log_has_content") is False for job in (buildkite.get("failed_jobs") or [])
+    ):
+        jobs = buildkite.get("failed_jobs") or []
+        logs_ok = bool(jobs) and all(bool(job.get("log_has_content")) for job in jobs)
+        _check(
+            checks,
+            "buildkite_log_content",
+            logs_ok,
+            f"failed_jobs_with_logs={sum(1 for j in jobs if j.get('log_has_content'))}/{len(jobs)}",
+        )
+
     if expectations.get("agent_invoked") is False:
         _check(
             checks,
@@ -231,19 +254,11 @@ def evaluate_outcome(
             f"agent_invoked={outcome.get('agent_invoked')!r}",
         )
 
-    # Explicit non-goal: never compare agent free text.
-    _check(
-        checks,
-        "no_free_text_golden",
-        "golden_free_text" not in outcome and "agent_prose" not in outcome,
-        "outcome has no free-text golden fields",
-    )
-
     overall = all(item["pass"] for item in checks)
     return {
         "workflow_id": workflow_id,
         "case_id": case_id,
-        "layer": "e2e",
+        "layer": layer,
         "mode": mode,
         "pass": overall,
         "skipped": False,
@@ -252,21 +267,117 @@ def evaluate_outcome(
         "checks": checks,
         "agent_invoked": bool(outcome.get("agent_invoked")),
         "notes": [
-            "Oracle asserts structured gates and Buildkite markers only.",
-            "Promote (#1878) should consume report.pass / report.run_url / checks.",
+            "Fixture oracle asserts structured gates and Buildkite markers only.",
+            "Promote (#1878) should prefer live E2E summary.pass for this workflow.",
+        ],
+    }
+
+
+def _evaluate_live(
+    outcome: dict[str, Any],
+    expectations: dict[str, Any],
+    checks: list[dict[str, Any]],
+    workflow_id: str,
+    case_id: str,
+    layer: str,
+) -> dict[str, Any]:
+    path_gates = outcome.get("path_gates") or {}
+    status_trigger = outcome.get("status_trigger") or {}
+    comment = outcome.get("agent_comment")
+
+    if "dashboard_enabled" in expectations:
+        try:
+            expected = _as_bool(expectations["dashboard_enabled"])
+            actual = _as_bool(path_gates.get("dashboard_enabled"))
+            _check(
+                checks,
+                "dashboard_enabled",
+                actual == expected,
+                f"expected={expected} actual={actual}",
+            )
+        except TypeError as exc:
+            _check(checks, "dashboard_enabled", False, str(exc))
+
+    if "status_job_executed" in expectations:
+        try:
+            expected = _as_bool(expectations["status_job_executed"])
+            actual = bool(status_trigger.get("job_executed"))
+            _check(
+                checks,
+                "status_job_executed",
+                actual == expected,
+                f"expected={expected} actual={actual} run={status_trigger.get('url')}",
+            )
+        except TypeError as exc:
+            _check(checks, "status_job_executed", False, str(exc))
+
+    if "agent_invoked" in expectations:
+        try:
+            expected = _as_bool(expectations["agent_invoked"])
+            actual = bool(outcome.get("agent_invoked"))
+            _check(
+                checks,
+                "agent_invoked",
+                actual == expected,
+                f"expected={expected} actual={actual}",
+            )
+        except TypeError as exc:
+            _check(checks, "agent_invoked", False, str(exc))
+
+    expect_comment = expectations.get("expect_agent_comment")
+    if expect_comment is True:
+        markers = expectations.get("agent_comment_markers") or ["### TL;DR", "## Remediation"]
+        _check(
+            checks,
+            "agent_comment_present",
+            isinstance(comment, dict) and bool(comment.get("id")),
+            f"comment={comment}",
+        )
+        _check(
+            checks,
+            "agent_comment_markers_configured",
+            bool(markers),
+            f"markers={markers}",
+        )
+    elif expect_comment is False:
+        _check(
+            checks,
+            "agent_comment_absent",
+            comment is None,
+            f"comment={comment}",
+        )
+
+    overall = all(item["pass"] for item in checks)
+    return {
+        "workflow_id": workflow_id,
+        "case_id": case_id,
+        "layer": layer,
+        "mode": "live",
+        "pass": overall,
+        "skipped": False,
+        "quarantined": False,
+        "run_url": outcome.get("run_url"),
+        "status_trigger_url": status_trigger.get("url"),
+        "pr_url": outcome.get("pr_url"),
+        "checks": checks,
+        "agent_invoked": bool(outcome.get("agent_invoked")),
+        "notes": [
+            "Live oracle asserts dashboard gate, status job execution, agent invocation, "
+            "and structured PR comment markers — never full agent prose.",
+            "Promote (#1878) should consume report.pass / summary.json.",
         ],
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Oracle for estc-pr-buildkite-detective E2E outcomes"
+        description="Oracle for estc-pr-buildkite-detective E2E / integration outcomes"
     )
     parser.add_argument(
         "--outcome-path",
         type=Path,
         required=True,
-        help="Harness outcome JSON from estc_pr_buildkite_detective_e2e_harness.py",
+        help="Harness outcome JSON",
     )
     parser.add_argument(
         "--report-path",
@@ -279,14 +390,6 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=DEFAULT_QUARANTINE,
         help="Quarantine config JSON",
-    )
-    parser.add_argument(
-        "--allow-live-blocked",
-        action="store_true",
-        help=(
-            "Treat live-mode blocked outcomes as a non-failing informational "
-            "report (exit 0). Default fails live blocked runs."
-        ),
     )
     parser.add_argument(
         "--summary-path",
@@ -303,21 +406,6 @@ def main(argv: list[str] | None = None) -> int:
     quarantine = load_quarantine(args.quarantine_path)
     report = evaluate_outcome(outcome, quarantine)
 
-    if (
-        args.allow_live_blocked
-        and outcome.get("blocked")
-        and outcome.get("mode") == "live"
-    ):
-        report["pass"] = True
-        report["skipped"] = True
-        report["notes"] = list(report.get("notes") or []) + [
-            "Live blocked outcome accepted via --allow-live-blocked.",
-        ]
-        for item in report["checks"]:
-            if item["id"] == "live_not_blocked_unexpectedly":
-                item["pass"] = True
-                item["detail"] = "accepted as blocked (sandbox Unknown)"
-
     args.report_path.parent.mkdir(parents=True, exist_ok=True)
     args.report_path.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n",
@@ -329,9 +417,12 @@ def main(argv: list[str] | None = None) -> int:
         "quarantined": report.get("quarantined"),
         "case_id": report.get("case_id"),
         "run_url": report.get("run_url"),
+        "status_trigger_url": report.get("status_trigger_url"),
+        "pr_url": report.get("pr_url"),
         "workflow_id": report.get("workflow_id"),
         "layer": report.get("layer"),
         "mode": report.get("mode"),
+        "agent_invoked": report.get("agent_invoked"),
     }
     if args.summary_path is not None:
         args.summary_path.parent.mkdir(parents=True, exist_ok=True)

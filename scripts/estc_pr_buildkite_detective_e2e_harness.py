@@ -14,28 +14,43 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Fixture-mode E2E harness for obs:estc-pr-buildkite-detective.
+"""E2E / integration harness for obs:estc-pr-buildkite-detective.
 
-Simulates the status-failure path into the detective pre-agent Buildkite
-resolution step using recorded fixtures. Does not invoke a live agent model.
+Modes:
+- live: drive the real status → trigger → prelude → wrapper → lock → agent
+  path against elastic/oblt-aw (production consumer for this slice).
+- fixture: deterministic pre-agent gate + recorded Buildkite resolution
+  (integration layer; no live agent).
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import json
+import os
 import re
+import subprocess
 import sys
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 WORKFLOW_ID = "obs:estc-pr-buildkite-detective"
+DEFAULT_CONFIG = Path("config/obs/e2e-estc-pr-buildkite-detective.json")
 BK_URL_RE = re.compile(r"https://buildkite\.com/([^/]+)/([^/]+)/builds/(\d+)")
 ANSI_RE = re.compile(
     r"\x1b(?:\[[0-9;]*[A-Za-z]|_[^\x07]*\x07|[()][AB012]|[=>])"
 )
 FAIL_STATES = ("failed", "timed_out")
 LOG_TAIL = 150
+MARKER_PATH = "testdata/agentic/estc-pr-buildkite-detective/e2e-fixture-pr.md"
+MARKER_BODY = (
+    "# E2E fixture PR\n\n"
+    "Kept open for live status→agent E2E of "
+    "`obs:estc-pr-buildkite-detective`. Do not merge.\n"
+)
 
 
 def _load_json(path: Path) -> Any:
@@ -47,13 +62,55 @@ def _slugify(name: str) -> str:
     return re.sub(r"\s+", "-", cleaned).lower()[:60].strip("-")
 
 
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _parse_gh_time(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def gh_json(args: list[str], *, check: bool = True) -> Any:
+    proc = subprocess.run(
+        ["gh", *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if check and proc.returncode != 0:
+        raise RuntimeError(
+            f"gh {' '.join(args)} failed ({proc.returncode}): {proc.stderr.strip()}"
+        )
+    if not proc.stdout.strip():
+        return None
+    return json.loads(proc.stdout)
+
+
+def gh_text(args: list[str], *, check: bool = True) -> str:
+    proc = subprocess.run(
+        ["gh", *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if check and proc.returncode != 0:
+        raise RuntimeError(
+            f"gh {' '.join(args)} failed ({proc.returncode}): {proc.stderr.strip()}"
+        )
+    return proc.stdout
+
+
+# ---------------------------------------------------------------------------
+# Fixture / integration helpers (pre-agent path only)
+# ---------------------------------------------------------------------------
+
+
 def evaluate_status_gates(event: dict[str, Any]) -> dict[str, Any]:
     """Mirror obs-aw-event-status / wrapper status filters."""
-    event_name = "status"
     state = event.get("state")
     context = event.get("context") or ""
     return {
-        "event_name": event_name,
+        "event_name": "status",
         "state_failure": state == "failure",
         "context_contains_buildkite": "buildkite" in context.lower(),
         "context": context,
@@ -191,9 +248,20 @@ def run_fixture_case(case_dir: Path) -> dict[str, Any]:
     job_log_path = case_dir / "job-log.txt"
     job_logs: dict[str, str] = {}
     if job_log_path.is_file():
-        # Default key matches pipeline-slugify(job name) for the fixture build.
-        job_logs["sandbox-ci-unit-tests"] = job_log_path.read_text(encoding="utf-8")
-        job_logs["unit-tests"] = job_logs["sandbox-ci-unit-tests"]
+        job_name = "Unit tests"
+        for job in build.get("jobs") or []:
+            if job.get("state") in FAIL_STATES and job.get("type") == "script":
+                job_name = str(job.get("name") or job_name)
+                break
+        pipeline = "sandbox-ci"
+        target_url = event.get("target_url") or ""
+        match = BK_URL_RE.search(target_url)
+        if match:
+            pipeline = match.group(2)
+        slug = _slugify(job_name)
+        text = job_log_path.read_text(encoding="utf-8")
+        job_logs[f"{pipeline}-{slug}"] = text
+        job_logs[slug] = text
 
     child_builds_path = case_dir / "child-builds.json"
     child_builds: dict[str, dict[str, Any]] = {}
@@ -214,7 +282,7 @@ def run_fixture_case(case_dir: Path) -> dict[str, Any]:
     return {
         "workflow_id": case.get("workflow_id", WORKFLOW_ID),
         "case_id": case.get("id", case_dir.name),
-        "layer": "e2e",
+        "layer": "integration",
         "mode": "fixture",
         "agent_invoked": False,
         "shared_proceed": True,
@@ -227,53 +295,634 @@ def run_fixture_case(case_dir: Path) -> dict[str, Any]:
         "buildkite": buildkite,
         "expectations": case.get("expectations", {}),
         "harness_notes": [
-            "Fixture mode exercises status-failure gating and recorded Buildkite "
-            "resolution only; it does not call the live GH-AW agent/lock.",
+            "Fixture mode is an integration check of status gates and recorded "
+            "Buildkite resolution; it does not call the live GH-AW agent.",
         ],
     }
 
 
-def run_live_blocked(case_id: str, sandbox_repo: str | None) -> dict[str, Any]:
+# ---------------------------------------------------------------------------
+# Live / production E2E
+# ---------------------------------------------------------------------------
+
+
+def load_e2e_config(path: Path) -> dict[str, Any]:
+    data = _load_json(path)
+    if not isinstance(data, dict):
+        raise SystemExit(f"E2E config must be a JSON object: {path}")
+    return data
+
+
+def dashboard_enables_workflow(repo: str, workflow_id: str) -> bool:
+    from get_enabled_workflows import parse_enabled_ids_from_body
+
+    issues = gh_json(
+        [
+            "api",
+            f"repos/{repo}/issues?labels=oblt-aw%2Fdashboard&state=open",
+            "--jq",
+            ".",
+        ]
+    )
+    if not issues:
+        return False
+    body = issues[0].get("body") or ""
+    enabled = json.loads(parse_enabled_ids_from_body(body))
+    return workflow_id in enabled
+
+
+def find_open_e2e_pr(repo: str, label: str) -> dict[str, Any] | None:
+    prs = gh_json(
+        [
+            "pr",
+            "list",
+            "--repo",
+            repo,
+            "--state",
+            "open",
+            "--label",
+            label,
+            "--json",
+            "number,url,headRefName,headRefOid,title",
+            "--limit",
+            "5",
+        ]
+    )
+    if not prs:
+        return None
+    return prs[0]
+
+
+def _ensure_label(repo: str, label: str) -> None:
+    subprocess.run(
+        [
+            "gh",
+            "label",
+            "create",
+            label,
+            "--repo",
+            repo,
+            "--description",
+            "Long-lived PR for ESTC detective E2E",
+            "--color",
+            "0E8A16",
+        ],
+        capture_output=True,
+        check=False,
+    )
+
+
+def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
+    """Find or create the long-lived E2E fixture PR via the GitHub API only."""
+    e2e_pr = cfg["e2e_pr"]
+    existing = find_open_e2e_pr(repo, e2e_pr["label"])
+    if existing:
+        return existing
+
+    _ensure_label(repo, e2e_pr["label"])
+    default_branch = gh_text(
+        [
+            "repo",
+            "view",
+            repo,
+            "--json",
+            "defaultBranchRef",
+            "-q",
+            ".defaultBranchRef.name",
+        ]
+    ).strip()
+    base_sha = gh_text(
+        ["api", f"repos/{repo}/git/ref/heads/{default_branch}", "--jq", ".object.sha"]
+    ).strip()
+    branch = e2e_pr["branch"]
+
+    ref_proc = subprocess.run(
+        ["gh", "api", f"repos/{repo}/git/ref/heads/{branch}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if ref_proc.returncode != 0:
+        gh_json(
+            [
+                "api",
+                "--method",
+                "POST",
+                f"repos/{repo}/git/refs",
+                "-f",
+                f"ref=refs/heads/{branch}",
+                "-f",
+                f"sha={base_sha}",
+            ]
+        )
+
+    # Create or update marker file on the E2E branch.
+    encoded = base64.b64encode(MARKER_BODY.encode("utf-8")).decode("ascii")
+    existing_file = subprocess.run(
+        [
+            "gh",
+            "api",
+            f"repos/{repo}/contents/{MARKER_PATH}?ref={branch}",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    put_args = [
+        "api",
+        "--method",
+        "PUT",
+        f"repos/{repo}/contents/{MARKER_PATH}",
+        "-f",
+        f"message=chore(e2e): keep ESTC detective fixture PR marker",
+        "-f",
+        f"content={encoded}",
+        "-f",
+        f"branch={branch}",
+    ]
+    if existing_file.returncode == 0:
+        sha = json.loads(existing_file.stdout).get("sha")
+        if sha:
+            put_args.extend(["-f", f"sha={sha}"])
+    gh_json(put_args)
+
+    create = subprocess.run(
+        [
+            "gh",
+            "pr",
+            "create",
+            "--repo",
+            repo,
+            "--base",
+            default_branch,
+            "--head",
+            branch,
+            "--title",
+            e2e_pr["title"],
+            "--body",
+            e2e_pr["body"],
+            "--label",
+            e2e_pr["label"],
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if create.returncode != 0 and "already exists" not in (create.stderr + create.stdout):
+        # PR may already exist without label.
+        pass
+
+    created = find_open_e2e_pr(repo, e2e_pr["label"])
+    if created:
+        return created
+
+    prs = gh_json(
+        [
+            "pr",
+            "list",
+            "--repo",
+            repo,
+            "--state",
+            "open",
+            "--head",
+            branch,
+            "--json",
+            "number,url,headRefName,headRefOid,title",
+            "--limit",
+            "1",
+        ]
+    )
+    if not prs:
+        raise RuntimeError(
+            f"Failed to ensure E2E PR on {repo} branch {branch}. "
+            f"Create an open PR labeled {e2e_pr['label']!r}."
+        )
+    subprocess.run(
+        [
+            "gh",
+            "pr",
+            "edit",
+            str(prs[0]["number"]),
+            "--repo",
+            repo,
+            "--add-label",
+            e2e_pr["label"],
+        ],
+        check=False,
+    )
+    return prs[0]
+
+
+def resolve_no_open_pr_sha(repo: str) -> str:
+    """Pick default-branch HEAD when it has no open PR association."""
+    default_branch = gh_text(
+        [
+            "repo",
+            "view",
+            repo,
+            "--json",
+            "defaultBranchRef",
+            "-q",
+            ".defaultBranchRef.name",
+        ]
+    ).strip()
+    sha = gh_text(
+        ["api", f"repos/{repo}/commits/{default_branch}", "--jq", ".sha"]
+    ).strip()
+    pulls = gh_json(
+        [
+            "api",
+            f"repos/{repo}/commits/{sha}/pulls",
+            "--jq",
+            '[.[] | select(.state=="open")]',
+        ]
+    )
+    if pulls:
+        raise RuntimeError(
+            f"Default branch HEAD {sha[:12]} still has open PRs; "
+            "cannot run no-open-pr case safely."
+        )
+    return sha
+
+
+def clear_detective_comments(repo: str, pr_number: int, markers: list[str]) -> int:
+    comments = gh_json(
+        [
+            "api",
+            f"repos/{repo}/issues/{pr_number}/comments?per_page=100",
+            "--jq",
+            ".",
+        ]
+    )
+    deleted = 0
+    for comment in comments or []:
+        body = comment.get("body") or ""
+        if not all(marker in body for marker in markers):
+            continue
+        cid = comment.get("id")
+        if not cid:
+            continue
+        proc = subprocess.run(
+            ["gh", "api", "-X", "DELETE", f"repos/{repo}/issues/comments/{cid}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode == 0:
+            deleted += 1
+    return deleted
+
+
+def post_commit_status(
+    repo: str,
+    sha: str,
+    *,
+    state: str,
+    context: str,
+    description: str,
+    target_url: str | None,
+) -> dict[str, Any]:
+    args = [
+        "api",
+        "--method",
+        "POST",
+        f"repos/{repo}/statuses/{sha}",
+        "-f",
+        f"state={state}",
+        "-f",
+        f"context={context}",
+        "-f",
+        f"description={description[:140]}",
+    ]
+    if target_url:
+        args.extend(["-f", f"target_url={target_url}"])
+    return gh_json(args)
+
+
+def list_status_trigger_runs(
+    repo: str, workflow_file: str, limit: int = 20
+) -> list[dict[str, Any]]:
+    return (
+        gh_json(
+            [
+                "run",
+                "list",
+                "--repo",
+                repo,
+                "--workflow",
+                workflow_file,
+                "--limit",
+                str(limit),
+                "--json",
+                "databaseId,status,conclusion,createdAt,event,displayTitle,url,headSha",
+            ]
+        )
+        or []
+    )
+
+
+def wait_for_new_run(
+    repo: str,
+    workflow_file: str,
+    *,
+    since: datetime,
+    timeout_seconds: int,
+    interval_seconds: int,
+) -> dict[str, Any] | None:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        for run in list_status_trigger_runs(repo, workflow_file):
+            created = _parse_gh_time(run["createdAt"])
+            if created < since:
+                continue
+            run_id = int(run["databaseId"])
+            while time.time() < deadline:
+                detail = gh_json(
+                    [
+                        "run",
+                        "view",
+                        str(run_id),
+                        "--repo",
+                        repo,
+                        "--json",
+                        "databaseId,status,conclusion,url,jobs,createdAt",
+                    ]
+                )
+                if detail.get("status") == "completed":
+                    return detail
+                time.sleep(interval_seconds)
+            return detail
+        time.sleep(interval_seconds)
+    return None
+
+
+def status_job_executed(run_detail: dict[str, Any] | None) -> bool:
+    if not run_detail:
+        return False
+    for job in run_detail.get("jobs") or []:
+        name = (job.get("name") or "").lower()
+        if "run-obs-aw-status" in name or name.endswith("obs-aw-status"):
+            return (job.get("conclusion") or "") not in ("skipped", "")
+    # If jobs are not expanded, treat a non-skipped conclusion as executed.
+    conclusion = (run_detail.get("conclusion") or "").lower()
+    return conclusion not in ("", "skipped")
+
+
+def agent_job_invoked(run_detail: dict[str, Any] | None) -> bool:
+    if not run_detail:
+        return False
+    for job in run_detail.get("jobs") or []:
+        name = (job.get("name") or "").lower()
+        if "estc-pr-buildkite-detective" in name:
+            return (job.get("conclusion") or "") not in ("skipped", "")
+        if "buildkite" in name and "detective" in name:
+            return (job.get("conclusion") or "") not in ("skipped", "")
+    return False
+
+
+def find_agent_comment(
+    repo: str,
+    pr_number: int,
+    *,
+    since: datetime,
+    markers: list[str],
+) -> dict[str, Any] | None:
+    comments = gh_json(
+        [
+            "api",
+            f"repos/{repo}/issues/{pr_number}/comments?per_page=100",
+            "--jq",
+            ".",
+        ]
+    )
+    for comment in comments or []:
+        created_raw = comment.get("created_at") or comment.get("createdAt") or ""
+        if not created_raw:
+            continue
+        created = _parse_gh_time(created_raw)
+        if created < since:
+            continue
+        body = comment.get("body") or ""
+        if all(marker in body for marker in markers):
+            return {
+                "id": comment.get("id"),
+                "url": comment.get("html_url"),
+                "user": (comment.get("user") or {}).get("login"),
+                "created_at": comment.get("created_at"),
+            }
+    return None
+
+
+def run_live_case(
+    case_dir: Path,
+    cfg: dict[str, Any],
+    *,
+    run_url: str | None = None,
+) -> dict[str, Any]:
+    case = _load_json(case_dir / "case.json")
+    trigger = case.get("trigger") or {}
+    expectations = case.get("expectations") or {}
+    repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
+    workflow_id = str(case.get("workflow_id") or cfg.get("workflow_id") or WORKFLOW_ID)
+    markers = list(
+        expectations.get("agent_comment_markers")
+        or cfg.get("agent_comment_markers")
+        or ["### TL;DR", "## Remediation"]
+    )
+
+    dashboard_ok = dashboard_enables_workflow(
+        repo, str(cfg.get("dashboard_workflow_id") or workflow_id)
+    )
+    if expectations.get("dashboard_enabled") and not dashboard_ok:
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": (
+                f"Dashboard does not enable {workflow_id} on {repo}. "
+                "Enable the checkbox on the Control Plane Dashboard issue, then re-run."
+            ),
+            "path_gates": {"dashboard_enabled": False},
+            "expectations": expectations,
+            "run_url": run_url,
+        }
+
+    bk_env = str(cfg.get("buildkite_target_url_env") or "E2E_ESTC_BUILDKITE_TARGET_URL")
+    target_url = os.environ.get(bk_env, "").strip() or None
+    if trigger.get("use_buildkite_target_url") and not target_url:
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": (
+                f"Missing required env/var {bk_env}. Set a readable failed "
+                "Buildkite build URL (Actions variable or env)."
+            ),
+            "path_gates": {"dashboard_enabled": dashboard_ok},
+            "expectations": expectations,
+            "run_url": run_url,
+        }
+
+    require_open_pr = bool(trigger.get("require_open_pr", True))
+    pr_info: dict[str, Any] | None = None
+    if require_open_pr:
+        pr_info = ensure_e2e_pr(repo, cfg)
+        # Refresh OID after possible marker commit.
+        refreshed = find_open_e2e_pr(repo, cfg["e2e_pr"]["label"]) or pr_info
+        pr_info = refreshed
+        sha = pr_info["headRefOid"]
+        pr_number = int(pr_info["number"])
+    else:
+        sha = resolve_no_open_pr_sha(repo)
+        pr_number = 0
+
+    if require_open_pr and trigger.get("clear_prior_detective_comments"):
+        clear_detective_comments(repo, pr_number, markers)
+
+    context = str(cfg.get("status_context") or "buildkite/elastic/oblt-aw-e2e")
+    if not trigger.get("context_contains_buildkite", True):
+        context = "ci/oblt-aw-e2e-non-buildkite"
+
+    state = str(trigger.get("status_state") or "failure")
+    description = f"oblt-aw e2e {case.get('id')} {int(time.time())}"
+    since = _utc_now().replace(microsecond=0)
+
+    status_payload = post_commit_status(
+        repo,
+        sha,
+        state=state,
+        context=context,
+        description=description,
+        target_url=target_url if trigger.get("use_buildkite_target_url") else None,
+    )
+
+    workflow_file = str(
+        cfg.get("status_trigger_workflow_file") or "trigger-obs-aw-status.yml"
+    )
+    timeout = int(cfg.get("poll_timeout_seconds") or 2400)
+    interval = int(cfg.get("poll_interval_seconds") or 20)
+    expect_job = bool(expectations.get("status_job_executed"))
+    poll_timeout = timeout if expect_job else min(180, timeout)
+
+    run_detail = wait_for_new_run(
+        repo,
+        workflow_file,
+        since=since,
+        timeout_seconds=poll_timeout,
+        interval_seconds=interval,
+    )
+
+    job_executed = status_job_executed(run_detail)
+    invoked = agent_job_invoked(run_detail)
+    comment = None
+    if require_open_pr and expectations.get("expect_agent_comment"):
+        comment_deadline = time.time() + min(900, timeout)
+        while time.time() < comment_deadline and comment is None:
+            comment = find_agent_comment(
+                repo, pr_number, since=since, markers=markers
+            )
+            if comment:
+                break
+            # Nested agent jobs may finish after the parent lists them.
+            if run_detail and run_detail.get("databaseId"):
+                run_detail = gh_json(
+                    [
+                        "run",
+                        "view",
+                        str(run_detail["databaseId"]),
+                        "--repo",
+                        repo,
+                        "--json",
+                        "databaseId,status,conclusion,url,jobs,createdAt",
+                    ]
+                )
+                invoked = agent_job_invoked(run_detail)
+            time.sleep(interval)
+    elif require_open_pr:
+        comment = find_agent_comment(repo, pr_number, since=since, markers=markers)
+
+    path_gates = {
+        "dashboard_enabled": dashboard_ok,
+        "state_failure": state == "failure",
+        "context_contains_buildkite": "buildkite" in context.lower(),
+        "has_open_pr": require_open_pr,
+        "shared_proceed": dashboard_ok,
+        "path_ready": bool(
+            state == "failure"
+            and "buildkite" in context.lower()
+            and require_open_pr
+            and dashboard_ok
+        ),
+    }
+
     return {
-        "workflow_id": WORKFLOW_ID,
-        "case_id": case_id,
+        "workflow_id": workflow_id,
+        "case_id": case.get("id", case_dir.name),
         "layer": "e2e",
         "mode": "live",
-        "agent_invoked": False,
-        "pass": False,
-        "blocked": True,
-        "block_reason": (
-            "Live sandbox E2E is not wired yet. Sandbox consumer repository is "
-            "Unknown (recommended: elastic/oblt-aw-sandbox). See "
-            "docs/testing/estc-pr-buildkite-detective-e2e.md."
-        ),
-        "sandbox_repo": sandbox_repo or "Unknown",
-        "path_gates": {},
-        "buildkite": {"ok": False, "error": "live mode blocked"},
-        "expectations": {},
+        "agent_invoked": invoked,
+        "blocked": False,
+        "consumer_repo": repo,
+        "commit_sha": sha,
+        "pr_number": pr_number or None,
+        "pr_url": (pr_info or {}).get("url"),
+        "status": {
+            "state": state,
+            "context": context,
+            "target_url": target_url,
+            "description": description,
+            "api_url": (status_payload or {}).get("url"),
+        },
+        "status_trigger": {
+            "run_seen": run_detail is not None,
+            "job_executed": job_executed,
+            "run_id": (run_detail or {}).get("databaseId"),
+            "conclusion": (run_detail or {}).get("conclusion"),
+            "url": (run_detail or {}).get("url"),
+        },
+        "agent_comment": comment,
+        "path_gates": path_gates,
+        "expectations": expectations,
+        "run_url": run_url,
+        "harness_notes": [
+            "Live mode posts a real commit status on elastic/oblt-aw and observes "
+            "the production client trigger → orchestrator → wrapper → lock → agent path.",
+        ],
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Run estc-pr-buildkite-detective E2E harness (fixture or live)."
+        description="Run estc-pr-buildkite-detective E2E / integration harness."
     )
     parser.add_argument(
         "--mode",
         choices=("fixture", "live"),
-        default="fixture",
-        help="fixture uses recorded payloads; live requires a sandbox (Unknown).",
+        default="live",
+        help="live drives production status→agent path; fixture is integration-only.",
     )
     parser.add_argument(
         "--case-id",
-        default="status-failure-open-pr",
+        default="status-failure-open-pr-live",
         help="Case directory name under testdata/.../cases/",
     )
     parser.add_argument(
         "--testdata-root",
         type=Path,
         default=Path("testdata/agentic/estc-pr-buildkite-detective"),
-        help="Root of ESTC detective E2E fixtures",
+        help="Root of ESTC detective fixtures/cases",
+    )
+    parser.add_argument(
+        "--config-path",
+        type=Path,
+        default=DEFAULT_CONFIG,
+        help="Live E2E config JSON",
     )
     parser.add_argument(
         "--outcome-path",
@@ -282,41 +931,46 @@ def main(argv: list[str] | None = None) -> int:
         help="Where to write the machine-readable harness outcome JSON",
     )
     parser.add_argument(
-        "--sandbox-repo",
-        default="",
-        help="Optional sandbox consumer owner/name for live mode",
-    )
-    parser.add_argument(
         "--run-url",
         default="",
         help="Optional GitHub Actions run URL to embed in the outcome",
     )
     args = parser.parse_args(argv)
 
-    if args.mode == "live":
-        outcome = run_live_blocked(args.case_id, args.sandbox_repo or None)
-        outcome["run_url"] = args.run_url or None
-        args.outcome_path.parent.mkdir(parents=True, exist_ok=True)
-        args.outcome_path.write_text(
-            json.dumps(outcome, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        print(json.dumps({"mode": "live", "blocked": True}, indent=2))
-        return 2
-
     case_dir = args.testdata_root / "cases" / args.case_id
     if not case_dir.is_dir():
         raise SystemExit(f"Case directory not found: {case_dir}")
 
-    outcome = run_fixture_case(case_dir)
-    outcome["run_url"] = args.run_url or None
+    if args.mode == "live":
+        cfg = load_e2e_config(args.config_path)
+        outcome = run_live_case(case_dir, cfg, run_url=args.run_url or None)
+    else:
+        outcome = run_fixture_case(case_dir)
+        outcome["run_url"] = args.run_url or None
+
     args.outcome_path.parent.mkdir(parents=True, exist_ok=True)
     args.outcome_path.write_text(
         json.dumps(outcome, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     print(f"Wrote harness outcome to {args.outcome_path}")
-    return 0 if outcome["path_gates"].get("path_ready") else 1
+    print(
+        json.dumps(
+            {
+                "mode": outcome.get("mode"),
+                "case_id": outcome.get("case_id"),
+                "blocked": outcome.get("blocked"),
+                "agent_invoked": outcome.get("agent_invoked"),
+            },
+            indent=2,
+        )
+    )
+
+    if outcome.get("blocked"):
+        return 2
+    if args.mode == "fixture":
+        return 0 if outcome.get("path_gates", {}).get("path_ready") else 1
+    return 0
 
 
 if __name__ == "__main__":

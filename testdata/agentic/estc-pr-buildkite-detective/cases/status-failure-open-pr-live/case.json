@@ -1,0 +1,20 @@
+{
+  "id": "status-failure-open-pr-live",
+  "mode": "live",
+  "description": "Production path: failed Buildkite status on an open PR runs the detective agent and posts a structured PR comment.",
+  "workflow_id": "obs:estc-pr-buildkite-detective",
+  "trigger": {
+    "status_state": "failure",
+    "context_contains_buildkite": true,
+    "require_open_pr": true,
+    "use_buildkite_target_url": true,
+    "clear_prior_detective_comments": true
+  },
+  "expectations": {
+    "dashboard_enabled": true,
+    "status_job_executed": true,
+    "agent_invoked": true,
+    "expect_agent_comment": true,
+    "agent_comment_markers": ["### TL;DR", "## Remediation"]
+  }
+}
