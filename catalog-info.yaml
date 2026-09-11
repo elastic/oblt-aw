@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=https://json.schemastore.org/catalog-info.json
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: oblt-aw
+  description: Observability Agentic Workflows control plane (oblt-aw)
+  annotations:
+    github.com/project-slug: elastic/oblt-aw
+  links:
+    - title: Repository
+      url: https://github.com/elastic/oblt-aw
+      icon: github
+spec:
+  type: service
+  lifecycle: production
+  owner: group:observablt-robots
+  system: buildkite
+
+---
+# yaml-language-server: $schema=https://gist.githubusercontent.com/elasticmachine/988b80dae436cafea07d9a4a460a011d/raw/rre.schema.json
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: buildkite-pipeline-oblt-aw-e2e-estc-fail
+  description: Intentional-failure Buildkite pipeline for obs:estc-pr-buildkite-detective live E2E
+  links:
+    - title: Pipeline
+      url: https://buildkite.com/elastic/oblt-aw-e2e-estc-fail
+    - title: E2E docs
+      url: https://github.com/elastic/oblt-aw/blob/main/docs/testing/estc-pr-buildkite-detective-e2e.md
+  tags:
+    - buildkite
+    - e2e
+    - oblt-aw
+spec:
+  type: buildkite-pipeline
+  owner: group:observablt-robots
+  system: buildkite
+  implementation:
+    apiVersion: buildkite.elastic.dev/v1
+    kind: Pipeline
+    metadata:
+      name: oblt-aw-e2e-estc-fail
+      description: Intentional failure builds for ESTC PR Buildkite Detective E2E
+    spec:
+      repository: elastic/oblt-aw
+      pipeline_file: ".buildkite/pipeline.e2e-estc-fail.yml"
+      # API-triggered only (E2E harness). Do not build on push/PR webhooks.
+      provider_settings:
+        trigger_mode: none
+      teams:
+        observablt-robots:
+          access_level: MANAGE_BUILD_AND_READ
+        observablt-ci:
+          access_level: BUILD_AND_READ
+        everyone:
+          access_level: READ_ONLY
