@@ -3,9 +3,13 @@ name: Docs Agentic Workflow — AI PR Menu
 # Distributed to repositories in config/docs/active-repositories.json.
 
 on:
+  # zizmor: ignore[dangerous-triggers]
+  # This privileged leg only runs after the trusted collect workflow in this
+  # repository completes on main; it does not execute untrusted PR head code.
   workflow_run:
     workflows: ["Docs Agentic Workflow — AI PR Menu (collect)"]
     types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       pull_request_number:
