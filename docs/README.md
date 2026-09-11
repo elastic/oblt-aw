@@ -23,6 +23,7 @@ Use this index as the starting point and then navigate by topic.
 
 - **Guides by role** (user, operator, maintainer stories): [docs/guides/README.md](guides/README.md)
 - Architecture overview: [docs/architecture/overview.md](architecture/overview.md)
+- Agentic workflow testing platform (design): [docs/architecture/agentic-workflow-testing-platform.md](architecture/agentic-workflow-testing-platform.md)
 - Workflow catalog: [docs/workflows/README.md](workflows/README.md)
 - Routing guide: [docs/routing/README.md](routing/README.md)
 - Distribution operations: [docs/operations/distribute-client-workflow.md](operations/distribute-client-workflow.md)
