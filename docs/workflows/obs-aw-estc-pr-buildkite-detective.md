@@ -79,7 +79,7 @@ uses: elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detect
 
 Copies in `elastic/ai-github-actions` remain for other consumers; this pilot does not deprecate or remove them.
 
-**E2E / production-like status-path validation:** not covered here. Tracked under [#1877](https://github.com/elastic/oblt-aw/issues/1877).
+**E2E / production-like status-path validation:** design and first vertical-slice plan live in [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md) ([#1877](https://github.com/elastic/oblt-aw/issues/1877)). Implementation of the E2E job is follow-up work from that design.
 
 ## References
 

@@ -163,6 +163,7 @@ The Control Plane Dashboard provides a self-service UI for repository users to o
 - [docs/operations/control-plane-dashboard.md](../operations/control-plane-dashboard.md) — user instructions
 - [docs/operations/control-plane-dashboard-format.md](../operations/control-plane-dashboard-format.md) — dashboard issue format
 - [Multi-organization agentic workflows (design)](./multi-org-agentic-workflows.md) — parameterizing registries by `config/<org-key>/` (e.g. `config/obs/`), per-org active repositories, one shared dashboard with org-grouped workflows and org-inclusive checklist markers
+- [Agentic workflow testing platform (design)](./agentic-workflow-testing-platform.md) — unit through E2E layers, stochastic oracles, release gate contract ([#1877](https://github.com/elastic/oblt-aw/issues/1877))
 - [Issue #3732 comment (implementation plan)](https://github.com/elastic/observability-robots/issues/3732#issuecomment-4054356635) — canonical plan
 
 ### Issues created by agentic workflows

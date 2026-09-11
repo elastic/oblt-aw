@@ -64,3 +64,4 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 
 - Pre-commit config: [.pre-commit-config.yaml](../../.pre-commit-config.yaml)
 - Local development: [docs/development/contributing.md](../development/contributing.md)
+- Testing platform design (unit through E2E, release gates): [docs/architecture/agentic-workflow-testing-platform.md](../architecture/agentic-workflow-testing-platform.md)
