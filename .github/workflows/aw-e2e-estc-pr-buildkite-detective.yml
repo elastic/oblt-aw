@@ -1,0 +1,99 @@
+---
+name: E2E — ESTC PR Buildkite Detective
+
+# First vertical-slice E2E harness for obs:estc-pr-buildkite-detective.
+# Fixture mode is deterministic (recorded Buildkite payloads, no live agent).
+# Not part of the default PR required gate in ci.yml.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: fixture (recorded payloads) or live (sandbox; blocked until Unknowns resolved)
+        required: true
+        type: choice
+        options:
+          - fixture
+          - live
+        default: fixture
+      case-id:
+        description: Case directory under testdata/agentic/estc-pr-buildkite-detective/cases/
+        required: true
+        type: string
+        default: status-failure-open-pr
+      sandbox-repo:
+        description: Optional sandbox consumer owner/name for live mode (Unknown until created)
+        required: false
+        type: string
+        default: ""
+  schedule:
+    # Weekly smoke of fixture mode only (no paid agent). Live remains dispatch-only.
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aw-e2e-estc-pr-buildkite-detective-${{ github.event_name }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: ESTC detective E2E (fixture/live)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: write
+    env:
+      MODE: ${{ github.event_name == 'schedule' && 'fixture' || inputs.mode }}
+      CASE_ID: ${{ github.event_name == 'schedule' && 'status-failure-open-pr' || inputs.case-id }}
+      SANDBOX_REPO: ${{ github.event_name == 'workflow_dispatch' && inputs.sandbox-repo || '' }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Prepare artifact directory
+        run: mkdir -p artifacts/e2e/estc-pr-buildkite-detective
+
+      - name: Run fixture/live harness
+        id: harness
+        continue-on-error: true
+        run: |
+          set +e
+          python3 scripts/estc_pr_buildkite_detective_e2e_harness.py \
+            --mode "${MODE}" \
+            --case-id "${CASE_ID}" \
+            --sandbox-repo "${SANDBOX_REPO}" \
+            --run-url "${RUN_URL}" \
+            --outcome-path artifacts/e2e/estc-pr-buildkite-detective/outcome.json
+          echo "harness_exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Run structured oracle
+        id: oracle
+        run: |
+          set -euo pipefail
+          EXTRA_ARGS=()
+          if [ "${MODE}" = "live" ]; then
+            EXTRA_ARGS+=(--allow-live-blocked)
+          fi
+          python3 scripts/oracle_estc_pr_buildkite_detective_e2e.py \
+            --outcome-path artifacts/e2e/estc-pr-buildkite-detective/outcome.json \
+            --report-path artifacts/e2e/estc-pr-buildkite-detective/oracle-report.json \
+            --summary-path artifacts/e2e/estc-pr-buildkite-detective/summary.json \
+            --quarantine-path config/obs/e2e-quarantine.json \
+            "${EXTRA_ARGS[@]}"
+
+      - name: Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-estc-pr-buildkite-detective-${{ github.run_id }}
+          path: artifacts/e2e/estc-pr-buildkite-detective/
+          if-no-files-found: warn
+          retention-days: 30

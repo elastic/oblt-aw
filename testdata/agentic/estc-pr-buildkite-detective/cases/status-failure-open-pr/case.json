@@ -1,0 +1,25 @@
+{
+  "id": "status-failure-open-pr",
+  "description": "Failed Buildkite status event with an open PR and one recorded failed script job.",
+  "workflow_id": "obs:estc-pr-buildkite-detective",
+  "expectations": {
+    "path_gates": {
+      "state_failure": true,
+      "context_contains_buildkite": true,
+      "has_open_pr": true,
+      "shared_proceed": true
+    },
+    "buildkite": {
+      "min_failed_jobs": 1,
+      "required_event_keys": [
+        "event_name",
+        "commit_sha",
+        "build_url",
+        "pipeline",
+        "branch",
+        "pr_number"
+      ]
+    },
+    "agent_invoked": false
+  }
+}

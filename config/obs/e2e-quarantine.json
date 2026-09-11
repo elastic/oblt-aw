@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "policy": "Flaky E2E cases must list an owner. Quarantined cases are skipped by the oracle (reported as skipped/pass for the gate) and must not be silently retried into green. Retries are only a temporary mitigation and must be documented on the entry. Remove the entry when the flake is fixed.",
+  "default_owner_team": "@elastic/observablt-robots",
+  "cases": []
+}

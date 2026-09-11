@@ -79,7 +79,7 @@ uses: elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detect
 
 Copies in `elastic/ai-github-actions` remain for other consumers; this pilot does not deprecate or remove them.
 
-**E2E / production-like status-path validation:** design and first vertical-slice plan live in [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md) ([#1877](https://github.com/elastic/oblt-aw/issues/1877)). Implementation of the E2E job is follow-up work from that design.
+**E2E / production-like status-path validation:** design lives in [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md) ([#1877](https://github.com/elastic/oblt-aw/issues/1877)). The first harness job is [`.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` + weekly schedule; **not** a default PR required gate). Fixture mode uses recorded Buildkite payloads and a structured oracle (no free-text golden). Live sandbox mode remains blocked until inventory Unknowns are resolved — see [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) ([#1911](https://github.com/elastic/oblt-aw/issues/1911)).
 
 ## References
 
@@ -89,3 +89,4 @@ Copies in `elastic/ai-github-actions` remain for other consumers; this pilot doe
 - Shared model defaults: [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md)
 - Prior upstream (rollback / other consumers): [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml`](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
 - Prior upstream documentation: [elastic.github.io/ai-github-actions](https://elastic.github.io/ai-github-actions/workflows/gh-agent-workflows/estc-pr-buildkite-detective/)
+- E2E harness: [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) — fixtures under [`testdata/agentic/estc-pr-buildkite-detective/`](../../testdata/agentic/estc-pr-buildkite-detective/)
