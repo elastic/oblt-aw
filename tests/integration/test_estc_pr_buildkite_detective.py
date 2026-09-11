@@ -86,6 +86,13 @@ class TestEstcWrapperLockWiring:
         assert LOCK_BASENAME in agent["uses"], (
             f"{AGENT_JOB} must call in-repo {LOCK_BASENAME}"
         )
+        needs = agent.get("needs") or []
+        if isinstance(needs, str):
+            needs = [needs]
+        assert RESOLVE_JOB in needs, (
+            f"{AGENT_JOB} must need {RESOLVE_JOB} so "
+            "needs.*.outputs resolve at runtime"
+        )
         assert (
             with_block.get("additional-instructions")
             == "${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}"
