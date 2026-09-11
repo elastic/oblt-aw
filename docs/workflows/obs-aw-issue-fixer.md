@@ -60,8 +60,9 @@ Permissions:
 
 `workflow_call` contract:
 
-- No inputs.
-- No declared secrets at the wrapper level; the `run` job uses `secrets: inherit` for nested reusable workflow secrets.
+- Required inputs: `shared-proceed`, `shared-allowed-pr-authors-json`, `shared-allowed-pr-authors-csv`, `shared-allowed-issue-authors-json`, `shared-allowed-issue-authors-csv`, and `shared-token-policy`.
+- Required secret: `GITHUB_TOKEN` (declared under `workflow_call.secrets`).
+- The `run` job forwards only `GITHUB_TOKEN` to the nested reusable workflow with an explicit `secrets:` mapping.
 
 Ingress does not pass `allowed-bot-users` for this generic path; the upstream lock workflow uses its built-in defaults (no control-plane issue author list).
 
