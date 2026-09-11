@@ -65,7 +65,7 @@ steps:
       GITHUB_REPOSITORY: ${{ github.repository }}
     run: |
       python3 - << 'PYEOF'
-      import json, os, re, subprocess, sys, urllib.request
+      import json, os, re, sys, urllib.request
 
       BK_TOKEN = os.environ['BUILDKITE_API_TOKEN']
       EVENT_NAME = os.environ['GITHUB_EVENT_NAME']
@@ -118,9 +118,10 @@ steps:
       print(open('/tmp/gh-aw/buildkite-event.txt').read())
 
       def skip(reason):
-          subprocess.run(['bash', '-c', f'echo "::notice::{reason}"'], check=False)
+          # Soft-skip: out-of-scope events must not fail the agentic workflow.
+          print(f'::notice::{reason}')
           print(reason)
-          sys.exit(1)
+          sys.exit(0)
 
       if not pr_number:
           skip('Build is not associated with a PR; skipping')
