@@ -8,6 +8,7 @@
     "context_contains_buildkite": true,
     "require_open_pr": true,
     "use_buildkite_target_url": true,
+    "create_failed_buildkite_build": true,
     "clear_prior_detective_comments": true
   },
   "expectations": {

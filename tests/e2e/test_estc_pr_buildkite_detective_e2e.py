@@ -10,7 +10,7 @@ import sys
 
 import pytest
 
-ROOT = pathlib.Path(__file__).parent.parent
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import estc_pr_buildkite_detective_e2e_harness as harness  # noqa: E402
@@ -62,11 +62,12 @@ class TestHarnessFixtureCase:
         assert data["path_gates"]["path_ready"] is True
         assert data["layer"] == "integration"
 
-    def test_live_mode_blocks_without_buildkite_url(
+    def test_live_mode_blocks_without_buildkite_token(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.chdir(ROOT)
         monkeypatch.delenv("E2E_ESTC_BUILDKITE_TARGET_URL", raising=False)
+        monkeypatch.delenv("E2E_BUILDKITE_API_TOKEN", raising=False)
 
         def fake_dashboard(repo: str, workflow_id: str) -> bool:
             return True
@@ -86,8 +87,39 @@ class TestHarnessFixtureCase:
         assert code == 2
         data = json.loads(outcome_path.read_text(encoding="utf-8"))
         assert data["blocked"] is True
-        assert "E2E_ESTC_BUILDKITE_TARGET_URL" in str(data.get("block_reason"))
+        reason = str(data.get("block_reason"))
+        assert "E2E_BUILDKITE_API_TOKEN" in reason
 
+    def test_ensure_failed_build_uses_override_url(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(
+            "E2E_ESTC_BUILDKITE_TARGET_URL",
+            "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/99",
+        )
+        url, meta = harness.ensure_failed_buildkite_target_url(
+            harness.load_e2e_config(ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"),
+            commit="abc",
+            branch="e2e/estc-pr-buildkite-detective",
+            pr_number=1,
+            case_id="status-failure-open-pr-live",
+        )
+        assert url.endswith("/builds/99")
+        assert meta["source"] == "override_env"
+
+    def test_needs_real_failed_buildkite_for_happy_path(self) -> None:
+        assert harness.needs_real_failed_buildkite(
+            {
+                "use_buildkite_target_url": True,
+                "status_state": "failure",
+                "create_failed_buildkite_build": True,
+            },
+            {"agent_invoked": True, "expect_agent_comment": True},
+        )
+        assert not harness.needs_real_failed_buildkite(
+            {"use_buildkite_target_url": True, "status_state": "success"},
+            {"agent_invoked": False},
+        )
 
 class TestOracle:
     def test_fixture_outcome_passes(self) -> None:

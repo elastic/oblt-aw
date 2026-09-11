@@ -33,6 +33,8 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -680,6 +682,213 @@ def agent_job_invoked(run_detail: dict[str, Any] | None) -> bool:
     return False
 
 
+def _buildkite_cfg(cfg: dict[str, Any]) -> dict[str, Any]:
+    return dict(cfg.get("buildkite_failure") or {})
+
+
+def resolve_buildkite_org_pipeline(cfg: dict[str, Any]) -> tuple[str, str]:
+    bk = _buildkite_cfg(cfg)
+    org = (
+        os.environ.get(str(bk.get("org_env") or "E2E_BUILDKITE_ORG"), "").strip()
+        or str(bk.get("org_default") or "elastic")
+    )
+    pipeline = (
+        os.environ.get(
+            str(bk.get("pipeline_env") or "E2E_BUILDKITE_PIPELINE"), ""
+        ).strip()
+        or str(bk.get("pipeline_default") or "oblt-aw-e2e-estc-fail")
+    )
+    return org, pipeline
+
+
+def buildkite_api_token(cfg: dict[str, Any]) -> str | None:
+    bk = _buildkite_cfg(cfg)
+    token_env = str(bk.get("token_env") or "E2E_BUILDKITE_API_TOKEN")
+    token = os.environ.get(token_env, "").strip()
+    return token or None
+
+
+def placeholder_buildkite_url(cfg: dict[str, Any]) -> str:
+    org, pipeline = resolve_buildkite_org_pipeline(cfg)
+    return f"https://buildkite.com/{org}/{pipeline}/builds/0"
+
+
+def bk_api_json(
+    token: str,
+    method: str,
+    path: str,
+    payload: dict[str, Any] | None = None,
+) -> Any:
+    url = f"https://api.buildkite.com/v2/{path.lstrip('/')}"
+    data = None
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+    }
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            body = resp.read().decode("utf-8")
+            return json.loads(body) if body.strip() else None
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"Buildkite API {method} {path} failed ({exc.code}): {detail}"
+        ) from exc
+
+
+def create_buildkite_build(
+    token: str,
+    *,
+    org: str,
+    pipeline: str,
+    commit: str,
+    branch: str,
+    message: str,
+    pull_request_id: int | None = None,
+    pull_request_base_branch: str | None = None,
+    pull_request_repository: str | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "commit": commit,
+        "branch": branch,
+        "message": message,
+        "ignore_pipeline_branch_filters": True,
+        "meta_data": {"oblt_aw_e2e": "estc-pr-buildkite-detective"},
+    }
+    if pull_request_id:
+        payload["pull_request_id"] = pull_request_id
+        if pull_request_base_branch:
+            payload["pull_request_base_branch"] = pull_request_base_branch
+        if pull_request_repository:
+            payload["pull_request_repository"] = pull_request_repository
+    created = bk_api_json(
+        token,
+        "POST",
+        f"organizations/{org}/pipelines/{pipeline}/builds",
+        payload,
+    )
+    if not isinstance(created, dict) or not created.get("web_url"):
+        raise RuntimeError(f"Buildkite create build returned unexpected payload: {created}")
+    return created
+
+
+def wait_for_buildkite_build(
+    token: str,
+    *,
+    org: str,
+    pipeline: str,
+    number: int,
+    timeout_seconds: int,
+    interval_seconds: int,
+) -> dict[str, Any]:
+    terminal = {"passed", "failed", "canceled", "blocked", "skipped", "not_run"}
+    deadline = time.time() + timeout_seconds
+    last: dict[str, Any] | None = None
+    while time.time() < deadline:
+        last = bk_api_json(
+            token,
+            "GET",
+            f"organizations/{org}/pipelines/{pipeline}/builds/{number}",
+        )
+        state = str((last or {}).get("state") or "")
+        if state in terminal:
+            return last or {}
+        time.sleep(interval_seconds)
+    raise TimeoutError(
+        f"Timed out waiting for Buildkite build {org}/{pipeline}#{number} "
+        f"(last state={(last or {}).get('state')})"
+    )
+
+
+def ensure_failed_buildkite_target_url(
+    cfg: dict[str, Any],
+    *,
+    commit: str,
+    branch: str,
+    pr_number: int | None,
+    case_id: str,
+) -> tuple[str, dict[str, Any]]:
+    """Create a failed Buildkite build and return (web_url, build_meta).
+
+    Optional override: env named by ``buildkite_target_url_env`` skips create.
+    """
+    override_env = str(cfg.get("buildkite_target_url_env") or "E2E_ESTC_BUILDKITE_TARGET_URL")
+    override = os.environ.get(override_env, "").strip()
+    if override:
+        return override, {
+            "source": "override_env",
+            "env": override_env,
+            "web_url": override,
+        }
+
+    token = buildkite_api_token(cfg)
+    if not token:
+        bk = _buildkite_cfg(cfg)
+        token_env = str(bk.get("token_env") or "E2E_BUILDKITE_API_TOKEN")
+        raise RuntimeError(
+            f"Missing {token_env} (write_builds + read). "
+            f"Or set {override_env} to a readable failed build URL."
+        )
+
+    org, pipeline = resolve_buildkite_org_pipeline(cfg)
+    bk = _buildkite_cfg(cfg)
+    repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
+    pr_repo = f"https://github.com/{repo}.git"
+    created = create_buildkite_build(
+        token,
+        org=org,
+        pipeline=pipeline,
+        commit=commit,
+        branch=branch,
+        message=f"oblt-aw e2e intentional failure ({case_id})",
+        pull_request_id=pr_number or None,
+        pull_request_base_branch="main" if pr_number else None,
+        pull_request_repository=pr_repo if pr_number else None,
+    )
+    number = int(created["number"])
+    finished = wait_for_buildkite_build(
+        token,
+        org=org,
+        pipeline=pipeline,
+        number=number,
+        timeout_seconds=int(bk.get("poll_timeout_seconds") or 900),
+        interval_seconds=int(bk.get("poll_interval_seconds") or 10),
+    )
+    state = str(finished.get("state") or "")
+    web_url = str(finished.get("web_url") or created.get("web_url") or "")
+    if state != "failed":
+        raise RuntimeError(
+            f"Expected Buildkite build to fail for E2E; got state={state} url={web_url}"
+        )
+    if not web_url:
+        raise RuntimeError("Buildkite build finished without web_url")
+    return web_url, {
+        "source": "created",
+        "org": org,
+        "pipeline": pipeline,
+        "number": number,
+        "state": state,
+        "web_url": web_url,
+        "pull_request_id": pr_number,
+    }
+
+
+def needs_real_failed_buildkite(trigger: dict[str, Any], expectations: dict[str, Any]) -> bool:
+    if trigger.get("create_failed_buildkite_build"):
+        return True
+    if not trigger.get("use_buildkite_target_url"):
+        return False
+    if str(trigger.get("status_state") or "") != "failure":
+        return False
+    return bool(
+        expectations.get("agent_invoked") or expectations.get("expect_agent_comment")
+    )
+
+
 def find_agent_comment(
     repo: str,
     pr_number: int,
@@ -750,24 +959,30 @@ def run_live_case(
             "run_url": run_url,
         }
 
-    bk_env = str(cfg.get("buildkite_target_url_env") or "E2E_ESTC_BUILDKITE_TARGET_URL")
-    target_url = os.environ.get(bk_env, "").strip() or None
-    if trigger.get("use_buildkite_target_url") and not target_url:
-        return {
-            "workflow_id": workflow_id,
-            "case_id": case.get("id", case_dir.name),
-            "layer": "e2e",
-            "mode": "live",
-            "agent_invoked": False,
-            "blocked": True,
-            "block_reason": (
-                f"Missing required env/var {bk_env}. Set a readable failed "
-                "Buildkite build URL (Actions variable or env)."
-            ),
-            "path_gates": {"dashboard_enabled": dashboard_ok},
-            "expectations": expectations,
-            "run_url": run_url,
-        }
+    # Fail closed on missing Buildkite create credentials before mutating GitHub.
+    if needs_real_failed_buildkite(trigger, expectations):
+        override_env = str(
+            cfg.get("buildkite_target_url_env") or "E2E_ESTC_BUILDKITE_TARGET_URL"
+        )
+        override = os.environ.get(override_env, "").strip()
+        if not override and not buildkite_api_token(cfg):
+            bk = _buildkite_cfg(cfg)
+            token_env = str(bk.get("token_env") or "E2E_BUILDKITE_API_TOKEN")
+            return {
+                "workflow_id": workflow_id,
+                "case_id": case.get("id", case_dir.name),
+                "layer": "e2e",
+                "mode": "live",
+                "agent_invoked": False,
+                "blocked": True,
+                "block_reason": (
+                    f"Missing {token_env} (write_builds + read). "
+                    f"Or set {override_env} to a readable failed build URL."
+                ),
+                "path_gates": {"dashboard_enabled": dashboard_ok},
+                "expectations": expectations,
+                "run_url": run_url,
+            }
 
     require_open_pr = bool(trigger.get("require_open_pr", True))
     pr_info: dict[str, Any] | None = None
@@ -778,9 +993,42 @@ def run_live_case(
         pr_info = refreshed
         sha = pr_info["headRefOid"]
         pr_number = int(pr_info["number"])
+        e2e_branch = str(
+            (pr_info.get("headRefName") or cfg.get("e2e_pr", {}).get("branch") or "")
+        )
     else:
         sha = resolve_no_open_pr_sha(repo)
         pr_number = 0
+        e2e_branch = "main"
+
+    target_url: str | None = None
+    buildkite_meta: dict[str, Any] | None = None
+    if trigger.get("use_buildkite_target_url"):
+        if needs_real_failed_buildkite(trigger, expectations):
+            try:
+                target_url, buildkite_meta = ensure_failed_buildkite_target_url(
+                    cfg,
+                    commit=sha,
+                    branch=e2e_branch or str(cfg.get("e2e_pr", {}).get("branch") or "main"),
+                    pr_number=pr_number or None,
+                    case_id=str(case.get("id", case_dir.name)),
+                )
+            except (RuntimeError, TimeoutError, ValueError) as exc:
+                return {
+                    "workflow_id": workflow_id,
+                    "case_id": case.get("id", case_dir.name),
+                    "layer": "e2e",
+                    "mode": "live",
+                    "agent_invoked": False,
+                    "blocked": True,
+                    "block_reason": str(exc),
+                    "path_gates": {"dashboard_enabled": dashboard_ok},
+                    "expectations": expectations,
+                    "run_url": run_url,
+                }
+        else:
+            target_url = placeholder_buildkite_url(cfg)
+            buildkite_meta = {"source": "placeholder", "web_url": target_url}
 
     if require_open_pr and trigger.get("clear_prior_detective_comments"):
         clear_detective_comments(repo, pr_number, markers)
@@ -879,6 +1127,7 @@ def run_live_case(
             "description": description,
             "api_url": (status_payload or {}).get("url"),
         },
+        "buildkite": buildkite_meta,
         "status_trigger": {
             "run_seen": run_detail is not None,
             "job_executed": job_executed,
@@ -893,6 +1142,8 @@ def run_live_case(
         "harness_notes": [
             "Live mode posts a real commit status on elastic/oblt-aw and observes "
             "the production client trigger → orchestrator → wrapper → lock → agent path.",
+            "Happy-path Buildkite target_url comes from a freshly created intentional "
+            "failure build (or E2E_ESTC_BUILDKITE_TARGET_URL override).",
         ],
     }
 

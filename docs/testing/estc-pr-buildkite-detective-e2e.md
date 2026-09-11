@@ -15,7 +15,7 @@ Live mode is the E2E proof. Fixture mode is a cheaper integration check of pre-a
 
 | Case id | Expectation |
 |---------|-------------|
-| `status-failure-open-pr-live` | Failed Buildkite status on the long-lived E2E PR → agent posts a comment with `### TL;DR` + `## Remediation` |
+| `status-failure-open-pr-live` | Create intentional Buildkite failure → failed status on the long-lived E2E PR → agent posts a comment with `### TL;DR` + `## Remediation` |
 | `status-success-skipped` | Success status → status job skipped → no agent |
 | `status-failure-non-buildkite` | Failed non-Buildkite status → status job skipped → no agent |
 | `status-failure-no-open-pr` | Failed Buildkite status on default-branch HEAD with no open PR → status job runs, agent does not |
@@ -23,9 +23,11 @@ Live mode is the E2E proof. Fixture mode is a cheaper integration check of pre-a
 ## Prerequisites (live)
 
 1. **Dashboard** — enable `obs:estc-pr-buildkite-detective` on the Control Plane Dashboard for `elastic/oblt-aw` (issue labeled `oblt-aw/dashboard`). Currently required; the harness fails closed if the checkbox is off.
-2. **Secret** — `BUILDKITE_LOGS_API_TOKEN` on `elastic/oblt-aw` (mapped by `trigger-obs-aw-status.yml` into the wrapper). Treat as present for live runs.
-3. **Actions variable** — `E2E_ESTC_BUILDKITE_TARGET_URL` must be a Buildkite build URL the token can read (failed build with at least one failed script job, ideally PR-associated).
-4. **E2E PR** — harness finds or creates an open PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective`.
+2. **Secret** — `BUILDKITE_LOGS_API_TOKEN` on `elastic/oblt-aw` (mapped by `trigger-obs-aw-status.yml` into the wrapper). Must be able to **read** the E2E fail pipeline’s builds/logs.
+3. **Secret** — `E2E_BUILDKITE_API_TOKEN` with Buildkite scopes **`write_builds`** (+ read) so the harness can create and poll an intentional failure build.
+4. **Buildkite pipeline** — one-time create of `oblt-aw-e2e-estc-fail` (or `vars.E2E_BUILDKITE_PIPELINE`) using [`.buildkite/pipeline.e2e-estc-fail.yml`](../../.buildkite/pipeline.e2e-estc-fail.yml). See [`.buildkite/README.e2e-estc-fail.md`](../../.buildkite/README.e2e-estc-fail.md). Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`).
+5. **E2E PR** — harness finds or creates an open PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective`.
+6. **Optional override** — Actions var `E2E_ESTC_BUILDKITE_TARGET_URL` skips create and reuses a fixed failed build URL (escape hatch only).
 
 ## How to run
 
@@ -69,7 +71,13 @@ python3 scripts/oracle_estc_pr_buildkite_detective_e2e.py \
   --quarantine-path config/obs/e2e-quarantine.json
 ```
 
-Live mode needs `gh` auth, dashboard enablement, and `E2E_ESTC_BUILDKITE_TARGET_URL` in the environment.
+Live mode needs `gh` auth, dashboard enablement, `E2E_BUILDKITE_API_TOKEN`, and the intentional-failure Buildkite pipeline (or the optional URL override).
+
+Harness/oracle unit coverage (no live agent):
+
+```bash
+pytest tests/e2e/test_estc_pr_buildkite_detective_e2e.py -v
+```
 
 ## Artifacts (promote contract for #1878)
 

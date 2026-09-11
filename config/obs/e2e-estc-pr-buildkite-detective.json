@@ -5,6 +5,17 @@
   "status_trigger_workflow_file": "trigger-obs-aw-status.yml",
   "status_context": "buildkite/elastic/oblt-aw-e2e",
   "buildkite_target_url_env": "E2E_ESTC_BUILDKITE_TARGET_URL",
+  "buildkite_failure": {
+    "token_env": "E2E_BUILDKITE_API_TOKEN",
+    "org_env": "E2E_BUILDKITE_ORG",
+    "pipeline_env": "E2E_BUILDKITE_PIPELINE",
+    "org_default": "elastic",
+    "pipeline_default": "oblt-aw-e2e-estc-fail",
+    "poll_interval_seconds": 10,
+    "poll_timeout_seconds": 900,
+    "fail_log_marker": "OBLT_AW_E2E_ESTC_INTENTIONAL_FAILURE",
+    "pipeline_yaml": ".buildkite/pipeline.e2e-estc-fail.yml"
+  },
   "poll_timeout_seconds": 2400,
   "poll_interval_seconds": 20,
   "e2e_pr": {

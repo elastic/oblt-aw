@@ -105,6 +105,10 @@ jobs:
       MODE: ${{ needs.e2e-matrix.outputs.mode }}
       CASE_ID: ${{ matrix.case-id }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      E2E_BUILDKITE_API_TOKEN: ${{ secrets.E2E_BUILDKITE_API_TOKEN }}
+      E2E_BUILDKITE_ORG: ${{ vars.E2E_BUILDKITE_ORG }}
+      E2E_BUILDKITE_PIPELINE: ${{ vars.E2E_BUILDKITE_PIPELINE }}
+      # Optional escape hatch: skip create and reuse a fixed failed build URL.
       E2E_ESTC_BUILDKITE_TARGET_URL: ${{ vars.E2E_ESTC_BUILDKITE_TARGET_URL }}
       GH_TOKEN: ${{ github.token }}
     steps:
