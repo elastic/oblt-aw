@@ -43,6 +43,7 @@ jobs:
           path: _oblt-aw
           fetch-depth: 1
           token: ${{ github.token }}
+          persist-credentials: false
           sparse-checkout: |
             config/obs/allowed_pr_authors.json
             config/obs/allowed_issue_authors.json

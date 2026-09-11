@@ -40,6 +40,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Detect relevant file changes
         id: changed-files
@@ -102,6 +103,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           path: source
+          persist-credentials: false
 
       - name: Create ephemeral GitHub token
         id: create-token
@@ -115,6 +117,7 @@ jobs:
           repository: ${{ matrix.target.repository }}
           token: ${{ steps.create-token.outputs.token }}
           path: target
+          persist-credentials: false
 
       - name: Sync client files into target repository
         if: ${{ matrix.target.operation == 'install' }}
@@ -279,6 +282,8 @@ jobs:
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Download all PR result artifacts
         uses: actions/download-artifact@v8

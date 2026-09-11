@@ -38,6 +38,7 @@ jobs:
           path: _oblt-aw
           fetch-depth: 1
           token: ${{ github.token }}
+          persist-credentials: false
           sparse-checkout: |
             scripts/get_enabled_workflows.py
             scripts/common.py
