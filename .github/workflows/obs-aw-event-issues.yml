@@ -196,4 +196,5 @@ jobs:
       shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
       shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
-    secrets: inherit
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
