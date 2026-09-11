@@ -3,9 +3,10 @@ name: Docs Agentic Workflow — AI PR Menu
 # Distributed to repositories in config/docs/active-repositories.json.
 
 on:
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] Split-workflow: trusted collect handoff; no PR-head checkout
     workflows: ["Docs Agentic Workflow — AI PR Menu (collect)"]
     types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       pull_request_number:
