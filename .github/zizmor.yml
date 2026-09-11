@@ -1,0 +1,10 @@
+# zizmor policy for oblt-aw security detector (SEC-030 / unpinned-uses).
+# Trusted namespaces may use tag or branch refs; everything else must be hash-pinned.
+# Docs: https://docs.zizmor.sh/audits/#unpinned-uses
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        "actions/*": ref-pin
+        "elastic/*": ref-pin
+        "*": hash-pin

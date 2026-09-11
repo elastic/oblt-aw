@@ -202,7 +202,9 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Description**: Third-party actions (`uses:`) should pin to a full commit SHA per [GitHub hardening guidance](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-third-party-actions). Tag-only or branch refs are higher drift and takeover risk.
 
-**Pattern**: `uses: org/name@main`, `uses: org/name@v1` without SHA (policy may allow `actions/*` exceptions if documented).
+**Pattern**: `uses: org/name@main`, `uses: org/name@v1` without SHA.
+
+**Trusted-namespace exception (detector):** zizmor `unpinned-uses` is configured in [`.github/zizmor.yml`](../../.github/zizmor.yml) so `actions/*` and `elastic/*` may use tag or branch refs (`ref-pin`). All other namespaces must be hash-pinned. [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) passes that config via `--config` on every detector run (override with `ZIZMOR_CONFIG`).
 
 ---
 
