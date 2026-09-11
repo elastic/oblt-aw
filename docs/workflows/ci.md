@@ -38,7 +38,8 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 
 - Python 3.14
 - Dependencies: `requirements-ci.txt` (includes `requirements-runtime.txt` and pytest)
-- Command: `pytest tests/ -v --tb=short`
+- Command: `pytest tests/ -v --tb=short` (includes unit tests and `tests/integration/`)
+- Integration slice (no live model): `tests/integration/test_estc_pr_buildkite_detective.py` with fixtures in `testdata/agentic/estc-pr-buildkite-detective/` — see [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md)
 - Pip cache via `actions/setup-python` (`cache: pip`), keyed by `requirements-ci.txt` and `requirements-runtime.txt`
 
 ## TypeScript Tests
