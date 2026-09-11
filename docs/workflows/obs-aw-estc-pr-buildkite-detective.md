@@ -79,7 +79,9 @@ uses: elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detect
 
 Copies in `elastic/ai-github-actions` remain for other consumers; this pilot does not deprecate or remove them.
 
-**E2E / production-like status-path validation:** design and first vertical-slice plan live in [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md) ([#1877](https://github.com/elastic/oblt-aw/issues/1877)). Implementation of the E2E job is follow-up work from that design.
+**Integration (no live model):** fixtures and wiring checks for resolve → wrapper → lock inputs live under [`testdata/agentic/estc-pr-buildkite-detective/`](../../testdata/agentic/estc-pr-buildkite-detective/) and [`tests/integration/test_estc_pr_buildkite_detective.py`](../../tests/integration/test_estc_pr_buildkite_detective.py) ([#1910](https://github.com/elastic/oblt-aw/issues/1910)).
+
+**E2E / production-like status-path validation:** design and first vertical-slice plan live in [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md) ([#1877](https://github.com/elastic/oblt-aw/issues/1877)). Implementation of the E2E job is follow-up work ([#1911](https://github.com/elastic/oblt-aw/issues/1911)).
 
 ## References
 

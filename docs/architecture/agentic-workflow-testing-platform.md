@@ -35,7 +35,7 @@ Each layer owns a distinct proof. Higher layers must not replace lower ones.
 |-------|----------------|-------------------------|---------------|
 | **Unit** | Pure functions and scripts behave for known inputs/outputs (gates, registry, fragment merge, dashboard parse, TS helpers). | `tests/*.py`, `tests/unit/*.test.ts` | Every PR (`python-tests`, `typescript-tests` in `ci.yml`) |
 | **Functional** | Workflow YAML and GH-AW contracts hold: prelude/`shared-proceed`, resolve-agentic-assets on `gh-aw-*` callers, reusable permissions alignment, actionlint/pre-commit. | `scripts/validate_aw_workflow_*.py`, pre-commit | Every PR |
-| **Integration** | Wrapper ↔ lock ↔ token/policy/fragment wiring works together without a live model (or with mocked/stubbed agent steps). Frozen fixtures for inputs, secrets shapes, and resolved instruction layers. | Not yet a dedicated suite — **to build** | PR for cheap checks; candidate promote for heavier fixtures |
+| **Integration** | Wrapper ↔ lock ↔ token/policy/fragment wiring works together without a live model (or with mocked/stubbed agent steps). Frozen fixtures for inputs, secrets shapes, and resolved instruction layers. | First slice: `tests/integration/test_estc_pr_buildkite_detective.py` + `testdata/agentic/estc-pr-buildkite-detective/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Token-policy dry-run deferred. | Every PR via `pytest tests/` (`python-tests` in `ci.yml`); heavier fixtures may later move to promote |
 | **E2E** | Production-like path: client/orchestrator routing, prelude gate, resolve assets, agent job, observable side effects under a controlled consumer environment. | Gap called out for Buildkite detective in [obs-aw-estc-pr-buildkite-detective](../workflows/obs-aw-estc-pr-buildkite-detective.md) | Promote paths and/or scheduled suites — **not** every PR by default |
 
 ### Unit (existing baseline)
@@ -61,7 +61,7 @@ CI steps beyond pytest:
 
 **Assert:** static/contract properties of workflow graphs and permissions. Still no live agent.
 
-### Integration (to design and implement)
+### Integration (first slice landed; expand later)
 
 Scope for this layer:
 
@@ -69,6 +69,8 @@ Scope for this layer:
 - Validate lock `workflow_call` inputs required by wrappers remain satisfied after fragment or interface changes.
 - Exercise token-policy resolution paths with **fixture policy names** and dry-run or mocked `create-token` where the repository already supports testing without minting real credentials.
 - Prefer recorded GitHub API fixtures over live calls when asserting wrapper orchestration scripts.
+
+**First slice (`obs:estc-pr-buildkite-detective`, [#1910](https://github.com/elastic/oblt-aw/issues/1910)):** fixtures under [`testdata/agentic/estc-pr-buildkite-detective/`](../../testdata/agentic/estc-pr-buildkite-detective/) and checks in [`tests/integration/test_estc_pr_buildkite_detective.py`](../../tests/integration/test_estc_pr_buildkite_detective.py). Covers resolve → wrapper input mapping and lock input contract without a live model. **Token-policy dry-run:** deferred (not in #1910).
 
 **Assert:** wiring and contracts across multiple modules. Agent model calls remain stubbed or skipped.
 
@@ -166,7 +168,7 @@ Exact workflow file names for promote jobs are **Unknown** until #1878 implement
 
 ### Acceptance criteria for the slice (implementation follow-ups)
 
-1. Integration fixtures cover resolve → wrapper input mapping for this workflow.
+1. Integration fixtures cover resolve → wrapper input mapping for this workflow. (**Done** — [#1910](https://github.com/elastic/oblt-aw/issues/1910))
 2. One sandbox E2E path exercises status failure → detective job with controlled Buildkite input.
 3. Oracles: infrastructure success + structured side-effect check (stable marker or schema); no full free-text golden file.
 4. Results publish as artifacts consumable by a future #1878 promote job.
@@ -181,7 +183,7 @@ Exact workflow file names for promote jobs are **Unknown** until #1878 implement
 
 - [ ] Inventory secrets and token policies required for sandbox E2E (`BUILDKITE_LOGS_API_TOKEN` / wrapper secret mapping, create-token policies). Mark gaps as Unknown until verified. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [ ] Choose or create sandbox consumer repository; enable `obs:estc-pr-buildkite-detective` on its Control Plane Dashboard. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
-- [ ] Add integration fixtures under a dedicated tree (suggested: `tests/integration/` or `testdata/agentic/estc-pr-buildkite-detective/`) — paths finalized in follow-up PRs. ([#1910](https://github.com/elastic/oblt-aw/issues/1910))
+- [x] Add integration fixtures under a dedicated tree — `tests/integration/` + `testdata/agentic/estc-pr-buildkite-detective/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Token-policy dry-run deferred.
 - [ ] Add E2E workflow or reusable job (suggested name pattern: `aw-e2e-estc-pr-buildkite-detective.yml`) triggered by `workflow_dispatch` and/or schedule; keep it out of default PR `required` until stable. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [ ] Implement oracle script(s) that assert structured outcomes and emit a machine-readable report. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [ ] Wire artifact upload; document how #1878 promote reads pass/fail. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
