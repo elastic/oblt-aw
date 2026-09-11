@@ -17,6 +17,14 @@ Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE`
 
 ## Runtime
 
-The E2E harness creates a build on the long-lived E2E PR branch/SHA (with `pull_request_id`), waits until `failed`, then posts a GitHub commit status whose `target_url` is that build’s `web_url`.
+Happy path:
 
-Optional escape hatch: set Actions var `E2E_ESTC_BUILDKITE_TARGET_URL` to skip create and reuse a fixed URL.
+1. Harness creates a Buildkite build on the long-lived E2E PR branch/SHA (with `pull_request_id`).
+2. The intentional-failure step runs and fails.
+3. **Buildkite** publishes the GitHub commit status (`publish_commit_status: true`) with `target_url` pointing at that build.
+4. The real `status` event triggers `trigger-obs-aw-status.yml` → detective → agent.
+5. Harness observes the Actions run and PR comment (it does **not** forge the happy-path status).
+
+Gate cases (success / non-Buildkite / no-open-PR) still use harness-posted synthetic statuses.
+
+Optional escape hatch: set Actions var `E2E_ESTC_BUILDKITE_TARGET_URL` to skip create; the harness then posts the status itself using that URL.

@@ -77,7 +77,7 @@ Scope for this layer:
 Scope for this layer:
 
 - Run the real status → `trigger-obs-aw-status` → `obs-aw-event-status` → `obs-aw-estc-pr-buildkite-detective` → in-repo `gh-aw-estc-pr-buildkite-detective.lock.yml` path against **`elastic/oblt-aw`** (this slice’s production consumer).
-- Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, dynamic intentional Buildkite failure via `E2E_BUILDKITE_API_TOKEN` + [`catalog-info.yaml`](../../catalog-info.yaml) pipeline `oblt-aw-e2e-estc-fail` (optional URL override `E2E_ESTC_BUILDKITE_TARGET_URL`), dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
+- Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, dynamic intentional Buildkite failure via `E2E_BUILDKITE_API_TOKEN` + [`catalog-info.yaml`](../../catalog-info.yaml) pipeline `oblt-aw-e2e-estc-fail` with `publish_commit_status` (optional URL override `E2E_ESTC_BUILDKITE_TARGET_URL`), dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
 - Capture artifacts: workflow run URL, agent job logs (redacted), resulting PR comment or issue side effects, structured safe-outputs if present.
 
 **Assert:** using the oracle strategy below — never free-text equality of the full agent narrative.
@@ -167,7 +167,7 @@ Exact workflow file names for promote jobs are **Unknown** until #1878 implement
 ### Acceptance criteria for the slice (implementation follow-ups)
 
 1. Integration fixtures cover resolve → wrapper input mapping for this workflow.
-2. Production E2E on **`elastic/oblt-aw`** exercises status failure → detective agent with a freshly created intentional Buildkite failure (or optional URL override).
+2. Production E2E on **`elastic/oblt-aw`** exercises intentional Buildkite failure → Buildkite-published status → detective agent (or optional URL override with harness-posted status).
 3. Oracles: infrastructure success + structured side-effect check (stable marker or schema); no full free-text golden file.
 4. Results publish as artifacts / `workflow_call` outputs consumable by a future #1878 promote job.
 5. Docs updated: this design remains authoritative; workflow doc links here instead of “not covered”.

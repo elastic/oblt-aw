@@ -9,13 +9,13 @@ Production end-to-end harness for the PR Buildkite Detective route ([#1911](http
 | **live** | Real `status` → `trigger-obs-aw-status.yml` → prelude → wrapper → lock → agent on **`elastic/oblt-aw`** | Yes | Default for `workflow_dispatch`, weekly schedule, and `workflow_call` (release/#1878) |
 | **fixture** | Recorded status/Buildkite gates only (integration layer) | No | Optional dispatch (`mode=fixture`) |
 
-Live mode is the E2E proof. Fixture mode is a cheaper integration check of pre-agent gates.
+Live mode is the E2E proof. On the happy path the intentional Buildkite pipeline publishes the GitHub status (real event). Fixture mode is a cheaper integration check of pre-agent gates.
 
 ## Live cases
 
 | Case id | Expectation |
 |---------|-------------|
-| `status-failure-open-pr-live` | Create intentional Buildkite failure → failed status on the long-lived E2E PR → agent posts a comment with `### TL;DR` + `## Remediation` |
+| `status-failure-open-pr-live` | Create intentional Buildkite failure → **Buildkite** publishes failed status → agent posts a comment with `### TL;DR` + `## Remediation` |
 | `status-success-skipped` | Success status → status job skipped → no agent |
 | `status-failure-non-buildkite` | Failed non-Buildkite status → status job skipped → no agent |
 | `status-failure-no-open-pr` | Failed Buildkite status on default-branch HEAD with no open PR → status job runs, agent does not |

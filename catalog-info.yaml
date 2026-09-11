@@ -46,9 +46,15 @@ spec:
     spec:
       repository: elastic/oblt-aw
       pipeline_file: ".buildkite/pipeline.e2e-estc-fail.yml"
-      # API-triggered only (E2E harness). Do not build on push/PR webhooks.
+      # API-triggered builds only (E2E harness). Buildkite publishes the GitHub
+      # commit status when the intentional failure finishes (real status event).
       provider_settings:
         trigger_mode: none
+        publish_commit_status: true
+        publish_commit_status_per_step: false
+        build_pull_requests: false
+        build_branches: false
+        build_tags: false
       teams:
         observablt-robots:
           access_level: MANAGE_BUILD_AND_READ

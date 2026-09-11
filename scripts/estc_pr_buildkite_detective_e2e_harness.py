@@ -1001,6 +1001,12 @@ def run_live_case(
         pr_number = 0
         e2e_branch = "main"
 
+    if require_open_pr and trigger.get("clear_prior_detective_comments"):
+        clear_detective_comments(repo, pr_number, markers)
+
+    # Capture before Buildkite create so we observe the status-triggered Actions run.
+    since = _utc_now().replace(microsecond=0)
+
     target_url: str | None = None
     buildkite_meta: dict[str, Any] | None = None
     if trigger.get("use_buildkite_target_url"):
@@ -1009,7 +1015,8 @@ def run_live_case(
                 target_url, buildkite_meta = ensure_failed_buildkite_target_url(
                     cfg,
                     commit=sha,
-                    branch=e2e_branch or str(cfg.get("e2e_pr", {}).get("branch") or "main"),
+                    branch=e2e_branch
+                    or str(cfg.get("e2e_pr", {}).get("branch") or "main"),
                     pr_number=pr_number or None,
                     case_id=str(case.get("id", case_dir.name)),
                 )
@@ -1030,25 +1037,32 @@ def run_live_case(
             target_url = placeholder_buildkite_url(cfg)
             buildkite_meta = {"source": "placeholder", "web_url": target_url}
 
-    if require_open_pr and trigger.get("clear_prior_detective_comments"):
-        clear_detective_comments(repo, pr_number, markers)
-
-    context = str(cfg.get("status_context") or "buildkite/elastic/oblt-aw-e2e")
-    if not trigger.get("context_contains_buildkite", True):
-        context = "ci/oblt-aw-e2e-non-buildkite"
-
     state = str(trigger.get("status_state") or "failure")
-    description = f"oblt-aw e2e {case.get('id')} {int(time.time())}"
-    since = _utc_now().replace(microsecond=0)
-
-    status_payload = post_commit_status(
-        repo,
-        sha,
-        state=state,
-        context=context,
-        description=description,
-        target_url=target_url if trigger.get("use_buildkite_target_url") else None,
+    # Created builds: Buildkite publishes the GitHub status (real path).
+    # Override / placeholder / non-Buildkite: harness posts a synthetic status.
+    status_from_buildkite = bool(
+        buildkite_meta and buildkite_meta.get("source") == "created"
     )
+    org, pipeline = resolve_buildkite_org_pipeline(cfg)
+    if status_from_buildkite:
+        context = f"buildkite/{org}/{pipeline}"
+        description = None
+        status_payload = None
+        status_publisher = "buildkite"
+    else:
+        context = str(cfg.get("status_context") or "buildkite/elastic/oblt-aw-e2e")
+        if not trigger.get("context_contains_buildkite", True):
+            context = "ci/oblt-aw-e2e-non-buildkite"
+        description = f"oblt-aw e2e {case.get('id')} {int(time.time())}"
+        status_publisher = "harness"
+        status_payload = post_commit_status(
+            repo,
+            sha,
+            state=state,
+            context=context,
+            description=description,
+            target_url=target_url if trigger.get("use_buildkite_target_url") else None,
+        )
 
     workflow_file = str(
         cfg.get("status_trigger_workflow_file") or "trigger-obs-aw-status.yml"
@@ -1125,7 +1139,8 @@ def run_live_case(
             "context": context,
             "target_url": target_url,
             "description": description,
-            "api_url": (status_payload or {}).get("url"),
+            "publisher": status_publisher,
+            "api_url": (status_payload or {}).get("url") if status_payload else None,
         },
         "buildkite": buildkite_meta,
         "status_trigger": {
@@ -1140,10 +1155,11 @@ def run_live_case(
         "expectations": expectations,
         "run_url": run_url,
         "harness_notes": [
-            "Live mode posts a real commit status on elastic/oblt-aw and observes "
-            "the production client trigger → orchestrator → wrapper → lock → agent path.",
-            "Happy-path Buildkite target_url comes from a freshly created intentional "
-            "failure build (or E2E_ESTC_BUILDKITE_TARGET_URL override).",
+            "Happy path: harness creates an intentional Buildkite failure; Buildkite "
+            "publishes the GitHub commit status; trigger-obs-aw-status → agent.",
+            "Gate cases (success / non-Buildkite / no-open-PR) still use harness-posted "
+            "synthetic statuses. Optional E2E_ESTC_BUILDKITE_TARGET_URL override also "
+            "posts status from the harness.",
         ],
     }
 
