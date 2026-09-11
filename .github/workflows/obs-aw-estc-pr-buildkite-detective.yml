@@ -10,6 +10,8 @@ on:
     secrets:
       BUILDKITE_API_TOKEN:
         required: true
+      GH_AW_DEFAULT_OTLP_HEADERS:
+        required: false
 
 permissions:
   contents: read
@@ -66,3 +68,4 @@ jobs:
       setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), '\n') }}
     secrets:
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}
+      GH_AW_DEFAULT_OTLP_HEADERS: ${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}
