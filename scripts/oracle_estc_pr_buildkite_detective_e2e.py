@@ -82,6 +82,8 @@ def _as_bool(value: Any) -> bool:
 def evaluate_outcome(
     outcome: dict[str, Any],
     quarantine: dict[str, Any],
+    *,
+    case_expectations: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     workflow_id = str(outcome.get("workflow_id") or WORKFLOW_ID)
     case_id = str(outcome.get("case_id") or "unknown")
@@ -143,7 +145,12 @@ def evaluate_outcome(
             ],
         }
 
-    expectations = outcome.get("expectations") or {}
+    # Prefer checked-in case expectations over harness-copied ones when provided.
+    expectations = (
+        case_expectations
+        if isinstance(case_expectations, dict)
+        else (outcome.get("expectations") or {})
+    )
     path_exp = expectations.get("path_gates") or {}
     bk_exp = expectations.get("buildkite") or {}
     path_gates = outcome.get("path_gates") or {}
@@ -296,6 +303,13 @@ def _evaluate_live(
     buildkite = outcome.get("buildkite") or {}
     comment = outcome.get("agent_comment")
 
+    _check(
+        checks,
+        "layer_e2e",
+        layer == "e2e",
+        f"layer={layer!r}",
+    )
+
     if "dashboard_enabled" in expectations:
         try:
             expected = _as_bool(expectations["dashboard_enabled"])
@@ -313,6 +327,12 @@ def _evaluate_live(
     # Prefer case ``trigger`` (carried on the outcome) over optional
     # ``expectations.status_state`` so live case files stay the source of truth.
     trigger = outcome.get("trigger") or {}
+    _check(
+        checks,
+        "status_present",
+        isinstance(status, dict) and bool(status),
+        f"status={status!r}",
+    )
     if status:
         _check(
             checks,
@@ -350,13 +370,14 @@ def _evaluate_live(
             if trigger.get("create_failed_buildkite_build") and not outcome.get(
                 "blocked"
             ):
-                # Prefer real Buildkite publisher; harness override_env is allowed.
+                # Created intentional-failure builds must be Buildkite-published.
+                # Harness publisher is allowed only for the explicit URL override.
                 bk = outcome.get("buildkite") or {}
                 source = bk.get("source") if isinstance(bk, dict) else None
-                ok_publisher = publisher == "buildkite" or source in {
-                    "override_env",
-                    "created",
-                }
+                if source == "override_env":
+                    ok_publisher = publisher in {"buildkite", "harness"}
+                else:
+                    ok_publisher = publisher == "buildkite"
                 _check(
                     checks,
                     "status_publisher_buildkite_path",
@@ -393,6 +414,33 @@ def _evaluate_live(
                 actual == expected,
                 f"expected={expected} actual={actual} run={status_trigger.get('url')}",
             )
+            if expected is False and run_seen is True:
+                job_conclusion = str(
+                    status_trigger.get("job_conclusion")
+                    or status_trigger.get("conclusion")
+                    or ""
+                ).lower()
+                _check(
+                    checks,
+                    "status_job_skipped",
+                    job_conclusion == "skipped",
+                    (
+                        f"negative cases require job_conclusion=skipped, "
+                        f"got {job_conclusion!r}"
+                    ),
+                )
+            if expected is True and run_seen is True:
+                job_conclusion = str(
+                    status_trigger.get("job_conclusion")
+                    or status_trigger.get("conclusion")
+                    or ""
+                ).lower()
+                _check(
+                    checks,
+                    "status_job_success",
+                    job_conclusion == "success",
+                    f"job_conclusion={job_conclusion!r}",
+                )
         except TypeError as exc:
             _check(checks, "status_job_executed", False, str(exc))
 
@@ -432,13 +480,13 @@ def _evaluate_live(
             present,
             f"comment={comment}",
         )
-        markers_present: dict[str, bool] = {}
+        markers_present: dict[str, Any] = {}
         if isinstance(comment, dict):
             markers_present = comment.get("markers_present") or {}
             if not markers_present and comment.get("body"):
                 body = str(comment.get("body") or "")
                 markers_present = {marker: marker in body for marker in markers}
-        missing = [m for m in markers if not markers_present.get(m)]
+        missing = [m for m in markers if markers_present.get(m) is not True]
         _check(
             checks,
             "agent_comment_markers",
@@ -487,6 +535,20 @@ def _evaluate_live(
     }
 
 
+def load_case_expectations(
+    testdata_root: Path, case_id: str
+) -> dict[str, Any] | None:
+    """Load expectations from checked-in case.json when available."""
+    case_path = testdata_root / "cases" / case_id / "case.json"
+    if not case_path.is_file():
+        return None
+    case = _load_json(case_path)
+    if not isinstance(case, dict):
+        return None
+    expectations = case.get("expectations")
+    return expectations if isinstance(expectations, dict) else None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Oracle for estc-pr-buildkite-detective E2E / integration outcomes"
@@ -510,6 +572,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Quarantine config JSON",
     )
     parser.add_argument(
+        "--testdata-root",
+        type=Path,
+        default=Path("testdata/agentic/estc-pr-buildkite-detective"),
+        help="Fixture/case root used to reload checked-in expectations",
+    )
+    parser.add_argument(
         "--summary-path",
         type=Path,
         default=None,
@@ -521,8 +589,15 @@ def main(argv: list[str] | None = None) -> int:
     if not isinstance(outcome, dict):
         raise SystemExit(f"Outcome must be a JSON object: {args.outcome_path}")
 
+    case_id = str(outcome.get("case_id") or "")
+    case_expectations = (
+        load_case_expectations(args.testdata_root, case_id) if case_id else None
+    )
+
     quarantine = load_quarantine(args.quarantine_path)
-    report = evaluate_outcome(outcome, quarantine)
+    report = evaluate_outcome(
+        outcome, quarantine, case_expectations=case_expectations
+    )
 
     args.report_path.parent.mkdir(parents=True, exist_ok=True)
     args.report_path.write_text(

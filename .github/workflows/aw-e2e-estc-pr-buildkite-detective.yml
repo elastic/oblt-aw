@@ -159,7 +159,8 @@ jobs:
             --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json" \
             --report-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/oracle-report.json" \
             --summary-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/summary.json" \
-            --quarantine-path config/obs/e2e-quarantine.json
+            --quarantine-path config/obs/e2e-quarantine.json \
+            --testdata-root testdata/agentic/estc-pr-buildkite-detective
 
       - name: Upload E2E artifacts
         if: always()

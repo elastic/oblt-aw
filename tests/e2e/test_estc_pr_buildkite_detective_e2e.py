@@ -251,6 +251,146 @@ class TestHarnessFixtureCase:
             is False
         )
 
+    def test_agent_job_invoked_ignores_lock_success_without_agent(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = harness._utc_now().replace(microsecond=0)
+        monkeypatch.setattr(
+            harness,
+            "list_status_trigger_runs",
+            lambda *_a, **_k: [
+                {
+                    "databaseId": 42,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "createdAt": since.isoformat().replace("+00:00", "Z"),
+                }
+            ],
+        )
+        monkeypatch.setattr(
+            harness,
+            "_view_run_jobs",
+            lambda *_a, **_k: {
+                "jobs": [{"name": "agent", "conclusion": "skipped"}]
+            },
+        )
+        assert (
+            harness.agent_job_invoked(
+                "elastic/oblt-aw",
+                {
+                    "jobs": [
+                        {
+                            "name": "Run obs-aw-status",
+                            "conclusion": "success",
+                        }
+                    ]
+                },
+                since=since,
+            )
+            is False
+        )
+
+    def test_agent_job_invoked_skips_lock_scan_when_status_job_not_success(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = harness._utc_now().replace(microsecond=0)
+        called = {"lock": False}
+
+        def fake_list(*_a: object, **_k: object) -> list[dict[str, object]]:
+            called["lock"] = True
+            return []
+
+        monkeypatch.setattr(harness, "list_status_trigger_runs", fake_list)
+        assert (
+            harness.agent_job_invoked(
+                "elastic/oblt-aw",
+                {
+                    "jobs": [
+                        {
+                            "name": "Run obs-aw-status",
+                            "conclusion": "skipped",
+                        }
+                    ]
+                },
+                since=since,
+            )
+            is False
+        )
+        assert called["lock"] is False
+
+    def test_flatten_slurped_pages_merges_status_pages(self) -> None:
+        pages = [
+            [{"id": 1, "context": "a"}],
+            [{"id": 2, "context": "b"}],
+        ]
+        flat = harness.flatten_slurped_pages(pages)
+        assert [item["id"] for item in flat] == [1, 2]
+        assert harness.flatten_slurped_pages([{"id": 1}]) == [{"id": 1}]
+        assert harness.flatten_slurped_pages(None) == []
+
+    def test_list_commit_statuses_uses_slurp(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        captured: dict[str, list[str]] = {}
+
+        def fake_gh_json(args: list[str], *, check: bool = True) -> object:
+            captured["args"] = args
+            return [[{"id": 1}], [{"id": 2}]]
+
+        monkeypatch.setattr(harness, "gh_json", fake_gh_json)
+        statuses = harness.list_commit_statuses("elastic/oblt-aw", "abc")
+        assert "--slurp" in captured["args"]
+        assert "--paginate" in captured["args"]
+        assert [s["id"] for s in statuses] == [1, 2]
+
+    def test_infer_status_publisher_from_creator(self) -> None:
+        assert (
+            harness.infer_status_publisher(
+                {"creator": {"login": "buildkite[bot]"}},
+                fallback="buildkite",
+            )
+            == "buildkite"
+        )
+        assert (
+            harness.infer_status_publisher(
+                {"creator": {"login": "github-actions[bot]"}},
+                fallback="harness",
+            )
+            == "harness"
+        )
+        assert (
+            harness.infer_status_publisher(
+                {"creator": {"login": "someone"}},
+                fallback="buildkite",
+            )
+            == "other"
+        )
+
+    def test_require_case_mode_rejects_mismatch(self) -> None:
+        with pytest.raises(RuntimeError, match="declares mode='fixture'"):
+            harness.require_case_mode(
+                {"id": "status-failure-open-pr", "mode": "fixture"},
+                "live",
+                case_id="status-failure-open-pr",
+            )
+
+    def test_cli_rejects_fixture_case_in_live_mode(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(ROOT)
+        monkeypatch.setattr(harness, "dashboard_enables_workflow", lambda *_a: True)
+        outcome_path = tmp_path / "outcome.json"
+        with pytest.raises(RuntimeError, match="declares mode='fixture'"):
+            harness.main(
+                [
+                    "--mode",
+                    "live",
+                    "--case-id",
+                    "status-failure-open-pr",
+                    "--outcome-path",
+                    str(outcome_path),
+                ]
+            )
 
     def test_match_commit_status_requires_context_state_and_url(self) -> None:
         statuses = [
@@ -395,6 +535,7 @@ class TestOracle:
             "status_trigger": {
                 "run_seen": True,
                 "job_executed": True,
+                "job_conclusion": "success",
                 "url": "https://example.test/run",
             },
             "agent_comment": {
@@ -434,7 +575,11 @@ class TestOracle:
                 "publisher": "harness",
             },
             "buildkite": {"source": "created", "fail_log_marker_verified": True},
-            "status_trigger": {"run_seen": True, "job_executed": True},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": True,
+                "job_conclusion": "success",
+            },
             "agent_comment": {
                 "id": 1,
                 "markers_present": {"### TL;DR": True, "## Remediation": True},
@@ -453,6 +598,7 @@ class TestOracle:
         assert "status_state" in failed
         assert "status_context_buildkite" in failed
         assert "status_target_url" in failed
+        assert "status_publisher_buildkite_path" in failed
 
     def test_live_oracle_rejects_missing_markers(self) -> None:
         outcome = {
@@ -463,7 +609,11 @@ class TestOracle:
             "agent_invoked": True,
             "path_gates": {"dashboard_enabled": True},
             "status": {"state": "failure", "context": "buildkite/elastic/x"},
-            "status_trigger": {"run_seen": True, "job_executed": True},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": True,
+                "job_conclusion": "success",
+            },
             "agent_comment": {"id": 1, "markers_present": {"### TL;DR": False}},
             "expectations": {
                 "dashboard_enabled": True,
@@ -535,7 +685,11 @@ class TestOracle:
             "agent_invoked": "false",
             "path_gates": {"dashboard_enabled": True},
             "status": {"state": "failure", "context": "buildkite/x"},
-            "status_trigger": {"run_seen": True, "job_executed": True},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": True,
+                "job_conclusion": "success",
+            },
             "expectations": {
                 "dashboard_enabled": True,
                 "status_job_executed": True,
@@ -547,6 +701,158 @@ class TestOracle:
         assert report["pass"] is False
         failed = {c["id"] for c in report["checks"] if not c["pass"]}
         assert "agent_invoked" in failed
+
+    def test_live_oracle_rejects_harness_publisher_on_created_build(self) -> None:
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-failure-open-pr-live",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": True,
+            "path_gates": {"dashboard_enabled": True},
+            "trigger": {
+                "status_state": "failure",
+                "context_contains_buildkite": True,
+                "use_buildkite_target_url": True,
+                "create_failed_buildkite_build": True,
+            },
+            "status": {
+                "state": "failure",
+                "context": "buildkite/elastic/x",
+                "target_url": "https://buildkite.com/elastic/x/builds/1",
+                "publisher": "harness",
+            },
+            "buildkite": {"source": "created", "fail_log_marker_verified": True},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": True,
+                "job_conclusion": "success",
+            },
+            "agent_comment": {
+                "id": 1,
+                "markers_present": {"### TL;DR": True, "## Remediation": True},
+            },
+            "expectations": {
+                "dashboard_enabled": True,
+                "status_job_executed": True,
+                "agent_invoked": True,
+                "expect_agent_comment": True,
+                "agent_comment_markers": ["### TL;DR", "## Remediation"],
+            },
+        }
+        report = oracle.evaluate_outcome(outcome, {"cases": []})
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "status_publisher_buildkite_path" in failed
+
+    def test_live_oracle_requires_skipped_conclusion_for_negative_cases(self) -> None:
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-success-skipped",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "path_gates": {"dashboard_enabled": True},
+            "trigger": {
+                "status_state": "success",
+                "context_contains_buildkite": True,
+            },
+            "status": {
+                "state": "success",
+                "context": "buildkite/elastic/x",
+                "publisher": "harness",
+            },
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": False,
+                "job_conclusion": "failure",
+                "url": "https://example.test/run",
+            },
+            "agent_comment": None,
+            "expectations": {
+                "dashboard_enabled": True,
+                "status_job_executed": False,
+                "agent_invoked": False,
+                "expect_agent_comment": False,
+            },
+        }
+        report = oracle.evaluate_outcome(outcome, {"cases": []})
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "status_job_skipped" in failed
+
+    def test_live_oracle_rejects_wrong_layer(self) -> None:
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-success-skipped",
+            "layer": "integration",
+            "mode": "live",
+            "agent_invoked": False,
+            "path_gates": {"dashboard_enabled": True},
+            "status": {"state": "success", "context": "buildkite/x"},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": False,
+                "job_conclusion": "skipped",
+            },
+            "agent_comment": None,
+            "expectations": {
+                "dashboard_enabled": True,
+                "status_job_executed": False,
+                "agent_invoked": False,
+                "expect_agent_comment": False,
+            },
+        }
+        report = oracle.evaluate_outcome(outcome, {"cases": []})
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "layer_e2e" in failed
+
+    def test_oracle_prefers_case_file_expectations(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        case_dir = tmp_path / "cases" / "status-success-skipped"
+        case_dir.mkdir(parents=True)
+        (case_dir / "case.json").write_text(
+            json.dumps(
+                {
+                    "id": "status-success-skipped",
+                    "mode": "live",
+                    "expectations": {
+                        "dashboard_enabled": True,
+                        "status_job_executed": False,
+                        "agent_invoked": False,
+                        "expect_agent_comment": False,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-success-skipped",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "path_gates": {"dashboard_enabled": True},
+            "status": {"state": "success", "context": "buildkite/x"},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": False,
+                "job_conclusion": "skipped",
+            },
+            "agent_comment": None,
+            # Maliciously empty harness expectations — case file must win.
+            "expectations": {},
+        }
+        report = oracle.evaluate_outcome(
+            outcome,
+            {"cases": []},
+            case_expectations=oracle.load_case_expectations(
+                tmp_path, "status-success-skipped"
+            ),
+        )
+        assert report["pass"] is True
 
     def test_cli_writes_report_and_summary(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
@@ -575,6 +881,8 @@ class TestOracle:
                 str(summary_path),
                 "--quarantine-path",
                 str(ROOT / "config" / "obs" / "e2e-quarantine.json"),
+                "--testdata-root",
+                str(ROOT / "testdata" / "agentic" / "estc-pr-buildkite-detective"),
             ]
         )
         assert code == 0

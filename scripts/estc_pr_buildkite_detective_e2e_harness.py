@@ -86,6 +86,59 @@ def gh_json(args: list[str], *, check: bool = True) -> Any:
     return json.loads(proc.stdout)
 
 
+def flatten_slurped_pages(payload: Any) -> list[Any]:
+    """Flatten ``gh api --paginate --slurp`` output into a single list.
+
+    ``--slurp`` wraps each page (itself a JSON array) in an outer array.
+    """
+    if payload is None:
+        return []
+    if not isinstance(payload, list):
+        raise TypeError(
+            f"expected list from paginated gh api, got {type(payload).__name__}"
+        )
+    if not payload:
+        return []
+    if all(isinstance(page, list) for page in payload):
+        flat: list[Any] = []
+        for page in payload:
+            flat.extend(page)
+        return flat
+    # Single-page response may already be a flat list of objects.
+    return payload
+
+
+def require_case_mode(case: dict[str, Any], mode: str, *, case_id: str) -> None:
+    """Fail closed when the checked-in case mode does not match the harness mode."""
+    declared = str(case.get("mode") or "").strip()
+    if not declared:
+        raise RuntimeError(
+            f"Case {case_id!r} is missing required field case.json.mode "
+            f"(expected {mode!r})"
+        )
+    if declared != mode:
+        raise RuntimeError(
+            f"Case {case_id!r} declares mode={declared!r} but harness was "
+            f"invoked with mode={mode!r}"
+        )
+
+
+def infer_status_publisher(
+    payload: dict[str, Any] | None, *, fallback: str
+) -> str:
+    """Classify status publisher from GitHub status ``creator.login`` when present."""
+    if not isinstance(payload, dict):
+        return fallback
+    creator = payload.get("creator")
+    if isinstance(creator, dict):
+        login = str(creator.get("login") or "").lower()
+        if "buildkite" in login:
+            return "buildkite"
+        if login:
+            return "harness" if fallback == "harness" else "other"
+    return fallback
+
+
 def gh_text(args: list[str], *, check: bool = True) -> str:
     proc = subprocess.run(
         ["gh", *args],
@@ -242,6 +295,7 @@ def resolve_buildkite_from_fixtures(
 
 def run_fixture_case(case_dir: Path) -> dict[str, Any]:
     case = _load_json(case_dir / "case.json")
+    require_case_mode(case, "fixture", case_id=str(case.get("id", case_dir.name)))
     event = _load_json(case_dir / "status-event.json")
     open_prs = _load_json(case_dir / "open-prs.json")
     build = _load_json(case_dir / "buildkite-build.json")
@@ -663,11 +717,16 @@ def post_commit_status(
 
 
 def list_commit_statuses(repo: str, sha: str) -> list[dict[str, Any]]:
-    """Return commit statuses (newest first when GitHub paginates that way)."""
-    return cast(
-        list[dict[str, Any]],
-        gh_json(["api", f"repos/{repo}/commits/{sha}/statuses", "--paginate"]) or [],
+    """Return commit statuses across all pages (newest first per GitHub)."""
+    raw = gh_json(
+        [
+            "api",
+            f"repos/{repo}/commits/{sha}/statuses",
+            "--paginate",
+            "--slurp",
+        ]
     )
+    return cast(list[dict[str, Any]], flatten_slurped_pages(raw))
 
 
 def match_commit_status(
@@ -798,16 +857,22 @@ def wait_for_new_run(
     return None
 
 
-def status_job_executed(run_detail: dict[str, Any] | None) -> bool:
-    """True only when the status route job completed with success."""
+def status_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
+    """Return the obs-aw-status job conclusion, or the run conclusion as fallback."""
     if not run_detail:
-        return False
+        return None
     for job in run_detail.get("jobs") or []:
         name = (job.get("name") or "").lower()
         if "run-obs-aw-status" in name or name.endswith("obs-aw-status"):
-            return (job.get("conclusion") or "").lower() == "success"
+            conclusion = (job.get("conclusion") or "").lower()
+            return conclusion or None
     conclusion = (run_detail.get("conclusion") or "").lower()
-    return conclusion == "success"
+    return conclusion or None
+
+
+def status_job_executed(run_detail: dict[str, Any] | None) -> bool:
+    """True only when the status route job completed with success."""
+    return status_job_conclusion(run_detail) == "success"
 
 
 def _job_names_indicate_agent(run_detail: dict[str, Any] | None) -> bool:
@@ -852,12 +917,17 @@ def agent_job_invoked(
     *,
     since: datetime,
 ) -> bool:
-    """Detect agent invocation via lock agent jobs, not wrapper conclusion alone."""
+    """Detect agent invocation via explicit non-skipped lock/agent jobs only.
+
+    Nested ``workflow_call`` jobs are not listed on the status-trigger run, so we
+    also inspect recent lock workflow runs — but only when the status route job
+    actually succeeded (gate/skip cases must not scan unrelated lock history).
+    A completed lock with a skipped ``agent`` job is never treated as invoked.
+    """
     if _job_names_indicate_agent(run_detail):
         return True
-    # Nested workflow_call jobs are not listed on the caller run. Only the lock
-    # workflow proves the agent path; the wrapper can complete successfully when
-    # check-pr finds no open PR and skips the agent.
+    if not status_job_executed(run_detail):
+        return False
     for run in list_status_trigger_runs(
         repo, "gh-aw-estc-pr-buildkite-detective.lock.yml", limit=30
     ):
@@ -872,10 +942,6 @@ def agent_job_invoked(
             continue
         detail = _view_run_jobs(repo, int(run["databaseId"]))
         if _job_names_indicate_agent(detail):
-            return True
-        # Lock completed without a skipped-only agent: treat as invoked when the
-        # workflow itself did not skip (agent job may use a different display name).
-        if conclusion and conclusion != "skipped":
             return True
     return False
 
@@ -1196,6 +1262,7 @@ def run_live_case(
     run_url: str | None = None,
 ) -> dict[str, Any]:
     case = _load_json(case_dir / "case.json")
+    require_case_mode(case, "live", case_id=str(case.get("id", case_dir.name)))
     trigger = case.get("trigger") or {}
     expectations = case.get("expectations") or {}
     repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
@@ -1369,10 +1436,13 @@ def run_live_case(
         target_url = observed.get("target_url") or target_url
         state = str(observed.get("state") or state)
         context = str(observed.get("context") or context)
+        status_publisher = infer_status_publisher(observed, fallback="buildkite")
     else:
         context = str(cfg.get("status_context") or "buildkite/elastic/oblt-aw-e2e")
         if not trigger.get("context_contains_buildkite", True):
             context = "ci/oblt-aw-e2e-non-buildkite"
+        # Unique per-case description helps operators distinguish synthetic posts;
+        # status→workflow correlation still uses excluded run IDs + event=status.
         description = f"oblt-aw e2e {case.get('id')} {int(time.time())}"
         status_publisher = "harness"
         status_payload = post_commit_status(
@@ -1382,6 +1452,9 @@ def run_live_case(
             context=context,
             description=description,
             target_url=target_url if trigger.get("use_buildkite_target_url") else None,
+        )
+        status_publisher = infer_status_publisher(
+            status_payload, fallback="harness"
         )
 
     workflow_file = workflow_file_early
@@ -1398,6 +1471,7 @@ def run_live_case(
     )
 
     job_executed = status_job_executed(run_detail)
+    job_conclusion = status_job_conclusion(run_detail)
     invoked = agent_job_invoked(repo, run_detail, since=since)
     comment = None
     if require_open_pr and expectations.get("expect_agent_comment"):
@@ -1462,6 +1536,7 @@ def run_live_case(
         "status_trigger": {
             "run_seen": run_detail is not None,
             "job_executed": job_executed,
+            "job_conclusion": job_conclusion,
             "run_id": (run_detail or {}).get("databaseId"),
             "conclusion": (run_detail or {}).get("conclusion"),
             "url": (run_detail or {}).get("url"),
