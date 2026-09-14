@@ -22,6 +22,8 @@ on:
         required: true
         type: string
 # Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
+# Do not declare GITHUB_TOKEN under workflow_call.secrets (system-reserved name).
+# Local jobs and the nested lock use the automatic secrets.GITHUB_TOKEN / github.token.
 permissions:
   contents: read
 
@@ -96,7 +98,6 @@ jobs:
       github-token-policy: ${{ inputs.shared-token-policy }}
       # Source-issue visibility is owned by notify-no-pr; do not open meta-issues.
       report-failure-as-issue: false
-    secrets: inherit
 
   request-reviewers:
     needs: run

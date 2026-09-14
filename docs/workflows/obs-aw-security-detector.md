@@ -48,6 +48,7 @@ Category filtering is applied after tool runs and deduplication in [scripts/obs/
 - Workflow-level `permissions`: `contents: read`.
 - Job `scan` permissions: `actions: read`, `contents: read`, `pull-requests: read`, `id-token: write`.
 - Client `trigger-obs-aw-schedule.yml` must grant `id-token: write` on the schedule orchestrator job.
+- zizmor `unpinned-uses` policy: [`.github/zizmor.yml`](../../.github/zizmor.yml) allows `ref-pin` for trusted namespaces `actions/*` and `elastic/*`; other `uses:` must be hash-pinned. The scan script applies that file with `--config` (optional override: `ZIZMOR_CONFIG`).
 
 ## References
 

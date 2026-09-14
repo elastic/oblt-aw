@@ -50,7 +50,8 @@ Permissions:
 
 `workflow_call` contract:
 
-- Input: `allowed-bot-users` (`required: true`) — comma-separated GitHub logins for the upstream issue fixer lock; ingress passes `allowed_issue_authors_csv` from [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json).
+- Required inputs: `shared-proceed`, `shared-allowed-pr-authors-json`, `shared-allowed-pr-authors-csv`, `shared-allowed-issue-authors-json`, `shared-allowed-issue-authors-csv`, and `shared-token-policy`.
+- No `workflow_call.secrets`: `GITHUB_TOKEN` is system-reserved and cannot be declared. Callers must not use `secrets: inherit` or map `GITHUB_TOKEN`. Local jobs and the nested lock use the automatic `secrets.GITHUB_TOKEN` / `github.token`.
 
 ## References
 
