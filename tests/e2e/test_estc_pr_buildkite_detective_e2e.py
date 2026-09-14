@@ -182,10 +182,16 @@ class TestOracle:
             "mode": "live",
             "agent_invoked": True,
             "path_gates": {"dashboard_enabled": True},
-            "status_trigger": {"job_executed": True, "url": "https://example.test/run"},
+            "status": {"state": "failure", "context": "buildkite/elastic/x"},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": True,
+                "url": "https://example.test/run",
+            },
             "agent_comment": {
                 "id": 1,
                 "url": "https://example.test/comment",
+                "markers_present": {"### TL;DR": True, "## Remediation": True},
             },
             "expectations": {
                 "dashboard_enabled": True,
@@ -199,6 +205,53 @@ class TestOracle:
         assert report["pass"] is True
         assert report["layer"] == "e2e"
 
+    def test_live_oracle_rejects_missing_markers(self) -> None:
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-failure-open-pr-live",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": True,
+            "path_gates": {"dashboard_enabled": True},
+            "status": {"state": "failure", "context": "buildkite/elastic/x"},
+            "status_trigger": {"run_seen": True, "job_executed": True},
+            "agent_comment": {"id": 1, "markers_present": {"### TL;DR": False}},
+            "expectations": {
+                "dashboard_enabled": True,
+                "status_job_executed": True,
+                "agent_invoked": True,
+                "expect_agent_comment": True,
+                "agent_comment_markers": ["### TL;DR", "## Remediation"],
+            },
+        }
+        report = oracle.evaluate_outcome(outcome, {"cases": []})
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "agent_comment_markers" in failed
+
+    def test_live_oracle_requires_run_seen(self) -> None:
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-success-skipped",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "path_gates": {"dashboard_enabled": True},
+            "status": {"state": "success", "context": "buildkite/elastic/x"},
+            "status_trigger": {"run_seen": False, "job_executed": False},
+            "agent_comment": None,
+            "expectations": {
+                "dashboard_enabled": True,
+                "status_job_executed": False,
+                "agent_invoked": False,
+                "expect_agent_comment": False,
+            },
+        }
+        report = oracle.evaluate_outcome(outcome, {"cases": []})
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "status_trigger_run_seen" in failed
+
     def test_live_oracle_rejects_string_bool_coercion(self) -> None:
         outcome = {
             "workflow_id": "obs:estc-pr-buildkite-detective",
@@ -207,18 +260,44 @@ class TestOracle:
             "mode": "live",
             "agent_invoked": True,
             "path_gates": {"dashboard_enabled": True},
-            "status_trigger": {"job_executed": True},
-            "agent_comment": {"id": 1},
+            "status_trigger": {"run_seen": True, "job_executed": True},
+            "agent_comment": {
+                "id": 1,
+                "markers_present": {"### TL;DR": True, "## Remediation": True},
+            },
             "expectations": {
                 "dashboard_enabled": "yes",
                 "agent_invoked": True,
                 "expect_agent_comment": True,
+                "agent_comment_markers": ["### TL;DR", "## Remediation"],
             },
         }
         report = oracle.evaluate_outcome(outcome, {"cases": []})
         assert report["pass"] is False
         failed = {c["id"]: c for c in report["checks"] if not c["pass"]}
         assert "dashboard_enabled" in failed
+
+    def test_live_oracle_rejects_string_agent_invoked(self) -> None:
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-failure-open-pr-live",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": "false",
+            "path_gates": {"dashboard_enabled": True},
+            "status": {"state": "failure", "context": "buildkite/x"},
+            "status_trigger": {"run_seen": True, "job_executed": True},
+            "expectations": {
+                "dashboard_enabled": True,
+                "status_job_executed": True,
+                "agent_invoked": True,
+                "expect_agent_comment": False,
+            },
+        }
+        report = oracle.evaluate_outcome(outcome, {"cases": []})
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "agent_invoked" in failed
 
     def test_cli_writes_report_and_summary(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch

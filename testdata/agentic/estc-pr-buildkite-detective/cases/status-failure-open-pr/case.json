@@ -7,8 +7,7 @@
     "path_gates": {
       "state_failure": true,
       "context_contains_buildkite": true,
-      "has_open_pr": true,
-      "shared_proceed": true
+      "has_open_pr": true
     },
     "buildkite": {
       "min_failed_jobs": 1,

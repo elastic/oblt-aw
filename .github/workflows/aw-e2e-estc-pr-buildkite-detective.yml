@@ -1,8 +1,10 @@
 ---
 name: E2E — ESTC PR Buildkite Detective
 
-# Production E2E for obs:estc-pr-buildkite-detective against elastic/oblt-aw.
-# Live mode posts a real commit status and observes the client trigger → agent path.
+# Production E2E for obs:estc-pr-buildkite-detective against elastic/oblt-aw
+# (intentional production consumer for this slice; no separate sandbox — see #1911 docs).
+# Live happy path: Buildkite publishes commit status → trigger → agent.
+# Negative cases: harness-posted statuses need secrets.E2E_GH_TOKEN (github.token cannot trigger).
 # Also callable from the future release/promote train (#1878).
 # Not part of the default PR required gate in ci.yml.
 on:
@@ -36,6 +38,15 @@ on:
         required: false
         type: string
         default: all
+    secrets:
+      BUILDKITE_TOKEN:
+        description: Buildkite token (write_builds + read) for intentional-failure creates
+        required: false
+      E2E_GH_TOKEN:
+        description: >-
+          Optional PAT/App token for harness-posted commit statuses. Required for
+          negative live cases so status events can trigger workflows (github.token cannot).
+        required: false
     outputs:
       pass:
         description: Whether all matrix legs passed (summary.pass)
@@ -45,7 +56,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: aw-e2e-estc-pr-buildkite-detective-${{ github.event_name }}-${{ github.run_id }}
+  # Stable group: one live matrix at a time against the shared fixture PR.
+  group: aw-e2e-estc-pr-buildkite-detective
   cancel-in-progress: false
 
 jobs:
@@ -92,6 +104,8 @@ jobs:
     timeout-minutes: 50
     strategy:
       fail-fast: false
+      # Shared fixture PR / status context — never run legs in parallel.
+      max-parallel: 1
       matrix:
         case-id: ${{ fromJSON(needs.e2e-matrix.outputs.cases) }}
     permissions:
@@ -99,7 +113,8 @@ jobs:
       pull-requests: write
       statuses: write
       actions: read
-      issues: read
+      # Label create for first-time fixture PR provisioning.
+      issues: write
       checks: read
     env:
       MODE: ${{ needs.e2e-matrix.outputs.mode }}
@@ -110,7 +125,8 @@ jobs:
       E2E_BUILDKITE_PIPELINE: ${{ vars.E2E_BUILDKITE_PIPELINE }}
       # Optional escape hatch: skip create and reuse a fixed failed build URL.
       E2E_ESTC_BUILDKITE_TARGET_URL: ${{ vars.E2E_ESTC_BUILDKITE_TARGET_URL }}
-      GH_TOKEN: ${{ github.token }}
+      # Prefer E2E_GH_TOKEN so harness-posted statuses can trigger workflows.
+      GH_TOKEN: ${{ secrets.E2E_GH_TOKEN || github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7

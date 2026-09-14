@@ -202,11 +202,17 @@ def evaluate_outcome(
             f"expected={expected} actual={actual}",
         )
 
-    path_ready = bool(path_gates.get("path_ready"))
-    _check(checks, "path_ready", path_ready, f"path_ready={path_ready}")
+    try:
+        path_ready = _as_bool(path_gates.get("path_ready"))
+        _check(checks, "path_ready", path_ready, f"path_ready={path_ready}")
+    except TypeError as exc:
+        _check(checks, "path_ready", False, str(exc))
 
-    bk_ok = bool(buildkite.get("ok"))
-    _check(checks, "buildkite_ok", bk_ok, str(buildkite.get("error") or "ok"))
+    try:
+        bk_ok = _as_bool(buildkite.get("ok"))
+        _check(checks, "buildkite_ok", bk_ok, str(buildkite.get("error") or "ok"))
+    except TypeError as exc:
+        _check(checks, "buildkite_ok", False, str(exc))
 
     event_context = buildkite.get("event_context") or {}
     required_keys = bk_exp.get("required_event_keys") or [
@@ -283,6 +289,8 @@ def _evaluate_live(
 ) -> dict[str, Any]:
     path_gates = outcome.get("path_gates") or {}
     status_trigger = outcome.get("status_trigger") or {}
+    status = outcome.get("status") or {}
+    buildkite = outcome.get("buildkite") or {}
     comment = outcome.get("agent_comment")
 
     if "dashboard_enabled" in expectations:
@@ -298,10 +306,38 @@ def _evaluate_live(
         except TypeError as exc:
             _check(checks, "dashboard_enabled", False, str(exc))
 
+    # Emitted trigger identity (when harness recorded a status object).
+    if status:
+        _check(
+            checks,
+            "status_emitted",
+            bool(status.get("state") and status.get("context")),
+            f"status={status}",
+        )
+        if expectations.get("status_state"):
+            _check(
+                checks,
+                "status_state",
+                status.get("state") == expectations.get("status_state"),
+                f"expected={expectations.get('status_state')!r} actual={status.get('state')!r}",
+            )
+
     if "status_job_executed" in expectations:
         try:
+            run_seen = _as_bool(status_trigger.get("run_seen"))
+        except TypeError as exc:
+            run_seen = False
+            _check(checks, "status_trigger_run_seen", False, str(exc))
+        else:
+            _check(
+                checks,
+                "status_trigger_run_seen",
+                run_seen is True,
+                f"run_seen={run_seen} url={status_trigger.get('url')}",
+            )
+        try:
             expected = _as_bool(expectations["status_job_executed"])
-            actual = bool(status_trigger.get("job_executed"))
+            actual = _as_bool(status_trigger.get("job_executed"))
             _check(
                 checks,
                 "status_job_executed",
@@ -314,7 +350,7 @@ def _evaluate_live(
     if "agent_invoked" in expectations:
         try:
             expected = _as_bool(expectations["agent_invoked"])
-            actual = bool(outcome.get("agent_invoked"))
+            actual = _as_bool(outcome.get("agent_invoked"))
             _check(
                 checks,
                 "agent_invoked",
@@ -324,20 +360,38 @@ def _evaluate_live(
         except TypeError as exc:
             _check(checks, "agent_invoked", False, str(exc))
 
+    # Created intentional-failure builds must prove the log marker.
+    if isinstance(buildkite, dict) and buildkite.get("source") == "created":
+        verified = buildkite.get("fail_log_marker_verified")
+        _check(
+            checks,
+            "fail_log_marker_verified",
+            verified is True,
+            str(buildkite.get("fail_log_marker_detail") or verified),
+        )
+
     expect_comment = expectations.get("expect_agent_comment")
     if expect_comment is True:
         markers = expectations.get("agent_comment_markers") or ["### TL;DR", "## Remediation"]
+        present = isinstance(comment, dict) and bool(comment.get("id"))
         _check(
             checks,
             "agent_comment_present",
-            isinstance(comment, dict) and bool(comment.get("id")),
+            present,
             f"comment={comment}",
         )
+        markers_present = {}
+        if isinstance(comment, dict):
+            markers_present = comment.get("markers_present") or {}
+            if not markers_present and comment.get("body"):
+                body = str(comment.get("body") or "")
+                markers_present = {marker: marker in body for marker in markers}
+        missing = [m for m in markers if not markers_present.get(m)]
         _check(
             checks,
-            "agent_comment_markers_configured",
-            bool(markers),
-            f"markers={markers}",
+            "agent_comment_markers",
+            present and not missing,
+            f"missing={missing} markers_present={markers_present}",
         )
     elif expect_comment is False:
         _check(
@@ -348,6 +402,11 @@ def _evaluate_live(
         )
 
     overall = all(item["pass"] for item in checks)
+    agent_flag = False
+    try:
+        agent_flag = _as_bool(outcome.get("agent_invoked")) if "agent_invoked" in outcome else False
+    except TypeError:
+        agent_flag = False
     return {
         "workflow_id": workflow_id,
         "case_id": case_id,
@@ -360,10 +419,10 @@ def _evaluate_live(
         "status_trigger_url": status_trigger.get("url"),
         "pr_url": outcome.get("pr_url"),
         "checks": checks,
-        "agent_invoked": bool(outcome.get("agent_invoked")),
+        "agent_invoked": agent_flag,
         "notes": [
-            "Live oracle asserts dashboard gate, status job execution, agent invocation, "
-            "and structured PR comment markers — never full agent prose.",
+            "Live oracle asserts dashboard gate, observed status trigger, job execution, "
+            "agent invocation, and structured PR comment markers — never full agent prose.",
             "Promote (#1878) should consume report.pass / summary.json.",
         ],
     }

@@ -287,18 +287,18 @@ def run_fixture_case(case_dir: Path) -> dict[str, Any]:
         "layer": "integration",
         "mode": "fixture",
         "agent_invoked": False,
-        "shared_proceed": True,
         "path_gates": {
             **status_gates,
             **pr_gates,
-            "shared_proceed": True,
+            # Prelude/dashboard shared_proceed is not exercised in fixture mode.
             "path_ready": path_ready,
         },
         "buildkite": buildkite,
         "expectations": case.get("expectations", {}),
         "harness_notes": [
             "Fixture mode is an integration check of status gates and recorded "
-            "Buildkite resolution; it does not call the live GH-AW agent.",
+            "Buildkite resolution; it does not call the live GH-AW agent or prelude.",
+            "shared_proceed / dashboard gates are asserted only in live mode.",
         ],
     }
 
@@ -333,7 +333,9 @@ def dashboard_enables_workflow(repo: str, workflow_id: str) -> bool:
     return workflow_id in enabled
 
 
-def find_open_e2e_pr(repo: str, label: str) -> dict[str, Any] | None:
+def find_open_e2e_pr(
+    repo: str, label: str, *, branch: str | None = None
+) -> dict[str, Any] | None:
     prs = gh_json(
         [
             "pr",
@@ -347,11 +349,19 @@ def find_open_e2e_pr(repo: str, label: str) -> dict[str, Any] | None:
             "--json",
             "number,url,headRefName,headRefOid,title",
             "--limit",
-            "5",
+            "20",
         ]
     )
     if not prs:
         return None
+    if branch:
+        matched = [pr for pr in prs if pr.get("headRefName") == branch]
+        if not matched:
+            raise RuntimeError(
+                f"Open PR(s) with label {label!r} exist, but none use branch "
+                f"{branch!r}. Refusing to target an unrelated fixture PR."
+            )
+        return matched[0]
     return prs[0]
 
 
@@ -377,7 +387,7 @@ def _ensure_label(repo: str, label: str) -> None:
 def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
     """Find or create the long-lived E2E fixture PR via the GitHub API only."""
     e2e_pr = cfg["e2e_pr"]
-    existing = find_open_e2e_pr(repo, e2e_pr["label"])
+    existing = find_open_e2e_pr(repo, e2e_pr["label"], branch=str(e2e_pr.get("branch") or ""))
     if existing:
         return existing
 
@@ -547,19 +557,55 @@ def resolve_no_open_pr_sha(repo: str) -> str:
     return sha
 
 
-def clear_detective_comments(repo: str, pr_number: int, markers: list[str]) -> int:
-    comments = gh_json(
-        [
-            "api",
-            f"repos/{repo}/issues/{pr_number}/comments?per_page=100",
-            "--jq",
-            ".",
-        ]
+def _list_issue_comments(repo: str, pr_number: int) -> list[dict[str, Any]]:
+    """Paginate issue comments newest-first (GitHub default is oldest-first)."""
+    comments: list[dict[str, Any]] = []
+    page = 1
+    while True:
+        batch = gh_json(
+            [
+                "api",
+                f"repos/{repo}/issues/{pr_number}/comments?per_page=100&page={page}",
+                "--jq",
+                ".",
+            ]
+        ) or []
+        if not batch:
+            break
+        comments.extend(batch)
+        if len(batch) < 100:
+            break
+        page += 1
+        if page > 50:
+            break
+    # Newest first for find/clear of recent agent output.
+    comments.sort(
+        key=lambda c: c.get("created_at") or c.get("createdAt") or "",
+        reverse=True,
     )
+    return comments
+
+
+def _is_bot_comment_author(login: str | None) -> bool:
+    if not login:
+        return False
+    lower = login.lower()
+    return lower.endswith("[bot]") or lower in {
+        "github-actions",
+        "copilot",
+        "copilot-swe-agent",
+    }
+
+
+def clear_detective_comments(repo: str, pr_number: int, markers: list[str]) -> int:
+    comments = _list_issue_comments(repo, pr_number)
     deleted = 0
-    for comment in comments or []:
+    for comment in comments:
         body = comment.get("body") or ""
         if not all(marker in body for marker in markers):
+            continue
+        login = (comment.get("user") or {}).get("login")
+        if not _is_bot_comment_author(login):
             continue
         cid = comment.get("id")
         if not cid:
@@ -630,14 +676,25 @@ def wait_for_new_run(
     since: datetime,
     timeout_seconds: int,
     interval_seconds: int,
+    head_sha: str | None = None,
+    exclude_run_ids: set[int] | None = None,
 ) -> dict[str, Any] | None:
+    """Wait for a status-trigger run created after ``since``.
+
+    Correlates by excluding known run IDs and optionally matching ``headSha``.
+    """
+    excluded = set(exclude_run_ids or ())
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         for run in list_status_trigger_runs(repo, workflow_file):
+            run_id = int(run["databaseId"])
+            if run_id in excluded:
+                continue
             created = _parse_gh_time(run["createdAt"])
             if created < since:
                 continue
-            run_id = int(run["databaseId"])
+            if head_sha and run.get("headSha") and run.get("headSha") != head_sha:
+                continue
             while time.time() < deadline:
                 detail = gh_json(
                     [
@@ -647,7 +704,7 @@ def wait_for_new_run(
                         "--repo",
                         repo,
                         "--json",
-                        "databaseId,status,conclusion,url,jobs,createdAt",
+                        "databaseId,status,conclusion,url,jobs,createdAt,headSha",
                     ]
                 )
                 if detail.get("status") == "completed":
@@ -659,26 +716,60 @@ def wait_for_new_run(
 
 
 def status_job_executed(run_detail: dict[str, Any] | None) -> bool:
+    """True only when the status route job completed with success."""
     if not run_detail:
         return False
     for job in run_detail.get("jobs") or []:
         name = (job.get("name") or "").lower()
         if "run-obs-aw-status" in name or name.endswith("obs-aw-status"):
-            return (job.get("conclusion") or "") not in ("skipped", "")
-    # If jobs are not expanded, treat a non-skipped conclusion as executed.
+            return (job.get("conclusion") or "").lower() == "success"
     conclusion = (run_detail.get("conclusion") or "").lower()
-    return conclusion not in ("", "skipped")
+    return conclusion == "success"
 
 
-def agent_job_invoked(run_detail: dict[str, Any] | None) -> bool:
+def _job_names_indicate_agent(run_detail: dict[str, Any] | None) -> bool:
     if not run_detail:
         return False
     for job in run_detail.get("jobs") or []:
         name = (job.get("name") or "").lower()
+        conclusion = (job.get("conclusion") or "").lower()
+        if conclusion in ("", "skipped"):
+            continue
         if "estc-pr-buildkite-detective" in name:
-            return (job.get("conclusion") or "") not in ("skipped", "")
+            return True
         if "buildkite" in name and "detective" in name:
-            return (job.get("conclusion") or "") not in ("skipped", "")
+            return True
+    return False
+
+
+def agent_job_invoked(
+    repo: str,
+    run_detail: dict[str, Any] | None,
+    *,
+    head_sha: str | None,
+    since: datetime,
+) -> bool:
+    """Detect agent invocation via parent jobs or nested workflow runs."""
+    if _job_names_indicate_agent(run_detail):
+        return True
+    # Nested workflow_call jobs are not listed on the caller run — look for
+    # the wrapper / lock workflow runs on the same commit.
+    for workflow_file in (
+        "obs-aw-estc-pr-buildkite-detective.yml",
+        "gh-aw-estc-pr-buildkite-detective.lock.yml",
+    ):
+        for run in list_status_trigger_runs(repo, workflow_file, limit=30):
+            created = _parse_gh_time(run["createdAt"])
+            if created < since:
+                continue
+            if head_sha and run.get("headSha") and run.get("headSha") != head_sha:
+                continue
+            conclusion = (run.get("conclusion") or "").lower()
+            status = (run.get("status") or "").lower()
+            if status != "completed":
+                continue
+            if conclusion and conclusion != "skipped":
+                return True
     return False
 
 
@@ -738,6 +829,8 @@ def bk_api_json(
         raise RuntimeError(
             f"Buildkite API {method} {path} failed ({exc.code}): {detail}"
         ) from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Buildkite API {method} {path} network error: {exc}") from exc
 
 
 def create_buildkite_build(
@@ -804,6 +897,55 @@ def wait_for_buildkite_build(
     )
 
 
+
+def verify_buildkite_fail_log_marker(
+    token: str,
+    *,
+    org: str,
+    pipeline: str,
+    number: int,
+    marker: str,
+) -> tuple[bool, str]:
+    """Fetch failed job logs and require the intentional-failure marker."""
+    build = bk_api_json(
+        token,
+        "GET",
+        f"organizations/{org}/pipelines/{pipeline}/builds/{number}",
+    )
+    if not isinstance(build, dict):
+        return False, "build payload missing"
+    checked = 0
+    for job in build.get("jobs") or []:
+        if not isinstance(job, dict):
+            continue
+        if job.get("type") != "script":
+            continue
+        if str(job.get("state") or "") not in FAIL_STATES:
+            continue
+        job_id = job.get("id")
+        if not job_id:
+            continue
+        checked += 1
+        try:
+            log_payload = bk_api_json(
+                token,
+                "GET",
+                f"organizations/{org}/pipelines/{pipeline}/builds/{number}/jobs/{job_id}/log",
+            )
+        except RuntimeError as exc:
+            return False, f"log fetch failed for job {job_id}: {exc}"
+        content = ""
+        if isinstance(log_payload, dict):
+            content = str(log_payload.get("content") or "")
+        elif isinstance(log_payload, str):
+            content = log_payload
+        if marker in content:
+            return True, f"found in job {job.get('name') or job_id}"
+    if checked == 0:
+        return False, "no failed script jobs to inspect"
+    return False, f"marker absent in {checked} failed script job log(s)"
+
+
 def ensure_failed_buildkite_target_url(
     cfg: dict[str, Any],
     *,
@@ -823,6 +965,8 @@ def ensure_failed_buildkite_target_url(
             "source": "override_env",
             "env": override_env,
             "web_url": override,
+            "fail_log_marker_verified": False,
+            "fail_log_marker_detail": "skipped for URL override",
         }
 
     token = buildkite_api_token(cfg)
@@ -866,6 +1010,18 @@ def ensure_failed_buildkite_target_url(
         )
     if not web_url:
         raise RuntimeError("Buildkite build finished without web_url")
+    marker = str(bk.get("fail_log_marker") or "").strip()
+    marker_ok = False
+    marker_detail = "no fail_log_marker configured"
+    if marker:
+        marker_ok, marker_detail = verify_buildkite_fail_log_marker(
+            token, org=org, pipeline=pipeline, number=number, marker=marker
+        )
+        if not marker_ok:
+            raise RuntimeError(
+                f"Buildkite build {web_url} failed but log marker {marker!r} "
+                f"was not found ({marker_detail})"
+            )
     return web_url, {
         "source": "created",
         "org": org,
@@ -874,6 +1030,9 @@ def ensure_failed_buildkite_target_url(
         "state": state,
         "web_url": web_url,
         "pull_request_id": pr_number,
+        "fail_log_marker": marker or None,
+        "fail_log_marker_verified": marker_ok if marker else None,
+        "fail_log_marker_detail": marker_detail,
     }
 
 
@@ -896,15 +1055,7 @@ def find_agent_comment(
     since: datetime,
     markers: list[str],
 ) -> dict[str, Any] | None:
-    comments = gh_json(
-        [
-            "api",
-            f"repos/{repo}/issues/{pr_number}/comments?per_page=100",
-            "--jq",
-            ".",
-        ]
-    )
-    for comment in comments or []:
+    for comment in _list_issue_comments(repo, pr_number):
         created_raw = comment.get("created_at") or comment.get("createdAt") or ""
         if not created_raw:
             continue
@@ -912,12 +1063,15 @@ def find_agent_comment(
         if created < since:
             continue
         body = comment.get("body") or ""
-        if all(marker in body for marker in markers):
+        markers_present = {marker: marker in body for marker in markers}
+        if all(markers_present.values()):
             return {
                 "id": comment.get("id"),
                 "url": comment.get("html_url"),
                 "user": (comment.get("user") or {}).get("login"),
                 "created_at": comment.get("created_at"),
+                "markers_present": markers_present,
+                "body_has_markers": True,
             }
     return None
 
@@ -989,7 +1143,11 @@ def run_live_case(
     if require_open_pr:
         pr_info = ensure_e2e_pr(repo, cfg)
         # Refresh OID after possible marker commit.
-        refreshed = find_open_e2e_pr(repo, cfg["e2e_pr"]["label"]) or pr_info
+        refreshed = find_open_e2e_pr(
+            repo,
+            cfg["e2e_pr"]["label"],
+            branch=str(cfg["e2e_pr"].get("branch") or ""),
+        ) or pr_info
         pr_info = refreshed
         sha = pr_info["headRefOid"]
         pr_number = int(pr_info["number"])
@@ -1006,6 +1164,13 @@ def run_live_case(
 
     # Capture before Buildkite create so we observe the status-triggered Actions run.
     since = _utc_now().replace(microsecond=0)
+    workflow_file_early = str(
+        cfg.get("status_trigger_workflow_file") or "trigger-obs-aw-status.yml"
+    )
+    known_run_ids = {
+        int(run["databaseId"])
+        for run in list_status_trigger_runs(repo, workflow_file_early)
+    }
 
     target_url: str | None = None
     buildkite_meta: dict[str, Any] | None = None
@@ -1064,9 +1229,7 @@ def run_live_case(
             target_url=target_url if trigger.get("use_buildkite_target_url") else None,
         )
 
-    workflow_file = str(
-        cfg.get("status_trigger_workflow_file") or "trigger-obs-aw-status.yml"
-    )
+    workflow_file = workflow_file_early
     timeout = int(cfg.get("poll_timeout_seconds") or 2400)
     interval = int(cfg.get("poll_interval_seconds") or 20)
     expect_job = bool(expectations.get("status_job_executed"))
@@ -1078,10 +1241,12 @@ def run_live_case(
         since=since,
         timeout_seconds=poll_timeout,
         interval_seconds=interval,
+        head_sha=sha,
+        exclude_run_ids=known_run_ids,
     )
 
     job_executed = status_job_executed(run_detail)
-    invoked = agent_job_invoked(run_detail)
+    invoked = agent_job_invoked(repo, run_detail, head_sha=sha, since=since)
     comment = None
     if require_open_pr and expectations.get("expect_agent_comment"):
         comment_deadline = time.time() + min(900, timeout)
@@ -1101,10 +1266,10 @@ def run_live_case(
                         "--repo",
                         repo,
                         "--json",
-                        "databaseId,status,conclusion,url,jobs,createdAt",
+                        "databaseId,status,conclusion,url,jobs,createdAt,headSha",
                     ]
                 )
-                invoked = agent_job_invoked(run_detail)
+            invoked = agent_job_invoked(repo, run_detail, head_sha=sha, since=since)
             time.sleep(interval)
     elif require_open_pr:
         comment = find_agent_comment(repo, pr_number, since=since, markers=markers)
