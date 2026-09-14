@@ -63,7 +63,7 @@ Wrapper `workflow_call` contract:
 Lock inputs passed by the wrapper:
 
 - `additional-instructions` — resolved control-plane + consumer instructions
-- `setup-commands` — `join(fromJSON(resolved-setup-commands-json), '\n')` from resolve (empty when the consumer has none)
+- `setup-commands` — `join(fromJSON(resolved-setup-commands-json), fromJSON('"\n"'))` from resolve (empty when the consumer has none; `fromJSON` supplies a real newline because expression string literals do not interpret `\n`)
 
 Migration note for consumers: if you previously configured the consumer-facing secret name as `BUILDKITE_API_TOKEN`, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN` in repository/organization secrets.
 

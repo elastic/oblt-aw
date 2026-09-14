@@ -98,7 +98,7 @@ class TestEstcWrapperLockWiring:
         assert (
             with_block.get("setup-commands")
             == "${{ join(fromJSON(needs.resolve-apm-assets.outputs."
-            "resolved-setup-commands-json), '\\n') }}"
+            "resolved-setup-commands-json), fromJSON('\"\\n\"')) }}"
         )
 
         lock_inputs = _lock_workflow_call_inputs(lock)
