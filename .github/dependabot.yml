@@ -1,24 +1,33 @@
 version: 2
 
+multi-ecosystem-groups:
+  all:
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "22:00"
+    labels:
+      - 'changelog:dependencies'
+    open-pull-requests-limit: 5
+
 updates:
   - package-ecosystem: "github-actions"
+    multi-ecosystem-group: "all"
+    patterns:
+      - "*"
     directories:
       - "/"
       - "/.github/workflows/*"
     # Compiled GH-AW workflows; update pins via `gh aw compile` / `gh aw update-actions`.
     exclude-paths:
       - "**/*.lock.yml"
-    schedule:
-      interval: "weekly"
-      day: "sunday"
-      time: "22:00"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: pre-commit
+    multi-ecosystem-group: "all"
+    patterns:
+      - "*"
     directory: "/"
-    schedule:
-      interval: 'weekly'
-      day: 'sunday'
-      time: '22:00'
-    open-pull-requests-limit: 5
-    labels:
-      - 'changelog:dependencies'
+    cooldown:
+      default-days: 7
