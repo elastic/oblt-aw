@@ -120,6 +120,8 @@ Flaky cases: quarantine with an owner; do not silently retry into green. Retries
 | **New dedicated repo** | Deferred. Reconsider if E2E harness becomes a shared product across catalogs outside Observability ownership, or if repo size/noise justifies a split. |
 | **Elsewhere (for example only in `ai-github-actions`)** | Rejected for Observability-owned wrappers and control-plane contracts; those assets are authored and gated here. |
 
+**Fixture PR noise control:** PRs whose labels **start with** `e2e:` skip repo [`ci.yml`](../../.github/workflows/ci.yml) work jobs and agentic pull-request routes in [`obs-aw-event-pull-request.yml`](../../.github/workflows/obs-aw-event-pull-request.yml) (dependency-review, automerge). Long-lived E2E fixture PRs must use that label prefix.
+
 Primitive migration ([#1876](https://github.com/elastic/oblt-aw/issues/1876)) may move more locks into this repo; colocating tests with that ownership reduces cross-repo friction.
 
 ## Release consumption contract
