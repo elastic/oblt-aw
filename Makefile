@@ -33,7 +33,7 @@ install-aw:
 		echo "error: $(GH_AW_VERSION_FILE) is empty or missing" >&2; \
 		exit 1; \
 	fi; \
-	current="$$(gh aw version 2>&1 | awk '{print $$NF}' || true)"; \
+	current="$$(gh aw version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?' | head -1 || true)"; \
 	if [ "$$current" = "$$expected" ]; then \
 		echo "gh aw $$expected already installed"; \
 	else \
