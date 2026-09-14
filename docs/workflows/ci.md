@@ -4,11 +4,11 @@
 
 Source file: [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
 
-This workflow runs quality checks and tests on every pull request targeting `main`. It enforces pre-commit checks (including Actionlint), Python tests, and TypeScript tests via `npm test`.
+This workflow runs quality checks and tests on every pull request (any base branch). It enforces pre-commit checks (including Actionlint), Python tests (including `tests/integration/`), and TypeScript tests via `npm test`.
 
 ## Triggers
 
-- `pull_request` on branch `main` (opened, synchronize, reopened)
+- `pull_request` on any base branch (opened, synchronize, reopened)
 
 ## Jobs
 
