@@ -4,11 +4,11 @@
 
 Source file: [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
 
-This workflow runs quality checks and tests on every pull request targeting `main`. It enforces pre-commit checks (including Actionlint), Python tests, and TypeScript tests via `npm test`.
+This workflow runs quality checks and tests on every pull request (any base branch). It enforces pre-commit checks (including Actionlint), Python tests (including `tests/integration/`), and TypeScript tests via `npm test`.
 
 ## Triggers
 
-- `pull_request` on branch `main` (opened, synchronize, reopened)
+- `pull_request` on any base branch (opened, synchronize, reopened)
 
 ## Jobs
 
@@ -38,7 +38,8 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 
 - Python 3.14
 - Dependencies: `requirements-ci.txt` (includes `requirements-runtime.txt` and pytest)
-- Command: `pytest tests/ -v --tb=short`
+- Command: `pytest tests/ -v --tb=short` (includes unit tests and `tests/integration/`)
+- Integration slice (no live model): `tests/integration/test_estc_pr_buildkite_detective.py` with fixtures in `testdata/agentic/estc-pr-buildkite-detective/` — see [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md)
 - Pip cache via `actions/setup-python` (`cache: pip`), keyed by `requirements-ci.txt` and `requirements-runtime.txt`
 
 ## TypeScript Tests
@@ -64,3 +65,4 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 
 - Pre-commit config: [.pre-commit-config.yaml](../../.pre-commit-config.yaml)
 - Local development: [docs/development/contributing.md](../development/contributing.md)
+- Testing platform design (unit through E2E, release gates): [docs/architecture/agentic-workflow-testing-platform.md](../architecture/agentic-workflow-testing-platform.md)

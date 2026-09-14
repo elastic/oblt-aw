@@ -111,7 +111,7 @@ The following hooks run on commit (and in CI via the pre-commit job):
 
 ## CI Workflow
 
-The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) runs on every PR to `main`. See [docs/workflows/ci.md](../workflows/ci.md) for details.
+The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) runs on every pull request (any base branch). See [docs/workflows/ci.md](../workflows/ci.md) for details.
 
 ## References
 
