@@ -334,7 +334,11 @@ def dashboard_enables_workflow(repo: str, workflow_id: str) -> bool:
 
 
 def find_open_e2e_pr(
-    repo: str, label: str, *, branch: str | None = None
+    repo: str,
+    label: str,
+    *,
+    branch: str | None = None,
+    strict_branch: bool = True,
 ) -> dict[str, Any] | None:
     prs = gh_json(
         [
@@ -357,10 +361,12 @@ def find_open_e2e_pr(
     if branch:
         matched = [pr for pr in prs if pr.get("headRefName") == branch]
         if not matched:
-            raise RuntimeError(
-                f"Open PR(s) with label {label!r} exist, but none use branch "
-                f"{branch!r}. Refusing to target an unrelated fixture PR."
-            )
+            if strict_branch:
+                raise RuntimeError(
+                    f"Open PR(s) with label {label!r} exist, but none use branch "
+                    f"{branch!r}. Refusing to target an unrelated fixture PR."
+                )
+            return None
         return cast(dict[str, Any], matched[0])
     return cast(dict[str, Any], prs[0])
 
@@ -488,7 +494,9 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         # PR may already exist without label.
         pass
 
-    created = find_open_e2e_pr(repo, e2e_pr["label"])
+    created = find_open_e2e_pr(
+        repo, e2e_pr["label"], branch=branch, strict_branch=False
+    )
     if created:
         return created
 
@@ -652,6 +660,67 @@ def post_commit_status(
     if target_url:
         args.extend(["-f", f"target_url={target_url}"])
     return cast(dict[str, Any], gh_json(args))
+
+
+def list_commit_statuses(repo: str, sha: str) -> list[dict[str, Any]]:
+    """Return commit statuses (newest first when GitHub paginates that way)."""
+    return cast(
+        list[dict[str, Any]],
+        gh_json(["api", f"repos/{repo}/commits/{sha}/statuses", "--paginate"]) or [],
+    )
+
+
+def match_commit_status(
+    statuses: list[dict[str, Any]],
+    *,
+    context: str,
+    state: str,
+    target_url: str | None = None,
+    since: datetime | None = None,
+) -> dict[str, Any] | None:
+    """Find a status matching context/state and optional target_url / since."""
+    for status in statuses:
+        if str(status.get("context") or "") != context:
+            continue
+        if str(status.get("state") or "") != state:
+            continue
+        if target_url and str(status.get("target_url") or "") != target_url:
+            continue
+        if since is not None:
+            created_raw = status.get("created_at") or status.get("updated_at") or ""
+            if not created_raw:
+                continue
+            if _parse_gh_time(str(created_raw)) < since:
+                continue
+        return status
+    return None
+
+
+def wait_for_commit_status(
+    repo: str,
+    sha: str,
+    *,
+    context: str,
+    state: str,
+    target_url: str | None,
+    since: datetime,
+    timeout_seconds: int,
+    interval_seconds: int,
+) -> dict[str, Any] | None:
+    """Poll GitHub commit statuses until the expected Buildkite status appears."""
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        matched = match_commit_status(
+            list_commit_statuses(repo, sha),
+            context=context,
+            state=state,
+            target_url=target_url,
+            since=since,
+        )
+        if matched:
+            return matched
+        time.sleep(interval_seconds)
+    return None
 
 
 def list_status_trigger_runs(
@@ -1250,6 +1319,8 @@ def run_live_case(
             buildkite_meta = {"source": "placeholder", "web_url": target_url}
 
     state = str(trigger.get("status_state") or "failure")
+    timeout = int(cfg.get("poll_timeout_seconds") or 2400)
+    interval = int(cfg.get("poll_interval_seconds") or 20)
     # Created builds: Buildkite publishes the GitHub status (real path).
     # Override / placeholder / non-Buildkite: harness posts a synthetic status.
     status_from_buildkite = bool(
@@ -1261,6 +1332,43 @@ def run_live_case(
         description = None
         status_payload = None
         status_publisher = "buildkite"
+        status_timeout = int(
+            cfg.get("status_observe_timeout_seconds") or min(300, timeout)
+        )
+        observed = wait_for_commit_status(
+            repo,
+            sha,
+            context=context,
+            state=state,
+            target_url=target_url,
+            since=since,
+            timeout_seconds=status_timeout,
+            interval_seconds=interval,
+        )
+        if not observed:
+            return {
+                "workflow_id": workflow_id,
+                "case_id": case.get("id", case_dir.name),
+                "layer": "e2e",
+                "mode": "live",
+                "agent_invoked": False,
+                "blocked": True,
+                "block_reason": (
+                    f"Timed out waiting for GitHub commit status "
+                    f"context={context!r} state={state!r} "
+                    f"target_url={target_url!r} on {sha[:12]}."
+                ),
+                "path_gates": {"dashboard_enabled": dashboard_ok},
+                "buildkite": buildkite_meta,
+                "trigger": trigger,
+                "expectations": expectations,
+                "run_url": run_url,
+            }
+        status_payload = observed
+        description = observed.get("description")
+        target_url = observed.get("target_url") or target_url
+        state = str(observed.get("state") or state)
+        context = str(observed.get("context") or context)
     else:
         context = str(cfg.get("status_context") or "buildkite/elastic/oblt-aw-e2e")
         if not trigger.get("context_contains_buildkite", True):
@@ -1277,8 +1385,6 @@ def run_live_case(
         )
 
     workflow_file = workflow_file_early
-    timeout = int(cfg.get("poll_timeout_seconds") or 2400)
-    interval = int(cfg.get("poll_interval_seconds") or 20)
     expect_job = bool(expectations.get("status_job_executed"))
     poll_timeout = timeout if expect_job else min(180, timeout)
 

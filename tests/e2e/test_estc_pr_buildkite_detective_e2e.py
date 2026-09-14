@@ -252,6 +252,72 @@ class TestHarnessFixtureCase:
         )
 
 
+    def test_match_commit_status_requires_context_state_and_url(self) -> None:
+        statuses = [
+            {
+                "context": "buildkite/elastic/oblt-aw-e2e-estc-fail",
+                "state": "failure",
+                "target_url": "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
+                "created_at": "2026-09-14T10:00:00Z",
+            },
+            {
+                "context": "buildkite/elastic/oblt-aw-e2e-estc-fail",
+                "state": "failure",
+                "target_url": "https://buildkite.com/elastic/other/builds/9",
+                "created_at": "2026-09-14T11:00:00Z",
+            },
+        ]
+        matched = harness.match_commit_status(
+            statuses,
+            context="buildkite/elastic/oblt-aw-e2e-estc-fail",
+            state="failure",
+            target_url="https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
+        )
+        assert matched is not None
+        assert matched["target_url"].endswith("/builds/1")
+        assert (
+            harness.match_commit_status(
+                statuses,
+                context="buildkite/elastic/oblt-aw-e2e-estc-fail",
+                state="success",
+                target_url="https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
+            )
+            is None
+        )
+
+    def test_find_open_e2e_pr_strict_branch(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "gh_json",
+            lambda *_a, **_k: [
+                {
+                    "number": 3,
+                    "url": "https://example.test/pr/3",
+                    "headRefName": "other-branch",
+                    "headRefOid": "abc",
+                    "title": "other",
+                }
+            ],
+        )
+        with pytest.raises(RuntimeError, match="none use branch"):
+            harness.find_open_e2e_pr(
+                "elastic/oblt-aw",
+                "e2e:estc-pr-buildkite-detective",
+                branch="e2e/estc-pr-buildkite-detective",
+            )
+        assert (
+            harness.find_open_e2e_pr(
+                "elastic/oblt-aw",
+                "e2e:estc-pr-buildkite-detective",
+                branch="e2e/estc-pr-buildkite-detective",
+                strict_branch=False,
+            )
+            is None
+        )
+
+
 class TestOracle:
     def test_fixture_outcome_passes(self) -> None:
         outcome = harness.run_fixture_case(CASE_DIR)
