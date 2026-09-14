@@ -101,7 +101,7 @@ jobs:
     name: ESTC detective E2E (${{ matrix.case-id }})
     needs: e2e-matrix
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       # Shared fixture PR / status context — never run legs in parallel.

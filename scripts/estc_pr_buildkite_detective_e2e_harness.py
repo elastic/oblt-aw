@@ -683,12 +683,18 @@ def wait_for_new_run(
     since: datetime,
     timeout_seconds: int,
     interval_seconds: int,
-    head_sha: str | None = None,
     exclude_run_ids: set[int] | None = None,
+    event: str | None = "status",
 ) -> dict[str, Any] | None:
-    """Wait for a status-trigger run created after ``since``.
+    """Wait for a workflow run created after ``since`` that has completed.
 
-    Correlates by excluding known run IDs and optionally matching ``headSha``.
+    Correlates by excluding known run IDs and optional ``event`` (default
+    ``status``). Does **not** filter on ``headSha``: status-triggered runs use
+    the default-branch tip as ``GITHUB_SHA`` / run ``headSha``, while the status
+    commit is ``github.event.sha``.
+
+    Returns ``None`` if no matching completed run appears before the deadline
+    (in-progress matches are not treated as seen).
     """
     excluded = set(exclude_run_ids or ())
     deadline = time.time() + timeout_seconds
@@ -700,7 +706,7 @@ def wait_for_new_run(
             created = _parse_gh_time(run["createdAt"])
             if created < since:
                 continue
-            if head_sha and run.get("headSha") and run.get("headSha") != head_sha:
+            if event and (run.get("event") or "").lower() != event.lower():
                 continue
             while time.time() < deadline:
                 detail = gh_json(
@@ -711,13 +717,14 @@ def wait_for_new_run(
                         "--repo",
                         repo,
                         "--json",
-                        "databaseId,status,conclusion,url,jobs,createdAt,headSha",
+                        "databaseId,status,conclusion,url,jobs,createdAt,headSha,event",
                     ]
                 )
                 if detail.get("status") == "completed":
                     return cast(dict[str, Any], detail)
                 time.sleep(interval_seconds)
-            return cast(dict[str, Any], detail)
+            # Matched a run but it never completed — fail closed (unseen).
+            return None
         time.sleep(interval_seconds)
     return None
 
@@ -735,6 +742,11 @@ def status_job_executed(run_detail: dict[str, Any] | None) -> bool:
 
 
 def _job_names_indicate_agent(run_detail: dict[str, Any] | None) -> bool:
+    """True when a non-skipped GH-AW agent (or lock) job ran.
+
+    Ignores orchestrator/wrapper job names such as ``estc-pr-buildkite-detective``
+    — those reusable calls can succeed while the agent job is skipped (no open PR).
+    """
     if not run_detail:
         return False
     for job in run_detail.get("jobs") or []:
@@ -742,41 +754,60 @@ def _job_names_indicate_agent(run_detail: dict[str, Any] | None) -> bool:
         conclusion = (job.get("conclusion") or "").lower()
         if conclusion in ("", "skipped"):
             continue
-        if "estc-pr-buildkite-detective" in name:
+        # Lock file job id from gh-aw-estc-pr-buildkite-detective.lock.yml
+        if name == "agent" or name.endswith(" / agent") or "/ agent" in name:
             return True
-        if "buildkite" in name and "detective" in name:
+        if "gh-aw-estc-pr-buildkite-detective" in name:
             return True
     return False
+
+
+def _view_run_jobs(repo: str, run_id: int) -> dict[str, Any] | None:
+    detail = gh_json(
+        [
+            "run",
+            "view",
+            str(run_id),
+            "--repo",
+            repo,
+            "--json",
+            "databaseId,status,conclusion,url,jobs,createdAt,headSha",
+        ]
+    )
+    return cast(dict[str, Any], detail) if detail else None
 
 
 def agent_job_invoked(
     repo: str,
     run_detail: dict[str, Any] | None,
     *,
-    head_sha: str | None,
     since: datetime,
 ) -> bool:
-    """Detect agent invocation via parent jobs or nested workflow runs."""
+    """Detect agent invocation via lock agent jobs, not wrapper conclusion alone."""
     if _job_names_indicate_agent(run_detail):
         return True
-    # Nested workflow_call jobs are not listed on the caller run — look for
-    # the wrapper / lock workflow runs on the same commit.
-    for workflow_file in (
-        "obs-aw-estc-pr-buildkite-detective.yml",
-        "gh-aw-estc-pr-buildkite-detective.lock.yml",
+    # Nested workflow_call jobs are not listed on the caller run. Only the lock
+    # workflow proves the agent path; the wrapper can complete successfully when
+    # check-pr finds no open PR and skips the agent.
+    for run in list_status_trigger_runs(
+        repo, "gh-aw-estc-pr-buildkite-detective.lock.yml", limit=30
     ):
-        for run in list_status_trigger_runs(repo, workflow_file, limit=30):
-            created = _parse_gh_time(run["createdAt"])
-            if created < since:
-                continue
-            if head_sha and run.get("headSha") and run.get("headSha") != head_sha:
-                continue
-            conclusion = (run.get("conclusion") or "").lower()
-            status = (run.get("status") or "").lower()
-            if status != "completed":
-                continue
-            if conclusion and conclusion != "skipped":
-                return True
+        created = _parse_gh_time(run["createdAt"])
+        if created < since:
+            continue
+        status = (run.get("status") or "").lower()
+        if status != "completed":
+            continue
+        conclusion = (run.get("conclusion") or "").lower()
+        if conclusion == "skipped":
+            continue
+        detail = _view_run_jobs(repo, int(run["databaseId"]))
+        if _job_names_indicate_agent(detail):
+            return True
+        # Lock completed without a skipped-only agent: treat as invoked when the
+        # workflow itself did not skip (agent job may use a different display name).
+        if conclusion and conclusion != "skipped":
+            return True
     return False
 
 
@@ -1072,13 +1103,16 @@ def find_agent_comment(
         created = _parse_gh_time(created_raw)
         if created < since:
             continue
+        login = (comment.get("user") or {}).get("login")
+        if not _is_bot_comment_author(login):
+            continue
         body = comment.get("body") or ""
         markers_present = {marker: marker in body for marker in markers}
         if all(markers_present.values()):
             return {
                 "id": comment.get("id"),
                 "url": comment.get("html_url"),
-                "user": (comment.get("user") or {}).get("login"),
+                "user": login,
                 "created_at": comment.get("created_at"),
                 "markers_present": markers_present,
                 "body_has_markers": True,
@@ -1254,12 +1288,11 @@ def run_live_case(
         since=since,
         timeout_seconds=poll_timeout,
         interval_seconds=interval,
-        head_sha=sha,
         exclude_run_ids=known_run_ids,
     )
 
     job_executed = status_job_executed(run_detail)
-    invoked = agent_job_invoked(repo, run_detail, head_sha=sha, since=since)
+    invoked = agent_job_invoked(repo, run_detail, since=since)
     comment = None
     if require_open_pr and expectations.get("expect_agent_comment"):
         comment_deadline = time.time() + min(900, timeout)
@@ -1277,10 +1310,10 @@ def run_live_case(
                         "--repo",
                         repo,
                         "--json",
-                        "databaseId,status,conclusion,url,jobs,createdAt,headSha",
+                        "databaseId,status,conclusion,url,jobs,createdAt,headSha,event",
                     ]
                 )
-            invoked = agent_job_invoked(repo, run_detail, head_sha=sha, since=since)
+            invoked = agent_job_invoked(repo, run_detail, since=since)
             time.sleep(interval)
     elif require_open_pr:
         comment = find_agent_comment(repo, pr_number, since=since, markers=markers)
@@ -1310,6 +1343,7 @@ def run_live_case(
         "commit_sha": sha,
         "pr_number": pr_number or None,
         "pr_url": (pr_info or {}).get("url"),
+        "trigger": trigger,
         "status": {
             "state": state,
             "context": context,

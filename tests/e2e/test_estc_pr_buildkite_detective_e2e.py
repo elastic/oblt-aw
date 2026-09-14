@@ -124,6 +124,134 @@ class TestHarnessFixtureCase:
         )
 
 
+    def test_job_names_indicate_agent_ignores_wrapper_job(self) -> None:
+        assert not harness._job_names_indicate_agent(
+            {
+                "jobs": [
+                    {
+                        "name": "estc-pr-buildkite-detective",
+                        "conclusion": "success",
+                    }
+                ]
+            }
+        )
+        assert harness._job_names_indicate_agent(
+            {"jobs": [{"name": "agent", "conclusion": "success"}]}
+        )
+        assert not harness._job_names_indicate_agent(
+            {"jobs": [{"name": "agent", "conclusion": "skipped"}]}
+        )
+
+    def test_find_agent_comment_requires_bot_author(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = harness._utc_now().replace(microsecond=0)
+        comments = [
+            {
+                "id": 1,
+                "html_url": "https://example.test/c/1",
+                "created_at": since.isoformat().replace("+00:00", "Z"),
+                "user": {"login": "human-user"},
+                "body": "### TL;DR\n## Remediation\n",
+            },
+            {
+                "id": 2,
+                "html_url": "https://example.test/c/2",
+                "created_at": since.isoformat().replace("+00:00", "Z"),
+                "user": {"login": "copilot-swe-agent[bot]"},
+                "body": "### TL;DR\n## Remediation\n",
+            },
+        ]
+        monkeypatch.setattr(harness, "_list_issue_comments", lambda *_a, **_k: comments)
+        found = harness.find_agent_comment(
+            "elastic/oblt-aw",
+            1,
+            since=since,
+            markers=["### TL;DR", "## Remediation"],
+        )
+        assert found is not None
+        assert found["id"] == 2
+        assert found["user"] == "copilot-swe-agent[bot]"
+
+    def test_wait_for_new_run_ignores_head_sha_and_incomplete(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = harness._utc_now().replace(microsecond=0)
+        listed = [
+            {
+                "databaseId": 99,
+                "status": "in_progress",
+                "conclusion": "",
+                "createdAt": since.isoformat().replace("+00:00", "Z"),
+                "event": "status",
+                "displayTitle": "status",
+                "url": "https://example.test/run/99",
+                "headSha": "default-branch-tip",
+            }
+        ]
+        clock = {"now": since.timestamp()}
+
+        def fake_time() -> float:
+            return clock["now"]
+
+        def fake_sleep(_seconds: float) -> None:
+            # Expire the poll deadline after the first in-progress observation.
+            clock["now"] += 10_000
+
+        monkeypatch.setattr(
+            harness, "list_status_trigger_runs", lambda *_a, **_k: listed
+        )
+        monkeypatch.setattr(
+            harness,
+            "gh_json",
+            lambda *_a, **_k: {
+                "databaseId": 99,
+                "status": "in_progress",
+                "conclusion": "",
+                "url": "https://example.test/run/99",
+                "jobs": [],
+                "createdAt": listed[0]["createdAt"],
+                "headSha": "default-branch-tip",
+                "event": "status",
+            },
+        )
+        monkeypatch.setattr(harness.time, "time", fake_time)
+        monkeypatch.setattr(harness.time, "sleep", fake_sleep)
+
+        result = harness.wait_for_new_run(
+            "elastic/oblt-aw",
+            "trigger-obs-aw-status.yml",
+            since=since,
+            timeout_seconds=1,
+            interval_seconds=1,
+        )
+        assert result is None
+
+    def test_agent_job_invoked_ignores_wrapper_success(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = harness._utc_now().replace(microsecond=0)
+
+        monkeypatch.setattr(
+            harness, "list_status_trigger_runs", lambda *_a, **_k: []
+        )
+        assert (
+            harness.agent_job_invoked(
+                "elastic/oblt-aw",
+                {
+                    "jobs": [
+                        {
+                            "name": "estc-pr-buildkite-detective",
+                            "conclusion": "success",
+                        }
+                    ]
+                },
+                since=since,
+            )
+            is False
+        )
+
+
 class TestOracle:
     def test_fixture_outcome_passes(self) -> None:
         outcome = harness.run_fixture_case(CASE_DIR)
@@ -185,7 +313,19 @@ class TestOracle:
             "mode": "live",
             "agent_invoked": True,
             "path_gates": {"dashboard_enabled": True},
-            "status": {"state": "failure", "context": "buildkite/elastic/x"},
+            "trigger": {
+                "status_state": "failure",
+                "context_contains_buildkite": True,
+                "use_buildkite_target_url": True,
+                "create_failed_buildkite_build": True,
+            },
+            "status": {
+                "state": "failure",
+                "context": "buildkite/elastic/x",
+                "target_url": "https://buildkite.com/elastic/x/builds/1",
+                "publisher": "buildkite",
+            },
+            "buildkite": {"source": "created", "fail_log_marker_verified": True},
             "status_trigger": {
                 "run_seen": True,
                 "job_executed": True,
@@ -207,6 +347,46 @@ class TestOracle:
         report = oracle.evaluate_outcome(outcome, {"cases": []})
         assert report["pass"] is True
         assert report["layer"] == "e2e"
+
+    def test_live_oracle_asserts_trigger_status_contract(self) -> None:
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-failure-open-pr-live",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": True,
+            "path_gates": {"dashboard_enabled": True},
+            "trigger": {
+                "status_state": "failure",
+                "context_contains_buildkite": True,
+                "use_buildkite_target_url": True,
+                "create_failed_buildkite_build": True,
+            },
+            "status": {
+                "state": "success",
+                "context": "ci/other",
+                "publisher": "harness",
+            },
+            "buildkite": {"source": "created", "fail_log_marker_verified": True},
+            "status_trigger": {"run_seen": True, "job_executed": True},
+            "agent_comment": {
+                "id": 1,
+                "markers_present": {"### TL;DR": True, "## Remediation": True},
+            },
+            "expectations": {
+                "dashboard_enabled": True,
+                "status_job_executed": True,
+                "agent_invoked": True,
+                "expect_agent_comment": True,
+                "agent_comment_markers": ["### TL;DR", "## Remediation"],
+            },
+        }
+        report = oracle.evaluate_outcome(outcome, {"cases": []})
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "status_state" in failed
+        assert "status_context_buildkite" in failed
+        assert "status_target_url" in failed
 
     def test_live_oracle_rejects_missing_markers(self) -> None:
         outcome = {

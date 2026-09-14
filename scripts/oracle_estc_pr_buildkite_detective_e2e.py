@@ -310,6 +310,9 @@ def _evaluate_live(
             _check(checks, "dashboard_enabled", False, str(exc))
 
     # Emitted trigger identity (when harness recorded a status object).
+    # Prefer case ``trigger`` (carried on the outcome) over optional
+    # ``expectations.status_state`` so live case files stay the source of truth.
+    trigger = outcome.get("trigger") or {}
     if status:
         _check(
             checks,
@@ -317,12 +320,55 @@ def _evaluate_live(
             bool(status.get("state") and status.get("context")),
             f"status={status}",
         )
-        if expectations.get("status_state"):
+        expected_state = expectations.get("status_state") or trigger.get("status_state")
+        if expected_state:
             _check(
                 checks,
                 "status_state",
-                status.get("state") == expectations.get("status_state"),
-                f"expected={expectations.get('status_state')!r} actual={status.get('state')!r}",
+                status.get("state") == expected_state,
+                f"expected={expected_state!r} actual={status.get('state')!r}",
+            )
+        if "context_contains_buildkite" in trigger:
+            expect_bk = bool(trigger.get("context_contains_buildkite"))
+            actual_bk = "buildkite" in str(status.get("context") or "").lower()
+            _check(
+                checks,
+                "status_context_buildkite",
+                actual_bk is expect_bk,
+                f"expected_contains_buildkite={expect_bk} context={status.get('context')!r}",
+            )
+        if trigger.get("use_buildkite_target_url") or trigger.get(
+            "create_failed_buildkite_build"
+        ):
+            publisher = status.get("publisher")
+            _check(
+                checks,
+                "status_publisher",
+                publisher in {"buildkite", "harness"},
+                f"publisher={publisher!r}",
+            )
+            if trigger.get("create_failed_buildkite_build") and not outcome.get(
+                "blocked"
+            ):
+                # Prefer real Buildkite publisher; harness override_env is allowed.
+                bk = outcome.get("buildkite") or {}
+                source = bk.get("source") if isinstance(bk, dict) else None
+                ok_publisher = publisher == "buildkite" or source in {
+                    "override_env",
+                    "created",
+                }
+                _check(
+                    checks,
+                    "status_publisher_buildkite_path",
+                    bool(ok_publisher),
+                    f"publisher={publisher!r} buildkite_source={source!r}",
+                )
+        if trigger.get("use_buildkite_target_url"):
+            _check(
+                checks,
+                "status_target_url",
+                bool(status.get("target_url")),
+                f"target_url={status.get('target_url')!r}",
             )
 
     if "status_job_executed" in expectations:
@@ -432,8 +478,9 @@ def _evaluate_live(
         "agent_invoked": agent_flag,
         "notes": [
             (
-                "Live oracle asserts dashboard gate, observed status trigger, job execution, "
-                "agent invocation, and structured PR comment markers — never full agent prose."
+                "Live oracle asserts dashboard gate, trigger status contract, observed "
+                "status trigger, job execution, agent invocation, and structured PR "
+                "comment markers — never full agent prose."
             ),
             "Promote (#1878) should consume report.pass / summary.json.",
         ],
