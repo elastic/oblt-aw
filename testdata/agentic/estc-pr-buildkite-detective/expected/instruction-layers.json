@@ -1,0 +1,43 @@
+{
+  "org-key": "obs",
+  "workflow-id": "estc-pr-buildkite-detective",
+  "workflow-basename": "obs-aw-estc-pr-buildkite-detective.yml",
+  "layers": [
+    {
+      "layer": "control-plane-common",
+      "kind": "fragment",
+      "ids": []
+    },
+    {
+      "layer": "control-plane-workflow",
+      "kind": "fragment",
+      "ids": []
+    },
+    {
+      "layer": "control-plane-inner-workflow",
+      "kind": "fragment",
+      "ids": []
+    },
+    {
+      "layer": "platform-inline",
+      "kind": "inline",
+      "present": true
+    },
+    {
+      "layer": "consumer-fragments",
+      "kind": "fragment",
+      "ids": ["estc-fixture"],
+      "present": true
+    },
+    {
+      "layer": "consumer-inline",
+      "kind": "inline",
+      "present": true
+    },
+    {
+      "layer": "consumer-auto",
+      "kind": "auto",
+      "sources": []
+    }
+  ]
+}

@@ -63,7 +63,7 @@ Wrapper `workflow_call` contract:
 Lock inputs passed by the wrapper:
 
 - `additional-instructions` — resolved control-plane + consumer instructions
-- `setup-commands` — `join(fromJSON(resolved-setup-commands-json), '\n')` from resolve (empty when the consumer has none)
+- `setup-commands` — `join(fromJSON(resolved-setup-commands-json), fromJSON('"\n"'))` from resolve (empty when the consumer has none; `fromJSON` supplies a real newline because expression string literals do not interpret `\n`)
 
 Migration note for consumers: if you previously configured the consumer-facing secret name as `BUILDKITE_API_TOKEN`, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN` in repository/organization secrets.
 
@@ -79,7 +79,9 @@ uses: elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detect
 
 Copies in `elastic/ai-github-actions` remain for other consumers; this pilot does not deprecate or remove them.
 
-**E2E / production status-path validation:** design lives in [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md) ([#1877](https://github.com/elastic/oblt-aw/issues/1877)). Production E2E runs on **`elastic/oblt-aw`** via [`.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` + weekly schedule + `workflow_call` for [#1878](https://github.com/elastic/oblt-aw/issues/1878); **not** a default PR required gate). Live mode posts a real commit status and asserts agent side effects (structured PR comment markers). Fixture mode remains an optional integration check — see [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) ([#1911](https://github.com/elastic/oblt-aw/issues/1911)).
+**Integration (no live model):** fixtures and wiring checks for resolve → wrapper → lock inputs live under [`testdata/agentic/estc-pr-buildkite-detective/`](../../testdata/agentic/estc-pr-buildkite-detective/) and [`tests/integration/test_estc_pr_buildkite_detective.py`](../../tests/integration/test_estc_pr_buildkite_detective.py) ([#1910](https://github.com/elastic/oblt-aw/issues/1910)).
+
+**E2E / production status-path validation:** design lives in [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md) ([#1877](https://github.com/elastic/oblt-aw/issues/1877)). Production E2E runs on **`elastic/oblt-aw`** via [`.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` + weekly schedule + `workflow_call` for [#1878](https://github.com/elastic/oblt-aw/issues/1878); **not** a default PR required gate). Live mode posts a real commit status and asserts agent side effects (structured PR comment markers). See [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) ([#1911](https://github.com/elastic/oblt-aw/issues/1911)).
 
 ## References
 

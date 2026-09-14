@@ -1,8 +1,22 @@
-# ESTC PR Buildkite Detective — test cases
+# ESTC PR Buildkite Detective — fixtures and E2E cases
 
-Fixtures and live case definitions for `obs:estc-pr-buildkite-detective`.
+Assets for `obs:estc-pr-buildkite-detective` at the **integration** and **E2E** layers
+(see [agentic-workflow-testing-platform](../../../docs/architecture/agentic-workflow-testing-platform.md)).
 
-## Layout
+## Integration (`consumer/` / `expected/`)
+
+| Path | Role |
+|------|------|
+| `consumer/` | Synthetic consumer repo root (`apm.yml` + optional AI fragments) |
+| `expected/` | Deterministic expectations for resolve outputs (no live model) |
+
+Exercised by `tests/integration/test_estc_pr_buildkite_detective.py` via
+`pytest tests/` (no GitHub agent run, no token minting).
+
+**Deferred:** token-policy dry-run / mocked `create-token` for this slice
+(open question on [#1910](https://github.com/elastic/oblt-aw/issues/1910)).
+
+## E2E cases (`cases/`)
 
 ```text
 testdata/agentic/estc-pr-buildkite-detective/
@@ -13,8 +27,6 @@ testdata/agentic/estc-pr-buildkite-detective/
     buildkite-build.json      # fixture mode only
     job-log.txt               # fixture mode only
 ```
-
-## Cases
 
 | Case id | Mode | Purpose |
 |---------|------|---------|
@@ -28,5 +40,4 @@ testdata/agentic/estc-pr-buildkite-detective/
 
 - Fixture payloads are **synthetic** so CI unit tests stay deterministic and free of paid agent calls.
 - Live cases drive the real `trigger-obs-aw-status.yml` path on `elastic/oblt-aw`.
-- Resolve→wrapper integration suite remains [#1910](https://github.com/elastic/oblt-aw/issues/1910).
 - See [docs/testing/estc-pr-buildkite-detective-e2e.md](../../../docs/testing/estc-pr-buildkite-detective-e2e.md).

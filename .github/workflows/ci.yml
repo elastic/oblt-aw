@@ -1,11 +1,9 @@
 ---
 name: CI
 
-# Trigger on PRs targeting main (opened, updated, reopened).
+# Trigger on PRs targeting any branch (opened, updated, reopened).
 on:
   pull_request:
-    branches:
-      - main
     types: [opened, synchronize, reopened]
 
 permissions:
