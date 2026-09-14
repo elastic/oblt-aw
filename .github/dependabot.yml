@@ -8,6 +8,7 @@ multi-ecosystem-groups:
       time: "22:00"
     labels:
       - 'changelog:dependencies'
+    open-pull-requests-limit: 5
 
 updates:
   - package-ecosystem: "github-actions"
@@ -25,6 +26,5 @@ updates:
     patterns:
       - "*"
     directory: "/"
-    open-pull-requests-limit: 5
     cooldown:
       default-days: 7
