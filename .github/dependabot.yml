@@ -5,6 +5,9 @@ updates:
     directories:
       - "/"
       - "/.github/workflows/*"
+    # Compiled GH-AW workflows; update pins via `gh aw compile` / `gh aw update-actions`.
+    exclude-paths:
+      - "**/*.lock.yml"
     schedule:
       interval: "weekly"
       day: "sunday"
