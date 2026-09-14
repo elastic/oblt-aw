@@ -123,7 +123,6 @@ class TestHarnessFixtureCase:
             {"agent_invoked": False},
         )
 
-
     def test_job_names_indicate_agent_ignores_wrapper_job(self) -> None:
         assert not harness._job_names_indicate_agent(
             {
@@ -232,9 +231,7 @@ class TestHarnessFixtureCase:
     ) -> None:
         since = harness._utc_now().replace(microsecond=0)
 
-        monkeypatch.setattr(
-            harness, "list_status_trigger_runs", lambda *_a, **_k: []
-        )
+        monkeypatch.setattr(harness, "list_status_trigger_runs", lambda *_a, **_k: [])
         assert (
             harness.agent_job_invoked(
                 "elastic/oblt-aw",
@@ -270,9 +267,7 @@ class TestHarnessFixtureCase:
         monkeypatch.setattr(
             harness,
             "_view_run_jobs",
-            lambda *_a, **_k: {
-                "jobs": [{"name": "agent", "conclusion": "skipped"}]
-            },
+            lambda *_a, **_k: {"jobs": [{"name": "agent", "conclusion": "skipped"}]},
         )
         assert (
             harness.agent_job_invoked(

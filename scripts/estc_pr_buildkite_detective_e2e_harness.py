@@ -123,9 +123,7 @@ def require_case_mode(case: dict[str, Any], mode: str, *, case_id: str) -> None:
         )
 
 
-def infer_status_publisher(
-    payload: dict[str, Any] | None, *, fallback: str
-) -> str:
+def infer_status_publisher(payload: dict[str, Any] | None, *, fallback: str) -> str:
     """Classify status publisher from GitHub status ``creator.login`` when present."""
     if not isinstance(payload, dict):
         return fallback
@@ -1453,9 +1451,7 @@ def run_live_case(
             description=description,
             target_url=target_url if trigger.get("use_buildkite_target_url") else None,
         )
-        status_publisher = infer_status_publisher(
-            status_payload, fallback="harness"
-        )
+        status_publisher = infer_status_publisher(status_payload, fallback="harness")
 
     workflow_file = workflow_file_early
     expect_job = bool(expectations.get("status_job_executed"))

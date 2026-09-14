@@ -535,9 +535,7 @@ def _evaluate_live(
     }
 
 
-def load_case_expectations(
-    testdata_root: Path, case_id: str
-) -> dict[str, Any] | None:
+def load_case_expectations(testdata_root: Path, case_id: str) -> dict[str, Any] | None:
     """Load expectations from checked-in case.json when available."""
     case_path = testdata_root / "cases" / case_id / "case.json"
     if not case_path.is_file():
@@ -595,9 +593,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     quarantine = load_quarantine(args.quarantine_path)
-    report = evaluate_outcome(
-        outcome, quarantine, case_expectations=case_expectations
-    )
+    report = evaluate_outcome(outcome, quarantine, case_expectations=case_expectations)
 
     args.report_path.parent.mkdir(parents=True, exist_ok=True)
     args.report_path.write_text(
