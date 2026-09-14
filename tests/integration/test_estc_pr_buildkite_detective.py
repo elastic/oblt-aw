@@ -44,8 +44,7 @@ def _platform_additional_instructions(wrapper: dict) -> str:
     with_block = resolve_job.get("with") or {}
     text = with_block.get("platform-additional-instructions") or ""
     assert isinstance(text, str) and text.strip(), (
-        f"{WRAPPER_BASENAME}: resolve job must declare "
-        "platform-additional-instructions"
+        f"{WRAPPER_BASENAME}: resolve job must declare platform-additional-instructions"
     )
     return text
 
@@ -72,9 +71,9 @@ class TestEstcWrapperLockWiring:
     def test_resolve_job_targets_wrapper_basename(self) -> None:
         wrapper = _load_yaml(WRAPPER_PATH)
         resolve_job = wrapper["jobs"][RESOLVE_JOB]
-        assert resolve_job["uses"].endswith(
-            "aw-resolve-agentic-assets.yml"
-        ), f"unexpected resolve uses: {resolve_job['uses']!r}"
+        assert resolve_job["uses"].endswith("aw-resolve-agentic-assets.yml"), (
+            f"unexpected resolve uses: {resolve_job['uses']!r}"
+        )
         assert resolve_job["with"]["workflow-basename"] == WRAPPER_BASENAME
 
     def test_agent_job_passes_resolve_outputs_to_lock_inputs(self) -> None:
@@ -90,8 +89,7 @@ class TestEstcWrapperLockWiring:
         if isinstance(needs, str):
             needs = [needs]
         assert RESOLVE_JOB in needs, (
-            f"{AGENT_JOB} must need {RESOLVE_JOB} so "
-            "needs.*.outputs resolve at runtime"
+            f"{AGENT_JOB} must need {RESOLVE_JOB} so needs.*.outputs resolve at runtime"
         )
         assert (
             with_block.get("additional-instructions")

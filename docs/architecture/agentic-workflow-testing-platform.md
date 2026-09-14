@@ -1,7 +1,7 @@
 # Agentic workflow testing platform (design)
 
-**Status:** Design for [#1877](https://github.com/elastic/oblt-aw/issues/1877) (parent [#1879](https://github.com/elastic/oblt-aw/issues/1879)).  
-**Hosting decision:** Implement the platform **inside `elastic/oblt-aw`** for the first vertical slice and near-term layers. Revisit a dedicated repository only if E2E harness size, shared multi-org consumers, or cross-catalog ownership outgrow this repo.  
+**Status:** Design for [#1877](https://github.com/elastic/oblt-aw/issues/1877) (parent [#1879](https://github.com/elastic/oblt-aw/issues/1879)).
+**Hosting decision:** Implement the platform **inside `elastic/oblt-aw`** for the first vertical slice and near-term layers. Revisit a dedicated repository only if E2E harness size, shared multi-org consumers, or cross-catalog ownership outgrow this repo.
 **First vertical slice:** `obs:estc-pr-buildkite-detective` (status path → wrapper → in-repo lock).
 
 This document defines test layers (unit through E2E), how to stabilize stochastic agent runs, how release promotion consumes results (contract for [#1878](https://github.com/elastic/oblt-aw/issues/1878)), and an executable checklist for the first vertical slice. It does **not** ship the full platform in one change.
