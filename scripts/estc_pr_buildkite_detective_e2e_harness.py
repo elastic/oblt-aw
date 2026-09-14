@@ -37,14 +37,12 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 WORKFLOW_ID = "obs:estc-pr-buildkite-detective"
 DEFAULT_CONFIG = Path("config/obs/e2e-estc-pr-buildkite-detective.json")
 BK_URL_RE = re.compile(r"https://buildkite\.com/([^/]+)/([^/]+)/builds/(\d+)")
-ANSI_RE = re.compile(
-    r"\x1b(?:\[[0-9;]*[A-Za-z]|_[^\x07]*\x07|[()][AB012]|[=>])"
-)
+ANSI_RE = re.compile(r"\x1b(?:\[[0-9;]*[A-Za-z]|_[^\x07]*\x07|[()][AB012]|[=>])")
 FAIL_STATES = ("failed", "timed_out")
 LOG_TAIL = 150
 MARKER_PATH = "testdata/agentic/estc-pr-buildkite-detective/e2e-fixture-pr.md"
@@ -216,9 +214,9 @@ def resolve_buildkite_from_fixtures(
         slug = _slugify(str(job.get("name", f"job-{job.get('id', 'unknown')}")))
         log_key = f"{pipeline_slug}-{slug}"
         raw_log = job_logs.get(log_key) or job_logs.get(slug) or ""
-        cleaned_lines = [
-            ANSI_RE.sub("", line) for line in raw_log.splitlines()
-        ][-LOG_TAIL:]
+        cleaned_lines = [ANSI_RE.sub("", line) for line in raw_log.splitlines()][
+            -LOG_TAIL:
+        ]
         failure_summaries.append(
             {
                 "name": job.get("name"),
@@ -296,8 +294,10 @@ def run_fixture_case(case_dir: Path) -> dict[str, Any]:
         "buildkite": buildkite,
         "expectations": case.get("expectations", {}),
         "harness_notes": [
-            "Fixture mode is an integration check of status gates and recorded "
-            "Buildkite resolution; it does not call the live GH-AW agent or prelude.",
+            (
+                "Fixture mode is an integration check of status gates and recorded "
+                "Buildkite resolution; it does not call the live GH-AW agent or prelude."
+            ),
             "shared_proceed / dashboard gates are asserted only in live mode.",
         ],
     }
@@ -361,8 +361,8 @@ def find_open_e2e_pr(
                 f"Open PR(s) with label {label!r} exist, but none use branch "
                 f"{branch!r}. Refusing to target an unrelated fixture PR."
             )
-        return matched[0]
-    return prs[0]
+        return cast(dict[str, Any], matched[0])
+    return cast(dict[str, Any], prs[0])
 
 
 def _ensure_label(repo: str, label: str) -> None:
@@ -387,7 +387,9 @@ def _ensure_label(repo: str, label: str) -> None:
 def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
     """Find or create the long-lived E2E fixture PR via the GitHub API only."""
     e2e_pr = cfg["e2e_pr"]
-    existing = find_open_e2e_pr(repo, e2e_pr["label"], branch=str(e2e_pr.get("branch") or ""))
+    existing = find_open_e2e_pr(
+        repo, e2e_pr["label"], branch=str(e2e_pr.get("branch") or "")
+    )
     if existing:
         return existing
 
@@ -446,7 +448,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         "PUT",
         f"repos/{repo}/contents/{MARKER_PATH}",
         "-f",
-        f"message=chore(e2e): keep ESTC detective fixture PR marker",
+        "message=chore(e2e): keep ESTC detective fixture PR marker",
         "-f",
         f"content={encoded}",
         "-f",
@@ -480,7 +482,9 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         text=True,
         check=False,
     )
-    if create.returncode != 0 and "already exists" not in (create.stderr + create.stdout):
+    if create.returncode != 0 and "already exists" not in (
+        create.stderr + create.stdout
+    ):
         # PR may already exist without label.
         pass
 
@@ -522,7 +526,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         ],
         check=False,
     )
-    return prs[0]
+    return cast(dict[str, Any], prs[0])
 
 
 def resolve_no_open_pr_sha(repo: str) -> str:
@@ -562,14 +566,17 @@ def _list_issue_comments(repo: str, pr_number: int) -> list[dict[str, Any]]:
     comments: list[dict[str, Any]] = []
     page = 1
     while True:
-        batch = gh_json(
-            [
-                "api",
-                f"repos/{repo}/issues/{pr_number}/comments?per_page=100&page={page}",
-                "--jq",
-                ".",
-            ]
-        ) or []
+        batch = (
+            gh_json(
+                [
+                    "api",
+                    f"repos/{repo}/issues/{pr_number}/comments?per_page=100&page={page}",
+                    "--jq",
+                    ".",
+                ]
+            )
+            or []
+        )
         if not batch:
             break
         comments.extend(batch)
@@ -644,7 +651,7 @@ def post_commit_status(
     ]
     if target_url:
         args.extend(["-f", f"target_url={target_url}"])
-    return gh_json(args)
+    return cast(dict[str, Any], gh_json(args))
 
 
 def list_status_trigger_runs(
@@ -708,9 +715,9 @@ def wait_for_new_run(
                     ]
                 )
                 if detail.get("status") == "completed":
-                    return detail
+                    return cast(dict[str, Any], detail)
                 time.sleep(interval_seconds)
-            return detail
+            return cast(dict[str, Any], detail)
         time.sleep(interval_seconds)
     return None
 
@@ -779,16 +786,12 @@ def _buildkite_cfg(cfg: dict[str, Any]) -> dict[str, Any]:
 
 def resolve_buildkite_org_pipeline(cfg: dict[str, Any]) -> tuple[str, str]:
     bk = _buildkite_cfg(cfg)
-    org = (
-        os.environ.get(str(bk.get("org_env") or "E2E_BUILDKITE_ORG"), "").strip()
-        or str(bk.get("org_default") or "elastic")
-    )
-    pipeline = (
-        os.environ.get(
-            str(bk.get("pipeline_env") or "E2E_BUILDKITE_PIPELINE"), ""
-        ).strip()
-        or str(bk.get("pipeline_default") or "oblt-aw-e2e-estc-fail")
-    )
+    org = os.environ.get(
+        str(bk.get("org_env") or "E2E_BUILDKITE_ORG"), ""
+    ).strip() or str(bk.get("org_default") or "elastic")
+    pipeline = os.environ.get(
+        str(bk.get("pipeline_env") or "E2E_BUILDKITE_PIPELINE"), ""
+    ).strip() or str(bk.get("pipeline_default") or "oblt-aw-e2e-estc-fail")
     return org, pipeline
 
 
@@ -830,7 +833,9 @@ def bk_api_json(
             f"Buildkite API {method} {path} failed ({exc.code}): {detail}"
         ) from exc
     except urllib.error.URLError as exc:
-        raise RuntimeError(f"Buildkite API {method} {path} network error: {exc}") from exc
+        raise RuntimeError(
+            f"Buildkite API {method} {path} network error: {exc}"
+        ) from exc
 
 
 def create_buildkite_build(
@@ -865,7 +870,9 @@ def create_buildkite_build(
         payload,
     )
     if not isinstance(created, dict) or not created.get("web_url"):
-        raise RuntimeError(f"Buildkite create build returned unexpected payload: {created}")
+        raise RuntimeError(
+            f"Buildkite create build returned unexpected payload: {created}"
+        )
     return created
 
 
@@ -895,7 +902,6 @@ def wait_for_buildkite_build(
         f"Timed out waiting for Buildkite build {org}/{pipeline}#{number} "
         f"(last state={(last or {}).get('state')})"
     )
-
 
 
 def verify_buildkite_fail_log_marker(
@@ -958,7 +964,9 @@ def ensure_failed_buildkite_target_url(
 
     Optional override: env named by ``buildkite_target_url_env`` skips create.
     """
-    override_env = str(cfg.get("buildkite_target_url_env") or "E2E_ESTC_BUILDKITE_TARGET_URL")
+    override_env = str(
+        cfg.get("buildkite_target_url_env") or "E2E_ESTC_BUILDKITE_TARGET_URL"
+    )
     override = os.environ.get(override_env, "").strip()
     if override:
         return override, {
@@ -1036,7 +1044,9 @@ def ensure_failed_buildkite_target_url(
     }
 
 
-def needs_real_failed_buildkite(trigger: dict[str, Any], expectations: dict[str, Any]) -> bool:
+def needs_real_failed_buildkite(
+    trigger: dict[str, Any], expectations: dict[str, Any]
+) -> bool:
     if trigger.get("create_failed_buildkite_build"):
         return True
     if not trigger.get("use_buildkite_target_url"):
@@ -1143,16 +1153,19 @@ def run_live_case(
     if require_open_pr:
         pr_info = ensure_e2e_pr(repo, cfg)
         # Refresh OID after possible marker commit.
-        refreshed = find_open_e2e_pr(
-            repo,
-            cfg["e2e_pr"]["label"],
-            branch=str(cfg["e2e_pr"].get("branch") or ""),
-        ) or pr_info
+        refreshed = (
+            find_open_e2e_pr(
+                repo,
+                cfg["e2e_pr"]["label"],
+                branch=str(cfg["e2e_pr"].get("branch") or ""),
+            )
+            or pr_info
+        )
         pr_info = refreshed
         sha = pr_info["headRefOid"]
         pr_number = int(pr_info["number"])
         e2e_branch = str(
-            (pr_info.get("headRefName") or cfg.get("e2e_pr", {}).get("branch") or "")
+            pr_info.get("headRefName") or cfg.get("e2e_pr", {}).get("branch") or ""
         )
     else:
         sha = resolve_no_open_pr_sha(repo)
@@ -1251,9 +1264,7 @@ def run_live_case(
     if require_open_pr and expectations.get("expect_agent_comment"):
         comment_deadline = time.time() + min(900, timeout)
         while time.time() < comment_deadline and comment is None:
-            comment = find_agent_comment(
-                repo, pr_number, since=since, markers=markers
-            )
+            comment = find_agent_comment(repo, pr_number, since=since, markers=markers)
             if comment:
                 break
             # Nested agent jobs may finish after the parent lists them.
@@ -1320,11 +1331,15 @@ def run_live_case(
         "expectations": expectations,
         "run_url": run_url,
         "harness_notes": [
-            "Happy path: harness creates an intentional Buildkite failure; Buildkite "
-            "publishes the GitHub commit status; trigger-obs-aw-status → agent.",
-            "Gate cases (success / non-Buildkite / no-open-PR) still use harness-posted "
-            "synthetic statuses. Optional E2E_ESTC_BUILDKITE_TARGET_URL override also "
-            "posts status from the harness.",
+            (
+                "Happy path: harness creates an intentional Buildkite failure; Buildkite "
+                "publishes the GitHub commit status; trigger-obs-aw-status → agent."
+            ),
+            (
+                "Gate cases (success / non-Buildkite / no-open-PR) still use harness-posted "
+                "synthetic statuses. Optional E2E_ESTC_BUILDKITE_TARGET_URL override also "
+                "posts status from the harness."
+            ),
         ],
     }
 

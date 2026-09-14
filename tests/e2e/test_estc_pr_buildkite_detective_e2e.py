@@ -13,8 +13,8 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import estc_pr_buildkite_detective_e2e_harness as harness  # noqa: E402
-import oracle_estc_pr_buildkite_detective_e2e as oracle  # noqa: E402
+import estc_pr_buildkite_detective_e2e_harness as harness
+import oracle_estc_pr_buildkite_detective_e2e as oracle
 
 CASE_DIR = (
     ROOT
@@ -98,7 +98,9 @@ class TestHarnessFixtureCase:
             "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/99",
         )
         url, meta = harness.ensure_failed_buildkite_target_url(
-            harness.load_e2e_config(ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"),
+            harness.load_e2e_config(
+                ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+            ),
             commit="abc",
             branch="e2e/estc-pr-buildkite-detective",
             pr_number=1,
@@ -120,6 +122,7 @@ class TestHarnessFixtureCase:
             {"use_buildkite_target_url": True, "status_state": "success"},
             {"agent_invoked": False},
         )
+
 
 class TestOracle:
     def test_fixture_outcome_passes(self) -> None:

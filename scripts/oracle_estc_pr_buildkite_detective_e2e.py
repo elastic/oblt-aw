@@ -165,7 +165,9 @@ def evaluate_outcome(
     )
 
     if mode == "live":
-        return _evaluate_live(outcome, expectations, checks, workflow_id, case_id, layer)
+        return _evaluate_live(
+            outcome, expectations, checks, workflow_id, case_id, layer
+        )
 
     # Fixture / integration mode.
     _check(
@@ -241,7 +243,8 @@ def evaluate_outcome(
     )
 
     if "log_has_content" in bk_exp or any(
-        job.get("log_has_content") is False for job in (buildkite.get("failed_jobs") or [])
+        job.get("log_has_content") is False
+        for job in (buildkite.get("failed_jobs") or [])
     ):
         jobs = buildkite.get("failed_jobs") or []
         logs_ok = bool(jobs) and all(bool(job.get("log_has_content")) for job in jobs)
@@ -372,7 +375,10 @@ def _evaluate_live(
 
     expect_comment = expectations.get("expect_agent_comment")
     if expect_comment is True:
-        markers = expectations.get("agent_comment_markers") or ["### TL;DR", "## Remediation"]
+        markers = expectations.get("agent_comment_markers") or [
+            "### TL;DR",
+            "## Remediation",
+        ]
         present = isinstance(comment, dict) and bool(comment.get("id"))
         _check(
             checks,
@@ -380,7 +386,7 @@ def _evaluate_live(
             present,
             f"comment={comment}",
         )
-        markers_present = {}
+        markers_present: dict[str, bool] = {}
         if isinstance(comment, dict):
             markers_present = comment.get("markers_present") or {}
             if not markers_present and comment.get("body"):
@@ -404,7 +410,11 @@ def _evaluate_live(
     overall = all(item["pass"] for item in checks)
     agent_flag = False
     try:
-        agent_flag = _as_bool(outcome.get("agent_invoked")) if "agent_invoked" in outcome else False
+        agent_flag = (
+            _as_bool(outcome.get("agent_invoked"))
+            if "agent_invoked" in outcome
+            else False
+        )
     except TypeError:
         agent_flag = False
     return {
@@ -421,8 +431,10 @@ def _evaluate_live(
         "checks": checks,
         "agent_invoked": agent_flag,
         "notes": [
-            "Live oracle asserts dashboard gate, observed status trigger, job execution, "
-            "agent invocation, and structured PR comment markers — never full agent prose.",
+            (
+                "Live oracle asserts dashboard gate, observed status trigger, job execution, "
+                "agent invocation, and structured PR comment markers — never full agent prose."
+            ),
             "Promote (#1878) should consume report.pass / summary.json.",
         ],
     }
