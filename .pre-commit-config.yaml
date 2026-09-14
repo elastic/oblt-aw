@@ -57,6 +57,8 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        # Backstage catalog-info.yaml is a multi-document stream.
+        args: [--allow-multiple-documents]
       - id: check-json
       - id: check-merge-conflict
       - id: mixed-line-ending
