@@ -13,8 +13,8 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import estc_pr_buildkite_detective_e2e_harness as harness  # noqa: E402
-import oracle_estc_pr_buildkite_detective_e2e as oracle  # noqa: E402
+import estc_pr_buildkite_detective_e2e_harness as harness
+import oracle_estc_pr_buildkite_detective_e2e as oracle
 
 CASE_DIR = (
     ROOT
@@ -831,9 +831,7 @@ class TestOracle:
         failed = {c["id"] for c in report["checks"] if not c["pass"]}
         assert "buildkite_source_valid" in failed
 
-    def test_oracle_main_rejects_case_id_mismatch(
-        self, tmp_path: pathlib.Path
-    ) -> None:
+    def test_oracle_main_rejects_case_id_mismatch(self, tmp_path: pathlib.Path) -> None:
         outcome_path = tmp_path / "outcome.json"
         report_path = tmp_path / "report.json"
         outcome_path.write_text(

@@ -454,8 +454,8 @@ def find_open_e2e_pr(
                     "fixture PR."
                 )
             return None
-        return cast(dict[str, Any], matched[0])
-    return cast(dict[str, Any], same_repo[0])
+        return matched[0]
+    return same_repo[0]
 
 
 def _ensure_label(repo: str, label: str) -> None:
@@ -514,7 +514,7 @@ def _require_pr_label(repo: str, pr_number: int, label: str) -> dict[str, Any]:
         ]
     )
     if not isinstance(pr, dict):
-        raise RuntimeError(f"Failed to view PR #{pr_number} on {repo}")
+        raise TypeError(f"Failed to view PR #{pr_number} on {repo}: expected object")
     if not _pr_has_label(pr, label):
         raise RuntimeError(
             f"PR #{pr_number} on {repo} is missing required label {label!r}. "
@@ -532,9 +532,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
     """Find or create the long-lived E2E fixture PR via the GitHub API only."""
     e2e_pr = cfg["e2e_pr"]
     label = str(e2e_pr["label"])
-    existing = find_open_e2e_pr(
-        repo, label, branch=str(e2e_pr.get("branch") or "")
-    )
+    existing = find_open_e2e_pr(repo, label, branch=str(e2e_pr.get("branch") or ""))
     if existing:
         return _require_pr_label(repo, int(existing["number"]), label)
 
@@ -633,9 +631,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         # PR may already exist without label; recovery path below adds it.
         pass
 
-    created = find_open_e2e_pr(
-        repo, label, branch=branch, strict_branch=False
-    )
+    created = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
     if created:
         return _require_pr_label(repo, int(created["number"]), label)
 
