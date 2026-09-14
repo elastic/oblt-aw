@@ -8,21 +8,23 @@ multi-ecosystem-groups:
       time: "22:00"
     labels:
       - 'changelog:dependencies'
-    cooldown:
-      default-days: 7
 
 updates:
   - package-ecosystem: "github-actions"
     multi-ecosystem-group: "all"
+    patterns:
+      - "*"
     directories:
       - "/"
       - "/.github/workflows/*"
-    groups:
-      github-actions:
-        patterns:
-          - "*"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: pre-commit
     multi-ecosystem-group: "all"
+    patterns:
+      - "*"
     directory: "/"
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
