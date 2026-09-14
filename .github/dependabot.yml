@@ -1,21 +1,28 @@
 version: 2
 
-updates:
-  - package-ecosystem: "github-actions"
-    directories:
-      - "/"
-      - "/.github/workflows/*"
+multi-ecosystem-groups:
+  all:
     schedule:
       interval: "weekly"
       day: "sunday"
       time: "22:00"
-
-  - package-ecosystem: pre-commit
-    directory: "/"
-    schedule:
-      interval: 'weekly'
-      day: 'sunday'
-      time: '22:00'
-    open-pull-requests-limit: 5
     labels:
       - 'changelog:dependencies'
+    cooldown:
+      default-days: 7
+
+updates:
+  - package-ecosystem: "github-actions"
+    multi-ecosystem-group: "all"
+    directories:
+      - "/"
+      - "/.github/workflows/*"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: pre-commit
+    multi-ecosystem-group: "all"
+    directory: "/"
+    open-pull-requests-limit: 5
