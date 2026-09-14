@@ -51,8 +51,7 @@ Permissions:
 `workflow_call` contract:
 
 - Required inputs: `shared-proceed`, `shared-allowed-pr-authors-json`, `shared-allowed-pr-authors-csv`, `shared-allowed-issue-authors-json`, `shared-allowed-issue-authors-csv`, and `shared-token-policy`.
-- Required secret: `GITHUB_TOKEN` (declared under `workflow_call.secrets`).
-- The `res-not-accessible-integration-fixer` job forwards only `GITHUB_TOKEN` to the nested reusable workflow with an explicit `secrets:` mapping.
+- No `workflow_call.secrets`: `GITHUB_TOKEN` is system-reserved and cannot be declared. Callers must not use `secrets: inherit` or map `GITHUB_TOKEN`. Local jobs and the nested lock use the automatic `secrets.GITHUB_TOKEN` / `github.token`.
 
 ## References
 
