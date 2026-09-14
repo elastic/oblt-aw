@@ -33,16 +33,16 @@ Live mode is the E2E proof. On the happy path the intentional Buildkite pipeline
 
 ### GitHub Actions (preferred)
 
-Workflow: [`.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/aw-e2e-estc-pr-buildkite-detective.yml)
+Workflow: [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/e2e-estc-pr-buildkite-detective.yml)
 
 ```bash
 # Full live matrix
-gh workflow run aw-e2e-estc-pr-buildkite-detective.yml \
+gh workflow run e2e-estc-pr-buildkite-detective.yml \
   -f mode=live \
   -f case-id=all
 
 # Single live case
-gh workflow run aw-e2e-estc-pr-buildkite-detective.yml \
+gh workflow run e2e-estc-pr-buildkite-detective.yml \
   -f mode=live \
   -f case-id=status-failure-open-pr-live
 ```

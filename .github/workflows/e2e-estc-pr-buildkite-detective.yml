@@ -57,7 +57,7 @@ permissions:
 
 concurrency:
   # Stable group: one live matrix at a time against the shared fixture PR.
-  group: aw-e2e-estc-pr-buildkite-detective
+  group: e2e-estc-pr-buildkite-detective
   cancel-in-progress: false
 
 jobs:
@@ -160,7 +160,8 @@ jobs:
             --report-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/oracle-report.json" \
             --summary-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/summary.json" \
             --quarantine-path config/obs/e2e-quarantine.json \
-            --testdata-root testdata/agentic/estc-pr-buildkite-detective
+            --testdata-root testdata/agentic/estc-pr-buildkite-detective \
+            --expected-case-id "${CASE_ID}"
 
       - name: Upload E2E artifacts
         if: always()

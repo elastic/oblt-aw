@@ -457,15 +457,40 @@ def _evaluate_live(
         except TypeError as exc:
             _check(checks, "agent_invoked", False, str(exc))
 
-    # Created intentional-failure builds must prove the log marker.
-    if isinstance(buildkite, dict) and buildkite.get("source") == "created":
-        verified = buildkite.get("fail_log_marker_verified")
-        _check(
-            checks,
-            "fail_log_marker_verified",
-            verified is True,
-            str(buildkite.get("fail_log_marker_detail") or verified),
-        )
+    # Intentional Buildkite failure path: require a known source and fail closed.
+    if trigger.get("create_failed_buildkite_build") and not outcome.get("blocked"):
+        source = buildkite.get("source") if isinstance(buildkite, dict) else None
+        if source == "created":
+            verified = (
+                buildkite.get("fail_log_marker_verified")
+                if isinstance(buildkite, dict)
+                else None
+            )
+            detail = (
+                buildkite.get("fail_log_marker_detail")
+                if isinstance(buildkite, dict)
+                else None
+            )
+            _check(
+                checks,
+                "fail_log_marker_verified",
+                verified is True,
+                str(detail or verified),
+            )
+        elif source == "override_env":
+            _check(
+                checks,
+                "buildkite_source_override",
+                True,
+                "source=override_env",
+            )
+        else:
+            _check(
+                checks,
+                "buildkite_source_valid",
+                False,
+                f"expected source in {{'created','override_env'}}, got {source!r}",
+            )
 
     expect_comment = expectations.get("expect_agent_comment")
     if expect_comment is True:
@@ -581,13 +606,34 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Optional compact summary JSON for promote (#1878) consumers",
     )
+    parser.add_argument(
+        "--expected-case-id",
+        default=None,
+        help=(
+            "Independent case id from the workflow matrix; must match "
+            "outcome.case_id before expectations are loaded"
+        ),
+    )
     args = parser.parse_args(argv)
 
     outcome = _load_json(args.outcome_path)
     if not isinstance(outcome, dict):
         raise SystemExit(f"Outcome must be a JSON object: {args.outcome_path}")
 
-    case_id = str(outcome.get("case_id") or "")
+    outcome_case_id = str(outcome.get("case_id") or "")
+    if args.expected_case_id is not None:
+        expected_case_id = str(args.expected_case_id).strip()
+        if not expected_case_id:
+            raise SystemExit("--expected-case-id must be a non-empty string")
+        if outcome_case_id != expected_case_id:
+            raise SystemExit(
+                f"Outcome case_id {outcome_case_id!r} does not match "
+                f"--expected-case-id {expected_case_id!r}"
+            )
+        case_id = expected_case_id
+    else:
+        case_id = outcome_case_id
+
     case_expectations = (
         load_case_expectations(args.testdata_root, case_id) if case_id else None
     )

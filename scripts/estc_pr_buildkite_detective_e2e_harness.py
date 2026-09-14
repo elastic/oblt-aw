@@ -385,6 +385,32 @@ def dashboard_enables_workflow(repo: str, workflow_id: str) -> bool:
     return workflow_id in enabled
 
 
+def _pr_head_repo(pr: dict[str, Any]) -> str:
+    """Return owner/name for the PR head repository, if present."""
+    head_repo = pr.get("headRepository")
+    if isinstance(head_repo, dict):
+        name_with_owner = head_repo.get("nameWithOwner")
+        if isinstance(name_with_owner, str) and name_with_owner:
+            return name_with_owner
+    return ""
+
+
+def _same_repo_prs(prs: list[Any], repo: str) -> list[dict[str, Any]]:
+    """Keep only PRs whose head lives in ``repo`` (exclude forks)."""
+    same: list[dict[str, Any]] = []
+    for pr in prs:
+        if not isinstance(pr, dict):
+            continue
+        head = _pr_head_repo(pr)
+        if head and head != repo:
+            continue
+        if not head:
+            # Defensive: require explicit head repo metadata.
+            continue
+        same.append(pr)
+    return same
+
+
 def find_open_e2e_pr(
     repo: str,
     label: str,
@@ -403,28 +429,38 @@ def find_open_e2e_pr(
             "--label",
             label,
             "--json",
-            "number,url,headRefName,headRefOid,title",
+            "number,url,headRefName,headRefOid,title,headRepository,labels",
             "--limit",
             "20",
         ]
     )
     if not prs:
         return None
+    same_repo = _same_repo_prs(prs if isinstance(prs, list) else [], repo)
+    if not same_repo:
+        if branch and strict_branch and prs:
+            raise RuntimeError(
+                f"Open PR(s) with label {label!r} exist, but none are same-repo "
+                f"heads in {repo!r}. Refusing to target a fork fixture PR."
+            )
+        return None
     if branch:
-        matched = [pr for pr in prs if pr.get("headRefName") == branch]
+        matched = [pr for pr in same_repo if pr.get("headRefName") == branch]
         if not matched:
             if strict_branch:
                 raise RuntimeError(
                     f"Open PR(s) with label {label!r} exist, but none use branch "
-                    f"{branch!r}. Refusing to target an unrelated fixture PR."
+                    f"{branch!r} on {repo!r}. Refusing to target an unrelated "
+                    "fixture PR."
                 )
             return None
         return cast(dict[str, Any], matched[0])
-    return cast(dict[str, Any], prs[0])
+    return cast(dict[str, Any], same_repo[0])
 
 
 def _ensure_label(repo: str, label: str) -> None:
-    subprocess.run(
+    """Create the label if missing; fail closed on unexpected errors."""
+    proc = subprocess.run(
         [
             "gh",
             "label",
@@ -438,20 +474,71 @@ def _ensure_label(repo: str, label: str) -> None:
             "0E8A16",
         ],
         capture_output=True,
+        text=True,
         check=False,
     )
+    if proc.returncode == 0:
+        return
+    combined = f"{proc.stderr or ''}{proc.stdout or ''}".lower()
+    if "already exists" in combined:
+        return
+    raise RuntimeError(
+        f"Failed to ensure label {label!r} on {repo}: "
+        f"{(proc.stderr or proc.stdout or '').strip() or f'exit {proc.returncode}'}"
+    )
+
+
+def _pr_has_label(pr: dict[str, Any], label: str) -> bool:
+    labels = pr.get("labels") or []
+    if not isinstance(labels, list):
+        return False
+    for item in labels:
+        if isinstance(item, dict) and item.get("name") == label:
+            return True
+        if isinstance(item, str) and item == label:
+            return True
+    return False
+
+
+def _require_pr_label(repo: str, pr_number: int, label: str) -> dict[str, Any]:
+    """Re-fetch the PR and fail if the required label is missing."""
+    pr = gh_json(
+        [
+            "pr",
+            "view",
+            str(pr_number),
+            "--repo",
+            repo,
+            "--json",
+            "number,url,headRefName,headRefOid,title,headRepository,labels",
+        ]
+    )
+    if not isinstance(pr, dict):
+        raise RuntimeError(f"Failed to view PR #{pr_number} on {repo}")
+    if not _pr_has_label(pr, label):
+        raise RuntimeError(
+            f"PR #{pr_number} on {repo} is missing required label {label!r}. "
+            "Refusing to use an unlabeled E2E fixture PR."
+        )
+    head = _pr_head_repo(pr)
+    if head != repo:
+        raise RuntimeError(
+            f"PR #{pr_number} head repository is {head!r}, expected {repo!r}."
+        )
+    return pr
 
 
 def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
     """Find or create the long-lived E2E fixture PR via the GitHub API only."""
     e2e_pr = cfg["e2e_pr"]
+    label = str(e2e_pr["label"])
     existing = find_open_e2e_pr(
-        repo, e2e_pr["label"], branch=str(e2e_pr.get("branch") or "")
+        repo, label, branch=str(e2e_pr.get("branch") or "")
     )
     if existing:
-        return existing
+        return _require_pr_label(repo, int(existing["number"]), label)
 
-    _ensure_label(repo, e2e_pr["label"])
+    _ensure_label(repo, label)
     default_branch = gh_text(
         [
             "repo",
@@ -534,7 +621,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
             "--body",
             e2e_pr["body"],
             "--label",
-            e2e_pr["label"],
+            label,
         ],
         capture_output=True,
         text=True,
@@ -543,14 +630,14 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
     if create.returncode != 0 and "already exists" not in (
         create.stderr + create.stdout
     ):
-        # PR may already exist without label.
+        # PR may already exist without label; recovery path below adds it.
         pass
 
     created = find_open_e2e_pr(
-        repo, e2e_pr["label"], branch=branch, strict_branch=False
+        repo, label, branch=branch, strict_branch=False
     )
     if created:
-        return created
+        return _require_pr_label(repo, int(created["number"]), label)
 
     prs = gh_json(
         [
@@ -561,32 +648,42 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
             "--state",
             "open",
             "--head",
-            branch,
+            f"{repo.split('/')[0]}:{branch}",
             "--json",
-            "number,url,headRefName,headRefOid,title",
+            "number,url,headRefName,headRefOid,title,headRepository,labels",
             "--limit",
-            "1",
+            "5",
         ]
     )
-    if not prs:
+    same_repo = _same_repo_prs(prs if isinstance(prs, list) else [], repo)
+    matched = [pr for pr in same_repo if pr.get("headRefName") == branch]
+    if not matched:
         raise RuntimeError(
             f"Failed to ensure E2E PR on {repo} branch {branch}. "
-            f"Create an open PR labeled {e2e_pr['label']!r}."
+            f"Create an open same-repo PR labeled {label!r}."
         )
-    subprocess.run(
+    pr_number = int(matched[0]["number"])
+    edit = subprocess.run(
         [
             "gh",
             "pr",
             "edit",
-            str(prs[0]["number"]),
+            str(pr_number),
             "--repo",
             repo,
             "--add-label",
-            e2e_pr["label"],
+            label,
         ],
+        capture_output=True,
+        text=True,
         check=False,
     )
-    return cast(dict[str, Any], prs[0])
+    if edit.returncode != 0:
+        raise RuntimeError(
+            f"Failed to add label {label!r} to PR #{pr_number} on {repo}: "
+            f"{(edit.stderr or edit.stdout or '').strip() or f'exit {edit.returncode}'}"
+        )
+    return _require_pr_label(repo, pr_number, label)
 
 
 def resolve_no_open_pr_sha(repo: str) -> str:

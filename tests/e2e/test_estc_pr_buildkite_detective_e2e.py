@@ -13,8 +13,8 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import estc_pr_buildkite_detective_e2e_harness as harness
-import oracle_estc_pr_buildkite_detective_e2e as oracle
+import estc_pr_buildkite_detective_e2e_harness as harness  # noqa: E402
+import oracle_estc_pr_buildkite_detective_e2e as oracle  # noqa: E402
 
 CASE_DIR = (
     ROOT
@@ -433,6 +433,7 @@ class TestHarnessFixtureCase:
                     "headRefName": "other-branch",
                     "headRefOid": "abc",
                     "title": "other",
+                    "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
                 }
             ],
         )
@@ -451,6 +452,53 @@ class TestHarnessFixtureCase:
             )
             is None
         )
+
+    def test_find_open_e2e_pr_rejects_fork_head(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "gh_json",
+            lambda *_a, **_k: [
+                {
+                    "number": 9,
+                    "url": "https://example.test/pr/9",
+                    "headRefName": "e2e/estc-pr-buildkite-detective",
+                    "headRefOid": "abc",
+                    "title": "fork",
+                    "headRepository": {"nameWithOwner": "someone/oblt-aw"},
+                }
+            ],
+        )
+        with pytest.raises(RuntimeError, match="same-repo"):
+            harness.find_open_e2e_pr(
+                "elastic/oblt-aw",
+                "e2e:estc-pr-buildkite-detective",
+                branch="e2e/estc-pr-buildkite-detective",
+            )
+        assert (
+            harness.find_open_e2e_pr(
+                "elastic/oblt-aw",
+                "e2e:estc-pr-buildkite-detective",
+                branch="e2e/estc-pr-buildkite-detective",
+                strict_branch=False,
+            )
+            is None
+        )
+
+    def test_ensure_label_fails_closed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        class _Proc:
+            returncode = 1
+            stdout = ""
+            stderr = "HTTP 403: Resource not accessible"
+
+        monkeypatch.setattr(
+            harness.subprocess,
+            "run",
+            lambda *_a, **_k: _Proc(),
+        )
+        with pytest.raises(RuntimeError, match="Failed to ensure label"):
+            harness._ensure_label("elastic/oblt-aw", "e2e:estc-pr-buildkite-detective")
 
 
 class TestOracle:
@@ -739,6 +787,79 @@ class TestOracle:
         assert report["pass"] is False
         failed = {c["id"] for c in report["checks"] if not c["pass"]}
         assert "status_publisher_buildkite_path" in failed
+
+    def test_live_oracle_fails_closed_on_missing_buildkite_source(self) -> None:
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-failure-open-pr-live",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": True,
+            "path_gates": {"dashboard_enabled": True},
+            "trigger": {
+                "status_state": "failure",
+                "context_contains_buildkite": True,
+                "use_buildkite_target_url": True,
+                "create_failed_buildkite_build": True,
+            },
+            "status": {
+                "state": "failure",
+                "context": "buildkite/elastic/x",
+                "target_url": "https://buildkite.com/elastic/x/builds/1",
+                "publisher": "buildkite",
+            },
+            "buildkite": {},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": True,
+                "job_conclusion": "success",
+            },
+            "agent_comment": {
+                "id": 1,
+                "markers_present": {"### TL;DR": True, "## Remediation": True},
+            },
+            "expectations": {
+                "dashboard_enabled": True,
+                "status_job_executed": True,
+                "agent_invoked": True,
+                "expect_agent_comment": True,
+                "agent_comment_markers": ["### TL;DR", "## Remediation"],
+            },
+        }
+        report = oracle.evaluate_outcome(outcome, {"cases": []})
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "buildkite_source_valid" in failed
+
+    def test_oracle_main_rejects_case_id_mismatch(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        outcome_path = tmp_path / "outcome.json"
+        report_path = tmp_path / "report.json"
+        outcome_path.write_text(
+            json.dumps(
+                {
+                    "workflow_id": "obs:estc-pr-buildkite-detective",
+                    "case_id": "status-success-skipped",
+                    "layer": "e2e",
+                    "mode": "live",
+                    "agent_invoked": False,
+                    "expectations": {"expect_agent_comment": False},
+                }
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(SystemExit, match="does not match"):
+            oracle.main(
+                [
+                    "--outcome-path",
+                    str(outcome_path),
+                    "--report-path",
+                    str(report_path),
+                    "--expected-case-id",
+                    "status-failure-open-pr-live",
+                ]
+            )
 
     def test_live_oracle_requires_skipped_conclusion_for_negative_cases(self) -> None:
         outcome = {
