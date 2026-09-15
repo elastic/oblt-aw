@@ -80,7 +80,6 @@ jobs:
       lookback-window: 1 day ago
       title-prefix: "[oblt-aw][autodoc]"
       additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
-    secrets: inherit
 
   resolve-apm-assets-fix:
     needs: audit
@@ -145,7 +144,6 @@ jobs:
       target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
       draft-prs: true
       additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
-    secrets: inherit
 
   # Step 3: Finalize autodoc PR — assign reviewer and apply labels
   finalize-pr:
