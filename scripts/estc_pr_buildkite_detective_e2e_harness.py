@@ -105,16 +105,39 @@ def summarize_commit_statuses(
     return "\n".join(lines)
 
 
+def require_routable_buildkite_status_context(context: str) -> str:
+    """Reject status contexts that cannot match trigger-obs-aw-status routing.
+
+    Client/control-plane status triggers only run when the context contains the
+    lowercase substring ``buildkite``.
+    """
+    ctx = str(context or "").strip()
+    if not ctx:
+        raise RuntimeError(
+            "expected Buildkite status context is empty; set "
+            "expected_status_context or E2E_BUILDKITE_ORG/E2E_BUILDKITE_PIPELINE."
+        )
+    if "buildkite" not in ctx.lower():
+        raise RuntimeError(
+            f"status context {ctx!r} does not contain 'buildkite'; "
+            "trigger-obs-aw-status.yml / obs-aw-event-status.yml will not route it. "
+            "Use a buildkite/… context (or include the substring buildkite)."
+        )
+    return ctx
+
+
 def expected_buildkite_status_context(cfg: dict[str, Any]) -> str:
     """GitHub status context Buildkite should publish for the fail pipeline."""
     override = str(cfg.get("expected_status_context") or "").strip()
     if override:
-        return override
+        return require_routable_buildkite_status_context(override)
     org, pipeline = resolve_buildkite_org_pipeline(cfg)
     template = str(
         cfg.get("status_context_template") or DEFAULT_STATUS_CONTEXT_ORG_PIPELINE
     )
-    return template.format(org=org, pipeline=pipeline)
+    return require_routable_buildkite_status_context(
+        template.format(org=org, pipeline=pipeline)
+    )
 
 
 def gh_json(args: list[str], *, check: bool = True) -> Any:
@@ -274,7 +297,8 @@ def fail_pipeline_github_commit_status_contexts(
     """Return pipeline-level github_commit_status contexts from fail-pipeline YAML.
 
     Parses YAML so comment-only mentions of ``github_commit_status`` cannot pass.
-    Step-level notify with the same context is rejected (duplicate status events).
+    Requires exactly one pipeline-level context and rejects any step-level
+    ``github_commit_status`` (duplicate status→detective triggers).
     """
     try:
         data = yaml.safe_load(content)
@@ -288,19 +312,23 @@ def fail_pipeline_github_commit_status_contexts(
             f"{pipeline_path} is missing pipeline-level github_commit_status notify; "
             "refusing to sync a pipeline that cannot publish GitHub statuses."
         )
+    if len(contexts) != 1:
+        raise RuntimeError(
+            f"{pipeline_path} must declare exactly one pipeline-level "
+            f"github_commit_status context, found {len(contexts)}: {contexts}. "
+            "Extra contexts can double-fire trigger-obs-aw-status.yml."
+        )
     steps = data.get("steps") or []
     if isinstance(steps, list):
         for idx, step in enumerate(steps):
             if not isinstance(step, dict):
                 continue
             step_contexts = _notify_github_commit_status_contexts(step.get("notify"))
-            overlap = sorted(set(contexts) & set(step_contexts))
-            if overlap:
+            if step_contexts:
                 raise RuntimeError(
-                    f"{pipeline_path} step[{idx}] repeats github_commit_status "
-                    f"context(s) {overlap} already declared at pipeline scope; "
-                    "keep notify at pipeline level only to avoid duplicate "
-                    "status→detective triggers."
+                    f"{pipeline_path} step[{idx}] declares github_commit_status "
+                    f"context(s) {step_contexts}; keep notify at pipeline level "
+                    "only to avoid duplicate status→detective triggers."
                 )
     return contexts
 
@@ -386,29 +414,43 @@ def verify_buildkite_publishes_commit_status(
         raise TypeError(
             f"Unexpected Buildkite pipeline payload for {org}/{pipeline}: {data!r}"
         )
-    settings = ((data.get("provider") or {}).get("settings")) or {}
+    provider = data.get("provider")
+    if not isinstance(provider, dict):
+        raise TypeError(
+            f"Buildkite pipeline {org}/{pipeline} provider must be a mapping, "
+            f"got {type(provider).__name__}: {provider!r}"
+        )
+    settings = provider.get("settings")
     if not isinstance(settings, dict):
         raise TypeError(
-            f"Buildkite pipeline {org}/{pipeline} missing provider.settings"
+            f"Buildkite pipeline {org}/{pipeline} missing provider.settings "
+            f"(got {type(settings).__name__})"
         )
-    if not settings.get("publish_commit_status"):
+    publish = settings.get("publish_commit_status")
+    # Private-preview Buildkite setting; Elastic Terrazzo cannot set it via RRE.
+    # Only fail closed when the live API reports it explicitly enabled.
+    prevent_prefix = settings.get("prevent_custom_statuses_from_using_buildkite_prefix")
+    if publish is not True:
         raise RuntimeError(
-            f"Buildkite pipeline {org}/{pipeline} has publish_commit_status=false. "
-            "Enable it in catalog-info.yaml provider_settings (and wait for RRE), "
-            "and keep pipeline notify github_commit_status."
+            f"Buildkite pipeline {org}/{pipeline} publish_commit_status must be "
+            f"true (got {publish!r}). Enable it in catalog-info.yaml "
+            "provider_settings (and wait for RRE), and keep pipeline notify "
+            "github_commit_status."
         )
-    if settings.get("prevent_custom_statuses_from_using_buildkite_prefix"):
+    if prevent_prefix is True:
         raise RuntimeError(
-            f"Buildkite pipeline {org}/{pipeline} has "
-            "prevent_custom_statuses_from_using_buildkite_prefix=true. "
-            "Set it false in catalog-info.yaml provider_settings and wait for RRE "
-            "before creating intentional failures that notify under buildkite/…"
+            f"Buildkite pipeline {org}/{pipeline} "
+            "prevent_custom_statuses_from_using_buildkite_prefix is true; "
+            "explicit notify contexts under buildkite/… will be rejected. "
+            "Disable it in the Buildkite GitHub provider UI (Terrazzo RRE "
+            "cannot set this private-preview field) before creating "
+            "intentional failures."
         )
     log_info(
         f"Buildkite pipeline {org}/{pipeline}: publish_commit_status="
-        f"{settings.get('publish_commit_status')!r}, "
+        f"{publish!r}, "
         f"prevent_custom_statuses_from_using_buildkite_prefix="
-        f"{settings.get('prevent_custom_statuses_from_using_buildkite_prefix')!r}."
+        f"{prevent_prefix!r}."
     )
 
 
