@@ -113,7 +113,7 @@ Prefer stronger, cheaper checks first:
 **Quarantine and missing-case policy (fail-closed for promote):**
 
 - Every flaky E2E case that is skipped must appear on an explicit quarantine list with **owner** and **expiry**.
-- For **production promote**, a quarantined case **blocks** the promote (no permanent bypass). Health/smoke runs may skip quarantined cases without implying promote readiness.
+- For **production promote**, a quarantined case **blocks** the promote (no permanent bypass). Health/smoke runs may still execute the case path, but the oracle reports `pass: false` / `quarantined: true` so `outputs.pass` stays fail-closed.
 - A required in-scope case that is **missing** from the E2E report (not run, not recorded) is treated as **`unknown`** and **blocks** production promote.
 - Do not silently retry into green. Retries only as a documented temporary mitigation with an owner.
 
@@ -127,7 +127,7 @@ Prefer stronger, cheaper checks first:
 | **New dedicated repo** | Deferred. Reconsider if E2E harness becomes a shared product across catalogs outside Observability ownership, or if repo size/noise justifies a split. |
 | **Elsewhere (for example only in `ai-github-actions`)** | Rejected for Observability-owned wrappers and control-plane contracts; those assets are authored and gated here. |
 
-**Fixture PR noise control:** PRs whose labels **start with** `e2e:` skip repo [`ci.yml`](../../.github/workflows/ci.yml) work jobs and agentic pull-request routes in [`obs-aw-event-pull-request.yml`](../../.github/workflows/obs-aw-event-pull-request.yml) (dependency-review, automerge). Long-lived E2E fixture PRs must use that label prefix.
+**Fixture PR noise control:** The dedicated ESTC fixture PR (exact label `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective` in `elastic/oblt-aw`) skips repo [`ci.yml`](../../.github/workflows/ci.yml) work jobs and agentic pull-request routes in [`obs-aw-event-pull-request.yml`](../../.github/workflows/obs-aw-event-pull-request.yml) (dependency-review, automerge). Do not broaden that skip to an arbitrary `e2e:` prefix.
 
 Primitive migration ([#1876](https://github.com/elastic/oblt-aw/issues/1876)) may move more locks into this repo; colocating tests with that ownership reduces cross-repo friction.
 
@@ -227,7 +227,7 @@ Resolved by this design where noted; remaining items are for implementation issu
 | E2E consumer repository | **Resolved:** `elastic/oblt-aw` (no separate sandbox for this slice) |
 | Exact credentials, runners, and isolation inventory | **Resolved for live:** `BUILDKITE_LOGS_API_TOKEN` + `BUILDKITE_TOKEN` + intentional-failure pipeline; dashboard checkbox must be enabled |
 | E2E vs release gates | **Resolved:** E2E gates **production** promote (after candidate); candidate uses merge + integration |
-| Gating coverage / quarantine | **Resolved:** gating E2E requires every in-scope workflow; uncovered/`unknown` and quarantined cases block promote; smoke may sample |
+| Gating coverage / quarantine | **Resolved:** gating E2E requires every in-scope workflow; uncovered/`unknown` and quarantined cases set `pass: false` (block promote / `outputs.pass`); smoke may still sample coverage but cannot green-gate via quarantine |
 | E2E revision pin | **Resolved policy:** gating runs pin candidate ref/digest; `@main` is smoke-only — **wiring for promote still open** ([#1878](https://github.com/elastic/oblt-aw/issues/1878)) |
 | Status-route entry | **Resolved:** harness / Buildkite must create failed `status` (+ Buildkite context/`target_url`); dispatch/schedule is outer-only |
 | How closely E2E must match production models/tools | **Resolved policy:** match production fragment defaults for the slice; document any intentional drift; prefer recorded Buildkite payloads when live access is costly or unstable |

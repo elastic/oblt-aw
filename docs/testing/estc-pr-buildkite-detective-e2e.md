@@ -28,7 +28,7 @@ Oracle pass/fail for the agent side effect is **comment presence or absence**. S
 2. **Secret** — `BUILDKITE_LOGS_API_TOKEN` on `elastic/oblt-aw` (mapped by `trigger-obs-aw-status.yml` into the wrapper). Must be able to **read** the E2E fail pipeline’s builds/logs.
 3. **Secret** — `BUILDKITE_TOKEN` with Buildkite scopes **`write_builds`** (+ read) so the harness can create and poll an intentional failure build.
 4. **Buildkite pipeline** — provisioned via [`catalog-info.yaml`](../../catalog-info.yaml) Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (steps: [`.buildkite/pipeline.e2e-estc-fail.yml`](../../.buildkite/pipeline.e2e-estc-fail.yml)). After merge to `main`, confirm RRE reconciliation at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail. See [`.buildkite/README.e2e-estc-fail.md`](../../.buildkite/README.e2e-estc-fail.md). Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE` (default `oblt-aw-e2e-estc-fail`).
-5. **E2E PR** — harness finds or creates an open PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective`. Labels that **start with** `e2e:` skip repo `ci.yml` and agentic pull-request routes (`obs-aw-dependency-review`, `obs-aw-automerge`) so fixture PRs do not burn CI or agent credits.
+5. **E2E PR** — harness finds or creates an open PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective`. That **exact** label (plus the fixture branch/repo guards in workflow `if` conditions) skips repo `ci.yml` and agentic pull-request routes (`obs-aw-dependency-review`, `obs-aw-automerge`) so this fixture PR does not burn CI or agent credits.
 6. **Optional override** — Actions var `E2E_ESTC_BUILDKITE_TARGET_URL` skips create and reuses a fixed failed build URL (escape hatch only).
 
 ## How to run
@@ -91,14 +91,14 @@ Each matrix leg uploads `e2e-estc-pr-buildkite-detective-<case-id>-<run_id>` con
 | `oracle-report.json` | Per-check pass/fail details |
 | `summary.json` | Compact `{pass, run_url, workflow_id, layer, mode, case_id, agent_invoked, …}` |
 
-Promote should read `summary.pass` (and quarantine/skipped flags) — not agent free text. The reusable workflow also exposes `outputs.pass` from the aggregate gate job.
+Promote should read `summary.pass` — not agent free text. Quarantined cases set `pass: false` (and `quarantined: true`) so `outputs.pass` fails closed for promote (#1878). The reusable workflow exposes `outputs.pass` from the aggregate gate job.
 
 ## Quarantine policy
 
 Config: [`config/obs/e2e-quarantine.json`](../../config/obs/e2e-quarantine.json)
 
 - Every quarantine entry **must** include `owner` and `reason` (invalid rows are ignored, not treated as skip-pass).
-- Quarantined cases are reported as skipped — **not** silently retried into green.
+- Quarantined cases are reported as skipped **and** `pass: false` so they block the E2E gate / promote — **not** silently retried into green.
 
 ## Related
 

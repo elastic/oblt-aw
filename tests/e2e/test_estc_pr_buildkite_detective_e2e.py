@@ -540,10 +540,61 @@ class TestOracle:
             ],
         }
         report = oracle.evaluate_outcome(outcome, quarantine)
-        assert report["pass"] is True
+        assert report["pass"] is False
         assert report["skipped"] is True
         assert report["quarantined"] is True
         assert report["quarantine_owner"] == "@elastic/observablt-robots"
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "quarantine" in failed
+
+    def test_missing_workflow_id_fails_closed(self) -> None:
+        outcome = harness.run_fixture_case(CASE_DIR)
+        del outcome["workflow_id"]
+        report = oracle.evaluate_outcome(outcome, {"cases": []})
+        assert report["pass"] is False
+        assert report["workflow_id"] == ""
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "workflow_id" in failed
+
+    def test_live_oracle_rejects_string_expect_agent_comment(self) -> None:
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-failure-open-pr-live",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": True,
+            "path_gates": {"dashboard_enabled": True},
+            "trigger": {
+                "status_state": "failure",
+                "context_contains_buildkite": True,
+                "use_buildkite_target_url": True,
+                "create_failed_buildkite_build": True,
+            },
+            "status": {
+                "state": "failure",
+                "context": "buildkite/elastic/x",
+                "target_url": "https://buildkite.com/elastic/x/builds/1",
+                "publisher": "buildkite",
+            },
+            "buildkite": {"source": "created", "fail_log_marker_verified": True},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": True,
+                "job_conclusion": "success",
+                "url": "https://example.test/run",
+            },
+            "agent_comment": {"id": 1},
+            "expectations": {
+                "dashboard_enabled": True,
+                "status_job_executed": True,
+                "agent_invoked": True,
+                "expect_agent_comment": "true",
+            },
+        }
+        report = oracle.evaluate_outcome(outcome, {"cases": []})
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "expect_agent_comment" in failed
 
     def test_missing_failed_jobs_fails(self) -> None:
         outcome = harness.run_fixture_case(CASE_DIR)

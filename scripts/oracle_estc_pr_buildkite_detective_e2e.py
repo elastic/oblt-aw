@@ -87,7 +87,9 @@ def evaluate_outcome(
     *,
     case_expectations: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    workflow_id = str(outcome.get("workflow_id") or WORKFLOW_ID)
+    # Do not default a missing workflow_id to WORKFLOW_ID: report and check
+    # must stay consistent, and a missing id must fail closed.
+    workflow_id = str(outcome.get("workflow_id") or "")
     case_id = str(outcome.get("case_id") or "unknown")
     mode = str(outcome.get("mode") or "fixture")
     layer = str(outcome.get("layer") or ("e2e" if mode == "live" else "integration"))
@@ -95,12 +97,14 @@ def evaluate_outcome(
     quarantined = find_quarantine_entry(quarantine, workflow_id, case_id)
 
     if quarantined:
+        # Fail closed: skipped + pass=false so matrix/outputs.pass cannot
+        # green-promote while a required case is quarantined (#1878 contract).
         report = {
             "workflow_id": workflow_id,
             "case_id": case_id,
             "layer": layer,
             "mode": mode,
-            "pass": True,
+            "pass": False,
             "skipped": True,
             "quarantined": True,
             "quarantine_owner": quarantined["owner"],
@@ -109,16 +113,16 @@ def evaluate_outcome(
             "checks": [
                 {
                     "id": "quarantine",
-                    "pass": True,
+                    "pass": False,
                     "detail": (
-                        f"Skipped quarantined case; owner={quarantined['owner']}; "
+                        f"Quarantined case blocks gate; owner={quarantined['owner']}; "
                         f"{quarantined['reason']}"
                     ),
                 }
             ],
             "agent_invoked": bool(outcome.get("agent_invoked")),
             "notes": [
-                "Quarantined cases must not be silently retried into green.",
+                "Quarantined cases fail the E2E gate (pass=false); do not retry into green.",
                 "Remove the quarantine entry when the flake is fixed.",
             ],
         }
@@ -161,8 +165,8 @@ def evaluate_outcome(
     _check(
         checks,
         "workflow_id",
-        outcome.get("workflow_id") == WORKFLOW_ID,
-        f"workflow_id={outcome.get('workflow_id')!r}",
+        workflow_id == WORKFLOW_ID,
+        f"workflow_id={workflow_id!r}",
     )
 
     # Explicit non-goal: never compare agent free text.
@@ -494,25 +498,30 @@ def _evaluate_live(
                 f"expected source in {{'created','override_env'}}, got {source!r}",
             )
 
-    expect_comment = expectations.get("expect_agent_comment")
-    if expect_comment is True:
-        # Markers (### TL;DR / ## Remediation) identify the comment in the
-        # harness only. Oracle pass/fail is presence of a located comment;
-        # asserting marker shape is deferred to a follow-up.
-        present = isinstance(comment, dict) and bool(comment.get("id"))
-        _check(
-            checks,
-            "agent_comment_present",
-            present,
-            f"comment={comment}",
-        )
-    elif expect_comment is False:
-        _check(
-            checks,
-            "agent_comment_absent",
-            comment is None,
-            f"comment={comment}",
-        )
+    if "expect_agent_comment" in expectations:
+        try:
+            expect_comment = _as_bool(expectations["expect_agent_comment"])
+        except TypeError as exc:
+            _check(checks, "expect_agent_comment", False, str(exc))
+        else:
+            if expect_comment is True:
+                # Markers (### TL;DR / ## Remediation) identify the comment in
+                # the harness only. Oracle pass/fail is presence of a located
+                # comment; asserting marker shape is deferred to a follow-up.
+                present = isinstance(comment, dict) and bool(comment.get("id"))
+                _check(
+                    checks,
+                    "agent_comment_present",
+                    present,
+                    f"comment={comment}",
+                )
+            else:
+                _check(
+                    checks,
+                    "agent_comment_absent",
+                    comment is None,
+                    f"comment={comment}",
+                )
 
     overall = all(item["pass"] for item in checks)
     agent_flag = False
