@@ -469,13 +469,13 @@ def evaluate_outcome(
 
     if "agent_invoked" in expectations:
         try:
-            expected = _as_bool(expectations["agent_invoked"])
-            actual = outcome.get("agent_invoked")
+            expected_agent = _as_bool(expectations["agent_invoked"])
+            actual_agent = outcome.get("agent_invoked")
             _check(
                 checks,
-                "agent_not_invoked" if expected is False else "agent_invoked",
-                actual is expected,
-                f"expected={expected!r} actual={actual!r}",
+                "agent_not_invoked" if expected_agent is False else "agent_invoked",
+                actual_agent is expected_agent,
+                f"expected={expected_agent!r} actual={actual_agent!r}",
             )
         except TypeError as exc:
             _check(checks, "agent_invoked", False, str(exc))
