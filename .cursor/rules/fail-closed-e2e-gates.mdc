@@ -42,6 +42,11 @@ Check each of these explicitly (add a regression when any is open):
 | Trigger / routing contract | Do live status state/context/publisher/URL gates still depend on harness-copied `outcome.trigger` instead of checked-in `case.trigger`? |
 | Call-site vs helper | Does a unit test of a helper alone leave a call site free to regress `fallback=`? Prefer a named seam used at the call site. |
 | Test/prod parity | Do unit helpers still default to harness-copied outcome blobs while CLI loads `case.json`? |
+| Setup before outcome | Can sync / Contents API / provider-preflight errors exit without `outcome.json` + `block_reason`? |
+| Escape hatch purity | Does a create-skip override still mutate fixture branches or call create-only APIs? |
+| Prerequisite soft-fail | Does a known-bad catalog/RRE setting only warn then burn the full status timeout? |
+| Duplicate trigger producers | Can the same status context be published twice (pipeline + step notify) and double-fire the detective? |
+| Producer/waiter context lockstep | Can env org/pipeline overrides make the waiter expect a context the fail-pipeline YAML never publishes? |
 
 If Copilot (or a human) files a follow-up on the same PR after a “fix,” treat that as incomplete first-pass evidence: extend the chain in the same change set; do not argue the first patch was enough.
 
@@ -57,6 +62,12 @@ If Copilot (or a human) files a follow-up on the same PR after a “fix,” trea
 - Unit/oracle test helpers that default to outcome blobs while production loads `case.json` (suite green, CLI false-green or the reverse)
 - Fixing only the producer while the oracle still does `job_conclusion or conclusion` (or equivalent)
 - Schema accepting values the evaluator ignores
+- Setup / preflight exceptions that abort `run_live_case` (or `main`) **before** writing `outcome.json` with `blocked` + `block_reason` — Contents sync, catalog/RRE prerequisites, and provider payload errors must become blocked outcomes
+- Escape-hatch paths (e.g. fixed Buildkite target URL) that still mutate fixture branches, require write tokens, or call create-only preflights
+- Known producer prerequisites logged as WARNING then waiting a full poll timeout (e.g. `prevent_custom_statuses_from_using_buildkite_prefix=true`) instead of an immediate blocked outcome
+- Duplicate producers of the same trigger signal (e.g. pipeline-level and step-level `github_commit_status` with the same context)
+- Substring / comment-only guards standing in for parsed config (e.g. `"github_commit_status" in yaml_text`)
+- Producer notify context hard-coded while the waiter derives context from env overrides (`E2E_BUILDKITE_ORG` / `E2E_BUILDKITE_PIPELINE`) without aligning or rejecting the mismatch
 
 ## When reviewing Copilot / human fail-closed comments
 
@@ -64,13 +75,24 @@ Treat the comment as a **symptom**. Plan the full chain fix in one change set. I
 
 Closing “empty mapping” without also rejecting typo/partial mappings, nested threshold holes, trigger-contract holes, and without aligning test helpers to production evidence is an incomplete pass — do all in the same change.
 
+### ESTC / Buildkite live-path checklist (status publish)
+
+When changing fail-pipeline YAML, catalog `provider_settings`, or the ESTC live harness, also verify:
+
+1. **Pipeline-level notify only** — one `github_commit_status` context; no step duplicate.
+2. **Parse notify** — validate real YAML `notify` entries, not comment substrings.
+3. **Context lockstep** — fail-pipeline notify context matches `expected_buildkite_status_context` (env overrides included).
+4. **Create vs override** — fixture sync + Buildkite publish preflight run only when creating a build; `E2E_ESTC_BUILDKITE_TARGET_URL` skips both.
+5. **RRE prerequisites fail closed** — `publish_commit_status` and `prevent_custom_statuses_from_using_buildkite_prefix` block immediately when wrong.
+6. **Exceptions → blocked outcome** — sync/API/preflight errors write `blocked` + `block_reason`, never an empty artifact path.
+
 ## Local validation before commit / push
 
 Do **not** commit or push fail-closed E2E changes until these pass locally on the touched files:
 
-1. `ruff format` (and `ruff check` if applicable) on changed Python paths
-2. `pytest` for the affected E2E / oracle suite (for ESTC: `tests/e2e/test_estc_pr_buildkite_detective_e2e.py`)
-3. Prefer `pre-commit run --files <paths>` when available, matching CI’s Pre-commit job
+1. **GOLD** — `pre-commit run --files <touched-paths>` per [`.cursor/rules/ci-precommit-before-push.mdc`](ci-precommit-before-push.mdc) (actionlint, ruff, mypy, yaml, …). **Mandatory before any push.**
+2. `ruff format` / `ruff check` are covered by that pre-commit run; do not substitute pytest for them.
+3. `pytest` for the affected E2E / oracle suite (for ESTC: `tests/e2e/test_estc_pr_buildkite_detective_e2e.py`)
 4. Complete the **adversarial self-review** table above and confirm no open substitute path remains
 
-Pytest alone is not enough — CI also enforces format hooks, and a green suite does not prove the chain walk was finished.
+Pytest alone is not enough — CI also enforces Pre-commit (actionlint included), and a green suite does not prove the chain walk was finished.

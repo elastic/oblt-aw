@@ -4,8 +4,8 @@ Thank you for contributing to oblt-aw. Please follow the guidelines below.
 
 ## Quick Start
 
-1. **Install pre-commit** and run `pre-commit install`
-2. **Run checks** before pushing: `pre-commit run --all-files`
+1. **Install pre-commit** and run `pre-commit install --hook-type pre-commit --hook-type pre-push`
+2. **Run checks** before pushing: `pre-commit run --files <touched-paths>` (or `pre-commit run --all-files`). Agents must follow [`.cursor/rules/ci-precommit-before-push.mdc`](.cursor/rules/ci-precommit-before-push.mdc) — pytest alone is not enough.
 3. **Run tests**: `pytest tests/` and `npm test`
 
 ## Full Guide

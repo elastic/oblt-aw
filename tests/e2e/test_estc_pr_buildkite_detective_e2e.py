@@ -495,6 +495,165 @@ class TestHarnessLive:
             is None
         )
 
+    def test_expected_buildkite_status_context_matches_org_pipeline(self) -> None:
+        cfg = {
+            "buildkite_failure": {
+                "org_default": "elastic",
+                "pipeline_default": "oblt-aw-e2e-estc-fail",
+            }
+        }
+        assert (
+            harness.expected_buildkite_status_context(cfg)
+            == "buildkite/elastic/oblt-aw-e2e-estc-fail"
+        )
+        cfg["expected_status_context"] = "buildkite/custom"
+        assert harness.expected_buildkite_status_context(cfg) == "buildkite/custom"
+
+    def test_summarize_and_timeout_block_reason(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        statuses = [
+            {
+                "context": "CLA",
+                "state": "success",
+                "target_url": "https://example.test/cla",
+                "created_at": "2026-09-15T12:00:00Z",
+                "creator": {"login": "cla-bot"},
+            }
+        ]
+        text = harness.summarize_commit_statuses(statuses)
+        assert "CLA" in text
+        assert "cla-bot" in text
+        monkeypatch.setattr(harness, "list_commit_statuses", lambda *_a, **_k: statuses)
+        reason = harness.commit_status_timeout_block_reason(
+            repo="elastic/oblt-aw",
+            sha="abc123",
+            context="buildkite/elastic/oblt-aw-e2e-estc-fail",
+            state="failure",
+            target_url="https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
+            timeout_seconds=300,
+        )
+        assert "Timed out after 300s" in reason
+        assert "CLA" in reason
+        assert "buildkite/elastic/oblt-aw-e2e-estc-fail" in reason
+
+    def test_sync_fail_pipeline_requires_notify(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pipeline = tmp_path / "pipeline.yml"
+        pipeline.write_text("steps: []\n", encoding="utf-8")
+        with pytest.raises(RuntimeError, match="pipeline-level github_commit_status"):
+            harness.sync_fail_pipeline_to_fixture_branch(
+                "elastic/oblt-aw",
+                branch="e2e/estc-pr-buildkite-detective",
+                pipeline_path=pipeline,
+            )
+
+    def test_sync_fail_pipeline_rejects_comment_only_notify(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        pipeline = tmp_path / "pipeline.yml"
+        pipeline.write_text(
+            "# github_commit_status must not count\nsteps: []\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(RuntimeError, match="pipeline-level github_commit_status"):
+            harness.fail_pipeline_github_commit_status_contexts(
+                pipeline.read_text(encoding="utf-8"),
+                pipeline_path=pipeline,
+            )
+
+    def test_sync_fail_pipeline_rejects_duplicate_step_notify(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        pipeline = tmp_path / "pipeline.yml"
+        pipeline.write_text(
+            """notify:
+  - github_commit_status:
+      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+steps:
+  - label: fail
+    command: exit 1
+    notify:
+      - github_commit_status:
+          context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(RuntimeError, match="repeats github_commit_status"):
+            harness.fail_pipeline_github_commit_status_contexts(
+                pipeline.read_text(encoding="utf-8"),
+                pipeline_path=pipeline,
+            )
+
+    def test_assert_fail_pipeline_status_context_matches_override(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pipeline = tmp_path / "pipeline.yml"
+        pipeline.write_text(
+            """notify:
+  - github_commit_status:
+      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+steps: []
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("E2E_BUILDKITE_PIPELINE", "other-pipeline")
+        cfg = {
+            "buildkite_failure": {
+                "org_default": "elastic",
+                "pipeline_default": "oblt-aw-e2e-estc-fail",
+            }
+        }
+        with pytest.raises(RuntimeError, match="do not include expected"):
+            harness.assert_fail_pipeline_status_context_matches(
+                cfg, pipeline_path=pipeline
+            )
+
+    def test_verify_buildkite_fails_closed_on_prefix_block(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "bk_api_json",
+            lambda *_a, **_k: {
+                "provider": {
+                    "settings": {
+                        "publish_commit_status": True,
+                        "prevent_custom_statuses_from_using_buildkite_prefix": True,
+                    }
+                }
+            },
+        )
+        with pytest.raises(
+            RuntimeError, match="prevent_custom_statuses_from_using_buildkite_prefix"
+        ):
+            harness.verify_buildkite_publishes_commit_status(
+                "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
+            )
+
+    def test_will_create_failed_buildkite_respects_override(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        trigger = {
+            "use_buildkite_target_url": True,
+            "status_state": "failure",
+            "create_failed_buildkite_build": True,
+        }
+        expectations = {"agent_invoked": True, "expect_agent_comment": True}
+        cfg = harness.load_e2e_config(
+            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        )
+        monkeypatch.delenv("E2E_ESTC_BUILDKITE_TARGET_URL", raising=False)
+        assert harness.will_create_failed_buildkite_build(trigger, expectations, cfg)
+        monkeypatch.setenv(
+            "E2E_ESTC_BUILDKITE_TARGET_URL",
+            "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/99",
+        )
+        assert not harness.will_create_failed_buildkite_build(
+            trigger, expectations, cfg
+        )
+
     def test_find_open_e2e_pr_strict_branch(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -620,6 +779,28 @@ class TestOracle:
         assert report["quarantine_owner"] == "@elastic/observablt-robots"
         failed = {c["id"] for c in report["checks"] if not c["pass"]}
         assert "quarantine" in failed
+
+    def test_blocked_timeout_notes_mention_commit_status(self) -> None:
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": LIVE_CASE_ID,
+            "layer": "e2e",
+            "mode": "live",
+            "blocked": True,
+            "block_reason": (
+                "Timed out after 300s waiting for GitHub commit status "
+                "context='buildkite/elastic/oblt-aw-e2e-estc-fail' "
+                "state='failure' target_url='https://buildkite.com/x' on abc."
+            ),
+            "agent_invoked": False,
+            "run_url": "https://example.test/run/1",
+        }
+        report = _evaluate(outcome)
+        assert report["pass"] is False
+        assert report["block_reason"]
+        assert any(c["id"] == "not_blocked" and not c["pass"] for c in report["checks"])
+        assert any("commit status" in n.lower() for n in report["notes"])
+        assert any("notify" in n.lower() for n in report["notes"])
 
     def test_missing_workflow_id_fails_closed(self) -> None:
         outcome = _synthetic_live_outcome()
@@ -1381,3 +1562,55 @@ class TestOracle:
         assert summary["pass"] is True
         assert summary["workflow_id"] == "obs:estc-pr-buildkite-detective"
         assert summary["layer"] == "e2e"
+        assert summary.get("failed_checks") == []
+        assert summary.get("failure_detail") is None
+
+    def test_cli_summary_includes_block_reason(
+        self,
+        tmp_path: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        monkeypatch.chdir(ROOT)
+        outcome_path = tmp_path / "outcome.json"
+        report_path = tmp_path / "report.json"
+        summary_path = tmp_path / "summary.json"
+        outcome_path.write_text(
+            json.dumps(
+                {
+                    "workflow_id": "obs:estc-pr-buildkite-detective",
+                    "case_id": LIVE_CASE_ID,
+                    "layer": "e2e",
+                    "mode": "live",
+                    "blocked": True,
+                    "block_reason": (
+                        "Timed out after 300s waiting for GitHub commit status "
+                        "context='buildkite/elastic/oblt-aw-e2e-estc-fail'"
+                    ),
+                    "agent_invoked": False,
+                }
+            ),
+            encoding="utf-8",
+        )
+        code = oracle.main(
+            [
+                "--outcome-path",
+                str(outcome_path),
+                "--report-path",
+                str(report_path),
+                "--summary-path",
+                str(summary_path),
+                "--quarantine-path",
+                str(ROOT / "config" / "obs" / "e2e-quarantine.json"),
+                "--testdata-root",
+                str(ROOT / "testdata" / "agentic" / "estc-pr-buildkite-detective"),
+            ]
+        )
+        assert code == 1
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        assert summary["pass"] is False
+        assert "Timed out" in (summary.get("failure_detail") or "")
+        assert summary.get("failed_checks")
+        captured = capsys.readouterr()
+        assert "Oracle failed checks" in captured.out
+        assert "not_blocked" in captured.out
