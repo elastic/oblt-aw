@@ -117,6 +117,11 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-runtime.txt
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-runtime.txt
 
       - name: Prepare artifact directory
         run: mkdir -p "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}"
