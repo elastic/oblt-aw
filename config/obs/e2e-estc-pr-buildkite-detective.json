@@ -4,7 +4,6 @@
   "consumer_repo": "elastic/oblt-aw",
   "status_trigger_workflow_file": "trigger-obs-aw-status.yml",
   "status_context": "buildkite/elastic/oblt-aw-e2e",
-  "buildkite_target_url_env": "E2E_ESTC_BUILDKITE_TARGET_URL",
   "buildkite_failure": {
     "token_env": "BUILDKITE_TOKEN",
     "org_env": "E2E_BUILDKITE_ORG",

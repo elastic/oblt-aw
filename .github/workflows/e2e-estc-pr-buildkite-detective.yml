@@ -82,6 +82,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      # Observe Buildkite-published commit statuses (harness polls statuses API).
+      statuses: read
       actions: read
       # Label create for first-time fixture PR provisioning.
       issues: write
@@ -92,8 +94,6 @@ jobs:
       BUILDKITE_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
       E2E_BUILDKITE_ORG: ${{ vars.E2E_BUILDKITE_ORG }}
       E2E_BUILDKITE_PIPELINE: ${{ vars.E2E_BUILDKITE_PIPELINE }}
-      # Optional escape hatch: skip create and reuse a fixed failed build URL.
-      E2E_ESTC_BUILDKITE_TARGET_URL: ${{ vars.E2E_ESTC_BUILDKITE_TARGET_URL }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout

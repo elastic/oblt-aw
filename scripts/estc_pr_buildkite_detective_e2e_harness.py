@@ -583,10 +583,7 @@ def wait_for_commit_status(
     timeout_seconds: int,
     interval_seconds: int,
 ) -> dict[str, Any] | None:
-    """Poll GitHub commit statuses until the expected Buildkite status appears.
-
-    ``since`` may be ``None`` for URL-override reuse of an older published status.
-    """
+    """Poll GitHub commit statuses until the expected Buildkite status appears."""
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         matched = match_commit_status(
@@ -944,31 +941,12 @@ def ensure_failed_buildkite_target_url(
     pr_number: int | None,
     case_id: str,
 ) -> tuple[str, dict[str, Any]]:
-    """Create a failed Buildkite build and return (web_url, build_meta).
-
-    Optional override: env named by ``buildkite_target_url_env`` skips create.
-    """
-    override_env = str(
-        cfg.get("buildkite_target_url_env") or "E2E_ESTC_BUILDKITE_TARGET_URL"
-    )
-    override = os.environ.get(override_env, "").strip()
-    if override:
-        return override, {
-            "source": "override_env",
-            "env": override_env,
-            "web_url": override,
-            "fail_log_marker_verified": False,
-            "fail_log_marker_detail": "skipped for URL override",
-        }
-
+    """Create a failed Buildkite build and return (web_url, build_meta)."""
     token = buildkite_api_token(cfg)
     if not token:
         bk = _buildkite_cfg(cfg)
         token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
-        raise RuntimeError(
-            f"Missing {token_env} (write_builds + read). "
-            f"Or set {override_env} to a readable failed build URL."
-        )
+        raise RuntimeError(f"Missing {token_env} (write_builds + read).")
 
     org, pipeline = resolve_buildkite_org_pipeline(cfg)
     bk = _buildkite_cfg(cfg)
@@ -1031,7 +1009,7 @@ def ensure_failed_buildkite_target_url(
 def needs_real_failed_buildkite(
     trigger: dict[str, Any], _expectations: dict[str, Any]
 ) -> bool:
-    """True when the live case must create (or override) a failed Buildkite build."""
+    """True when the live case must create a failed Buildkite build."""
     return bool(trigger.get("create_failed_buildkite_build"))
 
 
@@ -1111,29 +1089,23 @@ def run_live_case(
         }
 
     # Fail closed on missing Buildkite create credentials before mutating GitHub.
-    if needs_real_failed_buildkite(trigger, expectations):
-        override_env = str(
-            cfg.get("buildkite_target_url_env") or "E2E_ESTC_BUILDKITE_TARGET_URL"
-        )
-        override = os.environ.get(override_env, "").strip()
-        if not override and not buildkite_api_token(cfg):
-            bk = _buildkite_cfg(cfg)
-            token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
-            return {
-                "workflow_id": workflow_id,
-                "case_id": case.get("id", case_dir.name),
-                "layer": "e2e",
-                "mode": "live",
-                "agent_invoked": False,
-                "blocked": True,
-                "block_reason": (
-                    f"Missing {token_env} (write_builds + read). "
-                    f"Or set {override_env} to a readable failed build URL."
-                ),
-                "path_gates": {"dashboard_enabled": dashboard_ok},
-                "expectations": expectations,
-                "run_url": run_url,
-            }
+    if needs_real_failed_buildkite(trigger, expectations) and not buildkite_api_token(
+        cfg
+    ):
+        bk = _buildkite_cfg(cfg)
+        token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": f"Missing {token_env} (write_builds + read).",
+            "path_gates": {"dashboard_enabled": dashboard_ok},
+            "expectations": expectations,
+            "run_url": run_url,
+        }
 
     if not trigger.get("require_open_pr", True):
         return {
@@ -1227,15 +1199,13 @@ def run_live_case(
     org, pipeline = resolve_buildkite_org_pipeline(cfg)
     context = f"buildkite/{org}/{pipeline}"
     status_timeout = int(cfg.get("status_observe_timeout_seconds") or min(300, timeout))
-    # Override reuses an existing failed build URL — allow matching an older status.
-    status_since = None if buildkite_meta.get("source") == "override_env" else since
     observed = wait_for_commit_status(
         repo,
         sha,
         context=context,
         state=state,
         target_url=target_url,
-        since=status_since,
+        since=since,
         timeout_seconds=status_timeout,
         interval_seconds=interval,
     )
@@ -1270,7 +1240,7 @@ def run_live_case(
     run_detail = wait_for_new_run(
         repo,
         workflow_file_early,
-        since=since if status_since is not None else _utc_now().replace(microsecond=0),
+        since=since,
         timeout_seconds=timeout,
         interval_seconds=interval,
         exclude_run_ids=known_run_ids,
@@ -1353,10 +1323,6 @@ def run_live_case(
                 "Happy path only: harness creates an intentional Buildkite failure; "
                 "Buildkite publishes the GitHub commit status; "
                 "trigger-obs-aw-status → agent → PR comment."
-            ),
-            (
-                "Optional E2E_ESTC_BUILDKITE_TARGET_URL skips create and reuses a "
-                "fixed failed build URL (still waits for Buildkite-published status)."
             ),
         ],
     }

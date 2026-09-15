@@ -110,7 +110,6 @@ class TestHarnessLive:
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.chdir(ROOT)
-        monkeypatch.delenv("E2E_ESTC_BUILDKITE_TARGET_URL", raising=False)
         monkeypatch.delenv("BUILDKITE_TOKEN", raising=False)
 
         def fake_dashboard(repo: str, workflow_id: str) -> bool:
@@ -131,25 +130,22 @@ class TestHarnessLive:
         assert data["blocked"] is True
         reason = str(data.get("block_reason"))
         assert "BUILDKITE_TOKEN" in reason
+        assert "E2E_ESTC_BUILDKITE_TARGET_URL" not in reason
 
-    def test_ensure_failed_build_uses_override_url(
+    def test_ensure_failed_build_requires_token(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setenv(
-            "E2E_ESTC_BUILDKITE_TARGET_URL",
-            "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/99",
-        )
-        url, meta = harness.ensure_failed_buildkite_target_url(
-            harness.load_e2e_config(
-                ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
-            ),
-            commit="abc",
-            branch="e2e/estc-pr-buildkite-detective",
-            pr_number=1,
-            case_id="status-failure-open-pr-live",
-        )
-        assert url.endswith("/builds/99")
-        assert meta["source"] == "override_env"
+        monkeypatch.delenv("BUILDKITE_TOKEN", raising=False)
+        with pytest.raises(RuntimeError, match="BUILDKITE_TOKEN"):
+            harness.ensure_failed_buildkite_target_url(
+                harness.load_e2e_config(
+                    ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+                ),
+                commit="abc",
+                branch="e2e/estc-pr-buildkite-detective",
+                pr_number=1,
+                case_id="status-failure-open-pr-live",
+            )
 
     def test_needs_real_failed_buildkite_for_happy_path(self) -> None:
         assert harness.needs_real_failed_buildkite(
@@ -921,6 +917,43 @@ class TestOracle:
         assert report["pass"] is False
         failed = {c["id"] for c in report["checks"] if not c["pass"]}
         assert "status_publisher_buildkite_path" in failed
+
+    def test_live_oracle_rejects_override_env_source(self) -> None:
+        """URL-override escape hatch removed; only created builds are valid."""
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-failure-open-pr-live",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": True,
+            "path_gates": {"dashboard_enabled": True},
+            "trigger": {
+                "status_state": "failure",
+                "context_contains_buildkite": True,
+                "use_buildkite_target_url": True,
+                "create_failed_buildkite_build": True,
+            },
+            "status": {
+                "state": "failure",
+                "context": "buildkite/elastic/x",
+                "target_url": "https://buildkite.com/elastic/x/builds/1",
+                "publisher": "buildkite",
+            },
+            "buildkite": {"source": "override_env", "fail_log_marker_verified": False},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": True,
+                "job_conclusion": "success",
+            },
+            "agent_comment": {
+                "id": 1,
+                "markers_present": {"### TL;DR": True, "## Remediation": True},
+            },
+        }
+        report = _evaluate(outcome)
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "buildkite_source_valid" in failed
 
     def test_live_oracle_fails_closed_on_missing_buildkite_source(self) -> None:
         outcome = {

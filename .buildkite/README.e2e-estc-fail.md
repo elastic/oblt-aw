@@ -25,6 +25,4 @@ Happy path:
 4. The real `status` event triggers `trigger-obs-aw-status.yml` → detective → agent.
 5. Harness observes the Actions run and PR comment (it does **not** forge the happy-path status).
 
-Live E2E is happy-path only (no harness-posted synthetic statuses).
-
-Optional escape hatch: set Actions var `E2E_ESTC_BUILDKITE_TARGET_URL` to skip create and reuse a fixed failed build URL; the harness still waits for the Buildkite-published GitHub status.
+Live E2E is happy-path only (no harness-posted synthetic statuses; no URL-override escape hatch).
