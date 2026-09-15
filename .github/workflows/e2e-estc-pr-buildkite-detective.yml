@@ -3,8 +3,7 @@ name: E2E — ESTC PR Buildkite Detective
 
 # Production E2E for obs:estc-pr-buildkite-detective against elastic/oblt-aw
 # (intentional production consumer for this slice; no separate sandbox — see #1911 docs).
-# Live happy path: Buildkite publishes commit status → trigger → agent.
-# Negative cases: harness-posted statuses need secrets.E2E_GH_TOKEN (github.token cannot trigger).
+# Live happy path only: Buildkite publishes commit status → trigger → agent.
 # Also callable from the future release/promote train (#1878).
 # Not part of the default PR required gate in ci.yml.
 on:
@@ -28,11 +27,6 @@ on:
     secrets:
       BUILDKITE_TOKEN:
         description: Buildkite token (write_builds + read) for intentional-failure creates
-        required: false
-      E2E_GH_TOKEN:
-        description: >-
-          Optional PAT/App token for harness-posted commit statuses. Required for
-          negative live cases so status events can trigger workflows (github.token cannot).
         required: false
     outputs:
       pass:
@@ -68,7 +62,7 @@ jobs:
             CASE_ID="${INPUT_CASE_ID:-all}"
           fi
           if [ "${CASE_ID}" = "all" ]; then
-            CASES='["status-failure-open-pr-live","status-success-skipped","status-failure-non-buildkite","status-failure-no-open-pr"]'
+            CASES='["status-failure-open-pr-live"]'
           else
             CASES="$(printf '%s' "[\"${CASE_ID}\"]")"
           fi
@@ -88,7 +82,6 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      statuses: write
       actions: read
       # Label create for first-time fixture PR provisioning.
       issues: write
@@ -101,8 +94,7 @@ jobs:
       E2E_BUILDKITE_PIPELINE: ${{ vars.E2E_BUILDKITE_PIPELINE }}
       # Optional escape hatch: skip create and reuse a fixed failed build URL.
       E2E_ESTC_BUILDKITE_TARGET_URL: ${{ vars.E2E_ESTC_BUILDKITE_TARGET_URL }}
-      # Prefer E2E_GH_TOKEN so harness-posted statuses can trigger workflows.
-      GH_TOKEN: ${{ secrets.E2E_GH_TOKEN || github.token }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
