@@ -542,12 +542,117 @@ class TestHarnessLive:
     ) -> None:
         pipeline = tmp_path / "pipeline.yml"
         pipeline.write_text("steps: []\n", encoding="utf-8")
-        with pytest.raises(RuntimeError, match="github_commit_status"):
+        with pytest.raises(RuntimeError, match="pipeline-level github_commit_status"):
             harness.sync_fail_pipeline_to_fixture_branch(
                 "elastic/oblt-aw",
                 branch="e2e/estc-pr-buildkite-detective",
                 pipeline_path=pipeline,
             )
+
+    def test_sync_fail_pipeline_rejects_comment_only_notify(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        pipeline = tmp_path / "pipeline.yml"
+        pipeline.write_text(
+            "# github_commit_status must not count\nsteps: []\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(RuntimeError, match="pipeline-level github_commit_status"):
+            harness.fail_pipeline_github_commit_status_contexts(
+                pipeline.read_text(encoding="utf-8"),
+                pipeline_path=pipeline,
+            )
+
+    def test_sync_fail_pipeline_rejects_duplicate_step_notify(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        pipeline = tmp_path / "pipeline.yml"
+        pipeline.write_text(
+            """notify:
+  - github_commit_status:
+      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+steps:
+  - label: fail
+    command: exit 1
+    notify:
+      - github_commit_status:
+          context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(RuntimeError, match="repeats github_commit_status"):
+            harness.fail_pipeline_github_commit_status_contexts(
+                pipeline.read_text(encoding="utf-8"),
+                pipeline_path=pipeline,
+            )
+
+    def test_assert_fail_pipeline_status_context_matches_override(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pipeline = tmp_path / "pipeline.yml"
+        pipeline.write_text(
+            """notify:
+  - github_commit_status:
+      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+steps: []
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("E2E_BUILDKITE_PIPELINE", "other-pipeline")
+        cfg = {
+            "buildkite_failure": {
+                "org_default": "elastic",
+                "pipeline_default": "oblt-aw-e2e-estc-fail",
+            }
+        }
+        with pytest.raises(RuntimeError, match="do not include expected"):
+            harness.assert_fail_pipeline_status_context_matches(
+                cfg, pipeline_path=pipeline
+            )
+
+    def test_verify_buildkite_fails_closed_on_prefix_block(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "bk_api_json",
+            lambda *_a, **_k: {
+                "provider": {
+                    "settings": {
+                        "publish_commit_status": True,
+                        "prevent_custom_statuses_from_using_buildkite_prefix": True,
+                    }
+                }
+            },
+        )
+        with pytest.raises(
+            RuntimeError, match="prevent_custom_statuses_from_using_buildkite_prefix"
+        ):
+            harness.verify_buildkite_publishes_commit_status(
+                "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
+            )
+
+    def test_will_create_failed_buildkite_respects_override(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        trigger = {
+            "use_buildkite_target_url": True,
+            "status_state": "failure",
+            "create_failed_buildkite_build": True,
+        }
+        expectations = {"agent_invoked": True, "expect_agent_comment": True}
+        cfg = harness.load_e2e_config(
+            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        )
+        monkeypatch.delenv("E2E_ESTC_BUILDKITE_TARGET_URL", raising=False)
+        assert harness.will_create_failed_buildkite_build(trigger, expectations, cfg)
+        monkeypatch.setenv(
+            "E2E_ESTC_BUILDKITE_TARGET_URL",
+            "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/99",
+        )
+        assert not harness.will_create_failed_buildkite_build(
+            trigger, expectations, cfg
+        )
 
     def test_find_open_e2e_pr_strict_branch(
         self, monkeypatch: pytest.MonkeyPatch
