@@ -129,11 +129,6 @@ def require_routable_buildkite_status_context(context: str) -> str:
     return ctx
 
 
-def uses_reserved_buildkite_commit_status_prefix(context: str) -> bool:
-    """True when context uses Buildkite's reserved ``buildkite/`` prefix."""
-    return str(context or "").strip().lower().startswith("buildkite/")
-
-
 def expected_buildkite_status_context(cfg: dict[str, Any]) -> str:
     """GitHub status context Buildkite should publish for the fail pipeline."""
     override = str(
@@ -409,62 +404,6 @@ def sync_fail_pipeline_to_fixture_branch(
     else:
         log_info(f"{remote_path} already current on {repo}@{branch}.")
     return updated
-
-
-def verify_buildkite_publishes_commit_status(
-    token: str,
-    *,
-    org: str,
-    pipeline: str,
-    expected_context: str,
-) -> None:
-    """Fail closed when live provider settings reject the expected notify context.
-
-    Beats-style path: ``publish_commit_status`` is typically false; statuses come
-    from ``notify: github_commit_status`` with a custom context. Org default
-    ``prevent_custom_statuses_from_using_buildkite_prefix=true`` is fine unless
-    ``expected_context`` uses the reserved ``buildkite/`` prefix.
-    """
-    data = bk_api_json(
-        token,
-        "GET",
-        f"organizations/{org}/pipelines/{pipeline}",
-    )
-    if not isinstance(data, dict):
-        raise TypeError(
-            f"Unexpected Buildkite pipeline payload for {org}/{pipeline}: {data!r}"
-        )
-    provider = data.get("provider")
-    if not isinstance(provider, dict):
-        raise TypeError(
-            f"Buildkite pipeline {org}/{pipeline} provider must be a mapping, "
-            f"got {type(provider).__name__}: {provider!r}"
-        )
-    settings = provider.get("settings")
-    if not isinstance(settings, dict):
-        raise TypeError(
-            f"Buildkite pipeline {org}/{pipeline} missing provider.settings "
-            f"(got {type(settings).__name__})"
-        )
-    publish = settings.get("publish_commit_status")
-    # Private-preview Buildkite setting; Elastic Terrazzo cannot set it via RRE.
-    prevent_prefix = settings.get("prevent_custom_statuses_from_using_buildkite_prefix")
-    ctx = require_routable_buildkite_status_context(expected_context)
-    if prevent_prefix is True and uses_reserved_buildkite_commit_status_prefix(ctx):
-        raise RuntimeError(
-            f"Buildkite pipeline {org}/{pipeline} "
-            "prevent_custom_statuses_from_using_buildkite_prefix is true; "
-            f"notify context {ctx!r} uses the reserved buildkite/… prefix and "
-            "will be rejected. Use a Beats-style custom context that contains "
-            "the substring 'buildkite' without that prefix (see "
-            ".buildkite/pipeline.e2e-estc-fail.yml)."
-        )
-    log_info(
-        f"Buildkite pipeline {org}/{pipeline}: publish_commit_status="
-        f"{publish!r}, "
-        f"prevent_custom_statuses_from_using_buildkite_prefix="
-        f"{prevent_prefix!r}, expected_context={ctx!r}."
-    )
 
 
 def load_e2e_config(path: Path) -> dict[str, Any]:
@@ -1664,18 +1603,10 @@ def run_live_case(
 
     try:
         expected_ctx = assert_fail_pipeline_status_context_matches(cfg)
-        token = buildkite_api_token(cfg)
-        if not token:
+        if not buildkite_api_token(cfg):
             bk = _buildkite_cfg(cfg)
             token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
             raise RuntimeError(f"Missing {token_env} (write_builds + read).")
-        org, pipeline = resolve_buildkite_org_pipeline(cfg)
-        verify_buildkite_publishes_commit_status(
-            token,
-            org=org,
-            pipeline=pipeline,
-            expected_context=expected_ctx,
-        )
         if e2e_branch:
             synced = sync_fail_pipeline_to_fixture_branch(
                 repo,

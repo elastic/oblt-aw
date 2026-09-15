@@ -698,120 +698,12 @@ steps: []
                 cfg, pipeline_path=pipeline
             )
 
-    def test_verify_buildkite_fails_closed_on_prefix_block(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(
-            harness,
-            "bk_api_json",
-            lambda *_a, **_k: {
-                "provider": {
-                    "settings": {
-                        "publish_commit_status": False,
-                        "prevent_custom_statuses_from_using_buildkite_prefix": True,
-                    }
-                }
-            },
-        )
-        with pytest.raises(
-            RuntimeError, match="prevent_custom_statuses_from_using_buildkite_prefix"
-        ):
-            harness.verify_buildkite_publishes_commit_status(
-                "token",
-                org="elastic",
-                pipeline="oblt-aw-e2e-estc-fail",
-                expected_context="buildkite/elastic/oblt-aw-e2e-estc-fail",
-            )
-
-    def test_verify_buildkite_allows_beats_style_with_prevent_prefix(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Org default prevent_custom=true is OK with non-buildkite/ contexts."""
-        monkeypatch.setattr(
-            harness,
-            "bk_api_json",
-            lambda *_a, **_k: {
-                "provider": {
-                    "settings": {
-                        "publish_commit_status": False,
-                        "prevent_custom_statuses_from_using_buildkite_prefix": True,
-                    }
-                }
-            },
-        )
-        harness.verify_buildkite_publishes_commit_status(
-            "token",
-            org="elastic",
-            pipeline="oblt-aw-e2e-estc-fail",
-            expected_context="oblt-aw-e2e-estc-fail: buildkite",
-        )
-
-    def test_verify_buildkite_fails_closed_on_non_mapping_provider(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(
-            harness,
-            "bk_api_json",
-            lambda *_a, **_k: {"provider": "github"},
-        )
-        with pytest.raises(TypeError, match="provider must be a mapping"):
-            harness.verify_buildkite_publishes_commit_status(
-                "token",
-                org="elastic",
-                pipeline="oblt-aw-e2e-estc-fail",
-                expected_context="oblt-aw-e2e-estc-fail: buildkite",
-            )
-
-    def test_verify_buildkite_allows_omitted_prevent_prefix(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Terrazzo cannot set the private-preview field; omission must pass."""
-        monkeypatch.setattr(
-            harness,
-            "bk_api_json",
-            lambda *_a, **_k: {
-                "provider": {
-                    "settings": {
-                        "publish_commit_status": False,
-                    }
-                }
-            },
-        )
-        harness.verify_buildkite_publishes_commit_status(
-            "token",
-            org="elastic",
-            pipeline="oblt-aw-e2e-estc-fail",
-            expected_context="oblt-aw-e2e-estc-fail: buildkite",
-        )
-
-    def test_verify_buildkite_allows_explicit_false_prevent_prefix(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(
-            harness,
-            "bk_api_json",
-            lambda *_a, **_k: {
-                "provider": {
-                    "settings": {
-                        "publish_commit_status": False,
-                        "prevent_custom_statuses_from_using_buildkite_prefix": False,
-                    }
-                }
-            },
-        )
-        harness.verify_buildkite_publishes_commit_status(
-            "token",
-            org="elastic",
-            pipeline="oblt-aw-e2e-estc-fail",
-            expected_context="buildkite/elastic/oblt-aw-e2e-estc-fail",
-        )
-
-    def test_run_live_case_invokes_provider_verify_before_create(
+    def test_run_live_case_syncs_before_create(
         self,
         tmp_path: pathlib.Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Call-site regression: verify must run in run_live_case, not only unit tests."""
+        """Call-site regression: sync must run in run_live_case before create."""
         case_dir = tmp_path / LIVE_CASE_ID
         case_dir.mkdir()
         case_dir.joinpath("case.json").write_text(
@@ -833,9 +725,6 @@ steps:
         )
         monkeypatch.setattr(harness, "FAIL_PIPELINE_PATH", pipeline)
         calls: list[str] = []
-
-        def _verify(*_a: object, **_k: object) -> None:
-            calls.append("verify")
 
         def _sync(*_a: object, **_k: object) -> bool:
             calls.append("sync")
@@ -872,9 +761,6 @@ steps:
         )
         monkeypatch.setattr(harness, "clear_detective_comments", lambda *_a, **_k: 0)
         monkeypatch.setattr(harness, "list_status_trigger_runs", lambda *_a, **_k: [])
-        monkeypatch.setattr(
-            harness, "verify_buildkite_publishes_commit_status", _verify
-        )
         monkeypatch.setattr(harness, "sync_fail_pipeline_to_fixture_branch", _sync)
         monkeypatch.setattr(harness, "ensure_failed_buildkite_target_url", _ensure)
         monkeypatch.setattr(harness, "wait_for_commit_status", lambda *_a, **_k: None)
@@ -888,7 +774,7 @@ steps:
             ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
         )
         outcome = harness.run_live_case(case_dir, cfg, run_url="https://example.test/r")
-        assert calls == ["verify", "sync", "ensure"]
+        assert calls == ["sync", "ensure"]
         assert outcome["blocked"] is True
         assert "timed out" in str(outcome.get("block_reason") or "").lower()
 

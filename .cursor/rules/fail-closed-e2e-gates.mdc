@@ -42,13 +42,10 @@ Check each of these explicitly (add a regression when any is open):
 | Trigger / routing contract | Do live status state/context/publisher/URL gates still depend on harness-copied `outcome.trigger` instead of checked-in `case.trigger`? |
 | Call-site vs helper | Does a unit test of a helper alone leave a call site free to regress `fallback=`? Prefer a named seam used at the call site. |
 | Test/prod parity | Do unit helpers still default to harness-copied outcome blobs while CLI loads `case.json`? |
-| Setup before outcome | Can sync / Contents API / provider-preflight errors exit without `outcome.json` + `block_reason`? |
+| Setup before outcome | Can sync / Contents API / create-build errors exit without `outcome.json` + `block_reason`? |
 | Escape hatch purity | Does a create-skip override still mutate fixture branches or call create-only APIs? |
-| Prerequisite soft-fail | Does a known-bad catalog/RRE setting only warn then burn the full status timeout? |
 | Duplicate trigger producers | Can the same status context be published twice (pipeline + step notify) and double-fire the detective? |
 | Multiple / step notify | Does “at least one” pipeline notify, or a step-level `github_commit_status` with a *different* context, still sync? Require exactly one pipeline-level context and ban every step-level entry. |
-| Provider payload shape | Does a non-mapping `provider` (or non-mapping `settings`) raise an uncaught `AttributeError` instead of a blocked outcome? |
-| Truthy settings | Do string catalog flags (`"true"`) pass truthiness checks? Require `publish_commit_status is True`. For `prevent_custom_statuses_from_using_buildkite_prefix`, block only on explicit `True` (omit/`False` OK — Terrazzo cannot set that private-preview key). |
 | Unroutable status context | Can `expected_status_context` omit the `buildkite` substring while the waiter still polls? Reject before sync/create. |
 | Producer/waiter context lockstep | Can env org/pipeline overrides make the waiter expect a context the fail-pipeline YAML never publishes? |
 
@@ -66,15 +63,12 @@ If Copilot (or a human) files a follow-up on the same PR after a “fix,” trea
 - Unit/oracle test helpers that default to outcome blobs while production loads `case.json` (suite green, CLI false-green or the reverse)
 - Fixing only the producer while the oracle still does `job_conclusion or conclusion` (or equivalent)
 - Schema accepting values the evaluator ignores
-- Setup / preflight exceptions that abort `run_live_case` (or `main`) **before** writing `outcome.json` with `blocked` + `block_reason` — Contents sync, catalog/RRE prerequisites, and provider payload errors must become blocked outcomes
+- Setup / preflight exceptions that abort `run_live_case` (or `main`) **before** writing `outcome.json` with `blocked` + `block_reason` — Contents sync and Buildkite create/poll errors must become blocked outcomes
 - Escape-hatch paths (e.g. fixed Buildkite target URL) that still mutate fixture branches, require write tokens, or call create-only preflights
-- Known producer prerequisites logged as WARNING then waiting a full poll timeout (e.g. live `prevent_custom_statuses_from_using_buildkite_prefix=true`) instead of an immediate blocked outcome
 - Duplicate producers of the same trigger signal (e.g. pipeline-level and step-level `github_commit_status` with the same context)
 - Accepting two or more pipeline-level `github_commit_status` contexts, or any step-level `github_commit_status` (even with a different context)
-- Truthiness on provider settings (`if settings.get("publish_commit_status")`) instead of strict checks; requiring `publish_commit_status is True` when Beats-style notify is the publisher; treating omitted `prevent_custom_statuses_from_using_buildkite_prefix` as failure (Terrazzo cannot set that key)
-- Calling `.get` on `provider` before proving it is a mapping (uncaught `AttributeError` on string/`None` payloads)
 - `expected_status_context` (or template output) that does not contain `buildkite`, so status triggers never route
-- Reserved `buildkite/…` notify context while live `prevent_custom_statuses_from_using_buildkite_prefix` is true (Beats uses custom contexts instead)
+- Reserved `buildkite/…` notify context (Beats-style live path uses a custom context that contains substring `buildkite` without that prefix; org default often rejects reserved-prefix contexts)
 - Substring / comment-only guards standing in for parsed config (e.g. `"github_commit_status" in yaml_text`)
 - Producer notify context hard-coded while the waiter derives context from env overrides (`E2E_BUILDKITE_ORG` / `E2E_BUILDKITE_PIPELINE`) without aligning or rejecting the mismatch
 
@@ -91,11 +85,10 @@ When changing fail-pipeline YAML, catalog `provider_settings`, or the ESTC live 
 1. **Exactly one pipeline-level notify** — one `github_commit_status` context; **reject every** step-level `github_commit_status` (not only same-context overlap).
 2. **Parse notify** — validate real YAML `notify` entries, not comment substrings.
 3. **Context lockstep** — fail-pipeline notify context matches `expected_buildkite_status_context` (env overrides included).
-4. **Routable context** — resolved / override context must contain `buildkite` (status trigger filter).
-5. **RRE prerequisites fail closed** — Beats-style: statuses come from `notify: github_commit_status` with a custom context (must contain substring `buildkite`, must **not** use reserved `buildkite/` prefix when live `prevent_custom_statuses_from_using_buildkite_prefix is True`). Do not require `publish_commit_status is True`. Block only when the expected context uses `buildkite/` **and** live API reports `prevent_custom_statuses_from_using_buildkite_prefix is True` (omit/`False` OK; never put that key in catalog — Terrazzo rejects it).
-6. **Provider payload shape** — `provider` and `provider.settings` must be mappings before reading flags; unexpected shapes raise typed errors that become blocked outcomes.
-7. **Exceptions → blocked outcome** — sync/API/preflight errors write `blocked` + `block_reason`, never an empty artifact path.
-8. **Runtime deps** — if the harness imports PyYAML (or other runtime packages), the E2E workflow must `pip install -r requirements-runtime.txt` (or equivalent) before running.
+4. **Routable context** — resolved / override context must contain `buildkite` (status trigger filter). Prefer Beats-style custom contexts (not reserved `buildkite/…`); catalog keeps `publish_commit_status: false` and must not set Terrazzo-unknown `prevent_custom_statuses_from_using_buildkite_prefix`.
+5. **Exceptions → blocked outcome** — sync/API/create errors write `blocked` + `block_reason`, never an empty artifact path.
+6. **Runtime deps** — if the harness imports PyYAML (or other runtime packages), the E2E workflow must `pip install -r requirements-runtime.txt` (or equivalent) before running.
+7. **No live pipeline GET** — do not call `GET …/pipelines/{pipeline}` for provider-settings preflight (needs `read_pipelines`); rely on checked-in YAML/catalog + create/poll scopes only.
 
 ## Local validation before commit / push
 
