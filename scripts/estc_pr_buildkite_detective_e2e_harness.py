@@ -579,11 +579,14 @@ def wait_for_commit_status(
     context: str,
     state: str,
     target_url: str | None,
-    since: datetime,
+    since: datetime | None,
     timeout_seconds: int,
     interval_seconds: int,
 ) -> dict[str, Any] | None:
-    """Poll GitHub commit statuses until the expected Buildkite status appears."""
+    """Poll GitHub commit statuses until the expected Buildkite status appears.
+
+    ``since`` may be ``None`` for URL-override reuse of an older published status.
+    """
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         matched = match_commit_status(
