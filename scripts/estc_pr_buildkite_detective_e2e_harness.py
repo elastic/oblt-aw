@@ -949,7 +949,11 @@ def wait_for_new_run(
 
 
 def status_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
-    """Return the obs-aw-status job conclusion, or the run conclusion as fallback."""
+    """Return the obs-aw-status job conclusion when that named job is present.
+
+    Fail closed: do not treat the overall run conclusion as a substitute when the
+    status job is absent (rename, empty jobs list, or unrelated successful jobs).
+    """
     if not run_detail:
         return None
     for job in run_detail.get("jobs") or []:
@@ -957,8 +961,7 @@ def status_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
         if "run-obs-aw-status" in name or name.endswith("obs-aw-status"):
             conclusion = (job.get("conclusion") or "").lower()
             return conclusion or None
-    conclusion = (run_detail.get("conclusion") or "").lower()
-    return conclusion or None
+    return None
 
 
 def status_job_executed(run_detail: dict[str, Any] | None) -> bool:
@@ -1533,7 +1536,9 @@ def run_live_case(
         target_url = observed.get("target_url") or target_url
         state = str(observed.get("state") or state)
         context = str(observed.get("context") or context)
-        status_publisher = infer_status_publisher(observed, fallback="buildkite")
+        # Missing creator.login must not default to Buildkite; URL matching
+        # correlates the status, but publisher identity fails closed.
+        status_publisher = infer_status_publisher(observed, fallback="other")
     else:
         context = str(cfg.get("status_context") or "buildkite/elastic/oblt-aw-e2e")
         if not trigger.get("context_contains_buildkite", True):

@@ -81,6 +81,69 @@ def _as_bool(value: Any) -> bool:
     raise TypeError(f"expected bool, got {type(value).__name__}: {value!r}")
 
 
+# Mode-specific keys that authorize case gates. Non-empty is not enough:
+# a typo-only map must fail closed the same way as missing/empty expectations.
+_LIVE_REQUIRED_EXPECTATION_KEYS = (
+    "dashboard_enabled",
+    "status_job_executed",
+    "agent_invoked",
+    "expect_agent_comment",
+)
+_FIXTURE_REQUIRED_EXPECTATION_KEYS = (
+    "path_gates",
+    "buildkite",
+    "agent_invoked",
+)
+_FIXTURE_REQUIRED_PATH_GATE_KEYS = (
+    "state_failure",
+    "context_contains_buildkite",
+    "has_open_pr",
+)
+
+
+def case_expectations_schema_error(
+    mode: str, expectations: dict[str, Any]
+) -> str | None:
+    """Return a detail string when expectations lack required mode-specific gates.
+
+    Callers must treat any returned string as a failed ``case_expectations``
+    check and must not authorize gate assertions from the incomplete map.
+    """
+    if mode == "live":
+        missing = [k for k in _LIVE_REQUIRED_EXPECTATION_KEYS if k not in expectations]
+        if missing:
+            return f"live expectations missing required keys: {missing}"
+        for key in _LIVE_REQUIRED_EXPECTATION_KEYS:
+            try:
+                _as_bool(expectations[key])
+            except TypeError as exc:
+                return f"live expectation {key!r} must be bool ({exc})"
+        return None
+
+    missing = [k for k in _FIXTURE_REQUIRED_EXPECTATION_KEYS if k not in expectations]
+    if missing:
+        return f"fixture expectations missing required keys: {missing}"
+    path_gates = expectations.get("path_gates")
+    if not isinstance(path_gates, dict) or not path_gates:
+        return "fixture expectations.path_gates must be a non-empty object"
+    path_missing = [k for k in _FIXTURE_REQUIRED_PATH_GATE_KEYS if k not in path_gates]
+    if path_missing:
+        return f"fixture path_gates missing required keys: {path_missing}"
+    for key in _FIXTURE_REQUIRED_PATH_GATE_KEYS:
+        try:
+            _as_bool(path_gates[key])
+        except TypeError as exc:
+            return f"fixture path_gates.{key} must be bool ({exc})"
+    buildkite = expectations.get("buildkite")
+    if not isinstance(buildkite, dict) or not buildkite:
+        return "fixture expectations.buildkite must be a non-empty object"
+    try:
+        _as_bool(expectations["agent_invoked"])
+    except TypeError as exc:
+        return f"fixture expectation agent_invoked must be bool ({exc})"
+    return None
+
+
 def evaluate_outcome(
     outcome: dict[str, Any],
     quarantine: dict[str, Any],
@@ -151,12 +214,27 @@ def evaluate_outcome(
             ],
         }
 
-    # Prefer checked-in case expectations over harness-copied ones when provided.
-    expectations = (
-        case_expectations
-        if isinstance(case_expectations, dict)
-        else (outcome.get("expectations") or {})
-    )
+    # Fail closed: never authorize gate checks from harness-copied
+    # outcome.expectations alone. Callers (CLI + tests) must pass checked-in
+    # case expectations explicitly. Empty, typo-only, or schema-incomplete
+    # mappings are rejected so malformed case.json cannot skip case gates.
+    expectations: dict[str, Any] = {}
+    if not isinstance(case_expectations, dict) or not case_expectations:
+        _check(
+            checks,
+            "case_expectations",
+            False,
+            (
+                "non-empty checked-in case expectations are required "
+                "(do not trust outcome.expectations or empty mappings)"
+            ),
+        )
+    else:
+        schema_error = case_expectations_schema_error(mode, case_expectations)
+        if schema_error is not None:
+            _check(checks, "case_expectations", False, schema_error)
+        else:
+            expectations = case_expectations
     path_exp = expectations.get("path_gates") or {}
     bk_exp = expectations.get("buildkite") or {}
     path_gates = outcome.get("path_gates") or {}
@@ -421,11 +499,8 @@ def _evaluate_live(
                 f"expected={expected} actual={actual} run={status_trigger.get('url')}",
             )
             if expected is False and run_seen is True:
-                job_conclusion = str(
-                    status_trigger.get("job_conclusion")
-                    or status_trigger.get("conclusion")
-                    or ""
-                ).lower()
+                # Named-job conclusion only — never the overall run conclusion.
+                job_conclusion = str(status_trigger.get("job_conclusion") or "").lower()
                 _check(
                     checks,
                     "status_job_skipped",
@@ -436,11 +511,7 @@ def _evaluate_live(
                     ),
                 )
             if expected is True and run_seen is True:
-                job_conclusion = str(
-                    status_trigger.get("job_conclusion")
-                    or status_trigger.get("conclusion")
-                    or ""
-                ).lower()
+                job_conclusion = str(status_trigger.get("job_conclusion") or "").lower()
                 _check(
                     checks,
                     "status_job_success",
