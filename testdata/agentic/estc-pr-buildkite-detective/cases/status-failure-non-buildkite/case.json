@@ -1,0 +1,19 @@
+{
+  "id": "status-failure-non-buildkite",
+  "mode": "live",
+  "description": "Failed non-Buildkite status must not execute the status job or invoke the detective agent.",
+  "workflow_id": "obs:estc-pr-buildkite-detective",
+  "trigger": {
+    "status_state": "failure",
+    "context_contains_buildkite": false,
+    "require_open_pr": true,
+    "use_buildkite_target_url": false,
+    "clear_prior_detective_comments": false
+  },
+  "expectations": {
+    "dashboard_enabled": true,
+    "status_job_executed": false,
+    "agent_invoked": false,
+    "expect_agent_comment": false
+  }
+}

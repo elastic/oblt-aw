@@ -1,0 +1,19 @@
+{
+  "id": "status-failure-no-open-pr",
+  "mode": "live",
+  "description": "Failed Buildkite status on a commit with no open PR must run the status job but stop before the agent.",
+  "workflow_id": "obs:estc-pr-buildkite-detective",
+  "trigger": {
+    "status_state": "failure",
+    "context_contains_buildkite": true,
+    "require_open_pr": false,
+    "use_buildkite_target_url": true,
+    "clear_prior_detective_comments": false
+  },
+  "expectations": {
+    "dashboard_enabled": true,
+    "status_job_executed": true,
+    "agent_invoked": false,
+    "expect_agent_comment": false
+  }
+}

@@ -1,0 +1,6 @@
+=== Recorded Buildkite job log (synthetic fixture; not a live org capture) ===
+--- FAIL: TestExample (0.01s)
+    example_test.go:12: expected ok, got err
+FAIL
+exit status 1
+FAIL	github.com/elastic/oblt-aw-sandbox/pkg/example	0.02s

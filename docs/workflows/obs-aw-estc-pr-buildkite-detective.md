@@ -81,7 +81,7 @@ Copies in `elastic/ai-github-actions` remain for other consumers; this pilot doe
 
 **Integration (no live model):** fixtures and wiring checks for resolve → wrapper → lock inputs live under [`testdata/agentic/estc-pr-buildkite-detective/`](../../testdata/agentic/estc-pr-buildkite-detective/) and [`tests/integration/test_estc_pr_buildkite_detective.py`](../../tests/integration/test_estc_pr_buildkite_detective.py) ([#1910](https://github.com/elastic/oblt-aw/issues/1910)).
 
-**E2E / production-like status-path validation:** design and first vertical-slice plan live in [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md) ([#1877](https://github.com/elastic/oblt-aw/issues/1877)). Implementation of the E2E job is follow-up work ([#1911](https://github.com/elastic/oblt-aw/issues/1911)).
+**E2E / production status-path validation:** design lives in [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md) ([#1877](https://github.com/elastic/oblt-aw/issues/1877)). Production E2E runs on **`elastic/oblt-aw`** via [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` + weekly schedule + `workflow_call` for [#1878](https://github.com/elastic/oblt-aw/issues/1878); **not** a default PR required gate). Live mode posts a real commit status and asserts agent comment presence/absence (section markers are harness identity only for now). See [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) ([#1911](https://github.com/elastic/oblt-aw/issues/1911)).
 
 ## References
 
@@ -91,3 +91,4 @@ Copies in `elastic/ai-github-actions` remain for other consumers; this pilot doe
 - Shared model defaults: [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md)
 - Prior upstream (rollback / other consumers): [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml`](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
 - Prior upstream documentation: [elastic.github.io/ai-github-actions](https://elastic.github.io/ai-github-actions/workflows/gh-agent-workflows/estc-pr-buildkite-detective/)
+- E2E harness: [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) — fixtures under [`testdata/agentic/estc-pr-buildkite-detective/`](../../testdata/agentic/estc-pr-buildkite-detective/)

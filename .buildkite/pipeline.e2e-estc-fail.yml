@@ -1,0 +1,19 @@
+# Intentional failure pipeline for obs:estc-pr-buildkite-detective live E2E.
+# Buildkite pipeline setup (one-time): create pipeline `oblt-aw-e2e-estc-fail` (or
+# the slug in vars.E2E_BUILDKITE_PIPELINE) on the configured org, point it at
+# elastic/oblt-aw, and set steps to this file (or paste the steps below).
+# Assign the pipeline to a cluster/queue that can run a trivial shell command —
+# do not invent Elastic agent tags here; configure agents in Buildkite.
+#
+# The harness creates a build per live happy-path run and waits for failure.
+# Log marker below must stay stable (oracle / human debugging).
+
+steps:
+  - label: ":x: intentional e2e failure"
+    key: intentional-e2e-failure
+    command: |
+      set -euo pipefail
+      echo "OBLT_AW_E2E_ESTC_INTENTIONAL_FAILURE"
+      echo "This Buildkite job fails on purpose for obs:estc-pr-buildkite-detective E2E."
+      echo "Do not treat this as a product regression."
+      exit 1

@@ -1,0 +1,14 @@
+{
+  "state": "failure",
+  "context": "buildkite/elastic/sandbox-ci",
+  "target_url": "https://buildkite.com/elastic/sandbox-ci/builds/42",
+  "commit": {
+    "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "description": "Build #42 failed",
+  "name": "buildkite/elastic/sandbox-ci",
+  "repository": {
+    "full_name": "elastic/oblt-aw-sandbox"
+  }
+}

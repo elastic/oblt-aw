@@ -1,0 +1,19 @@
+{
+  "id": "status-success-skipped",
+  "mode": "live",
+  "description": "Successful Buildkite status must not execute the status job or invoke the detective agent.",
+  "workflow_id": "obs:estc-pr-buildkite-detective",
+  "trigger": {
+    "status_state": "success",
+    "context_contains_buildkite": true,
+    "require_open_pr": true,
+    "use_buildkite_target_url": true,
+    "clear_prior_detective_comments": false
+  },
+  "expectations": {
+    "dashboard_enabled": true,
+    "status_job_executed": false,
+    "agent_invoked": false,
+    "expect_agent_comment": false
+  }
+}
