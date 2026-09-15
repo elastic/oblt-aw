@@ -412,10 +412,7 @@ class TestHarnessFixtureCase:
             is None
         )
         assert (
-            harness.status_job_executed(
-                {"conclusion": "success", "jobs": []}
-            )
-            is False
+            harness.status_job_executed({"conclusion": "success", "jobs": []}) is False
         )
         assert (
             harness.status_job_conclusion(
