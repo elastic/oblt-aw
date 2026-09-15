@@ -48,7 +48,9 @@ MARKER_BODY = (
     "`obs:estc-pr-buildkite-detective`. Do not merge.\n"
 )
 FAIL_PIPELINE_PATH = Path(".buildkite/pipeline.e2e-estc-fail.yml")
-DEFAULT_STATUS_CONTEXT_ORG_PIPELINE = "buildkite/{org}/{pipeline}"
+# Beats-style custom context: contains "buildkite" for status routing, but not
+# the reserved buildkite/… prefix (blocked when prevent_custom…=true).
+DEFAULT_STATUS_CONTEXT = "oblt-aw-e2e-estc-fail: buildkite"
 
 
 def _load_json(path: Path) -> Any:
@@ -115,29 +117,37 @@ def require_routable_buildkite_status_context(context: str) -> str:
     if not ctx:
         raise RuntimeError(
             "expected Buildkite status context is empty; set "
-            "expected_status_context or E2E_BUILDKITE_ORG/E2E_BUILDKITE_PIPELINE."
+            "expected_status_context / status_context in E2E config."
         )
     if "buildkite" not in ctx.lower():
         raise RuntimeError(
             f"status context {ctx!r} does not contain 'buildkite'; "
             "trigger-obs-aw-status.yml / obs-aw-event-status.yml will not route it. "
-            "Use a buildkite/… context (or include the substring buildkite)."
+            "Use a Beats-style custom context that includes the substring "
+            "buildkite (not the reserved buildkite/… prefix)."
         )
     return ctx
 
 
+def uses_reserved_buildkite_commit_status_prefix(context: str) -> bool:
+    """True when context uses Buildkite's reserved ``buildkite/`` prefix."""
+    return str(context or "").strip().lower().startswith("buildkite/")
+
+
 def expected_buildkite_status_context(cfg: dict[str, Any]) -> str:
     """GitHub status context Buildkite should publish for the fail pipeline."""
-    override = str(cfg.get("expected_status_context") or "").strip()
+    override = str(
+        cfg.get("expected_status_context") or cfg.get("status_context") or ""
+    ).strip()
     if override:
         return require_routable_buildkite_status_context(override)
-    org, pipeline = resolve_buildkite_org_pipeline(cfg)
-    template = str(
-        cfg.get("status_context_template") or DEFAULT_STATUS_CONTEXT_ORG_PIPELINE
-    )
-    return require_routable_buildkite_status_context(
-        template.format(org=org, pipeline=pipeline)
-    )
+    template = str(cfg.get("status_context_template") or "").strip()
+    if template:
+        org, pipeline = resolve_buildkite_org_pipeline(cfg)
+        return require_routable_buildkite_status_context(
+            template.format(org=org, pipeline=pipeline)
+        )
+    return require_routable_buildkite_status_context(DEFAULT_STATUS_CONTEXT)
 
 
 def gh_json(args: list[str], *, check: bool = True) -> Any:
@@ -336,25 +346,23 @@ def fail_pipeline_github_commit_status_contexts(
 def assert_fail_pipeline_status_context_matches(
     cfg: dict[str, Any],
     *,
-    pipeline_path: Path = FAIL_PIPELINE_PATH,
+    pipeline_path: Path | None = None,
 ) -> str:
     """Ensure the fail-pipeline notify context matches harness expectation."""
-    if not pipeline_path.is_file():
+    path = pipeline_path if pipeline_path is not None else FAIL_PIPELINE_PATH
+    if not path.is_file():
         raise RuntimeError(
-            f"Fail pipeline YAML missing at {pipeline_path}; cannot validate notify."
+            f"Fail pipeline YAML missing at {path}; cannot validate notify."
         )
-    content = pipeline_path.read_text(encoding="utf-8")
-    contexts = fail_pipeline_github_commit_status_contexts(
-        content, pipeline_path=pipeline_path
-    )
+    content = path.read_text(encoding="utf-8")
+    contexts = fail_pipeline_github_commit_status_contexts(content, pipeline_path=path)
     expected = expected_buildkite_status_context(cfg)
     if expected not in contexts:
         raise RuntimeError(
             f"Fail pipeline notify contexts {contexts} do not include expected "
             f"status context {expected!r}. Align "
             f".buildkite/pipeline.e2e-estc-fail.yml notify with "
-            f"E2E_BUILDKITE_ORG/E2E_BUILDKITE_PIPELINE (or "
-            f"expected_status_context), or unset those overrides."
+            f"expected_status_context / status_context in E2E config."
         )
     return expected
 
@@ -363,7 +371,7 @@ def sync_fail_pipeline_to_fixture_branch(
     repo: str,
     *,
     branch: str,
-    pipeline_path: Path = FAIL_PIPELINE_PATH,
+    pipeline_path: Path | None = None,
     expected_context: str | None = None,
 ) -> bool:
     """Ensure the fixture branch tip includes the fail-pipeline YAML from this checkout.
@@ -372,39 +380,51 @@ def sync_fail_pipeline_to_fixture_branch(
     commit. The happy-path notify block only runs when that file is present on
     the fixture SHA.
     """
-    if not pipeline_path.is_file():
+    path = pipeline_path if pipeline_path is not None else FAIL_PIPELINE_PATH
+    if not path.is_file():
         raise RuntimeError(
-            f"Fail pipeline YAML missing at {pipeline_path}; cannot sync fixture branch."
+            f"Fail pipeline YAML missing at {path}; cannot sync fixture branch."
         )
-    content = pipeline_path.read_text(encoding="utf-8")
-    contexts = fail_pipeline_github_commit_status_contexts(
-        content, pipeline_path=pipeline_path
-    )
+    content = path.read_text(encoding="utf-8")
+    contexts = fail_pipeline_github_commit_status_contexts(content, pipeline_path=path)
     if expected_context is not None and expected_context not in contexts:
         raise RuntimeError(
-            f"{pipeline_path} notify contexts {contexts} do not include "
+            f"{path} notify contexts {contexts} do not include "
             f"expected {expected_context!r}."
         )
+    # Always write under the canonical repo path so Buildkite's pipeline upload
+    # finds the file on the fixture commit (local tmp paths must not leak).
+    remote_path = str(FAIL_PIPELINE_PATH).replace("\\", "/")
     updated = put_branch_file(
         repo,
         branch=branch,
-        path=str(pipeline_path).replace("\\", "/"),
+        path=remote_path,
         content=content,
         message="chore(e2e): sync ESTC fail pipeline notify onto fixture branch",
     )
     if updated:
         log_info(
-            f"Synced {pipeline_path} onto {repo}@{branch} for Buildkite status notify."
+            f"Synced {remote_path} onto {repo}@{branch} for Buildkite status notify."
         )
     else:
-        log_info(f"{pipeline_path} already current on {repo}@{branch}.")
+        log_info(f"{remote_path} already current on {repo}@{branch}.")
     return updated
 
 
 def verify_buildkite_publishes_commit_status(
-    token: str, *, org: str, pipeline: str
+    token: str,
+    *,
+    org: str,
+    pipeline: str,
+    expected_context: str,
 ) -> None:
-    """Fail closed when the live pipeline cannot publish the expected GitHub status."""
+    """Fail closed when live provider settings reject the expected notify context.
+
+    Beats-style path: ``publish_commit_status`` is typically false; statuses come
+    from ``notify: github_commit_status`` with a custom context. Org default
+    ``prevent_custom_statuses_from_using_buildkite_prefix=true`` is fine unless
+    ``expected_context`` uses the reserved ``buildkite/`` prefix.
+    """
     data = bk_api_json(
         token,
         "GET",
@@ -428,29 +448,22 @@ def verify_buildkite_publishes_commit_status(
         )
     publish = settings.get("publish_commit_status")
     # Private-preview Buildkite setting; Elastic Terrazzo cannot set it via RRE.
-    # Only fail closed when the live API reports it explicitly enabled.
     prevent_prefix = settings.get("prevent_custom_statuses_from_using_buildkite_prefix")
-    if publish is not True:
-        raise RuntimeError(
-            f"Buildkite pipeline {org}/{pipeline} publish_commit_status must be "
-            f"true (got {publish!r}). Enable it in catalog-info.yaml "
-            "provider_settings (and wait for RRE), and keep pipeline notify "
-            "github_commit_status."
-        )
-    if prevent_prefix is True:
+    ctx = require_routable_buildkite_status_context(expected_context)
+    if prevent_prefix is True and uses_reserved_buildkite_commit_status_prefix(ctx):
         raise RuntimeError(
             f"Buildkite pipeline {org}/{pipeline} "
             "prevent_custom_statuses_from_using_buildkite_prefix is true; "
-            "explicit notify contexts under buildkite/… will be rejected. "
-            "Disable it in the Buildkite GitHub provider UI (Terrazzo RRE "
-            "cannot set this private-preview field) before creating "
-            "intentional failures."
+            f"notify context {ctx!r} uses the reserved buildkite/… prefix and "
+            "will be rejected. Use a Beats-style custom context that contains "
+            "the substring 'buildkite' without that prefix (see "
+            ".buildkite/pipeline.e2e-estc-fail.yml)."
         )
     log_info(
         f"Buildkite pipeline {org}/{pipeline}: publish_commit_status="
         f"{publish!r}, "
         f"prevent_custom_statuses_from_using_buildkite_prefix="
-        f"{prevent_prefix!r}."
+        f"{prevent_prefix!r}, expected_context={ctx!r}."
     )
 
 
@@ -1056,8 +1069,9 @@ def commit_status_timeout_block_reason(
     return (
         f"Timed out after {timeout_seconds}s waiting for GitHub commit status "
         f"context={context!r} state={state!r} target_url={target_url!r} "
-        f"on {sha}. Buildkite should publish this via pipeline notify / "
-        f"publish_commit_status; without it the live status→agent path cannot run. "
+        f"on {sha}. Buildkite should publish this via pipeline-level "
+        f"notify github_commit_status (Beats-style custom context); without it "
+        f"the live status→agent path cannot run. "
         f"Statuses observed on the SHA:\n{snapshot}"
     )
 
@@ -1649,6 +1663,38 @@ def run_live_case(
     }
 
     try:
+        expected_ctx = assert_fail_pipeline_status_context_matches(cfg)
+        token = buildkite_api_token(cfg)
+        if not token:
+            bk = _buildkite_cfg(cfg)
+            token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
+            raise RuntimeError(f"Missing {token_env} (write_builds + read).")
+        org, pipeline = resolve_buildkite_org_pipeline(cfg)
+        verify_buildkite_publishes_commit_status(
+            token,
+            org=org,
+            pipeline=pipeline,
+            expected_context=expected_ctx,
+        )
+        if e2e_branch:
+            synced = sync_fail_pipeline_to_fixture_branch(
+                repo,
+                branch=e2e_branch,
+                expected_context=expected_ctx,
+            )
+            if synced:
+                pr_info, resolved_base = resolve_target_pr(
+                    repo,
+                    cfg,
+                    base_branch=base_branch,
+                )
+                sha = pr_info["headRefOid"]
+                target_pr_number = int(pr_info["number"])
+                e2e_branch = str(
+                    pr_info.get("headRefName")
+                    or cfg.get("e2e_pr", {}).get("branch")
+                    or e2e_branch
+                )
         target_url, buildkite_meta = ensure_failed_buildkite_target_url(
             cfg,
             commit=sha,
@@ -1657,7 +1703,7 @@ def run_live_case(
             case_id=str(case.get("id", case_dir.name)),
             pull_request_base_branch=resolved_base,
         )
-    except (RuntimeError, TimeoutError, ValueError) as exc:
+    except (RuntimeError, TimeoutError, TypeError, ValueError) as exc:
         return {
             "workflow_id": workflow_id,
             "case_id": case.get("id", case_dir.name),

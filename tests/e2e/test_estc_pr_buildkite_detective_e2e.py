@@ -484,13 +484,13 @@ class TestHarnessLive:
     def test_match_commit_status_requires_context_state_and_url(self) -> None:
         statuses = [
             {
-                "context": "buildkite/elastic/oblt-aw-e2e-estc-fail",
+                "context": "oblt-aw-e2e-estc-fail: buildkite",
                 "state": "failure",
                 "target_url": "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
                 "created_at": "2026-09-14T10:00:00Z",
             },
             {
-                "context": "buildkite/elastic/oblt-aw-e2e-estc-fail",
+                "context": "oblt-aw-e2e-estc-fail: buildkite",
                 "state": "failure",
                 "target_url": "https://buildkite.com/elastic/other/builds/9",
                 "created_at": "2026-09-14T11:00:00Z",
@@ -498,7 +498,7 @@ class TestHarnessLive:
         ]
         matched = harness.match_commit_status(
             statuses,
-            context="buildkite/elastic/oblt-aw-e2e-estc-fail",
+            context="oblt-aw-e2e-estc-fail: buildkite",
             state="failure",
             target_url="https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
         )
@@ -507,14 +507,16 @@ class TestHarnessLive:
         assert (
             harness.match_commit_status(
                 statuses,
-                context="buildkite/elastic/oblt-aw-e2e-estc-fail",
+                context="oblt-aw-e2e-estc-fail: buildkite",
                 state="success",
                 target_url="https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
             )
             is None
         )
 
-    def test_expected_buildkite_status_context_matches_org_pipeline(self) -> None:
+    def test_expected_buildkite_status_context_defaults_to_beats_style(
+        self,
+    ) -> None:
         cfg = {
             "buildkite_failure": {
                 "org_default": "elastic",
@@ -523,10 +525,17 @@ class TestHarnessLive:
         }
         assert (
             harness.expected_buildkite_status_context(cfg)
-            == "buildkite/elastic/oblt-aw-e2e-estc-fail"
+            == "oblt-aw-e2e-estc-fail: buildkite"
         )
-        cfg["expected_status_context"] = "buildkite/custom"
-        assert harness.expected_buildkite_status_context(cfg) == "buildkite/custom"
+        cfg["status_context"] = "oblt-aw-e2e-estc-fail: buildkite"
+        assert (
+            harness.expected_buildkite_status_context(cfg)
+            == "oblt-aw-e2e-estc-fail: buildkite"
+        )
+        cfg["expected_status_context"] = "custom-buildkite-check"
+        assert (
+            harness.expected_buildkite_status_context(cfg) == "custom-buildkite-check"
+        )
 
     def test_expected_buildkite_status_context_rejects_unroutable(
         self,
@@ -560,14 +569,14 @@ class TestHarnessLive:
         reason = harness.commit_status_timeout_block_reason(
             repo="elastic/oblt-aw",
             sha="abc123",
-            context="buildkite/elastic/oblt-aw-e2e-estc-fail",
+            context="oblt-aw-e2e-estc-fail: buildkite",
             state="failure",
             target_url="https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
             timeout_seconds=300,
         )
         assert "Timed out after 300s" in reason
         assert "CLA" in reason
-        assert "buildkite/elastic/oblt-aw-e2e-estc-fail" in reason
+        assert "oblt-aw-e2e-estc-fail: buildkite" in reason
 
     def test_sync_fail_pipeline_requires_notify(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
@@ -602,13 +611,13 @@ class TestHarnessLive:
         pipeline.write_text(
             """notify:
   - github_commit_status:
-      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+      context: "oblt-aw-e2e-estc-fail: buildkite"
 steps:
   - label: fail
     command: exit 1
     notify:
       - github_commit_status:
-          context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+          context: "oblt-aw-e2e-estc-fail: buildkite"
 """,
             encoding="utf-8",
         )
@@ -627,13 +636,13 @@ steps:
         pipeline.write_text(
             """notify:
   - github_commit_status:
-      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+      context: "oblt-aw-e2e-estc-fail: buildkite"
 steps:
   - label: fail
     command: exit 1
     notify:
       - github_commit_status:
-          context: "buildkite/elastic/other-context"
+          context: "other-buildkite-context"
 """,
             encoding="utf-8",
         )
@@ -652,9 +661,9 @@ steps:
         pipeline.write_text(
             """notify:
   - github_commit_status:
-      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+      context: "oblt-aw-e2e-estc-fail: buildkite"
   - github_commit_status:
-      context: "buildkite/elastic/second"
+      context: "second-buildkite-context"
 steps: []
 """,
             encoding="utf-8",
@@ -666,23 +675,23 @@ steps: []
             )
 
     def test_assert_fail_pipeline_status_context_matches_override(
-        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: pathlib.Path
     ) -> None:
         pipeline = tmp_path / "pipeline.yml"
         pipeline.write_text(
             """notify:
   - github_commit_status:
-      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+      context: "oblt-aw-e2e-estc-fail: buildkite"
 steps: []
 """,
             encoding="utf-8",
         )
-        monkeypatch.setenv("E2E_BUILDKITE_PIPELINE", "other-pipeline")
         cfg = {
             "buildkite_failure": {
                 "org_default": "elastic",
                 "pipeline_default": "oblt-aw-e2e-estc-fail",
-            }
+            },
+            "expected_status_context": "other-buildkite-context",
         }
         with pytest.raises(RuntimeError, match="do not include expected"):
             harness.assert_fail_pipeline_status_context_matches(
@@ -698,7 +707,7 @@ steps: []
             lambda *_a, **_k: {
                 "provider": {
                     "settings": {
-                        "publish_commit_status": True,
+                        "publish_commit_status": False,
                         "prevent_custom_statuses_from_using_buildkite_prefix": True,
                     }
                 }
@@ -708,8 +717,34 @@ steps: []
             RuntimeError, match="prevent_custom_statuses_from_using_buildkite_prefix"
         ):
             harness.verify_buildkite_publishes_commit_status(
-                "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
+                "token",
+                org="elastic",
+                pipeline="oblt-aw-e2e-estc-fail",
+                expected_context="buildkite/elastic/oblt-aw-e2e-estc-fail",
             )
+
+    def test_verify_buildkite_allows_beats_style_with_prevent_prefix(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Org default prevent_custom=true is OK with non-buildkite/ contexts."""
+        monkeypatch.setattr(
+            harness,
+            "bk_api_json",
+            lambda *_a, **_k: {
+                "provider": {
+                    "settings": {
+                        "publish_commit_status": False,
+                        "prevent_custom_statuses_from_using_buildkite_prefix": True,
+                    }
+                }
+            },
+        )
+        harness.verify_buildkite_publishes_commit_status(
+            "token",
+            org="elastic",
+            pipeline="oblt-aw-e2e-estc-fail",
+            expected_context="oblt-aw-e2e-estc-fail: buildkite",
+        )
 
     def test_verify_buildkite_fails_closed_on_non_mapping_provider(
         self, monkeypatch: pytest.MonkeyPatch
@@ -721,7 +756,10 @@ steps: []
         )
         with pytest.raises(TypeError, match="provider must be a mapping"):
             harness.verify_buildkite_publishes_commit_status(
-                "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
+                "token",
+                org="elastic",
+                pipeline="oblt-aw-e2e-estc-fail",
+                expected_context="oblt-aw-e2e-estc-fail: buildkite",
             )
 
     def test_verify_buildkite_allows_omitted_prevent_prefix(
@@ -734,13 +772,16 @@ steps: []
             lambda *_a, **_k: {
                 "provider": {
                     "settings": {
-                        "publish_commit_status": True,
+                        "publish_commit_status": False,
                     }
                 }
             },
         )
         harness.verify_buildkite_publishes_commit_status(
-            "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
+            "token",
+            org="elastic",
+            pipeline="oblt-aw-e2e-estc-fail",
+            expected_context="oblt-aw-e2e-estc-fail: buildkite",
         )
 
     def test_verify_buildkite_allows_explicit_false_prevent_prefix(
@@ -752,34 +793,104 @@ steps: []
             lambda *_a, **_k: {
                 "provider": {
                     "settings": {
-                        "publish_commit_status": True,
+                        "publish_commit_status": False,
                         "prevent_custom_statuses_from_using_buildkite_prefix": False,
                     }
                 }
             },
         )
         harness.verify_buildkite_publishes_commit_status(
-            "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
+            "token",
+            org="elastic",
+            pipeline="oblt-aw-e2e-estc-fail",
+            expected_context="buildkite/elastic/oblt-aw-e2e-estc-fail",
         )
 
-    def test_verify_buildkite_fails_closed_on_string_publish_flag(
-        self, monkeypatch: pytest.MonkeyPatch
+    def test_run_live_case_invokes_provider_verify_before_create(
+        self,
+        tmp_path: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        """Call-site regression: verify must run in run_live_case, not only unit tests."""
+        case_dir = tmp_path / LIVE_CASE_ID
+        case_dir.mkdir()
+        case_dir.joinpath("case.json").write_text(
+            (TESTDATA_ROOT / "cases" / LIVE_CASE_ID / "case.json").read_text(
+                encoding="utf-8"
+            ),
+            encoding="utf-8",
+        )
+        pipeline = tmp_path / "pipeline.e2e-estc-fail.yml"
+        pipeline.write_text(
+            """notify:
+  - github_commit_status:
+      context: "oblt-aw-e2e-estc-fail: buildkite"
+steps:
+  - label: fail
+    command: exit 1
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(harness, "FAIL_PIPELINE_PATH", pipeline)
+        calls: list[str] = []
+
+        def _verify(*_a: object, **_k: object) -> None:
+            calls.append("verify")
+
+        def _sync(*_a: object, **_k: object) -> bool:
+            calls.append("sync")
+            return False
+
+        def _ensure(*_a: object, **_k: object) -> tuple[str, dict]:
+            calls.append("ensure")
+            return "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1", {
+                "source": "created",
+                "org": "elastic",
+                "pipeline": "oblt-aw-e2e-estc-fail",
+                "number": 1,
+                "state": "failed",
+                "web_url": "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
+            }
+
+        monkeypatch.setattr(
+            harness, "dashboard_enables_workflow", lambda *_a, **_k: True
+        )
+        monkeypatch.setattr(
+            harness, "buildkite_api_token", lambda *_a, **_k: "fake-token"
+        )
         monkeypatch.setattr(
             harness,
-            "bk_api_json",
-            lambda *_a, **_k: {
-                "provider": {
-                    "settings": {
-                        "publish_commit_status": "true",
-                    }
-                }
-            },
+            "resolve_target_pr",
+            lambda *_a, **_k: (
+                {
+                    "number": 1965,
+                    "headRefOid": "abc123",
+                    "headRefName": "e2e/estc-pr-buildkite-detective",
+                },
+                "main",
+            ),
         )
-        with pytest.raises(RuntimeError, match="publish_commit_status must be true"):
-            harness.verify_buildkite_publishes_commit_status(
-                "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
-            )
+        monkeypatch.setattr(harness, "clear_detective_comments", lambda *_a, **_k: 0)
+        monkeypatch.setattr(harness, "list_status_trigger_runs", lambda *_a, **_k: [])
+        monkeypatch.setattr(
+            harness, "verify_buildkite_publishes_commit_status", _verify
+        )
+        monkeypatch.setattr(harness, "sync_fail_pipeline_to_fixture_branch", _sync)
+        monkeypatch.setattr(harness, "ensure_failed_buildkite_target_url", _ensure)
+        monkeypatch.setattr(harness, "wait_for_commit_status", lambda *_a, **_k: None)
+        monkeypatch.setattr(
+            harness,
+            "commit_status_timeout_block_reason",
+            lambda **_k: "timed out (test)",
+        )
+
+        cfg = harness.load_e2e_config(
+            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        )
+        outcome = harness.run_live_case(case_dir, cfg, run_url="https://example.test/r")
+        assert calls == ["verify", "sync", "ensure"]
+        assert outcome["blocked"] is True
+        assert "timed out" in str(outcome.get("block_reason") or "").lower()
 
     def test_find_open_e2e_pr_strict_branch(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1250,7 +1361,7 @@ class TestOracle:
             "blocked": True,
             "block_reason": (
                 "Timed out after 300s waiting for GitHub commit status "
-                "context='buildkite/elastic/oblt-aw-e2e-estc-fail' "
+                "context='oblt-aw-e2e-estc-fail: buildkite' "
                 "state='failure' target_url='https://buildkite.com/x' on abc."
             ),
             "agent_invoked": False,
@@ -1960,7 +2071,7 @@ class TestOracle:
                     "blocked": True,
                     "block_reason": (
                         "Timed out after 300s waiting for GitHub commit status "
-                        "context='buildkite/elastic/oblt-aw-e2e-estc-fail'"
+                        "context='oblt-aw-e2e-estc-fail: buildkite'"
                     ),
                     "agent_invoked": False,
                 }

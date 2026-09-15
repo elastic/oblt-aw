@@ -256,11 +256,10 @@ def evaluate_outcome(
         elif "timed out" in lower and "commit status" in lower:
             notes.append(
                 "Buildkite did not publish the expected GitHub commit status. "
-                "Confirm pipeline notify github_commit_status and "
-                "publish_commit_status=true (catalog-info.yaml + RRE). If the "
-                "live pipeline has prevent_custom_statuses_from_using_buildkite_prefix "
-                "enabled, disable it in the Buildkite UI (not via catalog). "
-                "Re-run after the fixture branch has the synced fail-pipeline YAML."
+                "Confirm pipeline-level notify github_commit_status uses a "
+                "Beats-style custom context (contains 'buildkite', not the "
+                "reserved buildkite/… prefix). Re-run after the fixture branch "
+                "has the synced fail-pipeline YAML."
             )
         elif "buildkite" in lower and (
             "token" in lower or "403" in lower or "access" in lower
