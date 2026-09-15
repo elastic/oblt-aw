@@ -15,10 +15,12 @@ Live mode is the E2E proof. On the happy path the intentional Buildkite pipeline
 
 | Case id | Expectation |
 |---------|-------------|
-| `status-failure-open-pr-live` | Create intentional Buildkite failure → **Buildkite** publishes failed status → agent posts a comment with `### TL;DR` + `## Remediation` |
-| `status-success-skipped` | Success status → status job skipped → no agent |
-| `status-failure-non-buildkite` | Failed non-Buildkite status → status job skipped → no agent |
-| `status-failure-no-open-pr` | Failed Buildkite status on default-branch HEAD with no open PR → status job runs, agent does not |
+| `status-failure-open-pr-live` | Create intentional Buildkite failure → **Buildkite** publishes failed status → agent posts a comment (harness finds it via `### TL;DR` + `## Remediation`; oracle asserts presence only) |
+| `status-success-skipped` | Success status → status job skipped → no agent comment |
+| `status-failure-non-buildkite` | Failed non-Buildkite status → status job skipped → no agent comment |
+| `status-failure-no-open-pr` | Failed Buildkite status on default-branch HEAD with no open PR → status job runs, agent does not comment |
+
+Oracle pass/fail for the agent side effect is **comment presence or absence**. Section markers are **identity** for find/clear in the harness; asserting marker shape in the oracle is deferred to a follow-up. Agent prose / commit diagnosis content is out of scope.
 
 ## Prerequisites (live)
 

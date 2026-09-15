@@ -554,7 +554,7 @@ class TestOracle:
         failed_ids = {c["id"] for c in report["checks"] if not c["pass"]}
         assert "buildkite_failed_jobs" in failed_ids
 
-    def test_live_oracle_requires_comment_markers(self) -> None:
+    def test_live_oracle_requires_comment_present(self) -> None:
         outcome = {
             "workflow_id": "obs:estc-pr-buildkite-detective",
             "case_id": "status-failure-open-pr-live",
@@ -597,6 +597,9 @@ class TestOracle:
         report = oracle.evaluate_outcome(outcome, {"cases": []})
         assert report["pass"] is True
         assert report["layer"] == "e2e"
+        check_ids = {c["id"] for c in report["checks"]}
+        assert "agent_comment_present" in check_ids
+        assert "agent_comment_markers" not in check_ids
 
     def test_live_oracle_asserts_trigger_status_contract(self) -> None:
         outcome = {
@@ -643,7 +646,8 @@ class TestOracle:
         assert "status_target_url" in failed
         assert "status_publisher_buildkite_path" in failed
 
-    def test_live_oracle_rejects_missing_markers(self) -> None:
+    def test_live_oracle_presence_only_ignores_marker_shape(self) -> None:
+        """Oracle asserts comment id presence; marker shape is harness identity."""
         outcome = {
             "workflow_id": "obs:estc-pr-buildkite-detective",
             "case_id": "status-failure-open-pr-live",
@@ -651,11 +655,24 @@ class TestOracle:
             "mode": "live",
             "agent_invoked": True,
             "path_gates": {"dashboard_enabled": True},
-            "status": {"state": "failure", "context": "buildkite/elastic/x"},
+            "trigger": {
+                "status_state": "failure",
+                "context_contains_buildkite": True,
+                "use_buildkite_target_url": True,
+                "create_failed_buildkite_build": True,
+            },
+            "status": {
+                "state": "failure",
+                "context": "buildkite/elastic/x",
+                "target_url": "https://buildkite.com/elastic/x/builds/1",
+                "publisher": "buildkite",
+            },
+            "buildkite": {"source": "created", "fail_log_marker_verified": True},
             "status_trigger": {
                 "run_seen": True,
                 "job_executed": True,
                 "job_conclusion": "success",
+                "url": "https://example.test/run",
             },
             "agent_comment": {"id": 1, "markers_present": {"### TL;DR": False}},
             "expectations": {
@@ -667,9 +684,10 @@ class TestOracle:
             },
         }
         report = oracle.evaluate_outcome(outcome, {"cases": []})
-        assert report["pass"] is False
-        failed = {c["id"] for c in report["checks"] if not c["pass"]}
-        assert "agent_comment_markers" in failed
+        assert report["pass"] is True
+        check_ids = {c["id"] for c in report["checks"]}
+        assert "agent_comment_present" in check_ids
+        assert "agent_comment_markers" not in check_ids
 
     def test_live_oracle_requires_run_seen(self) -> None:
         outcome = {

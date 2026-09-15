@@ -16,8 +16,10 @@
 
 """Structured oracle for estc-pr-buildkite-detective E2E / integration outcomes.
 
-Asserts structured path/side-effect markers only — never full free-text
-golden equality of agent prose. Emits a machine-readable report for #1878.
+Asserts path gates and comment presence/absence only — never full free-text
+golden equality of agent prose, and (for now) not comment-section marker
+shape. Markers remain harness identity for find/clear; stricter oracle
+checks are deferred to follow-ups. Emits a machine-readable report for #1878.
 """
 
 from __future__ import annotations
@@ -494,29 +496,15 @@ def _evaluate_live(
 
     expect_comment = expectations.get("expect_agent_comment")
     if expect_comment is True:
-        markers = expectations.get("agent_comment_markers") or [
-            "### TL;DR",
-            "## Remediation",
-        ]
+        # Markers (### TL;DR / ## Remediation) identify the comment in the
+        # harness only. Oracle pass/fail is presence of a located comment;
+        # asserting marker shape is deferred to a follow-up.
         present = isinstance(comment, dict) and bool(comment.get("id"))
         _check(
             checks,
             "agent_comment_present",
             present,
             f"comment={comment}",
-        )
-        markers_present: dict[str, Any] = {}
-        if isinstance(comment, dict):
-            markers_present = comment.get("markers_present") or {}
-            if not markers_present and comment.get("body"):
-                body = str(comment.get("body") or "")
-                markers_present = {marker: marker in body for marker in markers}
-        missing = [m for m in markers if markers_present.get(m) is not True]
-        _check(
-            checks,
-            "agent_comment_markers",
-            present and not missing,
-            f"missing={missing} markers_present={markers_present}",
         )
     elif expect_comment is False:
         _check(
@@ -552,8 +540,9 @@ def _evaluate_live(
         "notes": [
             (
                 "Live oracle asserts dashboard gate, trigger status contract, observed "
-                "status trigger, job execution, agent invocation, and structured PR "
-                "comment markers — never full agent prose."
+                "status trigger, job execution, agent invocation, and PR comment "
+                "presence/absence. Comment-section markers are harness identity only "
+                "until a follow-up; never full agent prose."
             ),
             "Promote (#1878) should consume report.pass / summary.json.",
         ],

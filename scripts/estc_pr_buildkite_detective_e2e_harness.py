@@ -1322,6 +1322,12 @@ def find_agent_comment(
     since: datetime,
     markers: list[str],
 ) -> dict[str, Any] | None:
+    """Locate a post-``since`` bot comment using section markers as identity.
+
+    Markers identify detective comments for find/clear. The live oracle only
+    asserts presence/absence of a located comment; marker-shape checks are
+    deferred to a follow-up.
+    """
     for comment in _list_issue_comments(repo, pr_number):
         created_raw = comment.get("created_at") or comment.get("createdAt") or ""
         if not created_raw:
