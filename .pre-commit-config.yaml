@@ -1,3 +1,10 @@
+# yaml-language-server: $schema=https://json.schemastore.org/pre-commit-config.json
+# Install both commit and push gates (GOLD: .cursor/rules/ci-precommit-before-push.mdc):
+#   pre-commit install --hook-type pre-commit --hook-type pre-push
+default_install_hook_types:
+  - pre-commit
+  - pre-push
+
 repos:
   # ── YAML linting ──────────────────────────────────────────────────────────
   - repo: https://github.com/adrienverge/yamllint

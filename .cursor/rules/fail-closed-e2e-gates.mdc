@@ -68,9 +68,9 @@ Closing “empty mapping” without also rejecting typo/partial mappings, nested
 
 Do **not** commit or push fail-closed E2E changes until these pass locally on the touched files:
 
-1. `ruff format` (and `ruff check` if applicable) on changed Python paths
-2. `pytest` for the affected E2E / oracle suite (for ESTC: `tests/e2e/test_estc_pr_buildkite_detective_e2e.py`)
-3. Prefer `pre-commit run --files <paths>` when available, matching CI’s Pre-commit job
+1. **GOLD** — `pre-commit run --files <touched-paths>` per [`.cursor/rules/ci-precommit-before-push.mdc`](ci-precommit-before-push.mdc) (actionlint, ruff, mypy, yaml, …). **Mandatory before any push.**
+2. `ruff format` / `ruff check` are covered by that pre-commit run; do not substitute pytest for them.
+3. `pytest` for the affected E2E / oracle suite (for ESTC: `tests/e2e/test_estc_pr_buildkite_detective_e2e.py`)
 4. Complete the **adversarial self-review** table above and confirm no open substitute path remains
 
-Pytest alone is not enough — CI also enforces format hooks, and a green suite does not prove the chain walk was finished.
+Pytest alone is not enough — CI also enforces Pre-commit (actionlint included), and a green suite does not prove the chain walk was finished.
