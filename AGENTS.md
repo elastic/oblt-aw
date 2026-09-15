@@ -1,5 +1,9 @@
 # Agent instructions (oblt-aw / control-plane)
 
+## GOLD — pre-commit before commit / push
+
+**Mandatory:** follow **[`.cursor/rules/ci-precommit-before-push.mdc`](.cursor/rules/ci-precommit-before-push.mdc)**. Do not commit, push, or open/update a PR until `pre-commit run --files <touched-paths>` passes locally (same gate as CI Pre-commit, including **actionlint**). Pytest alone is not enough. Install: `pre-commit install --hook-type pre-commit --hook-type pre-push`.
+
 ## Client entrypoint changes
 
 Use **[`.github/remote-workflow-template/`](.github/remote-workflow-template/)** as the source for distributed client workflows (per org subtree, for example `obs/.github/workflows/trigger-obs-aw-<workflow-id>.yml`, `docs/.github/workflows/trigger-docs-aw-*.yml`). See [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md), [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md), and [CONTRIBUTING.md](CONTRIBUTING.md).

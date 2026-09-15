@@ -21,10 +21,14 @@ Oracle pass/fail for the agent side effect is **comment presence**. Section mark
 1. **Dashboard** — enable `obs:estc-pr-buildkite-detective` on the Control Plane Dashboard for `elastic/oblt-aw` (issue labeled `oblt-aw/dashboard`). Currently required; the harness fails closed if the checkbox is off.
 2. **Secret** — `BUILDKITE_LOGS_API_TOKEN` on `elastic/oblt-aw` (mapped by `trigger-obs-aw-status.yml` into the wrapper). Must be able to **read** the E2E fail pipeline’s builds/logs.
 3. **Secret** — `BUILDKITE_TOKEN` with Buildkite scopes **`write_builds`** (+ read) / pipeline access level that can create builds so the harness can create and poll an intentional failure build.
-4. **Buildkite pipeline** — provisioned via [`catalog-info.yaml`](../../catalog-info.yaml) Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (steps: [`.buildkite/pipeline.e2e-estc-fail.yml`](../../.buildkite/pipeline.e2e-estc-fail.yml)). After merge to `main`, confirm RRE reconciliation at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail. See [`.buildkite/README.e2e-estc-fail.md`](../../.buildkite/README.e2e-estc-fail.md). Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE` (default `oblt-aw-e2e-estc-fail`).
+4. **Buildkite pipeline** — provisioned via [`catalog-info.yaml`](../../catalog-info.yaml) Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (steps: [`.buildkite/pipeline.e2e-estc-fail.yml`](../../.buildkite/pipeline.e2e-estc-fail.yml) with **pipeline-level** `notify: github_commit_status` only). After merge to `main`, confirm RRE reconciliation at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail (`publish_commit_status: true`, `prevent_custom_statuses_from_using_buildkite_prefix: false` — the harness blocks immediately if either is still wrong). See [`.buildkite/README.e2e-estc-fail.md`](../../.buildkite/README.e2e-estc-fail.md). Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE` (default `oblt-aw-e2e-estc-fail`) — notify context in the fail-pipeline YAML must match `buildkite/<org>/<pipeline>`.
 5. **Target PR** —
    - **Path-filtered `pull_request`:** harness targets the PR under review (head SHA/branch + base branch). No fixture label required; fork PRs are skipped.
    - **`workflow_dispatch` / `workflow_call`:** harness finds or creates an open PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective`. That **exact** label (plus the fixture branch/repo guards in workflow `if` conditions) skips repo `ci.yml` and agentic pull-request routes (`obs-aw-dependency-review`, `obs-aw-automerge`) so this fixture PR does not burn CI or agent credits.
+
+### Reading failures
+
+Harness and oracle print `block_reason` / failed checks in the job log (and emit `::error::` annotations). Artifacts still include `outcome.json`, `oracle-report.json`, and `summary.json` (`failure_detail`, `failed_checks`).
 
 ## How to run
 

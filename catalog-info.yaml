@@ -50,8 +50,11 @@ spec:
       # commit status when the intentional failure finishes (real status event).
       provider_settings:
         trigger_mode: none
+        # Automatic status + pipeline notify both use the buildkite/ prefix.
         publish_commit_status: true
         publish_commit_status_per_step: false
+        # Allow explicit notify contexts under buildkite/ (see pipeline YAML).
+        prevent_custom_statuses_from_using_buildkite_prefix: false
         build_pull_requests: false
         build_branches: false
         build_tags: false
@@ -59,6 +62,8 @@ spec:
         observablt-robots:
           access_level: MANAGE_BUILD_AND_READ
         observablt-ci:
+          access_level: BUILD_AND_READ
+        observablt-robots-automation:
           access_level: BUILD_AND_READ
         everyone:
           access_level: READ_ONLY

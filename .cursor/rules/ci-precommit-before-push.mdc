@@ -1,29 +1,46 @@
 ---
-description: Mandatory pre-commit (incl. mypy) before commit/push — pytest alone is not enough.
-globs: scripts/**/*.py,tests/**/*.py,.github/workflows/**/*.yml
-alwaysApply: false
+description: GOLD — mandatory local pre-commit (actionlint/ruff/mypy/…) before every commit or push.
+alwaysApply: true
 ---
 
-# CI Pre-commit gate before commit / push
+# GOLD rule — pre-commit before commit / push
 
-When changing files matching these globs (or when about to commit/push/PR any of them):
+**Highest-priority CI hygiene rule for this repository.** It overrides the urge to “pytest passed, ship it.”
 
 ## Non-negotiable
 
-Do **not** commit, push, or open/update a PR until:
+Before **any** of these:
+
+- `git commit` (when the agent is creating the commit)
+- `git push`
+- `gh pr create` / updating a PR with new commits
+
+you **must** run and pass:
 
 ```bash
-pre-commit run --files <all-touched-paths>
+pre-commit run --files <all-paths-changed-in-this-change-set>
 ```
 
-passes locally. That is the same gate as CI’s **Pre-commit** job (ruff, ruff format, **mypy**, yaml hooks, etc.).
+Use the exact touched paths (new, modified, deleted→related). That matches CI’s **Pre-commit** job (yamllint, **actionlint**/shellcheck-in-workflows, ruff, ruff format, **mypy**, license headers, yaml/json hygiene).
 
-## Forbidden shortcut
+If many files changed, `pre-commit run --all-files` is acceptable and stricter.
 
-- **Do not** treat `pytest` green alone as authorization to push.
-- **Do not** skip mypy because “types look fine” or only unit tests were run.
-- If pre-commit fails, fix and re-run; do not push a known red Pre-commit.
+## Forbidden shortcuts
 
-## Report before push
+- Treating **pytest alone** as authorization to commit or push
+- Skipping **actionlint** because “the YAML looks fine”
+- Skipping **mypy** because “types look fine”
+- Pushing after a known red Pre-commit “to fix in a follow-up”
+- Committing/pushing first, then running pre-commit only after CI fails
 
-When offering commit/push/PR (or after the user asks to push), state that pre-commit passed on the touched files (or stop with the hook failure output).
+## Mandatory report
+
+When offering or performing commit/push/PR, **state in one line** that pre-commit passed on the touched files (hook list not required). If it failed, **stop**, paste the failing hook output, fix, re-run, then proceed.
+
+## Install (humans and agents)
+
+```bash
+pre-commit install --hook-type pre-commit --hook-type pre-push
+```
+
+`pre-push` is configured in [.pre-commit-config.yaml](../../.pre-commit-config.yaml) so a bare `git push` also runs the gate after install.

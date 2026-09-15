@@ -35,6 +35,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
+import yaml  # type: ignore[import-untyped]
+
 WORKFLOW_ID = "obs:estc-pr-buildkite-detective"
 DEFAULT_CONFIG = Path("config/obs/e2e-estc-pr-buildkite-detective.json")
 FAIL_STATES = ("failed", "timed_out")
@@ -44,6 +46,8 @@ MARKER_BODY = (
     "Kept open for live status→agent E2E of "
     "`obs:estc-pr-buildkite-detective`. Do not merge.\n"
 )
+FAIL_PIPELINE_PATH = Path(".buildkite/pipeline.e2e-estc-fail.yml")
+DEFAULT_STATUS_CONTEXT_ORG_PIPELINE = "buildkite/{org}/{pipeline}"
 
 
 def _load_json(path: Path) -> Any:
@@ -56,6 +60,60 @@ def _utc_now() -> datetime:
 
 def _parse_gh_time(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _running_in_github_actions() -> bool:
+    return os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+
+
+def log_info(message: str) -> None:
+    print(message, flush=True)
+
+
+def log_error(message: str) -> None:
+    """Print a failure line; emit a GitHub Actions error annotation when applicable."""
+    if _running_in_github_actions():
+        # Actions annotations are single-line; keep the first line primary.
+        first = message.splitlines()[0] if message else "E2E harness error"
+        print(f"::error::{first}", flush=True)
+    print(message, file=sys.stderr, flush=True)
+
+
+def summarize_commit_statuses(
+    statuses: list[dict[str, Any]], *, limit: int = 12
+) -> str:
+    """Compact one-line-per-status dump for timeout diagnostics."""
+    if not statuses:
+        return "(none)"
+    lines: list[str] = []
+    for status in statuses[:limit]:
+        ctx = status.get("context") or "?"
+        state = status.get("state") or "?"
+        url = status.get("target_url") or ""
+        creator = ""
+        raw_creator = status.get("creator")
+        if isinstance(raw_creator, dict):
+            creator = str(raw_creator.get("login") or "")
+        created = status.get("created_at") or ""
+        lines.append(
+            f"- context={ctx!r} state={state!r} creator={creator!r} "
+            f"created_at={created!r} target_url={url!r}"
+        )
+    if len(statuses) > limit:
+        lines.append(f"- … {len(statuses) - limit} more")
+    return "\n".join(lines)
+
+
+def expected_buildkite_status_context(cfg: dict[str, Any]) -> str:
+    """GitHub status context Buildkite should publish for the fail pipeline."""
+    override = str(cfg.get("expected_status_context") or "").strip()
+    if override:
+        return override
+    org, pipeline = resolve_buildkite_org_pipeline(cfg)
+    template = str(
+        cfg.get("status_context_template") or DEFAULT_STATUS_CONTEXT_ORG_PIPELINE
+    )
+    return template.format(org=org, pipeline=pipeline)
 
 
 def gh_json(args: list[str], *, check: bool = True) -> Any:
@@ -142,6 +200,215 @@ def gh_text(args: list[str], *, check: bool = True) -> str:
             f"gh {' '.join(args)} failed ({proc.returncode}): {proc.stderr.strip()}"
         )
     return proc.stdout
+
+
+def put_branch_file(
+    repo: str,
+    *,
+    branch: str,
+    path: str,
+    content: str,
+    message: str,
+) -> bool:
+    """Create or update a file on ``branch``. Returns True when a commit was made."""
+    encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
+    existing_file = subprocess.run(
+        ["gh", "api", f"repos/{repo}/contents/{path}?ref={branch}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    existing_sha: str | None = None
+    if existing_file.returncode == 0:
+        payload = json.loads(existing_file.stdout)
+        existing_sha = payload.get("sha")
+        remote_b64 = str(payload.get("content") or "").replace("\n", "")
+        if remote_b64 == encoded:
+            return False
+    put_args = [
+        "api",
+        "--method",
+        "PUT",
+        f"repos/{repo}/contents/{path}",
+        "-f",
+        f"message={message}",
+        "-f",
+        f"content={encoded}",
+        "-f",
+        f"branch={branch}",
+    ]
+    if existing_sha:
+        put_args.extend(["-f", f"sha={existing_sha}"])
+    gh_json(put_args)
+    return True
+
+
+def _notify_github_commit_status_contexts(notify: Any) -> list[str]:
+    """Extract ``github_commit_status.context`` values from a notify list."""
+    if notify is None:
+        return []
+    if not isinstance(notify, list):
+        raise TypeError(f"Buildkite notify must be a list, got {type(notify).__name__}")
+    contexts: list[str] = []
+    for item in notify:
+        if not isinstance(item, dict) or "github_commit_status" not in item:
+            continue
+        gcs = item.get("github_commit_status")
+        if not isinstance(gcs, dict):
+            raise TypeError(
+                "github_commit_status notify entry must be a mapping with context"
+            )
+        ctx = str(gcs.get("context") or "").strip()
+        if not ctx:
+            raise RuntimeError(
+                "github_commit_status notify entry is missing a non-empty context"
+            )
+        contexts.append(ctx)
+    return contexts
+
+
+def fail_pipeline_github_commit_status_contexts(
+    content: str, *, pipeline_path: Path | str = FAIL_PIPELINE_PATH
+) -> list[str]:
+    """Return pipeline-level github_commit_status contexts from fail-pipeline YAML.
+
+    Parses YAML so comment-only mentions of ``github_commit_status`` cannot pass.
+    Step-level notify with the same context is rejected (duplicate status events).
+    """
+    try:
+        data = yaml.safe_load(content)
+    except yaml.YAMLError as exc:
+        raise RuntimeError(f"{pipeline_path} is not valid YAML: {exc}") from exc
+    if not isinstance(data, dict):
+        raise TypeError(f"{pipeline_path} must parse to a mapping")
+    contexts = _notify_github_commit_status_contexts(data.get("notify"))
+    if not contexts:
+        raise RuntimeError(
+            f"{pipeline_path} is missing pipeline-level github_commit_status notify; "
+            "refusing to sync a pipeline that cannot publish GitHub statuses."
+        )
+    steps = data.get("steps") or []
+    if isinstance(steps, list):
+        for idx, step in enumerate(steps):
+            if not isinstance(step, dict):
+                continue
+            step_contexts = _notify_github_commit_status_contexts(step.get("notify"))
+            overlap = sorted(set(contexts) & set(step_contexts))
+            if overlap:
+                raise RuntimeError(
+                    f"{pipeline_path} step[{idx}] repeats github_commit_status "
+                    f"context(s) {overlap} already declared at pipeline scope; "
+                    "keep notify at pipeline level only to avoid duplicate "
+                    "status→detective triggers."
+                )
+    return contexts
+
+
+def assert_fail_pipeline_status_context_matches(
+    cfg: dict[str, Any],
+    *,
+    pipeline_path: Path = FAIL_PIPELINE_PATH,
+) -> str:
+    """Ensure the fail-pipeline notify context matches harness expectation."""
+    if not pipeline_path.is_file():
+        raise RuntimeError(
+            f"Fail pipeline YAML missing at {pipeline_path}; cannot validate notify."
+        )
+    content = pipeline_path.read_text(encoding="utf-8")
+    contexts = fail_pipeline_github_commit_status_contexts(
+        content, pipeline_path=pipeline_path
+    )
+    expected = expected_buildkite_status_context(cfg)
+    if expected not in contexts:
+        raise RuntimeError(
+            f"Fail pipeline notify contexts {contexts} do not include expected "
+            f"status context {expected!r}. Align "
+            f".buildkite/pipeline.e2e-estc-fail.yml notify with "
+            f"E2E_BUILDKITE_ORG/E2E_BUILDKITE_PIPELINE (or "
+            f"expected_status_context), or unset those overrides."
+        )
+    return expected
+
+
+def sync_fail_pipeline_to_fixture_branch(
+    repo: str,
+    *,
+    branch: str,
+    pipeline_path: Path = FAIL_PIPELINE_PATH,
+    expected_context: str | None = None,
+) -> bool:
+    """Ensure the fixture branch tip includes the fail-pipeline YAML from this checkout.
+
+    Buildkite uploads ``.buildkite/pipeline.e2e-estc-fail.yml`` from the build
+    commit. The happy-path notify block only runs when that file is present on
+    the fixture SHA.
+    """
+    if not pipeline_path.is_file():
+        raise RuntimeError(
+            f"Fail pipeline YAML missing at {pipeline_path}; cannot sync fixture branch."
+        )
+    content = pipeline_path.read_text(encoding="utf-8")
+    contexts = fail_pipeline_github_commit_status_contexts(
+        content, pipeline_path=pipeline_path
+    )
+    if expected_context is not None and expected_context not in contexts:
+        raise RuntimeError(
+            f"{pipeline_path} notify contexts {contexts} do not include "
+            f"expected {expected_context!r}."
+        )
+    updated = put_branch_file(
+        repo,
+        branch=branch,
+        path=str(pipeline_path).replace("\\", "/"),
+        content=content,
+        message="chore(e2e): sync ESTC fail pipeline notify onto fixture branch",
+    )
+    if updated:
+        log_info(
+            f"Synced {pipeline_path} onto {repo}@{branch} for Buildkite status notify."
+        )
+    else:
+        log_info(f"{pipeline_path} already current on {repo}@{branch}.")
+    return updated
+
+
+def verify_buildkite_publishes_commit_status(
+    token: str, *, org: str, pipeline: str
+) -> None:
+    """Fail closed when the live pipeline cannot publish the expected GitHub status."""
+    data = bk_api_json(
+        token,
+        "GET",
+        f"organizations/{org}/pipelines/{pipeline}",
+    )
+    if not isinstance(data, dict):
+        raise TypeError(
+            f"Unexpected Buildkite pipeline payload for {org}/{pipeline}: {data!r}"
+        )
+    settings = ((data.get("provider") or {}).get("settings")) or {}
+    if not isinstance(settings, dict):
+        raise TypeError(
+            f"Buildkite pipeline {org}/{pipeline} missing provider.settings"
+        )
+    if not settings.get("publish_commit_status"):
+        raise RuntimeError(
+            f"Buildkite pipeline {org}/{pipeline} has publish_commit_status=false. "
+            "Enable it in catalog-info.yaml provider_settings (and wait for RRE), "
+            "and keep pipeline notify github_commit_status."
+        )
+    if settings.get("prevent_custom_statuses_from_using_buildkite_prefix"):
+        raise RuntimeError(
+            f"Buildkite pipeline {org}/{pipeline} has "
+            "prevent_custom_statuses_from_using_buildkite_prefix=true. "
+            "Set it false in catalog-info.yaml provider_settings and wait for RRE "
+            "before creating intentional failures that notify under buildkite/…"
+        )
+    log_info(
+        f"Buildkite pipeline {org}/{pipeline}: publish_commit_status="
+        f"{settings.get('publish_commit_status')!r}, "
+        f"prevent_custom_statuses_from_using_buildkite_prefix="
+        f"{settings.get('prevent_custom_statuses_from_using_buildkite_prefix')!r}."
+    )
 
 
 def load_e2e_config(path: Path) -> dict[str, Any]:
@@ -649,18 +916,62 @@ def wait_for_commit_status(
 ) -> dict[str, Any] | None:
     """Poll GitHub commit statuses until the expected Buildkite status appears."""
     deadline = time.time() + timeout_seconds
+    started = time.time()
+    attempt = 0
+    log_info(
+        f"Waiting up to {timeout_seconds}s for GitHub commit status "
+        f"context={context!r} state={state!r} target_url={target_url!r} "
+        f"on {sha[:12]}…"
+    )
     while time.time() < deadline:
+        attempt += 1
+        statuses = list_commit_statuses(repo, sha)
         matched = match_commit_status(
-            list_commit_statuses(repo, sha),
+            statuses,
             context=context,
             state=state,
             target_url=target_url,
             since=since,
         )
         if matched:
+            log_info(
+                f"Observed matching commit status after {int(time.time() - started)}s "
+                f"(attempt {attempt})."
+            )
             return matched
+        if attempt == 1 or attempt % 3 == 0:
+            remaining = max(0, int(deadline - time.time()))
+            log_info(
+                f"Status not yet matched (attempt {attempt}, {remaining}s left). "
+                f"Current statuses on {sha[:12]}:\n"
+                f"{summarize_commit_statuses(statuses)}"
+            )
         time.sleep(interval_seconds)
     return None
+
+
+def commit_status_timeout_block_reason(
+    *,
+    repo: str,
+    sha: str,
+    context: str,
+    state: str,
+    target_url: str | None,
+    timeout_seconds: int,
+) -> str:
+    """Build a block_reason that includes the statuses actually present on the SHA."""
+    try:
+        statuses = list_commit_statuses(repo, sha)
+        snapshot = summarize_commit_statuses(statuses)
+    except (RuntimeError, TypeError, ValueError, OSError) as exc:
+        snapshot = f"(failed to list statuses: {exc})"
+    return (
+        f"Timed out after {timeout_seconds}s waiting for GitHub commit status "
+        f"context={context!r} state={state!r} target_url={target_url!r} "
+        f"on {sha}. Buildkite should publish this via pipeline notify / "
+        f"publish_commit_status; without it the live status→agent path cannot run. "
+        f"Statuses observed on the SHA:\n{snapshot}"
+    )
 
 
 def list_status_trigger_runs(
@@ -1282,8 +1593,7 @@ def run_live_case(
     state = str(trigger.get("status_state") or "failure")
     timeout = int(cfg.get("poll_timeout_seconds") or 2400)
     interval = int(cfg.get("poll_interval_seconds") or 20)
-    org, pipeline = resolve_buildkite_org_pipeline(cfg)
-    context = f"buildkite/{org}/{pipeline}"
+    context = expected_buildkite_status_context(cfg)
     status_timeout = int(cfg.get("status_observe_timeout_seconds") or min(300, timeout))
     observed = wait_for_commit_status(
         repo,
@@ -1303,13 +1613,18 @@ def run_live_case(
             "mode": "live",
             "agent_invoked": False,
             "blocked": True,
-            "block_reason": (
-                f"Timed out waiting for GitHub commit status "
-                f"context={context!r} state={state!r} "
-                f"target_url={target_url!r} on {sha[:12]}."
+            "block_reason": commit_status_timeout_block_reason(
+                repo=repo,
+                sha=sha,
+                context=context,
+                state=state,
+                target_url=target_url,
+                timeout_seconds=status_timeout,
             ),
             "path_gates": {"dashboard_enabled": dashboard_ok},
             "buildkite": buildkite_meta,
+            "commit_sha": sha,
+            "pr_number": target_pr_number,
             "trigger": trigger,
             "expectations": expectations,
             "run_url": run_url,
@@ -1493,19 +1808,44 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
     print(f"Wrote harness outcome to {args.outcome_path}")
-    print(
-        json.dumps(
-            {
-                "mode": outcome.get("mode"),
-                "case_id": outcome.get("case_id"),
-                "blocked": outcome.get("blocked"),
-                "agent_invoked": outcome.get("agent_invoked"),
-            },
-            indent=2,
-        )
-    )
+    summary = {
+        "mode": outcome.get("mode"),
+        "case_id": outcome.get("case_id"),
+        "blocked": outcome.get("blocked"),
+        "agent_invoked": outcome.get("agent_invoked"),
+        "commit_sha": outcome.get("commit_sha"),
+        "pr_number": outcome.get("pr_number"),
+        "pr_url": outcome.get("pr_url"),
+    }
+    if outcome.get("blocked"):
+        summary["block_reason"] = outcome.get("block_reason")
+    buildkite = outcome.get("buildkite")
+    if isinstance(buildkite, dict) and buildkite:
+        summary["buildkite"] = {
+            k: buildkite.get(k)
+            for k in (
+                "source",
+                "web_url",
+                "state",
+                "number",
+                "org",
+                "pipeline",
+                "fail_log_marker_verified",
+            )
+            if k in buildkite
+        }
+    status = outcome.get("status")
+    if isinstance(status, dict) and status:
+        summary["status"] = {
+            k: status.get(k)
+            for k in ("state", "context", "target_url", "publisher")
+            if k in status
+        }
+    print(json.dumps(summary, indent=2), flush=True)
 
     if outcome.get("blocked"):
+        reason = str(outcome.get("block_reason") or "blocked")
+        log_error(f"E2E harness blocked: {reason}")
         return 2
     return 0
 

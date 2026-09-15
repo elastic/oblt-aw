@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -72,6 +73,44 @@ def _check(
     checks: list[dict[str, Any]], check_id: str, passed: bool, detail: str
 ) -> None:
     checks.append({"id": check_id, "pass": passed, "detail": detail})
+
+
+def _failed_checks(report: dict[str, Any]) -> list[dict[str, Any]]:
+    checks = report.get("checks") or []
+    if not isinstance(checks, list):
+        return []
+    failed: list[dict[str, Any]] = []
+    for item in checks:
+        if isinstance(item, dict) and not item.get("pass"):
+            failed.append(item)
+    return failed
+
+
+def _primary_failure_detail(report: dict[str, Any]) -> str | None:
+    if report.get("block_reason"):
+        return str(report["block_reason"])
+    failed = _failed_checks(report)
+    if not failed:
+        return None
+    first = failed[0]
+    return f"{first.get('id')}: {first.get('detail')}"
+
+
+def _emit_oracle_failure_logs(report: dict[str, Any]) -> None:
+    detail = _primary_failure_detail(report)
+    if detail and os.environ.get("GITHUB_ACTIONS", "").lower() == "true":
+        first = detail.splitlines()[0]
+        print(f"::error::E2E oracle failed: {first}", flush=True)
+    print("Oracle failed checks:", flush=True)
+    for item in _failed_checks(report):
+        print(f"  - [{item.get('id')}] {item.get('detail')}", flush=True)
+    notes = report.get("notes") or []
+    if isinstance(notes, list) and notes:
+        print("Oracle notes:", flush=True)
+        for note in notes:
+            print(f"  - {note}", flush=True)
+    if detail:
+        print(f"Primary failure:\n{detail}", flush=True)
 
 
 def _as_bool(value: Any) -> bool:
@@ -199,12 +238,42 @@ def evaluate_outcome(
         return report
 
     if outcome.get("blocked"):
+        block_reason = str(outcome.get("block_reason") or "blocked")
         _check(
             checks,
             "not_blocked",
             False,
-            str(outcome.get("block_reason") or "blocked"),
+            block_reason,
         )
+        notes = [
+            "Harness set blocked=true; see block_reason / not_blocked detail above.",
+        ]
+        lower = block_reason.lower()
+        if "dashboard" in lower:
+            notes.append(
+                "Enable the workflow checkbox on the Control Plane Dashboard, then re-run."
+            )
+        elif "timed out" in lower and "commit status" in lower:
+            notes.append(
+                "Buildkite did not publish the expected GitHub commit status. "
+                "Confirm pipeline notify github_commit_status, "
+                "publish_commit_status=true, and "
+                "prevent_custom_statuses_from_using_buildkite_prefix=false "
+                "(catalog-info.yaml + RRE). Re-run after the fixture branch has "
+                "the synced fail-pipeline YAML."
+            )
+        elif "buildkite" in lower and (
+            "token" in lower or "403" in lower or "access" in lower
+        ):
+            notes.append(
+                "Fix Buildkite credentials/ACL (BUILDKITE_TOKEN write_builds), "
+                "then re-run."
+            )
+        else:
+            notes.append(
+                "Resolve block_reason, then re-run. Do not forge the happy-path "
+                "status from the harness."
+            )
         return {
             "workflow_id": workflow_id,
             "case_id": case_id,
@@ -214,11 +283,10 @@ def evaluate_outcome(
             "skipped": False,
             "quarantined": False,
             "run_url": outcome.get("run_url"),
+            "block_reason": block_reason,
             "checks": checks,
             "agent_invoked": bool(outcome.get("agent_invoked")),
-            "notes": [
-                "Resolve block_reason (dashboard enablement or Buildkite URL var), then re-run.",
-            ],
+            "notes": notes,
         }
 
     # Fail closed: never authorize gate checks from harness-copied
@@ -670,6 +738,12 @@ def main(argv: list[str] | None = None) -> int:
         "layer": report.get("layer"),
         "mode": report.get("mode"),
         "agent_invoked": report.get("agent_invoked"),
+        "block_reason": report.get("block_reason"),
+        "failure_detail": _primary_failure_detail(report),
+        "failed_checks": [
+            {"id": item.get("id"), "detail": item.get("detail")}
+            for item in _failed_checks(report)
+        ],
     }
     if args.summary_path is not None:
         args.summary_path.parent.mkdir(parents=True, exist_ok=True)
@@ -679,8 +753,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"Wrote promote summary to {args.summary_path}")
     print(f"Wrote oracle report to {args.report_path}")
-    print(json.dumps(summary, indent=2))
-    return 0 if report["pass"] else 1
+    print(json.dumps(summary, indent=2), flush=True)
+    if not report.get("pass"):
+        _emit_oracle_failure_logs(report)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

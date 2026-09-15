@@ -24,10 +24,10 @@ pip install pre-commit
 ### 2. Install pre-commit hooks
 
 ```bash
-pre-commit install
+pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 
-This installs the hooks from [.pre-commit-config.yaml](../../.pre-commit-config.yaml). They run automatically on `git commit`.
+This installs the hooks from [.pre-commit-config.yaml](../../.pre-commit-config.yaml). They run on `git commit` and `git push`. Agents must also follow the GOLD rule [.cursor/rules/ci-precommit-before-push.mdc](../../.cursor/rules/ci-precommit-before-push.mdc).
 
 ### 3. Install Python dependencies
 
