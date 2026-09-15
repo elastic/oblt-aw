@@ -22,7 +22,7 @@ Happy path:
 1. Harness creates a Buildkite build on the long-lived E2E PR branch/SHA (with `pull_request_id`).
 2. Before create, the harness syncs [`.buildkite/pipeline.e2e-estc-fail.yml`](pipeline.e2e-estc-fail.yml) onto that fixture branch so the build’s checkout includes the current notify block. Sync and Buildkite publish preflight are skipped when `E2E_ESTC_BUILDKITE_TARGET_URL` is set.
 3. The intentional-failure step runs and fails.
-4. **Buildkite** publishes the GitHub commit status for context `buildkite/elastic/oblt-aw-e2e-estc-fail` via **pipeline-level** `notify: github_commit_status` only (and `publish_commit_status: true` in [`catalog-info.yaml`](../catalog-info.yaml)). `prevent_custom_statuses_from_using_buildkite_prefix` must be false (harness fails closed if still true after RRE). Do not add the same context at step scope — that can double-trigger the detective.
+4. **Buildkite** publishes the GitHub commit status for context `buildkite/elastic/oblt-aw-e2e-estc-fail` via **pipeline-level** `notify: github_commit_status` only (and `publish_commit_status: true` in [`catalog-info.yaml`](../catalog-info.yaml)). Do not add `prevent_custom_statuses_from_using_buildkite_prefix` to the catalog RRE — Terrazzo rejects that key. The harness fails closed only if the live Buildkite API reports that setting as `true`. Do not add the same context at step scope — that can double-trigger the detective.
 5. The real `status` event triggers `trigger-obs-aw-status.yml` → detective → agent.
 6. Harness observes the Actions run and PR comment (it does **not** forge the happy-path status).
 

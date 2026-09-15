@@ -509,6 +509,19 @@ class TestHarnessLive:
         cfg["expected_status_context"] = "buildkite/custom"
         assert harness.expected_buildkite_status_context(cfg) == "buildkite/custom"
 
+    def test_expected_buildkite_status_context_rejects_unroutable(
+        self,
+    ) -> None:
+        cfg = {
+            "buildkite_failure": {
+                "org_default": "elastic",
+                "pipeline_default": "oblt-aw-e2e-estc-fail",
+            },
+            "expected_status_context": "custom",
+        }
+        with pytest.raises(RuntimeError, match="does not contain 'buildkite'"):
+            harness.expected_buildkite_status_context(cfg)
+
     def test_summarize_and_timeout_block_reason(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -580,7 +593,54 @@ steps:
 """,
             encoding="utf-8",
         )
-        with pytest.raises(RuntimeError, match="repeats github_commit_status"):
+        with pytest.raises(
+            RuntimeError, match="step\\[0\\] declares github_commit_status"
+        ):
+            harness.fail_pipeline_github_commit_status_contexts(
+                pipeline.read_text(encoding="utf-8"),
+                pipeline_path=pipeline,
+            )
+
+    def test_sync_fail_pipeline_rejects_step_notify_different_context(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        pipeline = tmp_path / "pipeline.yml"
+        pipeline.write_text(
+            """notify:
+  - github_commit_status:
+      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+steps:
+  - label: fail
+    command: exit 1
+    notify:
+      - github_commit_status:
+          context: "buildkite/elastic/other-context"
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(
+            RuntimeError, match="step\\[0\\] declares github_commit_status"
+        ):
+            harness.fail_pipeline_github_commit_status_contexts(
+                pipeline.read_text(encoding="utf-8"),
+                pipeline_path=pipeline,
+            )
+
+    def test_sync_fail_pipeline_rejects_multiple_pipeline_notify(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        pipeline = tmp_path / "pipeline.yml"
+        pipeline.write_text(
+            """notify:
+  - github_commit_status:
+      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+  - github_commit_status:
+      context: "buildkite/elastic/second"
+steps: []
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(RuntimeError, match="exactly one pipeline-level"):
             harness.fail_pipeline_github_commit_status_contexts(
                 pipeline.read_text(encoding="utf-8"),
                 pipeline_path=pipeline,
@@ -628,6 +688,76 @@ steps: []
         with pytest.raises(
             RuntimeError, match="prevent_custom_statuses_from_using_buildkite_prefix"
         ):
+            harness.verify_buildkite_publishes_commit_status(
+                "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
+            )
+
+    def test_verify_buildkite_fails_closed_on_non_mapping_provider(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "bk_api_json",
+            lambda *_a, **_k: {"provider": "github"},
+        )
+        with pytest.raises(TypeError, match="provider must be a mapping"):
+            harness.verify_buildkite_publishes_commit_status(
+                "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
+            )
+
+    def test_verify_buildkite_allows_omitted_prevent_prefix(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Terrazzo cannot set the private-preview field; omission must pass."""
+        monkeypatch.setattr(
+            harness,
+            "bk_api_json",
+            lambda *_a, **_k: {
+                "provider": {
+                    "settings": {
+                        "publish_commit_status": True,
+                    }
+                }
+            },
+        )
+        harness.verify_buildkite_publishes_commit_status(
+            "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
+        )
+
+    def test_verify_buildkite_allows_explicit_false_prevent_prefix(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "bk_api_json",
+            lambda *_a, **_k: {
+                "provider": {
+                    "settings": {
+                        "publish_commit_status": True,
+                        "prevent_custom_statuses_from_using_buildkite_prefix": False,
+                    }
+                }
+            },
+        )
+        harness.verify_buildkite_publishes_commit_status(
+            "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
+        )
+
+    def test_verify_buildkite_fails_closed_on_string_publish_flag(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "bk_api_json",
+            lambda *_a, **_k: {
+                "provider": {
+                    "settings": {
+                        "publish_commit_status": "true",
+                    }
+                }
+            },
+        )
+        with pytest.raises(RuntimeError, match="publish_commit_status must be true"):
             harness.verify_buildkite_publishes_commit_status(
                 "token", org="elastic", pipeline="oblt-aw-e2e-estc-fail"
             )
