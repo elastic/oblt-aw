@@ -48,6 +48,7 @@ jobs:
           repository: elastic/oblt-aw
           ref: main
           path: _oblt-aw
+          persist-credentials: false
           sparse-checkout: |
             scripts/obs/supersede-security-issues.sh
           sparse-checkout-cone-mode: false
