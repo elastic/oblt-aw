@@ -142,7 +142,6 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          OUT_DIR="artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}"
           python3 - <<'PY'
           import json
           import os
