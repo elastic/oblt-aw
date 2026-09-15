@@ -20,13 +20,10 @@ Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE`
 Happy path:
 
 1. Harness creates a Buildkite build on the long-lived E2E PR branch/SHA (with `pull_request_id`).
-2. Before create, the harness syncs [`.buildkite/pipeline.e2e-estc-fail.yml`](pipeline.e2e-estc-fail.yml) onto that fixture branch so the build’s checkout includes the current notify block.
-3. The intentional-failure step runs and fails.
-4. **Buildkite** publishes the GitHub commit status for context `buildkite/elastic/oblt-aw-e2e-estc-fail` via pipeline `notify: github_commit_status` (and `publish_commit_status: true` in [`catalog-info.yaml`](../catalog-info.yaml)). `prevent_custom_statuses_from_using_buildkite_prefix` is false so that notify context is allowed.
-5. The real `status` event triggers `trigger-obs-aw-status.yml` → detective → agent.
-6. Harness observes the Actions run and PR comment (it does **not** forge the happy-path status).
-
-If the status never appears: check Buildkite GitHub App (`buildkite-limited-access`) commit-status permission, pipeline GitHub settings, and the harness job log (`block_reason` + status dump). Do not paper over a missing Buildkite status by forging one on the happy path.
+2. The intentional-failure step runs and fails.
+3. **Buildkite** publishes the GitHub commit status (`publish_commit_status: true`) with `target_url` pointing at that build.
+4. The real `status` event triggers `trigger-obs-aw-status.yml` → detective → agent.
+5. Harness observes the Actions run and PR comment (it does **not** forge the happy-path status).
 
 Gate cases (success / non-Buildkite / no-open-PR) still use harness-posted synthetic statuses.
 
