@@ -26,6 +26,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -462,6 +463,48 @@ def _same_repo_prs(prs: list[Any], repo: str) -> list[dict[str, Any]]:
     return same
 
 
+def _gh_pr_list_head_filter(branch: str) -> str:
+    """Return ``gh pr list --head`` value for a same-repo branch.
+
+    ``gh`` expects the bare branch name for same-repo heads. The
+    ``owner:branch`` form returns an empty list for in-repo PRs (verified
+    against ``elastic/oblt-aw`` fixture branch lookups).
+    """
+    return branch
+
+
+def _pr_number_from_gh_output(text: str) -> int | None:
+    """Parse a pull request number from ``gh pr create`` stdout/stderr."""
+    match = re.search(r"/pull/(\d+)\b", text)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def _list_prs_by_head(
+    repo: str, *, branch: str, state: str, limit: int = 5
+) -> list[dict[str, Any]]:
+    """List same-repo PRs on ``branch`` with the given ``state``."""
+    prs = gh_json(
+        [
+            "pr",
+            "list",
+            "--repo",
+            repo,
+            "--state",
+            state,
+            "--head",
+            _gh_pr_list_head_filter(branch),
+            "--json",
+            "number,url,headRefName,headRefOid,title,headRepository,labels",
+            "--limit",
+            str(limit),
+        ]
+    )
+    same_repo = _same_repo_prs(prs if isinstance(prs, list) else [], repo)
+    return [pr for pr in same_repo if pr.get("headRefName") == branch]
+
+
 def find_open_e2e_pr(
     repo: str,
     label: str,
@@ -608,25 +651,7 @@ def _find_closed_fixture_pr(
     repo: str, *, branch: str, label: str
 ) -> dict[str, Any] | None:
     """Most recent closed same-repo PR on the fixture branch (any label state)."""
-    owner = repo.split("/")[0]
-    prs = gh_json(
-        [
-            "pr",
-            "list",
-            "--repo",
-            repo,
-            "--state",
-            "closed",
-            "--head",
-            f"{owner}:{branch}",
-            "--json",
-            "number,url,headRefName,headRefOid,title,headRepository,labels",
-            "--limit",
-            "5",
-        ]
-    )
-    same_repo = _same_repo_prs(prs if isinstance(prs, list) else [], repo)
-    matched = [pr for pr in same_repo if pr.get("headRefName") == branch]
+    matched = _list_prs_by_head(repo, branch=branch, state="closed", limit=5)
     if not matched:
         return None
     # Prefer one that already had the fixture label.
@@ -732,7 +757,12 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         check=False,
     )
     create_out = f"{create.stderr or ''}{create.stdout or ''}"
-    if create.returncode != 0 and "already exists" not in create_out.lower():
+    if create.returncode == 0:
+        # Prefer the create URL over label search (label index can lag).
+        created_number = _pr_number_from_gh_output(create.stdout or create_out)
+        if created_number is not None:
+            return _require_pr_label(repo, created_number, label)
+    elif "already exists" not in create_out.lower():
         # Fall through to reopen / label recovery below.
         pass
 
@@ -783,24 +813,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
             return _require_pr_label(repo, int(reopened["number"]), label)
         return _require_pr_label(repo, pr_number, label)
 
-    prs = gh_json(
-        [
-            "pr",
-            "list",
-            "--repo",
-            repo,
-            "--state",
-            "open",
-            "--head",
-            f"{repo.split('/')[0]}:{branch}",
-            "--json",
-            "number,url,headRefName,headRefOid,title,headRepository,labels",
-            "--limit",
-            "5",
-        ]
-    )
-    same_repo = _same_repo_prs(prs if isinstance(prs, list) else [], repo)
-    matched = [pr for pr in same_repo if pr.get("headRefName") == branch]
+    matched = _list_prs_by_head(repo, branch=branch, state="open", limit=5)
     if not matched:
         raise RuntimeError(
             f"Failed to ensure E2E PR on {repo} branch {branch}. "
