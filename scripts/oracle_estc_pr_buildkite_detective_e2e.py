@@ -151,12 +151,19 @@ def evaluate_outcome(
             ],
         }
 
-    # Prefer checked-in case expectations over harness-copied ones when provided.
-    expectations = (
-        case_expectations
-        if isinstance(case_expectations, dict)
-        else (outcome.get("expectations") or {})
-    )
+    # Fail closed: never authorize gate checks from harness-copied
+    # outcome.expectations alone. Callers (CLI + tests) must pass checked-in
+    # case expectations explicitly.
+    if not isinstance(case_expectations, dict):
+        _check(
+            checks,
+            "case_expectations",
+            False,
+            "checked-in case expectations are required (do not trust outcome.expectations)",
+        )
+        expectations: dict[str, Any] = {}
+    else:
+        expectations = case_expectations
     path_exp = expectations.get("path_gates") or {}
     bk_exp = expectations.get("buildkite") or {}
     path_gates = outcome.get("path_gates") or {}
