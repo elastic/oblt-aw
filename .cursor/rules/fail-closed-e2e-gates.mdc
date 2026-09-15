@@ -42,3 +42,13 @@ If the answer is anything other than “nothing — the check fails,” keep wal
 Treat the comment as a **symptom**. Plan the full chain fix in one change set. If a later review finds a remaining substitute path, that is a process failure from an incomplete first pass — extend the chain, do not argue the first patch was “enough.”
 
 Closing “empty mapping” without also rejecting typo/partial mappings and without aligning test helpers to production evidence is an incomplete pass — do both in the same change.
+
+## Local validation before commit / push
+
+Do **not** commit or push fail-closed E2E changes until these pass locally on the touched files:
+
+1. `ruff format` (and `ruff check` if applicable) on changed Python paths
+2. `pytest` for the affected E2E / oracle suite (for ESTC: `tests/e2e/test_estc_pr_buildkite_detective_e2e.py`)
+3. Prefer `pre-commit run --files <paths>` when available, matching CI’s Pre-commit job
+
+Pytest alone is not enough — CI also enforces format hooks.

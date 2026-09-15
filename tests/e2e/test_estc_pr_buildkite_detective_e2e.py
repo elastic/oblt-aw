@@ -44,9 +44,7 @@ def _evaluate(
     if case_expectations is None:
         case_id = str(outcome.get("case_id") or "")
         case_expectations = (
-            oracle.load_case_expectations(TESTDATA_ROOT, case_id)
-            if case_id
-            else None
+            oracle.load_case_expectations(TESTDATA_ROOT, case_id) if case_id else None
         )
     return oracle.evaluate_outcome(
         outcome, quarantine, case_expectations=case_expectations
