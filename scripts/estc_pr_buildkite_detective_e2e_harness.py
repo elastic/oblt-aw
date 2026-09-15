@@ -137,6 +137,11 @@ def infer_status_publisher(payload: dict[str, Any] | None, *, fallback: str) -> 
     return fallback
 
 
+def publisher_for_created_build_status(payload: dict[str, Any] | None) -> str:
+    """Created-build path: missing ``creator.login`` must not default to Buildkite."""
+    return infer_status_publisher(payload, fallback="other")
+
+
 def gh_text(args: list[str], *, check: bool = True) -> str:
     proc = subprocess.run(
         ["gh", *args],
@@ -1538,7 +1543,7 @@ def run_live_case(
         context = str(observed.get("context") or context)
         # Missing creator.login must not default to Buildkite; URL matching
         # correlates the status, but publisher identity fails closed.
-        status_publisher = infer_status_publisher(observed, fallback="other")
+        status_publisher = publisher_for_created_build_status(observed)
     else:
         context = str(cfg.get("status_context") or "buildkite/elastic/oblt-aw-e2e")
         if not trigger.get("context_contains_buildkite", True):

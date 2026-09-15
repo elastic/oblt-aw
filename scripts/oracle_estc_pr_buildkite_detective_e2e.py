@@ -89,6 +89,14 @@ _LIVE_REQUIRED_EXPECTATION_KEYS = (
     "agent_invoked",
     "expect_agent_comment",
 )
+# Live trigger contract from checked-in case.json (not harness-copied outcome.trigger).
+_LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
+    "context_contains_buildkite",
+    "require_open_pr",
+    "use_buildkite_target_url",
+    "clear_prior_detective_comments",
+)
+_LIVE_OPTIONAL_TRIGGER_BOOL_KEYS = ("create_failed_buildkite_build",)
 _FIXTURE_REQUIRED_EXPECTATION_KEYS = (
     "path_gates",
     "buildkite",
@@ -98,6 +106,14 @@ _FIXTURE_REQUIRED_PATH_GATE_KEYS = (
     "state_failure",
     "context_contains_buildkite",
     "has_open_pr",
+)
+_FIXTURE_REQUIRED_BUILDKITE_EVENT_KEYS = (
+    "event_name",
+    "commit_sha",
+    "build_url",
+    "pipeline",
+    "branch",
+    "pr_number",
 )
 
 
@@ -137,10 +153,74 @@ def case_expectations_schema_error(
     buildkite = expectations.get("buildkite")
     if not isinstance(buildkite, dict) or not buildkite:
         return "fixture expectations.buildkite must be a non-empty object"
+    if "min_failed_jobs" not in buildkite:
+        return "fixture expectations.buildkite.min_failed_jobs is required"
     try:
-        _as_bool(expectations["agent_invoked"])
+        min_failed = int(buildkite["min_failed_jobs"])
+    except (TypeError, ValueError) as exc:
+        return f"fixture expectations.buildkite.min_failed_jobs must be int ({exc})"
+    if min_failed < 1:
+        return (
+            "fixture expectations.buildkite.min_failed_jobs must be a positive "
+            f"integer, got {min_failed}"
+        )
+    required_event_keys = buildkite.get("required_event_keys")
+    if not isinstance(required_event_keys, list) or not required_event_keys:
+        return (
+            "fixture expectations.buildkite.required_event_keys must be a "
+            "non-empty list"
+        )
+    if not all(isinstance(key, str) and key for key in required_event_keys):
+        return (
+            "fixture expectations.buildkite.required_event_keys must contain "
+            "only non-empty strings"
+        )
+    event_missing = [
+        key
+        for key in _FIXTURE_REQUIRED_BUILDKITE_EVENT_KEYS
+        if key not in required_event_keys
+    ]
+    if event_missing:
+        return (
+            "fixture expectations.buildkite.required_event_keys missing "
+            f"required keys: {event_missing}"
+        )
+    try:
+        agent_invoked = _as_bool(expectations["agent_invoked"])
     except TypeError as exc:
         return f"fixture expectation agent_invoked must be bool ({exc})"
+    # Fixture mode is explicitly no-agent; true would skip the evaluator gate.
+    if agent_invoked is not False:
+        return "fixture expectation agent_invoked must be false"
+    return None
+
+
+def case_trigger_schema_error(trigger: dict[str, Any]) -> str | None:
+    """Return a detail string when live case trigger lacks the routing contract.
+
+    Live gates for status state/context/publisher/target URL are authorized only
+    from this checked-in map — never from a missing or empty harness copy.
+    """
+    if "status_state" not in trigger:
+        return "live trigger missing required key: status_state"
+    status_state = trigger.get("status_state")
+    if not isinstance(status_state, str) or not status_state.strip():
+        return f"live trigger status_state must be a non-empty string, got {status_state!r}"
+    missing = [k for k in _LIVE_REQUIRED_TRIGGER_BOOL_KEYS if k not in trigger]
+    if missing:
+        return f"live trigger missing required keys: {missing}"
+    for key in _LIVE_REQUIRED_TRIGGER_BOOL_KEYS:
+        try:
+            _as_bool(trigger[key])
+        except TypeError as exc:
+            return f"live trigger {key!r} must be bool ({exc})"
+    for key in _LIVE_OPTIONAL_TRIGGER_BOOL_KEYS:
+        if key not in trigger:
+            continue
+        try:
+            _as_bool(trigger[key])
+        except TypeError as exc:
+            return f"live trigger {key!r} must be bool ({exc})"
     return None
 
 
@@ -149,6 +229,7 @@ def evaluate_outcome(
     quarantine: dict[str, Any],
     *,
     case_expectations: dict[str, Any] | None = None,
+    case_trigger: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     # Do not default a missing workflow_id to WORKFLOW_ID: report and check
     # must stay consistent, and a missing id must fail closed.
@@ -235,6 +316,28 @@ def evaluate_outcome(
             _check(checks, "case_expectations", False, schema_error)
         else:
             expectations = case_expectations
+
+    # Live routing gates (state/context/publisher/URL) require checked-in
+    # case.trigger — never authorize from missing/empty outcome.trigger alone.
+    trigger: dict[str, Any] = {}
+    if mode == "live":
+        if not isinstance(case_trigger, dict) or not case_trigger:
+            _check(
+                checks,
+                "case_trigger",
+                False,
+                (
+                    "non-empty checked-in case trigger is required "
+                    "(do not trust outcome.trigger or empty mappings)"
+                ),
+            )
+        else:
+            trigger_error = case_trigger_schema_error(case_trigger)
+            if trigger_error is not None:
+                _check(checks, "case_trigger", False, trigger_error)
+            else:
+                trigger = case_trigger
+
     path_exp = expectations.get("path_gates") or {}
     bk_exp = expectations.get("buildkite") or {}
     path_gates = outcome.get("path_gates") or {}
@@ -257,7 +360,7 @@ def evaluate_outcome(
 
     if mode == "live":
         return _evaluate_live(
-            outcome, expectations, checks, workflow_id, case_id, layer
+            outcome, expectations, trigger, checks, workflow_id, case_id, layer
         )
 
     # Fixture / integration mode.
@@ -308,14 +411,13 @@ def evaluate_outcome(
         _check(checks, "buildkite_ok", False, str(exc))
 
     event_context = buildkite.get("event_context") or {}
-    required_keys = bk_exp.get("required_event_keys") or [
-        "event_name",
-        "commit_sha",
-        "build_url",
-        "pipeline",
-        "branch",
-        "pr_number",
-    ]
+    # Schema already requires the floor set; still union so supersets apply.
+    required_keys = list(_FIXTURE_REQUIRED_BUILDKITE_EVENT_KEYS)
+    extra_keys = bk_exp.get("required_event_keys")
+    if isinstance(extra_keys, list):
+        for key in extra_keys:
+            if isinstance(key, str) and key and key not in required_keys:
+                required_keys.append(key)
     missing = [key for key in required_keys if not event_context.get(key)]
     _check(
         checks,
@@ -324,14 +426,33 @@ def evaluate_outcome(
         f"missing={missing}" if missing else "all required keys present",
     )
 
-    min_failed = int(bk_exp.get("min_failed_jobs", 1))
-    failed_count = int(buildkite.get("failed_job_count") or 0)
-    _check(
-        checks,
-        "buildkite_failed_jobs",
-        failed_count >= min_failed,
-        f"failed_job_count={failed_count} min={min_failed}",
-    )
+    try:
+        min_failed = int(bk_exp["min_failed_jobs"])
+    except (KeyError, TypeError, ValueError):
+        # Schema should have rejected this; fail closed if we still got here.
+        min_failed = 1
+        _check(
+            checks,
+            "buildkite_failed_jobs",
+            False,
+            "fixture expectations.buildkite.min_failed_jobs missing or invalid",
+        )
+    else:
+        if min_failed < 1:
+            _check(
+                checks,
+                "buildkite_failed_jobs",
+                False,
+                f"min_failed_jobs must be >= 1, got {min_failed}",
+            )
+        else:
+            failed_count = int(buildkite.get("failed_job_count") or 0)
+            _check(
+                checks,
+                "buildkite_failed_jobs",
+                failed_count >= min_failed,
+                f"failed_job_count={failed_count} min={min_failed}",
+            )
 
     if "log_has_content" in bk_exp or any(
         job.get("log_has_content") is False
@@ -346,13 +467,18 @@ def evaluate_outcome(
             f"failed_jobs_with_logs={sum(1 for j in jobs if j.get('log_has_content'))}/{len(jobs)}",
         )
 
-    if expectations.get("agent_invoked") is False:
-        _check(
-            checks,
-            "agent_not_invoked",
-            outcome.get("agent_invoked") is False,
-            f"agent_invoked={outcome.get('agent_invoked')!r}",
-        )
+    if "agent_invoked" in expectations:
+        try:
+            expected = _as_bool(expectations["agent_invoked"])
+            actual = outcome.get("agent_invoked")
+            _check(
+                checks,
+                "agent_not_invoked" if expected is False else "agent_invoked",
+                actual is expected,
+                f"expected={expected!r} actual={actual!r}",
+            )
+        except TypeError as exc:
+            _check(checks, "agent_invoked", False, str(exc))
 
     overall = all(item["pass"] for item in checks)
     return {
@@ -376,6 +502,7 @@ def evaluate_outcome(
 def _evaluate_live(
     outcome: dict[str, Any],
     expectations: dict[str, Any],
+    trigger: dict[str, Any],
     checks: list[dict[str, Any]],
     workflow_id: str,
     case_id: str,
@@ -407,40 +534,36 @@ def _evaluate_live(
         except TypeError as exc:
             _check(checks, "dashboard_enabled", False, str(exc))
 
-    # Emitted trigger identity (when harness recorded a status object).
-    # Prefer case ``trigger`` (carried on the outcome) over optional
-    # ``expectations.status_state`` so live case files stay the source of truth.
-    trigger = outcome.get("trigger") or {}
+    # Checked-in case.trigger is the sole source of truth for routing gates.
+    # Do not fall back to harness-copied outcome.trigger (may be missing/{}).
     _check(
         checks,
         "status_present",
         isinstance(status, dict) and bool(status),
         f"status={status!r}",
     )
-    if status:
+    if status and trigger:
         _check(
             checks,
             "status_emitted",
             bool(status.get("state") and status.get("context")),
             f"status={status}",
         )
-        expected_state = expectations.get("status_state") or trigger.get("status_state")
-        if expected_state:
-            _check(
-                checks,
-                "status_state",
-                status.get("state") == expected_state,
-                f"expected={expected_state!r} actual={status.get('state')!r}",
-            )
-        if "context_contains_buildkite" in trigger:
-            expect_bk = bool(trigger.get("context_contains_buildkite"))
-            actual_bk = "buildkite" in str(status.get("context") or "").lower()
-            _check(
-                checks,
-                "status_context_buildkite",
-                actual_bk is expect_bk,
-                f"expected_contains_buildkite={expect_bk} context={status.get('context')!r}",
-            )
+        expected_state = trigger.get("status_state")
+        _check(
+            checks,
+            "status_state",
+            status.get("state") == expected_state,
+            f"expected={expected_state!r} actual={status.get('state')!r}",
+        )
+        expect_bk = bool(trigger.get("context_contains_buildkite"))
+        actual_bk = "buildkite" in str(status.get("context") or "").lower()
+        _check(
+            checks,
+            "status_context_buildkite",
+            actual_bk is expect_bk,
+            f"expected_contains_buildkite={expect_bk} context={status.get('context')!r}",
+        )
         if trigger.get("use_buildkite_target_url") or trigger.get(
             "create_failed_buildkite_build"
         ):
@@ -629,16 +752,31 @@ def _evaluate_live(
     }
 
 
-def load_case_expectations(testdata_root: Path, case_id: str) -> dict[str, Any] | None:
-    """Load expectations from checked-in case.json when available."""
+def load_case_json(testdata_root: Path, case_id: str) -> dict[str, Any] | None:
+    """Load checked-in case.json when available."""
     case_path = testdata_root / "cases" / case_id / "case.json"
     if not case_path.is_file():
         return None
     case = _load_json(case_path)
-    if not isinstance(case, dict):
+    return case if isinstance(case, dict) else None
+
+
+def load_case_expectations(testdata_root: Path, case_id: str) -> dict[str, Any] | None:
+    """Load expectations from checked-in case.json when available."""
+    case = load_case_json(testdata_root, case_id)
+    if case is None:
         return None
     expectations = case.get("expectations")
     return expectations if isinstance(expectations, dict) else None
+
+
+def load_case_trigger(testdata_root: Path, case_id: str) -> dict[str, Any] | None:
+    """Load trigger routing contract from checked-in case.json when available."""
+    case = load_case_json(testdata_root, case_id)
+    if case is None:
+        return None
+    trigger = case.get("trigger")
+    return trigger if isinstance(trigger, dict) else None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -706,9 +844,15 @@ def main(argv: list[str] | None = None) -> int:
     case_expectations = (
         load_case_expectations(args.testdata_root, case_id) if case_id else None
     )
+    case_trigger = load_case_trigger(args.testdata_root, case_id) if case_id else None
 
     quarantine = load_quarantine(args.quarantine_path)
-    report = evaluate_outcome(outcome, quarantine, case_expectations=case_expectations)
+    report = evaluate_outcome(
+        outcome,
+        quarantine,
+        case_expectations=case_expectations,
+        case_trigger=case_trigger,
+    )
 
     args.report_path.parent.mkdir(parents=True, exist_ok=True)
     args.report_path.write_text(

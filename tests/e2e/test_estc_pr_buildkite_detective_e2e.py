@@ -32,22 +32,31 @@ def _evaluate(
     quarantine: dict | None = None,
     *,
     case_expectations: dict | None = None,
+    case_trigger: dict | None = None,
 ) -> dict:
     """Oracle helper matching production: load checked-in case.json by default.
 
-    Pass ``case_expectations`` explicitly for synthetic or mutated expectation
-    maps. Never authorize gates from ``outcome["expectations"]`` implicitly —
-    that path is harness-copied and is not the production source of truth.
+    Pass ``case_expectations`` / ``case_trigger`` explicitly for synthetic or
+    mutated maps. Never authorize gates from harness-copied
+    ``outcome["expectations"]`` or ``outcome["trigger"]`` implicitly — those
+    paths are not the production source of truth.
     """
     if quarantine is None:
         quarantine = {"cases": []}
+    case_id = str(outcome.get("case_id") or "")
     if case_expectations is None:
-        case_id = str(outcome.get("case_id") or "")
         case_expectations = (
             oracle.load_case_expectations(TESTDATA_ROOT, case_id) if case_id else None
         )
+    if case_trigger is None and str(outcome.get("mode") or "") == "live":
+        case_trigger = (
+            oracle.load_case_trigger(TESTDATA_ROOT, case_id) if case_id else None
+        )
     return oracle.evaluate_outcome(
-        outcome, quarantine, case_expectations=case_expectations
+        outcome,
+        quarantine,
+        case_expectations=case_expectations,
+        case_trigger=case_trigger,
     )
 
 
@@ -394,6 +403,14 @@ class TestHarnessFixtureCase:
             == "other"
         )
         assert harness.infer_status_publisher(None, fallback="other") == "other"
+        # Call-site seam: created-build path permanently uses fallback=other.
+        assert (
+            harness.publisher_for_created_build_status(
+                {"state": "failure", "context": "buildkite/elastic/x"}
+            )
+            == "other"
+        )
+        assert harness.publisher_for_created_build_status(None) == "other"
 
     def test_status_job_conclusion_fails_closed_without_named_job(self) -> None:
         assert (
@@ -1066,7 +1083,14 @@ class TestOracle:
             },
             "agent_comment": None,
         }
-        report = oracle.evaluate_outcome(outcome, {"cases": []}, case_expectations={})
+        report = oracle.evaluate_outcome(
+            outcome,
+            {"cases": []},
+            case_expectations={},
+            case_trigger=oracle.load_case_trigger(
+                TESTDATA_ROOT, "status-success-skipped"
+            ),
+        )
         assert report["pass"] is False
         failed = {c["id"] for c in report["checks"] if not c["pass"]}
         assert "case_expectations" in failed
@@ -1089,7 +1113,12 @@ class TestOracle:
             "agent_comment": None,
         }
         report = oracle.evaluate_outcome(
-            outcome, {"cases": []}, case_expectations={"typo": True}
+            outcome,
+            {"cases": []},
+            case_expectations={"typo": True},
+            case_trigger=oracle.load_case_trigger(
+                TESTDATA_ROOT, "status-success-skipped"
+            ),
         )
         assert report["pass"] is False
         failed = {c["id"] for c in report["checks"] if not c["pass"]}
@@ -1122,6 +1151,158 @@ class TestOracle:
                 "expect_agent_comment": False,
                 # status_job_executed omitted on purpose
             },
+            case_trigger=oracle.load_case_trigger(
+                TESTDATA_ROOT, "status-success-skipped"
+            ),
+        )
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "case_expectations" in failed
+
+    def test_oracle_rejects_missing_or_empty_case_trigger(self) -> None:
+        """Live routing gates must not run when checked-in trigger is absent."""
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-success-skipped",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "path_gates": {"dashboard_enabled": True},
+            "status": {"state": "success", "context": "buildkite/x"},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": False,
+                "job_conclusion": "skipped",
+            },
+            "agent_comment": None,
+            # Harness-copied trigger must not authorize gates.
+            "trigger": {
+                "status_state": "success",
+                "context_contains_buildkite": True,
+                "require_open_pr": True,
+                "use_buildkite_target_url": True,
+                "clear_prior_detective_comments": False,
+            },
+        }
+        expectations = oracle.load_case_expectations(
+            TESTDATA_ROOT, "status-success-skipped"
+        )
+        report = oracle.evaluate_outcome(
+            outcome,
+            {"cases": []},
+            case_expectations=expectations,
+            case_trigger={},
+        )
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "case_trigger" in failed
+        assert "status_state" not in {c["id"] for c in report["checks"]}
+
+    def test_oracle_rejects_partial_live_case_trigger(self) -> None:
+        """Incomplete trigger must fail closed even when expectations are complete."""
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-success-skipped",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "path_gates": {"dashboard_enabled": True},
+            "status": {"state": "success", "context": "buildkite/x"},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": False,
+                "job_conclusion": "skipped",
+            },
+            "agent_comment": None,
+        }
+        report = oracle.evaluate_outcome(
+            outcome,
+            {"cases": []},
+            case_expectations=oracle.load_case_expectations(
+                TESTDATA_ROOT, "status-success-skipped"
+            ),
+            case_trigger={"status_state": "success"},
+        )
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "case_trigger" in failed
+
+    def test_oracle_ignores_empty_outcome_trigger_when_case_trigger_present(
+        self,
+    ) -> None:
+        """Checked-in trigger must authorize gates even if outcome.trigger is empty."""
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-success-skipped",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "path_gates": {"dashboard_enabled": True},
+            "trigger": {},
+            "status": {
+                "state": "success",
+                "context": "buildkite/x",
+                "target_url": "u",
+                "publisher": "harness",
+            },
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": False,
+                "job_conclusion": "skipped",
+            },
+            "agent_comment": None,
+        }
+        report = _evaluate(outcome)
+        assert report["pass"] is True
+        check_ids = {c["id"] for c in report["checks"]}
+        assert "status_state" in check_ids
+        assert "status_context_buildkite" in check_ids
+        assert "status_target_url" in check_ids
+
+    def test_fixture_schema_rejects_zero_min_failed_jobs(self) -> None:
+        outcome = harness.run_fixture_case(CASE_DIR)
+        expectations = oracle.load_case_expectations(
+            TESTDATA_ROOT, "status-failure-open-pr"
+        )
+        assert expectations is not None
+        expectations = dict(expectations)
+        buildkite = dict(expectations["buildkite"])
+        buildkite["min_failed_jobs"] = 0
+        expectations["buildkite"] = buildkite
+        report = oracle.evaluate_outcome(
+            outcome, {"cases": []}, case_expectations=expectations
+        )
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "case_expectations" in failed
+
+    def test_fixture_schema_rejects_partial_required_event_keys(self) -> None:
+        outcome = harness.run_fixture_case(CASE_DIR)
+        expectations = oracle.load_case_expectations(
+            TESTDATA_ROOT, "status-failure-open-pr"
+        )
+        assert expectations is not None
+        expectations = dict(expectations)
+        buildkite = dict(expectations["buildkite"])
+        buildkite["required_event_keys"] = ["event_name"]
+        expectations["buildkite"] = buildkite
+        report = oracle.evaluate_outcome(
+            outcome, {"cases": []}, case_expectations=expectations
+        )
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "case_expectations" in failed
+
+    def test_fixture_schema_rejects_agent_invoked_true(self) -> None:
+        outcome = harness.run_fixture_case(CASE_DIR)
+        expectations = oracle.load_case_expectations(
+            TESTDATA_ROOT, "status-failure-open-pr"
+        )
+        assert expectations is not None
+        expectations = dict(expectations)
+        expectations["agent_invoked"] = True
+        report = oracle.evaluate_outcome(
+            outcome, {"cases": []}, case_expectations=expectations
         )
         assert report["pass"] is False
         failed = {c["id"] for c in report["checks"] if not c["pass"]}
@@ -1188,6 +1369,13 @@ class TestOracle:
                 {
                     "id": "status-success-skipped",
                     "mode": "live",
+                    "trigger": {
+                        "status_state": "success",
+                        "context_contains_buildkite": True,
+                        "require_open_pr": True,
+                        "use_buildkite_target_url": True,
+                        "clear_prior_detective_comments": False,
+                    },
                     "expectations": {
                         "dashboard_enabled": True,
                         "status_job_executed": False,
@@ -1205,7 +1393,12 @@ class TestOracle:
             "mode": "live",
             "agent_invoked": False,
             "path_gates": {"dashboard_enabled": True},
-            "status": {"state": "success", "context": "buildkite/x"},
+            "status": {
+                "state": "success",
+                "context": "buildkite/x",
+                "target_url": "https://buildkite.com/elastic/x/builds/1",
+                "publisher": "harness",
+            },
             "status_trigger": {
                 "run_seen": True,
                 "job_executed": False,
@@ -1214,6 +1407,7 @@ class TestOracle:
             "agent_comment": None,
             # Maliciously empty harness expectations — case file must win.
             "expectations": {},
+            "trigger": {},
         }
         report = oracle.evaluate_outcome(
             outcome,
@@ -1221,6 +1415,7 @@ class TestOracle:
             case_expectations=oracle.load_case_expectations(
                 tmp_path, "status-success-skipped"
             ),
+            case_trigger=oracle.load_case_trigger(tmp_path, "status-success-skipped"),
         )
         assert report["pass"] is True
 
