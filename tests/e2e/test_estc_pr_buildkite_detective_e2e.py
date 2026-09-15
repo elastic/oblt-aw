@@ -594,6 +594,129 @@ class TestHarnessLive:
         with pytest.raises(RuntimeError, match="Failed to ensure label"):
             harness._ensure_label("elastic/oblt-aw", "e2e:estc-pr-buildkite-detective")
 
+    def test_resolve_target_pr_explicit_same_repo(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "gh_json",
+            lambda *_a, **_k: {
+                "number": 42,
+                "url": "https://example.test/pr/42",
+                "headRefName": "feat/estc",
+                "headRefOid": "deadbeef",
+                "baseRefName": "main",
+                "title": "change",
+                "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
+                "labels": [],
+            },
+        )
+        cfg = harness.load_e2e_config(
+            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        )
+        pr, base = harness.resolve_target_pr(
+            "elastic/oblt-aw",
+            cfg,
+            pr_number=42,
+            head_branch="feat/estc",
+            base_branch="main",
+        )
+        assert int(pr["number"]) == 42
+        assert pr["headRefOid"] == "deadbeef"
+        assert base == "main"
+
+    def test_resolve_target_pr_rejects_fork(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "gh_json",
+            lambda *_a, **_k: {
+                "number": 7,
+                "url": "https://example.test/pr/7",
+                "headRefName": "feat/fork",
+                "headRefOid": "abc",
+                "baseRefName": "main",
+                "title": "fork",
+                "headRepository": {"nameWithOwner": "someone/oblt-aw"},
+                "labels": [],
+            },
+        )
+        cfg = harness.load_e2e_config(
+            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        )
+        with pytest.raises(RuntimeError, match="head repository"):
+            harness.resolve_target_pr("elastic/oblt-aw", cfg, pr_number=7)
+
+    def test_resolve_target_pr_head_branch_mismatch(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "gh_json",
+            lambda *_a, **_k: {
+                "number": 8,
+                "url": "https://example.test/pr/8",
+                "headRefName": "actual-branch",
+                "headRefOid": "abc",
+                "baseRefName": "main",
+                "title": "x",
+                "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
+                "labels": [],
+            },
+        )
+        cfg = harness.load_e2e_config(
+            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        )
+        with pytest.raises(RuntimeError, match="head branch"):
+            harness.resolve_target_pr(
+                "elastic/oblt-aw",
+                cfg,
+                pr_number=8,
+                head_branch="expected-branch",
+            )
+
+    def test_ensure_failed_buildkite_passes_base_branch(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("BUILDKITE_TOKEN", "test-token")
+        captured: dict[str, object] = {}
+
+        def fake_create(*_a: object, **kwargs: object) -> dict[str, object]:
+            captured.update(kwargs)
+            return {"number": 1, "web_url": "https://buildkite.example/builds/1"}
+
+        monkeypatch.setattr(harness, "create_buildkite_build", fake_create)
+        monkeypatch.setattr(
+            harness,
+            "wait_for_buildkite_build",
+            lambda *_a, **_k: {
+                "state": "failed",
+                "web_url": "https://buildkite.example/builds/1",
+            },
+        )
+        monkeypatch.setattr(
+            harness,
+            "verify_buildkite_fail_log_marker",
+            lambda *_a, **_k: (True, "ok"),
+        )
+        cfg = harness.load_e2e_config(
+            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        )
+        url, meta = harness.ensure_failed_buildkite_target_url(
+            cfg,
+            commit="abc",
+            branch="feat/estc",
+            pr_number=99,
+            case_id="status-failure-open-pr-live",
+            pull_request_base_branch="release-1",
+        )
+        assert url.endswith("/builds/1")
+        assert meta["number"] == 1
+        assert captured["pull_request_base_branch"] == "release-1"
+        assert captured["pull_request_id"] == 99
+        assert captured["branch"] == "feat/estc"
+
 
 class TestOracle:
     def test_synthetic_live_outcome_passes(self) -> None:

@@ -6,7 +6,25 @@ name: E2E — ESTC PR Buildkite Detective
 # Live happy path only: Buildkite publishes commit status → trigger → agent.
 # Also callable from the future release/promote train (#1878).
 # Not part of the default PR required gate in ci.yml.
+# Path-filtered pull_request runs target the PR under review (head/base).
+# Manual / workflow_call runs use the long-lived fixture PR.
+# Lock/wrapper still pin @main (smoke path); candidate-pin is a separate follow-up.
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/gh-aw-estc-pr-buildkite-detective.md
+      - .github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml
+      - .github/workflows/obs-aw-estc-pr-buildkite-detective.yml
+      - .github/workflows/gh-aw-fragments/**
+      - .github/workflows/e2e-estc-pr-buildkite-detective.yml
+      - .github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-status.yml
+      - scripts/estc_pr_buildkite_detective_e2e_harness.py
+      - scripts/oracle_estc_pr_buildkite_detective_e2e.py
+      - config/obs/e2e-estc-pr-buildkite-detective.json
+      - testdata/agentic/estc-pr-buildkite-detective/**
+      - tests/e2e/test_estc_pr_buildkite_detective_e2e.py
+      - .buildkite/pipeline.e2e-estc-fail.yml
   workflow_dispatch:
     inputs:
       case-id:
@@ -14,9 +32,6 @@ on:
         required: true
         type: string
         default: all
-  schedule:
-    # Weekly production smoke (paid agent on happy-path case).
-    - cron: "17 6 * * 1"
   workflow_call:
     inputs:
       case-id:
@@ -37,13 +52,17 @@ permissions:
   contents: read
 
 concurrency:
-  # Stable group: one live matrix at a time against the shared fixture PR.
-  group: e2e-estc-pr-buildkite-detective
+  # One live matrix per PR; shared group for dispatch / workflow_call (fixture PR).
+  group: e2e-estc-pr-buildkite-detective-${{ github.event.pull_request.number || 'shared' }}
   cancel-in-progress: false
 
 jobs:
   e2e-matrix:
     name: Resolve E2E matrix
+    # Fork PRs lack secrets and cannot target same-repo heads safely.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -52,15 +71,10 @@ jobs:
       - name: Resolve cases
         id: resolve
         env:
-          EVENT_NAME: ${{ github.event_name }}
           INPUT_CASE_ID: ${{ inputs.case-id }}
         run: |
           set -euo pipefail
-          if [ "${EVENT_NAME}" = "schedule" ]; then
-            CASE_ID=all
-          else
-            CASE_ID="${INPUT_CASE_ID:-all}"
-          fi
+          CASE_ID="${INPUT_CASE_ID:-all}"
           if [ "${CASE_ID}" = "all" ]; then
             CASES='["status-failure-open-pr-live"]'
           else
@@ -110,12 +124,23 @@ jobs:
       - name: Run harness
         id: harness
         continue-on-error: true
+        env:
+          TARGET_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          TARGET_HEAD_BRANCH: ${{ github.head_ref || '' }}
+          TARGET_BASE_BRANCH: ${{ github.base_ref || '' }}
         run: |
           set +e
+          EXTRA_ARGS=()
+          if [ -n "${TARGET_PR_NUMBER}" ]; then
+            EXTRA_ARGS+=(--pr-number "${TARGET_PR_NUMBER}")
+            EXTRA_ARGS+=(--head-branch "${TARGET_HEAD_BRANCH}")
+            EXTRA_ARGS+=(--base-branch "${TARGET_BASE_BRANCH}")
+          fi
           python3 scripts/estc_pr_buildkite_detective_e2e_harness.py \
             --case-id "${CASE_ID}" \
             --run-url "${RUN_URL}" \
-            --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json"
+            --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json" \
+            "${EXTRA_ARGS[@]}"
           echo "harness_exit=$?" >> "$GITHUB_OUTPUT"
 
       - name: Run structured oracle
@@ -141,8 +166,8 @@ jobs:
 
   e2e-result:
     name: E2E result gate
-    needs: e2e
-    if: always()
+    needs: [e2e-matrix, e2e]
+    if: always() && needs.e2e-matrix.result != 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:

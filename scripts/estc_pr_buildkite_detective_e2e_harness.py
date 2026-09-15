@@ -312,6 +312,70 @@ def _require_pr_label(repo: str, pr_number: int, label: str) -> dict[str, Any]:
     return pr
 
 
+def resolve_target_pr(
+    repo: str,
+    cfg: dict[str, Any],
+    *,
+    pr_number: int | None = None,
+    head_branch: str | None = None,
+    base_branch: str | None = None,
+) -> tuple[dict[str, Any], str]:
+    """Resolve the PR under test and its base branch name.
+
+    When ``pr_number`` is set (path-filtered PR E2E), load that same-repo PR
+    without requiring the fixture label. Otherwise find/create the long-lived
+    fixture PR used by ``workflow_dispatch`` / ``workflow_call``.
+    """
+    if pr_number is not None:
+        pr = gh_json(
+            [
+                "pr",
+                "view",
+                str(pr_number),
+                "--repo",
+                repo,
+                "--json",
+                (
+                    "number,url,headRefName,headRefOid,baseRefName,title,"
+                    "headRepository,labels"
+                ),
+            ]
+        )
+        if not isinstance(pr, dict):
+            raise TypeError(
+                f"Failed to view PR #{pr_number} on {repo}: expected object"
+            )
+        head = _pr_head_repo(pr)
+        if head != repo:
+            raise RuntimeError(
+                f"PR #{pr_number} head repository is {head!r}, expected {repo!r}."
+            )
+        actual_head = str(pr.get("headRefName") or "")
+        if head_branch and actual_head != head_branch:
+            raise RuntimeError(
+                f"PR #{pr_number} head branch is {actual_head!r}, "
+                f"expected {head_branch!r}."
+            )
+        resolved_base = (
+            (base_branch or "").strip()
+            or str(pr.get("baseRefName") or "").strip()
+            or "main"
+        )
+        return pr, resolved_base
+
+    pr_info = ensure_e2e_pr(repo, cfg)
+    refreshed = (
+        find_open_e2e_pr(
+            repo,
+            cfg["e2e_pr"]["label"],
+            branch=str(cfg["e2e_pr"].get("branch") or ""),
+        )
+        or pr_info
+    )
+    resolved_base = (base_branch or "").strip() or "main"
+    return refreshed, resolved_base
+
+
 def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
     """Find or create the long-lived E2E fixture PR via the GitHub API only."""
     e2e_pr = cfg["e2e_pr"]
@@ -940,6 +1004,7 @@ def ensure_failed_buildkite_target_url(
     branch: str,
     pr_number: int | None,
     case_id: str,
+    pull_request_base_branch: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Create a failed Buildkite build and return (web_url, build_meta)."""
     token = buildkite_api_token(cfg)
@@ -952,6 +1017,9 @@ def ensure_failed_buildkite_target_url(
     bk = _buildkite_cfg(cfg)
     repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
     pr_repo = f"https://github.com/{repo}.git"
+    base_branch = None
+    if pr_number:
+        base_branch = (pull_request_base_branch or "").strip() or "main"
     created = create_buildkite_build(
         token,
         org=org,
@@ -960,7 +1028,7 @@ def ensure_failed_buildkite_target_url(
         branch=branch,
         message=f"oblt-aw e2e intentional failure ({case_id})",
         pull_request_id=pr_number or None,
-        pull_request_base_branch="main" if pr_number else None,
+        pull_request_base_branch=base_branch,
         pull_request_repository=pr_repo if pr_number else None,
     )
     number = int(created["number"])
@@ -1055,6 +1123,9 @@ def run_live_case(
     cfg: dict[str, Any],
     *,
     run_url: str | None = None,
+    pr_number: int | None = None,
+    head_branch: str | None = None,
+    base_branch: str | None = None,
 ) -> dict[str, Any]:
     case = _load_json(case_dir / "case.json")
     require_case_mode(case, "live", case_id=str(case.get("id", case_dir.name)))
@@ -1141,25 +1212,39 @@ def run_live_case(
             "run_url": run_url,
         }
 
-    pr_info = ensure_e2e_pr(repo, cfg)
-    # Refresh OID after possible marker commit.
-    refreshed = (
-        find_open_e2e_pr(
+    try:
+        pr_info, resolved_base = resolve_target_pr(
             repo,
-            cfg["e2e_pr"]["label"],
-            branch=str(cfg["e2e_pr"].get("branch") or ""),
+            cfg,
+            pr_number=pr_number,
+            head_branch=head_branch,
+            base_branch=base_branch,
         )
-        or pr_info
-    )
-    pr_info = refreshed
+    except (RuntimeError, TypeError, ValueError) as exc:
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": str(exc),
+            "path_gates": {"dashboard_enabled": dashboard_ok},
+            "expectations": expectations,
+            "run_url": run_url,
+        }
+
     sha = pr_info["headRefOid"]
-    pr_number = int(pr_info["number"])
+    target_pr_number = int(pr_info["number"])
     e2e_branch = str(
-        pr_info.get("headRefName") or cfg.get("e2e_pr", {}).get("branch") or ""
+        pr_info.get("headRefName")
+        or head_branch
+        or cfg.get("e2e_pr", {}).get("branch")
+        or ""
     )
 
     if trigger.get("clear_prior_detective_comments"):
-        clear_detective_comments(repo, pr_number, markers)
+        clear_detective_comments(repo, target_pr_number, markers)
 
     # Capture before Buildkite create so we observe the status-triggered Actions run.
     since = _utc_now().replace(microsecond=0)
@@ -1176,8 +1261,9 @@ def run_live_case(
             cfg,
             commit=sha,
             branch=e2e_branch or str(cfg.get("e2e_pr", {}).get("branch") or "main"),
-            pr_number=pr_number,
+            pr_number=target_pr_number,
             case_id=str(case.get("id", case_dir.name)),
+            pull_request_base_branch=resolved_base,
         )
     except (RuntimeError, TimeoutError, ValueError) as exc:
         return {
@@ -1253,7 +1339,9 @@ def run_live_case(
     if expectations.get("expect_agent_comment"):
         comment_deadline = time.time() + min(900, timeout)
         while time.time() < comment_deadline and comment is None:
-            comment = find_agent_comment(repo, pr_number, since=since, markers=markers)
+            comment = find_agent_comment(
+                repo, target_pr_number, since=since, markers=markers
+            )
             if comment:
                 break
             # Nested agent jobs may finish after the parent lists them.
@@ -1272,7 +1360,9 @@ def run_live_case(
             invoked = agent_job_invoked(repo, run_detail, since=since)
             time.sleep(interval)
     else:
-        comment = find_agent_comment(repo, pr_number, since=since, markers=markers)
+        comment = find_agent_comment(
+            repo, target_pr_number, since=since, markers=markers
+        )
 
     path_gates = {
         "dashboard_enabled": dashboard_ok,
@@ -1294,8 +1384,10 @@ def run_live_case(
         "blocked": False,
         "consumer_repo": repo,
         "commit_sha": sha,
-        "pr_number": pr_number,
+        "pr_number": target_pr_number,
         "pr_url": pr_info.get("url"),
+        "pr_head_branch": e2e_branch,
+        "pr_base_branch": resolved_base,
         "trigger": trigger,
         "status": {
             "state": state,
@@ -1360,6 +1452,25 @@ def main(argv: list[str] | None = None) -> int:
         default="",
         help="Optional GitHub Actions run URL to embed in the outcome",
     )
+    parser.add_argument(
+        "--pr-number",
+        type=int,
+        default=None,
+        help=(
+            "Target an existing same-repo PR (path-filtered PR E2E). "
+            "When omitted, uses the long-lived fixture PR."
+        ),
+    )
+    parser.add_argument(
+        "--head-branch",
+        default="",
+        help="Expected PR head branch when --pr-number is set (optional check)",
+    )
+    parser.add_argument(
+        "--base-branch",
+        default="",
+        help="PR base branch for Buildkite pull_request_base_branch",
+    )
     args = parser.parse_args(argv)
 
     case_dir = args.testdata_root / "cases" / args.case_id
@@ -1367,7 +1478,14 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"Case directory not found: {case_dir}")
 
     cfg = load_e2e_config(args.config_path)
-    outcome = run_live_case(case_dir, cfg, run_url=args.run_url or None)
+    outcome = run_live_case(
+        case_dir,
+        cfg,
+        run_url=args.run_url or None,
+        pr_number=args.pr_number,
+        head_branch=args.head_branch or None,
+        base_branch=args.base_branch or None,
+    )
 
     args.outcome_path.parent.mkdir(parents=True, exist_ok=True)
     args.outcome_path.write_text(
