@@ -60,4 +60,3 @@ jobs:
     with:
       title-prefix: "[oblt-aw][agent-suggestions]"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-    secrets: inherit
