@@ -153,13 +153,17 @@ def evaluate_outcome(
 
     # Fail closed: never authorize gate checks from harness-copied
     # outcome.expectations alone. Callers (CLI + tests) must pass checked-in
-    # case expectations explicitly.
-    if not isinstance(case_expectations, dict):
+    # case expectations explicitly. An empty mapping is treated as missing so
+    # malformed case.json cannot skip every case-specific assertion.
+    if not isinstance(case_expectations, dict) or not case_expectations:
         _check(
             checks,
             "case_expectations",
             False,
-            "checked-in case expectations are required (do not trust outcome.expectations)",
+            (
+                "non-empty checked-in case expectations are required "
+                "(do not trust outcome.expectations or empty mappings)"
+            ),
         )
         expectations: dict[str, Any] = {}
     else:
@@ -428,11 +432,8 @@ def _evaluate_live(
                 f"expected={expected} actual={actual} run={status_trigger.get('url')}",
             )
             if expected is False and run_seen is True:
-                job_conclusion = str(
-                    status_trigger.get("job_conclusion")
-                    or status_trigger.get("conclusion")
-                    or ""
-                ).lower()
+                # Named-job conclusion only — never the overall run conclusion.
+                job_conclusion = str(status_trigger.get("job_conclusion") or "").lower()
                 _check(
                     checks,
                     "status_job_skipped",
@@ -443,11 +444,7 @@ def _evaluate_live(
                     ),
                 )
             if expected is True and run_seen is True:
-                job_conclusion = str(
-                    status_trigger.get("job_conclusion")
-                    or status_trigger.get("conclusion")
-                    or ""
-                ).lower()
+                job_conclusion = str(status_trigger.get("job_conclusion") or "").lower()
                 _check(
                     checks,
                     "status_job_success",

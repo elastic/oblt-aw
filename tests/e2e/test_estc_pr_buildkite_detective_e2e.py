@@ -1097,6 +1097,57 @@ class TestOracle:
         failed = {c["id"] for c in report["checks"] if not c["pass"]}
         assert "case_expectations" in failed
 
+    def test_oracle_rejects_empty_case_expectations_mapping(self) -> None:
+        """Empty checked-in expectations must not skip all gate assertions."""
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-success-skipped",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "path_gates": {"dashboard_enabled": True},
+            "status": {"state": "success", "context": "buildkite/x"},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": False,
+                "job_conclusion": "skipped",
+            },
+            "agent_comment": None,
+        }
+        report = oracle.evaluate_outcome(outcome, {"cases": []}, case_expectations={})
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "case_expectations" in failed
+
+    def test_oracle_rejects_run_conclusion_as_job_skipped(self) -> None:
+        """Missing named-job conclusion must not inherit overall run conclusion."""
+        outcome = {
+            "workflow_id": "obs:estc-pr-buildkite-detective",
+            "case_id": "status-success-skipped",
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "path_gates": {"dashboard_enabled": True},
+            "status": {"state": "success", "context": "buildkite/x"},
+            "status_trigger": {
+                "run_seen": True,
+                "job_executed": False,
+                "job_conclusion": None,
+                "conclusion": "skipped",
+            },
+            "agent_comment": None,
+            "expectations": {
+                "dashboard_enabled": True,
+                "status_job_executed": False,
+                "agent_invoked": False,
+                "expect_agent_comment": False,
+            },
+        }
+        report = _evaluate(outcome)
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "status_job_skipped" in failed
+
     def test_oracle_prefers_case_file_expectations(
         self, tmp_path: pathlib.Path
     ) -> None:

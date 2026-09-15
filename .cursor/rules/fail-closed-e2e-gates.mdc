@@ -1,0 +1,34 @@
+---
+description: Fail-closed E2E harness/oracle evidence chains — chase every substitute signal when hardening gates.
+globs: scripts/*e2e*.py,scripts/oracle_*.py,tests/e2e/**,testdata/agentic/**/case.json,docs/testing/**e2e*
+alwaysApply: false
+---
+
+# Fail-closed E2E gates (harness → outcome → oracle)
+
+When changing E2E harnesses, oracles, case expectations, or reviewing “fail closed” feedback:
+
+## Non-negotiable invariant
+
+A gate assertion may pass **only** on the named evidence it claims to check. No alternate signal may green the same check.
+
+## Mandatory evidence-chain walk
+
+Do **not** stop after removing the first fallback named in a review comment. For every hardened field, walk end-to-end:
+
+1. **Producer** (harness / collector) — what is written when evidence is absent?
+2. **Outcome schema** — which fields still carry substitute signals (e.g. overall run `conclusion` next to `job_conclusion`)?
+3. **Consumer** (oracle / assertions) — every `or`, default, empty mapping, or “prefer X else Y” that can still authorize the gate.
+4. **Tests** — one regression per closed hole (absent named job, empty `expectations: {}`, missing publisher identity, etc.).
+
+## Common false-green patterns (reject these)
+
+- Overall workflow/run conclusion standing in for a **named job** conclusion
+- Empty `expectations: {}` (or missing case file) skipping case-specific checks while generic checks pass
+- Inferring publisher/source from “we expected this path” fallbacks when identity fields are absent
+- Trusting harness-copied `outcome.expectations` when checked-in `case.json` is the source of truth
+- Fixing only the producer while the oracle still does `job_conclusion or conclusion` (or equivalent)
+
+## When reviewing Copilot / human fail-closed comments
+
+Treat the comment as a **symptom**. Plan the full chain fix in one change set. If a later review finds a remaining substitute path, that is a process failure from an incomplete first pass — extend the chain, do not argue the first patch was “enough.”

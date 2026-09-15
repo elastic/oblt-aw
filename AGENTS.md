@@ -6,6 +6,10 @@ Use **[`.github/remote-workflow-template/`](.github/remote-workflow-template/)**
 
 Do not reintroduce a monolithic `oblt-aw.yml` or `oblt-aw-ingress.yml`.
 
+## Fail-closed E2E harness / oracle changes
+
+When hardening E2E gates (or addressing fail-closed review comments), follow **[`.cursor/rules/fail-closed-e2e-gates.mdc`](.cursor/rules/fail-closed-e2e-gates.mdc)**: walk producer → outcome → oracle → tests and close every substitute signal in one change set. Do not stop after the first named fallback.
+
 ## Control-plane workflow naming
 
 - Shared prelude: `.github/workflows/aw-prelude.yml` (no org prefix).
