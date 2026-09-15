@@ -1,0 +1,29 @@
+---
+description: Mandatory pre-commit (incl. mypy) before commit/push — pytest alone is not enough.
+globs: scripts/**/*.py,tests/**/*.py,.github/workflows/**/*.yml
+alwaysApply: false
+---
+
+# CI Pre-commit gate before commit / push
+
+When changing files matching these globs (or when about to commit/push/PR any of them):
+
+## Non-negotiable
+
+Do **not** commit, push, or open/update a PR until:
+
+```bash
+pre-commit run --files <all-touched-paths>
+```
+
+passes locally. That is the same gate as CI’s **Pre-commit** job (ruff, ruff format, **mypy**, yaml hooks, etc.).
+
+## Forbidden shortcut
+
+- **Do not** treat `pytest` green alone as authorization to push.
+- **Do not** skip mypy because “types look fine” or only unit tests were run.
+- If pre-commit fails, fix and re-run; do not push a known red Pre-commit.
+
+## Report before push
+
+When offering commit/push/PR (or after the user asks to push), state that pre-commit passed on the touched files (or stop with the hook failure output).

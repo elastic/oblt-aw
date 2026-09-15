@@ -64,13 +64,15 @@ Treat the comment as a **symptom**. Plan the full chain fix in one change set. I
 
 Closing “empty mapping” without also rejecting typo/partial mappings, nested threshold holes, trigger-contract holes, and without aligning test helpers to production evidence is an incomplete pass — do all in the same change.
 
-## Local validation before commit / push
+## Local validation before commit / push (blocking)
 
-Do **not** commit or push fail-closed E2E changes until these pass locally on the touched files:
+Do **not** commit or push until **all** of the following pass on the touched files. Skipping any step is a process failure — the same class of miss that greens pytest while CI Pre-commit fails.
 
-1. `ruff format` (and `ruff check` if applicable) on changed Python paths
+1. `ruff format` and `ruff check` on changed Python paths
 2. `pytest` for the affected E2E / oracle suite (for ESTC: `tests/e2e/test_estc_pr_buildkite_detective_e2e.py`)
-3. Prefer `pre-commit run --files <paths>` when available, matching CI’s Pre-commit job
+3. **`pre-commit run --files <paths>` is mandatory** (not optional). This is what CI’s Pre-commit job runs, including **mypy**. Pytest alone does **not** authorize push.
 4. Complete the **adversarial self-review** table above and confirm no open substitute path remains
 
-Pytest alone is not enough — CI also enforces format hooks, and a green suite does not prove the chain walk was finished.
+Before reporting “ready to commit/push/PR” or pushing, paste or summarize the pre-commit hook results (at least: ruff, ruff format, mypy = Passed). If pre-commit cannot run locally, say so and stop — do not push on pytest-only green.
+
+Pytest alone is not enough — CI also enforces format/type hooks, and a green suite does not prove the chain walk was finished.
