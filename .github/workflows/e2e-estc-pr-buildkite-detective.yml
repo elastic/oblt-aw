@@ -10,14 +10,6 @@ name: E2E — ESTC PR Buildkite Detective
 on:
   workflow_dispatch:
     inputs:
-      mode:
-        description: live (production status→agent) or fixture (integration-only)
-        required: true
-        type: choice
-        options:
-          - live
-          - fixture
-        default: live
       case-id:
         description: Case id, or "all" for the live matrix
         required: true
@@ -28,11 +20,6 @@ on:
     - cron: "17 6 * * 1"
   workflow_call:
     inputs:
-      mode:
-        description: live or fixture
-        required: false
-        type: string
-        default: live
       case-id:
         description: Case id, or "all" for the live matrix
         required: false
@@ -66,35 +53,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      mode: ${{ steps.resolve.outputs.mode }}
       cases: ${{ steps.resolve.outputs.cases }}
     steps:
-      - name: Resolve mode and cases
+      - name: Resolve cases
         id: resolve
         env:
           EVENT_NAME: ${{ github.event_name }}
-          INPUT_MODE: ${{ inputs.mode }}
           INPUT_CASE_ID: ${{ inputs.case-id }}
         run: |
           set -euo pipefail
           if [ "${EVENT_NAME}" = "schedule" ]; then
-            MODE=live
             CASE_ID=all
           else
-            MODE="${INPUT_MODE:-live}"
             CASE_ID="${INPUT_CASE_ID:-all}"
           fi
-          if [ "${MODE}" = "fixture" ]; then
-            if [ "${CASE_ID}" = "all" ]; then
-              CASE_ID=status-failure-open-pr
-            fi
-            CASES="$(printf '%s' "[\"${CASE_ID}\"]")"
-          elif [ "${CASE_ID}" = "all" ]; then
+          if [ "${CASE_ID}" = "all" ]; then
             CASES='["status-failure-open-pr-live","status-success-skipped","status-failure-non-buildkite","status-failure-no-open-pr"]'
           else
             CASES="$(printf '%s' "[\"${CASE_ID}\"]")"
           fi
-          echo "mode=${MODE}" >> "$GITHUB_OUTPUT"
           echo "cases=${CASES}" >> "$GITHUB_OUTPUT"
 
   e2e:
@@ -117,7 +94,6 @@ jobs:
       issues: write
       checks: read
     env:
-      MODE: ${{ needs.e2e-matrix.outputs.mode }}
       CASE_ID: ${{ matrix.case-id }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       BUILDKITE_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
@@ -145,7 +121,6 @@ jobs:
         run: |
           set +e
           python3 scripts/estc_pr_buildkite_detective_e2e_harness.py \
-            --mode "${MODE}" \
             --case-id "${CASE_ID}" \
             --run-url "${RUN_URL}" \
             --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json"

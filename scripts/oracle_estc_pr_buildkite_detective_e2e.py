@@ -14,7 +14,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Structured oracle for estc-pr-buildkite-detective E2E / integration outcomes.
+"""Structured oracle for estc-pr-buildkite-detective live E2E outcomes.
 
 Asserts path gates and comment presence/absence only — never full free-text
 golden equality of agent prose, and (for now) not comment-section marker
@@ -97,24 +97,6 @@ _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "clear_prior_detective_comments",
 )
 _LIVE_OPTIONAL_TRIGGER_BOOL_KEYS = ("create_failed_buildkite_build",)
-_FIXTURE_REQUIRED_EXPECTATION_KEYS = (
-    "path_gates",
-    "buildkite",
-    "agent_invoked",
-)
-_FIXTURE_REQUIRED_PATH_GATE_KEYS = (
-    "state_failure",
-    "context_contains_buildkite",
-    "has_open_pr",
-)
-_FIXTURE_REQUIRED_BUILDKITE_EVENT_KEYS = (
-    "event_name",
-    "commit_sha",
-    "build_url",
-    "pipeline",
-    "branch",
-    "pr_number",
-)
 
 
 def case_expectations_schema_error(
@@ -125,73 +107,17 @@ def case_expectations_schema_error(
     Callers must treat any returned string as a failed ``case_expectations``
     check and must not authorize gate assertions from the incomplete map.
     """
-    if mode == "live":
-        missing = [k for k in _LIVE_REQUIRED_EXPECTATION_KEYS if k not in expectations]
-        if missing:
-            return f"live expectations missing required keys: {missing}"
-        for key in _LIVE_REQUIRED_EXPECTATION_KEYS:
-            try:
-                _as_bool(expectations[key])
-            except TypeError as exc:
-                return f"live expectation {key!r} must be bool ({exc})"
-        return None
+    if mode != "live":
+        return f"unsupported outcome mode {mode!r}; only live E2E is supported"
 
-    missing = [k for k in _FIXTURE_REQUIRED_EXPECTATION_KEYS if k not in expectations]
+    missing = [k for k in _LIVE_REQUIRED_EXPECTATION_KEYS if k not in expectations]
     if missing:
-        return f"fixture expectations missing required keys: {missing}"
-    path_gates = expectations.get("path_gates")
-    if not isinstance(path_gates, dict) or not path_gates:
-        return "fixture expectations.path_gates must be a non-empty object"
-    path_missing = [k for k in _FIXTURE_REQUIRED_PATH_GATE_KEYS if k not in path_gates]
-    if path_missing:
-        return f"fixture path_gates missing required keys: {path_missing}"
-    for key in _FIXTURE_REQUIRED_PATH_GATE_KEYS:
+        return f"live expectations missing required keys: {missing}"
+    for key in _LIVE_REQUIRED_EXPECTATION_KEYS:
         try:
-            _as_bool(path_gates[key])
+            _as_bool(expectations[key])
         except TypeError as exc:
-            return f"fixture path_gates.{key} must be bool ({exc})"
-    buildkite = expectations.get("buildkite")
-    if not isinstance(buildkite, dict) or not buildkite:
-        return "fixture expectations.buildkite must be a non-empty object"
-    if "min_failed_jobs" not in buildkite:
-        return "fixture expectations.buildkite.min_failed_jobs is required"
-    try:
-        min_failed = int(buildkite["min_failed_jobs"])
-    except (TypeError, ValueError) as exc:
-        return f"fixture expectations.buildkite.min_failed_jobs must be int ({exc})"
-    if min_failed < 1:
-        return (
-            "fixture expectations.buildkite.min_failed_jobs must be a positive "
-            f"integer, got {min_failed}"
-        )
-    required_event_keys = buildkite.get("required_event_keys")
-    if not isinstance(required_event_keys, list) or not required_event_keys:
-        return (
-            "fixture expectations.buildkite.required_event_keys must be a "
-            "non-empty list"
-        )
-    if not all(isinstance(key, str) and key for key in required_event_keys):
-        return (
-            "fixture expectations.buildkite.required_event_keys must contain "
-            "only non-empty strings"
-        )
-    event_missing = [
-        key
-        for key in _FIXTURE_REQUIRED_BUILDKITE_EVENT_KEYS
-        if key not in required_event_keys
-    ]
-    if event_missing:
-        return (
-            "fixture expectations.buildkite.required_event_keys missing "
-            f"required keys: {event_missing}"
-        )
-    try:
-        agent_invoked = _as_bool(expectations["agent_invoked"])
-    except TypeError as exc:
-        return f"fixture expectation agent_invoked must be bool ({exc})"
-    # Fixture mode is explicitly no-agent; true would skip the evaluator gate.
-    if agent_invoked is not False:
-        return "fixture expectation agent_invoked must be false"
+            return f"live expectation {key!r} must be bool ({exc})"
     return None
 
 
@@ -235,8 +161,8 @@ def evaluate_outcome(
     # must stay consistent, and a missing id must fail closed.
     workflow_id = str(outcome.get("workflow_id") or "")
     case_id = str(outcome.get("case_id") or "unknown")
-    mode = str(outcome.get("mode") or "fixture")
-    layer = str(outcome.get("layer") or ("e2e" if mode == "live" else "integration"))
+    mode = str(outcome.get("mode") or "")
+    layer = str(outcome.get("layer") or "e2e")
     checks: list[dict[str, Any]] = []
     quarantined = find_quarantine_entry(quarantine, workflow_id, case_id)
 
@@ -338,11 +264,6 @@ def evaluate_outcome(
             else:
                 trigger = case_trigger
 
-    path_exp = expectations.get("path_gates") or {}
-    bk_exp = expectations.get("buildkite") or {}
-    path_gates = outcome.get("path_gates") or {}
-    buildkite = outcome.get("buildkite") or {}
-
     _check(
         checks,
         "workflow_id",
@@ -358,145 +279,33 @@ def evaluate_outcome(
         "outcome has no free-text golden fields",
     )
 
-    if mode == "live":
-        return _evaluate_live(
-            outcome, expectations, trigger, checks, workflow_id, case_id, layer
-        )
-
-    # Fixture / integration mode.
-    _check(
-        checks,
-        "mode_fixture_no_agent",
-        mode == "fixture" and outcome.get("agent_invoked") is False,
-        f"mode={mode!r} agent_invoked={outcome.get('agent_invoked')!r}",
-    )
-    _check(
-        checks,
-        "layer_integration",
-        layer == "integration",
-        f"layer={layer!r}",
-    )
-
-    for key, check_id in (
-        ("state_failure", "path_state_failure"),
-        ("context_contains_buildkite", "path_context_buildkite"),
-        ("has_open_pr", "path_has_open_pr"),
-        ("shared_proceed", "path_shared_proceed"),
-    ):
-        if key not in path_exp:
-            continue
-        try:
-            actual = _as_bool(path_gates.get(key))
-            expected = _as_bool(path_exp[key])
-        except TypeError as exc:
-            _check(checks, check_id, False, str(exc))
-            continue
+    if mode != "live":
         _check(
             checks,
-            check_id,
-            actual == expected,
-            f"expected={expected} actual={actual}",
-        )
-
-    try:
-        path_ready = _as_bool(path_gates.get("path_ready"))
-        _check(checks, "path_ready", path_ready, f"path_ready={path_ready}")
-    except TypeError as exc:
-        _check(checks, "path_ready", False, str(exc))
-
-    try:
-        bk_ok = _as_bool(buildkite.get("ok"))
-        _check(checks, "buildkite_ok", bk_ok, str(buildkite.get("error") or "ok"))
-    except TypeError as exc:
-        _check(checks, "buildkite_ok", False, str(exc))
-
-    event_context = buildkite.get("event_context") or {}
-    # Schema already requires the floor set; still union so supersets apply.
-    required_keys = list(_FIXTURE_REQUIRED_BUILDKITE_EVENT_KEYS)
-    extra_keys = bk_exp.get("required_event_keys")
-    if isinstance(extra_keys, list):
-        for key in extra_keys:
-            if isinstance(key, str) and key and key not in required_keys:
-                required_keys.append(key)
-    missing = [key for key in required_keys if not event_context.get(key)]
-    _check(
-        checks,
-        "buildkite_event_keys",
-        not missing,
-        f"missing={missing}" if missing else "all required keys present",
-    )
-
-    try:
-        min_failed = int(bk_exp["min_failed_jobs"])
-    except (KeyError, TypeError, ValueError):
-        # Schema should have rejected this; fail closed if we still got here.
-        min_failed = 1
-        _check(
-            checks,
-            "buildkite_failed_jobs",
+            "mode_live_only",
             False,
-            "fixture expectations.buildkite.min_failed_jobs missing or invalid",
+            f"unsupported outcome mode {mode!r}; only live E2E is supported",
         )
-    else:
-        if min_failed < 1:
-            _check(
-                checks,
-                "buildkite_failed_jobs",
-                False,
-                f"min_failed_jobs must be >= 1, got {min_failed}",
-            )
-        else:
-            failed_count = int(buildkite.get("failed_job_count") or 0)
-            _check(
-                checks,
-                "buildkite_failed_jobs",
-                failed_count >= min_failed,
-                f"failed_job_count={failed_count} min={min_failed}",
-            )
+        overall = all(item["pass"] for item in checks)
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case_id,
+            "layer": layer,
+            "mode": mode,
+            "pass": overall,
+            "skipped": False,
+            "quarantined": False,
+            "run_url": outcome.get("run_url"),
+            "checks": checks,
+            "agent_invoked": bool(outcome.get("agent_invoked")),
+            "notes": [
+                "Only live E2E outcomes are supported; integration wiring is #1910.",
+            ],
+        }
 
-    if "log_has_content" in bk_exp or any(
-        job.get("log_has_content") is False
-        for job in (buildkite.get("failed_jobs") or [])
-    ):
-        jobs = buildkite.get("failed_jobs") or []
-        logs_ok = bool(jobs) and all(bool(job.get("log_has_content")) for job in jobs)
-        _check(
-            checks,
-            "buildkite_log_content",
-            logs_ok,
-            f"failed_jobs_with_logs={sum(1 for j in jobs if j.get('log_has_content'))}/{len(jobs)}",
-        )
-
-    if "agent_invoked" in expectations:
-        try:
-            expected_agent = _as_bool(expectations["agent_invoked"])
-            actual_agent = outcome.get("agent_invoked")
-            _check(
-                checks,
-                "agent_not_invoked" if expected_agent is False else "agent_invoked",
-                actual_agent is expected_agent,
-                f"expected={expected_agent!r} actual={actual_agent!r}",
-            )
-        except TypeError as exc:
-            _check(checks, "agent_invoked", False, str(exc))
-
-    overall = all(item["pass"] for item in checks)
-    return {
-        "workflow_id": workflow_id,
-        "case_id": case_id,
-        "layer": layer,
-        "mode": mode,
-        "pass": overall,
-        "skipped": False,
-        "quarantined": False,
-        "run_url": outcome.get("run_url"),
-        "checks": checks,
-        "agent_invoked": bool(outcome.get("agent_invoked")),
-        "notes": [
-            "Fixture oracle asserts structured gates and Buildkite markers only.",
-            "Promote (#1878) should prefer live E2E summary.pass for this workflow.",
-        ],
-    }
+    return _evaluate_live(
+        outcome, expectations, trigger, checks, workflow_id, case_id, layer
+    )
 
 
 def _evaluate_live(

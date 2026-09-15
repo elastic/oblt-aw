@@ -38,7 +38,7 @@ Check each of these explicitly (add a regression when any is open):
 | Empty / missing map | Does `expectations: {}` or missing `case.json` still green generic checks? |
 | Typo / partial map | Does `{"typo": true}` or a missing required mode key skip `if key in` gates? |
 | Nested thresholds | Does a non-empty parent object accept `min_failed_jobs: 0` or a truncated required-key list? |
-| Schema vs evaluator lockstep | Does the schema accept a value the evaluator never asserts (e.g. fixture `agent_invoked: true`)? |
+| Schema vs evaluator lockstep | Does the schema accept a value the evaluator never asserts (e.g. live `expect_agent_comment: "true"` string)? |
 | Trigger / routing contract | Do live status state/context/publisher/URL gates still depend on harness-copied `outcome.trigger` instead of checked-in `case.trigger`? |
 | Call-site vs helper | Does a unit test of a helper alone leave a call site free to regress `fallback=`? Prefer a named seam used at the call site. |
 | Test/prod parity | Do unit helpers still default to harness-copied outcome blobs while CLI loads `case.json`? |
