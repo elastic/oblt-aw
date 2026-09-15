@@ -18,17 +18,27 @@ Do **not** stop after removing the first fallback named in a review comment. For
 
 1. **Producer** (harness / collector) — what is written when evidence is absent?
 2. **Outcome schema** — which fields still carry substitute signals (e.g. overall run `conclusion` next to `job_conclusion`)?
-3. **Consumer** (oracle / assertions) — every `or`, default, empty mapping, or “prefer X else Y” that can still authorize the gate.
-4. **Tests** — one regression per closed hole (absent named job, empty `expectations: {}`, missing publisher identity, etc.).
+3. **Consumer** (oracle / assertions) — every `or`, default, empty mapping, partial mapping, typo key, or “prefer X else Y” that can still authorize the gate.
+4. **Tests** — one regression per closed hole, and test helpers must default to the **same evidence source as production** (checked-in `case.json`), never harness-copied `outcome.expectations`.
+
+Before considering a fail-closed change done, answer explicitly:
+
+> If the named field is absent, empty, mistyped, or the wrong type, what still makes this gate pass?
+
+If the answer is anything other than “nothing — the check fails,” keep walking the chain.
 
 ## Common false-green patterns (reject these)
 
 - Overall workflow/run conclusion standing in for a **named job** conclusion
 - Empty `expectations: {}` (or missing case file) skipping case-specific checks while generic checks pass
+- **Non-empty but incomplete** expectations (e.g. `{"typo": true}` or missing a required mode key) skipping `if key in expectations` gates — treat as missing; require a mode-specific expectation schema
 - Inferring publisher/source from “we expected this path” fallbacks when identity fields are absent
 - Trusting harness-copied `outcome.expectations` when checked-in `case.json` is the source of truth
+- Unit/oracle test helpers that default to `outcome["expectations"]` while production loads `case.json` (suite green, CLI false-green or the reverse)
 - Fixing only the producer while the oracle still does `job_conclusion or conclusion` (or equivalent)
 
 ## When reviewing Copilot / human fail-closed comments
 
 Treat the comment as a **symptom**. Plan the full chain fix in one change set. If a later review finds a remaining substitute path, that is a process failure from an incomplete first pass — extend the chain, do not argue the first patch was “enough.”
+
+Closing “empty mapping” without also rejecting typo/partial mappings and without aligning test helpers to production evidence is an incomplete pass — do both in the same change.
