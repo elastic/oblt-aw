@@ -8,16 +8,16 @@
 # The harness creates a build per live happy-path run and waits for failure.
 # Log marker below must stay stable (oracle / human debugging).
 #
-# Explicit github_commit_status notify (pipeline scope only): automatic
-# publish_commit_status alone has not reliably posted GitHub statuses for
-# API-created builds. Do not also notify at step scope with the same context —
-# that can emit duplicate statuses and double-trigger trigger-obs-aw-status.yml.
-# Context must match the harness expectation (buildkite/<org>/<pipeline>) and
-# contain "buildkite" so the status trigger can route the event.
+# Beats-style github_commit_status notify (pipeline scope only): use a custom
+# context that contains the substring "buildkite" (status trigger routing) but
+# does NOT use the reserved buildkite/… prefix. Org pipelines keep
+# prevent_custom_statuses_from_using_buildkite_prefix=true; reserved-prefix
+# contexts are rejected. Do not also notify at step scope — that can emit
+# duplicate statuses and double-trigger trigger-obs-aw-status.yml.
 
 notify:
   - github_commit_status:
-      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
+      context: "oblt-aw-e2e-estc-fail: buildkite"
 
 steps:
   - label: ":x: intentional e2e failure"

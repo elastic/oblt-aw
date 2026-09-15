@@ -14,6 +14,8 @@ Do not reintroduce a monolithic `oblt-aw.yml` or `oblt-aw-ingress.yml`.
 
 When hardening E2E gates (or addressing fail-closed review comments), follow **[`.cursor/rules/fail-closed-e2e-gates.mdc`](.cursor/rules/fail-closed-e2e-gates.mdc)**: walk producer → outcome → oracle → tests and close every substitute signal in one change set. Do not stop after the first named fallback. Non-empty expectation maps, typo/partial keys, and test helpers that trust `outcome.expectations` are still substitute paths — reject them in the same pass.
 
+Before commit/push on harness, oracle, E2E tests, or related workflows: **`pre-commit run --files <paths>` is mandatory** (includes mypy). Pytest alone does not authorize push. See also **[`.cursor/rules/ci-precommit-before-push.mdc`](.cursor/rules/ci-precommit-before-push.mdc)**.
+
 ## Control-plane workflow naming
 
 - Shared prelude: `.github/workflows/aw-prelude.yml` (no org prefix).

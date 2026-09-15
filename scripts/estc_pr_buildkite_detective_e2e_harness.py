@@ -26,6 +26,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -47,7 +48,9 @@ MARKER_BODY = (
     "`obs:estc-pr-buildkite-detective`. Do not merge.\n"
 )
 FAIL_PIPELINE_PATH = Path(".buildkite/pipeline.e2e-estc-fail.yml")
-DEFAULT_STATUS_CONTEXT_ORG_PIPELINE = "buildkite/{org}/{pipeline}"
+# Beats-style custom context: contains "buildkite" for status routing, but not
+# the reserved buildkite/… prefix (blocked when prevent_custom…=true).
+DEFAULT_STATUS_CONTEXT = "oblt-aw-e2e-estc-fail: buildkite"
 
 
 def _load_json(path: Path) -> Any:
@@ -114,29 +117,32 @@ def require_routable_buildkite_status_context(context: str) -> str:
     if not ctx:
         raise RuntimeError(
             "expected Buildkite status context is empty; set "
-            "expected_status_context or E2E_BUILDKITE_ORG/E2E_BUILDKITE_PIPELINE."
+            "expected_status_context / status_context in E2E config."
         )
     if "buildkite" not in ctx.lower():
         raise RuntimeError(
             f"status context {ctx!r} does not contain 'buildkite'; "
             "trigger-obs-aw-status.yml / obs-aw-event-status.yml will not route it. "
-            "Use a buildkite/… context (or include the substring buildkite)."
+            "Use a Beats-style custom context that includes the substring "
+            "buildkite (not the reserved buildkite/… prefix)."
         )
     return ctx
 
 
 def expected_buildkite_status_context(cfg: dict[str, Any]) -> str:
     """GitHub status context Buildkite should publish for the fail pipeline."""
-    override = str(cfg.get("expected_status_context") or "").strip()
+    override = str(
+        cfg.get("expected_status_context") or cfg.get("status_context") or ""
+    ).strip()
     if override:
         return require_routable_buildkite_status_context(override)
-    org, pipeline = resolve_buildkite_org_pipeline(cfg)
-    template = str(
-        cfg.get("status_context_template") or DEFAULT_STATUS_CONTEXT_ORG_PIPELINE
-    )
-    return require_routable_buildkite_status_context(
-        template.format(org=org, pipeline=pipeline)
-    )
+    template = str(cfg.get("status_context_template") or "").strip()
+    if template:
+        org, pipeline = resolve_buildkite_org_pipeline(cfg)
+        return require_routable_buildkite_status_context(
+            template.format(org=org, pipeline=pipeline)
+        )
+    return require_routable_buildkite_status_context(DEFAULT_STATUS_CONTEXT)
 
 
 def gh_json(args: list[str], *, check: bool = True) -> Any:
@@ -335,25 +341,23 @@ def fail_pipeline_github_commit_status_contexts(
 def assert_fail_pipeline_status_context_matches(
     cfg: dict[str, Any],
     *,
-    pipeline_path: Path = FAIL_PIPELINE_PATH,
+    pipeline_path: Path | None = None,
 ) -> str:
     """Ensure the fail-pipeline notify context matches harness expectation."""
-    if not pipeline_path.is_file():
+    path = pipeline_path if pipeline_path is not None else FAIL_PIPELINE_PATH
+    if not path.is_file():
         raise RuntimeError(
-            f"Fail pipeline YAML missing at {pipeline_path}; cannot validate notify."
+            f"Fail pipeline YAML missing at {path}; cannot validate notify."
         )
-    content = pipeline_path.read_text(encoding="utf-8")
-    contexts = fail_pipeline_github_commit_status_contexts(
-        content, pipeline_path=pipeline_path
-    )
+    content = path.read_text(encoding="utf-8")
+    contexts = fail_pipeline_github_commit_status_contexts(content, pipeline_path=path)
     expected = expected_buildkite_status_context(cfg)
     if expected not in contexts:
         raise RuntimeError(
             f"Fail pipeline notify contexts {contexts} do not include expected "
             f"status context {expected!r}. Align "
             f".buildkite/pipeline.e2e-estc-fail.yml notify with "
-            f"E2E_BUILDKITE_ORG/E2E_BUILDKITE_PIPELINE (or "
-            f"expected_status_context), or unset those overrides."
+            f"expected_status_context / status_context in E2E config."
         )
     return expected
 
@@ -362,96 +366,44 @@ def sync_fail_pipeline_to_fixture_branch(
     repo: str,
     *,
     branch: str,
-    pipeline_path: Path = FAIL_PIPELINE_PATH,
+    pipeline_path: Path | None = None,
     expected_context: str | None = None,
 ) -> bool:
     """Ensure the fixture branch tip includes the fail-pipeline YAML from this checkout.
 
     Buildkite uploads ``.buildkite/pipeline.e2e-estc-fail.yml`` from the build
     commit. The happy-path notify block only runs when that file is present on
-    the fixture SHA. Call only when creating a Buildkite build (not for
-    ``E2E_ESTC_BUILDKITE_TARGET_URL`` override).
+    the fixture SHA.
     """
-    if not pipeline_path.is_file():
+    path = pipeline_path if pipeline_path is not None else FAIL_PIPELINE_PATH
+    if not path.is_file():
         raise RuntimeError(
-            f"Fail pipeline YAML missing at {pipeline_path}; cannot sync fixture branch."
+            f"Fail pipeline YAML missing at {path}; cannot sync fixture branch."
         )
-    content = pipeline_path.read_text(encoding="utf-8")
-    contexts = fail_pipeline_github_commit_status_contexts(
-        content, pipeline_path=pipeline_path
-    )
+    content = path.read_text(encoding="utf-8")
+    contexts = fail_pipeline_github_commit_status_contexts(content, pipeline_path=path)
     if expected_context is not None and expected_context not in contexts:
         raise RuntimeError(
-            f"{pipeline_path} notify contexts {contexts} do not include "
+            f"{path} notify contexts {contexts} do not include "
             f"expected {expected_context!r}."
         )
+    # Always write under the canonical repo path so Buildkite's pipeline upload
+    # finds the file on the fixture commit (local tmp paths must not leak).
+    remote_path = str(FAIL_PIPELINE_PATH).replace("\\", "/")
     updated = put_branch_file(
         repo,
         branch=branch,
-        path=str(pipeline_path).replace("\\", "/"),
+        path=remote_path,
         content=content,
         message="chore(e2e): sync ESTC fail pipeline notify onto fixture branch",
     )
     if updated:
         log_info(
-            f"Synced {pipeline_path} onto {repo}@{branch} for Buildkite status notify."
+            f"Synced {remote_path} onto {repo}@{branch} for Buildkite status notify."
         )
     else:
-        log_info(f"{pipeline_path} already current on {repo}@{branch}.")
+        log_info(f"{remote_path} already current on {repo}@{branch}.")
     return updated
-
-
-def verify_buildkite_publishes_commit_status(
-    token: str, *, org: str, pipeline: str
-) -> None:
-    """Fail closed when the live pipeline cannot publish the expected GitHub status."""
-    data = bk_api_json(
-        token,
-        "GET",
-        f"organizations/{org}/pipelines/{pipeline}",
-    )
-    if not isinstance(data, dict):
-        raise TypeError(
-            f"Unexpected Buildkite pipeline payload for {org}/{pipeline}: {data!r}"
-        )
-    provider = data.get("provider")
-    if not isinstance(provider, dict):
-        raise TypeError(
-            f"Buildkite pipeline {org}/{pipeline} provider must be a mapping, "
-            f"got {type(provider).__name__}: {provider!r}"
-        )
-    settings = provider.get("settings")
-    if not isinstance(settings, dict):
-        raise TypeError(
-            f"Buildkite pipeline {org}/{pipeline} missing provider.settings "
-            f"(got {type(settings).__name__})"
-        )
-    publish = settings.get("publish_commit_status")
-    # Private-preview Buildkite setting; Elastic Terrazzo cannot set it via RRE.
-    # Only fail closed when the live API reports it explicitly enabled.
-    prevent_prefix = settings.get("prevent_custom_statuses_from_using_buildkite_prefix")
-    if publish is not True:
-        raise RuntimeError(
-            f"Buildkite pipeline {org}/{pipeline} publish_commit_status must be "
-            f"true (got {publish!r}). Enable it in catalog-info.yaml "
-            "provider_settings (and wait for RRE), and keep pipeline notify "
-            "github_commit_status."
-        )
-    if prevent_prefix is True:
-        raise RuntimeError(
-            f"Buildkite pipeline {org}/{pipeline} "
-            "prevent_custom_statuses_from_using_buildkite_prefix is true; "
-            "explicit notify contexts under buildkite/… will be rejected. "
-            "Disable it in the Buildkite GitHub provider UI (Terrazzo RRE "
-            "cannot set this private-preview field) before creating "
-            "intentional failures."
-        )
-    log_info(
-        f"Buildkite pipeline {org}/{pipeline}: publish_commit_status="
-        f"{publish!r}, "
-        f"prevent_custom_statuses_from_using_buildkite_prefix="
-        f"{prevent_prefix!r}."
-    )
 
 
 def load_e2e_config(path: Path) -> dict[str, Any]:
@@ -503,6 +455,48 @@ def _same_repo_prs(prs: list[Any], repo: str) -> list[dict[str, Any]]:
             continue
         same.append(pr)
     return same
+
+
+def _gh_pr_list_head_filter(branch: str) -> str:
+    """Return ``gh pr list --head`` value for a same-repo branch.
+
+    ``gh`` expects the bare branch name for same-repo heads. The
+    ``owner:branch`` form returns an empty list for in-repo PRs (verified
+    against ``elastic/oblt-aw`` fixture branch lookups).
+    """
+    return branch
+
+
+def _pr_number_from_gh_output(text: str) -> int | None:
+    """Parse a pull request number from ``gh pr create`` stdout/stderr."""
+    match = re.search(r"/pull/(\d+)\b", text)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def _list_prs_by_head(
+    repo: str, *, branch: str, state: str, limit: int = 5
+) -> list[dict[str, Any]]:
+    """List same-repo PRs on ``branch`` with the given ``state``."""
+    prs = gh_json(
+        [
+            "pr",
+            "list",
+            "--repo",
+            repo,
+            "--state",
+            state,
+            "--head",
+            _gh_pr_list_head_filter(branch),
+            "--json",
+            "number,url,headRefName,headRefOid,title,headRepository,labels",
+            "--limit",
+            str(limit),
+        ]
+    )
+    same_repo = _same_repo_prs(prs if isinstance(prs, list) else [], repo)
+    return [pr for pr in same_repo if pr.get("headRefName") == branch]
 
 
 def find_open_e2e_pr(
@@ -622,11 +616,49 @@ def _require_pr_label(repo: str, pr_number: int, label: str) -> dict[str, Any]:
     return pr
 
 
+def resolve_target_pr(
+    repo: str,
+    cfg: dict[str, Any],
+    *,
+    base_branch: str | None = None,
+) -> tuple[dict[str, Any], str]:
+    """Resolve the fixture PR under test and its base branch name.
+
+    Always find or create the long-lived fixture PR
+    (``e2e:estc-pr-buildkite-detective``). Live E2E never targets the
+    development PR that only triggered the outer workflow.
+    """
+    pr_info = ensure_e2e_pr(repo, cfg)
+    refreshed = (
+        find_open_e2e_pr(
+            repo,
+            cfg["e2e_pr"]["label"],
+            branch=str(cfg["e2e_pr"].get("branch") or ""),
+        )
+        or pr_info
+    )
+    resolved_base = (base_branch or "").strip() or "main"
+    return refreshed, resolved_base
+
+
+def _find_closed_fixture_pr(
+    repo: str, *, branch: str, label: str
+) -> dict[str, Any] | None:
+    """Most recent closed same-repo PR on the fixture branch (any label state)."""
+    matched = _list_prs_by_head(repo, branch=branch, state="closed", limit=5)
+    if not matched:
+        return None
+    # Prefer one that already had the fixture label.
+    labeled = [pr for pr in matched if _pr_has_label(pr, label)]
+    return (labeled or matched)[0]
+
+
 def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
-    """Find or create the long-lived E2E fixture PR via the GitHub API only."""
+    """Find, reopen, or create the long-lived E2E fixture PR via the GitHub API."""
     e2e_pr = cfg["e2e_pr"]
     label = str(e2e_pr["label"])
-    existing = find_open_e2e_pr(repo, label, branch=str(e2e_pr.get("branch") or ""))
+    branch = str(e2e_pr["branch"])
+    existing = find_open_e2e_pr(repo, label, branch=branch)
     if existing:
         return _require_pr_label(repo, int(existing["number"]), label)
 
@@ -645,7 +677,6 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
     base_sha = gh_text(
         ["api", f"repos/{repo}/git/ref/heads/{default_branch}", "--jq", ".object.sha"]
     ).strip()
-    branch = e2e_pr["branch"]
 
     ref_proc = subprocess.run(
         ["gh", "api", f"repos/{repo}/git/ref/heads/{branch}"],
@@ -719,34 +750,64 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         text=True,
         check=False,
     )
-    if create.returncode != 0 and "already exists" not in (
-        create.stderr + create.stdout
-    ):
-        # PR may already exist without label; recovery path below adds it.
+    create_out = f"{create.stderr or ''}{create.stdout or ''}"
+    if create.returncode == 0:
+        # Prefer the create URL over label search (label index can lag).
+        created_number = _pr_number_from_gh_output(create.stdout or create_out)
+        if created_number is not None:
+            return _require_pr_label(repo, created_number, label)
+    elif "already exists" not in create_out.lower():
+        # Fall through to reopen / label recovery below.
         pass
 
     created = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
     if created:
         return _require_pr_label(repo, int(created["number"]), label)
 
-    prs = gh_json(
-        [
-            "pr",
-            "list",
-            "--repo",
-            repo,
-            "--state",
-            "open",
-            "--head",
-            f"{repo.split('/')[0]}:{branch}",
-            "--json",
-            "number,url,headRefName,headRefOid,title,headRepository,labels",
-            "--limit",
-            "5",
-        ]
-    )
-    same_repo = _same_repo_prs(prs if isinstance(prs, list) else [], repo)
-    matched = [pr for pr in same_repo if pr.get("headRefName") == branch]
+    # Closed fixture PR on the same branch: reopen (create may have failed).
+    closed = _find_closed_fixture_pr(repo, branch=branch, label=label)
+    if closed:
+        pr_number = int(closed["number"])
+        reopen = subprocess.run(
+            ["gh", "pr", "reopen", str(pr_number), "--repo", repo],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if reopen.returncode != 0:
+            raise RuntimeError(
+                f"Fixture PR #{pr_number} on {repo} is closed and reopen failed: "
+                f"{(reopen.stderr or reopen.stdout or '').strip() or f'exit {reopen.returncode}'}. "
+                f"Create a new open same-repo PR labeled {label!r} on {branch!r}."
+            )
+        if not _pr_has_label(closed, label):
+            edit = subprocess.run(
+                [
+                    "gh",
+                    "pr",
+                    "edit",
+                    str(pr_number),
+                    "--repo",
+                    repo,
+                    "--add-label",
+                    label,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if edit.returncode != 0:
+                raise RuntimeError(
+                    f"Failed to add label {label!r} to reopened PR #{pr_number} "
+                    f"on {repo}: "
+                    f"{(edit.stderr or edit.stdout or '').strip() or f'exit {edit.returncode}'}"
+                )
+        reopened = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
+        if reopened:
+            return _require_pr_label(repo, int(reopened["number"]), label)
+        return _require_pr_label(repo, pr_number, label)
+
+    matched = _list_prs_by_head(repo, branch=branch, state="open", limit=5)
     if not matched:
         raise RuntimeError(
             f"Failed to ensure E2E PR on {repo} branch {branch}. "
@@ -774,38 +835,6 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
             f"{(edit.stderr or edit.stdout or '').strip() or f'exit {edit.returncode}'}"
         )
     return _require_pr_label(repo, pr_number, label)
-
-
-def resolve_no_open_pr_sha(repo: str) -> str:
-    """Pick default-branch HEAD when it has no open PR association."""
-    default_branch = gh_text(
-        [
-            "repo",
-            "view",
-            repo,
-            "--json",
-            "defaultBranchRef",
-            "-q",
-            ".defaultBranchRef.name",
-        ]
-    ).strip()
-    sha = gh_text(
-        ["api", f"repos/{repo}/commits/{default_branch}", "--jq", ".sha"]
-    ).strip()
-    pulls = gh_json(
-        [
-            "api",
-            f"repos/{repo}/commits/{sha}/pulls",
-            "--jq",
-            '[.[] | select(.state=="open")]',
-        ]
-    )
-    if pulls:
-        raise RuntimeError(
-            f"Default branch HEAD {sha[:12]} still has open PRs; "
-            "cannot run no-open-pr case safely."
-        )
-    return sha
 
 
 def _list_issue_comments(repo: str, pr_number: int) -> list[dict[str, Any]]:
@@ -875,32 +904,6 @@ def clear_detective_comments(repo: str, pr_number: int, markers: list[str]) -> i
     return deleted
 
 
-def post_commit_status(
-    repo: str,
-    sha: str,
-    *,
-    state: str,
-    context: str,
-    description: str,
-    target_url: str | None,
-) -> dict[str, Any]:
-    args = [
-        "api",
-        "--method",
-        "POST",
-        f"repos/{repo}/statuses/{sha}",
-        "-f",
-        f"state={state}",
-        "-f",
-        f"context={context}",
-        "-f",
-        f"description={description[:140]}",
-    ]
-    if target_url:
-        args.extend(["-f", f"target_url={target_url}"])
-    return cast(dict[str, Any], gh_json(args))
-
-
 def list_commit_statuses(repo: str, sha: str) -> list[dict[str, Any]]:
     """Return commit statuses across all pages (newest first per GitHub)."""
     raw = gh_json(
@@ -947,7 +950,7 @@ def wait_for_commit_status(
     context: str,
     state: str,
     target_url: str | None,
-    since: datetime,
+    since: datetime | None,
     timeout_seconds: int,
     interval_seconds: int,
 ) -> dict[str, Any] | None:
@@ -1005,8 +1008,9 @@ def commit_status_timeout_block_reason(
     return (
         f"Timed out after {timeout_seconds}s waiting for GitHub commit status "
         f"context={context!r} state={state!r} target_url={target_url!r} "
-        f"on {sha}. Buildkite should publish this via pipeline notify / "
-        f"publish_commit_status; without it the live status→agent path cannot run. "
+        f"on {sha}. Buildkite should publish this via pipeline-level "
+        f"notify github_commit_status (Beats-style custom context); without it "
+        f"the live status→agent path cannot run. "
         f"Statuses observed on the SHA:\n{snapshot}"
     )
 
@@ -1193,34 +1197,11 @@ def resolve_buildkite_org_pipeline(cfg: dict[str, Any]) -> tuple[str, str]:
     return org, pipeline
 
 
-def buildkite_target_url_override(cfg: dict[str, Any]) -> str:
-    """Return fixed Buildkite URL override, or empty when create path should run."""
-    override_env = str(
-        cfg.get("buildkite_target_url_env") or "E2E_ESTC_BUILDKITE_TARGET_URL"
-    )
-    return os.environ.get(override_env, "").strip()
-
-
-def will_create_failed_buildkite_build(
-    trigger: dict[str, Any], expectations: dict[str, Any], cfg: dict[str, Any]
-) -> bool:
-    """True when this live case creates a Buildkite build (not override / gate)."""
-    return bool(
-        needs_real_failed_buildkite(trigger, expectations)
-        and not buildkite_target_url_override(cfg)
-    )
-
-
 def buildkite_api_token(cfg: dict[str, Any]) -> str | None:
     bk = _buildkite_cfg(cfg)
     token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
     token = os.environ.get(token_env, "").strip()
     return token or None
-
-
-def placeholder_buildkite_url(cfg: dict[str, Any]) -> str:
-    org, pipeline = resolve_buildkite_org_pipeline(cfg)
-    return f"https://buildkite.com/{org}/{pipeline}/builds/0"
 
 
 def bk_api_json(
@@ -1375,37 +1356,22 @@ def ensure_failed_buildkite_target_url(
     branch: str,
     pr_number: int | None,
     case_id: str,
+    pull_request_base_branch: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
-    """Create a failed Buildkite build and return (web_url, build_meta).
-
-    Optional override: env named by ``buildkite_target_url_env`` skips create.
-    """
-    override_env = str(
-        cfg.get("buildkite_target_url_env") or "E2E_ESTC_BUILDKITE_TARGET_URL"
-    )
-    override = buildkite_target_url_override(cfg)
-    if override:
-        return override, {
-            "source": "override_env",
-            "env": override_env,
-            "web_url": override,
-            "fail_log_marker_verified": False,
-            "fail_log_marker_detail": "skipped for URL override",
-        }
-
+    """Create a failed Buildkite build and return (web_url, build_meta)."""
     token = buildkite_api_token(cfg)
     if not token:
         bk = _buildkite_cfg(cfg)
         token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
-        raise RuntimeError(
-            f"Missing {token_env} (write_builds + read). "
-            f"Or set {override_env} to a readable failed build URL."
-        )
+        raise RuntimeError(f"Missing {token_env} (write_builds + read).")
 
     org, pipeline = resolve_buildkite_org_pipeline(cfg)
     bk = _buildkite_cfg(cfg)
     repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
     pr_repo = f"https://github.com/{repo}.git"
+    base_branch = None
+    if pr_number:
+        base_branch = (pull_request_base_branch or "").strip() or "main"
     created = create_buildkite_build(
         token,
         org=org,
@@ -1414,7 +1380,7 @@ def ensure_failed_buildkite_target_url(
         branch=branch,
         message=f"oblt-aw e2e intentional failure ({case_id})",
         pull_request_id=pr_number or None,
-        pull_request_base_branch="main" if pr_number else None,
+        pull_request_base_branch=base_branch,
         pull_request_repository=pr_repo if pr_number else None,
     )
     number = int(created["number"])
@@ -1461,17 +1427,10 @@ def ensure_failed_buildkite_target_url(
 
 
 def needs_real_failed_buildkite(
-    trigger: dict[str, Any], expectations: dict[str, Any]
+    trigger: dict[str, Any], _expectations: dict[str, Any]
 ) -> bool:
-    if trigger.get("create_failed_buildkite_build"):
-        return True
-    if not trigger.get("use_buildkite_target_url"):
-        return False
-    if str(trigger.get("status_state") or "") != "failure":
-        return False
-    return bool(
-        expectations.get("agent_invoked") or expectations.get("expect_agent_comment")
-    )
+    """True when the live case must create a failed Buildkite build."""
+    return bool(trigger.get("create_failed_buildkite_build"))
 
 
 def find_agent_comment(
@@ -1516,6 +1475,7 @@ def run_live_case(
     cfg: dict[str, Any],
     *,
     run_url: str | None = None,
+    base_branch: str | None = None,
 ) -> dict[str, Any]:
     case = _load_json(case_dir / "case.json")
     require_case_mode(case, "live", case_id=str(case.get("id", case_dir.name)))
@@ -1550,82 +1510,86 @@ def run_live_case(
         }
 
     # Fail closed on missing Buildkite create credentials before mutating GitHub.
-    creating_buildkite = will_create_failed_buildkite_build(trigger, expectations, cfg)
-    if needs_real_failed_buildkite(trigger, expectations):
-        override_env = str(
-            cfg.get("buildkite_target_url_env") or "E2E_ESTC_BUILDKITE_TARGET_URL"
-        )
-        if creating_buildkite and not buildkite_api_token(cfg):
-            bk = _buildkite_cfg(cfg)
-            token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
-            return {
-                "workflow_id": workflow_id,
-                "case_id": case.get("id", case_dir.name),
-                "layer": "e2e",
-                "mode": "live",
-                "agent_invoked": False,
-                "blocked": True,
-                "block_reason": (
-                    f"Missing {token_env} (write_builds + read). "
-                    f"Or set {override_env} to a readable failed build URL."
-                ),
-                "path_gates": {"dashboard_enabled": dashboard_ok},
-                "expectations": expectations,
-                "run_url": run_url,
-            }
+    if needs_real_failed_buildkite(trigger, expectations) and not buildkite_api_token(
+        cfg
+    ):
+        bk = _buildkite_cfg(cfg)
+        token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": f"Missing {token_env} (write_builds + read).",
+            "path_gates": {"dashboard_enabled": dashboard_ok},
+            "expectations": expectations,
+            "run_url": run_url,
+        }
 
-    require_open_pr = bool(trigger.get("require_open_pr", True))
-    pr_info: dict[str, Any] | None = None
-    if require_open_pr:
-        pr_info = ensure_e2e_pr(repo, cfg)
-        e2e_branch_name = str(
-            pr_info.get("headRefName") or cfg.get("e2e_pr", {}).get("branch") or ""
-        )
-        # Sync + notify validation only when we will create a Buildkite build.
-        # Escape-hatch TARGET_URL must not require contents write or mutate SHA.
-        if creating_buildkite and e2e_branch_name:
-            try:
-                expected_context = assert_fail_pipeline_status_context_matches(cfg)
-                sync_fail_pipeline_to_fixture_branch(
-                    repo,
-                    branch=e2e_branch_name,
-                    expected_context=expected_context,
-                )
-            except (RuntimeError, TypeError, ValueError, OSError) as exc:
-                return {
-                    "workflow_id": workflow_id,
-                    "case_id": case.get("id", case_dir.name),
-                    "layer": "e2e",
-                    "mode": "live",
-                    "agent_invoked": False,
-                    "blocked": True,
-                    "block_reason": str(exc),
-                    "path_gates": {"dashboard_enabled": dashboard_ok},
-                    "expectations": expectations,
-                    "run_url": run_url,
-                }
-        # Refresh OID after possible marker / pipeline sync commits.
-        refreshed = (
-            find_open_e2e_pr(
-                repo,
-                cfg["e2e_pr"]["label"],
-                branch=str(cfg["e2e_pr"].get("branch") or ""),
-            )
-            or pr_info
-        )
-        pr_info = refreshed
-        sha = pr_info["headRefOid"]
-        pr_number = int(pr_info["number"])
-        e2e_branch = str(
-            pr_info.get("headRefName") or cfg.get("e2e_pr", {}).get("branch") or ""
-        )
-    else:
-        sha = resolve_no_open_pr_sha(repo)
-        pr_number = 0
-        e2e_branch = "main"
+    if not trigger.get("require_open_pr", True):
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": (
+                "Live E2E is happy-path only and requires an open fixture PR "
+                "(trigger.require_open_pr must be true)."
+            ),
+            "path_gates": {"dashboard_enabled": dashboard_ok},
+            "expectations": expectations,
+            "run_url": run_url,
+        }
+    if not trigger.get("create_failed_buildkite_build"):
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": (
+                "Live E2E is happy-path only: set "
+                "trigger.create_failed_buildkite_build so Buildkite publishes "
+                "the commit status (no harness-posted synthetic statuses)."
+            ),
+            "path_gates": {"dashboard_enabled": dashboard_ok},
+            "expectations": expectations,
+            "run_url": run_url,
+        }
 
-    if require_open_pr and trigger.get("clear_prior_detective_comments"):
-        clear_detective_comments(repo, pr_number, markers)
+    try:
+        pr_info, resolved_base = resolve_target_pr(
+            repo,
+            cfg,
+            base_branch=base_branch,
+        )
+    except (RuntimeError, TypeError, ValueError) as exc:
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": str(exc),
+            "path_gates": {"dashboard_enabled": dashboard_ok},
+            "expectations": expectations,
+            "run_url": run_url,
+        }
+
+    sha = pr_info["headRefOid"]
+    target_pr_number = int(pr_info["number"])
+    e2e_branch = str(
+        pr_info.get("headRefName") or cfg.get("e2e_pr", {}).get("branch") or ""
+    )
+
+    if trigger.get("clear_prior_detective_comments"):
+        clear_detective_comments(repo, target_pr_number, markers)
 
     # Capture before Buildkite create so we observe the status-triggered Actions run.
     since = _utc_now().replace(microsecond=0)
@@ -1637,133 +1601,106 @@ def run_live_case(
         for run in list_status_trigger_runs(repo, workflow_file_early)
     }
 
-    target_url: str | None = None
-    buildkite_meta: dict[str, Any] | None = None
-    if trigger.get("use_buildkite_target_url"):
-        if needs_real_failed_buildkite(trigger, expectations):
-            try:
-                # Pipeline publish preflight only when creating; override skips it.
-                if creating_buildkite:
-                    token = buildkite_api_token(cfg)
-                    if not token:
-                        raise RuntimeError(
-                            "Missing BUILDKITE_TOKEN for pipeline publish preflight."
-                        )
-                    org, pipeline = resolve_buildkite_org_pipeline(cfg)
-                    verify_buildkite_publishes_commit_status(
-                        token, org=org, pipeline=pipeline
-                    )
-                target_url, buildkite_meta = ensure_failed_buildkite_target_url(
+    try:
+        expected_ctx = assert_fail_pipeline_status_context_matches(cfg)
+        if not buildkite_api_token(cfg):
+            bk = _buildkite_cfg(cfg)
+            token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
+            raise RuntimeError(f"Missing {token_env} (write_builds + read).")
+        if e2e_branch:
+            synced = sync_fail_pipeline_to_fixture_branch(
+                repo,
+                branch=e2e_branch,
+                expected_context=expected_ctx,
+            )
+            if synced:
+                pr_info, resolved_base = resolve_target_pr(
+                    repo,
                     cfg,
-                    commit=sha,
-                    branch=e2e_branch
-                    or str(cfg.get("e2e_pr", {}).get("branch") or "main"),
-                    pr_number=pr_number or None,
-                    case_id=str(case.get("id", case_dir.name)),
+                    base_branch=base_branch,
                 )
-            except (RuntimeError, TimeoutError, ValueError, TypeError, OSError) as exc:
-                return {
-                    "workflow_id": workflow_id,
-                    "case_id": case.get("id", case_dir.name),
-                    "layer": "e2e",
-                    "mode": "live",
-                    "agent_invoked": False,
-                    "blocked": True,
-                    "block_reason": str(exc),
-                    "path_gates": {"dashboard_enabled": dashboard_ok},
-                    "expectations": expectations,
-                    "run_url": run_url,
-                }
-        else:
-            target_url = placeholder_buildkite_url(cfg)
-            buildkite_meta = {"source": "placeholder", "web_url": target_url}
+                sha = pr_info["headRefOid"]
+                target_pr_number = int(pr_info["number"])
+                e2e_branch = str(
+                    pr_info.get("headRefName")
+                    or cfg.get("e2e_pr", {}).get("branch")
+                    or e2e_branch
+                )
+        target_url, buildkite_meta = ensure_failed_buildkite_target_url(
+            cfg,
+            commit=sha,
+            branch=e2e_branch or str(cfg.get("e2e_pr", {}).get("branch") or "main"),
+            pr_number=target_pr_number,
+            case_id=str(case.get("id", case_dir.name)),
+            pull_request_base_branch=resolved_base,
+        )
+    except (RuntimeError, TimeoutError, TypeError, ValueError) as exc:
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": str(exc),
+            "path_gates": {"dashboard_enabled": dashboard_ok},
+            "expectations": expectations,
+            "run_url": run_url,
+        }
 
     state = str(trigger.get("status_state") or "failure")
     timeout = int(cfg.get("poll_timeout_seconds") or 2400)
     interval = int(cfg.get("poll_interval_seconds") or 20)
-    # Created builds: Buildkite publishes the GitHub status (real path).
-    # Override / placeholder / non-Buildkite: harness posts a synthetic status.
-    status_from_buildkite = bool(
-        buildkite_meta and buildkite_meta.get("source") == "created"
+    context = expected_buildkite_status_context(cfg)
+    status_timeout = int(cfg.get("status_observe_timeout_seconds") or min(300, timeout))
+    observed = wait_for_commit_status(
+        repo,
+        sha,
+        context=context,
+        state=state,
+        target_url=target_url,
+        since=since,
+        timeout_seconds=status_timeout,
+        interval_seconds=interval,
     )
-    org, pipeline = resolve_buildkite_org_pipeline(cfg)
-    if status_from_buildkite:
-        context = expected_buildkite_status_context(cfg)
-        description = None
-        status_payload = None
-        status_publisher = "buildkite"
-        status_timeout = int(
-            cfg.get("status_observe_timeout_seconds") or min(300, timeout)
-        )
-        observed = wait_for_commit_status(
-            repo,
-            sha,
-            context=context,
-            state=state,
-            target_url=target_url,
-            since=since,
-            timeout_seconds=status_timeout,
-            interval_seconds=interval,
-        )
-        if not observed:
-            return {
-                "workflow_id": workflow_id,
-                "case_id": case.get("id", case_dir.name),
-                "layer": "e2e",
-                "mode": "live",
-                "agent_invoked": False,
-                "blocked": True,
-                "block_reason": commit_status_timeout_block_reason(
-                    repo=repo,
-                    sha=sha,
-                    context=context,
-                    state=state,
-                    target_url=target_url,
-                    timeout_seconds=status_timeout,
-                ),
-                "path_gates": {"dashboard_enabled": dashboard_ok},
-                "buildkite": buildkite_meta,
-                "commit_sha": sha,
-                "pr_number": pr_number or None,
-                "trigger": trigger,
-                "expectations": expectations,
-                "run_url": run_url,
-            }
-        status_payload = observed
-        description = observed.get("description")
-        target_url = observed.get("target_url") or target_url
-        state = str(observed.get("state") or state)
-        context = str(observed.get("context") or context)
-        # Missing creator.login must not default to Buildkite; URL matching
-        # correlates the status, but publisher identity fails closed.
-        status_publisher = publisher_for_created_build_status(observed)
-    else:
-        context = str(cfg.get("status_context") or "buildkite/elastic/oblt-aw-e2e")
-        if not trigger.get("context_contains_buildkite", True):
-            context = "ci/oblt-aw-e2e-non-buildkite"
-        # Unique per-case description helps operators distinguish synthetic posts;
-        # status→workflow correlation still uses excluded run IDs + event=status.
-        description = f"oblt-aw e2e {case.get('id')} {int(time.time())}"
-        status_publisher = "harness"
-        status_payload = post_commit_status(
-            repo,
-            sha,
-            state=state,
-            context=context,
-            description=description,
-            target_url=target_url if trigger.get("use_buildkite_target_url") else None,
-        )
-        status_publisher = infer_status_publisher(status_payload, fallback="harness")
+    if not observed:
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": commit_status_timeout_block_reason(
+                repo=repo,
+                sha=sha,
+                context=context,
+                state=state,
+                target_url=target_url,
+                timeout_seconds=status_timeout,
+            ),
+            "path_gates": {"dashboard_enabled": dashboard_ok},
+            "buildkite": buildkite_meta,
+            "commit_sha": sha,
+            "pr_number": target_pr_number,
+            "trigger": trigger,
+            "expectations": expectations,
+            "run_url": run_url,
+        }
 
-    workflow_file = workflow_file_early
-    expect_job = bool(expectations.get("status_job_executed"))
-    poll_timeout = timeout if expect_job else min(180, timeout)
+    description = observed.get("description")
+    target_url = observed.get("target_url") or target_url
+    state = str(observed.get("state") or state)
+    context = str(observed.get("context") or context)
+    # Missing creator.login must not default to Buildkite; URL matching
+    # correlates the status, but publisher identity fails closed.
+    status_publisher = publisher_for_created_build_status(observed)
 
     run_detail = wait_for_new_run(
         repo,
-        workflow_file,
+        workflow_file_early,
         since=since,
-        timeout_seconds=poll_timeout,
+        timeout_seconds=timeout,
         interval_seconds=interval,
         exclude_run_ids=known_run_ids,
     )
@@ -1772,10 +1709,12 @@ def run_live_case(
     job_conclusion = status_job_conclusion(run_detail)
     invoked = agent_job_invoked(repo, run_detail, since=since)
     comment = None
-    if require_open_pr and expectations.get("expect_agent_comment"):
+    if expectations.get("expect_agent_comment"):
         comment_deadline = time.time() + min(900, timeout)
         while time.time() < comment_deadline and comment is None:
-            comment = find_agent_comment(repo, pr_number, since=since, markers=markers)
+            comment = find_agent_comment(
+                repo, target_pr_number, since=since, markers=markers
+            )
             if comment:
                 break
             # Nested agent jobs may finish after the parent lists them.
@@ -1793,20 +1732,19 @@ def run_live_case(
                 )
             invoked = agent_job_invoked(repo, run_detail, since=since)
             time.sleep(interval)
-    elif require_open_pr:
-        comment = find_agent_comment(repo, pr_number, since=since, markers=markers)
+    else:
+        comment = find_agent_comment(
+            repo, target_pr_number, since=since, markers=markers
+        )
 
     path_gates = {
         "dashboard_enabled": dashboard_ok,
         "state_failure": state == "failure",
         "context_contains_buildkite": "buildkite" in context.lower(),
-        "has_open_pr": require_open_pr,
+        "has_open_pr": True,
         "shared_proceed": dashboard_ok,
         "path_ready": bool(
-            state == "failure"
-            and "buildkite" in context.lower()
-            and require_open_pr
-            and dashboard_ok
+            state == "failure" and "buildkite" in context.lower() and dashboard_ok
         ),
     }
 
@@ -1819,8 +1757,10 @@ def run_live_case(
         "blocked": False,
         "consumer_repo": repo,
         "commit_sha": sha,
-        "pr_number": pr_number or None,
-        "pr_url": (pr_info or {}).get("url"),
+        "pr_number": target_pr_number,
+        "pr_url": pr_info.get("url"),
+        "pr_head_branch": e2e_branch,
+        "pr_base_branch": resolved_base,
         "trigger": trigger,
         "status": {
             "state": state,
@@ -1828,7 +1768,7 @@ def run_live_case(
             "target_url": target_url,
             "description": description,
             "publisher": status_publisher,
-            "api_url": (status_payload or {}).get("url") if status_payload else None,
+            "api_url": observed.get("url"),
         },
         "buildkite": buildkite_meta,
         "status_trigger": {
@@ -1845,13 +1785,9 @@ def run_live_case(
         "run_url": run_url,
         "harness_notes": [
             (
-                "Happy path: harness creates an intentional Buildkite failure; Buildkite "
-                "publishes the GitHub commit status; trigger-obs-aw-status → agent."
-            ),
-            (
-                "Gate cases (success / non-Buildkite / no-open-PR) still use harness-posted "
-                "synthetic statuses. Optional E2E_ESTC_BUILDKITE_TARGET_URL override also "
-                "posts status from the harness."
+                "Happy path only: harness creates an intentional Buildkite failure; "
+                "Buildkite publishes the GitHub commit status; "
+                "trigger-obs-aw-status → agent → PR comment."
             ),
         ],
     }
@@ -1889,6 +1825,11 @@ def main(argv: list[str] | None = None) -> int:
         default="",
         help="Optional GitHub Actions run URL to embed in the outcome",
     )
+    parser.add_argument(
+        "--base-branch",
+        default="",
+        help="PR base branch for Buildkite pull_request_base_branch (default: main)",
+    )
     args = parser.parse_args(argv)
 
     case_dir = args.testdata_root / "cases" / args.case_id
@@ -1896,7 +1837,12 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"Case directory not found: {case_dir}")
 
     cfg = load_e2e_config(args.config_path)
-    outcome = run_live_case(case_dir, cfg, run_url=args.run_url or None)
+    outcome = run_live_case(
+        case_dir,
+        cfg,
+        run_url=args.run_url or None,
+        base_branch=args.base_branch or None,
+    )
 
     args.outcome_path.parent.mkdir(parents=True, exist_ok=True)
     args.outcome_path.write_text(

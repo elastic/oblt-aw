@@ -256,18 +256,17 @@ def evaluate_outcome(
         elif "timed out" in lower and "commit status" in lower:
             notes.append(
                 "Buildkite did not publish the expected GitHub commit status. "
-                "Confirm pipeline notify github_commit_status and "
-                "publish_commit_status=true (catalog-info.yaml + RRE). If the "
-                "live pipeline has prevent_custom_statuses_from_using_buildkite_prefix "
-                "enabled, disable it in the Buildkite UI (not via catalog). "
-                "Re-run after the fixture branch has the synced fail-pipeline YAML."
+                "Confirm pipeline-level notify github_commit_status uses a "
+                "Beats-style custom context (contains 'buildkite', not the "
+                "reserved buildkite/… prefix). Re-run after the fixture branch "
+                "has the synced fail-pipeline YAML."
             )
         elif "buildkite" in lower and (
             "token" in lower or "403" in lower or "access" in lower
         ):
             notes.append(
-                "Fix Buildkite credentials/ACL (BUILDKITE_TOKEN write_builds) "
-                "or set E2E_ESTC_BUILDKITE_TARGET_URL only as an escape hatch."
+                "Fix Buildkite credentials/ACL (BUILDKITE_TOKEN write_builds), "
+                "then re-run."
             )
         else:
             notes.append(
@@ -454,14 +453,11 @@ def _evaluate_live(
             if trigger.get("create_failed_buildkite_build") and not outcome.get(
                 "blocked"
             ):
-                # Created intentional-failure builds must be Buildkite-published.
-                # Harness publisher is allowed only for the explicit URL override.
+                # Intentional-failure builds must be Buildkite-published (no
+                # harness synthetic statuses; no URL-override exception).
                 bk = outcome.get("buildkite") or {}
                 source = bk.get("source") if isinstance(bk, dict) else None
-                if source == "override_env":
-                    ok_publisher = publisher in {"buildkite", "harness"}
-                else:
-                    ok_publisher = publisher == "buildkite"
+                ok_publisher = publisher == "buildkite"
                 _check(
                     checks,
                     "status_publisher_buildkite_path",
@@ -554,19 +550,12 @@ def _evaluate_live(
                 verified is True,
                 str(detail or verified),
             )
-        elif source == "override_env":
-            _check(
-                checks,
-                "buildkite_source_override",
-                True,
-                "source=override_env",
-            )
         else:
             _check(
                 checks,
                 "buildkite_source_valid",
                 False,
-                f"expected source in {{'created','override_env'}}, got {source!r}",
+                f"expected source 'created', got {source!r}",
             )
 
     if "expect_agent_comment" in expectations:

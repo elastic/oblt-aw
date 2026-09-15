@@ -20,16 +20,11 @@ Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE`
 Happy path:
 
 1. Harness creates a Buildkite build on the long-lived E2E PR branch/SHA (with `pull_request_id`).
-2. Before create, the harness syncs [`.buildkite/pipeline.e2e-estc-fail.yml`](pipeline.e2e-estc-fail.yml) onto that fixture branch so the build’s checkout includes the current notify block. Sync and Buildkite publish preflight are skipped when `E2E_ESTC_BUILDKITE_TARGET_URL` is set.
-3. The intentional-failure step runs and fails.
-4. **Buildkite** publishes the GitHub commit status for context `buildkite/elastic/oblt-aw-e2e-estc-fail` via **pipeline-level** `notify: github_commit_status` only (and `publish_commit_status: true` in [`catalog-info.yaml`](../catalog-info.yaml)). Do not add `prevent_custom_statuses_from_using_buildkite_prefix` to the catalog RRE — Terrazzo rejects that key. The harness fails closed only if the live Buildkite API reports that setting as `true`. Do not add the same context at step scope — that can double-trigger the detective.
-5. The real `status` event triggers `trigger-obs-aw-status.yml` → detective → agent.
-6. Harness observes the Actions run and PR comment (it does **not** forge the happy-path status).
+2. The intentional-failure step runs and fails.
+3. **Buildkite** publishes the GitHub commit status for context `oblt-aw-e2e-estc-fail: buildkite` via **pipeline-level** `notify: github_commit_status` only (Beats-style custom context; `publish_commit_status: false` in [`catalog-info.yaml`](../catalog-info.yaml)). Do not use the reserved `buildkite/…` prefix — org pipelines typically keep `prevent_custom_statuses_from_using_buildkite_prefix=true`. Do not add the same context at step scope — that can double-trigger the detective.
+4. The real `status` event triggers `trigger-obs-aw-status.yml` → detective → agent (context must contain substring `buildkite`).
+5. Harness observes the Actions run and PR comment (it does **not** forge the happy-path status).
 
 If the status never appears: check Buildkite GitHub App (`buildkite-limited-access`) commit-status permission, pipeline GitHub settings, and the harness job log (`block_reason` + status dump). Do not paper over a missing Buildkite status by forging one on the happy path.
 
-Gate cases (success / non-Buildkite / no-open-PR) still use harness-posted synthetic statuses.
-
-Optional escape hatch: set Actions var `E2E_ESTC_BUILDKITE_TARGET_URL` to skip create; the harness then posts the status itself using that URL (no fixture-branch sync, no Buildkite publish preflight).
-
-If you override `E2E_BUILDKITE_ORG` / `E2E_BUILDKITE_PIPELINE`, the fail-pipeline notify context must still match `buildkite/<org>/<pipeline>` (or set `expected_status_context`); otherwise the harness blocks before create.
+Live E2E is happy-path only (no harness-posted synthetic statuses; no URL-override escape hatch).

@@ -3,11 +3,29 @@ name: E2E — ESTC PR Buildkite Detective
 
 # Production E2E for obs:estc-pr-buildkite-detective against elastic/oblt-aw
 # (intentional production consumer for this slice; no separate sandbox — see #1911 docs).
-# Live happy path: Buildkite publishes commit status → trigger → agent.
-# Negative cases: harness-posted statuses need secrets.E2E_GH_TOKEN (github.token cannot trigger).
+# Live happy path only: Buildkite publishes commit status → trigger → agent.
 # Also callable from the future release/promote train (#1878).
 # Not part of the default PR required gate in ci.yml.
+# All triggers (path-filtered pull_request, dispatch, workflow_call) use the
+# long-lived fixture PR (label e2e:estc-pr-buildkite-detective). The development
+# PR only starts this workflow; Buildkite always builds the fixture head.
+# Lock/wrapper still pin @main (smoke path); candidate-pin is a separate follow-up.
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/gh-aw-estc-pr-buildkite-detective.md
+      - .github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml
+      - .github/workflows/obs-aw-estc-pr-buildkite-detective.yml
+      - .github/workflows/gh-aw-fragments/**
+      - .github/workflows/e2e-estc-pr-buildkite-detective.yml
+      - .github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-status.yml
+      - scripts/estc_pr_buildkite_detective_e2e_harness.py
+      - scripts/oracle_estc_pr_buildkite_detective_e2e.py
+      - config/obs/e2e-estc-pr-buildkite-detective.json
+      - testdata/agentic/estc-pr-buildkite-detective/**
+      - tests/e2e/test_estc_pr_buildkite_detective_e2e.py
+      - .buildkite/pipeline.e2e-estc-fail.yml
   workflow_dispatch:
     inputs:
       case-id:
@@ -15,9 +33,6 @@ on:
         required: true
         type: string
         default: all
-  schedule:
-    # Weekly production smoke (paid agent on happy-path case).
-    - cron: "17 6 * * 1"
   workflow_call:
     inputs:
       case-id:
@@ -29,11 +44,6 @@ on:
       BUILDKITE_TOKEN:
         description: Buildkite token (write_builds + read) for intentional-failure creates
         required: false
-      E2E_GH_TOKEN:
-        description: >-
-          Optional PAT/App token for harness-posted commit statuses. Required for
-          negative live cases so status events can trigger workflows (github.token cannot).
-        required: false
     outputs:
       pass:
         description: Whether all matrix legs passed (summary.pass)
@@ -43,13 +53,17 @@ permissions:
   contents: read
 
 concurrency:
-  # Stable group: one live matrix at a time against the shared fixture PR.
-  group: e2e-estc-pr-buildkite-detective
+  # One live matrix per PR; shared group for dispatch / workflow_call (fixture PR).
+  group: e2e-estc-pr-buildkite-detective-${{ github.event.pull_request.number || 'shared' }}
   cancel-in-progress: false
 
 jobs:
   e2e-matrix:
     name: Resolve E2E matrix
+    # Fork PRs lack secrets and cannot target same-repo heads safely.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -58,17 +72,12 @@ jobs:
       - name: Resolve cases
         id: resolve
         env:
-          EVENT_NAME: ${{ github.event_name }}
           INPUT_CASE_ID: ${{ inputs.case-id }}
         run: |
           set -euo pipefail
-          if [ "${EVENT_NAME}" = "schedule" ]; then
-            CASE_ID=all
-          else
-            CASE_ID="${INPUT_CASE_ID:-all}"
-          fi
+          CASE_ID="${INPUT_CASE_ID:-all}"
           if [ "${CASE_ID}" = "all" ]; then
-            CASES='["status-failure-open-pr-live","status-success-skipped","status-failure-non-buildkite","status-failure-no-open-pr"]'
+            CASES='["status-failure-open-pr-live"]'
           else
             CASES="$(printf '%s' "[\"${CASE_ID}\"]")"
           fi
@@ -88,7 +97,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      statuses: write
+      # Observe Buildkite-published commit statuses (harness polls statuses API).
+      statuses: read
       actions: read
       # Label create for first-time fixture PR provisioning.
       issues: write
@@ -99,10 +109,7 @@ jobs:
       BUILDKITE_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
       E2E_BUILDKITE_ORG: ${{ vars.E2E_BUILDKITE_ORG }}
       E2E_BUILDKITE_PIPELINE: ${{ vars.E2E_BUILDKITE_PIPELINE }}
-      # Optional escape hatch: skip create and reuse a fixed failed build URL.
-      E2E_ESTC_BUILDKITE_TARGET_URL: ${{ vars.E2E_ESTC_BUILDKITE_TARGET_URL }}
-      # Prefer E2E_GH_TOKEN so harness-posted statuses can trigger workflows.
-      GH_TOKEN: ${{ secrets.E2E_GH_TOKEN || github.token }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -111,6 +118,11 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-runtime.txt
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-runtime.txt
 
       - name: Prepare artifact directory
         run: mkdir -p "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}"
@@ -120,6 +132,8 @@ jobs:
         continue-on-error: true
         run: |
           set +e
+          # Always target the long-lived fixture PR (find or create). Do not pass
+          # the development pull_request number — Buildkite must build the fixture.
           python3 scripts/estc_pr_buildkite_detective_e2e_harness.py \
             --case-id "${CASE_ID}" \
             --run-url "${RUN_URL}" \
@@ -201,8 +215,8 @@ jobs:
 
   e2e-result:
     name: E2E result gate
-    needs: e2e
-    if: always()
+    needs: [e2e-matrix, e2e]
+    if: always() && needs.e2e-matrix.result != 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
