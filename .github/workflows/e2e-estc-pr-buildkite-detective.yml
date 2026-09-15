@@ -138,6 +138,59 @@ jobs:
             --testdata-root testdata/agentic/estc-pr-buildkite-detective \
             --expected-case-id "${CASE_ID}"
 
+      - name: Print E2E failure summary
+        if: always()
+        run: |
+          set -euo pipefail
+          OUT_DIR="artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          case_id = os.environ["CASE_ID"]
+          out_dir = Path(f"artifacts/e2e/estc-pr-buildkite-detective/{case_id}")
+          summary_path = out_dir / "summary.json"
+          outcome_path = out_dir / "outcome.json"
+          if not summary_path.is_file() and not outcome_path.is_file():
+              print(f"No E2E artifacts under {out_dir}; nothing to summarize.")
+              raise SystemExit(0)
+
+          summary = {}
+          if summary_path.is_file():
+              summary = json.loads(summary_path.read_text(encoding="utf-8"))
+          outcome = {}
+          if outcome_path.is_file():
+              outcome = json.loads(outcome_path.read_text(encoding="utf-8"))
+
+          passed = summary.get("pass")
+          if passed is True:
+              print(f"E2E case {case_id}: pass=true")
+              raise SystemExit(0)
+
+          print(f"E2E case {case_id}: pass={passed!r}")
+          detail = (
+              summary.get("failure_detail")
+              or summary.get("block_reason")
+              or outcome.get("block_reason")
+              or "(no failure_detail/block_reason in artifacts)"
+          )
+          print("Failure detail:")
+          print(detail)
+          failed = summary.get("failed_checks") or []
+          if failed:
+              print("Failed checks:")
+              for item in failed:
+                  print(f"  - [{item.get('id')}] {item.get('detail')}")
+          bk = outcome.get("buildkite") or {}
+          if isinstance(bk, dict) and bk.get("web_url"):
+              print(f"Buildkite: {bk.get('web_url')} state={bk.get('state')!r}")
+          if outcome.get("commit_sha"):
+              print(f"Commit: {outcome.get('commit_sha')}")
+          first = str(detail).splitlines()[0]
+          print(f"::error::E2E {case_id}: {first}")
+          PY
+
       - name: Upload E2E artifacts
         if: always()
         uses: actions/upload-artifact@v7

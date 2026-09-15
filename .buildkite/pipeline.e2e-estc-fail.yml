@@ -7,6 +7,15 @@
 #
 # The harness creates a build per live happy-path run and waits for failure.
 # Log marker below must stay stable (oracle / human debugging).
+#
+# Explicit github_commit_status notify: automatic publish_commit_status alone has
+# not reliably posted GitHub statuses for API-created builds on this pipeline.
+# Context must match the harness expectation (buildkite/<org>/<pipeline>) and
+# contain "buildkite" so trigger-obs-aw-status.yml can route the status event.
+
+notify:
+  - github_commit_status:
+      context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
 
 steps:
   - label: ":x: intentional e2e failure"
@@ -17,3 +26,6 @@ steps:
       echo "This Buildkite job fails on purpose for obs:estc-pr-buildkite-detective E2E."
       echo "Do not treat this as a product regression."
       exit 1
+    notify:
+      - github_commit_status:
+          context: "buildkite/elastic/oblt-aw-e2e-estc-fail"
