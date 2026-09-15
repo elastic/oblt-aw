@@ -4,12 +4,9 @@ Production end-to-end harness for the PR Buildkite Detective route ([#1911](http
 
 ## What this harness covers
 
-| Mode | What runs | Live agent? | When |
-|------|-----------|-------------|------|
-| **live** | Real `status` → `trigger-obs-aw-status.yml` → prelude → wrapper → lock → agent on **`elastic/oblt-aw`** | Yes | Default for `workflow_dispatch`, weekly schedule, and `workflow_call` (release/#1878) |
-| **fixture** | Recorded status/Buildkite gates only (integration layer) | No | Optional dispatch (`mode=fixture`) |
+Live E2E only: real `status` → `trigger-obs-aw-status.yml` → prelude → wrapper → lock → agent on **`elastic/oblt-aw`**. On the happy path the intentional Buildkite pipeline publishes the GitHub status (real event).
 
-Live mode is the E2E proof. On the happy path the intentional Buildkite pipeline publishes the GitHub status (real event). Fixture mode is a cheaper integration check of pre-agent gates.
+Integration wiring (resolve → wrapper → lock inputs, no live model) lives under `tests/integration/` and `testdata/.../consumer/` / `expected/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)).
 
 ## Live cases
 
@@ -40,12 +37,10 @@ Workflow: [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.githu
 ```bash
 # Full live matrix
 gh workflow run e2e-estc-pr-buildkite-detective.yml \
-  -f mode=live \
   -f case-id=all
 
 # Single live case
 gh workflow run e2e-estc-pr-buildkite-detective.yml \
-  -f mode=live \
   -f case-id=status-failure-open-pr-live
 ```
 
@@ -57,21 +52,7 @@ Triggers:
 
 Not part of the default PR `required` job in [`ci.yml`](../../.github/workflows/ci.yml).
 
-### Local (fixture / integration only)
-
-```bash
-mkdir -p /tmp/estc-e2e
-python3 scripts/estc_pr_buildkite_detective_e2e_harness.py \
-  --mode fixture \
-  --case-id status-failure-open-pr \
-  --outcome-path /tmp/estc-e2e/outcome.json
-
-python3 scripts/oracle_estc_pr_buildkite_detective_e2e.py \
-  --outcome-path /tmp/estc-e2e/outcome.json \
-  --report-path /tmp/estc-e2e/oracle-report.json \
-  --summary-path /tmp/estc-e2e/summary.json \
-  --quarantine-path config/obs/e2e-quarantine.json
-```
+### Local (live only)
 
 Live mode needs `gh` auth, dashboard enablement, `BUILDKITE_TOKEN`, and the intentional-failure Buildkite pipeline (or the optional URL override).
 
