@@ -583,53 +583,14 @@ def resolve_target_pr(
     repo: str,
     cfg: dict[str, Any],
     *,
-    pr_number: int | None = None,
-    head_branch: str | None = None,
     base_branch: str | None = None,
 ) -> tuple[dict[str, Any], str]:
-    """Resolve the PR under test and its base branch name.
+    """Resolve the fixture PR under test and its base branch name.
 
-    When ``pr_number`` is set (path-filtered PR E2E), load that same-repo PR
-    without requiring the fixture label. Otherwise find/create the long-lived
-    fixture PR used by ``workflow_dispatch`` / ``workflow_call``.
+    Always find or create the long-lived fixture PR
+    (``e2e:estc-pr-buildkite-detective``). Live E2E never targets the
+    development PR that only triggered the outer workflow.
     """
-    if pr_number is not None:
-        pr = gh_json(
-            [
-                "pr",
-                "view",
-                str(pr_number),
-                "--repo",
-                repo,
-                "--json",
-                (
-                    "number,url,headRefName,headRefOid,baseRefName,title,"
-                    "headRepository,labels"
-                ),
-            ]
-        )
-        if not isinstance(pr, dict):
-            raise TypeError(
-                f"Failed to view PR #{pr_number} on {repo}: expected object"
-            )
-        head = _pr_head_repo(pr)
-        if head != repo:
-            raise RuntimeError(
-                f"PR #{pr_number} head repository is {head!r}, expected {repo!r}."
-            )
-        actual_head = str(pr.get("headRefName") or "")
-        if head_branch and actual_head != head_branch:
-            raise RuntimeError(
-                f"PR #{pr_number} head branch is {actual_head!r}, "
-                f"expected {head_branch!r}."
-            )
-        resolved_base = (
-            (base_branch or "").strip()
-            or str(pr.get("baseRefName") or "").strip()
-            or "main"
-        )
-        return pr, resolved_base
-
     pr_info = ensure_e2e_pr(repo, cfg)
     refreshed = (
         find_open_e2e_pr(
@@ -643,11 +604,42 @@ def resolve_target_pr(
     return refreshed, resolved_base
 
 
+def _find_closed_fixture_pr(
+    repo: str, *, branch: str, label: str
+) -> dict[str, Any] | None:
+    """Most recent closed same-repo PR on the fixture branch (any label state)."""
+    owner = repo.split("/")[0]
+    prs = gh_json(
+        [
+            "pr",
+            "list",
+            "--repo",
+            repo,
+            "--state",
+            "closed",
+            "--head",
+            f"{owner}:{branch}",
+            "--json",
+            "number,url,headRefName,headRefOid,title,headRepository,labels",
+            "--limit",
+            "5",
+        ]
+    )
+    same_repo = _same_repo_prs(prs if isinstance(prs, list) else [], repo)
+    matched = [pr for pr in same_repo if pr.get("headRefName") == branch]
+    if not matched:
+        return None
+    # Prefer one that already had the fixture label.
+    labeled = [pr for pr in matched if _pr_has_label(pr, label)]
+    return (labeled or matched)[0]
+
+
 def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
-    """Find or create the long-lived E2E fixture PR via the GitHub API only."""
+    """Find, reopen, or create the long-lived E2E fixture PR via the GitHub API."""
     e2e_pr = cfg["e2e_pr"]
     label = str(e2e_pr["label"])
-    existing = find_open_e2e_pr(repo, label, branch=str(e2e_pr.get("branch") or ""))
+    branch = str(e2e_pr["branch"])
+    existing = find_open_e2e_pr(repo, label, branch=branch)
     if existing:
         return _require_pr_label(repo, int(existing["number"]), label)
 
@@ -666,7 +658,6 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
     base_sha = gh_text(
         ["api", f"repos/{repo}/git/ref/heads/{default_branch}", "--jq", ".object.sha"]
     ).strip()
-    branch = e2e_pr["branch"]
 
     ref_proc = subprocess.run(
         ["gh", "api", f"repos/{repo}/git/ref/heads/{branch}"],
@@ -740,15 +731,57 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         text=True,
         check=False,
     )
-    if create.returncode != 0 and "already exists" not in (
-        create.stderr + create.stdout
-    ):
-        # PR may already exist without label; recovery path below adds it.
+    create_out = f"{create.stderr or ''}{create.stdout or ''}"
+    if create.returncode != 0 and "already exists" not in create_out.lower():
+        # Fall through to reopen / label recovery below.
         pass
 
     created = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
     if created:
         return _require_pr_label(repo, int(created["number"]), label)
+
+    # Closed fixture PR on the same branch: reopen (create may have failed).
+    closed = _find_closed_fixture_pr(repo, branch=branch, label=label)
+    if closed:
+        pr_number = int(closed["number"])
+        reopen = subprocess.run(
+            ["gh", "pr", "reopen", str(pr_number), "--repo", repo],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if reopen.returncode != 0:
+            raise RuntimeError(
+                f"Fixture PR #{pr_number} on {repo} is closed and reopen failed: "
+                f"{(reopen.stderr or reopen.stdout or '').strip() or f'exit {reopen.returncode}'}. "
+                f"Create a new open same-repo PR labeled {label!r} on {branch!r}."
+            )
+        if not _pr_has_label(closed, label):
+            edit = subprocess.run(
+                [
+                    "gh",
+                    "pr",
+                    "edit",
+                    str(pr_number),
+                    "--repo",
+                    repo,
+                    "--add-label",
+                    label,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if edit.returncode != 0:
+                raise RuntimeError(
+                    f"Failed to add label {label!r} to reopened PR #{pr_number} "
+                    f"on {repo}: "
+                    f"{(edit.stderr or edit.stdout or '').strip() or f'exit {edit.returncode}'}"
+                )
+        reopened = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
+        if reopened:
+            return _require_pr_label(repo, int(reopened["number"]), label)
+        return _require_pr_label(repo, pr_number, label)
 
     prs = gh_json(
         [
@@ -1434,8 +1467,6 @@ def run_live_case(
     cfg: dict[str, Any],
     *,
     run_url: str | None = None,
-    pr_number: int | None = None,
-    head_branch: str | None = None,
     base_branch: str | None = None,
 ) -> dict[str, Any]:
     case = _load_json(case_dir / "case.json")
@@ -1527,8 +1558,6 @@ def run_live_case(
         pr_info, resolved_base = resolve_target_pr(
             repo,
             cfg,
-            pr_number=pr_number,
-            head_branch=head_branch,
             base_branch=base_branch,
         )
     except (RuntimeError, TypeError, ValueError) as exc:
@@ -1548,10 +1577,7 @@ def run_live_case(
     sha = pr_info["headRefOid"]
     target_pr_number = int(pr_info["number"])
     e2e_branch = str(
-        pr_info.get("headRefName")
-        or head_branch
-        or cfg.get("e2e_pr", {}).get("branch")
-        or ""
+        pr_info.get("headRefName") or cfg.get("e2e_pr", {}).get("branch") or ""
     )
 
     if trigger.get("clear_prior_detective_comments"):
@@ -1768,23 +1794,9 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional GitHub Actions run URL to embed in the outcome",
     )
     parser.add_argument(
-        "--pr-number",
-        type=int,
-        default=None,
-        help=(
-            "Target an existing same-repo PR (path-filtered PR E2E). "
-            "When omitted, uses the long-lived fixture PR."
-        ),
-    )
-    parser.add_argument(
-        "--head-branch",
-        default="",
-        help="Expected PR head branch when --pr-number is set (optional check)",
-    )
-    parser.add_argument(
         "--base-branch",
         default="",
-        help="PR base branch for Buildkite pull_request_base_branch",
+        help="PR base branch for Buildkite pull_request_base_branch (default: main)",
     )
     args = parser.parse_args(argv)
 
@@ -1797,8 +1809,6 @@ def main(argv: list[str] | None = None) -> int:
         case_dir,
         cfg,
         run_url=args.run_url or None,
-        pr_number=args.pr_number,
-        head_branch=args.head_branch or None,
         base_branch=args.base_branch or None,
     )
 

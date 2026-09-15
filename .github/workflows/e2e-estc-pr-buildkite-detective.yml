@@ -6,8 +6,9 @@ name: E2E — ESTC PR Buildkite Detective
 # Live happy path only: Buildkite publishes commit status → trigger → agent.
 # Also callable from the future release/promote train (#1878).
 # Not part of the default PR required gate in ci.yml.
-# Path-filtered pull_request runs target the PR under review (head/base).
-# Manual / workflow_call runs use the long-lived fixture PR.
+# All triggers (path-filtered pull_request, dispatch, workflow_call) use the
+# long-lived fixture PR (label e2e:estc-pr-buildkite-detective). The development
+# PR only starts this workflow; Buildkite always builds the fixture head.
 # Lock/wrapper still pin @main (smoke path); candidate-pin is a separate follow-up.
 on:
   pull_request:
@@ -129,23 +130,14 @@ jobs:
       - name: Run harness
         id: harness
         continue-on-error: true
-        env:
-          TARGET_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
-          TARGET_HEAD_BRANCH: ${{ github.head_ref || '' }}
-          TARGET_BASE_BRANCH: ${{ github.base_ref || '' }}
         run: |
           set +e
-          EXTRA_ARGS=()
-          if [ -n "${TARGET_PR_NUMBER}" ]; then
-            EXTRA_ARGS+=(--pr-number "${TARGET_PR_NUMBER}")
-            EXTRA_ARGS+=(--head-branch "${TARGET_HEAD_BRANCH}")
-            EXTRA_ARGS+=(--base-branch "${TARGET_BASE_BRANCH}")
-          fi
+          # Always target the long-lived fixture PR (find or create). Do not pass
+          # the development pull_request number — Buildkite must build the fixture.
           python3 scripts/estc_pr_buildkite_detective_e2e_harness.py \
             --case-id "${CASE_ID}" \
             --run-url "${RUN_URL}" \
-            --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json" \
-            "${EXTRA_ARGS[@]}"
+            --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json"
           echo "harness_exit=$?" >> "$GITHUB_OUTPUT"
 
       - name: Run structured oracle

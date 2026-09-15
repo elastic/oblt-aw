@@ -731,87 +731,133 @@ steps: []
         with pytest.raises(RuntimeError, match="Failed to ensure label"):
             harness._ensure_label("elastic/oblt-aw", "e2e:estc-pr-buildkite-detective")
 
-    def test_resolve_target_pr_explicit_same_repo(
+    def test_resolve_target_pr_uses_fixture(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(
             harness,
-            "gh_json",
+            "ensure_e2e_pr",
             lambda *_a, **_k: {
-                "number": 42,
-                "url": "https://example.test/pr/42",
-                "headRefName": "feat/estc",
+                "number": 1959,
+                "url": "https://example.test/pr/1959",
+                "headRefName": "e2e/estc-pr-buildkite-detective",
                 "headRefOid": "deadbeef",
-                "baseRefName": "main",
-                "title": "change",
+                "title": "fixture",
                 "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
-                "labels": [],
+                "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
+            },
+        )
+        monkeypatch.setattr(
+            harness,
+            "find_open_e2e_pr",
+            lambda *_a, **_k: {
+                "number": 1959,
+                "url": "https://example.test/pr/1959",
+                "headRefName": "e2e/estc-pr-buildkite-detective",
+                "headRefOid": "deadbeef",
+                "title": "fixture",
+                "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
+                "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
             },
         )
         cfg = harness.load_e2e_config(
             ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
         )
-        pr, base = harness.resolve_target_pr(
-            "elastic/oblt-aw",
-            cfg,
-            pr_number=42,
-            head_branch="feat/estc",
-            base_branch="main",
-        )
-        assert int(pr["number"]) == 42
-        assert pr["headRefOid"] == "deadbeef"
+        pr, base = harness.resolve_target_pr("elastic/oblt-aw", cfg)
+        assert int(pr["number"]) == 1959
+        assert pr["headRefName"] == "e2e/estc-pr-buildkite-detective"
         assert base == "main"
 
-    def test_resolve_target_pr_rejects_fork(
+    def test_ensure_e2e_pr_reopens_closed_fixture(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(
-            harness,
-            "gh_json",
-            lambda *_a, **_k: {
-                "number": 7,
-                "url": "https://example.test/pr/7",
-                "headRefName": "feat/fork",
-                "headRefOid": "abc",
-                "baseRefName": "main",
-                "title": "fork",
-                "headRepository": {"nameWithOwner": "someone/oblt-aw"},
-                "labels": [],
-            },
-        )
-        cfg = harness.load_e2e_config(
-            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
-        )
-        with pytest.raises(RuntimeError, match="head repository"):
-            harness.resolve_target_pr("elastic/oblt-aw", cfg, pr_number=7)
+        calls: list[list[str]] = []
 
-    def test_resolve_target_pr_head_branch_mismatch(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(
-            harness,
-            "gh_json",
-            lambda *_a, **_k: {
-                "number": 8,
-                "url": "https://example.test/pr/8",
-                "headRefName": "actual-branch",
+        def fake_gh_json(args: list[str], **_k: object) -> object:
+            if args[:2] == ["pr", "list"] and "--state" in args:
+                idx = args.index("--state")
+                if args[idx + 1] == "open":
+                    return []
+                if args[idx + 1] == "closed":
+                    return [
+                        {
+                            "number": 1959,
+                            "url": "https://example.test/pr/1959",
+                            "headRefName": "e2e/estc-pr-buildkite-detective",
+                            "headRefOid": "abc",
+                            "title": "fixture",
+                            "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
+                            "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
+                        }
+                    ]
+            if args[:2] == ["pr", "view"]:
+                return {
+                    "number": 1959,
+                    "url": "https://example.test/pr/1959",
+                    "headRefName": "e2e/estc-pr-buildkite-detective",
+                    "headRefOid": "abc",
+                    "title": "fixture",
+                    "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
+                    "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
+                }
+            return {}
+
+        def fake_gh_text(_args: list[str], **_k: object) -> str:
+            return "main\n" if "defaultBranchRef" in " ".join(_args) else "sha-main\n"
+
+        class _Proc:
+            def __init__(self, code: int = 0, out: str = "", err: str = "") -> None:
+                self.returncode = code
+                self.stdout = out
+                self.stderr = err
+
+        def fake_run(cmd: list[str], **_k: object) -> _Proc:
+            calls.append(list(cmd))
+            if cmd[:3] == [
+                "gh",
+                "api",
+                "repos/elastic/oblt-aw/git/ref/heads/e2e/estc-pr-buildkite-detective",
+            ]:
+                return _Proc(0, "{}")
+            if "contents/" in " ".join(cmd):
+                return _Proc(1)
+            if cmd[:3] == ["gh", "pr", "create"]:
+                return _Proc(1, err="a pull request already exists")
+            if cmd[:3] == ["gh", "pr", "reopen"]:
+                return _Proc(0)
+            if cmd[:3] == ["gh", "label", "create"]:
+                return _Proc(0)
+            return _Proc(0)
+
+        find_open_calls = {"n": 0}
+
+        def fake_find_open(*_a: object, **_k: object) -> dict[str, object] | None:
+            find_open_calls["n"] += 1
+            # First calls (ensure start + after create): none; after reopen: found.
+            if find_open_calls["n"] <= 2:
+                return None
+            return {
+                "number": 1959,
+                "url": "https://example.test/pr/1959",
+                "headRefName": "e2e/estc-pr-buildkite-detective",
                 "headRefOid": "abc",
-                "baseRefName": "main",
-                "title": "x",
+                "title": "fixture",
                 "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
-                "labels": [],
-            },
-        )
+                "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
+            }
+
+        monkeypatch.setattr(harness, "gh_json", fake_gh_json)
+        monkeypatch.setattr(harness, "gh_text", fake_gh_text)
+        monkeypatch.setattr(harness.subprocess, "run", fake_run)
+        monkeypatch.setattr(harness, "find_open_e2e_pr", fake_find_open)
+        monkeypatch.setattr(harness, "_ensure_label", lambda *_a, **_k: None)
+
         cfg = harness.load_e2e_config(
             ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
         )
-        with pytest.raises(RuntimeError, match="head branch"):
-            harness.resolve_target_pr(
-                "elastic/oblt-aw",
-                cfg,
-                pr_number=8,
-                head_branch="expected-branch",
-            )
+        pr = harness.ensure_e2e_pr("elastic/oblt-aw", cfg)
+        assert int(pr["number"]) == 1959
+        assert any(c[:3] == ["gh", "pr", "reopen"] for c in calls)
 
     def test_ensure_failed_buildkite_passes_base_branch(
         self, monkeypatch: pytest.MonkeyPatch
