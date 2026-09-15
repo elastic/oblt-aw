@@ -14,13 +14,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""E2E / integration harness for obs:estc-pr-buildkite-detective.
+"""Live E2E harness for obs:estc-pr-buildkite-detective.
 
-Modes:
-- live: drive the real status → trigger → prelude → wrapper → lock → agent
-  path against elastic/oblt-aw (production consumer for this slice).
-- fixture: deterministic pre-agent gate + recorded Buildkite resolution
-  (integration layer; no live agent).
+Drives the real status → trigger → prelude → wrapper → lock → agent path
+against elastic/oblt-aw (production consumer for this slice).
 """
 
 from __future__ import annotations
@@ -29,7 +26,6 @@ import argparse
 import base64
 import json
 import os
-import re
 import subprocess
 import sys
 import time
@@ -41,10 +37,7 @@ from typing import Any, cast
 
 WORKFLOW_ID = "obs:estc-pr-buildkite-detective"
 DEFAULT_CONFIG = Path("config/obs/e2e-estc-pr-buildkite-detective.json")
-BK_URL_RE = re.compile(r"https://buildkite\.com/([^/]+)/([^/]+)/builds/(\d+)")
-ANSI_RE = re.compile(r"\x1b(?:\[[0-9;]*[A-Za-z]|_[^\x07]*\x07|[()][AB012]|[=>])")
 FAIL_STATES = ("failed", "timed_out")
-LOG_TAIL = 150
 MARKER_PATH = "testdata/agentic/estc-pr-buildkite-detective/e2e-fixture-pr.md"
 MARKER_BODY = (
     "# E2E fixture PR\n\n"
@@ -55,11 +48,6 @@ MARKER_BODY = (
 
 def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _slugify(name: str) -> str:
-    cleaned = re.sub(r"[^\w\s-]", "", name).strip()
-    return re.sub(r"\s+", "-", cleaned).lower()[:60].strip("-")
 
 
 def _utc_now() -> datetime:
@@ -137,6 +125,11 @@ def infer_status_publisher(payload: dict[str, Any] | None, *, fallback: str) -> 
     return fallback
 
 
+def publisher_for_created_build_status(payload: dict[str, Any] | None) -> str:
+    """Created-build path: missing ``creator.login`` must not default to Buildkite."""
+    return infer_status_publisher(payload, fallback="other")
+
+
 def gh_text(args: list[str], *, check: bool = True) -> str:
     proc = subprocess.run(
         ["gh", *args],
@@ -149,215 +142,6 @@ def gh_text(args: list[str], *, check: bool = True) -> str:
             f"gh {' '.join(args)} failed ({proc.returncode}): {proc.stderr.strip()}"
         )
     return proc.stdout
-
-
-# ---------------------------------------------------------------------------
-# Fixture / integration helpers (pre-agent path only)
-# ---------------------------------------------------------------------------
-
-
-def evaluate_status_gates(event: dict[str, Any]) -> dict[str, Any]:
-    """Mirror obs-aw-event-status / wrapper status filters."""
-    state = event.get("state")
-    context = event.get("context") or ""
-    return {
-        "event_name": "status",
-        "state_failure": state == "failure",
-        "context_contains_buildkite": "buildkite" in context.lower(),
-        "context": context,
-        "state": state,
-    }
-
-
-def evaluate_open_pr_gate(open_prs: list[dict[str, Any]]) -> dict[str, Any]:
-    open_count = sum(1 for pr in open_prs if pr.get("state") == "open")
-    return {
-        "has_open_pr": open_count > 0,
-        "open_pr_count": open_count,
-    }
-
-
-def collect_failed_jobs(
-    build_data: dict[str, Any],
-    pipeline_slug: str,
-    build_url: str,
-    child_builds: dict[str, dict[str, Any]],
-) -> list[tuple[str, str, dict[str, Any]]]:
-    results: list[tuple[str, str, dict[str, Any]]] = []
-    for job in build_data.get("jobs") or []:
-        if job.get("state") not in FAIL_STATES:
-            continue
-        if job.get("type") == "script":
-            results.append((pipeline_slug, build_url, job))
-        elif job.get("type") == "trigger":
-            triggered = job.get("triggered_build") or {}
-            child_url = triggered.get("web_url", "")
-            match = BK_URL_RE.search(child_url)
-            if not match:
-                continue
-            child_key = f"{match.group(1)}/{match.group(2)}/{match.group(3)}"
-            child = child_builds.get(child_key)
-            if child is None:
-                continue
-            results.extend(
-                collect_failed_jobs(child, match.group(2), child_url, child_builds)
-            )
-    return results
-
-
-def resolve_buildkite_from_fixtures(
-    event: dict[str, Any],
-    build: dict[str, Any],
-    job_logs: dict[str, str],
-    child_builds: dict[str, dict[str, Any]] | None = None,
-) -> dict[str, Any]:
-    """Mirror lock pre-agent Buildkite fetch using recorded payloads."""
-    child_builds = child_builds or {}
-    commit_sha = (event.get("commit") or {}).get("sha", "")
-    target_url = event.get("target_url") or ""
-    match = BK_URL_RE.search(target_url)
-    if not match:
-        return {
-            "ok": False,
-            "error": f"No Buildkite build URL in target_url: {target_url}",
-        }
-
-    bk_org, bk_pipeline, _bk_number = match.group(1), match.group(2), match.group(3)
-    build_url = match.group(0)
-    pr_info = build.get("pull_request") or {}
-    pr_number = pr_info.get("id", "")
-    branch = build.get("branch", "")
-    event_context = {
-        "event_name": "status",
-        "commit_sha": commit_sha,
-        "build_url": build_url,
-        "pipeline": bk_pipeline,
-        "branch": branch,
-        "pr_number": str(pr_number) if pr_number != "" else "",
-    }
-
-    if not pr_number:
-        return {
-            "ok": False,
-            "error": "Build is not associated with a PR; skipping",
-            "event_context": event_context,
-        }
-
-    if build.get("state") not in ("failed", "failing"):
-        return {
-            "ok": False,
-            "error": f"Build is not finished (state: {build.get('state')}); skipping",
-            "event_context": event_context,
-        }
-
-    failed = collect_failed_jobs(build, bk_pipeline, build_url, child_builds)
-    if not failed:
-        return {
-            "ok": False,
-            "error": (
-                f"No failed script jobs in build (build state: {build.get('state')})"
-            ),
-            "event_context": event_context,
-        }
-
-    failure_summaries: list[dict[str, Any]] = []
-    for pipeline_slug, job_build_url, job in failed:
-        slug = _slugify(str(job.get("name", f"job-{job.get('id', 'unknown')}")))
-        log_key = f"{pipeline_slug}-{slug}"
-        raw_log = job_logs.get(log_key) or job_logs.get(slug) or ""
-        cleaned_lines = [ANSI_RE.sub("", line) for line in raw_log.splitlines()][
-            -LOG_TAIL:
-        ]
-        failure_summaries.append(
-            {
-                "name": job.get("name"),
-                "pipeline": pipeline_slug,
-                "build_url": job_build_url,
-                "state": job.get("state"),
-                "exit_status": job.get("exit_status"),
-                "log_key": log_key,
-                "log_line_count": len(cleaned_lines),
-                "log_has_content": bool(cleaned_lines),
-            }
-        )
-
-    return {
-        "ok": True,
-        "org": bk_org,
-        "event_context": event_context,
-        "failed_job_count": len(failed),
-        "failed_jobs": failure_summaries,
-        "build_state": build.get("state"),
-    }
-
-
-def run_fixture_case(case_dir: Path) -> dict[str, Any]:
-    case = _load_json(case_dir / "case.json")
-    require_case_mode(case, "fixture", case_id=str(case.get("id", case_dir.name)))
-    event = _load_json(case_dir / "status-event.json")
-    open_prs = _load_json(case_dir / "open-prs.json")
-    build = _load_json(case_dir / "buildkite-build.json")
-    job_log_path = case_dir / "job-log.txt"
-    job_logs: dict[str, str] = {}
-    if job_log_path.is_file():
-        job_name = "Unit tests"
-        for job in build.get("jobs") or []:
-            if job.get("state") in FAIL_STATES and job.get("type") == "script":
-                job_name = str(job.get("name") or job_name)
-                break
-        pipeline = "sandbox-ci"
-        target_url = event.get("target_url") or ""
-        match = BK_URL_RE.search(target_url)
-        if match:
-            pipeline = match.group(2)
-        slug = _slugify(job_name)
-        text = job_log_path.read_text(encoding="utf-8")
-        job_logs[f"{pipeline}-{slug}"] = text
-        job_logs[slug] = text
-
-    child_builds_path = case_dir / "child-builds.json"
-    child_builds: dict[str, dict[str, Any]] = {}
-    if child_builds_path.is_file():
-        child_builds = _load_json(child_builds_path)
-
-    status_gates = evaluate_status_gates(event)
-    pr_gates = evaluate_open_pr_gate(open_prs if isinstance(open_prs, list) else [])
-    buildkite = resolve_buildkite_from_fixtures(event, build, job_logs, child_builds)
-
-    path_ready = (
-        status_gates["state_failure"]
-        and status_gates["context_contains_buildkite"]
-        and pr_gates["has_open_pr"]
-        and bool(buildkite.get("ok"))
-    )
-
-    return {
-        "workflow_id": case.get("workflow_id", WORKFLOW_ID),
-        "case_id": case.get("id", case_dir.name),
-        "layer": "integration",
-        "mode": "fixture",
-        "agent_invoked": False,
-        "path_gates": {
-            **status_gates,
-            **pr_gates,
-            # Prelude/dashboard shared_proceed is not exercised in fixture mode.
-            "path_ready": path_ready,
-        },
-        "buildkite": buildkite,
-        "expectations": case.get("expectations", {}),
-        "harness_notes": [
-            (
-                "Fixture mode is an integration check of status gates and recorded "
-                "Buildkite resolution; it does not call the live GH-AW agent or prelude."
-            ),
-            "shared_proceed / dashboard gates are asserted only in live mode.",
-        ],
-    }
-
-
-# ---------------------------------------------------------------------------
-# Live / production E2E
-# ---------------------------------------------------------------------------
 
 
 def load_e2e_config(path: Path) -> dict[str, Any]:
@@ -1538,7 +1322,7 @@ def run_live_case(
         context = str(observed.get("context") or context)
         # Missing creator.login must not default to Buildkite; URL matching
         # correlates the status, but publisher identity fails closed.
-        status_publisher = infer_status_publisher(observed, fallback="other")
+        status_publisher = publisher_for_created_build_status(observed)
     else:
         context = str(cfg.get("status_context") or "buildkite/elastic/oblt-aw-e2e")
         if not trigger.get("context_contains_buildkite", True):
@@ -1661,13 +1445,7 @@ def run_live_case(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Run estc-pr-buildkite-detective E2E / integration harness."
-    )
-    parser.add_argument(
-        "--mode",
-        choices=("fixture", "live"),
-        default="live",
-        help="live drives production status→agent path; fixture is integration-only.",
+        description="Run estc-pr-buildkite-detective live E2E harness."
     )
     parser.add_argument(
         "--case-id",
@@ -1678,7 +1456,7 @@ def main(argv: list[str] | None = None) -> int:
         "--testdata-root",
         type=Path,
         default=Path("testdata/agentic/estc-pr-buildkite-detective"),
-        help="Root of ESTC detective fixtures/cases",
+        help="Root of ESTC detective live E2E cases",
     )
     parser.add_argument(
         "--config-path",
@@ -1703,12 +1481,8 @@ def main(argv: list[str] | None = None) -> int:
     if not case_dir.is_dir():
         raise SystemExit(f"Case directory not found: {case_dir}")
 
-    if args.mode == "live":
-        cfg = load_e2e_config(args.config_path)
-        outcome = run_live_case(case_dir, cfg, run_url=args.run_url or None)
-    else:
-        outcome = run_fixture_case(case_dir)
-        outcome["run_url"] = args.run_url or None
+    cfg = load_e2e_config(args.config_path)
+    outcome = run_live_case(case_dir, cfg, run_url=args.run_url or None)
 
     args.outcome_path.parent.mkdir(parents=True, exist_ok=True)
     args.outcome_path.write_text(
@@ -1730,8 +1504,6 @@ def main(argv: list[str] | None = None) -> int:
 
     if outcome.get("blocked"):
         return 2
-    if args.mode == "fixture":
-        return 0 if outcome.get("path_gates", {}).get("path_ready") else 1
     return 0
 
 

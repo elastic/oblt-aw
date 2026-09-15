@@ -91,4 +91,4 @@ Copies in `elastic/ai-github-actions` remain for other consumers; this pilot doe
 - Shared model defaults: [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md)
 - Prior upstream (rollback / other consumers): [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml`](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
 - Prior upstream documentation: [elastic.github.io/ai-github-actions](https://elastic.github.io/ai-github-actions/workflows/gh-agent-workflows/estc-pr-buildkite-detective/)
-- E2E harness: [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) — fixtures under [`testdata/agentic/estc-pr-buildkite-detective/`](../../testdata/agentic/estc-pr-buildkite-detective/)
+- E2E harness: [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) — live cases under [`testdata/agentic/estc-pr-buildkite-detective/cases/`](../../testdata/agentic/estc-pr-buildkite-detective/cases/)
