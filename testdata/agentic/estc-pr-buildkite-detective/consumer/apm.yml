@@ -1,0 +1,22 @@
+# Synthetic consumer apm.yml for estc-pr-buildkite-detective integration tests.
+# Not a production manifest — markers are asserted by pytest.
+x-oblt-aw:
+  version: 1
+  obs:
+    fragments:
+      estc-fixture: .github/ai/fragments/estc-fixture.md
+    common:
+      setup-commands:
+        - echo "ESTC_COMMON_SETUP_SHOULD_NOT_APPLY"
+      inputs:
+        additional-instructions: ESTC_COMMON_INLINE_SHOULD_NOT_APPLY
+    workflows:
+      estc-pr-buildkite-detective:
+        additional-instructions-fragments:
+          - estc-fixture
+        setup-commands:
+          - export ESTC_FIXTURE=1
+          - ./scripts/estc-fixture-setup.sh
+        inputs:
+          additional-instructions: |
+            ESTC_CONSUMER_INLINE_MARKER

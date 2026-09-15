@@ -63,6 +63,7 @@ jobs:
     uses: elastic/oblt-aw/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), '\n') }}
+      # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), fromJSON('"\n"')) }}
     secrets:
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}
