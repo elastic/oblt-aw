@@ -15,6 +15,7 @@
 
 GH_AW_VERSION_FILE := .aw-compiler-version
 GH_AW_VERSION := $(shell tr -d '[:space:]' < $(GH_AW_VERSION_FILE))
+GH_AW_BIN ?= $(HOME)/.local/share/gh/extensions/gh-aw/gh-aw
 
 .PHONY: update-license update-license-check install-aw compile-aw
 
@@ -26,28 +27,17 @@ update-license:
 update-license-check:
 	python3 scripts/update_license_files.py --check
 
-## Install or verify the pinned gh aw compiler version
+## Install the pinned gh aw compiler binary directly from the upstream release, without gh extension plumbing.
 install-aw:
 	@expected="$(GH_AW_VERSION)"; \
 	if [ -z "$$expected" ]; then \
 		echo "error: $(GH_AW_VERSION_FILE) is empty or missing" >&2; \
 		exit 1; \
 	fi; \
-	current="$$(gh aw version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?' | head -1 || true)"; \
-	if [ "$$current" = "$$expected" ]; then \
-		echo "gh aw $$expected already installed"; \
-	else \
-		echo "Installing gh aw $$expected (current: $${current:-none})..."; \
-		gh extension remove gh-aw >/dev/null 2>&1 || true; \
-		gh extension install github/gh-aw --pin "$$expected"; \
-		installed="$$(gh aw version 2>&1 | awk '{print $$NF}' || true)"; \
-		if [ "$$installed" != "$$expected" ]; then \
-			echo "error: expected gh aw $$expected, got $${installed:-none}" >&2; \
-			exit 1; \
-		fi; \
-		echo "gh aw $$expected installed"; \
-	fi
+	install_dir="$$(dirname "$(GH_AW_BIN)")"; \
+	mkdir -p "$$install_dir"; \
+	curl -fsSL "https://raw.githubusercontent.com/github/gh-aw/refs/tags/$$expected/install-gh-aw.sh" | bash -s -- "$$expected";
 
-## Compile agentic workflow Markdown into .lock.yml
+## Compile agentic workflow Markdown into .lock.yml.
 compile-aw: install-aw
-	gh aw compile
+	$(GH_AW_BIN) compile
