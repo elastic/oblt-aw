@@ -1,11 +1,10 @@
 ---
 name: CI
 
-# Trigger on PRs targeting main (opened, updated, reopened).
+# Trigger on PRs targeting any branch (opened, updated, reopened).
+# Skip same-repo ESTC E2E fixture PRs (exact label + long-lived fixture branch).
 on:
   pull_request:
-    branches:
-      - main
     types: [opened, synchronize, reopened]
 
 permissions:
@@ -20,6 +19,12 @@ concurrency:
 jobs:
   pre-commit:
     name: Pre-commit
+    if: >-
+      !(
+        contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -32,6 +37,12 @@ jobs:
 
   python-tests:
     name: Python tests
+    if: >-
+      !(
+        contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -66,8 +77,33 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python scripts/validate_aw_workflow_permissions.py
 
+  gh-aw-drift:
+    name: gh-aw drift check
+    if: >-
+      !(
+        contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Recompile gh-aw workflows and fail on generated drift
+        run: make compile-aw-check
+
   typescript-tests:
     name: TypeScript tests
+    if: >-
+      !(
+        contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -90,6 +126,12 @@ jobs:
 
   scorecard:
     name: OpenSSF Scorecard
+    if: >-
+      !(
+        contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -111,7 +153,7 @@ jobs:
           publish_results: false
 
       - name: Upload Scorecard results to GitHub Security
-        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938  # v4.37.9
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63  # v4.38.0
         with:
           sarif_file: scorecard-results.sarif
 
@@ -121,6 +163,7 @@ jobs:
     needs:
       - pre-commit
       - python-tests
+      - gh-aw-drift
       - typescript-tests
       - scorecard
     runs-on: ubuntu-latest
@@ -128,19 +171,44 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Pass for e2e fixture PRs
+        if: >-
+          contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+          github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        run: echo "CI skipped for dedicated ESTC E2E fixture PR."
+
       - name: Check dependent jobs
+        if: >-
+          !(
+            contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+            github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+            github.event.pull_request.head.repo.full_name == github.repository
+          )
         id: check
         uses: elastic/oblt-actions/check-dependent-jobs@v1
         with:
           jobs: ${{ toJSON(needs) }}
 
       - name: Fail if any job failed
-        if: steps.check.outputs.status == 'failure'
+        if: >-
+          !(
+            contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+            github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+            github.event.pull_request.head.repo.full_name == github.repository
+          ) &&
+          steps.check.outputs.status == 'failure'
         run: |
           set -euo pipefail
           echo "One or more required jobs failed."
           exit 1
 
       - name: All checks passed
-        if: steps.check.outputs.status == 'success'
+        if: >-
+          !(
+            contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+            github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+            github.event.pull_request.head.repo.full_name == github.repository
+          ) &&
+          steps.check.outputs.status == 'success'
         run: echo "All checks passed."

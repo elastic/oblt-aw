@@ -34,12 +34,15 @@ jobs:
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       workflow-basename: obs-aw-dependency-review.yml
+      # Shared GitHub-read/safe-output contract:
+      # config/obs/instruction-fragments/ via instruction-fragment-map.json
+      # (workflows.dependency-review).
       platform-additional-instructions: |
         Noop when not applicable (mandatory):
-        - If the PR has NO dependency updates to review (e.g. no version bumps in manifest files, no changes to lockfiles that indicate dependency updates, or changes that do not match any supported ecosystem), you MUST call `noop` — do NOT create any comment.
+        - If the PR has NO dependency updates to review (e.g. no version bumps in manifest files, no changes to lockfiles that indicate dependency updates, or changes that do not match any supported ecosystem), you MUST call `noop` — do NOT call `add_comment` (no analysis comment from the agent).
         - Use the format: {"noop": {"message": "No action needed: [brief explanation]"}}
         - Examples: "No action needed: no dependency version updates found in the PR diff" or "No action needed: PR changes do not match supported dependency ecosystems"
-        - Do not create comments for no-op outcomes. The noop tool provides transparency without creating GitHub artifacts.
+        - Do not emit an analysis comment for no-op outcomes. The noop tool provides transparency; a separate control-plane job may still note an empty `comment_id` on the PR.
 
         Expand the analysis with a CVE-focused assessment based on changelog and release-note content for each updated dependency.
 
@@ -78,3 +81,40 @@ jobs:
       classification-labels: "oblt-aw/ai/merge-ready"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       github-token-policy: ${{ inputs.shared-token-policy }}
+      # PR visibility is owned by notify-no-comment; do not open meta-issues.
+      report-failure-as-issue: false
+
+  notify-no-comment:
+    needs: dependency-review
+    if: >-
+      always() &&
+      needs.dependency-review.result == 'success' &&
+      needs.dependency-review.outputs.comment_id == ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Upsert PR comment when dependency-review posted no analysis
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          MARKER='<!-- obs-aw-dependency-review:notify-no-comment -->'
+          body="$(printf '%s\n\n%s\n\n%s\n%s\n%s\n\n%s' \
+            "$MARKER" \
+            'Dependency review finished without posting an analysis comment.' \
+            "- Workflow run: ${RUN_URL}" \
+            "- If the agent intentionally called \`noop\` (no dependency updates to review), treat that as the completion signal." \
+            '- If you expected an analysis, check the run artifacts for empty safe outputs.' \
+            "To retry after a false bailout: push a new commit to the PR branch (or close/reopen) so \`pull_request\` re-runs dependency-review.")"
+          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+            | head -n 1)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          fi

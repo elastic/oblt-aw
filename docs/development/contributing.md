@@ -24,10 +24,10 @@ pip install pre-commit
 ### 2. Install pre-commit hooks
 
 ```bash
-pre-commit install
+pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 
-This installs the hooks from [.pre-commit-config.yaml](../../.pre-commit-config.yaml). They run automatically on `git commit`.
+This installs the hooks from [.pre-commit-config.yaml](../../.pre-commit-config.yaml). They run on `git commit` and `git push`. Agents must also follow the GOLD rule [.cursor/rules/ci-precommit-before-push.mdc](../../.cursor/rules/ci-precommit-before-push.mdc).
 
 ### 3. Install Python dependencies
 
@@ -111,7 +111,7 @@ The following hooks run on commit (and in CI via the pre-commit job):
 
 ## CI Workflow
 
-The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) runs on every PR to `main`. See [docs/workflows/ci.md](../workflows/ci.md) for details.
+The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) runs on every pull request (any base branch). See [docs/workflows/ci.md](../workflows/ci.md) for details.
 
 ## References
 

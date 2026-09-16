@@ -1,0 +1,245 @@
+# Agentic workflow testing platform (design)
+
+**Status:** Design for [#1877](https://github.com/elastic/oblt-aw/issues/1877) (parent [#1879](https://github.com/elastic/oblt-aw/issues/1879)).
+**Hosting decision:** Implement the platform **inside `elastic/oblt-aw`** for the first vertical slice and near-term layers. Revisit a dedicated repository only if E2E harness size, shared multi-org consumers, or cross-catalog ownership outgrow this repo.
+**First vertical slice:** `obs:estc-pr-buildkite-detective` (status path → wrapper → in-repo lock).
+
+This document defines test layers (unit through E2E), how to stabilize stochastic agent runs, how release promotion consumes results (contract for [#1878](https://github.com/elastic/oblt-aw/issues/1878)), and an executable checklist for the first vertical slice. It does **not** ship the full platform in one change.
+
+## Overview
+
+Agentic workflows in `oblt-aw` combine deterministic control-plane logic (prelude, registries, fragment composition, validators) with stochastic agent execution (model output, tool use). Conventional CI already covers much of the deterministic surface via `pytest`, TypeScript unit tests, and workflow validators in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml). It does **not** yet prove production-like agent paths end to end.
+
+The testing platform goal: recreate environment and inputs carefully enough that regressions are detectable, without requiring bit-identical LLM free text.
+
+```mermaid
+flowchart TB
+  U[Unit: pure logic and contracts]
+  F[Functional: workflow fragments and job contracts]
+  I[Integration: wrappers plus primitives plus tokens or policies]
+  E[E2E: production-like agent runs with controlled env]
+  U --> F --> I --> E
+  E --> R[Release gate: promote or block]
+```
+
+## Prerequisites
+
+- Familiarity with [architecture overview](overview.md), [CI workflow docs](../workflows/ci.md), and [aw-prelude](../workflows/aw-prelude.md).
+- Sibling tracks: primitive migration [#1876](https://github.com/elastic/oblt-aw/issues/1876), release design [#1878](https://github.com/elastic/oblt-aw/issues/1878).
+
+## Layer definitions
+
+Each layer owns a distinct proof. Higher layers must not replace lower ones.
+
+| Layer | What it proves | Primary ownership today | Where it runs |
+|-------|----------------|-------------------------|---------------|
+| **Unit** | Pure functions and scripts behave for known inputs/outputs (gates, registry, fragment merge, dashboard parse, TS helpers). | `tests/*.py`, `tests/unit/*.test.ts` | Every PR (`python-tests`, `typescript-tests` in `ci.yml`) |
+| **Functional** | Workflow YAML and GH-AW contracts hold: prelude/`shared-proceed`, resolve-agentic-assets on `gh-aw-*` callers, reusable permissions alignment, actionlint/pre-commit. | `scripts/validate_aw_workflow_*.py`, pre-commit | Every PR |
+| **Integration** | Wrapper ↔ lock ↔ token/policy/fragment wiring works together without a live model (or with mocked/stubbed agent steps). Frozen fixtures for inputs, secrets shapes, and resolved instruction layers. | First slice: `tests/integration/test_estc_pr_buildkite_detective.py` + `testdata/agentic/estc-pr-buildkite-detective/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Token-policy dry-run deferred. | Every PR via `pytest tests/` (`python-tests` in `ci.yml`); heavier fixtures may later move to promote |
+| **E2E** | Production-like path: client/orchestrator routing, prelude gate, resolve assets, agent job, observable side effects under a controlled consumer environment. | `tests/e2e/` (harness/oracle unit coverage) + path-filtered PR / manual / `workflow_call` live workflow for Buildkite detective ([#1911](https://github.com/elastic/oblt-aw/issues/1911)) | Promote paths and path-filtered PR smoke — **not** every PR by default |
+
+### Unit (existing baseline)
+
+Examples of what unit tests already cover (non-exhaustive):
+
+- Dashboard enablement and gate evaluation (`test_get_enabled_workflows.py`, `test_evaluate_workflow_gates.py`)
+- Instruction fragments and APM asset resolution (`test_instruction_fragments.py`, `test_apm_agentic_assets.py`)
+- Registry and org config (`test_workflow_registry.py`, `test_org_config.py`)
+- Distribution helpers (`test_build_repos_matrix.py`, `test_build_target_operations.py`)
+- TypeScript helpers under `tests/unit/` (for example automerge validation)
+
+**Assert:** deterministic equality and typed errors. No live GitHub agent runs.
+
+### Functional (existing baseline)
+
+CI steps beyond pytest:
+
+- `python scripts/validate_aw_workflow_prelude.py`
+- `python scripts/validate_aw_workflow_resolve_agentic_assets.py`
+- `python scripts/validate_aw_workflow_permissions.py`
+- Pre-commit (yamllint, actionlint, ruff, mypy on `scripts/`, and related hooks)
+
+**Assert:** static/contract properties of workflow graphs and permissions. Still no live agent.
+
+### Integration (first slice landed; expand later)
+
+Scope for this layer:
+
+- Compose wrapper inputs from fixtures that mimic `aw-resolve-agentic-assets` outputs (`additional-instructions`, `setup-commands`, layer JSON).
+- Validate lock `workflow_call` inputs required by wrappers remain satisfied after fragment or interface changes.
+- Exercise token-policy resolution paths with **fixture policy names** and dry-run or mocked `create-token` where the repository already supports testing without minting real credentials.
+- Prefer recorded GitHub API fixtures over live calls when asserting wrapper orchestration scripts.
+
+**First slice (`obs:estc-pr-buildkite-detective`, [#1910](https://github.com/elastic/oblt-aw/issues/1910)):** fixtures under [`testdata/agentic/estc-pr-buildkite-detective/`](../../testdata/agentic/estc-pr-buildkite-detective/) and checks in [`tests/integration/test_estc_pr_buildkite_detective.py`](../../tests/integration/test_estc_pr_buildkite_detective.py). Covers resolve → wrapper input mapping and lock input contract without a live model. **Token-policy dry-run:** deferred (not in #1910).
+
+**Assert:** wiring and contracts across multiple modules. Agent model calls remain stubbed or skipped.
+
+### End-to-end (first slice landed; expand later)
+
+Scope for this layer:
+
+- Run the real status → `trigger-obs-aw-status` → `obs-aw-event-status` → `obs-aw-estc-pr-buildkite-detective` → in-repo `gh-aw-estc-pr-buildkite-detective.lock.yml` path against **`elastic/oblt-aw`** (this slice’s production consumer).
+- **Entry event (mandatory):** the distributed client, status orchestrator, and wrapper all require `github.event_name == 'status'` (plus failure + `buildkite` context on this slice). An outer `workflow_dispatch`, path-filtered `pull_request`, or `workflow_call` job must drive a **real** failed commit status with a `buildkite` context and a `target_url` that the lock's Buildkite URL parser accepts. Those outer triggers alone do not enter the route. Live happy path: the harness creates an intentional Buildkite failure; **Buildkite** publishes the status via `publish_commit_status` (default context `buildkite/<pipeline>`). No harness-posted synthetic statuses.
+- **Revision under test:** gating E2E must pin and record the **exact candidate ref or digest** (control-plane workflows, client template refs, and lock `uses` as applicable). Runs that follow floating `@main` (or other moving tips) are **smoke-only** and **ineligible** for production promote. The first landed slice’s manual dispatch currently exercises `@main` (smoke/health) while always targeting a **long-lived** fixture PR (`e2e/estc-pr-buildkite-detective`) for the Buildkite failure; candidate-pin wiring is a promote follow-up ([#1878](https://github.com/elastic/oblt-aw/issues/1878)).
+- Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, dynamic intentional Buildkite failure via `BUILDKITE_TOKEN` + [`catalog-info.yaml`](../../catalog-info.yaml) pipeline `oblt-aw-e2e-estc-fail` with `publish_commit_status: true`, dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
+- Capture artifacts: workflow run URL, candidate ref/digest when gating, agent job logs (redacted), resulting PR comment or issue side effects, structured safe-outputs if present.
+
+**Assert:** using the oracle strategy below — never free-text equality of the full agent narrative.
+
+## Stochastic E2E: environment recreation and oracles
+
+### Environment recreation
+
+| Dimension | Approach |
+|-----------|----------|
+| **Prompts / fragments** | Pin fragment files and `obs-defaults` used by the slice; record resolved instruction layer list in the E2E artifact. |
+| **Inputs** | Fixture status event (or replayable synthetic failure) with stable Buildkite context strings. |
+| **Consumer repo** | **`elastic/oblt-aw`** for this slice (no separate sandbox). Dedicated sandbox remains an option for future multi-workflow expansion. |
+| **Tokens** | Ephemeral tokens via existing create-token / policy patterns where required; least privilege; no long-lived PATs in fixtures. Exact policy names **Unknown** until inventory. |
+| **Runners / isolation** | GitHub-hosted runners unless a follow-up proves a need for larger/self-hosted. No shared mutable state across E2E jobs. |
+| **Network / tools** | Allow only tools the workflow already declares; prefer recorded Buildkite log payloads over live org scraping when possible. |
+| **Model** | Same model defaults as production fragments for the slice, unless a cheaper deterministic stub is explicitly introduced for a non-agent subpath. Document any deliberate drift. |
+
+### Oracle strategy (mandatory)
+
+Prefer stronger, cheaper checks first:
+
+1. **Deterministic path checks** — job reaches agent stage; `shared-proceed` true; resolve-agentic-assets succeeds; lock completes without infrastructure failure.
+2. **Structured side effects** — expected GitHub object exists (for example a PR comment with a stable marker, or an issue with required labels/title prefix `[oblt-aw]`). Exact prose is not compared.
+3. **Schema / structured outputs** — when the lock emits safe-outputs or JSON-like fields, validate against an explicit schema or required keys.
+4. **Rubric (optional, later)** — lightweight checklist scored by a separate deterministic script or human gate for promote-critical slices only.
+5. **Golden free-text** — **out of scope**. Bit-identical LLM text is a non-goal ([#1877](https://github.com/elastic/oblt-aw/issues/1877)).
+
+**Quarantine and missing-case policy (fail-closed for promote):**
+
+- Every flaky E2E case that is skipped must appear on an explicit quarantine list with **owner** and **expiry**.
+- For **production promote**, a quarantined case **blocks** the promote (no permanent bypass). Health/smoke runs may still execute the case path, but the oracle reports `pass: false` / `quarantined: true` so `outputs.pass` stays fail-closed.
+- A required in-scope case that is **missing** from the E2E report (not run, not recorded) is treated as **`unknown`** and **blocks** production promote.
+- Do not silently retry into green. Retries only as a documented temporary mitigation with an owner.
+
+## Hosting decision
+
+**Decision:** Keep the testing platform in **`elastic/oblt-aw`**.
+
+| Option | Verdict |
+|--------|---------|
+| **Inside `oblt-aw`** | **Chosen.** Unit and functional suites, CI validators, in-repo GH-AW pilot (`gh-aw-estc-pr-buildkite-detective`), and docs already live here. |
+| **New dedicated repo** | Deferred. Reconsider if E2E harness becomes a shared product across catalogs outside Observability ownership, or if repo size/noise justifies a split. |
+| **Elsewhere (for example only in `ai-github-actions`)** | Rejected for Observability-owned wrappers and control-plane contracts; those assets are authored and gated here. |
+
+**Fixture PR noise control:** ESTC fixture PRs (exact label `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective` in `elastic/oblt-aw`) skip repo [`ci.yml`](../../.github/workflows/ci.yml) work jobs and agentic pull-request routes in [`obs-aw-event-pull-request.yml`](../../.github/workflows/obs-aw-event-pull-request.yml) (dependency-review, automerge). Do not broaden that skip to an arbitrary `e2e:` prefix.
+
+Primitive migration ([#1876](https://github.com/elastic/oblt-aw/issues/1876)) may move more locks into this repo; colocating tests with that ownership reduces cross-repo friction.
+
+## Release consumption contract
+
+This section is the test-side interface for [#1878](https://github.com/elastic/oblt-aw/issues/1878). Release tagging/pointer mechanics stay in that issue; promote/block **signals** are defined here.
+
+```mermaid
+flowchart LR
+  Build[Build or package change]
+  L1[Unit plus functional]
+  L2[Integration]
+  Cand[Candidate pointer or label]
+  L3[E2E tier gating]
+  Prod[Production pointer or label]
+  Build --> L1 --> L2 --> Cand
+  Cand -->|candidate gates plus E2E| L3
+  L3 -->|pass| Prod
+  Prod -->|rollback| Prev[Previous known-good pointer]
+```
+
+| Gate | Required layers | Typical trigger | On failure |
+|------|-----------------|-----------------|------------|
+| **Merge to `main`** | Unit + functional (current `ci.yml` required job) | Every PR | Block merge |
+| **Candidate promote** | Merge gates + integration suite for touched workflows | Release automation / manual promote ([#1878](https://github.com/elastic/oblt-aw/issues/1878)) | Block candidate pointer update |
+| **Production promote** | Candidate gates + **gating** E2E for every in-scope workflow (see coverage rules below) | Promote train | Block production pointer; keep previous known-good |
+| **Rollback** | N/A (operational) | On-call / release owner | Point back to previous known-good; re-run smoke E2E optional |
+
+**E2E coverage rules:**
+
+| Run class | Coverage | Revision pin | Eligible for production promote? |
+|-----------|----------|--------------|----------------------------------|
+| **Gating** | Every in-scope workflow id must be `pass`. Uncovered or `unknown` **blocks**. | Exact candidate ref/digest recorded in the artifact | Yes |
+| **Smoke / health** | Sampling allowed for cost control | May use floating `@main` | **No** |
+
+**Artifacts (minimum):**
+
+- Pass / fail / `unknown` per layer and per workflow id under test
+- Candidate ref or digest exercised (required on gating runs; omit or mark `smoke` on health runs)
+- Workflow run URLs for integration/E2E
+- Oracle report (which checks ran, which passed)
+- Quarantine list (owner + expiry for any skipped cases)
+
+**Cost control:** E2E is tiered — path-filtered on ESTC-related PRs (smoke against `@main`); **gating** E2E on promote once candidate-pin lands; sampling only on smoke/health runs. Expand the gating suite only when oracles are stable.
+
+Exact workflow file names for promote jobs are **Unknown** until #1878 implementation; this contract only requires that promote steps consume the signals above.
+
+## First vertical slice: `estc-pr-buildkite-detective`
+
+### Why this slice
+
+- In-repo primitive pilot; wrapper already pins `elastic/oblt-aw/.../gh-aw-estc-pr-buildkite-detective.lock.yml`.
+- Workflow doc explicitly tracks missing E2E under [#1877](https://github.com/elastic/oblt-aw/issues/1877).
+- Side effects are observable (PR comment / investigation outcome) without needing the full security or autodoc surface area.
+
+### Acceptance criteria for the slice (implementation follow-ups)
+
+1. Integration fixtures cover resolve → wrapper input mapping for this workflow. (**Done** — [#1910](https://github.com/elastic/oblt-aw/issues/1910))
+2. Production E2E on **`elastic/oblt-aw`** exercises intentional Buildkite failure → Buildkite-published status → detective agent. Outer trigger may be path-filtered `pull_request`, dispatch, or `workflow_call`; the route still requires a real `status` event. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+3. Oracles: infrastructure success + structured side-effect check (stable marker or schema); no full free-text golden file.
+4. Results publish as artifacts / `workflow_call` outputs consumable by a future #1878 promote job. Gating runs must include candidate ref/digest and pass/fail/`unknown` per workflow id; smoke runs are labeled ineligible.
+5. Docs updated: this design remains authoritative; workflow doc links here instead of “not covered”.
+
+### Follow-up issues
+
+- Integration fixtures: [#1910](https://github.com/elastic/oblt-aw/issues/1910)
+- E2E harness and oracles: [#1911](https://github.com/elastic/oblt-aw/issues/1911)
+
+### Implementation checklist
+
+- [x] Inventory secrets for live E2E (`BUILDKITE_LOGS_API_TOKEN` via client trigger; `BUILDKITE_TOKEN` + intentional-failure pipeline). See [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Use **`elastic/oblt-aw`** as the E2E consumer (no separate sandbox). Enable `obs:estc-pr-buildkite-detective` on its Control Plane Dashboard before live runs. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Add integration fixtures under a dedicated tree — `tests/integration/` + `testdata/agentic/estc-pr-buildkite-detective/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Token-policy dry-run deferred.
+- [x] Add E2E workflow [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` only; long-lived fixture PR + concurrency); kept out of default PR `required`. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Implement oracle script(s) that assert structured outcomes and emit a machine-readable report (`scripts/oracle_estc_pr_buildkite_detective_e2e.py`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Wire artifact upload + `outputs.pass`; document how #1878 promote reads pass/fail (`summary.json` / `oracle-report.json`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] ESTC E2E is manual-only on a long-lived fixture (no quarantine list for the single live case). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Update [obs-aw-estc-pr-buildkite-detective](../workflows/obs-aw-estc-pr-buildkite-detective.md) when the first E2E job lands. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [ ] Pin gating runs to the candidate ref/digest (record in artifacts); treat floating `@main` runs as smoke-only; promote must reject smoke-only reports. ([#1878](https://github.com/elastic/oblt-aw/issues/1878) / [#1911](https://github.com/elastic/oblt-aw/issues/1911))
+
+## Non-goals
+
+- Shipping the full multi-workflow E2E matrix in one change.
+- Guaranteeing bit-identical LLM output.
+- Finalizing release pointer/tag mechanics ([#1878](https://github.com/elastic/oblt-aw/issues/1878)).
+- Completing primitive migration ([#1876](https://github.com/elastic/oblt-aw/issues/1876)).
+
+## Open questions (remaining unknowns)
+
+Resolved by this design where noted; remaining items are for implementation issues:
+
+| Topic | Status |
+|-------|--------|
+| Platform home | **Resolved:** `elastic/oblt-aw` |
+| First E2E vertical slice | **Resolved:** `obs:estc-pr-buildkite-detective` |
+| Oracle strategy | **Resolved:** structured side effects + schema; no free-text golden |
+| E2E consumer repository | **Resolved:** `elastic/oblt-aw` (no separate sandbox for this slice) |
+| Exact credentials, runners, and isolation inventory | **Resolved for live:** `BUILDKITE_LOGS_API_TOKEN` + `BUILDKITE_TOKEN` + intentional-failure pipeline; dashboard checkbox must be enabled |
+| E2E vs release gates | **Resolved:** E2E gates **production** promote (after candidate); candidate uses merge + integration |
+| Gating coverage / quarantine | **Resolved:** gating E2E requires every in-scope workflow; uncovered/`unknown` and quarantined cases set `pass: false` (block promote / `outputs.pass`); smoke may still sample coverage but cannot green-gate via quarantine |
+| E2E revision pin | **Resolved policy:** gating runs pin candidate ref/digest; `@main` is smoke-only — **wiring for promote still open** ([#1878](https://github.com/elastic/oblt-aw/issues/1878)) |
+| Status-route entry | **Resolved:** Buildkite publishes failed `status` (+ Buildkite context/`target_url`); harness creates the intentional failure build; path-filtered PR / dispatch / `workflow_call` are outer-only |
+| How closely E2E must match production models/tools | **Resolved policy:** match production fragment defaults for the slice; document any intentional drift; prefer recorded Buildkite payloads when live access is costly or unstable |
+| Promote workflow wiring | **Unknown** — owned with [#1878](https://github.com/elastic/oblt-aw/issues/1878) |
+
+## References
+
+- Issue: [Design testing platform for agentic workflows (#1877)](https://github.com/elastic/oblt-aw/issues/1877)
+- Parent: [Simplify agentic workflow ownership, contracts, release, and testing (#1879)](https://github.com/elastic/oblt-aw/issues/1879)
+- Release sibling: [#1878](https://github.com/elastic/oblt-aw/issues/1878)
+- Migrate sibling: [#1876](https://github.com/elastic/oblt-aw/issues/1876)
+- CI: [docs/workflows/ci.md](../workflows/ci.md), [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)
+- Slice workflow: [obs-aw-estc-pr-buildkite-detective.md](../workflows/obs-aw-estc-pr-buildkite-detective.md)
+- E2E harness (slice): [estc-pr-buildkite-detective-e2e.md](../testing/estc-pr-buildkite-detective-e2e.md)
+- Local checks: [docs/development/contributing.md](../development/contributing.md)

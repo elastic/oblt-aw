@@ -1,6 +1,7 @@
 name: Observability Agentic Workflow — Pull Request Event
 
 # Event-scoped orchestrator: one shared prelude chain for all pull_request routes.
+# Skip agentic PR routes only for the dedicated same-repo ESTC E2E fixture PR.
 on:
   workflow_call:
 permissions:
@@ -20,6 +21,11 @@ jobs:
   automerge:
     needs: run-aw-prelude
     if: >-
+      !(
+        contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      ) &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge.yml'] == 'true' &&
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action) &&
@@ -45,6 +51,11 @@ jobs:
   dependency-review:
     needs: run-aw-prelude
     if: >-
+      !(
+        contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      ) &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-dependency-review.yml'] == 'true' &&
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&

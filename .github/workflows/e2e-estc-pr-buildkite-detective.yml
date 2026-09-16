@@ -1,0 +1,142 @@
+---
+name: E2E — ESTC PR Buildkite Detective
+
+# Manual production E2E for obs:estc-pr-buildkite-detective against elastic/oblt-aw.
+# Live happy path only: Buildkite publishes commit status → trigger → agent.
+# Reuses one long-lived fixture PR (label e2e:estc-pr-buildkite-detective,
+# branch e2e/estc-pr-buildkite-detective); creates it if missing; never closes it.
+# Not part of the default PR required gate in ci.yml.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Shared mutable fixture + status-route waiters: one run at a time.
+  group: e2e-estc-pr-buildkite-detective
+  cancel-in-progress: false
+
+env:
+  CASE_ID: status-failure-open-pr-live
+
+jobs:
+  e2e:
+    name: ESTC detective E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: read
+      actions: read
+      issues: write
+      checks: read
+    env:
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      BUILDKITE_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
+      E2E_BUILDKITE_ORG: ${{ vars.E2E_BUILDKITE_ORG }}
+      E2E_BUILDKITE_PIPELINE: ${{ vars.E2E_BUILDKITE_PIPELINE }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-runtime.txt
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-runtime.txt
+
+      - name: Prepare artifact directory
+        run: mkdir -p "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}"
+
+      - name: Run harness
+        id: harness
+        continue-on-error: true
+        run: |
+          set +e
+          python3 scripts/estc_pr_buildkite_detective_e2e_harness.py \
+            --case-id "${CASE_ID}" \
+            --run-url "${RUN_URL}" \
+            --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json"
+          echo "harness_exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Run structured oracle
+        id: oracle
+        run: |
+          set -euo pipefail
+          python3 scripts/oracle_estc_pr_buildkite_detective_e2e.py \
+            --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json" \
+            --report-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/oracle-report.json" \
+            --summary-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/summary.json" \
+            --testdata-root testdata/agentic/estc-pr-buildkite-detective \
+            --expected-case-id "${CASE_ID}"
+
+      - name: Print E2E failure summary
+        if: always()
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          case_id = os.environ["CASE_ID"]
+          out_dir = Path(f"artifacts/e2e/estc-pr-buildkite-detective/{case_id}")
+          summary_path = out_dir / "summary.json"
+          outcome_path = out_dir / "outcome.json"
+          if not summary_path.is_file() and not outcome_path.is_file():
+              print(f"No E2E artifacts under {out_dir}; nothing to summarize.")
+              raise SystemExit(0)
+
+          summary = {}
+          if summary_path.is_file():
+              summary = json.loads(summary_path.read_text(encoding="utf-8"))
+          outcome = {}
+          if outcome_path.is_file():
+              outcome = json.loads(outcome_path.read_text(encoding="utf-8"))
+
+          passed = summary.get("pass")
+          if passed is True:
+              print(f"E2E case {case_id}: pass=true")
+              raise SystemExit(0)
+
+          print(f"E2E case {case_id}: pass={passed!r}")
+          detail = (
+              summary.get("failure_detail")
+              or summary.get("block_reason")
+              or outcome.get("block_reason")
+              or "(no failure_detail/block_reason in artifacts)"
+          )
+          print("Failure detail:")
+          print(detail)
+          failed = summary.get("failed_checks") or []
+          if failed:
+              print("Failed checks:")
+              for item in failed:
+                  print(f"  - [{item.get('id')}] {item.get('detail')}")
+          bk = outcome.get("buildkite") or {}
+          if isinstance(bk, dict) and bk.get("web_url"):
+              print(f"Buildkite: {bk.get('web_url')} state={bk.get('state')!r}")
+          if outcome.get("commit_sha"):
+              print(f"Commit: {outcome.get('commit_sha')}")
+          fixture = outcome.get("fixture") or {}
+          if isinstance(fixture, dict) and fixture.get("branch"):
+              print(f"Fixture: {fixture.get('branch')} pr={fixture.get('pr_number')}")
+          first = str(detail).splitlines()[0]
+          print(f"::error::E2E {case_id}: {first}")
+          PY
+
+      - name: Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-estc-pr-buildkite-detective-${{ env.CASE_ID }}-${{ github.run_id }}
+          path: artifacts/e2e/estc-pr-buildkite-detective/${{ env.CASE_ID }}/
+          if-no-files-found: warn
+          retention-days: 30

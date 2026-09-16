@@ -1,0 +1,109 @@
+---
+description: Fail-closed E2E harness/oracle evidence chains — chase every substitute signal when hardening gates.
+globs: scripts/*e2e*.py,scripts/oracle_*.py,tests/e2e/**,testdata/agentic/**/case.json,docs/testing/**e2e*
+alwaysApply: false
+---
+
+# Fail-closed E2E gates (harness → outcome → oracle)
+
+When changing E2E harnesses, oracles, case expectations, or reviewing “fail closed” feedback:
+
+## Non-negotiable invariant
+
+A gate assertion may pass **only** on the named evidence it claims to check. No alternate signal may green the same check.
+
+## Mandatory evidence-chain walk
+
+Do **not** stop after removing the first fallback named in a review comment. For every hardened field, walk end-to-end:
+
+1. **Producer** (harness / collector) — what is written when evidence is absent?
+2. **Outcome schema** — which fields still carry substitute signals (e.g. overall run `conclusion` next to `job_conclusion`)?
+3. **Consumer** (oracle / assertions) — every `or`, default, empty mapping, partial mapping, typo key, or “prefer X else Y” that can still authorize the gate.
+4. **Tests** — one regression per closed hole, and test helpers must default to the **same evidence source as production** (checked-in `case.json`), never harness-copied `outcome.expectations` / `outcome.trigger`.
+
+Before considering a fail-closed change done, answer explicitly:
+
+> If the named field is absent, empty, mistyped, or the wrong type, what still makes this gate pass?
+
+If the answer is anything other than “nothing — the check fails,” keep walking the chain.
+
+## Adversarial self-review before push / ready-for-review (mandatory)
+
+Do **not** push or request review on a fail-closed change until you complete a **second** chain walk that hunts for remaining substitute paths. Treating the first named fix as “done” is a process failure.
+
+Check each of these explicitly (add a regression when any is open):
+
+| Hole class | Question that must be “fails closed” |
+|---|---|
+| Empty / missing map | Does `expectations: {}` or missing `case.json` still green generic checks? |
+| Typo / partial map | Does `{"typo": true}` or a missing required mode key skip `if key in` gates? |
+| Nested thresholds | Does a non-empty parent object accept `min_failed_jobs: 0` or a truncated required-key list? |
+| Schema vs evaluator lockstep | Does the schema accept a value the evaluator never asserts (e.g. live `expect_agent_comment: "true"` string)? |
+| Trigger / routing contract | Do live status state/context/publisher/URL gates still depend on harness-copied `outcome.trigger` instead of checked-in `case.trigger`? |
+| Call-site vs helper | Does a unit test of a helper alone leave a call site free to regress `fallback=`? Prefer a named seam used at the call site. |
+| Test/prod parity | Do unit helpers still default to harness-copied outcome blobs while CLI loads `case.json`? |
+| Setup before outcome | Can sync / Contents API / create-build errors exit without `outcome.json` + `block_reason`? |
+| Escape hatch purity | Does a create-skip override still mutate fixture branches or call create-only APIs? |
+| Duplicate trigger producers | Can notify + `publish_commit_status` (or any leftover `github_commit_status` notify) double-fire the detective? |
+| Multiple / step notify | Does any pipeline or step `github_commit_status` notify still sync when statuses must come only from `publish_commit_status`? Reject every notify entry. |
+| Unroutable status context | Can `expected_status_context` omit the `buildkite` substring while the waiter still polls? Reject before sync/create. |
+| Producer/waiter context lockstep | Can env org/pipeline overrides make the waiter expect a context other than `buildkite/<pipeline>` that Buildkite will publish? |
+| Skipped status-route race | Can a completed pending→skipped `trigger-obs-aw-status` run satisfy `wait_for_new_run` / `status_job_executed` ahead of the failure-triggered success run? |
+| Shared mutable fixture | Do concurrent development PRs share one fixture PR/branch/status context without isolation? Prefer one global concurrency group for a long-lived fixture. |
+| Path-filtered self-trigger | Can fixture-branch sync commits start the privileged live job again? Exclude fixture branch prefix from the job `if`. |
+| Secrets on PR checkout | Is `pull_request_target` avoided? If secrets remain on same-repo `pull_request`, is that an explicit trust boundary (collaborator write + CODEOWNERS), with forks excluded? |
+
+If Copilot (or a human) files a follow-up on the same PR after a “fix,” treat that as incomplete first-pass evidence: extend the chain in the same change set; do not argue the first patch was enough.
+
+## Common false-green patterns (reject these)
+
+- Overall workflow/run conclusion standing in for a **named job** conclusion
+- Empty `expectations: {}` (or missing case file) skipping case-specific checks while generic checks pass
+- **Non-empty but incomplete** expectations (e.g. `{"typo": true}` or missing a required mode key) skipping `if key in expectations` gates — treat as missing; require a mode-specific expectation schema
+- Non-empty but shallow nested objects (e.g. `buildkite: {}` or `min_failed_jobs: 0`) authorizing weaker gates than the checked-in floor
+- Live routing gates authorized only when keys appear in harness-copied `outcome.trigger`
+- Inferring publisher/source from “we expected this path” fallbacks when identity fields are absent
+- Trusting harness-copied `outcome.expectations` / `outcome.trigger` when checked-in `case.json` is the source of truth
+- Unit/oracle test helpers that default to outcome blobs while production loads `case.json` (suite green, CLI false-green or the reverse)
+- Fixing only the producer while the oracle still does `job_conclusion or conclusion` (or equivalent)
+- Schema accepting values the evaluator ignores
+- Setup / preflight exceptions that abort `run_live_case` (or `main`) **before** writing `outcome.json` with `blocked` + `block_reason` — Contents sync and Buildkite create/poll errors must become blocked outcomes
+- Escape-hatch paths (e.g. fixed Buildkite target URL) that still mutate fixture branches, require write tokens, or call create-only preflights
+- Duplicate producers of the same trigger signal (e.g. `publish_commit_status` plus any `github_commit_status` notify)
+- Accepting any pipeline- or step-level `github_commit_status` notify when catalog `publish_commit_status` is the sole publisher
+- `expected_status_context` (or template output) that does not contain `buildkite`, so status triggers never route
+- Binding `wait_for_new_run` to the first completed status workflow run without requiring named-job `status_job_executed` (pending→skipped races)
+- Substring / comment-only guards standing in for parsed config (e.g. `"github_commit_status" in yaml_text`)
+- Waiter context derived from env overrides (`E2E_BUILDKITE_ORG` / `E2E_BUILDKITE_PIPELINE`) without aligning to `buildkite/<pipeline>` publish
+
+## When reviewing Copilot / human fail-closed comments
+
+Treat the comment as a **symptom**. Plan the full chain fix in one change set. If a later review finds a remaining substitute path, that is a process failure from an incomplete first pass — extend the chain, do not argue the first patch was “enough.”
+
+Closing “empty mapping” without also rejecting typo/partial mappings, nested threshold holes, trigger-contract holes, and without aligning test helpers to production evidence is an incomplete pass — do all in the same change.
+
+### ESTC / Buildkite live-path checklist (status publish)
+
+When changing fail-pipeline YAML, catalog `provider_settings`, or the ESTC live harness, also verify:
+
+1. **No github_commit_status notify** — reject every pipeline- and step-level `github_commit_status` notify entry (statuses come from catalog `publish_commit_status` only).
+2. **Parse notify** — validate real YAML `notify` entries, not comment substrings (comment-only mentions must neither pass nor fail incorrectly).
+3. **Context lockstep** — expected waiter context is exactly `buildkite/<resolved pipeline>` (reject config overrides that disagree; env org/pipeline must stay in lockstep).
+4. **Routable context** — resolved context must contain lowercase `buildkite` (status trigger filter). Catalog keeps `publish_commit_status: true` and `publish_commit_status_per_step: false`; do not set Terrazzo-unknown `prevent_custom_statuses_from_using_buildkite_prefix`.
+5. **Skipped-run race** — `wait_for_new_run` must ignore completed status-route jobs with conclusion `skipped` and keep polling for named-job success.
+6. **Exceptions → blocked outcome** — sync/API/create/poll/`OSError` errors write `blocked` + `block_reason`, never an empty artifact path (include clear-comments and initial run listing).
+7. **Runtime deps** — if the harness imports PyYAML (or other runtime packages), the E2E workflow must `pip install -r requirements-runtime.txt` (or equivalent) before running.
+8. **No live pipeline GET** — do not call `GET …/pipelines/{pipeline}` for provider-settings preflight (needs `read_pipelines`); rely on checked-in YAML/catalog + create/poll scopes only.
+9. **Sync tip SHA lockstep** — after Contents PUT sync of the fail pipeline, create/wait on the PUT `commit.sha`; never re-bind to a re-fetched PR `headRefOid` (can lag and hide the status from PR Checks).
+10. **Long-lived fixture + concurrency** — live runs reuse one fixture branch under `e2e/estc-pr-buildkite-detective` (create if missing; do not close). Serialize with a global concurrency group so overlapping matrices cannot cross-bind status-route runs.
+
+## Local validation before commit / push
+
+Do **not** commit or push fail-closed E2E changes until these pass locally on the touched files:
+
+1. **GOLD** — `pre-commit run --files <touched-paths>` per [`.cursor/rules/ci-precommit-before-push.mdc`](ci-precommit-before-push.mdc) (actionlint, ruff, mypy, yaml, …). **Mandatory before any push.**
+2. `ruff format` / `ruff check` are covered by that pre-commit run; do not substitute pytest for them.
+3. `pytest` for the affected E2E / oracle suite (for ESTC: `tests/e2e/test_estc_pr_buildkite_detective_e2e.py`)
+4. Complete the **adversarial self-review** table above and confirm no open substitute path remains
+
+Pytest alone is not enough — CI also enforces Pre-commit (actionlint included), and a green suite does not prove the chain walk was finished.

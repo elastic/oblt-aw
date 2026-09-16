@@ -19,6 +19,9 @@ Validate local *-aw-* route workflows and registry coherence.
 
 Route reusables (obs-aw-*, docs-aw-*) receive shared event context from
 *-aw-event-* orchestrators and declare workflow_call input shared-proceed.
+
+In-repo agentic primitives (`gh-aw-*`, `*.lock.yml`) are excluded from subject
+discovery so they are not required in workflow-registry.json.
 """
 
 from __future__ import annotations
@@ -51,6 +54,9 @@ def list_subject_workflows() -> list[pathlib.Path]:
         for p in paths
         if AW_WORKFLOW_PATTERN.match(p.name)
         and not p.name.startswith("aw-")
+        and not p.name.startswith("gh-aw-")
+        and not p.name.endswith(".lock.yml")
+        and not p.name.endswith(".lock.yaml")
         and not EVENT_ORCHESTRATOR_PATTERN.match(p.name)
         and not p.name.startswith(("trg-", "trigger-"))
     ]

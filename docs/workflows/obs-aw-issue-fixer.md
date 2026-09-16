@@ -34,14 +34,18 @@ The job `run` calls:
 
 Configured instructions require:
 
+- workflow `if:` already enforced `/ai implement` and association gates — do not refuse solely because shell `gh` cannot re-check them
+- read the issue and triage plan via GitHub MCP / `github` CLI; mandatory safe-output tool before finishing
 - strict execution of the issue's triage-generated resolution plan as the source of truth
 - draft PR first, then ready-for-review after validation
 - reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
 - no auto-merge
 
+`notify-no-pr` comments on the source issue when the lock succeeds without a `created_pr_number`. The lock call sets `report-failure-as-issue: false` so empty bailouts do not open a separate meta-issue.
+
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 
-Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared draft, review, and merge policy is composed from control-plane fragments mapped under `workflows.issue-fixer` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)).
+Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from control-plane fragments mapped under `workflows.issue-fixer` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)).
 
 ## Configuration
 
@@ -50,13 +54,14 @@ Permissions:
 - top-level: `contents: read`
 - job `run`: `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write`
 - job `request-reviewers`: `pull-requests: write`
+- job `notify-no-pr`: `issues: write`
 
 ## API / Interface
 
 `workflow_call` contract:
 
-- No inputs.
-- No declared secrets at the wrapper level; the `run` job uses `secrets: inherit` for nested reusable workflow secrets.
+- Required inputs: `shared-proceed`, `shared-allowed-pr-authors-json`, `shared-allowed-pr-authors-csv`, `shared-allowed-issue-authors-json`, `shared-allowed-issue-authors-csv`, and `shared-token-policy`.
+- No `workflow_call.secrets`: `GITHUB_TOKEN` is system-reserved and cannot be declared. Callers must not use `secrets: inherit` or map `GITHUB_TOKEN`. Local jobs and the nested lock use the automatic `secrets.GITHUB_TOKEN` / `github.token`.
 
 Ingress does not pass `allowed-bot-users` for this generic path; the upstream lock workflow uses its built-in defaults (no control-plane issue author list).
 

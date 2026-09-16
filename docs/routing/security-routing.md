@@ -58,6 +58,8 @@ Generic issue-triage and issue-fixer skip issues that carry security detector or
 
 The ingress uses `contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-')` to match any security triage label.
 
+When the fixer lock succeeds without a `created_pr_number`, `notify-no-pr` comments on the source issue (run URL + retry guidance). See [docs/workflows/obs-aw-security-fixer.md](../workflows/obs-aw-security-fixer.md) for the empty-safe-outputs failure mode.
+
 ## Labels
 
 | Label | Purpose |

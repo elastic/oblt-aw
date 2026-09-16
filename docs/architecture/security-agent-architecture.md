@@ -66,7 +66,7 @@ The detector targets the full ruleset in [docs/workflows/security-scanning-rules
 | **Detector** | None (code-scanning) | Custom job runs shellcheck, actionlint, zizmor, semgrep, and npm audit; creates issues. If a code-scanning agent is added later, oblt-aw can migrate to it. |
 | **Superseder** | None (shell script) | [`supersede-security-issues.sh`](../../scripts/obs/supersede-security-issues.sh) on `issues` `opened` for `oblt-aw/detector/security`; closes stale open issues per SEC id ([obs-aw-security-issue-superseder.md](../workflows/obs-aw-security-issue-superseder.md)). |
 | **Triage** | `gh-aw-issue-triage.lock.yml` | Triggered for issues labeled `oblt-aw/detector/security`; classifies with `oblt-aw/triage/security-*`, `oblt-aw/triage/other`, or `oblt-aw/triage/needs-info`; adds `oblt-aw/ai/fix-ready` when ready to fix. |
-| **Fixer** | `gh-aw-issue-fixer.lock.yml` | Triggered when a `oblt-aw/triage/security-*` label and `oblt-aw/ai/fix-ready` are present; security-specific instructions; least-privilege and env-indirection patterns. |
+| **Fixer** | `gh-aw-issue-fixer-unrestricted.lock.yml` | Triggered when a `oblt-aw/triage/security-*` label and `oblt-aw/ai/fix-ready` are present; security-specific instructions; least-privilege and env-indirection; may open draft PRs that change `.github/` / workflow YAML. |
 
 ## Deliverables
 

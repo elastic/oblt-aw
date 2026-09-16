@@ -24,6 +24,13 @@
 #   When omitted, emits findings for all categories.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Control-plane zizmor policy (trusted actions/* and elastic/* may be ref-pinned).
+# Override with ZIZMOR_CONFIG when set. Passed via --config so consumer scans inherit
+# the same policy even when the target repo has no local zizmor.yml.
+DEFAULT_ZIZMOR_CONFIG="$(cd "$SCRIPT_DIR/../.." && pwd)/.github/zizmor.yml"
+ZIZMOR_CONFIG_FILE="${ZIZMOR_CONFIG:-$DEFAULT_ZIZMOR_CONFIG}"
+
 REPO_ROOT="${1:-.}"
 SCAN_CATEGORY="${2:-${SECURITY_SCAN_CATEGORY:-}}"
 REPO_ROOT="$(cd "$REPO_ROOT" && pwd)"
@@ -98,7 +105,11 @@ fi
 
 # --- zizmor: GitHub Actions security audits (offline; pin / permissions / injection / secrets, etc.) ---
 if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; then
-  zizmor --offline --format=json-v1 --collect=workflows "$REPO_ROOT" 2>/dev/null | jq -r --arg root "$REPO_ROOT" '
+  zizmor_args=(--offline --format=json-v1 --collect=workflows)
+  if [ -f "$ZIZMOR_CONFIG_FILE" ]; then
+    zizmor_args+=(--config "$ZIZMOR_CONFIG_FILE")
+  fi
+  zizmor "${zizmor_args[@]}" "$REPO_ROOT" 2>/dev/null | jq -r --arg root "$REPO_ROOT" '
     def rel_path($p):
       if $p == null or $p == "" then empty
       elif ($p | startswith($root)) then

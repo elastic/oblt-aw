@@ -17,8 +17,15 @@ Control-plane agentic prompts can be composed from reusable Markdown fragments u
 {
   "common": [],
   "workflows": {
+    "issue-triage": {
+      "fragments": [
+        "triage-comment-format"
+      ]
+    },
     "issue-fixer": {
       "fragments": [
+        "fixer-github-read-and-safe-outputs",
+        "fixer-comment-format",
         "keep-pr-draft-until-validated",
         "request-review-from-observablt-ci",
         "do-not-merge-automatically"
@@ -29,9 +36,16 @@ Control-plane agentic prompts can be composed from reusable Markdown fragments u
       "inner-workflows": {
         "obs-aw-security-fixer.yml": {
           "fragments": [
+            "fixer-github-read-and-safe-outputs",
+            "fixer-comment-format",
             "keep-pr-draft-until-validated",
             "request-review-from-observablt-ci",
             "do-not-merge-automatically"
+          ]
+        },
+        "obs-aw-security-triage.yml": {
+          "fragments": [
+            "triage-comment-format"
           ]
         }
       }
