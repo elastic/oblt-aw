@@ -231,12 +231,24 @@ def apply_ephemeral_fixture_identity(
     e2e["branch"] = branch
     e2e["fixture_key"] = key
     e2e["title"] = fixture_pr_title(key)
-    e2e["body"] = (
-        f"Ephemeral fixture PR for `obs:estc-pr-buildkite-detective` ({key}).\n\n"
-        "Do not merge. Closed and branch deleted after the live E2E run; "
-        "reused if a prior cleanup failed.\n\n"
-        "Related: https://github.com/elastic/oblt-aw/issues/1911"
-    )
+    body_lines = [
+        f"Ephemeral fixture PR for `obs:estc-pr-buildkite-detective` ({key}).",
+        "",
+        (
+            "Do not merge. Closed and branch deleted after the live E2E run; "
+            "reused if a prior cleanup failed."
+        ),
+    ]
+    if key.startswith("pr-"):
+        repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw").strip()
+        origin_pr = key.split("-", 1)[1]
+        body_lines.extend(
+            [
+                "",
+                f"Origin PR: https://github.com/{repo}/pull/{origin_pr}",
+            ]
+        )
+    e2e["body"] = "\n".join(body_lines)
     out = dict(cfg)
     out["e2e_pr"] = e2e
     return out

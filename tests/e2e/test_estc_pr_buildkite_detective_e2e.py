@@ -657,6 +657,11 @@ class TestHarnessLive:
         assert cfg["e2e_pr"]["title"] == (
             "[PR-1961] [e2e] ESTC detective fixture (pr-1961)"
         )
+        assert "1911" not in cfg["e2e_pr"]["body"]
+        assert (
+            "Origin PR: https://github.com/elastic/oblt-aw/pull/1961"
+            in cfg["e2e_pr"]["body"]
+        )
         run_cfg = harness.apply_ephemeral_fixture_identity(
             {"e2e_pr": {"label": "e2e:estc-pr-buildkite-detective"}},
             "run-99",
@@ -664,6 +669,8 @@ class TestHarnessLive:
         assert run_cfg["e2e_pr"]["title"] == (
             "[RUN-99] [e2e] ESTC detective fixture (run-99)"
         )
+        assert "Origin PR:" not in run_cfg["e2e_pr"]["body"]
+        assert "1911" not in run_cfg["e2e_pr"]["body"]
         assert harness.is_estc_fixture_branch(cfg["e2e_pr"]["branch"])
         assert harness.is_estc_fixture_branch("e2e/estc-pr-buildkite-detective")
         assert not harness.is_estc_fixture_branch("feature/foo")
