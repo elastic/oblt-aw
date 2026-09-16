@@ -210,10 +210,12 @@ jobs:
     steps:
       - name: Aggregate matrix result
         id: gate
+        env:
+          E2E_RESULT: ${{ needs.e2e.result }}
         run: |
           set -euo pipefail
           # needs.e2e.result is success only when every matrix leg succeeded.
-          if [ "${{ needs.e2e.result }}" = "success" ]; then
+          if [ "${E2E_RESULT}" = "success" ]; then
             echo "pass=true" >> "$GITHUB_OUTPUT"
           else
             echo "pass=false" >> "$GITHUB_OUTPUT"
