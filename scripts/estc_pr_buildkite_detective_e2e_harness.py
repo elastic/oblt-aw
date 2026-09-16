@@ -220,6 +220,10 @@ def cleanup_e2e_fixture(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
 
     Idempotent: missing PR/branch is success. Failures are reported in the
     returned dict so a later run can reuse ``pr-<N>`` / ``run-<id>``.
+
+    Never deletes the head branch while an open PR still points at it (close
+    failure or label-index lag). Prefer exact ``--head`` lookup when the
+    label-scoped list misses the fixture.
     """
     e2e_pr = cfg.get("e2e_pr") or {}
     label = str(e2e_pr.get("label") or FIXTURE_LABEL)
@@ -239,6 +243,11 @@ def cleanup_e2e_fixture(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         "errors": [],
     }
     open_pr = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
+    if open_pr is None:
+        # Label index can lag or the PR can fall outside ``--limit 20``.
+        open_by_head = _list_prs_by_head(repo, branch=branch, state="open", limit=5)
+        if open_by_head:
+            open_pr = open_by_head[0]
     if open_pr is None:
         # Prefer closed PR on this branch so we still record the number.
         closed = _find_closed_fixture_pr(repo, branch=branch, label=label)
@@ -269,6 +278,11 @@ def cleanup_e2e_fixture(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
                 close.stderr or close.stdout or ""
             ).strip() or f"exit {close.returncode}"
             result["errors"].append(f"close PR #{pr_number}: {detail}")
+            # Keep the branch so the next run can reopen/reuse this fixture key.
+            result["errors"].append(
+                f"skipping delete of branch {branch}: PR #{pr_number} still open"
+            )
+            return result
 
     del_ref = subprocess.run(
         ["gh", "api", "-X", "DELETE", f"repos/{repo}/git/refs/heads/{branch}"],
@@ -830,7 +844,9 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
             f"Refusing fixture branch {branch!r}; expected "
             f"{FIXTURE_BRANCH_PREFIX!r} or {FIXTURE_BRANCH_PREFIX}/…"
         )
-    existing = find_open_e2e_pr(repo, label, branch=branch)
+    # Non-strict: an open legacy long-lived fixture with the same label must not
+    # block creating ``…/pr-<N>`` / ``…/run-<id>`` (strict would raise).
+    existing = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
     if existing:
         return _require_pr_label(repo, int(existing["number"]), label)
 
