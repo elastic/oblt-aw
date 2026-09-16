@@ -4,29 +4,25 @@ Production end-to-end harness for the PR Buildkite Detective route ([#1911](http
 
 ## What this harness covers
 
-Live E2E only: real `status` → `trigger-obs-aw-status.yml` → prelude → wrapper → lock → agent on **`elastic/oblt-aw`**. On the happy path the intentional Buildkite pipeline publishes the GitHub status (real event).
+Live E2E only: real Buildkite failure → Buildkite-published `status` → `trigger-obs-aw-status.yml` → prelude → wrapper → lock → agent on **`elastic/oblt-aw`**.
 
 Integration wiring (resolve → wrapper → lock inputs, no live model) lives under `tests/integration/` and `testdata/.../consumer/` / `expected/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)).
 
-## Live cases
+## Live case
 
 | Case id | Expectation |
 |---------|-------------|
 | `status-failure-open-pr-live` | Create intentional Buildkite failure → **Buildkite** publishes failed status → agent posts a comment (harness finds it via `### TL;DR` + `## Remediation`; oracle asserts presence only) |
-| `status-success-skipped` | Success status → status job skipped → no agent comment |
-| `status-failure-non-buildkite` | Failed non-Buildkite status → status job skipped → no agent comment |
-| `status-failure-no-open-pr` | Failed Buildkite status on default-branch HEAD with no open PR → status job runs, agent does not comment |
 
-Oracle pass/fail for the agent side effect is **comment presence or absence**. Section markers are **identity** for find/clear in the harness; asserting marker shape in the oracle is deferred to a follow-up. Agent prose / commit diagnosis content is out of scope.
+Oracle pass/fail for the agent side effect is **comment presence**. Section markers are **identity** for find/clear in the harness; asserting marker shape in the oracle is deferred to a follow-up. Agent prose / commit diagnosis content is out of scope.
 
 ## Prerequisites (live)
 
 1. **Dashboard** — enable `obs:estc-pr-buildkite-detective` on the Control Plane Dashboard for `elastic/oblt-aw` (issue labeled `oblt-aw/dashboard`). Currently required; the harness fails closed if the checkbox is off.
 2. **Secret** — `BUILDKITE_LOGS_API_TOKEN` on `elastic/oblt-aw` (mapped by `trigger-obs-aw-status.yml` into the wrapper). Must be able to **read** the E2E fail pipeline’s builds/logs.
-3. **Secret** — `BUILDKITE_TOKEN` with Buildkite scopes **`write_builds`** (+ read) so the harness can create and poll an intentional failure build.
-4. **Buildkite pipeline** — provisioned via [`catalog-info.yaml`](../../catalog-info.yaml) Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (steps: [`.buildkite/pipeline.e2e-estc-fail.yml`](../../.buildkite/pipeline.e2e-estc-fail.yml) with **pipeline-level** `notify: github_commit_status` only). After merge to `main`, confirm RRE reconciliation at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail (`publish_commit_status: true` — the harness blocks immediately if that is still wrong; it also blocks if the live API reports `prevent_custom_statuses_from_using_buildkite_prefix: true`, which cannot be set via Terrazzo catalog). See [`.buildkite/README.e2e-estc-fail.md`](../../.buildkite/README.e2e-estc-fail.md). Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE` (default `oblt-aw-e2e-estc-fail`) — notify context in the fail-pipeline YAML must match `buildkite/<org>/<pipeline>`.
-5. **E2E PR** — harness finds or creates an open PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective`, and syncs the fail-pipeline YAML onto that branch before creating the Buildkite build (skipped for the URL override). That **exact** label (plus the fixture branch/repo guards in workflow `if` conditions) skips repo `ci.yml` and agentic pull-request routes (`obs-aw-dependency-review`, `obs-aw-automerge`) so this fixture PR does not burn CI or agent credits.
-6. **Optional override** — Actions var `E2E_ESTC_BUILDKITE_TARGET_URL` skips create (and fixture sync / publish preflight) and reuses a fixed failed build URL (escape hatch only).
+3. **Secret** — `BUILDKITE_TOKEN` with Buildkite scopes **`write_builds`** (+ read) / pipeline access level that can create builds so the harness can create and poll an intentional failure build.
+4. **Buildkite pipeline** — provisioned via [`catalog-info.yaml`](../../catalog-info.yaml) Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (steps: [`.buildkite/pipeline.e2e-estc-fail.yml`](../../.buildkite/pipeline.e2e-estc-fail.yml); statuses from `publish_commit_status: true`, context `buildkite/oblt-aw-e2e-estc-fail`). After merge to `main`, confirm RRE reconciliation at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail. See [`.buildkite/README.e2e-estc-fail.md`](../../.buildkite/README.e2e-estc-fail.md). Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE` (default `oblt-aw-e2e-estc-fail`) — expected status context must match E2E `status_context` / harness expectation (`buildkite/<pipeline>`).
+5. **Target PR** — harness always finds or creates an open PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective` (reopens that fixture if it was closed). The development PR that starts a path-filtered run is **not** the Buildkite target. That **exact** label (plus the fixture branch/repo guards in workflow `if` conditions) skips repo `ci.yml` and agentic pull-request routes (`obs-aw-dependency-review`, `obs-aw-automerge`) so this fixture PR does not burn CI or agent credits. After syncing the fail-pipeline YAML onto the fixture branch, the harness creates the Buildkite build on the **Contents PUT commit SHA** (not a re-fetched PR `headRefOid`, which can lag and hide the status from the PR Checks UI).
 
 ### Reading failures
 
@@ -39,26 +35,26 @@ Harness and oracle print `block_reason` / failed checks in the job log (and emit
 Workflow: [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/e2e-estc-pr-buildkite-detective.yml)
 
 ```bash
-# Full live matrix
+# Full live matrix (happy path only) — uses the fixture PR
 gh workflow run e2e-estc-pr-buildkite-detective.yml \
   -f case-id=all
 
-# Single live case
+# Explicit happy-path case
 gh workflow run e2e-estc-pr-buildkite-detective.yml \
   -f case-id=status-failure-open-pr-live
 ```
 
 Triggers:
 
-- `workflow_dispatch` (manual)
-- Weekly schedule (`17 6 * * 1`, live matrix)
+- `pull_request` (`opened` / `synchronize` / `reopened`) when ESTC detective–related paths change — same-repo only; still uses the fixture PR as the Buildkite target
+- `workflow_dispatch` (manual) — fixture PR
 - `workflow_call` for the release/promote train ([#1878](https://github.com/elastic/oblt-aw/issues/1878)) — consume `outputs.pass` and uploaded `summary.json`
 
-Not part of the default PR `required` job in [`ci.yml`](../../.github/workflows/ci.yml).
+Not part of the default PR `required` job in [`ci.yml`](../../.github/workflows/ci.yml). Control-plane lock/wrapper still resolve via `@main` on the live status path (smoke); candidate-ref pinning is a separate follow-up.
 
 ### Local (live only)
 
-Live mode needs `gh` auth, dashboard enablement, `BUILDKITE_TOKEN`, and the intentional-failure Buildkite pipeline (or the optional URL override).
+Live mode needs `gh` auth, dashboard enablement, `BUILDKITE_TOKEN`, and the intentional-failure Buildkite pipeline.
 
 Harness/oracle unit coverage (no live agent):
 

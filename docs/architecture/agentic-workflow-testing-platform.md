@@ -36,7 +36,7 @@ Each layer owns a distinct proof. Higher layers must not replace lower ones.
 | **Unit** | Pure functions and scripts behave for known inputs/outputs (gates, registry, fragment merge, dashboard parse, TS helpers). | `tests/*.py`, `tests/unit/*.test.ts` | Every PR (`python-tests`, `typescript-tests` in `ci.yml`) |
 | **Functional** | Workflow YAML and GH-AW contracts hold: prelude/`shared-proceed`, resolve-agentic-assets on `gh-aw-*` callers, reusable permissions alignment, actionlint/pre-commit. | `scripts/validate_aw_workflow_*.py`, pre-commit | Every PR |
 | **Integration** | Wrapper ↔ lock ↔ token/policy/fragment wiring works together without a live model (or with mocked/stubbed agent steps). Frozen fixtures for inputs, secrets shapes, and resolved instruction layers. | First slice: `tests/integration/test_estc_pr_buildkite_detective.py` + `testdata/agentic/estc-pr-buildkite-detective/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Token-policy dry-run deferred. | Every PR via `pytest tests/` (`python-tests` in `ci.yml`); heavier fixtures may later move to promote |
-| **E2E** | Production-like path: client/orchestrator routing, prelude gate, resolve assets, agent job, observable side effects under a controlled consumer environment. | `tests/e2e/` (harness/oracle unit coverage) + scheduled/manual live workflow for Buildkite detective ([#1911](https://github.com/elastic/oblt-aw/issues/1911)) | Promote paths and/or scheduled suites — **not** every PR by default |
+| **E2E** | Production-like path: client/orchestrator routing, prelude gate, resolve assets, agent job, observable side effects under a controlled consumer environment. | `tests/e2e/` (harness/oracle unit coverage) + path-filtered PR / manual / `workflow_call` live workflow for Buildkite detective ([#1911](https://github.com/elastic/oblt-aw/issues/1911)) | Promote paths and path-filtered PR smoke — **not** every PR by default |
 
 ### Unit (existing baseline)
 
@@ -79,9 +79,9 @@ Scope for this layer:
 Scope for this layer:
 
 - Run the real status → `trigger-obs-aw-status` → `obs-aw-event-status` → `obs-aw-estc-pr-buildkite-detective` → in-repo `gh-aw-estc-pr-buildkite-detective.lock.yml` path against **`elastic/oblt-aw`** (this slice’s production consumer).
-- **Entry event (mandatory):** the distributed client, status orchestrator, and wrapper all require `github.event_name == 'status'` (plus failure + `buildkite` context on this slice). An outer `workflow_dispatch` or `schedule` job must **create or replay** a failed commit status with a `buildkite` context and a `target_url` that the lock's Buildkite URL parser accepts. Dispatch/schedule alone does not enter the route. Live happy path: Buildkite publishes the status (`publish_commit_status`); optional escape hatch posts the status from the harness.
-- **Revision under test:** gating E2E must pin and record the **exact candidate ref or digest** (control-plane workflows, client template refs, and lock `uses` as applicable). Runs that follow floating `@main` (or other moving tips) are **smoke-only** and **ineligible** for production promote. The first landed slice’s weekly schedule / manual dispatch currently exercises `@main` (smoke/health); candidate-pin wiring is a promote follow-up ([#1878](https://github.com/elastic/oblt-aw/issues/1878)).
-- Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, dynamic intentional Buildkite failure via `BUILDKITE_TOKEN` + [`catalog-info.yaml`](../../catalog-info.yaml) pipeline `oblt-aw-e2e-estc-fail` with `publish_commit_status` (optional URL override `E2E_ESTC_BUILDKITE_TARGET_URL`), dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
+- **Entry event (mandatory):** the distributed client, status orchestrator, and wrapper all require `github.event_name == 'status'` (plus failure + `buildkite` context on this slice). An outer `workflow_dispatch`, path-filtered `pull_request`, or `workflow_call` job must drive a **real** failed commit status with a `buildkite` context and a `target_url` that the lock's Buildkite URL parser accepts. Those outer triggers alone do not enter the route. Live happy path: the harness creates an intentional Buildkite failure; **Buildkite** publishes the status via `publish_commit_status` (default context `buildkite/<pipeline>`). No harness-posted synthetic statuses.
+- **Revision under test:** gating E2E must pin and record the **exact candidate ref or digest** (control-plane workflows, client template refs, and lock `uses` as applicable). Runs that follow floating `@main` (or other moving tips) are **smoke-only** and **ineligible** for production promote. The first landed slice’s path-filtered PR / manual dispatch currently exercises `@main` (smoke/health) while always targeting the long-lived fixture PR for the Buildkite failure; candidate-pin wiring is a promote follow-up ([#1878](https://github.com/elastic/oblt-aw/issues/1878)).
+- Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, dynamic intentional Buildkite failure via `BUILDKITE_TOKEN` + [`catalog-info.yaml`](../../catalog-info.yaml) pipeline `oblt-aw-e2e-estc-fail` with `publish_commit_status: true`, dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
 - Capture artifacts: workflow run URL, candidate ref/digest when gating, agent job logs (redacted), resulting PR comment or issue side effects, structured safe-outputs if present.
 
 **Assert:** using the oracle strategy below — never free-text equality of the full agent narrative.
@@ -171,7 +171,7 @@ flowchart LR
 - Oracle report (which checks ran, which passed)
 - Quarantine list (owner + expiry for any skipped cases)
 
-**Cost control:** E2E is tiered — default off on PRs; **gating** E2E on promote; **smoke** E2E on schedule as needed. Sampling is allowed only on smoke/health runs. Expand the gating suite only when oracles are stable.
+**Cost control:** E2E is tiered — path-filtered on ESTC-related PRs (smoke against `@main`); **gating** E2E on promote once candidate-pin lands; sampling only on smoke/health runs. Expand the gating suite only when oracles are stable.
 
 Exact workflow file names for promote jobs are **Unknown** until #1878 implementation; this contract only requires that promote steps consume the signals above.
 
@@ -186,7 +186,7 @@ Exact workflow file names for promote jobs are **Unknown** until #1878 implement
 ### Acceptance criteria for the slice (implementation follow-ups)
 
 1. Integration fixtures cover resolve → wrapper input mapping for this workflow. (**Done** — [#1910](https://github.com/elastic/oblt-aw/issues/1910))
-2. Production E2E on **`elastic/oblt-aw`** exercises intentional Buildkite failure → Buildkite-published status → detective agent (or optional URL override with harness-posted status). Outer trigger may be dispatch/schedule; the route still requires a real `status` event. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+2. Production E2E on **`elastic/oblt-aw`** exercises intentional Buildkite failure → Buildkite-published status → detective agent. Outer trigger may be path-filtered `pull_request`, dispatch, or `workflow_call`; the route still requires a real `status` event. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 3. Oracles: infrastructure success + structured side-effect check (stable marker or schema); no full free-text golden file.
 4. Results publish as artifacts / `workflow_call` outputs consumable by a future #1878 promote job. Gating runs must include candidate ref/digest and pass/fail/`unknown` per workflow id; smoke runs are labeled ineligible.
 5. Docs updated: this design remains authoritative; workflow doc links here instead of “not covered”.
@@ -198,10 +198,10 @@ Exact workflow file names for promote jobs are **Unknown** until #1878 implement
 
 ### Implementation checklist
 
-- [x] Inventory secrets for live E2E (`BUILDKITE_LOGS_API_TOKEN` via client trigger; `BUILDKITE_TOKEN` + intentional-failure pipeline; optional URL override). See [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Inventory secrets for live E2E (`BUILDKITE_LOGS_API_TOKEN` via client trigger; `BUILDKITE_TOKEN` + intentional-failure pipeline). See [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Use **`elastic/oblt-aw`** as the E2E consumer (no separate sandbox). Enable `obs:estc-pr-buildkite-detective` on its Control Plane Dashboard before live runs. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Add integration fixtures under a dedicated tree — `tests/integration/` + `testdata/agentic/estc-pr-buildkite-detective/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Token-policy dry-run deferred.
-- [x] Add E2E workflow [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` + weekly schedule + `workflow_call` for #1878); kept out of default PR `required`. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Add E2E workflow [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/e2e-estc-pr-buildkite-detective.yml) (`pull_request` on ESTC-related paths + `workflow_dispatch` + `workflow_call` for #1878); kept out of default PR `required`. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Implement oracle script(s) that assert structured outcomes and emit a machine-readable report (`scripts/oracle_estc_pr_buildkite_detective_e2e.py`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Wire artifact upload + `outputs.pass`; document how #1878 promote reads pass/fail (`summary.json` / `oracle-report.json`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Quarantine policy: [`config/obs/e2e-quarantine.json`](../../config/obs/e2e-quarantine.json) with default owner `@elastic/observablt-robots`. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
@@ -229,7 +229,7 @@ Resolved by this design where noted; remaining items are for implementation issu
 | E2E vs release gates | **Resolved:** E2E gates **production** promote (after candidate); candidate uses merge + integration |
 | Gating coverage / quarantine | **Resolved:** gating E2E requires every in-scope workflow; uncovered/`unknown` and quarantined cases set `pass: false` (block promote / `outputs.pass`); smoke may still sample coverage but cannot green-gate via quarantine |
 | E2E revision pin | **Resolved policy:** gating runs pin candidate ref/digest; `@main` is smoke-only — **wiring for promote still open** ([#1878](https://github.com/elastic/oblt-aw/issues/1878)) |
-| Status-route entry | **Resolved:** harness / Buildkite must create failed `status` (+ Buildkite context/`target_url`); dispatch/schedule is outer-only |
+| Status-route entry | **Resolved:** Buildkite publishes failed `status` (+ Buildkite context/`target_url`); harness creates the intentional failure build; path-filtered PR / dispatch / `workflow_call` are outer-only |
 | How closely E2E must match production models/tools | **Resolved policy:** match production fragment defaults for the slice; document any intentional drift; prefer recorded Buildkite payloads when live access is costly or unstable |
 | Promote workflow wiring | **Unknown** — owned with [#1878](https://github.com/elastic/oblt-aw/issues/1878) |
 
