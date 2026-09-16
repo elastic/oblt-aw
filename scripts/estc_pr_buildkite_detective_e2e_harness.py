@@ -268,7 +268,10 @@ def retire_legacy_prefix_branch(
         raise RuntimeError("retire_legacy_prefix_branch requires a non-empty prefix")
 
     open_prs = _list_prs_by_head(repo, branch=legacy, state="open", limit=10)
-    for pr in open_prs:
+    if any(not _pr_has_label(pr, label) for pr in open_prs):
+        raise RuntimeError(
+            f"Refusing to retire {legacy!r}: an open PR lacks label {label!r}."
+        )
         pr_number = int(pr["number"])
         close = subprocess.run(
             [
