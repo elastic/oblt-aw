@@ -47,12 +47,18 @@ MARKER_BODY = (
     "Kept open for live status→agent E2E of "
     "`obs:estc-pr-buildkite-detective`. Do not merge.\n"
 )
+DEFAULT_FIXTURE_TITLE = "[e2e] ESTC detective fixture"
+DEFAULT_FIXTURE_BODY = (
+    "Long-lived fixture PR for `obs:estc-pr-buildkite-detective`. Do not merge."
+)
 FAIL_PIPELINE_PATH = Path(".buildkite/pipeline.e2e-estc-fail.yml")
 # Default GitHub status from Buildkite publish_commit_status (buildkite/<pipeline>).
 DEFAULT_STATUS_CONTEXT_TEMPLATE = "buildkite/{pipeline}"
-# Ephemeral fixture branches: ``{prefix}/pr-<N>`` or ``{prefix}/run-<id>``.
-FIXTURE_BRANCH_PREFIX = "e2e/estc-pr-buildkite-detective"
+# Long-lived fixture branch (shared; workflow concurrency serializes live runs).
+FIXTURE_BRANCH = "e2e/estc-pr-buildkite-detective"
 FIXTURE_LABEL = "e2e:estc-pr-buildkite-detective"
+# Alias kept for callers/tests that still reference the historic name.
+FIXTURE_BRANCH_PREFIX = FIXTURE_BRANCH
 
 
 def _load_json(path: Path) -> Any:
@@ -160,46 +166,15 @@ def expected_buildkite_status_context(cfg: dict[str, Any]) -> str:
     return derived
 
 
-def normalize_fixture_key(raw: str) -> str:
-    """Normalize to ``pr-<N>`` or ``run-<id>`` (digits alone become ``pr-<N>``)."""
-    key = str(raw or "").strip()
-    if not key:
-        raise RuntimeError("fixture key is required (pr-<N> or run-<id>)")
-    if key.isdigit():
-        key = f"pr-{key}"
-    if not key.startswith(("pr-", "run-")):
-        raise RuntimeError(
-            f"fixture key {raw!r} must be pr-<N> or run-<id> "
-            "(or a bare development PR number)."
-        )
-    suffix = key.split("-", 1)[1]
-    if not suffix or not suffix.replace("-", "").isalnum():
-        raise RuntimeError(f"fixture key {raw!r} has an empty or invalid suffix")
-    return key
-
-
-def is_estc_fixture_branch(ref: str, *, prefix: str = FIXTURE_BRANCH_PREFIX) -> bool:
-    """True for the legacy long-lived branch or ephemeral ``{prefix}/…`` branches."""
+def is_estc_fixture_branch(ref: str, *, prefix: str = FIXTURE_BRANCH) -> bool:
+    """True for the long-lived fixture branch (exact match only)."""
     name = str(ref or "").strip()
-    base = str(prefix or FIXTURE_BRANCH_PREFIX).rstrip("/")
-    return name == base or name.startswith(f"{base}/")
+    base = str(prefix or FIXTURE_BRANCH).rstrip("/")
+    return name == base
 
 
-def fixture_pr_title(fixture_key: str) -> str:
-    """Title for an ephemeral fixture PR; ``pr-<N>`` keys get a ``[PR-N]`` prefix."""
-    key = normalize_fixture_key(fixture_key)
-    if key.startswith("pr-"):
-        return f"[PR-{key.split('-', 1)[1]}] [e2e] ESTC detective fixture ({key})"
-    if key.startswith("run-"):
-        return f"[RUN-{key.split('-', 1)[1]}] [e2e] ESTC detective fixture ({key})"
-    return f"[e2e] ESTC detective fixture ({key})"
-
-
-def apply_ephemeral_fixture_identity(
-    cfg: dict[str, Any], fixture_key: str
-) -> dict[str, Any]:
-    """Return cfg with ``e2e_pr.branch``/title/body scoped to ``fixture_key``."""
-    key = normalize_fixture_key(fixture_key)
+def normalize_e2e_pr_config(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Return cfg with the canonical long-lived fixture PR fields filled in."""
     e2e = dict(cfg.get("e2e_pr") or {})
     configured_label = str(e2e.get("label") or "").strip()
     if configured_label and configured_label != FIXTURE_LABEL:
@@ -207,253 +182,21 @@ def apply_ephemeral_fixture_identity(
             f"e2e_pr.label {configured_label!r} must be {FIXTURE_LABEL!r} "
             "(CI/agent skip guards require the canonical fixture label)."
         )
-    prefix = str(
-        e2e.get("branch_prefix") or e2e.get("branch") or FIXTURE_BRANCH_PREFIX
-    ).rstrip("/")
-    # Legacy config used a fixed long-lived branch equal to the prefix; ephemeral
-    # branches are always ``{prefix}/{pr-|run-}…``.
-    if prefix.endswith(f"/{key}"):
-        branch = prefix
-        prefix = prefix[: -len(f"/{key}")]
-    else:
-        branch = f"{prefix}/{key}"
-    if prefix != FIXTURE_BRANCH_PREFIX:
+    branch = str(
+        e2e.get("branch") or e2e.get("branch_prefix") or FIXTURE_BRANCH
+    ).strip()
+    if branch != FIXTURE_BRANCH:
         raise RuntimeError(
-            f"e2e_pr.branch_prefix {prefix!r} must be {FIXTURE_BRANCH_PREFIX!r}."
-        )
-    if not is_estc_fixture_branch(branch):
-        raise RuntimeError(
-            f"Refusing fixture branch {branch!r}; expected "
-            f"{FIXTURE_BRANCH_PREFIX!r} or {FIXTURE_BRANCH_PREFIX}/…"
+            f"e2e_pr.branch {branch!r} must be the long-lived fixture "
+            f"{FIXTURE_BRANCH!r}."
         )
     e2e["label"] = FIXTURE_LABEL
-    e2e["branch_prefix"] = FIXTURE_BRANCH_PREFIX
-    e2e["branch"] = branch
-    e2e["fixture_key"] = key
-    e2e["title"] = fixture_pr_title(key)
-    body_lines = [
-        f"Ephemeral fixture PR for `obs:estc-pr-buildkite-detective` ({key}).",
-        "",
-        (
-            "Do not merge. Closed and branch deleted after the live E2E run; "
-            "reused if a prior cleanup failed."
-        ),
-    ]
-    if key.startswith("pr-"):
-        repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw").strip()
-        origin_pr = key.split("-", 1)[1]
-        body_lines.extend(
-            [
-                "",
-                f"Origin PR: https://github.com/{repo}/pull/{origin_pr}",
-            ]
-        )
-    e2e["body"] = "\n".join(body_lines)
+    e2e["branch"] = FIXTURE_BRANCH
+    e2e["title"] = str(e2e.get("title") or "").strip() or DEFAULT_FIXTURE_TITLE
+    e2e["body"] = str(e2e.get("body") or "").strip() or DEFAULT_FIXTURE_BODY
     out = dict(cfg)
     out["e2e_pr"] = e2e
     return out
-
-
-def _git_ref_already_absent(*, returncode: int, stderr: str, stdout: str) -> bool:
-    """True when a git-ref DELETE/GET failed because the ref is already gone."""
-    combined = f"{stderr or ''}{stdout or ''}".lower()
-    if "not found" in combined or "does not exist" in combined:
-        return True
-    if "404" in combined:
-        return True
-    # GitHub often returns HTTP 422 with "Reference does not exist".
-    return returncode != 0 and "422" in combined and "reference" in combined
-
-
-def retire_legacy_prefix_branch(
-    repo: str, *, prefix: str, label: str = FIXTURE_LABEL
-) -> None:
-    """Close open PRs on the exact legacy prefix branch and delete that ref.
-
-    Nested ephemeral refs ``{prefix}/pr-N`` cannot be created while
-    ``refs/heads/{prefix}`` still exists (GitHub HTTP 422 on POST refs).
-    Refuses to retire when an open PR on the legacy branch lacks ``label``.
-    """
-    legacy = str(prefix or "").rstrip("/")
-    if not legacy:
-        raise RuntimeError("retire_legacy_prefix_branch requires a non-empty prefix")
-
-    open_prs = _list_prs_by_head(repo, branch=legacy, state="open", limit=10)
-    if any(not _pr_has_label(pr, label) for pr in open_prs):
-        raise RuntimeError(
-            f"Refusing to retire {legacy!r}: an open PR lacks label {label!r}."
-        )
-    for pr in open_prs:
-        pr_number = int(pr["number"])
-        close = subprocess.run(
-            [
-                "gh",
-                "pr",
-                "close",
-                str(pr_number),
-                "--repo",
-                repo,
-                "--comment",
-                (
-                    "Closing legacy long-lived ESTC detective E2E fixture; "
-                    "replaced by ephemeral per-run fixture branches."
-                ),
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if close.returncode != 0:
-            detail = (
-                close.stderr or close.stdout or ""
-            ).strip() or f"exit {close.returncode}"
-            raise RuntimeError(
-                f"Failed to close legacy fixture PR #{pr_number} on "
-                f"{legacy!r}: {detail}"
-            )
-        log_info(f"Closed legacy fixture PR #{pr_number} on {legacy}")
-
-    del_ref = subprocess.run(
-        ["gh", "api", "-X", "DELETE", f"repos/{repo}/git/refs/heads/{legacy}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if del_ref.returncode == 0:
-        log_info(f"Deleted legacy fixture branch {legacy}")
-        return
-    if _git_ref_already_absent(
-        returncode=del_ref.returncode,
-        stderr=del_ref.stderr or "",
-        stdout=del_ref.stdout or "",
-    ):
-        return
-    detail = (del_ref.stderr or del_ref.stdout or "").strip() or (
-        f"exit {del_ref.returncode}"
-    )
-    raise RuntimeError(
-        f"Failed to delete legacy fixture branch {legacy!r} before creating "
-        f"nested ephemeral refs under it: {detail}"
-    )
-
-
-def cleanup_e2e_fixture(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
-    """Close the fixture PR (if open) and delete its head branch.
-
-    Idempotent: missing PR/branch is success. Failures are reported in the
-    returned dict so a later run can reuse ``pr-<N>`` / ``run-<id>``.
-
-    Never deletes the head branch while an open PR still points at it (close
-    failure or label-index lag). Prefer exact ``--head`` lookup when the
-    label-scoped list misses the fixture — but only when that PR carries the
-    canonical fixture label.
-    """
-    e2e_pr = cfg.get("e2e_pr") or {}
-    configured_label = str(e2e_pr.get("label") or "").strip()
-    if configured_label and configured_label != FIXTURE_LABEL:
-        raise RuntimeError(
-            f"cleanup e2e_pr.label {configured_label!r} must be {FIXTURE_LABEL!r}."
-        )
-    label = FIXTURE_LABEL
-    branch = str(e2e_pr.get("branch") or "").strip()
-    if not branch:
-        raise RuntimeError(
-            "cleanup requires e2e_pr.branch (apply fixture identity first)"
-        )
-    if not is_estc_fixture_branch(branch):
-        raise RuntimeError(
-            f"Refusing cleanup of branch {branch!r}; expected "
-            f"{FIXTURE_BRANCH_PREFIX!r} or {FIXTURE_BRANCH_PREFIX}/…"
-        )
-    result: dict[str, Any] = {
-        "repo": repo,
-        "label": label,
-        "branch": branch,
-        "fixture_key": e2e_pr.get("fixture_key"),
-        "pr_number": None,
-        "closed": False,
-        "branch_deleted": False,
-        "errors": [],
-    }
-    try:
-        open_pr = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
-        if open_pr is None:
-            # Label index can lag or the PR can fall outside ``--limit 20``.
-            open_by_head = _list_prs_by_head(repo, branch=branch, state="open", limit=5)
-            labeled = [pr for pr in open_by_head if _pr_has_label(pr, label)]
-            if open_by_head and not labeled:
-                numbers = ", ".join(
-                    f"#{int(pr['number'])}" for pr in open_by_head if pr.get("number")
-                )
-                result["errors"].append(
-                    f"open PR(s) on branch {branch} ({numbers}) lack label "
-                    f"{label!r}; skipping close/delete"
-                )
-                return result
-            if labeled:
-                open_pr = labeled[0]
-        if open_pr is None:
-            # Prefer closed PR on this branch so we still record the number.
-            closed = _find_closed_fixture_pr(repo, branch=branch, label=label)
-            if closed:
-                result["pr_number"] = int(closed["number"])
-        else:
-            pr_number = int(open_pr["number"])
-            result["pr_number"] = pr_number
-            close = subprocess.run(
-                [
-                    "gh",
-                    "pr",
-                    "close",
-                    str(pr_number),
-                    "--repo",
-                    repo,
-                    "--comment",
-                    "Closing ephemeral ESTC detective E2E fixture after live run.",
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if close.returncode == 0:
-                result["closed"] = True
-            else:
-                detail = (
-                    close.stderr or close.stdout or ""
-                ).strip() or f"exit {close.returncode}"
-                result["errors"].append(f"close PR #{pr_number}: {detail}")
-                # Keep the branch so the next run can reopen/reuse this fixture key.
-                result["errors"].append(
-                    f"skipping delete of branch {branch}: PR #{pr_number} still open"
-                )
-                return result
-    except (
-        RuntimeError,
-        OSError,
-        subprocess.SubprocessError,
-        json.JSONDecodeError,
-    ) as exc:
-        result["errors"].append(f"fixture lookup failed: {exc}")
-        return result
-
-    del_ref = subprocess.run(
-        ["gh", "api", "-X", "DELETE", f"repos/{repo}/git/refs/heads/{branch}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if del_ref.returncode == 0 or _git_ref_already_absent(
-        returncode=del_ref.returncode,
-        stderr=del_ref.stderr or "",
-        stdout=del_ref.stdout or "",
-    ):
-        result["branch_deleted"] = True
-    else:
-        detail = (del_ref.stderr or del_ref.stdout or "").strip() or (
-            f"exit {del_ref.returncode}"
-        )
-        result["errors"].append(f"delete branch {branch}: {detail}")
-    return result
 
 
 def gh_json(args: list[str], *, check: bool = True) -> Any:
@@ -737,7 +480,7 @@ def load_e2e_config(path: Path) -> dict[str, Any]:
     data = _load_json(path)
     if not isinstance(data, dict):
         raise SystemExit(f"E2E config must be a JSON object: {path}")
-    return data
+    return normalize_e2e_pr_config(data)
 
 
 def dashboard_enables_workflow(repo: str, workflow_id: str) -> bool:
@@ -884,7 +627,7 @@ def _ensure_label(repo: str, label: str) -> None:
             "--repo",
             repo,
             "--description",
-            "ESTC detective E2E fixture PR (ephemeral or legacy)",
+            "ESTC detective E2E fixture PR (long-lived)",
             "--color",
             "0E8A16",
         ],
@@ -949,13 +692,13 @@ def resolve_target_pr(
     *,
     base_branch: str | None = None,
 ) -> tuple[dict[str, Any], str]:
-    """Resolve the ephemeral fixture PR under test and its base branch name.
+    """Resolve the long-lived fixture PR under test and its base branch name.
 
     Find, reopen, or create the fixture PR for ``cfg['e2e_pr']['branch']``
-    (``e2e/estc-pr-buildkite-detective/pr-<N>`` or ``…/run-<id>``) with label
-    ``e2e:estc-pr-buildkite-detective``. Live E2E never targets the development
-    PR that only triggered the outer workflow.
+    (``e2e/estc-pr-buildkite-detective``) with label
+    ``e2e:estc-pr-buildkite-detective``.
     """
+    cfg = normalize_e2e_pr_config(cfg)
     pr_info = ensure_e2e_pr(repo, cfg)
     branch = str(cfg["e2e_pr"].get("branch") or "")
     refreshed = (
@@ -963,6 +706,7 @@ def resolve_target_pr(
             repo,
             cfg["e2e_pr"]["label"],
             branch=branch,
+            strict_branch=True,
         )
         or pr_info
     )
@@ -973,40 +717,33 @@ def resolve_target_pr(
 def _find_closed_fixture_pr(
     repo: str, *, branch: str, label: str
 ) -> dict[str, Any] | None:
-    """Most recent closed same-repo PR on the fixture branch (any label state)."""
+    """Most recent closed same-repo PR on the fixture branch with ``label``.
+
+    Unlabeled closed PRs on a reserved branch are ignored so reopen never
+    treats an unrelated PR as the fixture.
+    """
     matched = _list_prs_by_head(repo, branch=branch, state="closed", limit=5)
-    if not matched:
-        return None
-    # Prefer one that already had the fixture label.
     labeled = [pr for pr in matched if _pr_has_label(pr, label)]
-    return (labeled or matched)[0]
+    return labeled[0] if labeled else None
 
 
 def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
-    """Find, reopen, or create the ephemeral E2E fixture PR via the GitHub API.
+    """Find, reopen, or create the long-lived E2E fixture PR via the GitHub API.
 
     Reuses an existing open PR on the fixture branch, or reopens a closed one
-    on the same branch when a prior cleanup failed to delete it.
+    on the same branch. Never closes or deletes the fixture.
     """
+    cfg = normalize_e2e_pr_config(cfg)
     e2e_pr = cfg["e2e_pr"]
     label = str(e2e_pr["label"])
     branch = str(e2e_pr["branch"])
     if not is_estc_fixture_branch(branch):
         raise RuntimeError(
-            f"Refusing fixture branch {branch!r}; expected "
-            f"{FIXTURE_BRANCH_PREFIX!r} or {FIXTURE_BRANCH_PREFIX}/…"
+            f"Refusing fixture branch {branch!r}; expected {FIXTURE_BRANCH!r}."
         )
-    # Non-strict: an open legacy long-lived fixture with the same label must not
-    # block creating ``…/pr-<N>`` / ``…/run-<id>`` (strict would raise).
-    existing = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
+    existing = find_open_e2e_pr(repo, label, branch=branch, strict_branch=True)
     if existing:
         return _require_pr_label(repo, int(existing["number"]), label)
-
-    prefix = str(e2e_pr.get("branch_prefix") or FIXTURE_BRANCH_PREFIX).rstrip("/")
-    # Git cannot create ``refs/heads/{prefix}/…`` while ``refs/heads/{prefix}``
-    # still exists (HTTP 422). Retire the legacy long-lived branch first.
-    if branch.startswith(f"{prefix}/") and branch != prefix:
-        retire_legacy_prefix_branch(repo, prefix=prefix, label=label)
 
     _ensure_label(repo, label)
     default_branch = gh_text(
@@ -1106,12 +843,11 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         # Fall through to reopen / label recovery below.
         pass
 
-    created = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
+    created = find_open_e2e_pr(repo, label, branch=branch, strict_branch=True)
     if created:
         return _require_pr_label(repo, int(created["number"]), label)
 
-    # Closed fixture PR on the same branch: reopen (create may have failed /
-    # prior cleanup closed but left the branch — reuse pr-<N>).
+    # Closed fixture PR on the same branch: reopen (create may have failed).
     closed = _find_closed_fixture_pr(repo, branch=branch, label=label)
     if closed:
         pr_number = int(closed["number"])
@@ -1149,7 +885,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
                     f"on {repo}: "
                     f"{(edit.stderr or edit.stdout or '').strip() or f'exit {edit.returncode}'}"
                 )
-        reopened = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
+        reopened = find_open_e2e_pr(repo, label, branch=branch, strict_branch=True)
         if reopened:
             return _require_pr_label(repo, int(reopened["number"]), label)
         return _require_pr_label(repo, pr_number, label)
@@ -1831,17 +1567,12 @@ def run_live_case(
     *,
     run_url: str | None = None,
     base_branch: str | None = None,
-    fixture_key: str | None = None,
 ) -> dict[str, Any]:
     case = _load_json(case_dir / "case.json")
     require_case_mode(case, "live", case_id=str(case.get("id", case_dir.name)))
     trigger = case.get("trigger") or {}
     expectations = case.get("expectations") or {}
-    if not fixture_key:
-        raise RuntimeError(
-            "fixture_key is required (pr-<development-PR> or run-<actions-run-id>)"
-        )
-    cfg = apply_ephemeral_fixture_identity(cfg, fixture_key)
+    cfg = normalize_e2e_pr_config(cfg)
     repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
     workflow_id = str(case.get("workflow_id") or cfg.get("workflow_id") or WORKFLOW_ID)
     markers = list(
@@ -1850,15 +1581,11 @@ def run_live_case(
         or ["### TL;DR", "## Remediation"]
     )
     fixture_meta = {
-        "key": cfg["e2e_pr"].get("fixture_key"),
         "branch": cfg["e2e_pr"].get("branch"),
         "label": cfg["e2e_pr"].get("label"),
     }
 
-    dashboard_ok = dashboard_enables_workflow(
-        repo, str(cfg.get("dashboard_workflow_id") or workflow_id)
-    )
-    if expectations.get("dashboard_enabled") and not dashboard_ok:
+    if not trigger.get("require_open_pr", True):
         return {
             "workflow_id": workflow_id,
             "case_id": case.get("id", case_dir.name),
@@ -1867,8 +1594,25 @@ def run_live_case(
             "agent_invoked": False,
             "blocked": True,
             "block_reason": (
-                f"Dashboard does not enable {workflow_id} on {repo}. "
-                "Enable the checkbox on the Control Plane Dashboard issue, then re-run."
+                "Live E2E is happy-path only and requires an open fixture PR "
+                "(trigger.require_open_pr must be true)."
+            ),
+            "path_gates": {"dashboard_enabled": False},
+            "expectations": expectations,
+            "run_url": run_url,
+        }
+    if not trigger.get("create_failed_buildkite_build"):
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": (
+                "Live E2E is happy-path only: set "
+                "trigger.create_failed_buildkite_build so Buildkite publishes "
+                "the commit status (no harness-posted synthetic statuses)."
             ),
             "path_gates": {"dashboard_enabled": False},
             "expectations": expectations,
@@ -1889,46 +1633,37 @@ def run_live_case(
             "agent_invoked": False,
             "blocked": True,
             "block_reason": f"Missing {token_env} (write_builds + read).",
-            "path_gates": {"dashboard_enabled": dashboard_ok},
+            "path_gates": {"dashboard_enabled": False},
             "expectations": expectations,
             "run_url": run_url,
         }
 
-    if not trigger.get("require_open_pr", True):
-        return {
-            "workflow_id": workflow_id,
-            "case_id": case.get("id", case_dir.name),
-            "layer": "e2e",
-            "mode": "live",
-            "agent_invoked": False,
-            "blocked": True,
-            "block_reason": (
-                "Live E2E is happy-path only and requires an open fixture PR "
-                "(trigger.require_open_pr must be true)."
-            ),
-            "path_gates": {"dashboard_enabled": dashboard_ok},
-            "expectations": expectations,
-            "run_url": run_url,
-        }
-    if not trigger.get("create_failed_buildkite_build"):
-        return {
-            "workflow_id": workflow_id,
-            "case_id": case.get("id", case_dir.name),
-            "layer": "e2e",
-            "mode": "live",
-            "agent_invoked": False,
-            "blocked": True,
-            "block_reason": (
-                "Live E2E is happy-path only: set "
-                "trigger.create_failed_buildkite_build so Buildkite publishes "
-                "the commit status (no harness-posted synthetic statuses)."
-            ),
-            "path_gates": {"dashboard_enabled": dashboard_ok},
-            "expectations": expectations,
-            "run_url": run_url,
-        }
-
+    dashboard_ok = False
+    sha: str | None = None
+    target_pr_number: int | None = None
+    buildkite_meta: dict[str, Any] = {}
     try:
+        dashboard_ok = dashboard_enables_workflow(
+            repo, str(cfg.get("dashboard_workflow_id") or workflow_id)
+        )
+        if expectations.get("dashboard_enabled") and not dashboard_ok:
+            return {
+                "workflow_id": workflow_id,
+                "case_id": case.get("id", case_dir.name),
+                "layer": "e2e",
+                "mode": "live",
+                "agent_invoked": False,
+                "blocked": True,
+                "block_reason": (
+                    f"Dashboard does not enable {workflow_id} on {repo}. "
+                    "Enable the checkbox on the Control Plane Dashboard issue, "
+                    "then re-run."
+                ),
+                "path_gates": {"dashboard_enabled": False},
+                "expectations": expectations,
+                "run_url": run_url,
+            }
+
         pr_info, resolved_base = resolve_target_pr(
             repo,
             cfg,
@@ -2040,6 +1775,12 @@ def run_live_case(
             interval_seconds=interval,
             exclude_run_ids=known_run_ids,
         )
+        if run_detail is None:
+            raise TimeoutError(
+                f"No successful status-route run for {workflow_file_early!r} "
+                f"within {timeout}s after the Buildkite failure status "
+                f"(commit {sha}, context {context!r})."
+            )
 
         job_executed = status_job_executed(run_detail)
         job_conclusion = status_job_conclusion(run_detail)
@@ -2073,7 +1814,7 @@ def run_live_case(
                 repo, target_pr_number, since=since, markers=markers
             )
     except (RuntimeError, TimeoutError, TypeError, ValueError, OSError) as exc:
-        return {
+        blocked: dict[str, Any] = {
             "workflow_id": workflow_id,
             "case_id": case.get("id", case_dir.name),
             "layer": "e2e",
@@ -2084,8 +1825,16 @@ def run_live_case(
             "path_gates": {"dashboard_enabled": dashboard_ok},
             "fixture": fixture_meta,
             "expectations": expectations,
+            "trigger": trigger,
             "run_url": run_url,
         }
+        if buildkite_meta:
+            blocked["buildkite"] = buildkite_meta
+        if sha is not None:
+            blocked["commit_sha"] = sha
+        if target_pr_number is not None:
+            blocked["pr_number"] = target_pr_number
+        return blocked
 
     path_gates = {
         "dashboard_enabled": dashboard_ok,
@@ -2123,12 +1872,12 @@ def run_live_case(
         },
         "buildkite": buildkite_meta,
         "status_trigger": {
-            "run_seen": run_detail is not None,
+            "run_seen": True,
             "job_executed": job_executed,
             "job_conclusion": job_conclusion,
-            "run_id": (run_detail or {}).get("databaseId"),
-            "conclusion": (run_detail or {}).get("conclusion"),
-            "url": (run_detail or {}).get("url"),
+            "run_id": run_detail.get("databaseId"),
+            "conclusion": run_detail.get("conclusion"),
+            "url": run_detail.get("url"),
         },
         "agent_comment": comment,
         "path_gates": path_gates,
@@ -2136,9 +1885,9 @@ def run_live_case(
         "run_url": run_url,
         "harness_notes": [
             (
-                "Happy path only: ephemeral fixture PR → intentional Buildkite "
+                "Happy path only: long-lived fixture PR → intentional Buildkite "
                 "failure → Buildkite publishes GitHub commit status → "
-                "trigger-obs-aw-status → agent → PR comment; fixture closed after run."
+                "trigger-obs-aw-status → agent → PR comment."
             ),
         ],
     }
@@ -2168,7 +1917,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--outcome-path",
         type=Path,
-        default=None,
+        required=True,
         help="Where to write the machine-readable harness outcome JSON",
     )
     parser.add_argument(
@@ -2181,36 +1930,9 @@ def main(argv: list[str] | None = None) -> int:
         default="",
         help="PR base branch for Buildkite pull_request_base_branch (default: main)",
     )
-    parser.add_argument(
-        "--fixture-key",
-        required=True,
-        help="Ephemeral fixture key: pr-<development-PR> or run-<actions-run-id>",
-    )
-    parser.add_argument(
-        "--cleanup-only",
-        action="store_true",
-        help="Close the fixture PR and delete its branch, then exit",
-    )
     args = parser.parse_args(argv)
 
-    cfg = apply_ephemeral_fixture_identity(
-        load_e2e_config(args.config_path), args.fixture_key
-    )
-    repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
-
-    if args.cleanup_only:
-        result = cleanup_e2e_fixture(repo, cfg)
-        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
-        if result.get("errors"):
-            log_error(
-                "Fixture cleanup reported errors (next run may reuse the same "
-                f"fixture key): {result['errors']}"
-            )
-            return 2
-        return 0
-
-    if args.outcome_path is None:
-        raise SystemExit("--outcome-path is required unless --cleanup-only is set")
+    cfg = load_e2e_config(args.config_path)
 
     case_dir = args.testdata_root / "cases" / args.case_id
     if not case_dir.is_dir():
@@ -2221,7 +1943,6 @@ def main(argv: list[str] | None = None) -> int:
         cfg,
         run_url=args.run_url or None,
         base_branch=args.base_branch or None,
-        fixture_key=args.fixture_key,
     )
 
     args.outcome_path.parent.mkdir(parents=True, exist_ok=True)

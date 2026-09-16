@@ -19,13 +19,13 @@ Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE`
 
 Happy path:
 
-1. Harness creates or reuses an **ephemeral** fixture PR/branch (`e2e/estc-pr-buildkite-detective/pr-<N>` for path-filtered runs, or `…/run-<id>` for dispatch/call), then creates a Buildkite build on that fixture SHA (with `pull_request_id`). After the matrix, cleanup closes the PR and deletes the branch; if cleanup fails, the next run reuses the same `pr-<N>` / `run-<id>` key.
+1. Harness creates or reuses one **long-lived** fixture PR on branch `e2e/estc-pr-buildkite-detective` (never closed by the harness), then creates a Buildkite build on that fixture SHA (with `pull_request_id`). Workflow concurrency serializes live runs against that shared fixture.
 2. The intentional-failure step runs and fails.
 3. **Buildkite** publishes the GitHub commit status for context `buildkite/<pipeline>` (e.g. `buildkite/oblt-aw-e2e-estc-fail`) via catalog `publish_commit_status: true` (default Buildkite context). Do **not** add pipeline- or step-level `notify: github_commit_status` — that double-fires the detective.
 4. The real `status` event triggers `trigger-obs-aw-status.yml` → detective → agent (context must contain substring `buildkite`). Pending statuses also fire the workflow but skip the job (`state != failure`); the harness ignores those skipped runs.
 5. Harness observes the Actions run and PR comment (it does **not** forge the happy-path status).
 
-When the harness syncs `.buildkite/pipeline.e2e-estc-fail.yml` onto the ephemeral fixture branch, it binds the Buildkite build (and status wait) to the **Contents API commit SHA** from that write. It must not re-read `headRefOid` from the PR API after sync — that OID can lag, leaving the status on a non-HEAD commit that does not appear in the PR Checks UI.
+When the harness syncs `.buildkite/pipeline.e2e-estc-fail.yml` onto the fixture branch, it binds the Buildkite build (and status wait) to the **Contents API commit SHA** from that write. It must not re-read `headRefOid` from the PR API after sync — that OID can lag, leaving the status on a non-HEAD commit that does not appear in the PR Checks UI.
 
 If the status never appears: check Buildkite GitHub App (`buildkite-limited-access`) commit-status permission, pipeline GitHub settings (`publish_commit_status`), and the harness job log (`block_reason` + status dump). Do not paper over a missing Buildkite status by forging one on the happy path.
 
