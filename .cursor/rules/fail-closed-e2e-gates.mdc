@@ -49,7 +49,7 @@ Check each of these explicitly (add a regression when any is open):
 | Unroutable status context | Can `expected_status_context` omit the `buildkite` substring while the waiter still polls? Reject before sync/create. |
 | Producer/waiter context lockstep | Can env org/pipeline overrides make the waiter expect a context other than `buildkite/<pipeline>` that Buildkite will publish? |
 | Skipped status-route race | Can a completed pending→skipped `trigger-obs-aw-status` run satisfy `wait_for_new_run` / `status_job_executed` ahead of the failure-triggered success run? |
-| Shared mutable fixture | Do concurrent development PRs share one fixture PR/branch/status context without isolation? Prefer ephemeral `pr-<N>` / `run-<id>` fixtures (or one global concurrency group until SHA/status correlation exists). |
+| Shared mutable fixture | Do concurrent development PRs share one fixture PR/branch/status context without isolation? Prefer one global concurrency group for a long-lived fixture. |
 | Path-filtered self-trigger | Can fixture-branch sync commits start the privileged live job again? Exclude fixture branch prefix from the job `if`. |
 | Secrets on PR checkout | Is `pull_request_target` avoided? If secrets remain on same-repo `pull_request`, is that an explicit trust boundary (collaborator write + CODEOWNERS), with forks excluded? |
 
@@ -95,7 +95,7 @@ When changing fail-pipeline YAML, catalog `provider_settings`, or the ESTC live 
 7. **Runtime deps** — if the harness imports PyYAML (or other runtime packages), the E2E workflow must `pip install -r requirements-runtime.txt` (or equivalent) before running.
 8. **No live pipeline GET** — do not call `GET …/pipelines/{pipeline}` for provider-settings preflight (needs `read_pipelines`); rely on checked-in YAML/catalog + create/poll scopes only.
 9. **Sync tip SHA lockstep** — after Contents PUT sync of the fail pipeline, create/wait on the PUT `commit.sha`; never re-bind to a re-fetched PR `headRefOid` (can lag and hide the status from PR Checks).
-10. **Ephemeral fixtures** — live runs use `pr-<N>` / `run-<id>` fixture branches under `e2e/estc-pr-buildkite-detective/`; close PR + delete branch after the matrix; reuse the same key if cleanup failed.
+10. **Long-lived fixture + concurrency** — live runs reuse one fixture branch under `e2e/estc-pr-buildkite-detective` (create if missing; do not close). Serialize with a global concurrency group so overlapping matrices cannot cross-bind status-route runs.
 
 ## Local validation before commit / push
 

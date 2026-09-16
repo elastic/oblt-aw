@@ -1,6 +1,0 @@
-{
-  "version": 1,
-  "policy": "Flaky E2E cases must list an owner and reason. Quarantined cases are skipped by the oracle but reported as pass=false so the matrix gate and outputs.pass fail closed (blocks promote). Do not silently retry into green. Retries are only a temporary mitigation and must be documented on the entry. Remove the entry when the flake is fixed.",
-  "default_owner_team": "@elastic/observablt-robots",
-  "cases": []
-}

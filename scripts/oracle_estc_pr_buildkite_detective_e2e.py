@@ -32,41 +32,10 @@ from pathlib import Path
 from typing import Any
 
 WORKFLOW_ID = "obs:estc-pr-buildkite-detective"
-DEFAULT_QUARANTINE = Path("config/obs/e2e-quarantine.json")
 
 
 def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def load_quarantine(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        return {
-            "version": 1,
-            "default_owner_team": "@elastic/observablt-robots",
-            "cases": [],
-        }
-    data = _load_json(path)
-    if not isinstance(data, dict):
-        raise SystemExit(f"Quarantine file must be a JSON object: {path}")
-    return data
-
-
-def find_quarantine_entry(
-    quarantine: dict[str, Any], workflow_id: str, case_id: str
-) -> dict[str, Any] | None:
-    for entry in quarantine.get("cases") or []:
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("workflow_id") != workflow_id or entry.get("case_id") != case_id:
-            continue
-        owner = entry.get("owner")
-        reason = entry.get("reason")
-        if not owner or not reason:
-            # Invalid quarantine rows are ignored (do not silently skip).
-            continue
-        return entry
-    return None
 
 
 def _check(
@@ -184,7 +153,6 @@ def case_trigger_schema_error(trigger: dict[str, Any]) -> str | None:
 
 def evaluate_outcome(
     outcome: dict[str, Any],
-    quarantine: dict[str, Any],
     *,
     case_expectations: dict[str, Any] | None = None,
     case_trigger: dict[str, Any] | None = None,
@@ -196,39 +164,6 @@ def evaluate_outcome(
     mode = str(outcome.get("mode") or "")
     layer = str(outcome.get("layer") or "e2e")
     checks: list[dict[str, Any]] = []
-    quarantined = find_quarantine_entry(quarantine, workflow_id, case_id)
-
-    if quarantined:
-        # Fail closed: skipped + pass=false so matrix/outputs.pass cannot
-        # green-promote while a required case is quarantined (#1878 contract).
-        report = {
-            "workflow_id": workflow_id,
-            "case_id": case_id,
-            "layer": layer,
-            "mode": mode,
-            "pass": False,
-            "skipped": True,
-            "quarantined": True,
-            "quarantine_owner": quarantined["owner"],
-            "quarantine_reason": quarantined["reason"],
-            "run_url": outcome.get("run_url"),
-            "checks": [
-                {
-                    "id": "quarantine",
-                    "pass": False,
-                    "detail": (
-                        f"Quarantined case blocks gate; owner={quarantined['owner']}; "
-                        f"{quarantined['reason']}"
-                    ),
-                }
-            ],
-            "agent_invoked": bool(outcome.get("agent_invoked")),
-            "notes": [
-                "Quarantined cases fail the E2E gate (pass=false); do not retry into green.",
-                "Remove the quarantine entry when the flake is fixed.",
-            ],
-        }
-        return report
 
     if outcome.get("blocked"):
         block_reason = str(outcome.get("block_reason") or "blocked")
@@ -273,7 +208,6 @@ def evaluate_outcome(
             "mode": mode,
             "pass": False,
             "skipped": False,
-            "quarantined": False,
             "run_url": outcome.get("run_url"),
             "block_reason": block_reason,
             "checks": checks,
@@ -354,7 +288,6 @@ def evaluate_outcome(
             "mode": mode,
             "pass": overall,
             "skipped": False,
-            "quarantined": False,
             "run_url": outcome.get("run_url"),
             "checks": checks,
             "agent_invoked": bool(outcome.get("agent_invoked")),
@@ -587,7 +520,6 @@ def _evaluate_live(
         "mode": "live",
         "pass": overall,
         "skipped": False,
-        "quarantined": False,
         "run_url": outcome.get("run_url"),
         "status_trigger_url": status_trigger.get("url"),
         "pr_url": outcome.get("pr_url"),
@@ -649,12 +581,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Where to write the machine-readable oracle report JSON",
     )
     parser.add_argument(
-        "--quarantine-path",
-        type=Path,
-        default=DEFAULT_QUARANTINE,
-        help="Quarantine config JSON",
-    )
-    parser.add_argument(
         "--testdata-root",
         type=Path,
         default=Path("testdata/agentic/estc-pr-buildkite-detective"),
@@ -699,10 +625,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     case_trigger = load_case_trigger(args.testdata_root, case_id) if case_id else None
 
-    quarantine = load_quarantine(args.quarantine_path)
     report = evaluate_outcome(
         outcome,
-        quarantine,
         case_expectations=case_expectations,
         case_trigger=case_trigger,
     )
@@ -715,7 +639,6 @@ def main(argv: list[str] | None = None) -> int:
     summary = {
         "pass": report.get("pass"),
         "skipped": report.get("skipped"),
-        "quarantined": report.get("quarantined"),
         "case_id": report.get("case_id"),
         "run_url": report.get("run_url"),
         "status_trigger_url": report.get("status_trigger_url"),
