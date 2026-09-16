@@ -35,6 +35,7 @@ Route wrappers keep descriptive ids such as `resolve-apm-assets` and `automerge`
 - Autodoc workflow: [docs/workflows/obs-aw-autodoc.md](obs-aw-autodoc.md)
 - Automerge workflow: [docs/workflows/obs-aw-automerge.md](obs-aw-automerge.md)
 - Dependency review workflow: [docs/workflows/obs-aw-dependency-review.md](obs-aw-dependency-review.md)
+- Compiler upgrade workflow: [docs/workflows/compiler-upgrade.md](compiler-upgrade.md)
 - Duplicate Issue Detector workflow: [docs/workflows/obs-aw-duplicate-issue-detector.md](obs-aw-duplicate-issue-detector.md)
 - Issue Fixer workflow (generic fix-ready path): [docs/workflows/obs-aw-issue-fixer.md](obs-aw-issue-fixer.md)
 - Issue Triage workflow (issue opened): [docs/workflows/obs-aw-issue-triage.md](obs-aw-issue-triage.md)
