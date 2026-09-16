@@ -640,6 +640,16 @@ class TestHarnessLive:
             "pr-1961",
         )
         assert cfg["e2e_pr"]["branch"] == "e2e/estc-pr-buildkite-detective/pr-1961"
+        assert cfg["e2e_pr"]["title"] == (
+            "[PR-1961] [e2e] ESTC detective fixture (pr-1961)"
+        )
+        run_cfg = harness.apply_ephemeral_fixture_identity(
+            {"e2e_pr": {"label": "e2e:estc-pr-buildkite-detective"}},
+            "run-99",
+        )
+        assert run_cfg["e2e_pr"]["title"] == (
+            "[RUN-99] [e2e] ESTC detective fixture (run-99)"
+        )
         assert harness.is_estc_fixture_branch(cfg["e2e_pr"]["branch"])
         assert harness.is_estc_fixture_branch("e2e/estc-pr-buildkite-detective")
         assert not harness.is_estc_fixture_branch("feature/foo")
@@ -1372,7 +1382,17 @@ steps:
         pr = harness.ensure_e2e_pr("elastic/oblt-aw", cfg)
         assert int(pr["number"]) == 1965
         assert list_heads
-        assert all(h == "e2e/estc-pr-buildkite-detective/pr-1959" for h in list_heads)
+        # Retirement may list the legacy exact-prefix branch; recovery lists
+        # the ephemeral head. Never use owner:branch filters.
+        assert "e2e/estc-pr-buildkite-detective/pr-1959" in list_heads
+        assert all(
+            h
+            in (
+                "e2e/estc-pr-buildkite-detective",
+                "e2e/estc-pr-buildkite-detective/pr-1959",
+            )
+            for h in list_heads
+        )
         assert "elastic:e2e/estc-pr-buildkite-detective/pr-1959" not in list_heads
 
     def test_ensure_e2e_pr_ignores_unrelated_legacy_label_pr(
@@ -1380,7 +1400,11 @@ steps:
     ) -> None:
         """Regression: open long-lived fixture must not block ephemeral create."""
         ephemeral = "e2e/estc-pr-buildkite-detective/pr-1984"
+        legacy = "e2e/estc-pr-buildkite-detective"
         create_called = {"n": 0}
+        closed: list[str] = []
+        deleted: list[str] = []
+        created_refs: list[str] = []
 
         def fake_gh_json(args: list[str], **_k: object) -> object:
             if args[:2] == ["pr", "list"] and "--label" in args:
@@ -1388,7 +1412,7 @@ steps:
                     {
                         "number": 100,
                         "url": "https://example.test/pr/100",
-                        "headRefName": "e2e/estc-pr-buildkite-detective",
+                        "headRefName": legacy,
                         "headRefOid": "legacy",
                         "title": "legacy fixture",
                         "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
@@ -1396,14 +1420,33 @@ steps:
                     }
                 ]
             if args[:2] == ["pr", "list"] and "--head" in args:
+                # Exact-head listing for legacy retirement.
+                if args[args.index("--head") + 1] == legacy:
+                    return [
+                        {
+                            "number": 100,
+                            "url": "https://example.test/pr/100",
+                            "headRefName": legacy,
+                            "headRefOid": "legacy",
+                            "title": "legacy fixture",
+                            "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
+                            "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
+                        }
+                    ]
                 return []
+            if args[:2] == ["api", "--method"] and "POST" in args:
+                # Creating the nested ephemeral ref after legacy retirement.
+                for a in args:
+                    if isinstance(a, str) and a.startswith("ref=refs/heads/"):
+                        created_refs.append(a.split("=", 1)[1])
+                return {"ref": created_refs[-1] if created_refs else ephemeral}
             if args[:2] == ["pr", "view"]:
                 return {
                     "number": 1984,
                     "url": "https://github.com/elastic/oblt-aw/pull/1984",
                     "headRefName": ephemeral,
                     "headRefOid": "abc",
-                    "title": "fixture",
+                    "title": "[PR-1984] [e2e] ESTC detective fixture (pr-1984)",
                     "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
                     "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
                 }
@@ -1419,16 +1462,24 @@ steps:
                 self.stderr = err
 
         def fake_run(cmd: list[str], **_k: object) -> _Proc:
+            if cmd[:3] == ["gh", "pr", "close"]:
+                closed.append(cmd[3])
+                return _Proc(0)
+            if cmd[:3] == ["gh", "api", "-X"] and "DELETE" in cmd:
+                deleted.append(cmd[-1])
+                return _Proc(0)
             if cmd[:3] == [
                 "gh",
                 "api",
                 f"repos/elastic/oblt-aw/git/ref/heads/{ephemeral}",
             ]:
-                return _Proc(0, "{}")
+                # Nested ref absent until POST after legacy delete.
+                return _Proc(1, err="HTTP 404: Not Found")
             if "contents/" in " ".join(cmd):
                 return _Proc(1)
             if cmd[:3] == ["gh", "pr", "create"]:
                 create_called["n"] += 1
+                assert "[PR-1984]" in cmd[cmd.index("--title") + 1]
                 return _Proc(
                     0,
                     out="https://github.com/elastic/oblt-aw/pull/1984\n",
@@ -1459,6 +1510,41 @@ steps:
         pr = harness.ensure_e2e_pr("elastic/oblt-aw", cfg)
         assert int(pr["number"]) == 1984
         assert create_called["n"] == 1
+        assert closed == ["100"]
+        assert any(legacy in d for d in deleted)
+        assert any(ephemeral in r for r in created_refs)
+
+    def test_cleanup_treats_missing_branch_as_success(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Idempotent cleanup: GitHub 422 'does not exist' is already-gone."""
+
+        class _Proc:
+            def __init__(self, code: int = 0, out: str = "", err: str = "") -> None:
+                self.returncode = code
+                self.stdout = out
+                self.stderr = err
+
+        def fake_run(cmd: list[str], **_k: object) -> _Proc:
+            if cmd[:3] == ["gh", "api", "-X"] and "DELETE" in cmd:
+                return _Proc(1, err="gh: Reference does not exist (HTTP 422)")
+            return _Proc(0)
+
+        monkeypatch.setattr(harness, "find_open_e2e_pr", lambda *_a, **_k: None)
+        monkeypatch.setattr(harness, "_list_prs_by_head", lambda *_a, **_k: [])
+        monkeypatch.setattr(harness, "_find_closed_fixture_pr", lambda *_a, **_k: None)
+        monkeypatch.setattr(harness.subprocess, "run", fake_run)
+
+        cfg = harness.apply_ephemeral_fixture_identity(
+            harness.load_e2e_config(
+                ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+            ),
+            "pr-1984",
+        )
+        result = harness.cleanup_e2e_fixture("elastic/oblt-aw", cfg)
+        assert result["branch_deleted"] is True
+        assert result["errors"] == []
+        assert result["pr_number"] is None
 
     def test_cleanup_skips_branch_delete_when_close_fails(
         self, monkeypatch: pytest.MonkeyPatch

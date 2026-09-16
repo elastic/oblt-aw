@@ -182,6 +182,16 @@ def is_estc_fixture_branch(ref: str, *, prefix: str = FIXTURE_BRANCH_PREFIX) -> 
     return name == base or name.startswith(f"{base}/")
 
 
+def fixture_pr_title(fixture_key: str) -> str:
+    """Title for an ephemeral fixture PR; ``pr-<N>`` keys get a ``[PR-N]`` prefix."""
+    key = normalize_fixture_key(fixture_key)
+    if key.startswith("pr-"):
+        return f"[PR-{key.split('-', 1)[1]}] [e2e] ESTC detective fixture ({key})"
+    if key.startswith("run-"):
+        return f"[RUN-{key.split('-', 1)[1]}] [e2e] ESTC detective fixture ({key})"
+    return f"[e2e] ESTC detective fixture ({key})"
+
+
 def apply_ephemeral_fixture_identity(
     cfg: dict[str, Any], fixture_key: str
 ) -> dict[str, Any]:
@@ -203,7 +213,7 @@ def apply_ephemeral_fixture_identity(
     e2e["branch_prefix"] = prefix
     e2e["branch"] = branch
     e2e["fixture_key"] = key
-    e2e["title"] = f"[e2e] ESTC detective fixture ({key})"
+    e2e["title"] = fixture_pr_title(key)
     e2e["body"] = (
         f"Ephemeral fixture PR for `obs:estc-pr-buildkite-detective` ({key}).\n\n"
         "Do not merge. Closed and branch deleted after the live E2E run; "
@@ -213,6 +223,86 @@ def apply_ephemeral_fixture_identity(
     out = dict(cfg)
     out["e2e_pr"] = e2e
     return out
+
+
+def _git_ref_already_absent(*, returncode: int, stderr: str, stdout: str) -> bool:
+    """True when a git-ref DELETE/GET failed because the ref is already gone."""
+    combined = f"{stderr or ''}{stdout or ''}".lower()
+    if "not found" in combined or "does not exist" in combined:
+        return True
+    if "404" in combined:
+        return True
+    # GitHub often returns HTTP 422 with "Reference does not exist".
+    return returncode != 0 and "422" in combined and "reference" in combined
+
+
+def retire_legacy_prefix_branch(
+    repo: str, *, prefix: str, label: str = FIXTURE_LABEL
+) -> None:
+    """Close open PRs on the exact legacy prefix branch and delete that ref.
+
+    Nested ephemeral refs ``{prefix}/pr-N`` cannot be created while
+    ``refs/heads/{prefix}`` still exists (GitHub HTTP 422 on POST refs).
+    ``label`` is retained for call-site clarity / future label-scoped recovery.
+    """
+    _ = label
+    legacy = str(prefix or "").rstrip("/")
+    if not legacy:
+        raise RuntimeError("retire_legacy_prefix_branch requires a non-empty prefix")
+
+    open_prs = _list_prs_by_head(repo, branch=legacy, state="open", limit=10)
+    for pr in open_prs:
+        pr_number = int(pr["number"])
+        close = subprocess.run(
+            [
+                "gh",
+                "pr",
+                "close",
+                str(pr_number),
+                "--repo",
+                repo,
+                "--comment",
+                (
+                    "Closing legacy long-lived ESTC detective E2E fixture; "
+                    "replaced by ephemeral per-run fixture branches."
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if close.returncode != 0:
+            detail = (
+                close.stderr or close.stdout or ""
+            ).strip() or f"exit {close.returncode}"
+            raise RuntimeError(
+                f"Failed to close legacy fixture PR #{pr_number} on "
+                f"{legacy!r}: {detail}"
+            )
+        log_info(f"Closed legacy fixture PR #{pr_number} on {legacy}")
+
+    del_ref = subprocess.run(
+        ["gh", "api", "-X", "DELETE", f"repos/{repo}/git/refs/heads/{legacy}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if del_ref.returncode == 0:
+        log_info(f"Deleted legacy fixture branch {legacy}")
+        return
+    if _git_ref_already_absent(
+        returncode=del_ref.returncode,
+        stderr=del_ref.stderr or "",
+        stdout=del_ref.stdout or "",
+    ):
+        return
+    detail = (del_ref.stderr or del_ref.stdout or "").strip() or (
+        f"exit {del_ref.returncode}"
+    )
+    raise RuntimeError(
+        f"Failed to delete legacy fixture branch {legacy!r} before creating "
+        f"nested ephemeral refs under it: {detail}"
+    )
 
 
 def cleanup_e2e_fixture(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
@@ -290,17 +380,17 @@ def cleanup_e2e_fixture(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         text=True,
         check=False,
     )
-    if del_ref.returncode == 0:
+    if del_ref.returncode == 0 or _git_ref_already_absent(
+        returncode=del_ref.returncode,
+        stderr=del_ref.stderr or "",
+        stdout=del_ref.stdout or "",
+    ):
         result["branch_deleted"] = True
     else:
-        combined = f"{del_ref.stderr or ''}{del_ref.stdout or ''}".lower()
-        if "not found" in combined or del_ref.returncode == 1 and "404" in combined:
-            result["branch_deleted"] = True  # already gone
-        else:
-            detail = (del_ref.stderr or del_ref.stdout or "").strip() or (
-                f"exit {del_ref.returncode}"
-            )
-            result["errors"].append(f"delete branch {branch}: {detail}")
+        detail = (del_ref.stderr or del_ref.stdout or "").strip() or (
+            f"exit {del_ref.returncode}"
+        )
+        result["errors"].append(f"delete branch {branch}: {detail}")
     return result
 
 
@@ -849,6 +939,12 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
     existing = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
     if existing:
         return _require_pr_label(repo, int(existing["number"]), label)
+
+    prefix = str(e2e_pr.get("branch_prefix") or FIXTURE_BRANCH_PREFIX).rstrip("/")
+    # Git cannot create ``refs/heads/{prefix}/…`` while ``refs/heads/{prefix}``
+    # still exists (HTTP 422). Retire the legacy long-lived branch first.
+    if branch.startswith(f"{prefix}/") and branch != prefix:
+        retire_legacy_prefix_branch(repo, prefix=prefix, label=label)
 
     _ensure_label(repo, label)
     default_branch = gh_text(
