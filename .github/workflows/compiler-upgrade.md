@@ -6,6 +6,7 @@ imports:
   - gh-aw-fragments/obs-defaults.md
   - gh-aw-fragments/formatting.md
   - gh-aw-fragments/rigor.md
+  - gh-aw-fragments/pick-three-keep-one.md
 engine:
   id: copilot
 on:
@@ -32,12 +33,16 @@ tools:
   github:
     toolsets: [repos, issues, search]
   bash: true
+network:
+  allowed:
+    - github
 strict: false
 safe-outputs:
   noop:
+    report-as-issue: false
   create-issue:
     max: 1
-    title-prefix: ${{ inputs.title-prefix }}
+    title-prefix: ${{ github.event_name == 'workflow_dispatch' && inputs.title-prefix || '[oblt-aw][compiler-upgrade]' }}
     close-older-key: "oblt-aw-compiler-upgrade"
     close-older-issues: true
     expires: 7d
@@ -53,7 +58,7 @@ Check whether the pinned gh-aw compiler version in `.aw-compiler-version` is beh
 3. Fetch recent gh-aw releases with `gh api repos/github/gh-aw/releases?per_page=10` and identify releases newer than the pinned version.
 4. If the pinned version is already the latest release, call `noop` and stop.
 5. For each newer release, read the release notes (`body`). If release notes are sparse, use the upstream changelog for confirmation.
-6. If the release notes are broad or ambiguous, use a small multi-angle review: one pass for breaking changes, one for feature/value, and one for bug/security impact. Otherwise, do a single-pass review.
+6. Use the imported Pick Three, Keep One guidance when the release notes are broad or ambiguous; otherwise do a single-pass review.
 7. Compare the findings against our current workflow usage and decide whether the upgrade is actionable.
 
 ### What to Look For
