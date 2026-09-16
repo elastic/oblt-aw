@@ -70,8 +70,8 @@ Primary repository documentation lives under `docs/`.
 
 Before opening a PR:
 
-1. Install [pre-commit](https://pre-commit.com/) and run `pre-commit install`
-2. Run `pre-commit run --all-files` to validate locally
+1. Install [pre-commit](https://pre-commit.com/) and run `pre-commit install --hook-type pre-commit --hook-type pre-push`
+2. Run `pre-commit run --files <touched-paths>` to validate locally (`--all-files` for a full scan)
 3. Run `pytest tests/` and `npm test` for Python and TypeScript tests
 
 See [docs/development/contributing.md](docs/development/contributing.md) for full setup and check details.

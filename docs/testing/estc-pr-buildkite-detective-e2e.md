@@ -20,10 +20,11 @@ Oracle pass/fail for the agent side effect is **comment presence**. Section mark
 
 1. **Dashboard** — enable `obs:estc-pr-buildkite-detective` on the Control Plane Dashboard for `elastic/oblt-aw` (issue labeled `oblt-aw/dashboard`). Currently required; the harness fails closed if the checkbox is off.
 2. **Secret** — `BUILDKITE_LOGS_API_TOKEN` on `elastic/oblt-aw` (mapped by `trigger-obs-aw-status.yml` into the wrapper). Must be able to **read** the E2E fail pipeline’s builds/logs.
-3. **Secret** — `BUILDKITE_TOKEN` with Buildkite scopes **`write_builds`** (+ read) / pipeline access level that can create builds so the harness can create and poll an intentional failure build.
-4. **Buildkite pipeline** — provisioned via [`catalog-info.yaml`](../../catalog-info.yaml) Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (steps: [`.buildkite/pipeline.e2e-estc-fail.yml`](../../.buildkite/pipeline.e2e-estc-fail.yml); statuses from `publish_commit_status: true`, context `buildkite/<pipeline>` e.g. `buildkite/oblt-aw-e2e-estc-fail`). After merge to `main`, confirm RRE reconciliation at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail. See [`.buildkite/README.e2e-estc-fail.md`](../../.buildkite/README.e2e-estc-fail.md). Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE` (default `oblt-aw-e2e-estc-fail`) — the harness derives the expected status context from the resolved pipeline name only.
-5. **Target PR** — harness creates or reuses one **long-lived** fixture PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective`. It is never closed by the harness. The exact label plus fixture branch skips repo `ci.yml` and agentic pull-request routes so the fixture does not burn CI or agent credits. Workflow concurrency (`e2e-estc-pr-buildkite-detective`) serializes live runs against that shared fixture. After syncing the fail-pipeline YAML onto the fixture branch, the harness creates the Buildkite build on the **Contents PUT commit SHA** (not a re-fetched PR `headRefOid`, which can lag and hide the status from the PR Checks UI).
-6. **Status context** — waiter always expects `buildkite/<resolved pipeline>` (from `E2E_BUILDKITE_PIPELINE` / config defaults). Config overrides that disagree fail closed before create.
+3. **Secret** — `E2E_GH_TOKEN` when exercising negative live cases that need the harness-posted status path. `github.token` cannot trigger that workflow path, so the harness uses this secret to post the status that drives the negative case.
+4. **Secret** — `BUILDKITE_TOKEN` with Buildkite scopes **`write_builds`** (+ read) / pipeline access level that can create builds so the harness can create and poll an intentional failure build.
+5. **Buildkite pipeline** — provisioned via [`catalog-info.yaml`](../../catalog-info.yaml) Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (steps: [`.buildkite/pipeline.e2e-estc-fail.yml`](../../.buildkite/pipeline.e2e-estc-fail.yml); statuses from `publish_commit_status: true`, context `buildkite/<pipeline>` e.g. `buildkite/oblt-aw-e2e-estc-fail`). After merge to `main`, confirm RRE reconciliation at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail. See [`.buildkite/README.e2e-estc-fail.md`](../../.buildkite/README.e2e-estc-fail.md). Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE` (default `oblt-aw-e2e-estc-fail`) — the harness derives the expected status context from the resolved pipeline name only.
+6. **Target PR** — harness creates or reuses one **long-lived** fixture PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective`. It is never closed by the harness. The exact label plus fixture branch skips repo `ci.yml` and agentic pull-request routes so the fixture does not burn CI or agent credits. Workflow concurrency (`e2e-estc-pr-buildkite-detective`) serializes live runs against that shared fixture. After syncing the fail-pipeline YAML onto the fixture branch, the harness creates the Buildkite build on the **Contents PUT commit SHA** (not a re-fetched PR `headRefOid`, which can lag and hide the status from the PR Checks UI).
+7. **Status context** — waiter always expects `buildkite/<resolved pipeline>` (from `E2E_BUILDKITE_PIPELINE` / config defaults). Config overrides that disagree fail closed before create.
 
 ### Reading failures
 
@@ -47,7 +48,7 @@ Not part of the default PR `required` job in [`ci.yml`](../../.github/workflows/
 
 ### Local (live only)
 
-Live mode needs `gh` auth, dashboard enablement, `BUILDKITE_TOKEN`, and the intentional-failure Buildkite pipeline.
+Live mode needs `gh` auth, dashboard enablement, `BUILDKITE_TOKEN`, `E2E_GH_TOKEN` for negative cases that post statuses, and the intentional-failure Buildkite pipeline.
 
 Harness/oracle unit coverage (no live agent):
 

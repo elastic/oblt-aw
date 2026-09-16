@@ -30,3 +30,5 @@ When the harness syncs `.buildkite/pipeline.e2e-estc-fail.yml` onto the fixture 
 If the status never appears: check Buildkite GitHub App (`buildkite-limited-access`) commit-status permission, pipeline GitHub settings (`publish_commit_status`), and the harness job log (`block_reason` + status dump). Do not paper over a missing Buildkite status by forging one on the happy path.
 
 Live E2E is happy-path only (no harness-posted synthetic statuses; no URL-override escape hatch).
+
+Any negative live case that depends on the harness posting a status must use `E2E_GH_TOKEN`, because `github.token` cannot trigger the workflow path that emits those statuses.
