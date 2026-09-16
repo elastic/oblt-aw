@@ -2,11 +2,11 @@
 
 Source file: [.github/workflows/obs-aw-compiler-upgrade.md](../../.github/workflows/obs-aw-compiler-upgrade.md)
 
-This reusable workflow checks whether the pinned gh-aw compiler version in `.aw-compiler-version` is behind the latest upstream release and opens an issue only when an actionable upgrade is available.
+This workflow source checks whether the pinned gh-aw compiler version in `.aw-compiler-version` is behind the latest upstream release and opens an issue only when an actionable upgrade is available.
 
 ## Prerequisites
 
-- Triggered via `workflow_call`.
+- Triggered on the weekly schedule or manually via `workflow_dispatch`.
 
 ## Usage
 
@@ -32,9 +32,10 @@ Permissions:
 
 ## API / Interface
 
-`workflow_call` contract:
+Supported triggers:
 
-- Inputs: shared prelude gate and allow-list / token-policy inputs (`shared-proceed`, `shared-allowed-pr-authors-*`, `shared-allowed-issue-authors-*`, `shared-token-policy`).
+- `schedule`: runs every Monday at 06:00 UTC.
+- `workflow_dispatch`: accepts an optional `title-prefix` input for created issues.
 
 ## References
 
