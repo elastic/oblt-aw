@@ -73,6 +73,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
+          persist-credentials: false
           ref: main
           path: oblt-aw-scripts
           fetch-depth: 1
@@ -112,6 +113,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
+          persist-credentials: false
           ref: main
           path: oblt-aw-scripts
           fetch-depth: 1
@@ -147,6 +149,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
+          persist-credentials: false
           ref: main
           path: oblt-aw-scripts
           fetch-depth: 1
@@ -212,6 +215,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
+          persist-credentials: false
           ref: main
           path: oblt-aw-scripts
           fetch-depth: 1
