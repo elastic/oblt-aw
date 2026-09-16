@@ -15,8 +15,10 @@
 
 GH_AW_VERSION_FILE := .aw-compiler-version
 GH_AW_VERSION := $(shell tr -d '[:space:]' < $(GH_AW_VERSION_FILE))
+GH_AW_BIN := $(HOME)/.local/share/gh/extensions/gh-aw/gh-aw
+GH_AW_WORKFLOW ?= gh-aw-estc-pr-buildkite-detective
 
-.PHONY: update-license update-license-check install-aw compile-aw
+.PHONY: update-license update-license-check compile-aw
 
 ## Update license headers and NOTICE.txt
 update-license:
@@ -26,28 +28,22 @@ update-license:
 update-license-check:
 	python3 scripts/update_license_files.py --check
 
-## Install or verify the pinned gh aw compiler version
-install-aw:
+$(GH_AW_BIN):
 	@expected="$(GH_AW_VERSION)"; \
 	if [ -z "$$expected" ]; then \
 		echo "error: $(GH_AW_VERSION_FILE) is empty or missing" >&2; \
 		exit 1; \
 	fi; \
-	current="$$(gh aw version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?' | head -1 || true)"; \
-	if [ "$$current" = "$$expected" ]; then \
-		echo "gh aw $$expected already installed"; \
-	else \
-		echo "Installing gh aw $$expected (current: $${current:-none})..."; \
-		gh extension remove gh-aw >/dev/null 2>&1 || true; \
-		gh extension install github/gh-aw --pin "$$expected"; \
-		installed="$$(gh aw version 2>&1 | awk '{print $$NF}' || true)"; \
-		if [ "$$installed" != "$$expected" ]; then \
-			echo "error: expected gh aw $$expected, got $${installed:-none}" >&2; \
-			exit 1; \
-		fi; \
-		echo "gh aw $$expected installed"; \
-	fi
+	install_dir="$$(dirname "$(GH_AW_BIN)")"; \
+	mkdir -p "$$install_dir"; \
+	tmp_file="$$(mktemp)"; \
+	trap 'rm -f "$$tmp_file"' EXIT; \
+	curl -fsSL "https://raw.githubusercontent.com/github/gh-aw/refs/tags/$$expected/install-gh-aw.sh" -o "$$tmp_file"; \
+	bash "$$tmp_file" "$$expected";
 
-## Compile agentic workflow Markdown into .lock.yml
+## Install the pinned gh aw compiler binary directly from the upstream release, without gh extension plumbing.
+install-aw: $(GH_AW_BIN)
+
+## Compile the selected gh-aw workflow source into its generated .lock.yml.
 compile-aw: install-aw
-	gh aw compile
+	$(GH_AW_BIN) compile $(GH_AW_WORKFLOW)
