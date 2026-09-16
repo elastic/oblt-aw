@@ -24,11 +24,11 @@ Repository-specific instructions require the agent to:
 
 Permissions:
 
-- `actions: read`
-- `contents: read`
-- `issues: write`
-- `copilot-requests: write`
-- `id-token: write`
+- job `activation`: `actions: read`, `contents: read`
+- job `agent`: `contents: read`, `copilot-requests: write`, `issues: read`
+- job `conclusion`: `actions: read`, `issues: write`
+- job `detection`: `contents: read`, `copilot-requests: write`
+- job `safe_outputs`: `issues: write`
 
 ## API / Interface
 
