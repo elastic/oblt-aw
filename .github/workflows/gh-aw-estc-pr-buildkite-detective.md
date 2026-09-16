@@ -51,6 +51,7 @@ network:
   allowed:
     - "buildkite.com"
 safe-outputs:
+  report-failed-jobs: false
   activation-comments: false
 strict: false
 timeout-minutes: 30
