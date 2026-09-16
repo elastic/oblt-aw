@@ -272,9 +272,8 @@ def retire_legacy_prefix_branch(
 
     Nested ephemeral refs ``{prefix}/pr-N`` cannot be created while
     ``refs/heads/{prefix}`` still exists (GitHub HTTP 422 on POST refs).
-    ``label`` is retained for call-site clarity / future label-scoped recovery.
+    Refuses to retire when an open PR on the legacy branch lacks ``label``.
     """
-    _ = label
     legacy = str(prefix or "").rstrip("/")
     if not legacy:
         raise RuntimeError("retire_legacy_prefix_branch requires a non-empty prefix")
@@ -284,6 +283,7 @@ def retire_legacy_prefix_branch(
         raise RuntimeError(
             f"Refusing to retire {legacy!r}: an open PR lacks label {label!r}."
         )
+    for pr in open_prs:
         pr_number = int(pr["number"])
         close = subprocess.run(
             [
