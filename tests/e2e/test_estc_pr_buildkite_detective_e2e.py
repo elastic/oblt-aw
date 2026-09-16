@@ -264,6 +264,84 @@ class TestHarnessLive:
         )
         assert result is None
 
+    def test_wait_for_new_run_skips_pending_skipped_then_returns_success(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Pending→skipped status runs must not win over the failure-triggered run."""
+        since = harness._utc_now().replace(microsecond=0)
+        created = since.isoformat().replace("+00:00", "Z")
+        listed = [
+            {
+                "databaseId": 1,
+                "status": "completed",
+                "conclusion": "skipped",
+                "createdAt": created,
+                "event": "status",
+                "displayTitle": "status",
+                "url": "https://example.test/run/1",
+                "headSha": "default-branch-tip",
+            },
+            {
+                "databaseId": 2,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": created,
+                "event": "status",
+                "displayTitle": "status",
+                "url": "https://example.test/run/2",
+                "headSha": "default-branch-tip",
+            },
+        ]
+        details = {
+            1: {
+                "databaseId": 1,
+                "status": "completed",
+                "conclusion": "skipped",
+                "url": "https://example.test/run/1",
+                "jobs": [{"name": "run-obs-aw-status", "conclusion": "skipped"}],
+                "createdAt": created,
+                "headSha": "default-branch-tip",
+                "event": "status",
+            },
+            2: {
+                "databaseId": 2,
+                "status": "completed",
+                "conclusion": "success",
+                "url": "https://example.test/run/2",
+                "jobs": [
+                    {
+                        "name": "run-obs-aw-status / estc / agent",
+                        "conclusion": "success",
+                    }
+                ],
+                "createdAt": created,
+                "headSha": "default-branch-tip",
+                "event": "status",
+            },
+        }
+
+        monkeypatch.setattr(
+            harness, "list_status_trigger_runs", lambda *_a, **_k: listed
+        )
+
+        def fake_gh_json(args: list[str], **_k: object) -> dict:
+            run_id = int(args[2])
+            return details[run_id]
+
+        monkeypatch.setattr(harness, "gh_json", fake_gh_json)
+        monkeypatch.setattr(harness.time, "sleep", lambda _s: None)
+
+        result = harness.wait_for_new_run(
+            "elastic/oblt-aw",
+            "trigger-obs-aw-status.yml",
+            since=since,
+            timeout_seconds=5,
+            interval_seconds=1,
+        )
+        assert result is not None
+        assert result["databaseId"] == 2
+        assert harness.status_job_executed(result) is True
+
     def test_agent_job_invoked_ignores_wrapper_success(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -484,13 +562,13 @@ class TestHarnessLive:
     def test_match_commit_status_requires_context_state_and_url(self) -> None:
         statuses = [
             {
-                "context": "oblt-aw-e2e-estc-fail: buildkite",
+                "context": "buildkite/oblt-aw-e2e-estc-fail",
                 "state": "failure",
                 "target_url": "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
                 "created_at": "2026-09-14T10:00:00Z",
             },
             {
-                "context": "oblt-aw-e2e-estc-fail: buildkite",
+                "context": "buildkite/oblt-aw-e2e-estc-fail",
                 "state": "failure",
                 "target_url": "https://buildkite.com/elastic/other/builds/9",
                 "created_at": "2026-09-14T11:00:00Z",
@@ -498,7 +576,7 @@ class TestHarnessLive:
         ]
         matched = harness.match_commit_status(
             statuses,
-            context="oblt-aw-e2e-estc-fail: buildkite",
+            context="buildkite/oblt-aw-e2e-estc-fail",
             state="failure",
             target_url="https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
         )
@@ -507,14 +585,14 @@ class TestHarnessLive:
         assert (
             harness.match_commit_status(
                 statuses,
-                context="oblt-aw-e2e-estc-fail: buildkite",
+                context="buildkite/oblt-aw-e2e-estc-fail",
                 state="success",
                 target_url="https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
             )
             is None
         )
 
-    def test_expected_buildkite_status_context_defaults_to_beats_style(
+    def test_expected_buildkite_status_context_defaults_to_publish_context(
         self,
     ) -> None:
         cfg = {
@@ -525,12 +603,12 @@ class TestHarnessLive:
         }
         assert (
             harness.expected_buildkite_status_context(cfg)
-            == "oblt-aw-e2e-estc-fail: buildkite"
+            == "buildkite/oblt-aw-e2e-estc-fail"
         )
-        cfg["status_context"] = "oblt-aw-e2e-estc-fail: buildkite"
+        cfg["status_context"] = "buildkite/oblt-aw-e2e-estc-fail"
         assert (
             harness.expected_buildkite_status_context(cfg)
-            == "oblt-aw-e2e-estc-fail: buildkite"
+            == "buildkite/oblt-aw-e2e-estc-fail"
         )
         cfg["expected_status_context"] = "custom-buildkite-check"
         assert (
@@ -569,28 +647,31 @@ class TestHarnessLive:
         reason = harness.commit_status_timeout_block_reason(
             repo="elastic/oblt-aw",
             sha="abc123",
-            context="oblt-aw-e2e-estc-fail: buildkite",
+            context="buildkite/oblt-aw-e2e-estc-fail",
             state="failure",
             target_url="https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/1",
             timeout_seconds=300,
         )
         assert "Timed out after 300s" in reason
         assert "CLA" in reason
-        assert "oblt-aw-e2e-estc-fail: buildkite" in reason
+        assert "buildkite/oblt-aw-e2e-estc-fail" in reason
 
-    def test_sync_fail_pipeline_requires_notify(
+    def test_sync_fail_pipeline_allows_no_notify(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         pipeline = tmp_path / "pipeline.yml"
         pipeline.write_text("steps: []\n", encoding="utf-8")
-        with pytest.raises(RuntimeError, match="pipeline-level github_commit_status"):
+        monkeypatch.setattr(harness, "put_branch_file", lambda *_a, **_k: False)
+        assert (
             harness.sync_fail_pipeline_to_fixture_branch(
                 "elastic/oblt-aw",
                 branch="e2e/estc-pr-buildkite-detective",
                 pipeline_path=pipeline,
             )
+            is False
+        )
 
-    def test_sync_fail_pipeline_rejects_comment_only_notify(
+    def test_sync_fail_pipeline_ignores_comment_only_notify(
         self, tmp_path: pathlib.Path
     ) -> None:
         pipeline = tmp_path / "pipeline.yml"
@@ -598,26 +679,47 @@ class TestHarnessLive:
             "# github_commit_status must not count\nsteps: []\n",
             encoding="utf-8",
         )
-        with pytest.raises(RuntimeError, match="pipeline-level github_commit_status"):
+        assert (
             harness.fail_pipeline_github_commit_status_contexts(
                 pipeline.read_text(encoding="utf-8"),
                 pipeline_path=pipeline,
             )
+            == []
+        )
 
-    def test_sync_fail_pipeline_rejects_duplicate_step_notify(
+    def test_sync_fail_pipeline_rejects_pipeline_notify(
         self, tmp_path: pathlib.Path
     ) -> None:
         pipeline = tmp_path / "pipeline.yml"
         pipeline.write_text(
             """notify:
   - github_commit_status:
-      context: "oblt-aw-e2e-estc-fail: buildkite"
+      context: "buildkite/oblt-aw-e2e-estc-fail"
 steps:
+  - label: fail
+    command: exit 1
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(
+            RuntimeError, match="must not declare pipeline-level github_commit_status"
+        ):
+            harness.fail_pipeline_github_commit_status_contexts(
+                pipeline.read_text(encoding="utf-8"),
+                pipeline_path=pipeline,
+            )
+
+    def test_sync_fail_pipeline_rejects_step_notify(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        pipeline = tmp_path / "pipeline.yml"
+        pipeline.write_text(
+            """steps:
   - label: fail
     command: exit 1
     notify:
       - github_commit_status:
-          context: "oblt-aw-e2e-estc-fail: buildkite"
+          context: "buildkite/oblt-aw-e2e-estc-fail"
 """,
             encoding="utf-8",
         )
@@ -634,10 +736,7 @@ steps:
     ) -> None:
         pipeline = tmp_path / "pipeline.yml"
         pipeline.write_text(
-            """notify:
-  - github_commit_status:
-      context: "oblt-aw-e2e-estc-fail: buildkite"
-steps:
+            """steps:
   - label: fail
     command: exit 1
     notify:
@@ -654,49 +753,24 @@ steps:
                 pipeline_path=pipeline,
             )
 
-    def test_sync_fail_pipeline_rejects_multiple_pipeline_notify(
+    def test_assert_fail_pipeline_status_context_matches_returns_expected(
         self, tmp_path: pathlib.Path
     ) -> None:
         pipeline = tmp_path / "pipeline.yml"
-        pipeline.write_text(
-            """notify:
-  - github_commit_status:
-      context: "oblt-aw-e2e-estc-fail: buildkite"
-  - github_commit_status:
-      context: "second-buildkite-context"
-steps: []
-""",
-            encoding="utf-8",
-        )
-        with pytest.raises(RuntimeError, match="exactly one pipeline-level"):
-            harness.fail_pipeline_github_commit_status_contexts(
-                pipeline.read_text(encoding="utf-8"),
-                pipeline_path=pipeline,
-            )
-
-    def test_assert_fail_pipeline_status_context_matches_override(
-        self, tmp_path: pathlib.Path
-    ) -> None:
-        pipeline = tmp_path / "pipeline.yml"
-        pipeline.write_text(
-            """notify:
-  - github_commit_status:
-      context: "oblt-aw-e2e-estc-fail: buildkite"
-steps: []
-""",
-            encoding="utf-8",
-        )
+        pipeline.write_text("steps: []\n", encoding="utf-8")
         cfg = {
             "buildkite_failure": {
                 "org_default": "elastic",
                 "pipeline_default": "oblt-aw-e2e-estc-fail",
             },
-            "expected_status_context": "other-buildkite-context",
+            "expected_status_context": "buildkite/oblt-aw-e2e-estc-fail",
         }
-        with pytest.raises(RuntimeError, match="do not include expected"):
+        assert (
             harness.assert_fail_pipeline_status_context_matches(
                 cfg, pipeline_path=pipeline
             )
+            == "buildkite/oblt-aw-e2e-estc-fail"
+        )
 
     def test_run_live_case_syncs_before_create(
         self,
@@ -714,10 +788,7 @@ steps: []
         )
         pipeline = tmp_path / "pipeline.e2e-estc-fail.yml"
         pipeline.write_text(
-            """notify:
-  - github_commit_status:
-      context: "oblt-aw-e2e-estc-fail: buildkite"
-steps:
+            """steps:
   - label: fail
     command: exit 1
 """,
@@ -1247,7 +1318,7 @@ class TestOracle:
             "blocked": True,
             "block_reason": (
                 "Timed out after 300s waiting for GitHub commit status "
-                "context='oblt-aw-e2e-estc-fail: buildkite' "
+                "context='buildkite/oblt-aw-e2e-estc-fail' "
                 "state='failure' target_url='https://buildkite.com/x' on abc."
             ),
             "agent_invoked": False,
@@ -1258,7 +1329,7 @@ class TestOracle:
         assert report["block_reason"]
         assert any(c["id"] == "not_blocked" and not c["pass"] for c in report["checks"])
         assert any("commit status" in n.lower() for n in report["notes"])
-        assert any("notify" in n.lower() for n in report["notes"])
+        assert any("publish_commit_status" in n.lower() for n in report["notes"])
 
     def test_missing_workflow_id_fails_closed(self) -> None:
         outcome = _synthetic_live_outcome()
@@ -1957,7 +2028,7 @@ class TestOracle:
                     "blocked": True,
                     "block_reason": (
                         "Timed out after 300s waiting for GitHub commit status "
-                        "context='oblt-aw-e2e-estc-fail: buildkite'"
+                        "context='buildkite/oblt-aw-e2e-estc-fail'"
                     ),
                     "agent_invoked": False,
                 }

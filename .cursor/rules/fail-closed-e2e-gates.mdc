@@ -44,10 +44,11 @@ Check each of these explicitly (add a regression when any is open):
 | Test/prod parity | Do unit helpers still default to harness-copied outcome blobs while CLI loads `case.json`? |
 | Setup before outcome | Can sync / Contents API / create-build errors exit without `outcome.json` + `block_reason`? |
 | Escape hatch purity | Does a create-skip override still mutate fixture branches or call create-only APIs? |
-| Duplicate trigger producers | Can the same status context be published twice (pipeline + step notify) and double-fire the detective? |
-| Multiple / step notify | Does “at least one” pipeline notify, or a step-level `github_commit_status` with a *different* context, still sync? Require exactly one pipeline-level context and ban every step-level entry. |
+| Duplicate trigger producers | Can notify + `publish_commit_status` (or any leftover `github_commit_status` notify) double-fire the detective? |
+| Multiple / step notify | Does any pipeline or step `github_commit_status` notify still sync when statuses must come only from `publish_commit_status`? Reject every notify entry. |
 | Unroutable status context | Can `expected_status_context` omit the `buildkite` substring while the waiter still polls? Reject before sync/create. |
-| Producer/waiter context lockstep | Can env org/pipeline overrides make the waiter expect a context the fail-pipeline YAML never publishes? |
+| Producer/waiter context lockstep | Can env org/pipeline overrides make the waiter expect a context other than `buildkite/<pipeline>` that Buildkite will publish? |
+| Skipped status-route race | Can a completed pending→skipped `trigger-obs-aw-status` run satisfy `wait_for_new_run` / `status_job_executed` ahead of the failure-triggered success run? |
 
 If Copilot (or a human) files a follow-up on the same PR after a “fix,” treat that as incomplete first-pass evidence: extend the chain in the same change set; do not argue the first patch was enough.
 
@@ -65,12 +66,12 @@ If Copilot (or a human) files a follow-up on the same PR after a “fix,” trea
 - Schema accepting values the evaluator ignores
 - Setup / preflight exceptions that abort `run_live_case` (or `main`) **before** writing `outcome.json` with `blocked` + `block_reason` — Contents sync and Buildkite create/poll errors must become blocked outcomes
 - Escape-hatch paths (e.g. fixed Buildkite target URL) that still mutate fixture branches, require write tokens, or call create-only preflights
-- Duplicate producers of the same trigger signal (e.g. pipeline-level and step-level `github_commit_status` with the same context)
-- Accepting two or more pipeline-level `github_commit_status` contexts, or any step-level `github_commit_status` (even with a different context)
+- Duplicate producers of the same trigger signal (e.g. `publish_commit_status` plus any `github_commit_status` notify)
+- Accepting any pipeline- or step-level `github_commit_status` notify when catalog `publish_commit_status` is the sole publisher
 - `expected_status_context` (or template output) that does not contain `buildkite`, so status triggers never route
-- Reserved `buildkite/…` notify context (Beats-style live path uses a custom context that contains substring `buildkite` without that prefix; org default often rejects reserved-prefix contexts)
+- Binding `wait_for_new_run` to the first completed status workflow run without requiring named-job `status_job_executed` (pending→skipped races)
 - Substring / comment-only guards standing in for parsed config (e.g. `"github_commit_status" in yaml_text`)
-- Producer notify context hard-coded while the waiter derives context from env overrides (`E2E_BUILDKITE_ORG` / `E2E_BUILDKITE_PIPELINE`) without aligning or rejecting the mismatch
+- Waiter context derived from env overrides (`E2E_BUILDKITE_ORG` / `E2E_BUILDKITE_PIPELINE`) without aligning to `buildkite/<pipeline>` publish
 
 ## When reviewing Copilot / human fail-closed comments
 
@@ -82,13 +83,14 @@ Closing “empty mapping” without also rejecting typo/partial mappings, nested
 
 When changing fail-pipeline YAML, catalog `provider_settings`, or the ESTC live harness, also verify:
 
-1. **Exactly one pipeline-level notify** — one `github_commit_status` context; **reject every** step-level `github_commit_status` (not only same-context overlap).
-2. **Parse notify** — validate real YAML `notify` entries, not comment substrings.
-3. **Context lockstep** — fail-pipeline notify context matches `expected_buildkite_status_context` (env overrides included).
-4. **Routable context** — resolved / override context must contain `buildkite` (status trigger filter). Prefer Beats-style custom contexts (not reserved `buildkite/…`); catalog keeps `publish_commit_status: false` and must not set Terrazzo-unknown `prevent_custom_statuses_from_using_buildkite_prefix`.
-5. **Exceptions → blocked outcome** — sync/API/create errors write `blocked` + `block_reason`, never an empty artifact path.
-6. **Runtime deps** — if the harness imports PyYAML (or other runtime packages), the E2E workflow must `pip install -r requirements-runtime.txt` (or equivalent) before running.
-7. **No live pipeline GET** — do not call `GET …/pipelines/{pipeline}` for provider-settings preflight (needs `read_pipelines`); rely on checked-in YAML/catalog + create/poll scopes only.
+1. **No github_commit_status notify** — reject every pipeline- and step-level `github_commit_status` notify entry (statuses come from catalog `publish_commit_status` only).
+2. **Parse notify** — validate real YAML `notify` entries, not comment substrings (comment-only mentions must neither pass nor fail incorrectly).
+3. **Context lockstep** — expected waiter context is `buildkite/<pipeline>` (config override / template + env org/pipeline defaults).
+4. **Routable context** — resolved / override context must contain `buildkite` (status trigger filter). Catalog keeps `publish_commit_status: true` and `publish_commit_status_per_step: false`; do not set Terrazzo-unknown `prevent_custom_statuses_from_using_buildkite_prefix`.
+5. **Skipped-run race** — `wait_for_new_run` must ignore completed status-route jobs with conclusion `skipped` and keep polling for named-job success.
+6. **Exceptions → blocked outcome** — sync/API/create errors write `blocked` + `block_reason`, never an empty artifact path.
+7. **Runtime deps** — if the harness imports PyYAML (or other runtime packages), the E2E workflow must `pip install -r requirements-runtime.txt` (or equivalent) before running.
+8. **No live pipeline GET** — do not call `GET …/pipelines/{pipeline}` for provider-settings preflight (needs `read_pipelines`); rely on checked-in YAML/catalog + create/poll scopes only.
 
 ## Local validation before commit / push
 

@@ -48,9 +48,8 @@ MARKER_BODY = (
     "`obs:estc-pr-buildkite-detective`. Do not merge.\n"
 )
 FAIL_PIPELINE_PATH = Path(".buildkite/pipeline.e2e-estc-fail.yml")
-# Beats-style custom context: contains "buildkite" for status routing, but not
-# the reserved buildkite/… prefix (blocked when prevent_custom…=true).
-DEFAULT_STATUS_CONTEXT = "oblt-aw-e2e-estc-fail: buildkite"
+# Default GitHub status from Buildkite publish_commit_status (buildkite/<pipeline>).
+DEFAULT_STATUS_CONTEXT_TEMPLATE = "buildkite/{pipeline}"
 
 
 def _load_json(path: Path) -> Any:
@@ -123,8 +122,8 @@ def require_routable_buildkite_status_context(context: str) -> str:
         raise RuntimeError(
             f"status context {ctx!r} does not contain 'buildkite'; "
             "trigger-obs-aw-status.yml / obs-aw-event-status.yml will not route it. "
-            "Use a Beats-style custom context that includes the substring "
-            "buildkite (not the reserved buildkite/… prefix)."
+            "Use Buildkite's default publish context (buildkite/<pipeline>) or another "
+            "context that includes the substring buildkite."
         )
     return ctx
 
@@ -137,12 +136,12 @@ def expected_buildkite_status_context(cfg: dict[str, Any]) -> str:
     if override:
         return require_routable_buildkite_status_context(override)
     template = str(cfg.get("status_context_template") or "").strip()
-    if template:
-        org, pipeline = resolve_buildkite_org_pipeline(cfg)
-        return require_routable_buildkite_status_context(
-            template.format(org=org, pipeline=pipeline)
-        )
-    return require_routable_buildkite_status_context(DEFAULT_STATUS_CONTEXT)
+    if not template:
+        template = DEFAULT_STATUS_CONTEXT_TEMPLATE
+    org, pipeline = resolve_buildkite_org_pipeline(cfg)
+    return require_routable_buildkite_status_context(
+        template.format(org=org, pipeline=pipeline)
+    )
 
 
 def gh_json(args: list[str], *, check: bool = True) -> Any:
@@ -299,11 +298,12 @@ def _notify_github_commit_status_contexts(notify: Any) -> list[str]:
 def fail_pipeline_github_commit_status_contexts(
     content: str, *, pipeline_path: Path | str = FAIL_PIPELINE_PATH
 ) -> list[str]:
-    """Return pipeline-level github_commit_status contexts from fail-pipeline YAML.
+    """Assert fail-pipeline YAML has no github_commit_status notify entries.
 
-    Parses YAML so comment-only mentions of ``github_commit_status`` cannot pass.
-    Requires exactly one pipeline-level context and rejects any step-level
-    ``github_commit_status`` (duplicate status→detective triggers).
+    Statuses come from catalog ``publish_commit_status``. Any pipeline- or
+    step-level ``github_commit_status`` notify can double-fire the detective.
+    Parses YAML so comment-only mentions cannot pass or fail the gate.
+    Returns an empty list when the pipeline is clean.
     """
     try:
         data = yaml.safe_load(content)
@@ -312,16 +312,12 @@ def fail_pipeline_github_commit_status_contexts(
     if not isinstance(data, dict):
         raise TypeError(f"{pipeline_path} must parse to a mapping")
     contexts = _notify_github_commit_status_contexts(data.get("notify"))
-    if not contexts:
+    if contexts:
         raise RuntimeError(
-            f"{pipeline_path} is missing pipeline-level github_commit_status notify; "
-            "refusing to sync a pipeline that cannot publish GitHub statuses."
-        )
-    if len(contexts) != 1:
-        raise RuntimeError(
-            f"{pipeline_path} must declare exactly one pipeline-level "
-            f"github_commit_status context, found {len(contexts)}: {contexts}. "
-            "Extra contexts can double-fire trigger-obs-aw-status.yml."
+            f"{pipeline_path} must not declare pipeline-level github_commit_status "
+            f"notify (found {contexts}); statuses come from "
+            "publish_commit_status (buildkite/<pipeline>). Extra notify contexts "
+            "double-fire trigger-obs-aw-status.yml."
         )
     steps = data.get("steps") or []
     if isinstance(steps, list):
@@ -332,10 +328,10 @@ def fail_pipeline_github_commit_status_contexts(
             if step_contexts:
                 raise RuntimeError(
                     f"{pipeline_path} step[{idx}] declares github_commit_status "
-                    f"context(s) {step_contexts}; keep notify at pipeline level "
-                    "only to avoid duplicate status→detective triggers."
+                    f"context(s) {step_contexts}; do not use notify — "
+                    "publish_commit_status alone must publish the status."
                 )
-    return contexts
+    return []
 
 
 def assert_fail_pipeline_status_context_matches(
@@ -343,23 +339,15 @@ def assert_fail_pipeline_status_context_matches(
     *,
     pipeline_path: Path | None = None,
 ) -> str:
-    """Ensure the fail-pipeline notify context matches harness expectation."""
+    """Ensure fail-pipeline YAML has no notify and return the expected status context."""
     path = pipeline_path if pipeline_path is not None else FAIL_PIPELINE_PATH
     if not path.is_file():
         raise RuntimeError(
             f"Fail pipeline YAML missing at {path}; cannot validate notify."
         )
     content = path.read_text(encoding="utf-8")
-    contexts = fail_pipeline_github_commit_status_contexts(content, pipeline_path=path)
-    expected = expected_buildkite_status_context(cfg)
-    if expected not in contexts:
-        raise RuntimeError(
-            f"Fail pipeline notify contexts {contexts} do not include expected "
-            f"status context {expected!r}. Align "
-            f".buildkite/pipeline.e2e-estc-fail.yml notify with "
-            f"expected_status_context / status_context in E2E config."
-        )
-    return expected
+    fail_pipeline_github_commit_status_contexts(content, pipeline_path=path)
+    return expected_buildkite_status_context(cfg)
 
 
 def sync_fail_pipeline_to_fixture_branch(
@@ -372,8 +360,8 @@ def sync_fail_pipeline_to_fixture_branch(
     """Ensure the fixture branch tip includes the fail-pipeline YAML from this checkout.
 
     Buildkite uploads ``.buildkite/pipeline.e2e-estc-fail.yml`` from the build
-    commit. The happy-path notify block only runs when that file is present on
-    the fixture SHA.
+    commit. ``expected_context`` is accepted for call-site compatibility; status
+    publish comes from catalog ``publish_commit_status``, not YAML notify.
     """
     path = pipeline_path if pipeline_path is not None else FAIL_PIPELINE_PATH
     if not path.is_file():
@@ -381,12 +369,9 @@ def sync_fail_pipeline_to_fixture_branch(
             f"Fail pipeline YAML missing at {path}; cannot sync fixture branch."
         )
     content = path.read_text(encoding="utf-8")
-    contexts = fail_pipeline_github_commit_status_contexts(content, pipeline_path=path)
-    if expected_context is not None and expected_context not in contexts:
-        raise RuntimeError(
-            f"{path} notify contexts {contexts} do not include "
-            f"expected {expected_context!r}."
-        )
+    fail_pipeline_github_commit_status_contexts(content, pipeline_path=path)
+    if expected_context is not None:
+        require_routable_buildkite_status_context(expected_context)
     # Always write under the canonical repo path so Buildkite's pipeline upload
     # finds the file on the fixture commit (local tmp paths must not leak).
     remote_path = str(FAIL_PIPELINE_PATH).replace("\\", "/")
@@ -395,11 +380,11 @@ def sync_fail_pipeline_to_fixture_branch(
         branch=branch,
         path=remote_path,
         content=content,
-        message="chore(e2e): sync ESTC fail pipeline notify onto fixture branch",
+        message="chore(e2e): sync ESTC fail pipeline onto fixture branch",
     )
     if updated:
         log_info(
-            f"Synced {remote_path} onto {repo}@{branch} for Buildkite status notify."
+            f"Synced {remote_path} onto {repo}@{branch} for Buildkite fail pipeline."
         )
     else:
         log_info(f"{remote_path} already current on {repo}@{branch}.")
@@ -1008,8 +993,8 @@ def commit_status_timeout_block_reason(
     return (
         f"Timed out after {timeout_seconds}s waiting for GitHub commit status "
         f"context={context!r} state={state!r} target_url={target_url!r} "
-        f"on {sha}. Buildkite should publish this via pipeline-level "
-        f"notify github_commit_status (Beats-style custom context); without it "
+        f"on {sha}. Buildkite should publish this via provider_settings "
+        f"publish_commit_status (default context buildkite/<pipeline>); without it "
         f"the live status→agent path cannot run. "
         f"Statuses observed on the SHA:\n{snapshot}"
     )
@@ -1047,15 +1032,19 @@ def wait_for_new_run(
     exclude_run_ids: set[int] | None = None,
     event: str | None = "status",
 ) -> dict[str, Any] | None:
-    """Wait for a workflow run created after ``since`` that has completed.
+    """Wait for a workflow run created after ``since`` that executed the status job.
 
     Correlates by excluding known run IDs and optional ``event`` (default
     ``status``). Does **not** filter on ``headSha``: status-triggered runs use
     the default-branch tip as ``GITHUB_SHA`` / run ``headSha``, while the status
     commit is ``github.event.sha``.
 
-    Returns ``None`` if no matching completed run appears before the deadline
-    (in-progress matches are not treated as seen).
+    Skipped status-route jobs (typical for Buildkite ``pending`` statuses that
+    still fire ``on: status``) are ignored so the harness does not bind to them
+    before the failure-triggered run completes.
+
+    Returns ``None`` if no matching completed run with a successful status-route
+    job appears before the deadline (in-progress matches are not treated as seen).
     """
     excluded = set(exclude_run_ids or ())
     deadline = time.time() + timeout_seconds
@@ -1081,11 +1070,15 @@ def wait_for_new_run(
                         "databaseId,status,conclusion,url,jobs,createdAt,headSha,event",
                     ]
                 )
-                if detail.get("status") == "completed":
+                if detail.get("status") != "completed":
+                    time.sleep(interval_seconds)
+                    continue
+                # Fail closed: only bind when the named status-route job succeeded.
+                # Pending→skipped runs complete first and must not win the race.
+                if status_job_executed(detail):
                     return cast(dict[str, Any], detail)
-                time.sleep(interval_seconds)
-            # Matched a run but it never completed — fail closed (unseen).
-            return None
+                excluded.add(run_id)
+                break
         time.sleep(interval_seconds)
     return None
 

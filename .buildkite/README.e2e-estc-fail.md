@@ -4,9 +4,9 @@ Used by the live harness for [`obs:estc-pr-buildkite-detective`](../docs/testing
 
 ## Provisioning
 
-The pipeline is declared in [`catalog-info.yaml`](../catalog-info.yaml) as Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (`implementation.metadata.name: oblt-aw-e2e-estc-fail`, `pipeline_file: .buildkite/pipeline.e2e-estc-fail.yml`, `provider_settings.trigger_mode: none` so only the API creates builds).
+The pipeline is declared in [`catalog-info.yaml`](../catalog-info.yaml) as Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (`implementation.metadata.name: oblt-aw-e2e-estc-fail`, `pipeline_file: .buildkite/pipeline.e2e-estc-fail.yml`, `provider_settings.trigger_mode: code` so GitHub commit statuses can update, with `build_branches` / `build_pull_requests` / `build_tags` false so only the API creates builds).
 
-After merge to `main`, wait for the Buildkite RRE to reconcile. Confirm the pipeline exists at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail.
+After merge to `main`, wait for the Buildkite RRE to reconcile. Confirm the pipeline exists at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail and that `publish_commit_status` is enabled.
 
 ## Secrets (still required)
 
@@ -21,10 +21,10 @@ Happy path:
 
 1. Harness creates a Buildkite build on the long-lived E2E PR branch/SHA (with `pull_request_id`).
 2. The intentional-failure step runs and fails.
-3. **Buildkite** publishes the GitHub commit status for context `oblt-aw-e2e-estc-fail: buildkite` via **pipeline-level** `notify: github_commit_status` only (Beats-style custom context; `publish_commit_status: false` in [`catalog-info.yaml`](../catalog-info.yaml)). Do not use the reserved `buildkite/…` prefix — org pipelines typically keep `prevent_custom_statuses_from_using_buildkite_prefix=true`. Do not add the same context at step scope — that can double-trigger the detective.
-4. The real `status` event triggers `trigger-obs-aw-status.yml` → detective → agent (context must contain substring `buildkite`).
+3. **Buildkite** publishes the GitHub commit status for context `buildkite/oblt-aw-e2e-estc-fail` via catalog `publish_commit_status: true` (default Buildkite context). Do **not** add pipeline- or step-level `notify: github_commit_status` — that double-fires the detective.
+4. The real `status` event triggers `trigger-obs-aw-status.yml` → detective → agent (context must contain substring `buildkite`). Pending statuses also fire the workflow but skip the job (`state != failure`); the harness ignores those skipped runs.
 5. Harness observes the Actions run and PR comment (it does **not** forge the happy-path status).
 
-If the status never appears: check Buildkite GitHub App (`buildkite-limited-access`) commit-status permission, pipeline GitHub settings, and the harness job log (`block_reason` + status dump). Do not paper over a missing Buildkite status by forging one on the happy path.
+If the status never appears: check Buildkite GitHub App (`buildkite-limited-access`) commit-status permission, pipeline GitHub settings (`publish_commit_status`), and the harness job log (`block_reason` + status dump). Do not paper over a missing Buildkite status by forging one on the happy path.
 
 Live E2E is happy-path only (no harness-posted synthetic statuses; no URL-override escape hatch).

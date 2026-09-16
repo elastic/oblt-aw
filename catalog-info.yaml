@@ -46,16 +46,18 @@ spec:
     spec:
       repository: elastic/oblt-aw
       pipeline_file: ".buildkite/pipeline.e2e-estc-fail.yml"
-      # API-triggered builds only (E2E harness). Statuses come from pipeline
-      # notify github_commit_status (Beats-style custom context), not automatic
-      # buildkite/<org>/<pipeline> publish.
+      # Statuses come from Buildkite's default publish_commit_status (context
+      # buildkite/<pipeline>), not pipeline notify github_commit_status (notify
+      # would double-fire the detective). trigger_mode must be `code` ("Trigger
+      # builds after pushing code") so the GitHub App can update commit statuses;
+      # keep build_branches / build_pull_requests / build_tags false so only the
+      # E2E harness creates builds via the API.
       provider_settings:
-        trigger_mode: none
+        trigger_mode: code
         # Do not set prevent_custom_statuses_from_using_buildkite_prefix here:
         # Elastic Terrazzo ProviderSettings rejects unknown keys
         # (additionalProperties: false); that field is Buildkite private preview.
-        # Live org default is typically true — use a non-buildkite/ notify context.
-        publish_commit_status: false
+        publish_commit_status: true
         publish_commit_status_per_step: false
         build_pull_requests: false
         build_branches: false
