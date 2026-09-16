@@ -93,9 +93,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Install pinned gh-aw compiler
-        run: make install-aw
-
       - name: Recompile gh-aw workflows and fail on generated drift
         run: make compile-aw-check
 
