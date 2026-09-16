@@ -133,9 +133,9 @@ _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "context_contains_buildkite",
     "require_open_pr",
     "use_buildkite_target_url",
+    "create_failed_buildkite_build",
     "clear_prior_detective_comments",
 )
-_LIVE_OPTIONAL_TRIGGER_BOOL_KEYS = ("create_failed_buildkite_build",)
 
 
 def case_expectations_schema_error(
@@ -175,13 +175,6 @@ def case_trigger_schema_error(trigger: dict[str, Any]) -> str | None:
     if missing:
         return f"live trigger missing required keys: {missing}"
     for key in _LIVE_REQUIRED_TRIGGER_BOOL_KEYS:
-        try:
-            _as_bool(trigger[key])
-        except TypeError as exc:
-            return f"live trigger {key!r} must be bool ({exc})"
-    for key in _LIVE_OPTIONAL_TRIGGER_BOOL_KEYS:
-        if key not in trigger:
-            continue
         try:
             _as_bool(trigger[key])
         except TypeError as exc:
@@ -440,30 +433,24 @@ def _evaluate_live(
             actual_bk is expect_bk,
             f"expected_contains_buildkite={expect_bk} context={status.get('context')!r}",
         )
-        if trigger.get("use_buildkite_target_url") or trigger.get(
-            "create_failed_buildkite_build"
-        ):
+        if trigger.get("create_failed_buildkite_build") and not outcome.get("blocked"):
             publisher = status.get("publisher")
+            # Intentional-failure builds must be Buildkite-published (no
+            # harness synthetic statuses; no URL-override exception).
+            bk = outcome.get("buildkite") or {}
+            source = bk.get("source") if isinstance(bk, dict) else None
             _check(
                 checks,
                 "status_publisher",
-                publisher in {"buildkite", "harness"},
+                publisher == "buildkite",
                 f"publisher={publisher!r}",
             )
-            if trigger.get("create_failed_buildkite_build") and not outcome.get(
-                "blocked"
-            ):
-                # Intentional-failure builds must be Buildkite-published (no
-                # harness synthetic statuses; no URL-override exception).
-                bk = outcome.get("buildkite") or {}
-                source = bk.get("source") if isinstance(bk, dict) else None
-                ok_publisher = publisher == "buildkite"
-                _check(
-                    checks,
-                    "status_publisher_buildkite_path",
-                    bool(ok_publisher),
-                    f"publisher={publisher!r} buildkite_source={source!r}",
-                )
+            _check(
+                checks,
+                "status_publisher_buildkite_path",
+                publisher == "buildkite",
+                f"publisher={publisher!r} buildkite_source={source!r}",
+            )
         if trigger.get("use_buildkite_target_url"):
             _check(
                 checks,

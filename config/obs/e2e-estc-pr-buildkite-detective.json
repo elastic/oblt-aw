@@ -3,7 +3,6 @@
   "workflow_id": "obs:estc-pr-buildkite-detective",
   "consumer_repo": "elastic/oblt-aw",
   "status_trigger_workflow_file": "trigger-obs-aw-status.yml",
-  "status_context": "buildkite/oblt-aw-e2e-estc-fail",
   "buildkite_failure": {
     "token_env": "BUILDKITE_TOKEN",
     "org_env": "E2E_BUILDKITE_ORG",
@@ -19,9 +18,7 @@
   "poll_interval_seconds": 20,
   "e2e_pr": {
     "label": "e2e:estc-pr-buildkite-detective",
-    "branch": "e2e/estc-pr-buildkite-detective",
-    "title": "[e2e] ESTC PR Buildkite Detective fixture PR",
-    "body": "Long-lived open PR used only for production E2E of `obs:estc-pr-buildkite-detective`.\n\nDo not merge. Safe to leave open.\n\nRelated: https://github.com/elastic/oblt-aw/issues/1911"
+    "branch_prefix": "e2e/estc-pr-buildkite-detective"
   },
   "agent_comment_markers": ["### TL;DR", "## Remediation"],
   "dashboard_workflow_id": "obs:estc-pr-buildkite-detective"

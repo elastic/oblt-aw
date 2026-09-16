@@ -6,10 +6,15 @@ name: E2E — ESTC PR Buildkite Detective
 # Live happy path only: Buildkite publishes commit status → trigger → agent.
 # Also callable from the future release/promote train (#1878).
 # Not part of the default PR required gate in ci.yml.
-# All triggers (path-filtered pull_request, dispatch, workflow_call) use the
-# long-lived fixture PR (label e2e:estc-pr-buildkite-detective). The development
-# PR only starts this workflow; Buildkite always builds the fixture head.
-# Lock/wrapper still pin @main (smoke path); candidate-pin is a separate follow-up.
+#
+# Trust model: path-filtered pull_request keeps secrets (no pull_request_target).
+# Same-repo only — forks never receive secrets. Collaborator write access +
+# CODEOWNERS are the trust boundary for same-repo PR code.
+#
+# Each run uses an ephemeral fixture PR (label e2e:estc-pr-buildkite-detective,
+# branch e2e/estc-pr-buildkite-detective/pr-<N> or …/run-<id>), closed and
+# branch-deleted after the matrix. Development PRs checkout the PR under review;
+# Buildkite builds the fixture head. Lock/wrapper still pin @main (smoke path).
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -17,6 +22,7 @@ on:
       - .github/workflows/gh-aw-estc-pr-buildkite-detective.md
       - .github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml
       - .github/workflows/obs-aw-estc-pr-buildkite-detective.yml
+      - .github/workflows/obs-aw-event-status.yml
       - .github/workflows/gh-aw-fragments/**
       - .github/workflows/e2e-estc-pr-buildkite-detective.yml
       - .github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-status.yml
@@ -26,6 +32,7 @@ on:
       - testdata/agentic/estc-pr-buildkite-detective/**
       - tests/e2e/test_estc_pr_buildkite_detective_e2e.py
       - .buildkite/pipeline.e2e-estc-fail.yml
+      - catalog-info.yaml
   workflow_dispatch:
     inputs:
       case-id:
@@ -53,26 +60,33 @@ permissions:
   contents: read
 
 concurrency:
-  # One live matrix per PR; shared group for dispatch / workflow_call (fixture PR).
-  group: e2e-estc-pr-buildkite-detective-${{ github.event.pull_request.number || 'shared' }}
+  # One live matrix per development PR (or per run for dispatch/call).
+  # Fixtures are isolated per key (pr-<N> / run-<id>).
+  group: e2e-estc-pr-buildkite-detective-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: false
 
 jobs:
   e2e-matrix:
     name: Resolve E2E matrix
-    # Fork PRs lack secrets and cannot target same-repo heads safely.
+    # Same-repo only; skip ephemeral/legacy fixture branches (sync must not re-enter).
     if: >-
       github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+      (
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        !startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       cases: ${{ steps.resolve.outputs.cases }}
+      fixture-key: ${{ steps.resolve.outputs.fixture-key }}
     steps:
-      - name: Resolve cases
+      - name: Resolve cases and fixture key
         id: resolve
         env:
           INPUT_CASE_ID: ${{ inputs.case-id }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
           CASE_ID="${INPUT_CASE_ID:-all}"
@@ -82,6 +96,11 @@ jobs:
             CASES="$(printf '%s' "[\"${CASE_ID}\"]")"
           fi
           echo "cases=${CASES}" >> "$GITHUB_OUTPUT"
+          if [ -n "${PR_NUMBER}" ]; then
+            echo "fixture-key=pr-${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          else
+            echo "fixture-key=run-${RUN_ID}" >> "$GITHUB_OUTPUT"
+          fi
 
   e2e:
     name: ESTC detective E2E (${{ matrix.case-id }})
@@ -90,21 +109,19 @@ jobs:
     timeout-minutes: 120
     strategy:
       fail-fast: false
-      # Shared fixture PR / status context — never run legs in parallel.
       max-parallel: 1
       matrix:
         case-id: ${{ fromJSON(needs.e2e-matrix.outputs.cases) }}
     permissions:
       contents: write
       pull-requests: write
-      # Observe Buildkite-published commit statuses (harness polls statuses API).
       statuses: read
       actions: read
-      # Label create for first-time fixture PR provisioning.
       issues: write
       checks: read
     env:
       CASE_ID: ${{ matrix.case-id }}
+      FIXTURE_KEY: ${{ needs.e2e-matrix.outputs.fixture-key }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       BUILDKITE_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
       E2E_BUILDKITE_ORG: ${{ vars.E2E_BUILDKITE_ORG }}
@@ -132,10 +149,11 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          # Always target the long-lived fixture PR (find or create). Do not pass
-          # the development pull_request number — Buildkite must build the fixture.
+          # Checkout is the development PR (or dispatch ref). Buildkite builds
+          # the ephemeral fixture keyed by FIXTURE_KEY.
           python3 scripts/estc_pr_buildkite_detective_e2e_harness.py \
             --case-id "${CASE_ID}" \
+            --fixture-key "${FIXTURE_KEY}" \
             --run-url "${RUN_URL}" \
             --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json"
           echo "harness_exit=$?" >> "$GITHUB_OUTPUT"
@@ -200,6 +218,9 @@ jobs:
               print(f"Buildkite: {bk.get('web_url')} state={bk.get('state')!r}")
           if outcome.get("commit_sha"):
               print(f"Commit: {outcome.get('commit_sha')}")
+          fixture = outcome.get("fixture") or {}
+          if isinstance(fixture, dict) and fixture.get("branch"):
+              print(f"Fixture: {fixture.get('key')} {fixture.get('branch')} pr={fixture.get('pr_number')}")
           first = str(detail).splitlines()[0]
           print(f"::error::E2E {case_id}: {first}")
           PY
@@ -213,9 +234,45 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+  e2e-cleanup:
+    name: Close ephemeral fixture
+    needs: [e2e-matrix, e2e]
+    if: always() && needs.e2e-matrix.result != 'skipped'
+    # Cleanup failure must not fail the workflow; next run reuses pr-<N>/run-<id>.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      FIXTURE_KEY: ${{ needs.e2e-matrix.outputs.fixture-key }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-runtime.txt
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-runtime.txt
+
+      - name: Close fixture PR and delete branch
+        run: |
+          set -euo pipefail
+          python3 scripts/estc_pr_buildkite_detective_e2e_harness.py \
+            --fixture-key "${FIXTURE_KEY}" \
+            --cleanup-only
+
   e2e-result:
     name: E2E result gate
-    needs: [e2e-matrix, e2e]
+    needs: [e2e-matrix, e2e, e2e-cleanup]
     if: always() && needs.e2e-matrix.result != 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -226,7 +283,8 @@ jobs:
         id: gate
         run: |
           set -euo pipefail
-          # needs.e2e.result is success only when every matrix leg succeeded.
+          # Gate on the live matrix only; cleanup failures must not green a red E2E,
+          # but a green E2E stays green even if cleanup warns (reuse on next run).
           if [ "${{ needs.e2e.result }}" = "success" ]; then
             echo "pass=true" >> "$GITHUB_OUTPUT"
           else

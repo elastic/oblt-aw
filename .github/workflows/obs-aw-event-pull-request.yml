@@ -23,7 +23,7 @@ jobs:
     if: >-
       !(
         contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        (github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' || startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective/')) &&
         github.event.pull_request.head.repo.full_name == github.repository
       ) &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge.yml'] == 'true' &&
@@ -53,7 +53,7 @@ jobs:
     if: >-
       !(
         contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        (github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' || startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective/')) &&
         github.event.pull_request.head.repo.full_name == github.repository
       ) &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-dependency-review.yml'] == 'true' &&

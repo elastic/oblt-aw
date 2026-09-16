@@ -121,6 +121,8 @@ class TestHarnessLive:
             [
                 "--case-id",
                 "status-failure-open-pr-live",
+                "--fixture-key",
+                "pr-1",
                 "--outcome-path",
                 str(outcome_path),
             ]
@@ -554,6 +556,8 @@ class TestHarnessLive:
                 [
                     "--case-id",
                     "no-such-case",
+                    "--fixture-key",
+                    "pr-1",
                     "--outcome-path",
                     str(outcome_path),
                 ]
@@ -611,9 +615,8 @@ class TestHarnessLive:
             == "buildkite/oblt-aw-e2e-estc-fail"
         )
         cfg["expected_status_context"] = "custom-buildkite-check"
-        assert (
-            harness.expected_buildkite_status_context(cfg) == "custom-buildkite-check"
-        )
+        with pytest.raises(RuntimeError, match="does not match Buildkite"):
+            harness.expected_buildkite_status_context(cfg)
 
     def test_expected_buildkite_status_context_rejects_unroutable(
         self,
@@ -625,8 +628,21 @@ class TestHarnessLive:
             },
             "expected_status_context": "custom",
         }
-        with pytest.raises(RuntimeError, match="does not contain 'buildkite'"):
+        with pytest.raises(RuntimeError, match="does not match Buildkite"):
             harness.expected_buildkite_status_context(cfg)
+
+    def test_normalize_fixture_key_and_branch(self) -> None:
+        assert harness.normalize_fixture_key("1961") == "pr-1961"
+        assert harness.normalize_fixture_key("pr-1961") == "pr-1961"
+        assert harness.normalize_fixture_key("run-99") == "run-99"
+        cfg = harness.apply_ephemeral_fixture_identity(
+            {"e2e_pr": {"label": "e2e:estc-pr-buildkite-detective"}},
+            "pr-1961",
+        )
+        assert cfg["e2e_pr"]["branch"] == "e2e/estc-pr-buildkite-detective/pr-1961"
+        assert harness.is_estc_fixture_branch(cfg["e2e_pr"]["branch"])
+        assert harness.is_estc_fixture_branch("e2e/estc-pr-buildkite-detective")
+        assert not harness.is_estc_fixture_branch("feature/foo")
 
     def test_summarize_and_timeout_block_reason(
         self, monkeypatch: pytest.MonkeyPatch
@@ -844,7 +860,12 @@ steps:
         cfg = harness.load_e2e_config(
             ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
         )
-        outcome = harness.run_live_case(case_dir, cfg, run_url="https://example.test/r")
+        outcome = harness.run_live_case(
+            case_dir,
+            cfg,
+            run_url="https://example.test/r",
+            fixture_key="pr-1965",
+        )
         assert calls == ["sync", "ensure"]
         assert outcome["blocked"] is True
         assert "timed out" in str(outcome.get("block_reason") or "").lower()
@@ -929,7 +950,12 @@ steps:
         cfg = harness.load_e2e_config(
             ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
         )
-        outcome = harness.run_live_case(case_dir, cfg, run_url="https://example.test/r")
+        outcome = harness.run_live_case(
+            case_dir,
+            cfg,
+            run_url="https://example.test/r",
+            fixture_key="pr-1965",
+        )
         assert resolve_calls["n"] == 1
         assert ensure_commits == [synced]
         assert status_commits == [synced]
@@ -1073,8 +1099,11 @@ steps:
                 "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
             },
         )
-        cfg = harness.load_e2e_config(
-            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        cfg = harness.apply_ephemeral_fixture_identity(
+            harness.load_e2e_config(
+                ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+            ),
+            "pr-1959",
         )
         pr, base = harness.resolve_target_pr("elastic/oblt-aw", cfg)
         assert int(pr["number"]) == 1959
@@ -1096,7 +1125,7 @@ steps:
                         {
                             "number": 1959,
                             "url": "https://example.test/pr/1959",
-                            "headRefName": "e2e/estc-pr-buildkite-detective",
+                            "headRefName": "e2e/estc-pr-buildkite-detective/pr-1959",
                             "headRefOid": "abc",
                             "title": "fixture",
                             "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
@@ -1107,7 +1136,7 @@ steps:
                 return {
                     "number": 1959,
                     "url": "https://example.test/pr/1959",
-                    "headRefName": "e2e/estc-pr-buildkite-detective",
+                    "headRefName": "e2e/estc-pr-buildkite-detective/pr-1959",
                     "headRefOid": "abc",
                     "title": "fixture",
                     "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
@@ -1129,7 +1158,7 @@ steps:
             if cmd[:3] == [
                 "gh",
                 "api",
-                "repos/elastic/oblt-aw/git/ref/heads/e2e/estc-pr-buildkite-detective",
+                "repos/elastic/oblt-aw/git/ref/heads/e2e/estc-pr-buildkite-detective/pr-1959",
             ]:
                 return _Proc(0, "{}")
             if "contents/" in " ".join(cmd):
@@ -1152,7 +1181,7 @@ steps:
             return {
                 "number": 1959,
                 "url": "https://example.test/pr/1959",
-                "headRefName": "e2e/estc-pr-buildkite-detective",
+                "headRefName": "e2e/estc-pr-buildkite-detective/pr-1959",
                 "headRefOid": "abc",
                 "title": "fixture",
                 "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
@@ -1165,8 +1194,11 @@ steps:
         monkeypatch.setattr(harness, "find_open_e2e_pr", fake_find_open)
         monkeypatch.setattr(harness, "_ensure_label", lambda *_a, **_k: None)
 
-        cfg = harness.load_e2e_config(
-            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        cfg = harness.apply_ephemeral_fixture_identity(
+            harness.load_e2e_config(
+                ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+            ),
+            "pr-1959",
         )
         pr = harness.ensure_e2e_pr("elastic/oblt-aw", cfg)
         assert int(pr["number"]) == 1959
@@ -1178,15 +1210,15 @@ steps:
         ]
         # Also capture gh_json list calls via a side channel: reopen path lists
         # closed PRs with bare branch (not owner:branch).
-        assert harness._gh_pr_list_head_filter("e2e/estc-pr-buildkite-detective") == (
-            "e2e/estc-pr-buildkite-detective"
-        )
-        assert "elastic:e2e/estc-pr-buildkite-detective" not in head_filters
+        assert harness._gh_pr_list_head_filter(
+            "e2e/estc-pr-buildkite-detective/pr-1959"
+        ) == ("e2e/estc-pr-buildkite-detective/pr-1959")
+        assert "elastic:e2e/estc-pr-buildkite-detective/pr-1959" not in head_filters
 
     def test_gh_pr_list_head_filter_is_bare_branch(self) -> None:
         assert (
-            harness._gh_pr_list_head_filter("e2e/estc-pr-buildkite-detective")
-            == "e2e/estc-pr-buildkite-detective"
+            harness._gh_pr_list_head_filter("e2e/estc-pr-buildkite-detective/pr-1959")
+            == "e2e/estc-pr-buildkite-detective/pr-1959"
         )
         assert (
             harness._pr_number_from_gh_output(
@@ -1210,7 +1242,7 @@ steps:
                 return {
                     "number": 1965,
                     "url": "https://github.com/elastic/oblt-aw/pull/1965",
-                    "headRefName": "e2e/estc-pr-buildkite-detective",
+                    "headRefName": "e2e/estc-pr-buildkite-detective/pr-1959",
                     "headRefOid": "abc",
                     "title": "fixture",
                     "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
@@ -1231,7 +1263,7 @@ steps:
             if cmd[:3] == [
                 "gh",
                 "api",
-                "repos/elastic/oblt-aw/git/ref/heads/e2e/estc-pr-buildkite-detective",
+                "repos/elastic/oblt-aw/git/ref/heads/e2e/estc-pr-buildkite-detective/pr-1959",
             ]:
                 return _Proc(0, "{}")
             if "contents/" in " ".join(cmd):
@@ -1251,13 +1283,16 @@ steps:
         monkeypatch.setattr(harness, "find_open_e2e_pr", lambda *_a, **_k: None)
         monkeypatch.setattr(harness, "_ensure_label", lambda *_a, **_k: None)
 
-        cfg = harness.load_e2e_config(
-            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        cfg = harness.apply_ephemeral_fixture_identity(
+            harness.load_e2e_config(
+                ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+            ),
+            "pr-1959",
         )
         pr = harness.ensure_e2e_pr("elastic/oblt-aw", cfg)
         assert int(pr["number"]) == 1965
         # Must not fall through to broken owner:branch list recovery.
-        assert "elastic:e2e/estc-pr-buildkite-detective" not in list_heads
+        assert "elastic:e2e/estc-pr-buildkite-detective/pr-1959" not in list_heads
 
     def test_ensure_e2e_pr_recovers_via_bare_head_when_create_url_missing(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1275,7 +1310,7 @@ steps:
                         {
                             "number": 1965,
                             "url": "https://github.com/elastic/oblt-aw/pull/1965",
-                            "headRefName": "e2e/estc-pr-buildkite-detective",
+                            "headRefName": "e2e/estc-pr-buildkite-detective/pr-1959",
                             "headRefOid": "abc",
                             "title": "fixture",
                             "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
@@ -1287,7 +1322,7 @@ steps:
                 return {
                     "number": 1965,
                     "url": "https://github.com/elastic/oblt-aw/pull/1965",
-                    "headRefName": "e2e/estc-pr-buildkite-detective",
+                    "headRefName": "e2e/estc-pr-buildkite-detective/pr-1959",
                     "headRefOid": "abc",
                     "title": "fixture",
                     "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
@@ -1308,7 +1343,7 @@ steps:
             if cmd[:3] == [
                 "gh",
                 "api",
-                "repos/elastic/oblt-aw/git/ref/heads/e2e/estc-pr-buildkite-detective",
+                "repos/elastic/oblt-aw/git/ref/heads/e2e/estc-pr-buildkite-detective/pr-1959",
             ]:
                 return _Proc(0, "{}")
             if "contents/" in " ".join(cmd):
@@ -1328,14 +1363,17 @@ steps:
         monkeypatch.setattr(harness, "find_open_e2e_pr", lambda *_a, **_k: None)
         monkeypatch.setattr(harness, "_ensure_label", lambda *_a, **_k: None)
 
-        cfg = harness.load_e2e_config(
-            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        cfg = harness.apply_ephemeral_fixture_identity(
+            harness.load_e2e_config(
+                ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+            ),
+            "pr-1959",
         )
         pr = harness.ensure_e2e_pr("elastic/oblt-aw", cfg)
         assert int(pr["number"]) == 1965
         assert list_heads
-        assert all(h == "e2e/estc-pr-buildkite-detective" for h in list_heads)
-        assert "elastic:e2e/estc-pr-buildkite-detective" not in list_heads
+        assert all(h == "e2e/estc-pr-buildkite-detective/pr-1959" for h in list_heads)
+        assert "elastic:e2e/estc-pr-buildkite-detective/pr-1959" not in list_heads
 
     def test_ensure_failed_buildkite_passes_base_branch(
         self, monkeypatch: pytest.MonkeyPatch

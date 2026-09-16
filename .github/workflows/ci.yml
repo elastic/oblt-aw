@@ -2,7 +2,7 @@
 name: CI
 
 # Trigger on PRs targeting any branch (opened, updated, reopened).
-# Skip only the dedicated same-repo ESTC E2E fixture PR (exact label + branch).
+# Skip same-repo ESTC E2E fixture PRs (exact label + legacy or ephemeral branch).
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -22,7 +22,7 @@ jobs:
     if: >-
       !(
         contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        (github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' || startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective/')) &&
         github.event.pull_request.head.repo.full_name == github.repository
       )
     runs-on: ubuntu-latest
@@ -40,7 +40,7 @@ jobs:
     if: >-
       !(
         contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        (github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' || startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective/')) &&
         github.event.pull_request.head.repo.full_name == github.repository
       )
     runs-on: ubuntu-latest
@@ -82,7 +82,7 @@ jobs:
     if: >-
       !(
         contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        (github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' || startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective/')) &&
         github.event.pull_request.head.repo.full_name == github.repository
       )
     runs-on: ubuntu-latest
@@ -110,7 +110,7 @@ jobs:
     if: >-
       !(
         contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        (github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' || startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective/')) &&
         github.event.pull_request.head.repo.full_name == github.repository
       )
     runs-on: ubuntu-latest
@@ -154,7 +154,7 @@ jobs:
       - name: Pass for e2e fixture PRs
         if: >-
           contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-          github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+          (github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' || startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective/')) &&
           github.event.pull_request.head.repo.full_name == github.repository
         run: echo "CI skipped for dedicated ESTC E2E fixture PR."
 
@@ -162,7 +162,7 @@ jobs:
         if: >-
           !(
             contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-            github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+            (github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' || startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective/')) &&
             github.event.pull_request.head.repo.full_name == github.repository
           )
         id: check
@@ -174,7 +174,7 @@ jobs:
         if: >-
           !(
             contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-            github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+            (github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' || startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective/')) &&
             github.event.pull_request.head.repo.full_name == github.repository
           ) &&
           steps.check.outputs.status == 'failure'
@@ -187,7 +187,7 @@ jobs:
         if: >-
           !(
             contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-            github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+            (github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' || startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective/')) &&
             github.event.pull_request.head.repo.full_name == github.repository
           ) &&
           steps.check.outputs.status == 'success'

@@ -50,6 +50,9 @@ MARKER_BODY = (
 FAIL_PIPELINE_PATH = Path(".buildkite/pipeline.e2e-estc-fail.yml")
 # Default GitHub status from Buildkite publish_commit_status (buildkite/<pipeline>).
 DEFAULT_STATUS_CONTEXT_TEMPLATE = "buildkite/{pipeline}"
+# Ephemeral fixture branches: ``{prefix}/pr-<N>`` or ``{prefix}/run-<id>``.
+FIXTURE_BRANCH_PREFIX = "e2e/estc-pr-buildkite-detective"
+FIXTURE_LABEL = "e2e:estc-pr-buildkite-detective"
 
 
 def _load_json(path: Path) -> Any:
@@ -115,33 +118,176 @@ def require_routable_buildkite_status_context(context: str) -> str:
     ctx = str(context or "").strip()
     if not ctx:
         raise RuntimeError(
-            "expected Buildkite status context is empty; set "
-            "expected_status_context / status_context in E2E config."
+            "expected Buildkite status context is empty; derive "
+            "buildkite/<pipeline> from the resolved fail pipeline."
         )
     if "buildkite" not in ctx.lower():
         raise RuntimeError(
             f"status context {ctx!r} does not contain 'buildkite'; "
             "trigger-obs-aw-status.yml / obs-aw-event-status.yml will not route it. "
-            "Use Buildkite's default publish context (buildkite/<pipeline>) or another "
-            "context that includes the substring buildkite."
+            "Use Buildkite's default publish context (buildkite/<pipeline>)."
         )
     return ctx
 
 
 def expected_buildkite_status_context(cfg: dict[str, Any]) -> str:
-    """GitHub status context Buildkite should publish for the fail pipeline."""
-    override = str(
-        cfg.get("expected_status_context") or cfg.get("status_context") or ""
-    ).strip()
-    if override:
-        return require_routable_buildkite_status_context(override)
+    """GitHub status context Buildkite ``publish_commit_status`` will emit.
+
+    Always ``buildkite/<resolved pipeline>``. Optional config
+    ``expected_status_context`` / ``status_context`` must match exactly or the
+    harness fails closed (no arbitrary Buildkite-looking overrides).
+    """
     template = str(cfg.get("status_context_template") or "").strip()
     if not template:
         template = DEFAULT_STATUS_CONTEXT_TEMPLATE
-    org, pipeline = resolve_buildkite_org_pipeline(cfg)
-    return require_routable_buildkite_status_context(
-        template.format(org=org, pipeline=pipeline)
+    _org, pipeline = resolve_buildkite_org_pipeline(cfg)
+    derived = require_routable_buildkite_status_context(
+        template.format(org=_org, pipeline=pipeline)
     )
+    override = str(
+        cfg.get("expected_status_context") or cfg.get("status_context") or ""
+    ).strip()
+    if override and override != derived:
+        raise RuntimeError(
+            f"status context override {override!r} does not match Buildkite "
+            f"publish context {derived!r} for resolved pipeline {pipeline!r}. "
+            "Remove the override or align E2E_BUILDKITE_PIPELINE / config "
+            "defaults (publish_commit_status emits buildkite/<pipeline> only)."
+        )
+    return derived
+
+
+def normalize_fixture_key(raw: str) -> str:
+    """Normalize to ``pr-<N>`` or ``run-<id>`` (digits alone become ``pr-<N>``)."""
+    key = str(raw or "").strip()
+    if not key:
+        raise RuntimeError("fixture key is required (pr-<N> or run-<id>)")
+    if key.isdigit():
+        key = f"pr-{key}"
+    if not key.startswith(("pr-", "run-")):
+        raise RuntimeError(
+            f"fixture key {raw!r} must be pr-<N> or run-<id> "
+            "(or a bare development PR number)."
+        )
+    suffix = key.split("-", 1)[1]
+    if not suffix or not suffix.replace("-", "").isalnum():
+        raise RuntimeError(f"fixture key {raw!r} has an empty or invalid suffix")
+    return key
+
+
+def is_estc_fixture_branch(ref: str, *, prefix: str = FIXTURE_BRANCH_PREFIX) -> bool:
+    """True for the legacy long-lived branch or ephemeral ``{prefix}/…`` branches."""
+    name = str(ref or "").strip()
+    base = str(prefix or FIXTURE_BRANCH_PREFIX).rstrip("/")
+    return name == base or name.startswith(f"{base}/")
+
+
+def apply_ephemeral_fixture_identity(
+    cfg: dict[str, Any], fixture_key: str
+) -> dict[str, Any]:
+    """Return cfg with ``e2e_pr.branch``/title/body scoped to ``fixture_key``."""
+    key = normalize_fixture_key(fixture_key)
+    e2e = dict(cfg.get("e2e_pr") or {})
+    prefix = str(
+        e2e.get("branch_prefix") or e2e.get("branch") or FIXTURE_BRANCH_PREFIX
+    ).rstrip("/")
+    # Legacy config used a fixed long-lived branch equal to the prefix; ephemeral
+    # branches are always ``{prefix}/{pr-|run-}…``.
+    if prefix.endswith(f"/{key}"):
+        branch = prefix
+        prefix = prefix[: -len(f"/{key}")]
+    else:
+        branch = f"{prefix}/{key}"
+    label = str(e2e.get("label") or FIXTURE_LABEL)
+    e2e["label"] = label
+    e2e["branch_prefix"] = prefix
+    e2e["branch"] = branch
+    e2e["fixture_key"] = key
+    e2e["title"] = f"[e2e] ESTC detective fixture ({key})"
+    e2e["body"] = (
+        f"Ephemeral fixture PR for `obs:estc-pr-buildkite-detective` ({key}).\n\n"
+        "Do not merge. Closed and branch deleted after the live E2E run; "
+        "reused if a prior cleanup failed.\n\n"
+        "Related: https://github.com/elastic/oblt-aw/issues/1911"
+    )
+    out = dict(cfg)
+    out["e2e_pr"] = e2e
+    return out
+
+
+def cleanup_e2e_fixture(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
+    """Close the fixture PR (if open) and delete its head branch.
+
+    Idempotent: missing PR/branch is success. Failures are reported in the
+    returned dict so a later run can reuse ``pr-<N>`` / ``run-<id>``.
+    """
+    e2e_pr = cfg.get("e2e_pr") or {}
+    label = str(e2e_pr.get("label") or FIXTURE_LABEL)
+    branch = str(e2e_pr.get("branch") or "").strip()
+    if not branch:
+        raise RuntimeError(
+            "cleanup requires e2e_pr.branch (apply fixture identity first)"
+        )
+    result: dict[str, Any] = {
+        "repo": repo,
+        "label": label,
+        "branch": branch,
+        "fixture_key": e2e_pr.get("fixture_key"),
+        "pr_number": None,
+        "closed": False,
+        "branch_deleted": False,
+        "errors": [],
+    }
+    open_pr = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
+    if open_pr is None:
+        # Prefer closed PR on this branch so we still record the number.
+        closed = _find_closed_fixture_pr(repo, branch=branch, label=label)
+        if closed:
+            result["pr_number"] = int(closed["number"])
+    else:
+        pr_number = int(open_pr["number"])
+        result["pr_number"] = pr_number
+        close = subprocess.run(
+            [
+                "gh",
+                "pr",
+                "close",
+                str(pr_number),
+                "--repo",
+                repo,
+                "--comment",
+                "Closing ephemeral ESTC detective E2E fixture after live run.",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if close.returncode == 0:
+            result["closed"] = True
+        else:
+            detail = (
+                close.stderr or close.stdout or ""
+            ).strip() or f"exit {close.returncode}"
+            result["errors"].append(f"close PR #{pr_number}: {detail}")
+
+    del_ref = subprocess.run(
+        ["gh", "api", "-X", "DELETE", f"repos/{repo}/git/refs/heads/{branch}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if del_ref.returncode == 0:
+        result["branch_deleted"] = True
+    else:
+        combined = f"{del_ref.stderr or ''}{del_ref.stdout or ''}".lower()
+        if "not found" in combined or del_ref.returncode == 1 and "404" in combined:
+            result["branch_deleted"] = True  # already gone
+        else:
+            detail = (del_ref.stderr or del_ref.stdout or "").strip() or (
+                f"exit {del_ref.returncode}"
+            )
+            result["errors"].append(f"delete branch {branch}: {detail}")
+    return result
 
 
 def gh_json(args: list[str], *, check: bool = True) -> Any:
@@ -572,7 +718,7 @@ def _ensure_label(repo: str, label: str) -> None:
             "--repo",
             repo,
             "--description",
-            "Long-lived PR for ESTC detective E2E",
+            "ESTC detective E2E fixture PR (ephemeral or legacy)",
             "--color",
             "0E8A16",
         ],
@@ -637,18 +783,20 @@ def resolve_target_pr(
     *,
     base_branch: str | None = None,
 ) -> tuple[dict[str, Any], str]:
-    """Resolve the fixture PR under test and its base branch name.
+    """Resolve the ephemeral fixture PR under test and its base branch name.
 
-    Always find or create the long-lived fixture PR
-    (``e2e:estc-pr-buildkite-detective``). Live E2E never targets the
-    development PR that only triggered the outer workflow.
+    Find, reopen, or create the fixture PR for ``cfg['e2e_pr']['branch']``
+    (``e2e/estc-pr-buildkite-detective/pr-<N>`` or ``…/run-<id>``) with label
+    ``e2e:estc-pr-buildkite-detective``. Live E2E never targets the development
+    PR that only triggered the outer workflow.
     """
     pr_info = ensure_e2e_pr(repo, cfg)
+    branch = str(cfg["e2e_pr"].get("branch") or "")
     refreshed = (
         find_open_e2e_pr(
             repo,
             cfg["e2e_pr"]["label"],
-            branch=str(cfg["e2e_pr"].get("branch") or ""),
+            branch=branch,
         )
         or pr_info
     )
@@ -669,10 +817,19 @@ def _find_closed_fixture_pr(
 
 
 def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
-    """Find, reopen, or create the long-lived E2E fixture PR via the GitHub API."""
+    """Find, reopen, or create the ephemeral E2E fixture PR via the GitHub API.
+
+    Reuses an existing open PR on the fixture branch, or reopens a closed one
+    on the same branch when a prior cleanup failed to delete it.
+    """
     e2e_pr = cfg["e2e_pr"]
     label = str(e2e_pr["label"])
     branch = str(e2e_pr["branch"])
+    if not is_estc_fixture_branch(branch):
+        raise RuntimeError(
+            f"Refusing fixture branch {branch!r}; expected "
+            f"{FIXTURE_BRANCH_PREFIX!r} or {FIXTURE_BRANCH_PREFIX}/…"
+        )
     existing = find_open_e2e_pr(repo, label, branch=branch)
     if existing:
         return _require_pr_label(repo, int(existing["number"]), label)
@@ -779,7 +936,8 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
     if created:
         return _require_pr_label(repo, int(created["number"]), label)
 
-    # Closed fixture PR on the same branch: reopen (create may have failed).
+    # Closed fixture PR on the same branch: reopen (create may have failed /
+    # prior cleanup closed but left the branch — reuse pr-<N>).
     closed = _find_closed_fixture_pr(repo, branch=branch, label=label)
     if closed:
         pr_number = int(closed["number"])
@@ -844,12 +1002,12 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         text=True,
         check=False,
     )
-    if edit.returncode != 0:
-        raise RuntimeError(
-            f"Failed to add label {label!r} to PR #{pr_number} on {repo}: "
-            f"{(edit.stderr or edit.stdout or '').strip() or f'exit {edit.returncode}'}"
-        )
-    return _require_pr_label(repo, pr_number, label)
+    if edit.returncode == 0:
+        return _require_pr_label(repo, pr_number, label)
+    raise RuntimeError(
+        f"Failed to add label {label!r} to PR #{pr_number} on {repo}: "
+        f"{(edit.stderr or edit.stdout or '').strip() or f'exit {edit.returncode}'}"
+    )
 
 
 def _list_issue_comments(repo: str, pr_number: int) -> list[dict[str, Any]]:
@@ -1499,11 +1657,17 @@ def run_live_case(
     *,
     run_url: str | None = None,
     base_branch: str | None = None,
+    fixture_key: str | None = None,
 ) -> dict[str, Any]:
     case = _load_json(case_dir / "case.json")
     require_case_mode(case, "live", case_id=str(case.get("id", case_dir.name)))
     trigger = case.get("trigger") or {}
     expectations = case.get("expectations") or {}
+    if not fixture_key:
+        raise RuntimeError(
+            "fixture_key is required (pr-<development-PR> or run-<actions-run-id>)"
+        )
+    cfg = apply_ephemeral_fixture_identity(cfg, fixture_key)
     repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
     workflow_id = str(case.get("workflow_id") or cfg.get("workflow_id") or WORKFLOW_ID)
     markers = list(
@@ -1511,6 +1675,11 @@ def run_live_case(
         or cfg.get("agent_comment_markers")
         or ["### TL;DR", "## Remediation"]
     )
+    fixture_meta = {
+        "key": cfg["e2e_pr"].get("fixture_key"),
+        "branch": cfg["e2e_pr"].get("branch"),
+        "label": cfg["e2e_pr"].get("label"),
+    }
 
     dashboard_ok = dashboard_enables_workflow(
         repo, str(cfg.get("dashboard_workflow_id") or workflow_id)
@@ -1591,40 +1760,28 @@ def run_live_case(
             cfg,
             base_branch=base_branch,
         )
-    except (RuntimeError, TypeError, ValueError) as exc:
-        return {
-            "workflow_id": workflow_id,
-            "case_id": case.get("id", case_dir.name),
-            "layer": "e2e",
-            "mode": "live",
-            "agent_invoked": False,
-            "blocked": True,
-            "block_reason": str(exc),
-            "path_gates": {"dashboard_enabled": dashboard_ok},
-            "expectations": expectations,
-            "run_url": run_url,
+
+        sha = pr_info["headRefOid"]
+        target_pr_number = int(pr_info["number"])
+        e2e_branch = str(
+            pr_info.get("headRefName") or cfg.get("e2e_pr", {}).get("branch") or ""
+        )
+        fixture_meta["pr_number"] = target_pr_number
+        fixture_meta["pr_url"] = pr_info.get("url")
+
+        if trigger.get("clear_prior_detective_comments"):
+            clear_detective_comments(repo, target_pr_number, markers)
+
+        # Capture before Buildkite create so we observe the status-triggered run.
+        since = _utc_now().replace(microsecond=0)
+        workflow_file_early = str(
+            cfg.get("status_trigger_workflow_file") or "trigger-obs-aw-status.yml"
+        )
+        known_run_ids = {
+            int(run["databaseId"])
+            for run in list_status_trigger_runs(repo, workflow_file_early)
         }
 
-    sha = pr_info["headRefOid"]
-    target_pr_number = int(pr_info["number"])
-    e2e_branch = str(
-        pr_info.get("headRefName") or cfg.get("e2e_pr", {}).get("branch") or ""
-    )
-
-    if trigger.get("clear_prior_detective_comments"):
-        clear_detective_comments(repo, target_pr_number, markers)
-
-    # Capture before Buildkite create so we observe the status-triggered Actions run.
-    since = _utc_now().replace(microsecond=0)
-    workflow_file_early = str(
-        cfg.get("status_trigger_workflow_file") or "trigger-obs-aw-status.yml"
-    )
-    known_run_ids = {
-        int(run["databaseId"])
-        for run in list_status_trigger_runs(repo, workflow_file_early)
-    }
-
-    try:
         expected_ctx = assert_fail_pipeline_status_context_matches(cfg)
         if not buildkite_api_token(cfg):
             bk = _buildkite_cfg(cfg)
@@ -1649,7 +1806,99 @@ def run_live_case(
             case_id=str(case.get("id", case_dir.name)),
             pull_request_base_branch=resolved_base,
         )
-    except (RuntimeError, TimeoutError, TypeError, ValueError) as exc:
+
+        state = str(trigger.get("status_state") or "failure")
+        timeout = int(cfg.get("poll_timeout_seconds") or 2400)
+        interval = int(cfg.get("poll_interval_seconds") or 20)
+        context = expected_buildkite_status_context(cfg)
+        status_timeout = int(
+            cfg.get("status_observe_timeout_seconds") or min(300, timeout)
+        )
+        observed = wait_for_commit_status(
+            repo,
+            sha,
+            context=context,
+            state=state,
+            target_url=target_url,
+            since=since,
+            timeout_seconds=status_timeout,
+            interval_seconds=interval,
+        )
+        if not observed:
+            return {
+                "workflow_id": workflow_id,
+                "case_id": case.get("id", case_dir.name),
+                "layer": "e2e",
+                "mode": "live",
+                "agent_invoked": False,
+                "blocked": True,
+                "block_reason": commit_status_timeout_block_reason(
+                    repo=repo,
+                    sha=sha,
+                    context=context,
+                    state=state,
+                    target_url=target_url,
+                    timeout_seconds=status_timeout,
+                ),
+                "path_gates": {"dashboard_enabled": dashboard_ok},
+                "buildkite": buildkite_meta,
+                "fixture": fixture_meta,
+                "commit_sha": sha,
+                "pr_number": target_pr_number,
+                "trigger": trigger,
+                "expectations": expectations,
+                "run_url": run_url,
+            }
+
+        description = observed.get("description")
+        target_url = observed.get("target_url") or target_url
+        state = str(observed.get("state") or state)
+        context = str(observed.get("context") or context)
+        # Missing creator.login must not default to Buildkite; URL matching
+        # correlates the status, but publisher identity fails closed.
+        status_publisher = publisher_for_created_build_status(observed)
+
+        run_detail = wait_for_new_run(
+            repo,
+            workflow_file_early,
+            since=since,
+            timeout_seconds=timeout,
+            interval_seconds=interval,
+            exclude_run_ids=known_run_ids,
+        )
+
+        job_executed = status_job_executed(run_detail)
+        job_conclusion = status_job_conclusion(run_detail)
+        invoked = agent_job_invoked(repo, run_detail, since=since)
+        comment = None
+        if expectations.get("expect_agent_comment"):
+            comment_deadline = time.time() + min(900, timeout)
+            while time.time() < comment_deadline and comment is None:
+                comment = find_agent_comment(
+                    repo, target_pr_number, since=since, markers=markers
+                )
+                if comment:
+                    break
+                # Nested agent jobs may finish after the parent lists them.
+                if run_detail and run_detail.get("databaseId"):
+                    run_detail = gh_json(
+                        [
+                            "run",
+                            "view",
+                            str(run_detail["databaseId"]),
+                            "--repo",
+                            repo,
+                            "--json",
+                            "databaseId,status,conclusion,url,jobs,createdAt,headSha,event",
+                        ]
+                    )
+                invoked = agent_job_invoked(repo, run_detail, since=since)
+                time.sleep(interval)
+        else:
+            comment = find_agent_comment(
+                repo, target_pr_number, since=since, markers=markers
+            )
+    except (RuntimeError, TimeoutError, TypeError, ValueError, OSError) as exc:
         return {
             "workflow_id": workflow_id,
             "case_id": case.get("id", case_dir.name),
@@ -1659,98 +1908,10 @@ def run_live_case(
             "blocked": True,
             "block_reason": str(exc),
             "path_gates": {"dashboard_enabled": dashboard_ok},
+            "fixture": fixture_meta,
             "expectations": expectations,
             "run_url": run_url,
         }
-
-    state = str(trigger.get("status_state") or "failure")
-    timeout = int(cfg.get("poll_timeout_seconds") or 2400)
-    interval = int(cfg.get("poll_interval_seconds") or 20)
-    context = expected_buildkite_status_context(cfg)
-    status_timeout = int(cfg.get("status_observe_timeout_seconds") or min(300, timeout))
-    observed = wait_for_commit_status(
-        repo,
-        sha,
-        context=context,
-        state=state,
-        target_url=target_url,
-        since=since,
-        timeout_seconds=status_timeout,
-        interval_seconds=interval,
-    )
-    if not observed:
-        return {
-            "workflow_id": workflow_id,
-            "case_id": case.get("id", case_dir.name),
-            "layer": "e2e",
-            "mode": "live",
-            "agent_invoked": False,
-            "blocked": True,
-            "block_reason": commit_status_timeout_block_reason(
-                repo=repo,
-                sha=sha,
-                context=context,
-                state=state,
-                target_url=target_url,
-                timeout_seconds=status_timeout,
-            ),
-            "path_gates": {"dashboard_enabled": dashboard_ok},
-            "buildkite": buildkite_meta,
-            "commit_sha": sha,
-            "pr_number": target_pr_number,
-            "trigger": trigger,
-            "expectations": expectations,
-            "run_url": run_url,
-        }
-
-    description = observed.get("description")
-    target_url = observed.get("target_url") or target_url
-    state = str(observed.get("state") or state)
-    context = str(observed.get("context") or context)
-    # Missing creator.login must not default to Buildkite; URL matching
-    # correlates the status, but publisher identity fails closed.
-    status_publisher = publisher_for_created_build_status(observed)
-
-    run_detail = wait_for_new_run(
-        repo,
-        workflow_file_early,
-        since=since,
-        timeout_seconds=timeout,
-        interval_seconds=interval,
-        exclude_run_ids=known_run_ids,
-    )
-
-    job_executed = status_job_executed(run_detail)
-    job_conclusion = status_job_conclusion(run_detail)
-    invoked = agent_job_invoked(repo, run_detail, since=since)
-    comment = None
-    if expectations.get("expect_agent_comment"):
-        comment_deadline = time.time() + min(900, timeout)
-        while time.time() < comment_deadline and comment is None:
-            comment = find_agent_comment(
-                repo, target_pr_number, since=since, markers=markers
-            )
-            if comment:
-                break
-            # Nested agent jobs may finish after the parent lists them.
-            if run_detail and run_detail.get("databaseId"):
-                run_detail = gh_json(
-                    [
-                        "run",
-                        "view",
-                        str(run_detail["databaseId"]),
-                        "--repo",
-                        repo,
-                        "--json",
-                        "databaseId,status,conclusion,url,jobs,createdAt,headSha,event",
-                    ]
-                )
-            invoked = agent_job_invoked(repo, run_detail, since=since)
-            time.sleep(interval)
-    else:
-        comment = find_agent_comment(
-            repo, target_pr_number, since=since, markers=markers
-        )
 
     path_gates = {
         "dashboard_enabled": dashboard_ok,
@@ -1776,6 +1937,7 @@ def run_live_case(
         "pr_url": pr_info.get("url"),
         "pr_head_branch": e2e_branch,
         "pr_base_branch": resolved_base,
+        "fixture": fixture_meta,
         "trigger": trigger,
         "status": {
             "state": state,
@@ -1800,9 +1962,9 @@ def run_live_case(
         "run_url": run_url,
         "harness_notes": [
             (
-                "Happy path only: harness creates an intentional Buildkite failure; "
-                "Buildkite publishes the GitHub commit status; "
-                "trigger-obs-aw-status → agent → PR comment."
+                "Happy path only: ephemeral fixture PR → intentional Buildkite "
+                "failure → Buildkite publishes GitHub commit status → "
+                "trigger-obs-aw-status → agent → PR comment; fixture closed after run."
             ),
         ],
     }
@@ -1832,7 +1994,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--outcome-path",
         type=Path,
-        required=True,
+        default=None,
         help="Where to write the machine-readable harness outcome JSON",
     )
     parser.add_argument(
@@ -1845,18 +2007,47 @@ def main(argv: list[str] | None = None) -> int:
         default="",
         help="PR base branch for Buildkite pull_request_base_branch (default: main)",
     )
+    parser.add_argument(
+        "--fixture-key",
+        required=True,
+        help="Ephemeral fixture key: pr-<development-PR> or run-<actions-run-id>",
+    )
+    parser.add_argument(
+        "--cleanup-only",
+        action="store_true",
+        help="Close the fixture PR and delete its branch, then exit",
+    )
     args = parser.parse_args(argv)
+
+    cfg = apply_ephemeral_fixture_identity(
+        load_e2e_config(args.config_path), args.fixture_key
+    )
+    repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
+
+    if args.cleanup_only:
+        result = cleanup_e2e_fixture(repo, cfg)
+        print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+        if result.get("errors"):
+            log_error(
+                "Fixture cleanup reported errors (next run may reuse the same "
+                f"fixture key): {result['errors']}"
+            )
+            return 2
+        return 0
+
+    if args.outcome_path is None:
+        raise SystemExit("--outcome-path is required unless --cleanup-only is set")
 
     case_dir = args.testdata_root / "cases" / args.case_id
     if not case_dir.is_dir():
         raise SystemExit(f"Case directory not found: {case_dir}")
 
-    cfg = load_e2e_config(args.config_path)
     outcome = run_live_case(
         case_dir,
         cfg,
         run_url=args.run_url or None,
         base_branch=args.base_branch or None,
+        fixture_key=args.fixture_key,
     )
 
     args.outcome_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1873,6 +2064,7 @@ def main(argv: list[str] | None = None) -> int:
         "commit_sha": outcome.get("commit_sha"),
         "pr_number": outcome.get("pr_number"),
         "pr_url": outcome.get("pr_url"),
+        "fixture": outcome.get("fixture"),
     }
     if outcome.get("blocked"):
         summary["block_reason"] = outcome.get("block_reason")
