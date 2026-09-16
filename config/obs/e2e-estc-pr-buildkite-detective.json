@@ -3,6 +3,7 @@
   "workflow_id": "obs:estc-pr-buildkite-detective",
   "consumer_repo": "elastic/oblt-aw",
   "status_trigger_workflow_file": "trigger-obs-aw-status.yml",
+  "status_context": "buildkite/oblt-aw-e2e-estc-fail",
   "buildkite_failure": {
     "token_env": "BUILDKITE_TOKEN",
     "org_env": "E2E_BUILDKITE_ORG",
