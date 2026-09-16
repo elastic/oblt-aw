@@ -18,7 +18,7 @@ GH_AW_VERSION := $(shell tr -d '[:space:]' < $(GH_AW_VERSION_FILE))
 GH_AW_BIN := $(HOME)/.local/share/gh/extensions/gh-aw/gh-aw
 GH_AW_WORKFLOW ?= gh-aw-estc-pr-buildkite-detective
 
-.PHONY: update-license update-license-check compile-aw
+.PHONY: update-license update-license-check compile-aw compile-aw-check
 
 ## Update license headers and NOTICE.txt
 update-license:
@@ -47,3 +47,8 @@ install-aw: $(GH_AW_BIN)
 ## Compile the selected gh-aw workflow source into its generated .lock.yml.
 compile-aw: install-aw
 	$(GH_AW_BIN) compile $(GH_AW_WORKFLOW)
+
+## Recompile every gh-aw workflow and fail if the generated lock files drift from the source.
+compile-aw-check: install-aw
+	$(GH_AW_BIN) compile --purge
+	git diff --exit-code -- .github/workflows
