@@ -230,6 +230,27 @@ def gh_text(args: list[str], *, check: bool = True) -> str:
     return proc.stdout
 
 
+def commit_sha_from_contents_put(payload: Any) -> str:
+    """Extract the new commit SHA from a GitHub Contents API PUT response."""
+    if not isinstance(payload, dict):
+        raise TypeError(
+            f"Contents PUT response must be a mapping, got {type(payload).__name__}"
+        )
+    commit = payload.get("commit")
+    if not isinstance(commit, dict):
+        raise TypeError(
+            "Contents PUT response missing commit object; cannot bind Buildkite "
+            "build to the fixture tip."
+        )
+    sha = str(commit.get("sha") or "").strip()
+    if not sha:
+        raise RuntimeError(
+            "Contents PUT response missing commit.sha; cannot bind Buildkite "
+            "build to the fixture tip."
+        )
+    return sha
+
+
 def put_branch_file(
     repo: str,
     *,
@@ -237,8 +258,12 @@ def put_branch_file(
     path: str,
     content: str,
     message: str,
-) -> bool:
-    """Create or update a file on ``branch``. Returns True when a commit was made."""
+) -> str | None:
+    """Create or update a file on ``branch``.
+
+    Returns the new commit SHA when a commit was made, or ``None`` when the
+    remote file already matched ``content`` (no commit).
+    """
     encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
     existing_file = subprocess.run(
         ["gh", "api", f"repos/{repo}/contents/{path}?ref={branch}"],
@@ -252,7 +277,7 @@ def put_branch_file(
         existing_sha = payload.get("sha")
         remote_b64 = str(payload.get("content") or "").replace("\n", "")
         if remote_b64 == encoded:
-            return False
+            return None
     put_args = [
         "api",
         "--method",
@@ -267,8 +292,7 @@ def put_branch_file(
     ]
     if existing_sha:
         put_args.extend(["-f", f"sha={existing_sha}"])
-    gh_json(put_args)
-    return True
+    return commit_sha_from_contents_put(gh_json(put_args))
 
 
 def _notify_github_commit_status_contexts(notify: Any) -> list[str]:
@@ -356,12 +380,17 @@ def sync_fail_pipeline_to_fixture_branch(
     branch: str,
     pipeline_path: Path | None = None,
     expected_context: str | None = None,
-) -> bool:
+) -> str | None:
     """Ensure the fixture branch tip includes the fail-pipeline YAML from this checkout.
 
     Buildkite uploads ``.buildkite/pipeline.e2e-estc-fail.yml`` from the build
     commit. ``expected_context`` is accepted for call-site compatibility; status
     publish comes from catalog ``publish_commit_status``, not YAML notify.
+
+    Returns the Contents API commit SHA when a sync commit was made, or ``None``
+    when the remote file was already current. Callers must use that SHA for the
+    Buildkite build / status wait — do not re-read ``headRefOid`` from the PR
+    API after a write (it can lag and leave the status on a non-HEAD commit).
     """
     path = pipeline_path if pipeline_path is not None else FAIL_PIPELINE_PATH
     if not path.is_file():
@@ -375,20 +404,21 @@ def sync_fail_pipeline_to_fixture_branch(
     # Always write under the canonical repo path so Buildkite's pipeline upload
     # finds the file on the fixture commit (local tmp paths must not leak).
     remote_path = str(FAIL_PIPELINE_PATH).replace("\\", "/")
-    updated = put_branch_file(
+    synced_sha = put_branch_file(
         repo,
         branch=branch,
         path=remote_path,
         content=content,
         message="chore(e2e): sync ESTC fail pipeline onto fixture branch",
     )
-    if updated:
+    if synced_sha:
         log_info(
-            f"Synced {remote_path} onto {repo}@{branch} for Buildkite fail pipeline."
+            f"Synced {remote_path} onto {repo}@{branch} "
+            f"(commit {synced_sha[:12]}) for Buildkite fail pipeline."
         )
     else:
         log_info(f"{remote_path} already current on {repo}@{branch}.")
-    return updated
+    return synced_sha
 
 
 def load_e2e_config(path: Path) -> dict[str, Any]:
@@ -1601,24 +1631,16 @@ def run_live_case(
             token_env = str(bk.get("token_env") or "BUILDKITE_TOKEN")
             raise RuntimeError(f"Missing {token_env} (write_builds + read).")
         if e2e_branch:
-            synced = sync_fail_pipeline_to_fixture_branch(
+            synced_sha = sync_fail_pipeline_to_fixture_branch(
                 repo,
                 branch=e2e_branch,
                 expected_context=expected_ctx,
             )
-            if synced:
-                pr_info, resolved_base = resolve_target_pr(
-                    repo,
-                    cfg,
-                    base_branch=base_branch,
-                )
-                sha = pr_info["headRefOid"]
-                target_pr_number = int(pr_info["number"])
-                e2e_branch = str(
-                    pr_info.get("headRefName")
-                    or cfg.get("e2e_pr", {}).get("branch")
-                    or e2e_branch
-                )
+            if synced_sha:
+                # Bind Buildkite to the Contents PUT tip. Re-resolving the PR
+                # head OID after sync can return the pre-sync SHA and leave the
+                # commit status on a non-HEAD commit (invisible in PR Checks).
+                sha = synced_sha
         target_url, buildkite_meta = ensure_failed_buildkite_target_url(
             cfg,
             commit=sha,

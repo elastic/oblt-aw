@@ -25,6 +25,8 @@ Happy path:
 4. The real `status` event triggers `trigger-obs-aw-status.yml` → detective → agent (context must contain substring `buildkite`). Pending statuses also fire the workflow but skip the job (`state != failure`); the harness ignores those skipped runs.
 5. Harness observes the Actions run and PR comment (it does **not** forge the happy-path status).
 
+When the harness syncs `.buildkite/pipeline.e2e-estc-fail.yml` onto the fixture branch, it binds the Buildkite build (and status wait) to the **Contents API commit SHA** from that write. It must not re-read `headRefOid` from the PR API after sync — that OID can lag, leaving the status on a non-HEAD commit that does not appear in the PR Checks UI.
+
 If the status never appears: check Buildkite GitHub App (`buildkite-limited-access`) commit-status permission, pipeline GitHub settings (`publish_commit_status`), and the harness job log (`block_reason` + status dump). Do not paper over a missing Buildkite status by forging one on the happy path.
 
 Live E2E is happy-path only (no harness-posted synthetic statuses; no URL-override escape hatch).

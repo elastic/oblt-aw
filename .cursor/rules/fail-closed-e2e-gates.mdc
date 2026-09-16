@@ -91,6 +91,7 @@ When changing fail-pipeline YAML, catalog `provider_settings`, or the ESTC live 
 6. **Exceptions → blocked outcome** — sync/API/create errors write `blocked` + `block_reason`, never an empty artifact path.
 7. **Runtime deps** — if the harness imports PyYAML (or other runtime packages), the E2E workflow must `pip install -r requirements-runtime.txt` (or equivalent) before running.
 8. **No live pipeline GET** — do not call `GET …/pipelines/{pipeline}` for provider-settings preflight (needs `read_pipelines`); rely on checked-in YAML/catalog + create/poll scopes only.
+9. **Sync tip SHA lockstep** — after Contents PUT sync of the fail pipeline, create/wait on the PUT `commit.sha`; never re-bind to a re-fetched PR `headRefOid` (can lag and hide the status from PR Checks).
 
 ## Local validation before commit / push
 

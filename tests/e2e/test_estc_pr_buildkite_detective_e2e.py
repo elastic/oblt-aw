@@ -661,14 +661,14 @@ class TestHarnessLive:
     ) -> None:
         pipeline = tmp_path / "pipeline.yml"
         pipeline.write_text("steps: []\n", encoding="utf-8")
-        monkeypatch.setattr(harness, "put_branch_file", lambda *_a, **_k: False)
+        monkeypatch.setattr(harness, "put_branch_file", lambda *_a, **_k: None)
         assert (
             harness.sync_fail_pipeline_to_fixture_branch(
                 "elastic/oblt-aw",
                 branch="e2e/estc-pr-buildkite-detective",
                 pipeline_path=pipeline,
             )
-            is False
+            is None
         )
 
     def test_sync_fail_pipeline_ignores_comment_only_notify(
@@ -797,9 +797,9 @@ steps:
         monkeypatch.setattr(harness, "FAIL_PIPELINE_PATH", pipeline)
         calls: list[str] = []
 
-        def _sync(*_a: object, **_k: object) -> bool:
+        def _sync(*_a: object, **_k: object) -> str | None:
             calls.append("sync")
-            return False
+            return None
 
         def _ensure(*_a: object, **_k: object) -> tuple[str, dict]:
             calls.append("ensure")
@@ -848,6 +848,121 @@ steps:
         assert calls == ["sync", "ensure"]
         assert outcome["blocked"] is True
         assert "timed out" in str(outcome.get("block_reason") or "").lower()
+
+    def test_run_live_case_uses_synced_sha_not_stale_pr_head(
+        self,
+        tmp_path: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """After sync, Buildkite must target the Contents PUT SHA, not a stale PR OID."""
+        case_dir = tmp_path / LIVE_CASE_ID
+        case_dir.mkdir()
+        case_dir.joinpath("case.json").write_text(
+            (TESTDATA_ROOT / "cases" / LIVE_CASE_ID / "case.json").read_text(
+                encoding="utf-8"
+            ),
+            encoding="utf-8",
+        )
+        pipeline = tmp_path / "pipeline.e2e-estc-fail.yml"
+        pipeline.write_text(
+            """steps:
+  - label: fail
+    command: exit 1
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(harness, "FAIL_PIPELINE_PATH", pipeline)
+        ensure_commits: list[str] = []
+        status_commits: list[str] = []
+        resolve_calls = {"n": 0}
+        synced = "fb9d174newsha00000000000000000000000000"
+        stale = "a7c203coldsha00000000000000000000000000"
+
+        def _resolve(*_a: object, **_k: object) -> tuple[dict[str, object], str]:
+            resolve_calls["n"] += 1
+            # Always return the pre-sync OID so a regression that re-resolves
+            # PR head after sync would create the build on the wrong SHA.
+            return (
+                {
+                    "number": 1982,
+                    "headRefOid": stale,
+                    "headRefName": "e2e/estc-pr-buildkite-detective",
+                },
+                "main",
+            )
+
+        def _sync(*_a: object, **_k: object) -> str:
+            return synced
+
+        def _ensure(*_a: object, **kwargs: object) -> tuple[str, dict]:
+            ensure_commits.append(str(kwargs.get("commit") or ""))
+            return "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/8", {
+                "source": "created",
+                "org": "elastic",
+                "pipeline": "oblt-aw-e2e-estc-fail",
+                "number": 8,
+                "state": "failed",
+                "web_url": "https://buildkite.com/elastic/oblt-aw-e2e-estc-fail/builds/8",
+            }
+
+        def _wait(_repo: str, sha: str, **_kwargs: object) -> None:
+            status_commits.append(sha)
+
+        monkeypatch.setattr(
+            harness, "dashboard_enables_workflow", lambda *_a, **_k: True
+        )
+        monkeypatch.setattr(
+            harness, "buildkite_api_token", lambda *_a, **_k: "fake-token"
+        )
+        monkeypatch.setattr(harness, "resolve_target_pr", _resolve)
+        monkeypatch.setattr(harness, "clear_detective_comments", lambda *_a, **_k: 0)
+        monkeypatch.setattr(harness, "list_status_trigger_runs", lambda *_a, **_k: [])
+        monkeypatch.setattr(harness, "sync_fail_pipeline_to_fixture_branch", _sync)
+        monkeypatch.setattr(harness, "ensure_failed_buildkite_target_url", _ensure)
+        monkeypatch.setattr(harness, "wait_for_commit_status", _wait)
+        monkeypatch.setattr(
+            harness,
+            "commit_status_timeout_block_reason",
+            lambda **_k: "timed out (test)",
+        )
+
+        cfg = harness.load_e2e_config(
+            ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+        )
+        outcome = harness.run_live_case(case_dir, cfg, run_url="https://example.test/r")
+        assert resolve_calls["n"] == 1
+        assert ensure_commits == [synced]
+        assert status_commits == [synced]
+        assert stale not in ensure_commits
+        assert outcome.get("commit_sha") == synced
+        assert outcome["blocked"] is True
+
+    def test_commit_sha_from_contents_put_requires_sha(self) -> None:
+        assert (
+            harness.commit_sha_from_contents_put({"commit": {"sha": "abc123def456"}})
+            == "abc123def456"
+        )
+        with pytest.raises(RuntimeError, match="missing commit.sha"):
+            harness.commit_sha_from_contents_put({"commit": {}})
+        with pytest.raises(TypeError, match="missing commit object"):
+            harness.commit_sha_from_contents_put({})
+
+    def test_sync_fail_pipeline_returns_contents_put_sha(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pipeline = tmp_path / "pipeline.yml"
+        pipeline.write_text("steps: []\n", encoding="utf-8")
+        monkeypatch.setattr(
+            harness, "put_branch_file", lambda *_a, **_k: "syncedsha0001"
+        )
+        assert (
+            harness.sync_fail_pipeline_to_fixture_branch(
+                "elastic/oblt-aw",
+                branch="e2e/estc-pr-buildkite-detective",
+                pipeline_path=pipeline,
+            )
+            == "syncedsha0001"
+        )
 
     def test_find_open_e2e_pr_strict_branch(
         self, monkeypatch: pytest.MonkeyPatch
