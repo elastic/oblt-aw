@@ -77,6 +77,25 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python scripts/validate_aw_workflow_permissions.py
 
+  gh-aw-drift:
+    name: gh-aw drift check
+    if: >-
+      !(
+        contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Recompile gh-aw workflows and fail on generated drift
+        run: make compile-aw-check
+
   typescript-tests:
     name: TypeScript tests
     if: >-
@@ -144,6 +163,7 @@ jobs:
     needs:
       - pre-commit
       - python-tests
+      - gh-aw-drift
       - typescript-tests
       - scorecard
     runs-on: ubuntu-latest
