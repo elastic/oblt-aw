@@ -631,6 +631,19 @@ class TestHarnessLive:
         with pytest.raises(RuntimeError, match="does not match Buildkite"):
             harness.expected_buildkite_status_context(cfg)
 
+    def test_expected_buildkite_status_context_rejects_non_default_template(
+        self,
+    ) -> None:
+        cfg = {
+            "buildkite_failure": {
+                "org_default": "elastic",
+                "pipeline_default": "oblt-aw-e2e-estc-fail",
+            },
+            "status_context_template": "buildkite/custom-{pipeline}",
+        }
+        with pytest.raises(RuntimeError, match="status_context_template"):
+            harness.expected_buildkite_status_context(cfg)
+
     def test_normalize_fixture_key_and_branch(self) -> None:
         assert harness.normalize_fixture_key("1961") == "pr-1961"
         assert harness.normalize_fixture_key("pr-1961") == "pr-1961"
@@ -640,6 +653,7 @@ class TestHarnessLive:
             "pr-1961",
         )
         assert cfg["e2e_pr"]["branch"] == "e2e/estc-pr-buildkite-detective/pr-1961"
+        assert cfg["e2e_pr"]["label"] == harness.FIXTURE_LABEL
         assert cfg["e2e_pr"]["title"] == (
             "[PR-1961] [e2e] ESTC detective fixture (pr-1961)"
         )
@@ -653,6 +667,22 @@ class TestHarnessLive:
         assert harness.is_estc_fixture_branch(cfg["e2e_pr"]["branch"])
         assert harness.is_estc_fixture_branch("e2e/estc-pr-buildkite-detective")
         assert not harness.is_estc_fixture_branch("feature/foo")
+        assert not harness.is_estc_fixture_branch("e2e/estc-pr-buildkite-detective-fix")
+        with pytest.raises(RuntimeError, match="e2e_pr.label"):
+            harness.apply_ephemeral_fixture_identity(
+                {"e2e_pr": {"label": "e2e:custom"}},
+                "pr-1",
+            )
+        with pytest.raises(RuntimeError, match="branch_prefix"):
+            harness.apply_ephemeral_fixture_identity(
+                {
+                    "e2e_pr": {
+                        "label": harness.FIXTURE_LABEL,
+                        "branch_prefix": "e2e/other-fixture",
+                    }
+                },
+                "pr-1",
+            )
 
     def test_summarize_and_timeout_block_reason(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1646,6 +1676,67 @@ steps:
         assert result["errors"] == []
         assert any(c[:3] == ["gh", "pr", "close"] and "77" in c for c in calls)
         assert any(c[:3] == ["gh", "api", "-X"] and "DELETE" in c for c in calls)
+
+    def test_cleanup_skips_unlabeled_exact_head_pr(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Exact-head fallback must not close a PR missing the fixture label."""
+        calls: list[list[str]] = []
+        branch = "e2e/estc-pr-buildkite-detective/pr-88"
+
+        class _Proc:
+            def __init__(self, code: int = 0, out: str = "", err: str = "") -> None:
+                self.returncode = code
+                self.stdout = out
+                self.stderr = err
+
+        def fake_run(cmd: list[str], **_k: object) -> _Proc:
+            calls.append(list(cmd))
+            return _Proc(0)
+
+        monkeypatch.setattr(harness, "find_open_e2e_pr", lambda *_a, **_k: None)
+        monkeypatch.setattr(
+            harness,
+            "_list_prs_by_head",
+            lambda *_a, **_k: [
+                {
+                    "number": 88,
+                    "url": "https://example.test/pr/88",
+                    "headRefName": branch,
+                    "headRefOid": "abc",
+                    "title": "unrelated",
+                    "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
+                    "labels": [{"name": "something-else"}],
+                }
+            ],
+        )
+        monkeypatch.setattr(harness.subprocess, "run", fake_run)
+
+        cfg = harness.apply_ephemeral_fixture_identity(
+            harness.load_e2e_config(
+                ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
+            ),
+            "pr-88",
+        )
+        result = harness.cleanup_e2e_fixture("elastic/oblt-aw", cfg)
+        assert result["closed"] is False
+        assert result["branch_deleted"] is False
+        assert result["pr_number"] is None
+        assert any("lack label" in e for e in result["errors"])
+        assert not any(c[:3] == ["gh", "pr", "close"] for c in calls)
+        assert not any(c[:3] == ["gh", "api", "-X"] and "DELETE" in c for c in calls)
+
+    def test_cleanup_rejects_non_fixture_branch(self) -> None:
+        with pytest.raises(RuntimeError, match="Refusing cleanup"):
+            harness.cleanup_e2e_fixture(
+                "elastic/oblt-aw",
+                {
+                    "e2e_pr": {
+                        "label": harness.FIXTURE_LABEL,
+                        "branch": "feature/not-a-fixture",
+                    }
+                },
+            )
 
     def test_ensure_failed_buildkite_passes_base_branch(
         self, monkeypatch: pytest.MonkeyPatch

@@ -133,17 +133,20 @@ def require_routable_buildkite_status_context(context: str) -> str:
 def expected_buildkite_status_context(cfg: dict[str, Any]) -> str:
     """GitHub status context Buildkite ``publish_commit_status`` will emit.
 
-    Always ``buildkite/<resolved pipeline>``. Optional config
+    Always ``buildkite/<resolved pipeline>`` (catalog publisher). Optional
     ``expected_status_context`` / ``status_context`` must match exactly or the
-    harness fails closed (no arbitrary Buildkite-looking overrides).
+    harness fails closed. Non-default ``status_context_template`` is rejected.
     """
     template = str(cfg.get("status_context_template") or "").strip()
-    if not template:
-        template = DEFAULT_STATUS_CONTEXT_TEMPLATE
-    _org, pipeline = resolve_buildkite_org_pipeline(cfg)
-    derived = require_routable_buildkite_status_context(
-        template.format(org=_org, pipeline=pipeline)
-    )
+    if template and template != DEFAULT_STATUS_CONTEXT_TEMPLATE:
+        raise RuntimeError(
+            f"status_context_template {template!r} is not allowed; "
+            "Buildkite publish_commit_status always emits "
+            f"{DEFAULT_STATUS_CONTEXT_TEMPLATE!r} "
+            "(buildkite/<pipeline>). Remove the template override."
+        )
+    _, pipeline = resolve_buildkite_org_pipeline(cfg)
+    derived = require_routable_buildkite_status_context(f"buildkite/{pipeline}")
     override = str(
         cfg.get("expected_status_context") or cfg.get("status_context") or ""
     ).strip()
@@ -198,6 +201,12 @@ def apply_ephemeral_fixture_identity(
     """Return cfg with ``e2e_pr.branch``/title/body scoped to ``fixture_key``."""
     key = normalize_fixture_key(fixture_key)
     e2e = dict(cfg.get("e2e_pr") or {})
+    configured_label = str(e2e.get("label") or "").strip()
+    if configured_label and configured_label != FIXTURE_LABEL:
+        raise RuntimeError(
+            f"e2e_pr.label {configured_label!r} must be {FIXTURE_LABEL!r} "
+            "(CI/agent skip guards require the canonical fixture label)."
+        )
     prefix = str(
         e2e.get("branch_prefix") or e2e.get("branch") or FIXTURE_BRANCH_PREFIX
     ).rstrip("/")
@@ -208,9 +217,17 @@ def apply_ephemeral_fixture_identity(
         prefix = prefix[: -len(f"/{key}")]
     else:
         branch = f"{prefix}/{key}"
-    label = str(e2e.get("label") or FIXTURE_LABEL)
-    e2e["label"] = label
-    e2e["branch_prefix"] = prefix
+    if prefix != FIXTURE_BRANCH_PREFIX:
+        raise RuntimeError(
+            f"e2e_pr.branch_prefix {prefix!r} must be {FIXTURE_BRANCH_PREFIX!r}."
+        )
+    if not is_estc_fixture_branch(branch):
+        raise RuntimeError(
+            f"Refusing fixture branch {branch!r}; expected "
+            f"{FIXTURE_BRANCH_PREFIX!r} or {FIXTURE_BRANCH_PREFIX}/…"
+        )
+    e2e["label"] = FIXTURE_LABEL
+    e2e["branch_prefix"] = FIXTURE_BRANCH_PREFIX
     e2e["branch"] = branch
     e2e["fixture_key"] = key
     e2e["title"] = fixture_pr_title(key)
@@ -313,14 +330,25 @@ def cleanup_e2e_fixture(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
 
     Never deletes the head branch while an open PR still points at it (close
     failure or label-index lag). Prefer exact ``--head`` lookup when the
-    label-scoped list misses the fixture.
+    label-scoped list misses the fixture — but only when that PR carries the
+    canonical fixture label.
     """
     e2e_pr = cfg.get("e2e_pr") or {}
-    label = str(e2e_pr.get("label") or FIXTURE_LABEL)
+    configured_label = str(e2e_pr.get("label") or "").strip()
+    if configured_label and configured_label != FIXTURE_LABEL:
+        raise RuntimeError(
+            f"cleanup e2e_pr.label {configured_label!r} must be {FIXTURE_LABEL!r}."
+        )
+    label = FIXTURE_LABEL
     branch = str(e2e_pr.get("branch") or "").strip()
     if not branch:
         raise RuntimeError(
             "cleanup requires e2e_pr.branch (apply fixture identity first)"
+        )
+    if not is_estc_fixture_branch(branch):
+        raise RuntimeError(
+            f"Refusing cleanup of branch {branch!r}; expected "
+            f"{FIXTURE_BRANCH_PREFIX!r} or {FIXTURE_BRANCH_PREFIX}/…"
         )
     result: dict[str, Any] = {
         "repo": repo,
@@ -332,47 +360,66 @@ def cleanup_e2e_fixture(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         "branch_deleted": False,
         "errors": [],
     }
-    open_pr = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
-    if open_pr is None:
-        # Label index can lag or the PR can fall outside ``--limit 20``.
-        open_by_head = _list_prs_by_head(repo, branch=branch, state="open", limit=5)
-        if open_by_head:
-            open_pr = open_by_head[0]
-    if open_pr is None:
-        # Prefer closed PR on this branch so we still record the number.
-        closed = _find_closed_fixture_pr(repo, branch=branch, label=label)
-        if closed:
-            result["pr_number"] = int(closed["number"])
-    else:
-        pr_number = int(open_pr["number"])
-        result["pr_number"] = pr_number
-        close = subprocess.run(
-            [
-                "gh",
-                "pr",
-                "close",
-                str(pr_number),
-                "--repo",
-                repo,
-                "--comment",
-                "Closing ephemeral ESTC detective E2E fixture after live run.",
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if close.returncode == 0:
-            result["closed"] = True
+    try:
+        open_pr = find_open_e2e_pr(repo, label, branch=branch, strict_branch=False)
+        if open_pr is None:
+            # Label index can lag or the PR can fall outside ``--limit 20``.
+            open_by_head = _list_prs_by_head(repo, branch=branch, state="open", limit=5)
+            labeled = [pr for pr in open_by_head if _pr_has_label(pr, label)]
+            if open_by_head and not labeled:
+                numbers = ", ".join(
+                    f"#{int(pr['number'])}" for pr in open_by_head if pr.get("number")
+                )
+                result["errors"].append(
+                    f"open PR(s) on branch {branch} ({numbers}) lack label "
+                    f"{label!r}; skipping close/delete"
+                )
+                return result
+            if labeled:
+                open_pr = labeled[0]
+        if open_pr is None:
+            # Prefer closed PR on this branch so we still record the number.
+            closed = _find_closed_fixture_pr(repo, branch=branch, label=label)
+            if closed:
+                result["pr_number"] = int(closed["number"])
         else:
-            detail = (
-                close.stderr or close.stdout or ""
-            ).strip() or f"exit {close.returncode}"
-            result["errors"].append(f"close PR #{pr_number}: {detail}")
-            # Keep the branch so the next run can reopen/reuse this fixture key.
-            result["errors"].append(
-                f"skipping delete of branch {branch}: PR #{pr_number} still open"
+            pr_number = int(open_pr["number"])
+            result["pr_number"] = pr_number
+            close = subprocess.run(
+                [
+                    "gh",
+                    "pr",
+                    "close",
+                    str(pr_number),
+                    "--repo",
+                    repo,
+                    "--comment",
+                    "Closing ephemeral ESTC detective E2E fixture after live run.",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
             )
-            return result
+            if close.returncode == 0:
+                result["closed"] = True
+            else:
+                detail = (
+                    close.stderr or close.stdout or ""
+                ).strip() or f"exit {close.returncode}"
+                result["errors"].append(f"close PR #{pr_number}: {detail}")
+                # Keep the branch so the next run can reopen/reuse this fixture key.
+                result["errors"].append(
+                    f"skipping delete of branch {branch}: PR #{pr_number} still open"
+                )
+                return result
+    except (
+        RuntimeError,
+        OSError,
+        subprocess.SubprocessError,
+        json.JSONDecodeError,
+    ) as exc:
+        result["errors"].append(f"fixture lookup failed: {exc}")
+        return result
 
     del_ref = subprocess.run(
         ["gh", "api", "-X", "DELETE", f"repos/{repo}/git/refs/heads/{branch}"],

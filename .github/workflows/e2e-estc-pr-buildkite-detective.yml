@@ -69,11 +69,15 @@ jobs:
   e2e-matrix:
     name: Resolve E2E matrix
     # Same-repo only; skip ephemeral/legacy fixture branches (sync must not re-enter).
+    # Exact legacy branch or ``prefix/…`` only — not ``prefix-fix``-style names.
     if: >-
       github.event_name != 'pull_request' ||
       (
         github.event.pull_request.head.repo.full_name == github.repository &&
-        !startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective')
+        !(
+          github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' ||
+          startsWith(github.event.pull_request.head.ref, 'e2e/estc-pr-buildkite-detective/')
+        )
       )
     runs-on: ubuntu-latest
     timeout-minutes: 5
