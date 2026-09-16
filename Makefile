@@ -15,9 +15,10 @@
 
 GH_AW_VERSION_FILE := .aw-compiler-version
 GH_AW_VERSION := $(shell tr -d '[:space:]' < $(GH_AW_VERSION_FILE))
-GH_AW_BIN ?= $(HOME)/.local/share/gh/extensions/gh-aw/gh-aw
+GH_AW_BIN := $(HOME)/.local/share/gh/extensions/gh-aw/gh-aw
+GH_AW_WORKFLOW ?= gh-aw-estc-pr-buildkite-detective
 
-.PHONY: update-license update-license-check install-aw compile-aw
+.PHONY: update-license update-license-check compile-aw
 
 ## Update license headers and NOTICE.txt
 update-license:
@@ -27,8 +28,7 @@ update-license:
 update-license-check:
 	python3 scripts/update_license_files.py --check
 
-## Install the pinned gh aw compiler binary directly from the upstream release, without gh extension plumbing.
-install-aw:
+$(GH_AW_BIN):
 	@expected="$(GH_AW_VERSION)"; \
 	if [ -z "$$expected" ]; then \
 		echo "error: $(GH_AW_VERSION_FILE) is empty or missing" >&2; \
@@ -36,8 +36,14 @@ install-aw:
 	fi; \
 	install_dir="$$(dirname "$(GH_AW_BIN)")"; \
 	mkdir -p "$$install_dir"; \
-	curl -fsSL "https://raw.githubusercontent.com/github/gh-aw/refs/tags/$$expected/install-gh-aw.sh" | bash -s -- "$$expected";
+	tmp_file="$$(mktemp)"; \
+	trap 'rm -f "$$tmp_file"' EXIT; \
+	curl -fsSL "https://raw.githubusercontent.com/github/gh-aw/refs/tags/$$expected/install-gh-aw.sh" -o "$$tmp_file"; \
+	bash "$$tmp_file" "$$expected";
 
-## Compile agentic workflow Markdown into .lock.yml.
+## Install the pinned gh aw compiler binary directly from the upstream release, without gh extension plumbing.
+install-aw: $(GH_AW_BIN)
+
+## Compile the selected gh-aw workflow source into its generated .lock.yml.
 compile-aw: install-aw
-	$(GH_AW_BIN) compile
+	$(GH_AW_BIN) compile $(GH_AW_WORKFLOW)
