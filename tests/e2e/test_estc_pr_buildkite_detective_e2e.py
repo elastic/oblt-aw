@@ -74,7 +74,6 @@ def _synthetic_live_outcome(
 
 def _evaluate(
     outcome: dict,
-    quarantine: dict | None = None,
     *,
     case_expectations: dict | None = None,
     case_trigger: dict | None = None,
@@ -86,8 +85,6 @@ def _evaluate(
     ``outcome["expectations"]`` or ``outcome["trigger"]`` implicitly — those
     paths are not the production source of truth.
     """
-    if quarantine is None:
-        quarantine = {"cases": []}
     case_id = str(outcome.get("case_id") or "")
     if case_expectations is None:
         case_expectations = (
@@ -99,7 +96,6 @@ def _evaluate(
         )
     return oracle.evaluate_outcome(
         outcome,
-        quarantine,
         case_expectations=case_expectations,
         case_trigger=case_trigger,
     )
@@ -648,11 +644,6 @@ class TestHarnessLive:
         assert cfg["e2e_pr"]["label"] == harness.FIXTURE_LABEL
         assert cfg["e2e_pr"]["title"] == harness.DEFAULT_FIXTURE_TITLE
         assert "Do not merge" in cfg["e2e_pr"]["body"]
-        assert harness.is_estc_fixture_branch(cfg["e2e_pr"]["branch"])
-        assert not harness.is_estc_fixture_branch("feature/foo")
-        assert not harness.is_estc_fixture_branch(
-            "e2e/estc-pr-buildkite-detective/pr-1"
-        )
         with pytest.raises(RuntimeError, match="e2e_pr.label"):
             harness.normalize_e2e_pr_config({"e2e_pr": {"label": "e2e:custom"}})
         with pytest.raises(RuntimeError, match="long-lived fixture"):
@@ -857,15 +848,13 @@ steps:
         )
         monkeypatch.setattr(
             harness,
-            "resolve_target_pr",
-            lambda *_a, **_k: (
-                {
-                    "number": 1965,
-                    "headRefOid": "abc123",
-                    "headRefName": "e2e/estc-pr-buildkite-detective",
-                },
-                "main",
-            ),
+            "ensure_e2e_pr",
+            lambda *_a, **_k: {
+                "number": 1965,
+                "headRefOid": "abc123",
+                "headRefName": "e2e/estc-pr-buildkite-detective",
+                "url": "https://example.test/pr/1965",
+            },
         )
         monkeypatch.setattr(harness, "clear_detective_comments", lambda *_a, **_k: 0)
         monkeypatch.setattr(harness, "list_status_trigger_runs", lambda *_a, **_k: [])
@@ -915,22 +904,8 @@ steps:
         monkeypatch.setattr(harness, "FAIL_PIPELINE_PATH", pipeline)
         ensure_commits: list[str] = []
         status_commits: list[str] = []
-        resolve_calls = {"n": 0}
         synced = "fb9d174newsha00000000000000000000000000"
         stale = "a7c203coldsha00000000000000000000000000"
-
-        def _resolve(*_a: object, **_k: object) -> tuple[dict[str, object], str]:
-            resolve_calls["n"] += 1
-            # Always return the pre-sync OID so a regression that re-resolves
-            # PR head after sync would create the build on the wrong SHA.
-            return (
-                {
-                    "number": 1982,
-                    "headRefOid": stale,
-                    "headRefName": "e2e/estc-pr-buildkite-detective",
-                },
-                "main",
-            )
 
         def _sync(*_a: object, **_k: object) -> str:
             return synced
@@ -955,7 +930,16 @@ steps:
         monkeypatch.setattr(
             harness, "buildkite_api_token", lambda *_a, **_k: "fake-token"
         )
-        monkeypatch.setattr(harness, "resolve_target_pr", _resolve)
+        monkeypatch.setattr(
+            harness,
+            "ensure_e2e_pr",
+            lambda *_a, **_k: {
+                "number": 1982,
+                "headRefOid": stale,
+                "headRefName": "e2e/estc-pr-buildkite-detective",
+                "url": "https://example.test/pr/1982",
+            },
+        )
         monkeypatch.setattr(harness, "clear_detective_comments", lambda *_a, **_k: 0)
         monkeypatch.setattr(harness, "list_status_trigger_runs", lambda *_a, **_k: [])
         monkeypatch.setattr(harness, "sync_fail_pipeline_to_fixture_branch", _sync)
@@ -975,7 +959,6 @@ steps:
             cfg,
             run_url="https://example.test/r",
         )
-        assert resolve_calls["n"] == 1
         assert ensure_commits == [synced]
         assert status_commits == [synced]
         assert stale not in ensure_commits
@@ -1009,7 +992,7 @@ steps:
             == "syncedsha0001"
         )
 
-    def test_find_open_e2e_pr_strict_branch(
+    def test_find_open_e2e_pr_requires_exact_branch(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(
@@ -1032,15 +1015,6 @@ steps:
                 "e2e:estc-pr-buildkite-detective",
                 branch="e2e/estc-pr-buildkite-detective",
             )
-        assert (
-            harness.find_open_e2e_pr(
-                "elastic/oblt-aw",
-                "e2e:estc-pr-buildkite-detective",
-                branch="e2e/estc-pr-buildkite-detective",
-                strict_branch=False,
-            )
-            is None
-        )
 
     def test_find_open_e2e_pr_rejects_fork_head(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1065,15 +1039,6 @@ steps:
                 "e2e:estc-pr-buildkite-detective",
                 branch="e2e/estc-pr-buildkite-detective",
             )
-        assert (
-            harness.find_open_e2e_pr(
-                "elastic/oblt-aw",
-                "e2e:estc-pr-buildkite-detective",
-                branch="e2e/estc-pr-buildkite-detective",
-                strict_branch=False,
-            )
-            is None
-        )
 
     def test_ensure_label_fails_closed(self, monkeypatch: pytest.MonkeyPatch) -> None:
         class _Proc:
@@ -1089,22 +1054,9 @@ steps:
         with pytest.raises(RuntimeError, match="Failed to ensure label"):
             harness._ensure_label("elastic/oblt-aw", "e2e:estc-pr-buildkite-detective")
 
-    def test_resolve_target_pr_uses_fixture(
+    def test_ensure_e2e_pr_reuses_open_fixture(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(
-            harness,
-            "ensure_e2e_pr",
-            lambda *_a, **_k: {
-                "number": 1959,
-                "url": "https://example.test/pr/1959",
-                "headRefName": "e2e/estc-pr-buildkite-detective",
-                "headRefOid": "deadbeef",
-                "title": "fixture",
-                "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
-                "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
-            },
-        )
         monkeypatch.setattr(
             harness,
             "find_open_e2e_pr",
@@ -1118,13 +1070,25 @@ steps:
                 "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
             },
         )
+        monkeypatch.setattr(
+            harness,
+            "_require_pr_label",
+            lambda *_a, **_k: {
+                "number": 1959,
+                "url": "https://example.test/pr/1959",
+                "headRefName": "e2e/estc-pr-buildkite-detective",
+                "headRefOid": "deadbeef",
+                "title": "fixture",
+                "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
+                "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
+            },
+        )
         cfg = harness.load_e2e_config(
             ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
         )
-        pr, base = harness.resolve_target_pr("elastic/oblt-aw", cfg)
+        pr = harness.ensure_e2e_pr("elastic/oblt-aw", cfg)
         assert int(pr["number"]) == 1959
         assert pr["headRefName"] == "e2e/estc-pr-buildkite-detective"
-        assert base == "main"
 
     def test_ensure_e2e_pr_reopens_closed_fixture(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1382,7 +1346,7 @@ steps:
         assert all(h == "e2e/estc-pr-buildkite-detective" for h in list_heads)
         assert "elastic:e2e/estc-pr-buildkite-detective" not in list_heads
 
-    def test_ensure_failed_buildkite_passes_base_branch(
+    def test_ensure_failed_buildkite_uses_main_base_branch(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("BUILDKITE_TOKEN", "test-token")
@@ -1415,11 +1379,10 @@ steps:
             branch="feat/estc",
             pr_number=99,
             case_id="status-failure-open-pr-live",
-            pull_request_base_branch="release-1",
         )
         assert url.endswith("/builds/1")
         assert meta["number"] == 1
-        assert captured["pull_request_base_branch"] == "release-1"
+        assert captured["pull_request_base_branch"] == "main"
         assert captured["pull_request_id"] == 99
         assert captured["branch"] == "feat/estc"
 
@@ -1429,45 +1392,7 @@ class TestOracle:
         report = _evaluate(_synthetic_live_outcome())
         assert report["pass"] is True
         assert report["layer"] == "e2e"
-        assert report["quarantined"] is False
         assert all(item["pass"] for item in report["checks"])
-
-    def test_quarantine_requires_owner_and_reason(self) -> None:
-        outcome = _synthetic_live_outcome()
-        incomplete = {
-            "default_owner_team": "@elastic/observablt-robots",
-            "cases": [
-                {
-                    "workflow_id": "obs:estc-pr-buildkite-detective",
-                    "case_id": LIVE_CASE_ID,
-                    "reason": "missing owner",
-                }
-            ],
-        }
-        report = _evaluate(outcome, incomplete)
-        assert report["quarantined"] is False
-        assert report["pass"] is True
-
-    def test_quarantine_skips_with_owner(self) -> None:
-        outcome = _synthetic_live_outcome()
-        quarantine = {
-            "default_owner_team": "@elastic/observablt-robots",
-            "cases": [
-                {
-                    "workflow_id": "obs:estc-pr-buildkite-detective",
-                    "case_id": LIVE_CASE_ID,
-                    "owner": "@elastic/observablt-robots",
-                    "reason": "test quarantine",
-                }
-            ],
-        }
-        report = _evaluate(outcome, quarantine)
-        assert report["pass"] is False
-        assert report["skipped"] is True
-        assert report["quarantined"] is True
-        assert report["quarantine_owner"] == "@elastic/observablt-robots"
-        failed = {c["id"] for c in report["checks"] if not c["pass"]}
-        assert "quarantine" in failed
 
     def test_blocked_timeout_notes_mention_commit_status(self) -> None:
         outcome = {
@@ -1943,7 +1868,6 @@ class TestOracle:
         outcome = _synthetic_live_outcome()
         report = oracle.evaluate_outcome(
             outcome,
-            {"cases": []},
             case_expectations={},
             case_trigger=oracle.load_case_trigger(TESTDATA_ROOT, LIVE_CASE_ID),
         )
@@ -1956,7 +1880,6 @@ class TestOracle:
         outcome = _synthetic_live_outcome()
         report = oracle.evaluate_outcome(
             outcome,
-            {"cases": []},
             case_expectations={"typo": True},
             case_trigger=oracle.load_case_trigger(TESTDATA_ROOT, LIVE_CASE_ID),
         )
@@ -1970,7 +1893,6 @@ class TestOracle:
         outcome = _synthetic_live_outcome()
         report = oracle.evaluate_outcome(
             outcome,
-            {"cases": []},
             case_expectations={
                 "dashboard_enabled": True,
                 "agent_invoked": True,
@@ -1998,7 +1920,6 @@ class TestOracle:
         expectations = oracle.load_case_expectations(TESTDATA_ROOT, LIVE_CASE_ID)
         report = oracle.evaluate_outcome(
             outcome,
-            {"cases": []},
             case_expectations=expectations,
             case_trigger={},
         )
@@ -2012,7 +1933,6 @@ class TestOracle:
         outcome = _synthetic_live_outcome()
         report = oracle.evaluate_outcome(
             outcome,
-            {"cases": []},
             case_expectations=oracle.load_case_expectations(
                 TESTDATA_ROOT, LIVE_CASE_ID
             ),
@@ -2129,7 +2049,6 @@ class TestOracle:
         outcome["trigger"] = {}
         report = oracle.evaluate_outcome(
             outcome,
-            {"cases": []},
             case_expectations=oracle.load_case_expectations(tmp_path, LIVE_CASE_ID),
             case_trigger=oracle.load_case_trigger(tmp_path, LIVE_CASE_ID),
         )
@@ -2154,8 +2073,6 @@ class TestOracle:
                 str(report_path),
                 "--summary-path",
                 str(summary_path),
-                "--quarantine-path",
-                str(ROOT / "config" / "obs" / "e2e-quarantine.json"),
                 "--testdata-root",
                 str(ROOT / "testdata" / "agentic" / "estc-pr-buildkite-detective"),
             ]
@@ -2203,8 +2120,6 @@ class TestOracle:
                 str(report_path),
                 "--summary-path",
                 str(summary_path),
-                "--quarantine-path",
-                str(ROOT / "config" / "obs" / "e2e-quarantine.json"),
                 "--testdata-root",
                 str(ROOT / "testdata" / "agentic" / "estc-pr-buildkite-detective"),
             ]

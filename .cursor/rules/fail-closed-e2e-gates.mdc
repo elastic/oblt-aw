@@ -49,7 +49,7 @@ Check each of these explicitly (add a regression when any is open):
 | Unroutable status context | Can `expected_status_context` omit the `buildkite` substring while the waiter still polls? Reject before sync/create. |
 | Producer/waiter context lockstep | Can env org/pipeline overrides make the waiter expect a context other than `buildkite/<pipeline>` that Buildkite will publish? |
 | Skipped status-route race | Can a completed pending→skipped `trigger-obs-aw-status` run satisfy `wait_for_new_run` / `status_job_executed` ahead of the failure-triggered success run? |
-| Shared mutable fixture | Do concurrent development PRs share one fixture PR/branch/status context without isolation? Prefer one global concurrency group for a long-lived fixture (or ephemeral `pr-<N>` / `run-<id>` fixtures until SHA/status correlation exists). |
+| Shared mutable fixture | Do concurrent development PRs share one fixture PR/branch/status context without isolation? Prefer one global concurrency group for a long-lived fixture. |
 | Path-filtered self-trigger | Can fixture-branch sync commits start the privileged live job again? Exclude fixture branch prefix from the job `if`. |
 | Secrets on PR checkout | Is `pull_request_target` avoided? If secrets remain on same-repo `pull_request`, is that an explicit trust boundary (collaborator write + CODEOWNERS), with forks excluded? |
 

@@ -8,12 +8,6 @@ name: E2E — ESTC PR Buildkite Detective
 # Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
-    inputs:
-      case-id:
-        description: Case id (default is the live happy path)
-        required: true
-        type: string
-        default: status-failure-open-pr-live
 
 permissions:
   contents: read
@@ -22,6 +16,9 @@ concurrency:
   # Shared mutable fixture + status-route waiters: one run at a time.
   group: e2e-estc-pr-buildkite-detective
   cancel-in-progress: false
+
+env:
+  CASE_ID: status-failure-open-pr-live
 
 jobs:
   e2e:
@@ -36,7 +33,6 @@ jobs:
       issues: write
       checks: read
     env:
-      CASE_ID: ${{ inputs.case-id }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       BUILDKITE_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
       E2E_BUILDKITE_ORG: ${{ vars.E2E_BUILDKITE_ORG }}
@@ -78,7 +74,6 @@ jobs:
             --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json" \
             --report-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/oracle-report.json" \
             --summary-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/summary.json" \
-            --quarantine-path config/obs/e2e-quarantine.json \
             --testdata-root testdata/agentic/estc-pr-buildkite-detective \
             --expected-case-id "${CASE_ID}"
 
@@ -141,7 +136,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-estc-pr-buildkite-detective-${{ inputs.case-id }}-${{ github.run_id }}
-          path: artifacts/e2e/estc-pr-buildkite-detective/${{ inputs.case-id }}/
+          name: e2e-estc-pr-buildkite-detective-${{ env.CASE_ID }}-${{ github.run_id }}
+          path: artifacts/e2e/estc-pr-buildkite-detective/${{ env.CASE_ID }}/
           if-no-files-found: warn
           retention-days: 30

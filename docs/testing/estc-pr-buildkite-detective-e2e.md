@@ -36,14 +36,12 @@ Harness and oracle print `block_reason` / failed checks in the job log (and emit
 Workflow: [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/e2e-estc-pr-buildkite-detective.yml)
 
 ```bash
-# Live happy path (default case id)
-gh workflow run e2e-estc-pr-buildkite-detective.yml \
-  -f case-id=status-failure-open-pr-live
+gh workflow run e2e-estc-pr-buildkite-detective.yml
 ```
 
 Triggers:
 
-- `workflow_dispatch` only (manual). One run at a time via concurrency group `e2e-estc-pr-buildkite-detective`.
+- `workflow_dispatch` only (manual). One run at a time via concurrency group `e2e-estc-pr-buildkite-detective`. Always runs case `status-failure-open-pr-live`.
 
 Not part of the default PR `required` job in [`ci.yml`](../../.github/workflows/ci.yml). Control-plane lock/wrapper still resolve via `@main` on the live status path (smoke); candidate-ref pinning is a separate follow-up.
 
@@ -59,22 +57,13 @@ pytest tests/e2e/test_estc_pr_buildkite_detective_e2e.py -v
 
 ## Artifacts
 
-Each run uploads `e2e-estc-pr-buildkite-detective-<case-id>-<run_id>` containing:
+Each run uploads `e2e-estc-pr-buildkite-detective-status-failure-open-pr-live-<run_id>` containing:
 
 | File | Purpose |
 |------|---------|
 | `outcome.json` | Harness structured outcome |
 | `oracle-report.json` | Per-check pass/fail details |
 | `summary.json` | Compact `{pass, run_url, workflow_id, layer, mode, case_id, agent_invoked, …}` |
-
-Quarantined cases set `pass: false` (and `quarantined: true`) so the gate fails closed.
-
-## Quarantine policy
-
-Config: [`config/obs/e2e-quarantine.json`](../../config/obs/e2e-quarantine.json)
-
-- Every quarantine entry **must** include `owner` and `reason` (invalid rows are ignored, not treated as skip-pass).
-- Quarantined cases are reported as skipped **and** `pass: false` so they block the E2E gate — **not** silently retried into green.
 
 ## Related
 

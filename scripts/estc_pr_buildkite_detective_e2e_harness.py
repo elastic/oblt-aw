@@ -57,8 +57,6 @@ DEFAULT_STATUS_CONTEXT_TEMPLATE = "buildkite/{pipeline}"
 # Long-lived fixture branch (shared; workflow concurrency serializes live runs).
 FIXTURE_BRANCH = "e2e/estc-pr-buildkite-detective"
 FIXTURE_LABEL = "e2e:estc-pr-buildkite-detective"
-# Alias kept for callers/tests that still reference the historic name.
-FIXTURE_BRANCH_PREFIX = FIXTURE_BRANCH
 
 
 def _load_json(path: Path) -> Any:
@@ -166,13 +164,6 @@ def expected_buildkite_status_context(cfg: dict[str, Any]) -> str:
     return derived
 
 
-def is_estc_fixture_branch(ref: str, *, prefix: str = FIXTURE_BRANCH) -> bool:
-    """True for the long-lived fixture branch (exact match only)."""
-    name = str(ref or "").strip()
-    base = str(prefix or FIXTURE_BRANCH).rstrip("/")
-    return name == base
-
-
 def normalize_e2e_pr_config(cfg: dict[str, Any]) -> dict[str, Any]:
     """Return cfg with the canonical long-lived fixture PR fields filled in."""
     e2e = dict(cfg.get("e2e_pr") or {})
@@ -182,9 +173,7 @@ def normalize_e2e_pr_config(cfg: dict[str, Any]) -> dict[str, Any]:
             f"e2e_pr.label {configured_label!r} must be {FIXTURE_LABEL!r} "
             "(CI/agent skip guards require the canonical fixture label)."
         )
-    branch = str(
-        e2e.get("branch") or e2e.get("branch_prefix") or FIXTURE_BRANCH
-    ).strip()
+    branch = str(e2e.get("branch") or FIXTURE_BRANCH).strip()
     if branch != FIXTURE_BRANCH:
         raise RuntimeError(
             f"e2e_pr.branch {branch!r} must be the long-lived fixture "
@@ -573,9 +562,9 @@ def find_open_e2e_pr(
     repo: str,
     label: str,
     *,
-    branch: str | None = None,
-    strict_branch: bool = True,
+    branch: str,
 ) -> dict[str, Any] | None:
+    """Return the open same-repo PR with ``label`` on ``branch``, or None."""
     prs = gh_json(
         [
             "pr",
@@ -596,24 +585,20 @@ def find_open_e2e_pr(
         return None
     same_repo = _same_repo_prs(prs if isinstance(prs, list) else [], repo)
     if not same_repo:
-        if branch and strict_branch and prs:
+        if prs:
             raise RuntimeError(
                 f"Open PR(s) with label {label!r} exist, but none are same-repo "
                 f"heads in {repo!r}. Refusing to target a fork fixture PR."
             )
         return None
-    if branch:
-        matched = [pr for pr in same_repo if pr.get("headRefName") == branch]
-        if not matched:
-            if strict_branch:
-                raise RuntimeError(
-                    f"Open PR(s) with label {label!r} exist, but none use branch "
-                    f"{branch!r} on {repo!r}. Refusing to target an unrelated "
-                    "fixture PR."
-                )
-            return None
-        return matched[0]
-    return same_repo[0]
+    matched = [pr for pr in same_repo if pr.get("headRefName") == branch]
+    if not matched:
+        raise RuntimeError(
+            f"Open PR(s) with label {label!r} exist, but none use branch "
+            f"{branch!r} on {repo!r}. Refusing to target an unrelated "
+            "fixture PR."
+        )
+    return matched[0]
 
 
 def _ensure_label(repo: str, label: str) -> None:
@@ -686,34 +671,6 @@ def _require_pr_label(repo: str, pr_number: int, label: str) -> dict[str, Any]:
     return pr
 
 
-def resolve_target_pr(
-    repo: str,
-    cfg: dict[str, Any],
-    *,
-    base_branch: str | None = None,
-) -> tuple[dict[str, Any], str]:
-    """Resolve the long-lived fixture PR under test and its base branch name.
-
-    Find, reopen, or create the fixture PR for ``cfg['e2e_pr']['branch']``
-    (``e2e/estc-pr-buildkite-detective``) with label
-    ``e2e:estc-pr-buildkite-detective``.
-    """
-    cfg = normalize_e2e_pr_config(cfg)
-    pr_info = ensure_e2e_pr(repo, cfg)
-    branch = str(cfg["e2e_pr"].get("branch") or "")
-    refreshed = (
-        find_open_e2e_pr(
-            repo,
-            cfg["e2e_pr"]["label"],
-            branch=branch,
-            strict_branch=True,
-        )
-        or pr_info
-    )
-    resolved_base = (base_branch or "").strip() or "main"
-    return refreshed, resolved_base
-
-
 def _find_closed_fixture_pr(
     repo: str, *, branch: str, label: str
 ) -> dict[str, Any] | None:
@@ -737,11 +694,11 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
     e2e_pr = cfg["e2e_pr"]
     label = str(e2e_pr["label"])
     branch = str(e2e_pr["branch"])
-    if not is_estc_fixture_branch(branch):
+    if branch != FIXTURE_BRANCH:
         raise RuntimeError(
             f"Refusing fixture branch {branch!r}; expected {FIXTURE_BRANCH!r}."
         )
-    existing = find_open_e2e_pr(repo, label, branch=branch, strict_branch=True)
+    existing = find_open_e2e_pr(repo, label, branch=branch)
     if existing:
         return _require_pr_label(repo, int(existing["number"]), label)
 
@@ -843,7 +800,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         # Fall through to reopen / label recovery below.
         pass
 
-    created = find_open_e2e_pr(repo, label, branch=branch, strict_branch=True)
+    created = find_open_e2e_pr(repo, label, branch=branch)
     if created:
         return _require_pr_label(repo, int(created["number"]), label)
 
@@ -885,7 +842,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
                     f"on {repo}: "
                     f"{(edit.stderr or edit.stdout or '').strip() or f'exit {edit.returncode}'}"
                 )
-        reopened = find_open_e2e_pr(repo, label, branch=branch, strict_branch=True)
+        reopened = find_open_e2e_pr(repo, label, branch=branch)
         if reopened:
             return _require_pr_label(repo, int(reopened["number"]), label)
         return _require_pr_label(repo, pr_number, label)
@@ -1447,7 +1404,6 @@ def ensure_failed_buildkite_target_url(
     branch: str,
     pr_number: int | None,
     case_id: str,
-    pull_request_base_branch: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Create a failed Buildkite build and return (web_url, build_meta)."""
     token = buildkite_api_token(cfg)
@@ -1460,9 +1416,6 @@ def ensure_failed_buildkite_target_url(
     bk = _buildkite_cfg(cfg)
     repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
     pr_repo = f"https://github.com/{repo}.git"
-    base_branch = None
-    if pr_number:
-        base_branch = (pull_request_base_branch or "").strip() or "main"
     created = create_buildkite_build(
         token,
         org=org,
@@ -1471,7 +1424,7 @@ def ensure_failed_buildkite_target_url(
         branch=branch,
         message=f"oblt-aw e2e intentional failure ({case_id})",
         pull_request_id=pr_number or None,
-        pull_request_base_branch=base_branch,
+        pull_request_base_branch="main" if pr_number else None,
         pull_request_repository=pr_repo if pr_number else None,
     )
     number = int(created["number"])
@@ -1566,7 +1519,6 @@ def run_live_case(
     cfg: dict[str, Any],
     *,
     run_url: str | None = None,
-    base_branch: str | None = None,
 ) -> dict[str, Any]:
     case = _load_json(case_dir / "case.json")
     require_case_mode(case, "live", case_id=str(case.get("id", case_dir.name)))
@@ -1664,11 +1616,8 @@ def run_live_case(
                 "run_url": run_url,
             }
 
-        pr_info, resolved_base = resolve_target_pr(
-            repo,
-            cfg,
-            base_branch=base_branch,
-        )
+        pr_info = ensure_e2e_pr(repo, cfg)
+        resolved_base = "main"
 
         sha = pr_info["headRefOid"]
         target_pr_number = int(pr_info["number"])
@@ -1713,7 +1662,6 @@ def run_live_case(
             branch=e2e_branch or str(cfg.get("e2e_pr", {}).get("branch") or "main"),
             pr_number=target_pr_number,
             case_id=str(case.get("id", case_dir.name)),
-            pull_request_base_branch=resolved_base,
         )
 
         state = str(trigger.get("status_state") or "failure")
@@ -1925,11 +1873,6 @@ def main(argv: list[str] | None = None) -> int:
         default="",
         help="Optional GitHub Actions run URL to embed in the outcome",
     )
-    parser.add_argument(
-        "--base-branch",
-        default="",
-        help="PR base branch for Buildkite pull_request_base_branch (default: main)",
-    )
     args = parser.parse_args(argv)
 
     cfg = load_e2e_config(args.config_path)
@@ -1942,7 +1885,6 @@ def main(argv: list[str] | None = None) -> int:
         case_dir,
         cfg,
         run_url=args.run_url or None,
-        base_branch=args.base_branch or None,
     )
 
     args.outcome_path.parent.mkdir(parents=True, exist_ok=True)

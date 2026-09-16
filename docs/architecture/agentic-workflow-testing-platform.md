@@ -127,7 +127,7 @@ Prefer stronger, cheaper checks first:
 | **New dedicated repo** | Deferred. Reconsider if E2E harness becomes a shared product across catalogs outside Observability ownership, or if repo size/noise justifies a split. |
 | **Elsewhere (for example only in `ai-github-actions`)** | Rejected for Observability-owned wrappers and control-plane contracts; those assets are authored and gated here. |
 
-**Fixture PR noise control:** ESTC fixture PRs (exact label `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective` **or** `e2e/estc-pr-buildkite-detective/…` ephemeral keys in `elastic/oblt-aw`) skip repo [`ci.yml`](../../.github/workflows/ci.yml) work jobs and agentic pull-request routes in [`obs-aw-event-pull-request.yml`](../../.github/workflows/obs-aw-event-pull-request.yml) (dependency-review, automerge). Do not broaden that skip to an arbitrary `e2e:` prefix.
+**Fixture PR noise control:** ESTC fixture PRs (exact label `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective` in `elastic/oblt-aw`) skip repo [`ci.yml`](../../.github/workflows/ci.yml) work jobs and agentic pull-request routes in [`obs-aw-event-pull-request.yml`](../../.github/workflows/obs-aw-event-pull-request.yml) (dependency-review, automerge). Do not broaden that skip to an arbitrary `e2e:` prefix.
 
 Primitive migration ([#1876](https://github.com/elastic/oblt-aw/issues/1876)) may move more locks into this repo; colocating tests with that ownership reduces cross-repo friction.
 
@@ -204,7 +204,7 @@ Exact workflow file names for promote jobs are **Unknown** until #1878 implement
 - [x] Add E2E workflow [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` only; long-lived fixture PR + concurrency); kept out of default PR `required`. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Implement oracle script(s) that assert structured outcomes and emit a machine-readable report (`scripts/oracle_estc_pr_buildkite_detective_e2e.py`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Wire artifact upload + `outputs.pass`; document how #1878 promote reads pass/fail (`summary.json` / `oracle-report.json`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
-- [x] Quarantine policy: [`config/obs/e2e-quarantine.json`](../../config/obs/e2e-quarantine.json) with default owner `@elastic/observablt-robots`. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] ESTC E2E is manual-only on a long-lived fixture (no quarantine list for the single live case). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Update [obs-aw-estc-pr-buildkite-detective](../workflows/obs-aw-estc-pr-buildkite-detective.md) when the first E2E job lands. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [ ] Pin gating runs to the candidate ref/digest (record in artifacts); treat floating `@main` runs as smoke-only; promote must reject smoke-only reports. ([#1878](https://github.com/elastic/oblt-aw/issues/1878) / [#1911](https://github.com/elastic/oblt-aw/issues/1911))
 

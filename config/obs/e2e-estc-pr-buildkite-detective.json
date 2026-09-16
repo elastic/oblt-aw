@@ -19,9 +19,7 @@
   "poll_interval_seconds": 20,
   "e2e_pr": {
     "label": "e2e:estc-pr-buildkite-detective",
-    "branch": "e2e/estc-pr-buildkite-detective",
-    "title": "[e2e] ESTC detective fixture",
-    "body": "Long-lived fixture PR for `obs:estc-pr-buildkite-detective`. Do not merge."
+    "branch": "e2e/estc-pr-buildkite-detective"
   },
   "agent_comment_markers": ["### TL;DR", "## Remediation"],
   "dashboard_workflow_id": "obs:estc-pr-buildkite-detective"
