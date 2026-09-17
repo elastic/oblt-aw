@@ -54,7 +54,7 @@ pre-commit run --all-files
 ### Python tests
 
 ```bash
-pytest tests/ -v --tb=short
+pytest tests/unit tests/integration -v --tb=short
 ```
 
 ### TypeScript tests

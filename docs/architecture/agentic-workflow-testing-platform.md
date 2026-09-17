@@ -33,19 +33,19 @@ Each layer owns a distinct proof. Higher layers must not replace lower ones.
 
 | Layer | What it proves | Primary ownership today | Where it runs |
 |-------|----------------|-------------------------|---------------|
-| **Unit** | Pure functions and scripts behave for known inputs/outputs (gates, registry, fragment merge, dashboard parse, TS helpers). | `tests/*.py`, `tests/unit/*.test.ts` | Every PR (`python-tests`, `typescript-tests` in `ci.yml`) |
+| **Unit** | Pure functions and scripts behave for known inputs/outputs (gates, registry, fragment merge, dashboard parse, TS helpers). | `tests/unit/*.py`, `tests/unit/*.test.ts` | Every PR (`python-tests`, `typescript-tests` in `ci.yml`) |
 | **Functional** | Workflow YAML and GH-AW contracts hold: prelude/`shared-proceed`, resolve-agentic-assets on `gh-aw-*` callers, reusable permissions alignment, actionlint/pre-commit. | `scripts/validate_aw_workflow_*.py`, pre-commit | Every PR |
-| **Integration** | Wrapper ↔ lock ↔ token/policy/fragment wiring works together without a live model (or with mocked/stubbed agent steps). Frozen fixtures for inputs, secrets shapes, and resolved instruction layers. | First slice: `tests/integration/test_estc_pr_buildkite_detective.py` + `testdata/agentic/estc-pr-buildkite-detective/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Token-policy dry-run deferred. | Every PR via `pytest tests/` (`python-tests` in `ci.yml`); heavier fixtures may later move to promote |
-| **E2E** | Production-like path: client/orchestrator routing, prelude gate, resolve assets, agent job, observable side effects under a controlled consumer environment. | `tests/e2e/` (harness/oracle unit coverage) + path-filtered PR / manual / `workflow_call` live workflow for Buildkite detective ([#1911](https://github.com/elastic/oblt-aw/issues/1911)) | Promote paths and path-filtered PR smoke — **not** every PR by default |
+| **Integration** | Wrapper ↔ lock ↔ token/policy/fragment wiring works together without a live model (or with mocked/stubbed agent steps). Frozen fixtures for inputs, secrets shapes, and resolved instruction layers. | First slice: `tests/integration/test_estc_pr_buildkite_detective.py` + `testdata/agentic/estc-pr-buildkite-detective/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Token-policy dry-run deferred. | Every PR via `pytest tests/unit tests/integration` (`python-tests` in `ci.yml`); heavier fixtures may later move to promote |
+| **E2E** | Production-like path: client/orchestrator routing, prelude gate, resolve assets, agent job, observable side effects under a controlled consumer environment. | `tests/e2e/` (harness/oracle coverage) + manual / `workflow_dispatch` live workflows ([#1911](https://github.com/elastic/oblt-aw/issues/1911)) | Manual / promote paths — **not** default PR `python-tests` |
 
 ### Unit (existing baseline)
 
 Examples of what unit tests already cover (non-exhaustive):
 
-- Dashboard enablement and gate evaluation (`test_get_enabled_workflows.py`, `test_evaluate_workflow_gates.py`)
-- Instruction fragments and APM asset resolution (`test_instruction_fragments.py`, `test_apm_agentic_assets.py`)
-- Registry and org config (`test_workflow_registry.py`, `test_org_config.py`)
-- Distribution helpers (`test_build_repos_matrix.py`, `test_build_target_operations.py`)
+- Dashboard enablement and gate evaluation (`tests/unit/test_get_enabled_workflows.py`, `tests/unit/test_evaluate_workflow_gates.py`)
+- Instruction fragments and APM asset resolution (`tests/unit/test_instruction_fragments.py`, `tests/unit/test_apm_agentic_assets.py`)
+- Registry and org config (`tests/unit/test_workflow_registry.py`, `tests/unit/test_org_config.py`)
+- Distribution helpers (`tests/unit/test_build_repos_matrix.py`, `tests/unit/test_build_target_operations.py`)
 - TypeScript helpers under `tests/unit/` (for example automerge validation)
 
 **Assert:** deterministic equality and typed errors. No live GitHub agent runs.

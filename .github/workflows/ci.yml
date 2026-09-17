@@ -77,8 +77,8 @@ jobs:
       - name: Install Python test dependencies
         run: pip install -r requirements-ci.txt
 
-      - name: Run tests
-        run: pytest tests/ -v --tb=short
+      - name: Run unit and integration tests
+        run: pytest tests/unit tests/integration -v --tb=short
 
       - name: Validate *-aw-* workflows call aw-prelude
         run: python scripts/validate_aw_workflow_prelude.py

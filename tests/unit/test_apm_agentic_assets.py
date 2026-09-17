@@ -9,7 +9,7 @@ import sys
 
 import pytest
 
-_root = pathlib.Path(__file__).parent.parent
+_root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_root / "scripts"))
 
 import apm_agentic_assets as aaa

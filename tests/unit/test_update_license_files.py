@@ -20,10 +20,9 @@ from __future__ import annotations
 import pathlib
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
-
-import update_license_files as ulf  # noqa: E402
+import update_license_files as ulf
 
 
 class TestStripExistingHeaders:
@@ -40,7 +39,7 @@ class TestStripExistingHeaders:
             + header.replace("2026-2027", "2025")
             + "import os"
         )
-        prefix, body = ulf._strip_existing_headers(content)
+        _prefix, body = ulf._strip_existing_headers(content)
         assert "Copyright" not in body
         assert body.strip() == "import os"
 
