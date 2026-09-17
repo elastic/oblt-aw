@@ -2,7 +2,8 @@
 name: CI
 
 # Trigger on PRs targeting any branch (opened, updated, reopened).
-# Skip same-repo E2E fixture PRs: any label e2e:* on a head ref under e2e/.
+# Same-repo E2E fixture PRs (any e2e:* label on an e2e/* head) skip work jobs
+# via the ci-gate output — evaluated once, not per job.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -17,14 +18,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ci-gate:
+    name: Detect E2E fixture PR
+    runs-on: ubuntu-slim
+    timeout-minutes: 1
+    permissions:
+      contents: read
+    outputs:
+      skip: ${{ steps.detect.outputs.skip }}
+    steps:
+      - name: Evaluate E2E fixture skip
+        id: detect
+        env:
+          IS_E2E_FIXTURE: ${{ contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') && startsWith(github.event.pull_request.head.ref, 'e2e/') && github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          set -euo pipefail
+          # Expression renders as lowercase true/false.
+          echo "skip=${IS_E2E_FIXTURE}" >> "${GITHUB_OUTPUT}"
+          if [ "${IS_E2E_FIXTURE}" = "true" ]; then
+            echo "Skipping CI work jobs for same-repo E2E fixture PR (e2e:* on e2e/*)."
+          fi
+
   pre-commit:
     name: Pre-commit
-    if: >-
-      !(
-        contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
-        startsWith(github.event.pull_request.head.ref, 'e2e/') &&
-        github.event.pull_request.head.repo.full_name == github.repository
-      )
+    needs: ci-gate
+    if: needs.ci-gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -37,12 +55,8 @@ jobs:
 
   python-tests:
     name: Python tests
-    if: >-
-      !(
-        contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
-        startsWith(github.event.pull_request.head.ref, 'e2e/') &&
-        github.event.pull_request.head.repo.full_name == github.repository
-      )
+    needs: ci-gate
+    if: needs.ci-gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -79,12 +93,8 @@ jobs:
 
   gh-aw-drift:
     name: gh-aw drift check
-    if: >-
-      !(
-        contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
-        startsWith(github.event.pull_request.head.ref, 'e2e/') &&
-        github.event.pull_request.head.repo.full_name == github.repository
-      )
+    needs: ci-gate
+    if: needs.ci-gate.outputs.skip != 'true'
     runs-on: ubuntu-slim
     timeout-minutes: 10
     permissions:
@@ -98,12 +108,8 @@ jobs:
 
   typescript-tests:
     name: TypeScript tests
-    if: >-
-      !(
-        contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
-        startsWith(github.event.pull_request.head.ref, 'e2e/') &&
-        github.event.pull_request.head.repo.full_name == github.repository
-      )
+    needs: ci-gate
+    if: needs.ci-gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -126,12 +132,8 @@ jobs:
 
   scorecard:
     name: OpenSSF Scorecard
-    if: >-
-      !(
-        contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
-        startsWith(github.event.pull_request.head.ref, 'e2e/') &&
-        github.event.pull_request.head.repo.full_name == github.repository
-      )
+    needs: ci-gate
+    if: needs.ci-gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -161,6 +163,7 @@ jobs:
     name: All checks passed
     if: always()
     needs:
+      - ci-gate
       - pre-commit
       - python-tests
       - gh-aw-drift
@@ -172,19 +175,11 @@ jobs:
       contents: read
     steps:
       - name: Pass for e2e fixture PRs
-        if: >-
-          contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
-          startsWith(github.event.pull_request.head.ref, 'e2e/') &&
-          github.event.pull_request.head.repo.full_name == github.repository
+        if: needs.ci-gate.outputs.skip == 'true'
         run: echo "CI skipped for dedicated E2E fixture PR (e2e:* label on e2e/* branch)."
 
       - name: Check dependent jobs
-        if: >-
-          !(
-            contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
-            startsWith(github.event.pull_request.head.ref, 'e2e/') &&
-            github.event.pull_request.head.repo.full_name == github.repository
-          )
+        if: needs.ci-gate.outputs.skip != 'true'
         id: check
         uses: elastic/oblt-actions/check-dependent-jobs@v1
         with:
@@ -192,11 +187,7 @@ jobs:
 
       - name: Fail if any job failed
         if: >-
-          !(
-            contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
-            startsWith(github.event.pull_request.head.ref, 'e2e/') &&
-            github.event.pull_request.head.repo.full_name == github.repository
-          ) &&
+          needs.ci-gate.outputs.skip != 'true' &&
           steps.check.outputs.status == 'failure'
         run: |
           set -euo pipefail
@@ -205,10 +196,6 @@ jobs:
 
       - name: All checks passed
         if: >-
-          !(
-            contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
-            startsWith(github.event.pull_request.head.ref, 'e2e/') &&
-            github.event.pull_request.head.repo.full_name == github.repository
-          ) &&
+          needs.ci-gate.outputs.skip != 'true' &&
           steps.check.outputs.status == 'success'
         run: echo "All checks passed."
