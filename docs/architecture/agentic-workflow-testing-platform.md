@@ -127,7 +127,7 @@ Prefer stronger, cheaper checks first:
 | **New dedicated repo** | Deferred. Reconsider if E2E harness becomes a shared product across catalogs outside Observability ownership, or if repo size/noise justifies a split. |
 | **Elsewhere (for example only in `ai-github-actions`)** | Rejected for Observability-owned wrappers and control-plane contracts; those assets are authored and gated here. |
 
-**Fixture PR noise control:** ESTC fixture PRs (exact label `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective` in `elastic/oblt-aw`) skip repo [`ci.yml`](../../.github/workflows/ci.yml) work jobs and agentic pull-request routes in [`obs-aw-event-pull-request.yml`](../../.github/workflows/obs-aw-event-pull-request.yml) (dependency-review, automerge). Do not broaden that skip to an arbitrary `e2e:` prefix.
+**Fixture PR noise control:** Same-repo fixture PRs with any label matching `e2e:*` and a head ref under `e2e/` are detected once by the `ci-gate` job in [`ci.yml`](../../.github/workflows/ci.yml) (`skip=true`); work jobs then use `needs.ci-gate.outputs.skip != 'true'`. Agentic pull-request route skips in [`obs-aw-event-pull-request.yml`](../../.github/workflows/obs-aw-event-pull-request.yml) stay **ESTC-only** (`e2e:estc-pr-buildkite-detective` on `e2e/estc-pr-buildkite-detective`) so other live E2E fixtures (for example automerge vm-images) still exercise dependency-review and automerge.
 
 Primitive migration ([#1876](https://github.com/elastic/oblt-aw/issues/1876)) may move more locks into this repo; colocating tests with that ownership reduces cross-repo friction.
 

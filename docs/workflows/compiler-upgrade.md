@@ -20,6 +20,8 @@ Repository-specific instructions require the agent to:
 - analyze release notes for breaking changes, relevant bug fixes, and non-breaking follow-up work
 - open a GitHub issue only when an upgrade is available and worth tracking
 
+When this workflow needs to be recompiled, use `make compile-aw-check` from the repository root; it regenerates and verifies `.github/workflows/compiler-upgrade.lock.yml` from `.github/workflows/compiler-upgrade.md`.
+
 ## Configuration
 
 Permissions:
