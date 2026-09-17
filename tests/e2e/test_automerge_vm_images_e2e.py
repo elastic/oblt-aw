@@ -101,6 +101,24 @@ def test_bump_image_pins_fails_closed_without_pins() -> None:
         harness.bump_image_pins("steps: []\n", "1")
 
 
+def test_author_login_from_rest_pull_uses_webhook_form() -> None:
+    """REST user.login is github-actions[bot]; GraphQL app/… must not authorize."""
+    login = harness.author_login_from_rest_pull(
+        {"user": {"login": "github-actions[bot]", "type": "Bot"}}
+    )
+    assert login == "github-actions[bot]"
+    assert login != "app/github-actions"
+
+
+def test_author_login_from_rest_pull_fails_closed_without_login() -> None:
+    with pytest.raises(RuntimeError, match="user.login"):
+        harness.author_login_from_rest_pull({"user": {"login": ""}})
+    with pytest.raises(TypeError, match="missing object user"):
+        harness.author_login_from_rest_pull({"user": None})  # type: ignore[dict-item]
+    with pytest.raises(TypeError, match="missing object user"):
+        harness.author_login_from_rest_pull({})
+
+
 def test_oracle_happy_path_passes() -> None:
     report = _evaluate(_synthetic_live_outcome())
     assert report["pass"] is True

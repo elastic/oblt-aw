@@ -25,7 +25,7 @@ Live E2E only against **`elastic/oblt-aw`**:
    - `obs:automerge:vm-images` (currently opt-in; harness fails closed if missing)
 2. **Token policy** — `elastic/oblt-aw` must remain in `config/obs/active-repositories.json` with a non-empty `workflow-token-policy` (approve for `github-actions[bot]` uses Vault).
 3. **Vault bypassers** — classic BP `pull_request_bypassers` includes the Vault app when CODEOWNERS would otherwise block merge (existing onboarding).
-4. **Runner identity** — live runs must use `GITHUB_TOKEN` so the fixture PR author is `github-actions[bot]` (same as updatecli).
+4. **Runner identity** — live runs must use `GITHUB_TOKEN` so the fixture PR author is `github-actions[bot]` (same as updatecli). The harness reads author via the REST Pulls API (`user.login`); do not use `gh pr view --json author` (GraphQL returns `app/github-actions` since gh ≥ 2.50).
 
 CI for fixture PRs is skipped when the `ci-gate` job in [`ci.yml`](../../.github/workflows/ci.yml) sets `skip=true` (any same-repo PR with an `e2e:*` label and a head ref under `e2e/`). Agentic pull-request routes are **not** skipped (unlike the ESTC fixture).
 
