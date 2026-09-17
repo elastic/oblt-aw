@@ -2,12 +2,14 @@ version: 2
 
 updates:
   - package-ecosystem: "github-actions"
-    directories:
-      - "/"
-      - "/.github/workflows/*"
-    # Compiled GH-AW workflows; update pins via `make compile-aw-check` / `gh aw update-actions`.
+    # "/" alone covers .github/workflows; do not add "/.github/workflows/*"
+    # (that duplicate scan opens a second PR for every Actions bump).
+    directory: "/"
+    # gh aw compile outputs — do not hand-edit; refresh via make compile-aw-check
+    # / gh aw update-actions.
     exclude-paths:
       - "**/*.lock.yml"
+      - ".github/workflows/agentics-maintenance.yml"
     schedule:
       interval: "weekly"
       day: "sunday"
