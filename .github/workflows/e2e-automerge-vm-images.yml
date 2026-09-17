@@ -3,11 +3,11 @@ name: E2E — Automerge VM images
 
 # Manual production E2E for obs:automerge:vm-images against elastic/oblt-aw.
 # Creates an ephemeral playground-shaped updatecli IMAGE bump PR as the Vault
-# app (OIDC create-token with this repo's workflow-token-policy from
-# config/obs/active-repositories.json), then asserts dependency-review →
-# merge-ready → approve → automerge. Vault authorship avoids the
-# github-actions[bot] "Approve and run" gate on pull_request workflows.
-# Not part of the default PR required gate in ci.yml.
+# app (OIDC create-token with token-policy-oblt-aw-e2e /
+# token-policy-6cd7ac55e207, bound to e2e-*.yml), then asserts
+# dependency-review → merge-ready → approve → automerge. Vault authorship
+# avoids the github-actions[bot] "Approve and run" gate on pull_request
+# workflows. Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
   workflow_call:
@@ -40,24 +40,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Resolve repository token policy
-        id: token-policy
-        env:
-          CONFIG_DIR: config
-          TARGET_REPOSITORY: ${{ github.repository }}
-        run: python3 scripts/resolve_repository_token_policy.py
-
-      - name: Require workflow-token-policy for Vault mint
-        if: ${{ steps.token-policy.outputs.token-policy == '' }}
-        run: |
-          echo "::error::No workflow-token-policy for ${{ github.repository }} in config/*/active-repositories.json"
-          exit 1
-
+      # Wildcard e2e-*.yml policy: must pass vault role explicitly (see
+      # resources/github-token-policies/token-policy-oblt-aw-e2e.yaml in
+      # elastic/catalog-info). Do not reuse trigger-obs-aw-* workflow-token-policy.
       - name: Create ephemeral GitHub token (Vault app)
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
         with:
-          token-policy: ${{ steps.token-policy.outputs.token-policy }}
+          token-policy: token-policy-6cd7ac55e207
 
       - name: Set up Python
         uses: actions/setup-python@v7
