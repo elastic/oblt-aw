@@ -172,6 +172,86 @@ test('classifyChangedFiles allows dashboard-enabled open-policy-agent collection
   });
 });
 
+const UPDATE_BEATS_GLOBS = [
+  'NOTICE.txt',
+  'NOTICE-fips.txt',
+  '**/NOTICE.txt',
+  '**/NOTICE-fips.txt',
+  'go.mod',
+  'go.sum',
+  '**/go.mod',
+  '**/go.sum',
+  'beats',
+];
+
+const GO_DEPENDENCY_GLOBS = ['go.mod', 'go.sum', '**/go.mod', '**/go.sum'];
+
+test('classifyChangedFiles allows dashboard-enabled update-beats collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'go-dependencies', 'file-glob': GO_DEPENDENCY_GLOBS },
+    { id: 'update-beats', 'file-glob': UPDATE_BEATS_GLOBS },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:update-beats'];
+  const outcome = classifyChangedFiles(
+    [
+      'NOTICE-fips.txt',
+      'NOTICE.txt',
+      'beats',
+      'go.mod',
+      'go.sum',
+      'internal/edot/go.mod',
+      'internal/edot/go.sum',
+    ],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'update-beats',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled update-beats collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'go-dependencies', 'file-glob': GO_DEPENDENCY_GLOBS },
+    { id: 'update-beats', 'file-glob': UPDATE_BEATS_GLOBS },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:go-dependencies'];
+  const outcome = classifyChangedFiles(
+    ['NOTICE.txt', 'NOTICE-fips.txt', 'go.mod', 'go.sum', 'beats'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: 'update-beats',
+  });
+});
+
+test('classifyChangedFiles prefers go-dependencies over update-beats for go-only PRs', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'go-dependencies', 'file-glob': GO_DEPENDENCY_GLOBS },
+    { id: 'update-beats', 'file-glob': UPDATE_BEATS_GLOBS },
+  ];
+  const enabled = [
+    'obs:automerge',
+    'obs:automerge:go-dependencies',
+    'obs:automerge:update-beats',
+  ];
+  const outcome = classifyChangedFiles(
+    ['go.mod', 'go.sum', 'internal/edot/go.mod'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'go-dependencies',
+  });
+});
+
 test('enabledAutomergeCollectionIds returns empty when parent disabled', () => {
   const enabled = ['obs:automerge:github-actions'];
   assert.deepEqual(enabledAutomergeCollectionIds(enabled), []);

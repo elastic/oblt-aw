@@ -53,6 +53,12 @@
           "default_enabled": false
         },
         {
+          "id": "update-beats",
+          "name": "Update beats",
+          "description": "Auto-merge for elastic-agent update-beats PRs (NOTICE, go modules, beats submodule).",
+          "default_enabled": false
+        },
+        {
           "id": "node-dependencies",
           "name": "Node dependencies",
           "description": "Auto-merge for npm/yarn/pnpm manifest and lockfile updates.",
