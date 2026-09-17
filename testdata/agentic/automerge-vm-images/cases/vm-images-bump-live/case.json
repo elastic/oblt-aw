@@ -1,12 +1,12 @@
 {
   "id": "vm-images-bump-live",
   "mode": "live",
-  "description": "Production path: github-actions[bot] VM-image bump PR under .buildkite/** runs dependency-review, receives merge-ready, then automerge (vm-images collection) approves and merges.",
+  "description": "Production path: Vault-app VM-image bump PR under .buildkite/** runs dependency-review, receives merge-ready, then automerge (vm-images collection) approves and merges.",
   "workflow_id": "obs:automerge",
   "trigger": {
     "require_open_pr": true,
     "force_vm_image_bump": true,
-    "require_github_actions_author": true,
+    "require_allowed_pr_author": true,
     "wait_dependency_review": true,
     "wait_automerge": true
   },
