@@ -48,6 +48,33 @@ IMAGE_PIN_RE = re.compile(
 ALLOWED_AUTHOR = "github-actions[bot]"
 
 
+def author_login_from_rest_pull(payload: dict[str, Any]) -> str:
+    """Extract PR author login from a REST ``GET /repos/.../pulls/{n}`` payload.
+
+    Use REST ``user.login`` (same form as ``github.event.pull_request.user.login``
+    and ``allowed_pr_authors.json``). Do **not** use ``gh pr view --json author``:
+    since gh >= 2.50 GraphQL returns ``app/github-actions`` for the Actions bot
+    while REST still returns ``github-actions[bot]``.
+    """
+    user = payload.get("user")
+    if not isinstance(user, dict):
+        raise TypeError("REST pull payload missing object user")
+    login = str(user.get("login") or "").strip()
+    if not login:
+        raise RuntimeError("REST pull payload missing user.login")
+    return login
+
+
+def rest_pr_author_login(repo: str, pr_number: int) -> str:
+    """Return fixture PR author login via the REST Pulls API."""
+    payload = estc.gh_json(["api", f"repos/{repo}/pulls/{pr_number}"])
+    if not isinstance(payload, dict):
+        raise TypeError(
+            f"Unexpected REST pulls/{pr_number} payload type: {type(payload).__name__}"
+        )
+    return author_login_from_rest_pull(payload)
+
+
 def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -319,13 +346,11 @@ def create_bump_pr(
             "--repo",
             repo,
             "--json",
-            "number,url,headRefName,headRefOid,baseRefName,author,labels,state",
+            "number,url,headRefName,headRefOid,baseRefName,labels,state",
         ]
     )
-    author_login = ""
-    author = pr.get("author") if isinstance(pr, dict) else None
-    if isinstance(author, dict):
-        author_login = str(author.get("login") or "")
+    # REST login matches webhook / allow-list identity (not GraphQL app/…).
+    author_login = rest_pr_author_login(repo, pr_number)
     return {
         "number": int(pr["number"]),
         "url": pr.get("url"),
@@ -774,10 +799,10 @@ def run_live_case(
                 "agent_invoked": False,
                 "blocked": True,
                 "block_reason": (
-                    f"Fixture PR author is {author!r}, expected {allowed_author!r}. "
-                    "Run this harness under GitHub Actions with GITHUB_TOKEN so "
-                    "Contents API commits and gh pr create are authored as "
-                    "github-actions[bot] (matches updatecli)."
+                    f"Fixture PR author is {author!r}, expected {allowed_author!r} "
+                    "(REST user.login). Run this harness under GitHub Actions with "
+                    "GITHUB_TOKEN so Contents API commits and gh pr create are "
+                    "authored as github-actions[bot] (matches updatecli)."
                 ),
                 "path_gates": {"dashboard_enabled": dashboard_ok},
                 "fixture": fixture_meta,
