@@ -2,11 +2,15 @@
 name: E2E — Automerge VM images
 
 # Manual production E2E for obs:automerge:vm-images against elastic/oblt-aw.
-# Creates an ephemeral playground-shaped updatecli IMAGE bump PR, then asserts
-# dependency-review → merge-ready → approve → automerge.
+# Creates an ephemeral playground-shaped updatecli IMAGE bump PR as the Vault
+# app (OIDC create-token with this repo's workflow-token-policy from
+# config/obs/active-repositories.json), then asserts dependency-review →
+# merge-ready → approve → automerge. Vault authorship avoids the
+# github-actions[bot] "Approve and run" gate on pull_request workflows.
 # Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -29,12 +33,31 @@ jobs:
       actions: read
       issues: write
       checks: read
+      id-token: write
     env:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Resolve repository token policy
+        id: token-policy
+        env:
+          CONFIG_DIR: config
+          TARGET_REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/resolve_repository_token_policy.py
+
+      - name: Require workflow-token-policy for Vault mint
+        if: ${{ steps.token-policy.outputs.token-policy == '' }}
+        run: |
+          echo "::error::No workflow-token-policy for ${{ github.repository }} in config/*/active-repositories.json"
+          exit 1
+
+      - name: Create ephemeral GitHub token (Vault app)
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ steps.token-policy.outputs.token-policy }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -52,6 +75,11 @@ jobs:
       - name: Run harness
         id: harness
         continue-on-error: true
+        env:
+          # Vault installation token so Contents + gh pr create are authored as
+          # elastic-vault-github-plugin-prod[bot] (pull_request workflows run
+          # without maintainer "Approve and run").
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
         run: |
           set +e
           python3 scripts/automerge_vm_images_e2e_harness.py \
@@ -62,6 +90,8 @@ jobs:
 
       - name: Run structured oracle
         id: oracle
+        env:
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
         run: |
           set -euo pipefail
           python3 scripts/oracle_automerge_vm_images_e2e.py \
