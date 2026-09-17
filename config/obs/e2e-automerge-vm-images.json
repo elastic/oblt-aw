@@ -9,7 +9,7 @@
     "label": "e2e:automerge-vm-images",
     "branch_prefix": "e2e/automerge-vm-images/",
     "title_template": "[main][Automation] Bump VM Image version to {version}",
-    "body": "Ephemeral E2E fixture PR for `obs:automerge:vm-images` (playground-shaped updatecli bump). Created by the live harness as the Vault app so pull_request workflows run without maintainer Approve-and-run; expected to receive dependency-review, merge-ready, approve, and automerge."
+    "body": "Ephemeral E2E fixture PR for `obs:automerge:vm-images` (playground-shaped updatecli bump). Created by the live harness; expected to receive dependency-review, merge-ready, approve, and automerge."
   },
   "fixture_pipeline_path": ".buildkite/pipeline.e2e-automerge-vm-images.yml",
   "required_dashboard_ids": [
@@ -21,5 +21,5 @@
   "dependency_collection_gate_marker": "<!-- obs-aw-automerge:dependency-collection-gate -->",
   "automerge_outcome_gate_marker": "<!-- obs-aw-automerge:outcome-gate -->",
   "dependency_review_comment_markers": ["Labels Applied"],
-  "allowed_pr_author": "elastic-vault-github-plugin-prod[bot]"
+  "allowed_pr_author": "github-actions[bot]"
 }

@@ -46,7 +46,7 @@ _LIVE_REQUIRED_EXPECTATION_KEYS = (
 _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "require_open_pr",
     "force_vm_image_bump",
-    "require_allowed_pr_author",
+    "require_github_actions_author",
     "wait_dependency_review",
     "wait_automerge",
 )
@@ -149,12 +149,10 @@ def evaluate_outcome(
                 "Enable obs:dependency-review, obs:automerge, and "
                 "obs:automerge:vm-images on the Control Plane Dashboard, then re-run."
             )
-        elif "author" in lower:
+        elif "author" in lower and "github-actions" in lower:
             notes.append(
-                "Run under GitHub Actions with Vault create-token using this "
-                "repo's workflow-token-policy from active-repositories.json so "
-                "the fixture PR is authored as "
-                "elastic-vault-github-plugin-prod[bot]."
+                "Run under GitHub Actions with GITHUB_TOKEN so the fixture PR "
+                "is authored as github-actions[bot]."
             )
         else:
             notes.append("Resolve block_reason, then re-run.")
@@ -281,17 +279,17 @@ def _evaluate_live(
         except TypeError as exc:
             _check(checks, "dashboard_enabled", False, str(exc))
 
-        if trigger.get("require_allowed_pr_author"):
+        if trigger.get("require_github_actions_author"):
             try:
-                author_ok = _as_bool(path_gates.get("author_matches_allowed"))
+                author_ok = _as_bool(path_gates.get("author_is_github_actions"))
                 _check(
                     checks,
-                    "author_allowed",
+                    "author_github_actions",
                     author_ok,
-                    f"author_matches_allowed={author_ok}",
+                    f"author_is_github_actions={author_ok}",
                 )
             except TypeError as exc:
-                _check(checks, "author_allowed", False, str(exc))
+                _check(checks, "author_github_actions", False, str(exc))
 
         try:
             expected = _as_bool(expectations["dependency_review_job_executed"])

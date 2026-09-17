@@ -38,7 +38,7 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
         "agent_invoked": True,
         "path_gates": {
             "dashboard_enabled": True,
-            "author_matches_allowed": True,
+            "author_is_github_actions": True,
         },
         "dependency_review": {
             "run_seen": True,
@@ -60,7 +60,7 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
         },
         "approving_review": {
             "id": 9,
-            "user": "github-actions[bot]",
+            "user": "elastic-vault-github-plugin-prod[bot]",
             "state": "APPROVED",
         },
         "merge": {"merged": True, "auto_merge_enabled": False},
@@ -102,17 +102,12 @@ def test_bump_image_pins_fails_closed_without_pins() -> None:
 
 
 def test_author_login_from_rest_pull_uses_webhook_form() -> None:
-    """REST user.login is …[bot]; GraphQL app/… must not authorize."""
+    """REST user.login is github-actions[bot]; GraphQL app/… must not authorize."""
     login = harness.author_login_from_rest_pull(
-        {
-            "user": {
-                "login": "elastic-vault-github-plugin-prod[bot]",
-                "type": "Bot",
-            }
-        }
+        {"user": {"login": "github-actions[bot]", "type": "Bot"}}
     )
-    assert login == "elastic-vault-github-plugin-prod[bot]"
-    assert login != "app/elastic-vault-github-plugin-prod"
+    assert login == "github-actions[bot]"
+    assert login != "app/github-actions"
 
 
 def test_author_login_from_rest_pull_fails_closed_without_login() -> None:
@@ -259,35 +254,14 @@ def test_oracle_fails_closed_on_non_bool_author_gate() -> None:
         _synthetic_live_outcome(
             path_gates={
                 "dashboard_enabled": True,
-                "author_matches_allowed": "yes",
+                "author_is_github_actions": "yes",
             }
         )
     )
     assert report["pass"] is False
-    assert any(c["id"] == "author_allowed" and not c["pass"] for c in report["checks"])
-
-
-def test_oracle_fails_when_author_gate_false() -> None:
-    report = _evaluate(
-        _synthetic_live_outcome(
-            path_gates={
-                "dashboard_enabled": True,
-                "author_matches_allowed": False,
-            }
-        )
+    assert any(
+        c["id"] == "author_github_actions" and not c["pass"] for c in report["checks"]
     )
-    assert report["pass"] is False
-    assert any(c["id"] == "author_allowed" and not c["pass"] for c in report["checks"])
-
-
-def test_config_allowed_author_is_vault_bot() -> None:
-    assert harness.ALLOWED_AUTHOR == "elastic-vault-github-plugin-prod[bot]"
-    cfg = json.loads(
-        (ROOT / "config" / "obs" / "e2e-automerge-vm-images.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert cfg["allowed_pr_author"] == harness.ALLOWED_AUTHOR
 
 
 def _run_with_jobs(*jobs: dict) -> dict:

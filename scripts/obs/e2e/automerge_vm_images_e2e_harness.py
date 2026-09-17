@@ -17,9 +17,8 @@
 """Live E2E harness for obs:automerge:vm-images.
 
 Creates an ephemeral same-repo PR that mimics playground updatecli VM-image
-bumps (.buildkite/** IMAGE pins) authored as the Vault app via OIDC
-create-token (avoids the github-actions[bot] pull_request approval gate),
-then waits for dependency-review → merge-ready → automerge approve/merge.
+bumps (github-actions[bot] + .buildkite/** IMAGE pins), then waits for
+dependency-review → merge-ready → automerge approve/merge.
 """
 
 from __future__ import annotations
@@ -46,9 +45,7 @@ FIXTURE_BRANCH_PREFIX = "e2e/automerge-vm-images/"
 IMAGE_PIN_RE = re.compile(
     r'(IMAGE_[A-Z0-9_]+):\s*"platform-ingest-elastic-agent-([^-"]+)-(\d+)"'
 )
-# Vault app — live harness mints create-token so pull_request workflows run
-# without the github-actions[bot] "Approve and run" gate (2026-06 changelog).
-ALLOWED_AUTHOR = "elastic-vault-github-plugin-prod[bot]"
+ALLOWED_AUTHOR = "github-actions[bot]"
 
 
 def author_login_from_rest_pull(payload: dict[str, Any]) -> str:
@@ -56,8 +53,8 @@ def author_login_from_rest_pull(payload: dict[str, Any]) -> str:
 
     Use REST ``user.login`` (same form as ``github.event.pull_request.user.login``
     and ``allowed_pr_authors.json``). Do **not** use ``gh pr view --json author``:
-    since gh >= 2.50 GraphQL returns ``app/…`` for GitHub Apps while REST still
-    returns the ``…[bot]`` login form used by workflow ``if`` conditions.
+    since gh >= 2.50 GraphQL returns ``app/github-actions`` for the Actions bot
+    while REST still returns ``github-actions[bot]``.
     """
     user = payload.get("user")
     if not isinstance(user, dict):
@@ -790,7 +787,10 @@ def run_live_case(
             }
         )
         author = str(pr_info.get("author_login") or "")
-        if trigger.get("require_allowed_pr_author", True) and author != allowed_author:
+        if (
+            trigger.get("require_github_actions_author", True)
+            and author != allowed_author
+        ):
             return {
                 "workflow_id": workflow_id,
                 "case_id": case.get("id", case_dir.name),
@@ -800,12 +800,9 @@ def run_live_case(
                 "blocked": True,
                 "block_reason": (
                     f"Fixture PR author is {author!r}, expected {allowed_author!r} "
-                    "(REST user.login). Run under GitHub Actions with Vault "
-                    "create-token using workflow-token-policy from "
-                    "active-repositories.json (see e2e-automerge-vm-images.yml) "
-                    "so Contents API commits and gh pr create are authored as "
-                    "the Vault app (pull_request workflows then run without "
-                    "maintainer Approve-and-run)."
+                    "(REST user.login). Run this harness under GitHub Actions with "
+                    "GITHUB_TOKEN so Contents API commits and gh pr create are "
+                    "authored as github-actions[bot] (matches updatecli)."
                 ),
                 "path_gates": {"dashboard_enabled": dashboard_ok},
                 "fixture": fixture_meta,
@@ -945,7 +942,7 @@ def run_live_case(
     path_gates = {
         "dashboard_enabled": dashboard_ok,
         "has_open_or_merged_pr": True,
-        "author_matches_allowed": author == allowed_author,
+        "author_is_github_actions": author == allowed_author,
     }
 
     return {
