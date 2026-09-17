@@ -28,7 +28,7 @@ The job `estc-pr-buildkite-detective` calls:
 uses: elastic/oblt-aw/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@main
 ```
 
-Edit the GH-AW source [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`](../../.github/workflows/gh-aw-estc-pr-buildkite-detective.md) and compile with `gh aw compile gh-aw-estc-pr-buildkite-detective` (do not hand-edit the lock).
+Edit the GH-AW source [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`](../../.github/workflows/gh-aw-estc-pr-buildkite-detective.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the lock).
 
 ### Opinionated vs preserved
 
