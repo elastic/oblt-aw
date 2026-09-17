@@ -3,8 +3,8 @@ name: E2E — Automerge VM images
 
 # Manual production E2E for obs:automerge:vm-images against elastic/oblt-aw.
 # Creates an ephemeral playground-shaped updatecli IMAGE bump PR as the Vault
-# app (OIDC create-token with token-policy-oblt-aw-e2e /
-# token-policy-6cd7ac55e207, bound to e2e-*.yml), then asserts
+# app (OIDC create-token using workflow-token-policy from config/e2e.json,
+# bound to e2e-*.yml via token-policy-oblt-aw-e2e), then asserts
 # dependency-review → merge-ready → approve → automerge. Vault authorship
 # avoids the github-actions[bot] "Approve and run" gate on pull_request
 # workflows. Not part of the default PR required gate in ci.yml.
@@ -40,14 +40,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # Wildcard e2e-*.yml policy: must pass vault role explicitly (see
-      # resources/github-token-policies/token-policy-oblt-aw-e2e.yaml in
-      # elastic/catalog-info). Do not reuse trigger-obs-aw-* workflow-token-policy.
+      # Shared E2E Vault role in config/e2e.json (wildcard e2e-*.yml policy
+      # requires an explicit token-policy input; do not reuse trigger-obs-aw-*).
+      - name: Resolve E2E Vault token policy
+        id: token-policy
+        run: |
+          set -euo pipefail
+          POLICY="$(jq -r '."workflow-token-policy" // empty' config/e2e.json)"
+          if [[ -z "${POLICY}" ]]; then
+            echo "::error::Missing non-empty workflow-token-policy in config/e2e.json"
+            exit 1
+          fi
+          echo "token-policy=${POLICY}" >> "${GITHUB_OUTPUT}"
+
       - name: Create ephemeral GitHub token (Vault app)
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
         with:
-          token-policy: token-policy-6cd7ac55e207
+          token-policy: ${{ steps.token-policy.outputs.token-policy }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
