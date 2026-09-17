@@ -23,6 +23,9 @@ jobs:
       actions: read
       issues: write
       checks: read
+      # Caller must grant OIDC so the leaf can mint Vault create-token
+      # (workflow_ref is this file when invoked via workflow_call).
+      id-token: write
     uses: ./.github/workflows/e2e-automerge-vm-images.yml
     secrets: inherit
 
