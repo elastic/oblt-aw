@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/buildkite/pipeline-schema/main/schema.json
+#
+# Fixture pipeline for obs:automerge:vm-images live E2E.
+# IMAGE_* pins mirror playground / updatecli bump-vm-images shape
+# (see elastic/observability-robots-playground-public updatecli-bump-vm-images.yml).
+# Not used by production Buildkite; the E2E harness bumps these pins on a fixture PR.
+
+env:
+  IMAGE_UBUNTU: "platform-ingest-elastic-agent-ubuntu-2000000000"
+  IMAGE_UBUNTU_ARM: "platform-ingest-elastic-agent-ubuntu_arm-2000000000"
+
+steps:
+  - label: "e2e-automerge-vm-images noop"
+    command: "echo OBLT_AW_E2E_AUTOMERGE_VM_IMAGES_FIXTURE"

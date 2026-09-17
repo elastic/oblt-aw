@@ -1,0 +1,59 @@
+# updatecli configuration for automated VM image version bumping (E2E fixture)
+#
+# Copied/adapted from elastic/observability-robots-playground-public
+# (updatecli/updatecli-bump-vm-images.yml). The live E2E harness forces the
+# bump via the GitHub Contents API for determinism; this file documents the
+# production shape the harness emulates.
+---
+name: Bump vm-images to latest version (E2E fixture)
+pipelineid: 'updatecli-update-vm-images-e2e'
+
+scms:
+  githubConfig:
+    kind: github
+    spec:
+      user: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      username: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      owner: elastic
+      repository: oblt-aw
+      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      commitusingapi: true
+      branch: main
+      force: false
+
+actions:
+  e2e-fixture:
+    kind: github/pullrequest
+    scmid: githubConfig
+    sourceid: latestVersion
+    spec:
+      automerge: false
+      labels:
+        - e2e:automerge-vm-images
+      title: '[main][Automation] Bump VM Image version to {{ source "latestVersion" }}'
+
+sources:
+  latestVersion:
+    name: Synthetic E2E version (harness overrides)
+    kind: shell
+    spec:
+      command: 'date +%s'
+
+conditions:
+  latestVersion-check:
+    name: Check if defined latest version differs
+    kind: shell
+    sourceid: latestVersion
+    spec:
+      command: 'grep -q -v {{ source "latestVersion" }} .buildkite/pipeline.e2e-automerge-vm-images.yml #'
+
+targets:
+  update-buildkite-pipeline:
+    name: "Update .buildkite/pipeline.e2e-automerge-vm-images.yml"
+    sourceid: latestVersion
+    scmid: githubConfig
+    kind: file
+    spec:
+      file: .buildkite/pipeline.e2e-automerge-vm-images.yml
+      matchpattern: '(IMAGE_.+): "platform-ingest-elastic-agent-(.+)-(.+)"'
+      replacepattern: '$1: "platform-ingest-elastic-agent-$2-{{ source "latestVersion" }}"'
