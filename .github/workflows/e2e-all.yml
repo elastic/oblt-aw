@@ -1,9 +1,9 @@
 ---
 name: E2E — All
 
-# Manual orchestrator: discover every leaf .github/workflows/e2e-*.yml
-# (except this file), dispatch each on the selected ref, wait in parallel,
-# and fail if any child fails. New leaf E2Es are picked up automatically.
+# Manual orchestrator: call every leaf e2e-*.yml via workflow_call in parallel.
+# Add a new job here when introducing a new leaf E2E workflow.
+# Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
 
@@ -15,32 +15,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  run-all:
-    name: Run all E2E workflows
-    runs-on: ubuntu-latest
-    timeout-minutes: 180
+  e2e-automerge-vm-images:
+    name: Automerge vm-images
     permissions:
-      contents: read
-      actions: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      contents: write
+      pull-requests: write
+      actions: read
+      issues: write
+      checks: read
+    uses: ./.github/workflows/e2e-automerge-vm-images.yml
+    secrets: inherit
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.14"
-          cache: pip
-          cache-dependency-path: requirements-runtime.txt
-
-      - name: Install Python dependencies
-        run: pip install -r requirements-runtime.txt
-
-      - name: Discover and run leaf E2E workflows
-        run: |
-          set -euo pipefail
-          python3 scripts/obs/e2e/run_all_e2e_workflows.py \
-            --repo "${GITHUB_REPOSITORY}" \
-            --ref "${GITHUB_REF_NAME}"
+  e2e-estc-pr-buildkite-detective:
+    name: ESTC PR Buildkite Detective
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: read
+      actions: read
+      issues: write
+      checks: read
+    uses: ./.github/workflows/e2e-estc-pr-buildkite-detective.yml
+    secrets: inherit
