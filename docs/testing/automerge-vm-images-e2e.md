@@ -6,10 +6,10 @@ Production end-to-end harness for updatecli-shaped VM-image bumps ([#1732](https
 
 Live E2E only against **`elastic/oblt-aw`**:
 
-1. Seed / bump `.buildkite/pipeline.e2e-automerge-vm-images.yml` IMAGE pins (playground/updatecli `platform-ingest-elastic-agent-*` shape).
+1. Seed `.buildkite/pipeline.e2e-automerge-vm-images.yml` on the default branch **only when missing** (refuse overwrite if remote content differs); bump IMAGE pins on an ephemeral fixture branch (playground/updatecli `platform-ingest-elastic-agent-*` shape).
 2. Open an ephemeral same-repo PR authored as `github-actions[bot]` (requires GitHub Actions `GITHUB_TOKEN`).
-3. Wait for `trigger-obs-aw-pull-request.yml` → dependency-review → `oblt-aw/ai/merge-ready`.
-4. Wait for automerge (`obs:automerge:vm-images`) approve + merge (or native auto-merge enabled).
+3. Wait for `trigger-obs-aw-pull-request.yml` → dependency-review → `oblt-aw/ai/merge-ready` (nested jobs are inspected on that **caller** run).
+4. Wait for automerge (`obs:automerge:vm-images`) **merge leaf** job success, plus approving review → merged or auto-merge enabled (approve is not a substitute for the merge job).
 
 ## Live case
 

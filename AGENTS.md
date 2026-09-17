@@ -14,6 +14,14 @@ Do not reintroduce a monolithic `oblt-aw.yml` or `oblt-aw-ingress.yml`.
 
 When hardening E2E gates (or addressing fail-closed review comments), follow **[`.cursor/rules/fail-closed-e2e-gates.mdc`](.cursor/rules/fail-closed-e2e-gates.mdc)**: walk producer → outcome → oracle → tests and close every substitute signal in one change set. Do not stop after the first named fallback. Non-empty expectation maps, typo/partial keys, and test helpers that trust `outcome.expectations` are still substitute paths — reject them in the same pass.
 
+Also keep these live-harness lessons (from automerge vm-images E2E review):
+
+- Poll the **caller** `trigger-obs-aw-*.yml` run (`event=pull_request`); nested reusable jobs appear there. Do **not** retarget config at `workflow_call`-only orchestrators solely because nested job *ids* are declared there.
+- Match **leaf** job names (e.g. `… / automerge / automerge`, `… / automerge / approve`), not broad substrings that also hit siblings (`verify`, collection checks).
+- Never `OR` distinct named jobs in waiters/oracles (approve ≠ merge).
+- Seed default-branch fixtures only when missing; refuse silent overwrite when remote content differs.
+- Label ensure and path-gate `_as_bool` must fail closed (no crash, no “any error ⇒ create”).
+
 Before commit/push on harness, oracle, E2E tests, or related workflows: **`pre-commit run --files <paths>` is mandatory** (includes mypy). Pytest alone does not authorize push. See also **[`.cursor/rules/ci-precommit-before-push.mdc`](.cursor/rules/ci-precommit-before-push.mdc)**.
 
 ## Control-plane workflow naming

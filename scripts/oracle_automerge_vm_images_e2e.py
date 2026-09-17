@@ -280,13 +280,16 @@ def _evaluate_live(
             _check(checks, "dashboard_enabled", False, str(exc))
 
         if trigger.get("require_github_actions_author"):
-            author_ok = _as_bool(path_gates.get("author_is_github_actions"))
-            _check(
-                checks,
-                "author_github_actions",
-                author_ok,
-                f"author_is_github_actions={author_ok}",
-            )
+            try:
+                author_ok = _as_bool(path_gates.get("author_is_github_actions"))
+                _check(
+                    checks,
+                    "author_github_actions",
+                    author_ok,
+                    f"author_is_github_actions={author_ok}",
+                )
+            except TypeError as exc:
+                _check(checks, "author_github_actions", False, str(exc))
 
         try:
             expected = _as_bool(expectations["dependency_review_job_executed"])
@@ -362,14 +365,16 @@ def _evaluate_live(
 
         try:
             expected = _as_bool(expectations["automerge_job_executed"])
-            am_ok = _as_bool(am.get("job_executed")) or _as_bool(
-                am.get("approve_job_executed")
-            )
+            actual = _as_bool(am.get("job_executed"))
+            # Fail closed: approve_job_executed is not a substitute for merge.
+            job_conclusion = am.get("job_conclusion")
+            named_ok = actual and job_conclusion == "success"
             _check(
                 checks,
                 "automerge_job_executed",
-                am_ok == expected,
-                f"expected={expected} automerge_job={am.get('job_executed')} "
+                named_ok == expected,
+                f"expected={expected} job_executed={actual} "
+                f"job_conclusion={job_conclusion!r} "
                 f"approve_job={am.get('approve_job_executed')}",
             )
         except TypeError as exc:

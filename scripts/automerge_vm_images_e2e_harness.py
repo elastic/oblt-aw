@@ -103,27 +103,32 @@ def dashboard_enables_all(repo: str, workflow_ids: list[str]) -> tuple[bool, lis
 
 
 def ensure_label(repo: str, label: str) -> None:
+    """Create the label if missing; fail closed on unexpected errors."""
     proc = subprocess.run(
-        ["gh", "api", f"repos/{repo}/labels/{label}"],
+        [
+            "gh",
+            "label",
+            "create",
+            label,
+            "--repo",
+            repo,
+            "--description",
+            "E2E fixture for obs:automerge:vm-images",
+            "--color",
+            "0E8A16",
+        ],
         capture_output=True,
         text=True,
         check=False,
     )
     if proc.returncode == 0:
         return
-    estc.gh_json(
-        [
-            "api",
-            "--method",
-            "POST",
-            f"repos/{repo}/labels",
-            "-f",
-            f"name={label}",
-            "-f",
-            "color=0E8A16",
-            "-f",
-            "description=E2E fixture for obs:automerge:vm-images",
-        ]
+    combined = f"{proc.stderr or ''}{proc.stdout or ''}".lower()
+    if "already exists" in combined:
+        return
+    raise RuntimeError(
+        f"Failed to ensure label {label!r} on {repo}: "
+        f"{(proc.stderr or proc.stdout or '').strip() or f'exit {proc.returncode}'}"
     )
 
 
@@ -133,11 +138,39 @@ def seed_fixture_pipeline_on_default_branch(
     default_branch: str,
     pipeline_path: Path,
 ) -> str | None:
-    """Ensure the fixture pipeline exists on the default branch tip."""
+    """Create the fixture pipeline on the default branch only when missing.
+
+    Refuses to overwrite an existing remote file whose content differs (default
+    branch is not a silent write target for live E2E). No-ops when content
+    already matches.
+    """
     if not pipeline_path.is_file():
         raise RuntimeError(f"Fixture pipeline missing at {pipeline_path}")
     content = pipeline_path.read_text(encoding="utf-8")
     remote_path = str(pipeline_path).replace("\\", "/")
+    encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
+    existing = subprocess.run(
+        ["gh", "api", f"repos/{repo}/contents/{remote_path}?ref={default_branch}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if existing.returncode == 0:
+        payload = json.loads(existing.stdout)
+        remote_b64 = str(payload.get("content") or "").replace("\n", "")
+        if remote_b64 == encoded:
+            return None
+        raise RuntimeError(
+            f"Fixture pipeline {remote_path} already exists on {default_branch} "
+            "with different content; refusing to overwrite. Update via a normal "
+            "PR or align the checked-in fixture before re-running live E2E."
+        )
+    err = (existing.stderr or existing.stdout or "").lower()
+    if existing.returncode != 0 and "404" not in err and "not found" not in err:
+        raise RuntimeError(
+            f"Failed to read {remote_path} on {default_branch}: "
+            f"{(existing.stderr or existing.stdout or '').strip() or f'exit {existing.returncode}'}"
+        )
     return estc.put_branch_file(
         repo,
         branch=default_branch,
@@ -330,39 +363,77 @@ def list_pr_trigger_runs(repo: str, workflow_file: str) -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], runs)
 
 
-def _job_conclusion_by_substring(
-    run_detail: dict[str, Any] | None, *needles: str
+def _job_conclusion_by_exact_or_suffix(
+    run_detail: dict[str, Any] | None,
+    *,
+    exact_names: tuple[str, ...] = (),
+    endswith_suffixes: tuple[str, ...] = (),
 ) -> str | None:
-    """Return conclusion for the first non-skipped job whose name contains a needle."""
+    """Return conclusion for the first non-skipped job matching exact/suffix names.
+
+    Prefer leaf suffixes (for example `` / automerge / automerge``) so sibling
+    jobs under the same reusable call (verify, approve) cannot authorize a
+    different named gate.
+    """
     if not run_detail:
         return None
-    lowered = [n.lower() for n in needles]
+    exact = {n.lower() for n in exact_names}
+    suffixes = tuple(s.lower() for s in endswith_suffixes)
     for job in run_detail.get("jobs") or []:
         name = (job.get("name") or "").lower()
         conclusion = (job.get("conclusion") or "").lower()
         if conclusion in ("", "skipped"):
             continue
-        if any(needle in name for needle in lowered):
+        if name in exact or any(name.endswith(suffix) for suffix in suffixes):
             return conclusion or None
     return None
 
 
+def dependency_review_job_conclusion(
+    run_detail: dict[str, Any] | None,
+) -> str | None:
+    """Conclusion of the dependency-review leaf job on the PR trigger run."""
+    return _job_conclusion_by_exact_or_suffix(
+        run_detail,
+        exact_names=("dependency-review",),
+        endswith_suffixes=(" / dependency-review",),
+    )
+
+
 def dependency_review_job_executed(run_detail: dict[str, Any] | None) -> bool:
-    return _job_conclusion_by_substring(run_detail, "dependency-review") == "success"
+    return dependency_review_job_conclusion(run_detail) == "success"
+
+
+def automerge_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
+    """Conclusion of the merge leaf job (not verify/approve wrappers).
+
+    Nested reusable names look like
+    ``run-obs-aw-pull-request / automerge / automerge``. Matching only
+    `` / automerge`` would also hit verify/approve siblings.
+    """
+    return _job_conclusion_by_exact_or_suffix(
+        run_detail,
+        exact_names=("automerge",),
+        endswith_suffixes=(" / automerge / automerge",),
+    )
 
 
 def automerge_job_executed(run_detail: dict[str, Any] | None) -> bool:
-    """True when the automerge merge job (not only verify) succeeded."""
-    return (
-        _job_conclusion_by_substring(run_detail, " / automerge", "automerge")
-        == "success"
+    """True when the automerge merge job (not only verify/approve) succeeded."""
+    return automerge_job_conclusion(run_detail) == "success"
+
+
+def approve_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
+    """Conclusion of the approve leaf under the automerge reusable call."""
+    return _job_conclusion_by_exact_or_suffix(
+        run_detail,
+        exact_names=("approve",),
+        endswith_suffixes=(" / automerge / approve", " / approve"),
     )
 
 
 def approve_job_executed(run_detail: dict[str, Any] | None) -> bool:
-    return (
-        _job_conclusion_by_substring(run_detail, " / approve", "approve") == "success"
-    )
+    return approve_job_conclusion(run_detail) == "success"
 
 
 def wait_for_pr_route_run(
@@ -376,10 +447,16 @@ def wait_for_pr_route_run(
     head_branch: str,
     require_job: str,
 ) -> dict[str, Any] | None:
-    """Wait for a completed pull_request orchestrator run with a named job success.
+    """Wait for a completed pull_request trigger run with a named job success.
 
-    ``require_job`` is ``dependency-review`` or ``automerge``.
-    Skipped jobs are ignored (fail closed on pending→skipped races).
+    Poll the **caller** workflow (``trigger-obs-aw-pull-request.yml``): nested
+    ``workflow_call`` jobs are listed on that run. Do not retarget config at
+    ``obs-aw-event-pull-request.yml`` (``workflow_call``-only; no listable
+    ``pull_request`` runs).
+
+    ``require_job`` is ``dependency-review`` or ``automerge`` (merge leaf only).
+    Skipped jobs are ignored (fail closed on pending→skipped races). Approve is
+    not a substitute for the merge job.
     """
     excluded = set(exclude_run_ids)
     deadline = time.time() + timeout_seconds
@@ -413,7 +490,7 @@ def wait_for_pr_route_run(
                 if require_job == "dependency-review":
                     ok = dependency_review_job_executed(detail)
                 elif require_job == "automerge":
-                    ok = automerge_job_executed(detail) or approve_job_executed(detail)
+                    ok = automerge_job_executed(detail)
                 else:
                     raise RuntimeError(f"unknown require_job {require_job!r}")
                 if ok:
@@ -862,7 +939,7 @@ def run_live_case(
         "dependency_review": {
             "run_seen": dr_run is not None,
             "job_executed": dependency_review_job_executed(dr_run),
-            "job_conclusion": _job_conclusion_by_substring(dr_run, "dependency-review"),
+            "job_conclusion": dependency_review_job_conclusion(dr_run),
             "run_id": (dr_run or {}).get("databaseId"),
             "url": (dr_run or {}).get("url"),
         },
@@ -876,9 +953,7 @@ def run_live_case(
             "run_seen": am_run is not None,
             "job_executed": automerge_job_executed(am_run),
             "approve_job_executed": approve_job_executed(am_run),
-            "job_conclusion": _job_conclusion_by_substring(
-                am_run, " / automerge", "automerge"
-            ),
+            "job_conclusion": automerge_job_conclusion(am_run),
             "run_id": (am_run or {}).get("databaseId"),
             "url": (am_run or {}).get("url"),
         },

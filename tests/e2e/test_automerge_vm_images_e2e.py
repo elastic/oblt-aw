@@ -4,6 +4,7 @@ Unit tests for obs:automerge:vm-images E2E harness and oracle.
 
 from __future__ import annotations
 
+import base64
 import json
 import pathlib
 import sys
@@ -193,6 +194,151 @@ def test_oracle_fails_closed_on_overall_conclusion_without_named_job() -> None:
         c["id"] == "dependency_review_job_executed" and not c["pass"]
         for c in report["checks"]
     )
+
+
+def test_oracle_fails_closed_when_only_approve_job_executed() -> None:
+    """Approve must not authorize the automerge merge-job expectation."""
+    report = _evaluate(
+        _synthetic_live_outcome(
+            automerge={
+                "run_seen": True,
+                "job_executed": False,
+                "approve_job_executed": True,
+                "job_conclusion": None,
+            }
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "automerge_job_executed" and not c["pass"] for c in report["checks"]
+    )
+
+
+def test_oracle_fails_closed_on_automerge_without_named_conclusion() -> None:
+    report = _evaluate(
+        _synthetic_live_outcome(
+            automerge={
+                "run_seen": True,
+                "job_executed": True,
+                "approve_job_executed": True,
+                "job_conclusion": None,
+            }
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "automerge_job_executed" and not c["pass"] for c in report["checks"]
+    )
+
+
+def test_oracle_fails_closed_on_non_bool_author_gate() -> None:
+    report = _evaluate(
+        _synthetic_live_outcome(
+            path_gates={
+                "dashboard_enabled": True,
+                "author_is_github_actions": "yes",
+            }
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "author_github_actions" and not c["pass"] for c in report["checks"]
+    )
+
+
+def _run_with_jobs(*jobs: dict) -> dict:
+    return {"jobs": list(jobs)}
+
+
+def test_automerge_job_executed_ignores_verify_sibling() -> None:
+    detail = _run_with_jobs(
+        {
+            "name": "run-obs-aw-pull-request / automerge / verify",
+            "conclusion": "success",
+        },
+        {
+            "name": "run-obs-aw-pull-request / automerge / approve",
+            "conclusion": "success",
+        },
+    )
+    assert harness.automerge_job_executed(detail) is False
+    assert harness.approve_job_executed(detail) is True
+
+
+def test_automerge_job_executed_requires_merge_leaf() -> None:
+    detail = _run_with_jobs(
+        {
+            "name": "run-obs-aw-pull-request / automerge / verify",
+            "conclusion": "success",
+        },
+        {
+            "name": "run-obs-aw-pull-request / automerge / automerge",
+            "conclusion": "success",
+        },
+    )
+    assert harness.automerge_job_executed(detail) is True
+
+
+def test_automerge_job_executed_ignores_broad_automerge_substring() -> None:
+    """Wrapper path ending in / automerge must not authorize the merge leaf."""
+    detail = _run_with_jobs(
+        {
+            "name": "run-obs-aw-pull-request / automerge",
+            "conclusion": "success",
+        }
+    )
+    assert harness.automerge_job_executed(detail) is False
+
+
+def test_seed_fixture_pipeline_noop_when_remote_matches(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pipeline = tmp_path / "pipeline.yml"
+    pipeline.write_text("steps: []\n", encoding="utf-8")
+    encoded = base64.b64encode(b"steps: []\n").decode("ascii")
+
+    def fake_run(cmd: list[str], **_kwargs: object) -> object:
+        class Proc:
+            returncode = 0
+            stdout = json.dumps({"content": encoded, "sha": "abc"})
+            stderr = ""
+
+        assert "contents/" in cmd[-1]
+        return Proc()
+
+    monkeypatch.setattr(harness.subprocess, "run", fake_run)
+    assert (
+        harness.seed_fixture_pipeline_on_default_branch(
+            "elastic/oblt-aw",
+            default_branch="main",
+            pipeline_path=pipeline,
+        )
+        is None
+    )
+
+
+def test_seed_fixture_pipeline_refuses_overwrite(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pipeline = tmp_path / "pipeline.yml"
+    pipeline.write_text("steps: []\n", encoding="utf-8")
+    other = base64.b64encode(b"steps: [different]\n").decode("ascii")
+
+    def fake_run(cmd: list[str], **_kwargs: object) -> object:
+        class Proc:
+            returncode = 0
+            stdout = json.dumps({"content": other, "sha": "abc"})
+            stderr = ""
+
+        return Proc()
+
+    monkeypatch.setattr(harness.subprocess, "run", fake_run)
+    with pytest.raises(RuntimeError, match="refusing to overwrite"):
+        harness.seed_fixture_pipeline_on_default_branch(
+            "elastic/oblt-aw",
+            default_branch="main",
+            pipeline_path=pipeline,
+        )
 
 
 def test_case_json_schema_matches_oracle_required_keys() -> None:
