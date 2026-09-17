@@ -75,6 +75,12 @@
           "name": "VM / container images",
           "description": "Auto-merge for CI runner or container image pin updates.",
           "default_enabled": false
+        },
+        {
+          "id": "package-version",
+          "name": "Package version",
+          "description": "Auto-merge for .package-version bump automation.",
+          "default_enabled": false
         }
       ]
     },

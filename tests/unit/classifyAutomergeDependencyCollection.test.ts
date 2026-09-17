@@ -172,6 +172,45 @@ test('classifyChangedFiles allows dashboard-enabled open-policy-agent collection
   });
 });
 
+test('classifyChangedFiles allows dashboard-enabled package-version collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'package-version',
+      'file-glob': ['.package-version', '**/.package-version'],
+    },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:package-version'];
+  const outcome = classifyChangedFiles(
+    ['.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'package-version',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled package-version collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'package-version',
+      'file-glob': ['.package-version', '**/.package-version'],
+    },
+  ];
+  const outcome = classifyChangedFiles(
+    ['.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: 'package-version',
+  });
+});
+
 test('enabledAutomergeCollectionIds returns empty when parent disabled', () => {
   const enabled = ['obs:automerge:github-actions'];
   assert.deepEqual(enabledAutomergeCollectionIds(enabled), []);
