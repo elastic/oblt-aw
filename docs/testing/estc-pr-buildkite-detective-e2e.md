@@ -39,6 +39,8 @@ Workflow: [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.githu
 gh workflow run e2e-estc-pr-buildkite-detective.yml
 ```
 
+To run every leaf E2E (this one plus others): `gh workflow run e2e-all.yml`.
+
 Triggers:
 
 - `workflow_dispatch` only (manual). One run at a time via concurrency group `e2e-estc-pr-buildkite-detective`. Always runs case `status-failure-open-pr-live`.
@@ -68,6 +70,7 @@ Each run uploads `e2e-estc-pr-buildkite-detective-status-failure-open-pr-live-<r
 ## Related
 
 - Config: [`config/obs/e2e-estc-pr-buildkite-detective.json`](../../config/obs/e2e-estc-pr-buildkite-detective.json)
+- Harness/oracle: [`scripts/obs/e2e/`](../../scripts/obs/e2e/)
 - Workflow doc: [obs-aw-estc-pr-buildkite-detective](../workflows/obs-aw-estc-pr-buildkite-detective.md)
 - Design: [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md)
 - Integration fixtures (sibling): [#1910](https://github.com/elastic/oblt-aw/issues/1910)

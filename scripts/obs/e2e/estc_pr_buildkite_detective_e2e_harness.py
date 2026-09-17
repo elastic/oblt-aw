@@ -38,6 +38,11 @@ from typing import Any, cast
 
 import yaml  # type: ignore[import-untyped]
 
+# scripts/ siblings (e.g. get_enabled_workflows) when this file lives under scripts/obs/e2e/.
+_SCRIPTS_DIR = Path(__file__).resolve().parents[2]
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
 WORKFLOW_ID = "obs:estc-pr-buildkite-detective"
 DEFAULT_CONFIG = Path("config/obs/e2e-estc-pr-buildkite-detective.json")
 FAIL_STATES = ("failed", "timed_out")
@@ -473,7 +478,9 @@ def load_e2e_config(path: Path) -> dict[str, Any]:
 
 
 def dashboard_enables_workflow(repo: str, workflow_id: str) -> bool:
-    from get_enabled_workflows import parse_enabled_ids_from_body
+    from get_enabled_workflows import (  # type: ignore[import-not-found]
+        parse_enabled_ids_from_body,
+    )
 
     issues = gh_json(
         [

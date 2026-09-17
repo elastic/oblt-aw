@@ -12,7 +12,7 @@ import sys
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "scripts" / "obs" / "e2e"))
 
 import automerge_vm_images_e2e_harness as harness
 import oracle_automerge_vm_images_e2e as oracle
