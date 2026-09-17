@@ -27,7 +27,7 @@ Live E2E only against **`elastic/oblt-aw`**:
 3. **Vault bypassers** — classic BP `pull_request_bypassers` includes the Vault app when CODEOWNERS would otherwise block merge (existing onboarding).
 4. **Runner identity** — live runs must use `GITHUB_TOKEN` so the fixture PR author is `github-actions[bot]` (same as updatecli).
 
-CI for fixture PRs is skipped when label `e2e:automerge-vm-images` is present and the head ref starts with `e2e/automerge-vm-images/`. Agentic pull-request routes are **not** skipped (unlike the ESTC fixture).
+CI for fixture PRs is skipped for any same-repo PR with an `e2e:*` label and a head ref under `e2e/` (see [`ci.yml`](../../.github/workflows/ci.yml)). Agentic pull-request routes are **not** skipped (unlike the ESTC fixture).
 
 ## How to run
 

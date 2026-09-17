@@ -2,7 +2,7 @@
 name: CI
 
 # Trigger on PRs targeting any branch (opened, updated, reopened).
-# Skip same-repo E2E fixture PRs (ESTC long-lived + automerge-vm-images ephemeral).
+# Skip same-repo E2E fixture PRs: any label e2e:* on a head ref under e2e/.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -21,16 +21,9 @@ jobs:
     name: Pre-commit
     if: >-
       !(
-        (
-          contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-          github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        ) ||
-        (
-          contains(github.event.pull_request.labels.*.name, 'e2e:automerge-vm-images') &&
-          startsWith(github.event.pull_request.head.ref, 'e2e/automerge-vm-images/') &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        )
+        contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
+        startsWith(github.event.pull_request.head.ref, 'e2e/') &&
+        github.event.pull_request.head.repo.full_name == github.repository
       )
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -46,16 +39,9 @@ jobs:
     name: Python tests
     if: >-
       !(
-        (
-          contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-          github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        ) ||
-        (
-          contains(github.event.pull_request.labels.*.name, 'e2e:automerge-vm-images') &&
-          startsWith(github.event.pull_request.head.ref, 'e2e/automerge-vm-images/') &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        )
+        contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
+        startsWith(github.event.pull_request.head.ref, 'e2e/') &&
+        github.event.pull_request.head.repo.full_name == github.repository
       )
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -95,16 +81,9 @@ jobs:
     name: gh-aw drift check
     if: >-
       !(
-        (
-          contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-          github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        ) ||
-        (
-          contains(github.event.pull_request.labels.*.name, 'e2e:automerge-vm-images') &&
-          startsWith(github.event.pull_request.head.ref, 'e2e/automerge-vm-images/') &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        )
+        contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
+        startsWith(github.event.pull_request.head.ref, 'e2e/') &&
+        github.event.pull_request.head.repo.full_name == github.repository
       )
     runs-on: ubuntu-slim
     timeout-minutes: 10
@@ -121,16 +100,9 @@ jobs:
     name: TypeScript tests
     if: >-
       !(
-        (
-          contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-          github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        ) ||
-        (
-          contains(github.event.pull_request.labels.*.name, 'e2e:automerge-vm-images') &&
-          startsWith(github.event.pull_request.head.ref, 'e2e/automerge-vm-images/') &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        )
+        contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
+        startsWith(github.event.pull_request.head.ref, 'e2e/') &&
+        github.event.pull_request.head.repo.full_name == github.repository
       )
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -156,16 +128,9 @@ jobs:
     name: OpenSSF Scorecard
     if: >-
       !(
-        (
-          contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-          github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        ) ||
-        (
-          contains(github.event.pull_request.labels.*.name, 'e2e:automerge-vm-images') &&
-          startsWith(github.event.pull_request.head.ref, 'e2e/automerge-vm-images/') &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        )
+        contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
+        startsWith(github.event.pull_request.head.ref, 'e2e/') &&
+        github.event.pull_request.head.repo.full_name == github.repository
       )
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -208,31 +173,17 @@ jobs:
     steps:
       - name: Pass for e2e fixture PRs
         if: >-
-          (
-            contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-            github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
-            github.event.pull_request.head.repo.full_name == github.repository
-          ) ||
-          (
-            contains(github.event.pull_request.labels.*.name, 'e2e:automerge-vm-images') &&
-            startsWith(github.event.pull_request.head.ref, 'e2e/automerge-vm-images/') &&
-            github.event.pull_request.head.repo.full_name == github.repository
-          )
-        run: echo "CI skipped for dedicated E2E fixture PR."
+          contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
+          startsWith(github.event.pull_request.head.ref, 'e2e/') &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        run: echo "CI skipped for dedicated E2E fixture PR (e2e:* label on e2e/* branch)."
 
       - name: Check dependent jobs
         if: >-
           !(
-            (
-              contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-              github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
-              github.event.pull_request.head.repo.full_name == github.repository
-            ) ||
-            (
-              contains(github.event.pull_request.labels.*.name, 'e2e:automerge-vm-images') &&
-              startsWith(github.event.pull_request.head.ref, 'e2e/automerge-vm-images/') &&
-              github.event.pull_request.head.repo.full_name == github.repository
-            )
+            contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
+            startsWith(github.event.pull_request.head.ref, 'e2e/') &&
+            github.event.pull_request.head.repo.full_name == github.repository
           )
         id: check
         uses: elastic/oblt-actions/check-dependent-jobs@v1
@@ -242,16 +193,9 @@ jobs:
       - name: Fail if any job failed
         if: >-
           !(
-            (
-              contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-              github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
-              github.event.pull_request.head.repo.full_name == github.repository
-            ) ||
-            (
-              contains(github.event.pull_request.labels.*.name, 'e2e:automerge-vm-images') &&
-              startsWith(github.event.pull_request.head.ref, 'e2e/automerge-vm-images/') &&
-              github.event.pull_request.head.repo.full_name == github.repository
-            )
+            contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
+            startsWith(github.event.pull_request.head.ref, 'e2e/') &&
+            github.event.pull_request.head.repo.full_name == github.repository
           ) &&
           steps.check.outputs.status == 'failure'
         run: |
@@ -262,16 +206,9 @@ jobs:
       - name: All checks passed
         if: >-
           !(
-            (
-              contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-              github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
-              github.event.pull_request.head.repo.full_name == github.repository
-            ) ||
-            (
-              contains(github.event.pull_request.labels.*.name, 'e2e:automerge-vm-images') &&
-              startsWith(github.event.pull_request.head.ref, 'e2e/automerge-vm-images/') &&
-              github.event.pull_request.head.repo.full_name == github.repository
-            )
+            contains(toJSON(github.event.pull_request.labels.*.name), '"e2e:') &&
+            startsWith(github.event.pull_request.head.ref, 'e2e/') &&
+            github.event.pull_request.head.repo.full_name == github.repository
           ) &&
           steps.check.outputs.status == 'success'
         run: echo "All checks passed."
