@@ -31,6 +31,7 @@ jobs:
 
   resolve-apm-assets:
     if: >-
+      inputs.shared-proceed == 'true' &&
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
@@ -81,6 +82,7 @@ jobs:
       copilot-requests: write
       id-token: write
     if: >-
+      inputs.shared-proceed == 'true' &&
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
       github.event.label.name == 'oblt-aw/ai/fix-ready' &&
@@ -95,7 +97,9 @@ jobs:
 
   request-reviewers:
     needs: res-not-accessible-integration-fixer
-    if: needs.res-not-accessible-integration-fixer.outputs.created_pr_number != ''
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      needs.res-not-accessible-integration-fixer.outputs.created_pr_number != ''
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write

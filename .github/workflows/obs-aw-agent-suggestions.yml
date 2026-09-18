@@ -27,6 +27,7 @@ permissions:
 jobs:
 
   resolve-apm-assets:
+    if: inputs.shared-proceed == 'true'
     permissions:
       contents: read
       id-token: write
@@ -49,6 +50,7 @@ jobs:
         - `labels`: contains `agentic-workflow`
 
   agent-suggestions:
+    if: inputs.shared-proceed == 'true'
     needs: [resolve-apm-assets]
     permissions:
       actions: read
