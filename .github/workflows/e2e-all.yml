@@ -21,8 +21,8 @@ jobs:
       contents: write
       pull-requests: write
       actions: read
-      issues: write
       checks: read
+      id-token: write
     uses: ./.github/workflows/e2e-automerge-vm-images.yml
     secrets: inherit
 
