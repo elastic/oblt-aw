@@ -156,6 +156,6 @@ class TestValidateRegistryAgainstWorkflows:
 
 class TestValidateAutomergeSubFeatures:
     def test_checked_in_obs_automerge_sub_features_match_collections(self) -> None:
-        config_dir = pathlib.Path(__file__).parent.parent / "config"
+        config_dir = pathlib.Path(__file__).parent.parent.parent / "config"
         entries = wr.parse_registry_entries(config_dir / "obs")
         wr.validate_automerge_sub_features(config_dir, entries)
