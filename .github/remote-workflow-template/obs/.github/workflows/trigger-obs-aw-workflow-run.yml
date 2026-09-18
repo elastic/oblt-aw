@@ -1,0 +1,24 @@
+name: Observability Agentic Workflow — Workflow Run
+
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers] -- trusted split-workflow handoff; gated on failure + associated PRs below and dashboard-disabled-by-default
+    # Match common consumer CI workflow `name:` values; customize after distribute if needed.
+    workflows: ["Internal: CI", "Internal: Tests", "CI", "Build", "Test"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  run-obs-aw-workflow-run:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      toJSON(github.event.workflow_run.pull_requests) != '[]'
+    permissions:
+      actions: read
+      contents: read
+      copilot-requests: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    uses: elastic/oblt-aw/.github/workflows/obs-aw-event-workflow-run.yml@main # ratchet:exclude
