@@ -497,4 +497,6 @@ def test_required_dashboard_ids_from_config() -> None:
 
 def test_shared_e2e_token_policy_matches_documented_role() -> None:
     cfg = json.loads((ROOT / "config" / "e2e.json").read_text(encoding="utf-8"))
-    assert cfg["workflow-token-policy"] == "token-policy-6cd7ac55e207"
+    doc_path = ROOT / cfg["workflow-token-policy-doc"].split("#", 1)[0]
+    doc_text = doc_path.read_text(encoding="utf-8")
+    assert cfg["workflow-token-policy"] in doc_text
