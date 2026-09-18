@@ -4,6 +4,8 @@
 
 Client template: `trigger-obs-aw-automerge.yml` → `obs-aw-automerge.yml`
 
+For the user-facing Automerge service catalogue, see [Automerge services](../guides/user/automerge-services.md).
+
 Routed workflow source: `.github/workflows/obs-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, conditional `enable-merge-when-ready`, and `report-automerge-outcome` on the PR).
 
 **Approve:** Nested `gh-aw-mention-in-pr` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]` (Vault, Dependabot, Renovate, and other allowed authors). When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review (`verify` requires a non-empty policy in that case). Automerge continues via job `needs` (no re-trigger needed for the review). Classic `pull_request_bypassers` alone do not bypass org rulesets.
