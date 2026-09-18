@@ -28,6 +28,7 @@ jobs:
 
   # Step 1: Detect docs drift from recent code changes and create an issue with findings
   resolve-apm-assets-audit:
+    if: inputs.shared-proceed == 'true'
     permissions:
       contents: read
       id-token: write
@@ -68,6 +69,7 @@ jobs:
         **Team notification (mandatory):** Always @mention @elastic/observablt-ci at the top of the issue body so the team receives notifications. Example: "cc @elastic/observablt-ci" or "Notify: @elastic/observablt-ci" at the start of the body.
 
   audit:
+    if: inputs.shared-proceed == 'true'
     needs: [resolve-apm-assets-audit]
     permissions:
       actions: read
@@ -84,7 +86,7 @@ jobs:
 
   resolve-apm-assets-fix:
     needs: audit
-    if: needs.audit.outputs.created_issue_number != ''
+    if: inputs.shared-proceed == 'true' && needs.audit.outputs.created_issue_number != ''
     permissions:
       contents: read
       id-token: write
@@ -139,7 +141,7 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
-    if: needs.audit.outputs.created_issue_number != ''
+    if: inputs.shared-proceed == 'true' && needs.audit.outputs.created_issue_number != ''
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
     with:
       target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
@@ -150,7 +152,7 @@ jobs:
   # Step 3: Finalize autodoc PR — assign reviewer and apply labels
   finalize-pr:
     needs: fix
-    if: needs.fix.outputs.created_pr_number != ''
+    if: inputs.shared-proceed == 'true' && needs.fix.outputs.created_pr_number != ''
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
