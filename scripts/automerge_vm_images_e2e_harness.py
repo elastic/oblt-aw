@@ -802,7 +802,7 @@ def run_live_case(
                     f"Fixture PR author is {author!r}, expected {allowed_author!r} "
                     "(REST user.login). Run under GitHub Actions with Vault "
                     "create-token using workflow-token-policy from "
-                    "active-repositories.json (see e2e-automerge-vm-images.yml) "
+                    "config/e2e.json (see e2e-automerge-vm-images.yml) "
                     "so Contents API commits and gh pr create are authored as "
                     "the Vault app (pull_request workflows then run without "
                     "maintainer Approve-and-run)."

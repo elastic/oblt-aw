@@ -7,9 +7,9 @@ Production end-to-end harness for updatecli-shaped VM-image bumps ([#1732](https
 Live E2E only against **`elastic/oblt-aw`**:
 
 1. Seed `.buildkite/pipeline.e2e-automerge-vm-images.yml` on the default branch **only when missing** (refuse overwrite if remote content differs); bump IMAGE pins on an ephemeral fixture branch (playground/updatecli `platform-ingest-elastic-agent-*` shape).
-2. Open an ephemeral same-repo PR authored as **`elastic-vault-github-plugin-prod[bot]`** via OIDC [`create-token`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) using this repository’s existing `workflow-token-policy` from [`config/obs/active-repositories.json`](../../config/obs/active-repositories.json) (not `GITHUB_TOKEN` / `github-actions[bot]`). Vault authorship avoids GitHub’s [bot PR “Approve and run” gate](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/) so `pull_request` workflows (including dependency-review) start automatically.
+2. Open an ephemeral same-repo PR authored as **`elastic-vault-github-plugin-prod[bot]`** via OIDC [`create-token`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) using `workflow-token-policy` from [`config/e2e.json`](../../config/e2e.json) (dedicated `token-policy-oblt-aw-e2e` in `elastic/catalog-info`, bound to `e2e-*.yml`) — not `GITHUB_TOKEN` / `github-actions[bot]`, and not the agentic `trigger-obs-aw-*` policy. Vault authorship avoids GitHub’s [bot PR “Approve and run” gate](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/) so `pull_request` workflows (including dependency-review) start automatically.
 3. Wait for `trigger-obs-aw-pull-request.yml` → dependency-review → `oblt-aw/ai/merge-ready` (nested jobs are inspected on that **caller** run).
-4. Wait for automerge (`obs:automerge:vm-images`) **merge leaf** job success, plus approving review → merged or auto-merge enabled (approve is not a substitute for the merge job). Automerge approves as `github-actions[bot]` (`GITHUB_TOKEN`) when the author is Vault, then merges as Vault when `workflow-token-policy` is set.
+4. Wait for automerge (`obs:automerge:vm-images`) **merge leaf** job success, plus approving review → merged or auto-merge enabled (approve is not a substitute for the merge job). Automerge approves as `github-actions[bot]` (`GITHUB_TOKEN`) when the author is Vault, then merges as Vault when the agentic `workflow-token-policy` is set on the automerge route.
 
 ## Live case
 
@@ -23,7 +23,7 @@ Live E2E only against **`elastic/oblt-aw`**:
    - `obs:dependency-review`
    - `obs:automerge`
    - `obs:automerge:vm-images` (currently opt-in; harness fails closed if missing)
-2. **Token policy** — `elastic/oblt-aw` must remain in [`config/obs/active-repositories.json`](../../config/obs/active-repositories.json) with a non-empty `workflow-token-policy` (same policy used by agentic routes via `aw-prelude`). The E2E workflow resolves that value and passes it to `create-token` (no separate E2E TokenPolicy).
+2. **Token policy** — `token-policy-oblt-aw-e2e` must exist in `elastic/catalog-info` (bound to `elastic/oblt-aw/.github/workflows/e2e-*.yml@*`, same permissions as `token-policy-oblt-aw-oblt-aw`). Shared role name lives in [`config/e2e.json`](../../config/e2e.json) (`workflow-token-policy`); E2E workflows pass it explicitly to `create-token` (wildcard policies cannot auto-derive). Agentic routes keep using `workflow-token-policy` from [`config/obs/active-repositories.json`](../../config/obs/active-repositories.json) via `aw-prelude`.
 3. **Vault bypassers** — classic BP `pull_request_bypassers` includes the Vault app when CODEOWNERS would otherwise block merge (existing onboarding).
 4. **Runner identity** — live runs mint Vault via `create-token` (see [e2e-automerge-vm-images.yml](../../.github/workflows/e2e-automerge-vm-images.yml)). The harness reads author via the REST Pulls API (`user.login`); do not use `gh pr view --json author` (GraphQL returns `app/…` since gh ≥ 2.50).
 
