@@ -18,6 +18,7 @@ jobs:
 
   check-pr:
     if: >-
+      inputs.shared-proceed == 'true' &&
       github.event_name == 'status' &&
       github.event.state == 'failure' &&
       contains(github.event.context, 'buildkite')
@@ -41,7 +42,7 @@ jobs:
           fi
 
   resolve-apm-assets:
-    if: needs.check-pr.outputs.has-open-pr == 'true'
+    if: inputs.shared-proceed == 'true' && needs.check-pr.outputs.has-open-pr == 'true'
     needs: [check-pr]
     permissions:
       contents: read
@@ -53,6 +54,7 @@ jobs:
         If a step fails, check if the failure is reported as a GitHub issue labeled `flaky-test`. Reference the GitHub issue if so.
 
   estc-pr-buildkite-detective:
+    if: inputs.shared-proceed == 'true'
     needs: [resolve-apm-assets]
     permissions:
       actions: read

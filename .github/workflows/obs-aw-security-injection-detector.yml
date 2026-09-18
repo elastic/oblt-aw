@@ -29,6 +29,7 @@ permissions:
 jobs:
 
   scan:
+    if: inputs.shared-proceed == 'true'
     permissions:
       actions: read
       contents: read
