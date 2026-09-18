@@ -7,6 +7,7 @@ from __future__ import annotations
 import base64
 import json
 import pathlib
+import re
 import sys
 
 import pytest
@@ -83,6 +84,36 @@ def _evaluate(
         else case["expectations"],
         case_trigger=case_trigger if case_trigger is not None else case["trigger"],
     )
+
+
+def _markdown_anchor(heading: str) -> str:
+    normalized = re.sub(r"[^a-z0-9 -]", "", heading.lower()).replace(" ", "-")
+    return re.sub(r"-{2,}", "-", normalized).strip("-")
+
+
+def _markdown_section(text: str, anchor: str) -> str:
+    lines = text.splitlines()
+    start: int | None = None
+    heading_level = 0
+    for index, line in enumerate(lines):
+        match = re.match(r"^(#{1,6})\s+(.*)$", line)
+        if not match:
+            continue
+        if _markdown_anchor(match.group(2).strip()) == anchor:
+            start = index + 1
+            heading_level = len(match.group(1))
+            break
+
+    assert start is not None
+
+    section_lines: list[str] = []
+    for line in lines[start:]:
+        match = re.match(r"^(#{1,6})\s+", line)
+        if match and len(match.group(1)) <= heading_level:
+            break
+        section_lines.append(line)
+
+    return "\n".join(section_lines)
 
 
 def test_bump_image_pins_updates_playground_shaped_lines() -> None:
@@ -497,6 +528,9 @@ def test_required_dashboard_ids_from_config() -> None:
 
 def test_shared_e2e_token_policy_matches_documented_role() -> None:
     cfg = json.loads((ROOT / "config" / "e2e.json").read_text(encoding="utf-8"))
-    doc_path = ROOT / cfg["workflow-token-policy-doc"].split("#", 1)[0]
+    doc_ref = cfg["workflow-token-policy-doc"]
+    doc_relpath, doc_anchor = doc_ref.split("#", 1)
+    doc_path = ROOT / doc_relpath
     doc_text = doc_path.read_text(encoding="utf-8")
-    assert cfg["workflow-token-policy"] in doc_text
+    doc_section = _markdown_section(doc_text, doc_anchor)
+    assert f"**Token policy** — `{cfg['workflow-token-policy']}`" in doc_section
