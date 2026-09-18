@@ -49,6 +49,7 @@ Permissions:
 
 - Required inputs: `shared-proceed`, `shared-allowed-pr-authors-json`, `shared-allowed-pr-authors-csv`, `shared-allowed-issue-authors-json`, `shared-allowed-issue-authors-csv`, and `shared-token-policy`.
 - The wrapper forwards resolved `additional-instructions`, resolved `setup-commands`, and `shared-token-policy` to the local GH-AW workflow invocation.
+- Model selection is inherited from the shared Observability GH-AW defaults; this workflow exposes no model input.
 
 ## References
 

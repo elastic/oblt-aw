@@ -14,7 +14,6 @@ imports:
   - gh-aw-fragments/obs-defaults.md
 engine:
   id: copilot
-  model: ${{ inputs.model }}
   concurrency:
     group: "gh-aw-copilot-${{ github.workflow }}-plan-${{ github.event.issue.number }}"
 on:
@@ -24,11 +23,6 @@ on:
     events: [issue_comment]
   workflow_call:
     inputs:
-      model:
-        description: "AI model to use"
-        type: string
-        required: false
-        default: "gpt-5.3-codex"
       additional-instructions:
         description: "Repo-specific instructions appended to the agent prompt"
         type: string
