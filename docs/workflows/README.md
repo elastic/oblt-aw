@@ -40,6 +40,7 @@ Route wrappers keep descriptive ids such as `resolve-apm-assets` and `automerge`
 - Issue Fixer workflow (generic fix-ready path): [docs/workflows/obs-aw-issue-fixer.md](obs-aw-issue-fixer.md)
 - Issue Triage workflow (issue opened): [docs/workflows/obs-aw-issue-triage.md](obs-aw-issue-triage.md)
 - Mention in Issue workflow: [docs/workflows/obs-aw-mention-in-issue.md](obs-aw-mention-in-issue.md)
+- Plan workflow: [docs/workflows/obs-aw-plan.md](obs-aw-plan.md)
 - Resource Not Accessible by Integration detector workflow: [docs/workflows/obs-aw-resource-not-accessible-by-integration-detector.md](obs-aw-resource-not-accessible-by-integration-detector.md)
 - Resource Not Accessible by Integration triage workflow: [docs/workflows/obs-aw-resource-not-accessible-by-integration-triage.md](obs-aw-resource-not-accessible-by-integration-triage.md)
 - Resource Not Accessible by Integration fixer workflow: [docs/workflows/obs-aw-resource-not-accessible-by-integration-fixer.md](obs-aw-resource-not-accessible-by-integration-fixer.md)

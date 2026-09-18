@@ -18,6 +18,7 @@ def test_list_subject_workflows_includes_route_wrappers() -> None:
     assert "docs-aw-ai-menu.yml" in names
     assert "docs-aw-pr-ai-menu-collect.yml" in names
     assert "docs-aw-pr-ai-menu.yml" in names
+    assert "obs-aw-plan.yml" in names
     assert "aw-prelude.yml" not in names
     assert "docs-aw-event-issues.yml" not in names
     assert "trg-oblt-aw-automerge.yml" not in names
