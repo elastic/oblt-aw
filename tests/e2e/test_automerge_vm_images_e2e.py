@@ -401,3 +401,8 @@ def test_required_dashboard_ids_from_config() -> None:
     assert "obs:automerge:vm-images" in ids
     assert "obs:dependency-review" in ids
     assert "obs:automerge" in ids
+
+
+def test_shared_e2e_token_policy_matches_documented_role() -> None:
+    cfg = json.loads((ROOT / "config" / "e2e.json").read_text(encoding="utf-8"))
+    assert cfg["workflow-token-policy"] == "token-policy-oblt-aw-e2e"
