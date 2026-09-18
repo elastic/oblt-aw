@@ -132,6 +132,30 @@ def test_bump_image_pins_fails_closed_without_pins() -> None:
         harness.bump_image_pins("steps: []\n", "1")
 
 
+def test_markdown_anchor_matches_github_heading_style() -> None:
+    assert _markdown_anchor("Prerequisites (live)") == "prerequisites-live"
+
+
+def test_markdown_section_uses_requested_anchor_scope() -> None:
+    text = """# Title
+
+## First section
+alpha
+
+## Prerequisites (live)
+**Token policy** — `token-policy-demo`
+
+### Nested details
+beta
+
+## Final section
+gamma
+"""
+    assert _markdown_section(text, "prerequisites-live") == (
+        "**Token policy** — `token-policy-demo`\n\n### Nested details\nbeta\n"
+    )
+
+
 def test_author_login_from_rest_pull_uses_webhook_form() -> None:
     """REST user.login is …[bot]; GraphQL app/… must not authorize."""
     login = harness.author_login_from_rest_pull(
