@@ -35,6 +35,21 @@
       "file-glob": ["go.mod", "go.sum", "**/go.mod", "**/go.sum"]
     },
     {
+      "id": "update-beats",
+      "description": "elastic-agent update-beats bumps (NOTICE, go modules, beats submodule)",
+      "file-glob": [
+        "NOTICE.txt",
+        "NOTICE-fips.txt",
+        "**/NOTICE.txt",
+        "**/NOTICE-fips.txt",
+        "go.mod",
+        "go.sum",
+        "**/go.mod",
+        "**/go.sum",
+        "beats"
+      ]
+    },
+    {
       "id": "node-dependencies",
       "description": "npm/yarn/pnpm manifest and lockfile updates",
       "file-glob": [

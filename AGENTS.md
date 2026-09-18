@@ -17,7 +17,7 @@ When hardening E2E gates (or addressing fail-closed review comments), follow **[
 Also keep these live-harness lessons (from automerge vm-images E2E review):
 
 - Poll the **caller** `trigger-obs-aw-*.yml` run (`event=pull_request`); nested reusable jobs appear there. Do **not** retarget config at `workflow_call`-only orchestrators solely because nested job *ids* are declared there.
-- Match **leaf** job names (e.g. `… / automerge / automerge`, `… / automerge / approve`), not broad substrings that also hit siblings (`verify`, collection checks).
+- Match **leaf** job names (e.g. `… / automerge / automerge`, `… / automerge / approve / conclusion`), not broad substrings that also hit siblings (`verify`, collection checks).
 - Never `OR` distinct named jobs in waiters/oracles (approve ≠ merge).
 - Seed default-branch fixtures only when missing; refuse silent overwrite when remote content differs.
 - Label ensure and path-gate `_as_bool` must fail closed (no crash, no “any error ⇒ create”).

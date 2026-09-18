@@ -52,7 +52,7 @@ Check each of these explicitly (add a regression when any is open):
 | Shared mutable fixture | Do concurrent development PRs share one fixture PR/branch/status context without isolation? Prefer one global concurrency group for a long-lived fixture. |
 | Path-filtered self-trigger | Can fixture-branch sync commits start the privileged live job again? Exclude fixture branch prefix from the job `if`. |
 | Secrets on PR checkout | Is `pull_request_target` avoided? If secrets remain on same-repo `pull_request`, is that an explicit trust boundary (collaborator write + CODEOWNERS), with forks excluded? |
-| Nested reusable job identity | Does substring match on a reusable-call segment (e.g. ` / automerge`) also match sibling jobs (`verify`, `approve`)? Prefer leaf suffixes (` / automerge / automerge`). |
+| Nested reusable job identity | Does substring match on a reusable-call segment (e.g. ` / automerge`) also match sibling jobs (`verify`, `approve`)? Prefer leaf suffixes (` / automerge / automerge`, ` / automerge / approve / conclusion`). |
 | Sibling-job OR substitute | Does `merge_job OR approve_job` (waiter or oracle) green a merge-only expectation? Keep approve / merge / review as separate gates. |
 | Default-branch fixture seed | Does live harness overwrite an existing default-branch fixture when content differs? Seed only when missing; no-op or fail closed when present. |
 | Caller vs callee workflow file | Does config retarget `workflow_call`-only orchestrators (e.g. `obs-aw-event-pull-request.yml`) instead of the listable `pull_request` trigger (`trigger-obs-aw-*.yml`)? Nested jobs belong to the **caller** run. |
