@@ -74,14 +74,20 @@
     },
     {
       "id": "vm-images",
-      "description": "CI runner or container image pin updates",
+      "description": "CI runner, container, or testing snapshot environment image pin updates",
       "file-glob": [
         ".buildkite/**",
         "**/Dockerfile",
         "**/Dockerfile.*",
         "**/docker-compose.yml",
-        "**/docker-compose.yaml"
+        "**/docker-compose.yaml",
+        "testing/environments/snapshot.yml"
       ]
+    },
+    {
+      "id": "package-version",
+      "description": "Package version bump automation (.package-version)",
+      "file-glob": [".package-version", "**/.package-version"]
     }
   ]
 }
