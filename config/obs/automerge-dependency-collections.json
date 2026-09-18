@@ -83,6 +83,11 @@
         "**/docker-compose.yaml",
         "testing/environments/snapshot.yml"
       ]
+    },
+    {
+      "id": "package-version",
+      "description": "Package version bump automation (.package-version)",
+      "file-glob": [".package-version", "**/.package-version"]
     }
   ]
 }
