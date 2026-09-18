@@ -420,11 +420,20 @@ def _job_conclusion_by_exact_or_suffix(
 def dependency_review_job_conclusion(
     run_detail: dict[str, Any] | None,
 ) -> str | None:
-    """Conclusion of the dependency-review leaf job on the PR trigger run."""
+    """Conclusion of the dependency-review GH-AW terminal leaf on the PR trigger.
+
+    Nested reusable names look like
+    ``run-obs-aw-pull-request / dependency-review / dependency-review / conclusion``.
+    Matching only `` / dependency-review`` never hits those leaves (only the
+    skipped wrapper on ``labeled`` runs) and would false-timeout the waiter.
+    Do not treat ``notify-no-comment``, intermediate agent/activation jobs, or
+    unrelated GH-AW ``conclusion`` leaves (for example under automerge approve)
+    as the gate — require the lock ``conclusion`` leaf under the nested
+    dependency-review call, same fail-closed pattern as `` / automerge / automerge``.
+    """
     return _job_conclusion_by_exact_or_suffix(
         run_detail,
-        exact_names=("dependency-review",),
-        endswith_suffixes=(" / dependency-review",),
+        endswith_suffixes=(" / dependency-review / dependency-review / conclusion",),
     )
 
 

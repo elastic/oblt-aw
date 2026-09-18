@@ -124,6 +124,80 @@ def test_author_login_from_rest_pull_fails_closed_without_login() -> None:
         harness.author_login_from_rest_pull({})
 
 
+def test_dependency_review_job_matches_nested_conclusion_leaf() -> None:
+    """GH-AW terminal leaf authorizes; skipped wrapper / siblings do not."""
+    success = {
+        "jobs": [
+            {
+                "name": "run-obs-aw-pull-request / dependency-review",
+                "conclusion": "skipped",
+            },
+            {
+                "name": (
+                    "run-obs-aw-pull-request / dependency-review / "
+                    "dependency-review / agent"
+                ),
+                "conclusion": "success",
+            },
+            {
+                "name": (
+                    "run-obs-aw-pull-request / dependency-review / "
+                    "dependency-review / conclusion"
+                ),
+                "conclusion": "success",
+            },
+            {
+                "name": "run-obs-aw-pull-request / dependency-review / notify-no-comment",
+                "conclusion": "skipped",
+            },
+        ]
+    }
+    assert harness.dependency_review_job_executed(success) is True
+    assert harness.dependency_review_job_conclusion(success) == "success"
+
+
+def test_dependency_review_job_ignores_skipped_wrapper_only() -> None:
+    skipped_only = {
+        "jobs": [
+            {
+                "name": "run-obs-aw-pull-request / dependency-review",
+                "conclusion": "skipped",
+            }
+        ]
+    }
+    assert harness.dependency_review_job_executed(skipped_only) is False
+    assert harness.dependency_review_job_conclusion(skipped_only) is None
+
+
+def test_dependency_review_job_ignores_agent_without_conclusion() -> None:
+    """Broad `` / dependency-review`` and agent-only must not green the gate."""
+    agent_only = {
+        "jobs": [
+            {
+                "name": "run-obs-aw-pull-request / dependency-review",
+                "conclusion": "success",
+            },
+            {
+                "name": (
+                    "run-obs-aw-pull-request / dependency-review / "
+                    "dependency-review / agent"
+                ),
+                "conclusion": "success",
+            },
+            {
+                "name": "run-obs-aw-pull-request / dependency-review / notify-no-comment",
+                "conclusion": "success",
+            },
+            {
+                "name": "run-obs-aw-pull-request / automerge / approve / conclusion",
+                "conclusion": "success",
+            },
+        ]
+    }
+    assert harness.dependency_review_job_executed(agent_only) is False
+    assert harness.dependency_review_job_conclusion(agent_only) is None
+
+
 def test_oracle_happy_path_passes() -> None:
     report = _evaluate(_synthetic_live_outcome())
     assert report["pass"] is True
