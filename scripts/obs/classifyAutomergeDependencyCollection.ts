@@ -101,6 +101,31 @@ function collectionMatchesAllFiles(collection, files) {
   return files.every((file) => pathMatchesAnyGlob(file, globs));
 }
 
+/**
+ * When several collections cover every changed file, drop any whose file-glob
+ * set is a strict superset of another matched collection. That keeps go-only
+ * PRs on go-dependencies when update-beats (NOTICE + go + beats) also matches.
+ * @param {DependencyCollection[]} matched
+ * @returns {DependencyCollection[]}
+ */
+function preferNonSupersetCollections(matched) {
+  return matched.filter((candidate) => {
+    const candidateGlobs = new Set(candidate['file-glob'] || []);
+    return !matched.some((other) => {
+      if (other.id === candidate.id) {
+        return false;
+      }
+      const otherGlobs = other['file-glob'] || [];
+      if (otherGlobs.length === 0 || otherGlobs.length >= candidateGlobs.size) {
+        return false;
+      }
+      const otherIsSubset = otherGlobs.every((g) => candidateGlobs.has(g));
+      const sameSize = otherGlobs.length === candidateGlobs.size;
+      return otherIsSubset && !sameSize;
+    });
+  });
+}
+
 function classifyChangedFiles(files, collections, enabledCollectionIds) {
   const changed = [...new Set(files.map((f) => f.trim()).filter(Boolean))];
   const enabledSet = new Set(enabledCollectionIds);
@@ -108,8 +133,8 @@ function classifyChangedFiles(files, collections, enabledCollectionIds) {
     return { status: 'unclassified', collectionId: null };
   }
 
-  const matched = collections.filter((c) =>
-    collectionMatchesAllFiles(c, changed)
+  const matched = preferNonSupersetCollections(
+    collections.filter((c) => collectionMatchesAllFiles(c, changed))
   );
 
   if (matched.length === 0) {
