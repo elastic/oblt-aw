@@ -43,6 +43,9 @@ PRELUDE_USES = re.compile(
 )
 PRELUDE_JOB = re.compile(r"^\s+(?:prelude|run-aw-prelude):\s*$", re.MULTILINE)
 SHARED_PROCEED_INPUT = re.compile(r"^\s+shared-proceed:\s*$", re.MULTILINE)
+SHARED_PROCEED_JOB_IF = re.compile(r"inputs\.shared-proceed")
+JOB_HEADER = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$", re.MULTILINE)
+JOB_IF_LINE = re.compile(r"^    if:\s*(.*)$", re.MULTILINE)
 
 
 def list_subject_workflows() -> list[pathlib.Path]:
@@ -62,6 +65,56 @@ def list_subject_workflows() -> list[pathlib.Path]:
     ]
 
 
+def _job_if_expressions(text: str) -> list[str]:
+    """Return each job-level ``if:`` expression body (may be multiline)."""
+    lines = text.splitlines()
+    expressions: list[str] = []
+    i = 0
+    in_jobs = False
+    while i < len(lines):
+        line = lines[i]
+        if line == "jobs:" or line.startswith("jobs:"):
+            in_jobs = True
+            i += 1
+            continue
+        if not in_jobs:
+            i += 1
+            continue
+        if line and not line.startswith(" ") and not line.startswith("#"):
+            break
+        job_match = JOB_HEADER.match(line)
+        if not job_match:
+            i += 1
+            continue
+        i += 1
+        if_parts: list[str] = []
+        while i < len(lines):
+            cur = lines[i]
+            if JOB_HEADER.match(cur) or (
+                cur and not cur.startswith(" ") and not cur.startswith("#")
+            ):
+                break
+            if_match = JOB_IF_LINE.match(cur)
+            if if_match:
+                first = if_match.group(1).strip()
+                if first in (">-", "|-", ">", "|") or first.endswith(">-"):
+                    i += 1
+                    while i < len(lines) and (
+                        lines[i].startswith("      ") or lines[i].strip() == ""
+                    ):
+                        if lines[i].strip():
+                            if_parts.append(lines[i].strip())
+                        i += 1
+                else:
+                    if_parts.append(first)
+                    i += 1
+                break
+            i += 1
+        if if_parts:
+            expressions.append(" ".join(if_parts))
+    return expressions
+
+
 def validate_route(path: pathlib.Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     errors: list[str] = []
@@ -73,6 +126,13 @@ def validate_route(path: pathlib.Path) -> list[str]:
         errors.append(f"{path}: route workflows must not call aw-prelude.yml")
     if not SHARED_PROCEED_INPUT.search(text):
         errors.append(f"{path}: must declare workflow_call input shared-proceed")
+    elif not any(
+        SHARED_PROCEED_JOB_IF.search(expr) for expr in _job_if_expressions(text)
+    ):
+        errors.append(
+            f"{path}: must gate at least one job with inputs.shared-proceed "
+            "in its if: condition"
+        )
     return errors
 
 
@@ -121,7 +181,8 @@ def main() -> int:
 
     print(
         f"Validated {len(subjects)} *-aw-* workflow(s): "
-        "routes declare shared-proceed; event orchestrators call aw-prelude.yml."
+        "routes declare shared-proceed and gate jobs with it; "
+        "event orchestrators call aw-prelude.yml."
     )
     return 0
 

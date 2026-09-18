@@ -34,6 +34,7 @@ jobs:
 
   # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
   verify:
+    if: inputs.shared-proceed == 'true'
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -97,7 +98,7 @@ jobs:
   # Posts a single PR comment when the collection is inactive, ambiguous, or unclassified.
   check-dependency-collection:
     needs: verify
-    if: needs.verify.outputs.proceed == 'true'
+    if: inputs.shared-proceed == 'true' && needs.verify.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -167,6 +168,7 @@ jobs:
   resolve-apm-assets:
     needs: [verify, check-dependency-collection]
     if: >-
+      inputs.shared-proceed == 'true' &&
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true'
     permissions:
@@ -181,6 +183,7 @@ jobs:
   approve:
     needs: [verify, check-dependency-collection, resolve-apm-assets]
     if: >-
+      inputs.shared-proceed == 'true' &&
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true'
     permissions:
@@ -227,6 +230,7 @@ jobs:
     if: >-
       always() &&
       !cancelled() &&
+      inputs.shared-proceed == 'true' &&
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true' &&
       needs.approve.result == 'success'
