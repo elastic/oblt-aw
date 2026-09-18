@@ -4,7 +4,7 @@ name: E2E — Automerge VM images
 # Manual production E2E for obs:automerge:vm-images against elastic/oblt-aw.
 # Creates an ephemeral playground-shaped updatecli IMAGE bump PR as the Vault
 # app (OIDC create-token using workflow-token-policy from config/e2e.json,
-# bound to e2e-*.yml via token-policy-oblt-aw-e2e), then asserts
+# bound to e2e-*.yml via token-policy-6cd7ac55e207), then asserts
 # dependency-review → merge-ready → approve → automerge. Vault authorship
 # avoids the github-actions[bot] "Approve and run" gate on pull_request
 # workflows. Not part of the default PR required gate in ci.yml.
