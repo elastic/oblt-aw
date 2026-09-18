@@ -80,11 +80,14 @@ jobs:
     steps:
       - name: Checkout consumer repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Checkout oblt-aw resolver scripts
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
+          persist-credentials: false
           ref: main
           path: _oblt-aw
           fetch-depth: 1
