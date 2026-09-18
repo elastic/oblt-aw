@@ -12,7 +12,7 @@ import sys
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "scripts" / "obs" / "e2e"))
 
 import automerge_vm_images_e2e_harness as harness
 import oracle_automerge_vm_images_e2e as oracle
@@ -475,3 +475,8 @@ def test_required_dashboard_ids_from_config() -> None:
     assert "obs:automerge:vm-images" in ids
     assert "obs:dependency-review" in ids
     assert "obs:automerge" in ids
+
+
+def test_shared_e2e_token_policy_matches_documented_role() -> None:
+    cfg = json.loads((ROOT / "config" / "e2e.json").read_text(encoding="utf-8"))
+    assert cfg["workflow-token-policy"] == "token-policy-6cd7ac55e207"

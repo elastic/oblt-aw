@@ -14,15 +14,14 @@ import sys
 import pytest
 
 # Make ``scripts/`` (for ``common``) and ``scripts/obs/`` importable without installation.
-_root = pathlib.Path(__file__).parent.parent
+_root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_root / "scripts"))
 
-import build_repos_matrix as brm  # noqa: E402
-from common import (  # noqa: E402
+import build_repos_matrix as brm
+from common import (
     parse_active_repository_entries,
     parse_repositories,
 )
-
 
 # ── parse_repositories (common) ───────────────────────────────────────────────
 
@@ -235,7 +234,9 @@ class TestMain:
         (tmp_path / "scripts" / "build_repos_matrix.py").write_text(script_src)
         (tmp_path / "scripts" / "common.py").write_text(
             pathlib.Path(__file__)
-            .parent.parent.joinpath("scripts", "common.py")
+            .resolve()
+            .parents[2]
+            .joinpath("scripts", "common.py")
             .read_text()
         )
         (tmp_path / "config" / "obs").mkdir(parents=True)
