@@ -45,6 +45,7 @@ jobs:
       - name: Checkout elastic/oblt-aw (automerge verify only)
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           repository: elastic/oblt-aw
           ref: main
           path: _oblt-aw
@@ -109,6 +110,7 @@ jobs:
       - name: Checkout elastic/oblt-aw (dependency collection gate only)
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           repository: elastic/oblt-aw
           ref: main
           path: _oblt-aw
