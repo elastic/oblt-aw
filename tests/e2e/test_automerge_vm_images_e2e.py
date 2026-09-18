@@ -430,12 +430,43 @@ def test_automerge_job_executed_ignores_verify_sibling() -> None:
             "conclusion": "success",
         },
         {
-            "name": "run-obs-aw-pull-request / automerge / approve",
+            "name": "run-obs-aw-pull-request / automerge / approve / conclusion",
             "conclusion": "success",
         },
     )
     assert harness.automerge_job_executed(detail) is False
     assert harness.approve_job_executed(detail) is True
+
+
+def test_approve_job_executed_requires_conclusion_leaf() -> None:
+    """Wrapper `` / automerge / approve`` and agent-only must not green approve."""
+    detail = _run_with_jobs(
+        {
+            "name": "run-obs-aw-pull-request / automerge / approve",
+            "conclusion": "success",
+        },
+        {
+            "name": "run-obs-aw-pull-request / automerge / approve / agent",
+            "conclusion": "success",
+        },
+        {
+            "name": "run-obs-aw-pull-request / automerge / approve / activation",
+            "conclusion": "success",
+        },
+    )
+    assert harness.approve_job_executed(detail) is False
+    assert harness.approve_job_conclusion(detail) is None
+
+
+def test_approve_job_executed_matches_nested_conclusion_leaf() -> None:
+    detail = _run_with_jobs(
+        {
+            "name": "run-obs-aw-pull-request / automerge / approve / conclusion",
+            "conclusion": "success",
+        }
+    )
+    assert harness.approve_job_executed(detail) is True
+    assert harness.approve_job_conclusion(detail) == "success"
 
 
 def test_automerge_job_executed_requires_merge_leaf() -> None:
