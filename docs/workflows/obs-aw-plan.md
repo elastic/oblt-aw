@@ -34,7 +34,7 @@ The planning job calls:
 
 ## Safe outputs
 
-Planning comments are limited by the GH-AW `add-comment` safe-output scope, and bounded follow-up issue creation is limited to five issues per run by the workflow's `create-issue-max` input.
+Planning comments are limited to issues by the GH-AW `add-comment` safe-output scope, and bounded follow-up issue creation is limited to five issues per run by the workflow's `create-issue-max` input.
 
 ## Configuration
 
