@@ -481,11 +481,19 @@ def automerge_job_executed(run_detail: dict[str, Any] | None) -> bool:
 
 
 def approve_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
-    """Conclusion of the approve leaf under the automerge reusable call."""
+    """Conclusion of the approve GH-AW terminal leaf under automerge.
+
+    Nested reusable names look like
+    ``run-obs-aw-pull-request / automerge / approve / conclusion``.
+    Matching only `` / automerge / approve`` never hits that leaf (only a
+    non-existent wrapper name) and would leave ``approve_job_executed`` false
+    after a successful agentic approve. Do not treat intermediate agent /
+    activation jobs as the gate — require the lock ``conclusion`` leaf, same
+    fail-closed pattern as dependency-review and `` / automerge / automerge``.
+    """
     return _job_conclusion_by_exact_or_suffix(
         run_detail,
-        exact_names=("approve",),
-        endswith_suffixes=(" / automerge / approve", " / approve"),
+        endswith_suffixes=(" / automerge / approve / conclusion",),
     )
 
 
@@ -913,12 +921,16 @@ def run_live_case(
                 f"Waiting for automerge route on {workflow_file} "
                 f"(PR #{pr_info['number']})…"
             )
-            # labeled event starts a new run after merge-ready is applied
-            am_since = _utc_now().replace(microsecond=0)
+            # Use harness-start ``since`` (not "now" after label/comment polls).
+            # The labeled automerge run often starts when merge-ready is applied,
+            # which can be before DR conclusion / comment waits finish; a late
+            # am_since excludes that run for the full poll timeout.
+            # known_run_ids already drops the dependency-review run; sibling
+            # runs without a successful merge leaf are excluded by the waiter.
             am_run = wait_for_pr_route_run(
                 repo,
                 workflow_file,
-                since=am_since,
+                since=since,
                 timeout_seconds=timeout,
                 interval_seconds=interval,
                 exclude_run_ids=known_run_ids,
@@ -926,20 +938,8 @@ def run_live_case(
                 require_job="automerge",
             )
             if am_run is None:
-                # Also accept a run that started slightly before label poll ended.
-                am_run = wait_for_pr_route_run(
-                    repo,
-                    workflow_file,
-                    since=since,
-                    timeout_seconds=interval * 3,
-                    interval_seconds=interval,
-                    exclude_run_ids=known_run_ids,
-                    head_branch=head_branch,
-                    require_job="automerge",
-                )
-            if am_run is None:
                 raise TimeoutError(
-                    f"No successful automerge/approve job on {workflow_file} "
+                    f"No successful automerge merge leaf on {workflow_file} "
                     f"within {timeout}s for PR #{pr_info['number']}."
                 )
 
