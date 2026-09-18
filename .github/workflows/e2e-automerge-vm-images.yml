@@ -10,12 +10,6 @@ name: E2E — Automerge VM images
 # workflows. Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
-  workflow_call:
-    inputs:
-      shared-proceed:
-        description: Dashboard gate for this route from aw-prelude.
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -30,7 +24,6 @@ env:
 jobs:
   e2e:
     name: Automerge vm-images E2E
-    if: github.event_name == 'workflow_dispatch' || inputs.shared-proceed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
