@@ -33,11 +33,6 @@ on:
         type: string
         required: false
         default: ""
-      github-token-policy:
-        description: "Token policy used for ephemeral GitHub token minting"
-        type: string
-        required: false
-        default: ""
       allowed-bot-users:
         description: "Allowed bot actor usernames (comma-separated)"
         type: string
@@ -99,7 +94,7 @@ Assist with implementation planning on ${{ github.repository }} from issue comme
 ## Context
 
 - **Repository**: ${{ github.repository }}
-- **Issue**: #${{ github.event.issue.number }} — ${{ github.event.issue.title }}
+- **Issue**: #${{ github.event.issue.number }}
 - **Request**: "${{ steps.sanitized.outputs.text }}"
 
 ## Constraints
