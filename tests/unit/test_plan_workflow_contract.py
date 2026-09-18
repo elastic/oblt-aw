@@ -10,6 +10,7 @@ PLAN_WRAPPER = REPO_ROOT / ".github/workflows/obs-aw-plan.yml"
 PLAN_SAFE_OUTPUTS = (
     REPO_ROOT / ".github/workflows/gh-aw-fragments/safe-output-add-comment-issue.md"
 )
+PLAN_LOCK = REPO_ROOT / ".github/workflows/gh-aw-plan.lock.yml"
 
 
 def test_plan_prompt_does_not_interpolate_raw_issue_title() -> None:
@@ -43,7 +44,9 @@ def test_plan_workflow_uses_automatic_github_token() -> None:
 
 def test_plan_safe_outputs_are_limited_to_issues() -> None:
     safe_outputs = PLAN_SAFE_OUTPUTS.read_text(encoding="utf-8")
+    lock = PLAN_LOCK.read_text(encoding="utf-8")
 
     assert "issues: true" in safe_outputs
     assert "pull-requests: false" in safe_outputs
     assert "discussions: false" in safe_outputs
+    assert r"\"add_comment\":{\"discussions\":false,\"max\":1}" in lock

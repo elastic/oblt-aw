@@ -42,7 +42,7 @@ Permissions:
 
 - top-level: `contents: read`
 - job `resolve-apm-assets`: `contents: read`, `id-token: write`
-- job `plan`: `actions: read`, `contents: read`, `copilot-requests: write`, `issues: write`, `pull-requests: read`
+- job `plan`: `actions: read`, `contents: read`, `copilot-requests: write`, `discussions: write`, `issues: write`, `pull-requests: write` to satisfy the generated GH-AW reusable-workflow contract. The plan's safe-output configuration remains issue-only and disallows discussion or pull-request comments.
 
 ## API / Interface
 
