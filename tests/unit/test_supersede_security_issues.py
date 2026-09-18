@@ -8,7 +8,7 @@ import subprocess
 import pytest
 
 SCRIPT = (
-    pathlib.Path(__file__).parent.parent
+    pathlib.Path(__file__).resolve().parents[2]
     / "scripts"
     / "obs"
     / "supersede-security-issues.sh"

@@ -10,10 +10,10 @@ from __future__ import annotations
 import pathlib
 import sys
 
-_root = pathlib.Path(__file__).parent.parent
+_root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_root / "scripts"))
 
-import dashboard_audit as da  # noqa: E402
+import dashboard_audit as da
 
 
 class TestDiffCheckboxStates:

@@ -8,6 +8,7 @@ name: E2E — ESTC PR Buildkite Detective
 # Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -60,7 +61,7 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          python3 scripts/estc_pr_buildkite_detective_e2e_harness.py \
+          python3 scripts/obs/e2e/estc_pr_buildkite_detective_e2e_harness.py \
             --case-id "${CASE_ID}" \
             --run-url "${RUN_URL}" \
             --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json"
@@ -70,7 +71,7 @@ jobs:
         id: oracle
         run: |
           set -euo pipefail
-          python3 scripts/oracle_estc_pr_buildkite_detective_e2e.py \
+          python3 scripts/obs/e2e/oracle_estc_pr_buildkite_detective_e2e.py \
             --outcome-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/outcome.json" \
             --report-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/oracle-report.json" \
             --summary-path "artifacts/e2e/estc-pr-buildkite-detective/${CASE_ID}/summary.json" \

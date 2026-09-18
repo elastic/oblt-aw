@@ -286,6 +286,16 @@ test('classifyChangedFiles allows dashboard-enabled package-version collection',
     status: 'allowed',
     collectionId: 'package-version',
   });
+
+  const rootOutcome = classifyChangedFiles(
+    ['.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(rootOutcome, {
+    status: 'allowed',
+    collectionId: 'package-version',
+  });
 });
 
 test('classifyChangedFiles allows dashboard-enabled root package-version collection', () => {
@@ -322,6 +332,16 @@ test('classifyChangedFiles rejects dashboard-disabled package-version collection
     enabledAutomergeCollectionIds(ENABLED)
   );
   assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: 'package-version',
+  });
+
+  const rootOutcome = classifyChangedFiles(
+    ['.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(rootOutcome, {
     status: 'disabled',
     collectionId: 'package-version',
   });

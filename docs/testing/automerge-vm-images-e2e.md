@@ -37,7 +37,9 @@ CI for fixture PRs is skipped when the `ci-gate` job in [`ci.yml`](../../.github
 gh workflow run e2e-automerge-vm-images.yml
 ```
 
-Trigger: `workflow_dispatch` (manual). Concurrency group `e2e-automerge-vm-images`.
+To run every leaf E2E (this one plus others): `gh workflow run e2e-all.yml`.
+
+Triggers: `workflow_dispatch` (manual) and `workflow_call` (from `e2e-all.yml`). Concurrency group `e2e-automerge-vm-images`.
 
 ### Harness/oracle unit coverage (no live agent)
 
@@ -52,7 +54,7 @@ Each run uploads `e2e-automerge-vm-images-vm-images-bump-live-<run_id>` with `ou
 ## Related
 
 - Config: [`config/obs/e2e-automerge-vm-images.json`](../../config/obs/e2e-automerge-vm-images.json)
-- Harness/oracle: [`scripts/`](../../scripts/) (`automerge_vm_images_e2e_harness.py`, `oracle_automerge_vm_images_e2e.py`)
+- Harness/oracle: [`scripts/obs/e2e/`](../../scripts/obs/e2e/)
 - Fixture pipeline: [`.buildkite/pipeline.e2e-automerge-vm-images.yml`](../../.buildkite/pipeline.e2e-automerge-vm-images.yml)
 - Playground reference: `elastic/observability-robots-playground-public` (`bump-vm-images.yml`, `updatecli/updatecli-bump-vm-images.yml`)
 - Routing: [automerge-routing](../routing/automerge-routing.md)

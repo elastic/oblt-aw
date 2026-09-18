@@ -16,10 +16,9 @@ import sys
 import pytest
 
 # Make the scripts/ package importable without installation.
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
 
-import build_target_operations as bto  # noqa: E402  (after sys.path manipulation)
-
+import build_target_operations as bto
 
 # ── parse_repositories ────────────────────────────────────────────────────────
 
