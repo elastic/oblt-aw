@@ -37,8 +37,8 @@ Some control-plane workflows use explicit policy ids in YAML (not copied into co
 
 | Workflow | Policy id (in this repo) |
 |----------|--------------------------|
-| [distribute-client-workflow](../../.github/workflows/distribute-client-workflow.yml) | `token-policy-63405ab45244` |
-| [sync-control-plane-dashboard](../../.github/workflows/sync-control-plane-dashboard.yml) | `token-policy-8b60ba56dd3f` |
+| [distribute-client-workflow](../../../.github/workflows/distribute-client-workflow.yml) | `token-policy-63405ab45244` |
+| [sync-control-plane-dashboard](../../../.github/workflows/sync-control-plane-dashboard.yml) | `token-policy-8b60ba56dd3f` |
 
 See the reference table in [Registering resources — appendix](../../onboarding/registering-a-repository.md).
 
