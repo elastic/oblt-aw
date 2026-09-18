@@ -152,3 +152,10 @@ class TestValidateRegistryAgainstWorkflows:
             tmp_path, workflows, {"obs-aw-agent-suggestions.yml"}
         )
         assert any("not listed" in err for err in errors)
+
+
+class TestValidateAutomergeSubFeatures:
+    def test_checked_in_obs_automerge_sub_features_match_collections(self) -> None:
+        config_dir = pathlib.Path(__file__).parent.parent / "config"
+        entries = wr.parse_registry_entries(config_dir / "obs")
+        wr.validate_automerge_sub_features(config_dir, entries)
