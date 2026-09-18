@@ -38,7 +38,7 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
         "agent_invoked": True,
         "path_gates": {
             "dashboard_enabled": True,
-            "author_is_github_actions": True,
+            "author_matches_allowed": True,
         },
         "dependency_review": {
             "run_seen": True,
@@ -60,7 +60,7 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
         },
         "approving_review": {
             "id": 9,
-            "user": "elastic-vault-github-plugin-prod[bot]",
+            "user": "github-actions[bot]",
             "state": "APPROVED",
         },
         "merge": {"merged": True, "auto_merge_enabled": False},
@@ -102,12 +102,17 @@ def test_bump_image_pins_fails_closed_without_pins() -> None:
 
 
 def test_author_login_from_rest_pull_uses_webhook_form() -> None:
-    """REST user.login is github-actions[bot]; GraphQL app/… must not authorize."""
+    """REST user.login is …[bot]; GraphQL app/… must not authorize."""
     login = harness.author_login_from_rest_pull(
-        {"user": {"login": "github-actions[bot]", "type": "Bot"}}
+        {
+            "user": {
+                "login": "elastic-vault-github-plugin-prod[bot]",
+                "type": "Bot",
+            }
+        }
     )
-    assert login == "github-actions[bot]"
-    assert login != "app/github-actions"
+    assert login == "elastic-vault-github-plugin-prod[bot]"
+    assert login != "app/elastic-vault-github-plugin-prod"
 
 
 def test_author_login_from_rest_pull_fails_closed_without_login() -> None:
@@ -117,6 +122,80 @@ def test_author_login_from_rest_pull_fails_closed_without_login() -> None:
         harness.author_login_from_rest_pull({"user": None})  # type: ignore[dict-item]
     with pytest.raises(TypeError, match="missing object user"):
         harness.author_login_from_rest_pull({})
+
+
+def test_dependency_review_job_matches_nested_conclusion_leaf() -> None:
+    """GH-AW terminal leaf authorizes; skipped wrapper / siblings do not."""
+    success = {
+        "jobs": [
+            {
+                "name": "run-obs-aw-pull-request / dependency-review",
+                "conclusion": "skipped",
+            },
+            {
+                "name": (
+                    "run-obs-aw-pull-request / dependency-review / "
+                    "dependency-review / agent"
+                ),
+                "conclusion": "success",
+            },
+            {
+                "name": (
+                    "run-obs-aw-pull-request / dependency-review / "
+                    "dependency-review / conclusion"
+                ),
+                "conclusion": "success",
+            },
+            {
+                "name": "run-obs-aw-pull-request / dependency-review / notify-no-comment",
+                "conclusion": "skipped",
+            },
+        ]
+    }
+    assert harness.dependency_review_job_executed(success) is True
+    assert harness.dependency_review_job_conclusion(success) == "success"
+
+
+def test_dependency_review_job_ignores_skipped_wrapper_only() -> None:
+    skipped_only = {
+        "jobs": [
+            {
+                "name": "run-obs-aw-pull-request / dependency-review",
+                "conclusion": "skipped",
+            }
+        ]
+    }
+    assert harness.dependency_review_job_executed(skipped_only) is False
+    assert harness.dependency_review_job_conclusion(skipped_only) is None
+
+
+def test_dependency_review_job_ignores_agent_without_conclusion() -> None:
+    """Broad `` / dependency-review`` and agent-only must not green the gate."""
+    agent_only = {
+        "jobs": [
+            {
+                "name": "run-obs-aw-pull-request / dependency-review",
+                "conclusion": "success",
+            },
+            {
+                "name": (
+                    "run-obs-aw-pull-request / dependency-review / "
+                    "dependency-review / agent"
+                ),
+                "conclusion": "success",
+            },
+            {
+                "name": "run-obs-aw-pull-request / dependency-review / notify-no-comment",
+                "conclusion": "success",
+            },
+            {
+                "name": "run-obs-aw-pull-request / automerge / approve / conclusion",
+                "conclusion": "success",
+            },
+        ]
+    }
+    assert harness.dependency_review_job_executed(agent_only) is False
+    assert harness.dependency_review_job_conclusion(agent_only) is None
 
 
 def test_oracle_happy_path_passes() -> None:
@@ -254,14 +333,35 @@ def test_oracle_fails_closed_on_non_bool_author_gate() -> None:
         _synthetic_live_outcome(
             path_gates={
                 "dashboard_enabled": True,
-                "author_is_github_actions": "yes",
+                "author_matches_allowed": "yes",
             }
         )
     )
     assert report["pass"] is False
-    assert any(
-        c["id"] == "author_github_actions" and not c["pass"] for c in report["checks"]
+    assert any(c["id"] == "author_allowed" and not c["pass"] for c in report["checks"])
+
+
+def test_oracle_fails_when_author_gate_false() -> None:
+    report = _evaluate(
+        _synthetic_live_outcome(
+            path_gates={
+                "dashboard_enabled": True,
+                "author_matches_allowed": False,
+            }
+        )
     )
+    assert report["pass"] is False
+    assert any(c["id"] == "author_allowed" and not c["pass"] for c in report["checks"])
+
+
+def test_config_allowed_author_is_vault_bot() -> None:
+    assert harness.ALLOWED_AUTHOR == "elastic-vault-github-plugin-prod[bot]"
+    cfg = json.loads(
+        (ROOT / "config" / "obs" / "e2e-automerge-vm-images.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert cfg["allowed_pr_author"] == harness.ALLOWED_AUTHOR
 
 
 def _run_with_jobs(*jobs: dict) -> dict:

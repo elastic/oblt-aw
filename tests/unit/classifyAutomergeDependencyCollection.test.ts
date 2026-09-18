@@ -185,6 +185,17 @@ const UPDATE_BEATS_GLOBS = [
 ];
 
 const GO_DEPENDENCY_GLOBS = ['go.mod', 'go.sum', '**/go.mod', '**/go.sum'];
+const VM_IMAGES_COLLECTION = {
+  id: 'vm-images',
+  'file-glob': [
+    '.buildkite/**',
+    '**/Dockerfile',
+    '**/Dockerfile.*',
+    '**/docker-compose.yml',
+    '**/docker-compose.yaml',
+    'testing/environments/snapshot.yml',
+  ],
+};
 
 test('classifyChangedFiles allows dashboard-enabled update-beats collection', () => {
   const collections = [
@@ -227,6 +238,72 @@ test('classifyChangedFiles rejects dashboard-disabled update-beats collection', 
   assert.deepEqual(outcome, {
     status: 'disabled',
     collectionId: 'update-beats',
+  });
+});
+
+test('classifyChangedFiles allows dashboard-enabled vm-images snapshot.yml PR', () => {
+  const collections = [...COLLECTIONS, VM_IMAGES_COLLECTION];
+  const enabled = ['obs:automerge', 'obs:automerge:vm-images'];
+  const outcome = classifyChangedFiles(
+    ['testing/environments/snapshot.yml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'vm-images',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled vm-images snapshot.yml PR', () => {
+  const collections = [...COLLECTIONS, VM_IMAGES_COLLECTION];
+  const outcome = classifyChangedFiles(
+    ['testing/environments/snapshot.yml'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: 'vm-images',
+  });
+});
+
+test('classifyChangedFiles allows dashboard-enabled package-version collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'package-version',
+      'file-glob': ['.package-version', '**/.package-version'],
+    },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:package-version'];
+  const outcome = classifyChangedFiles(
+    ['nested/.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'package-version',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled package-version collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'package-version',
+      'file-glob': ['.package-version', '**/.package-version'],
+    },
+  ];
+  const outcome = classifyChangedFiles(
+    ['nested/.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: 'package-version',
   });
 });
 

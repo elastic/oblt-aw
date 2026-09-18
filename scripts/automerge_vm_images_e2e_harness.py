@@ -17,8 +17,9 @@
 """Live E2E harness for obs:automerge:vm-images.
 
 Creates an ephemeral same-repo PR that mimics playground updatecli VM-image
-bumps (github-actions[bot] + .buildkite/** IMAGE pins), then waits for
-dependency-review → merge-ready → automerge approve/merge.
+bumps (.buildkite/** IMAGE pins) authored as the Vault app via OIDC
+create-token (avoids the github-actions[bot] pull_request approval gate),
+then waits for dependency-review → merge-ready → automerge approve/merge.
 """
 
 from __future__ import annotations
@@ -45,7 +46,9 @@ FIXTURE_BRANCH_PREFIX = "e2e/automerge-vm-images/"
 IMAGE_PIN_RE = re.compile(
     r'(IMAGE_[A-Z0-9_]+):\s*"platform-ingest-elastic-agent-([^-"]+)-(\d+)"'
 )
-ALLOWED_AUTHOR = "github-actions[bot]"
+# Vault app — live harness mints create-token so pull_request workflows run
+# without the github-actions[bot] "Approve and run" gate (2026-06 changelog).
+ALLOWED_AUTHOR = "elastic-vault-github-plugin-prod[bot]"
 
 
 def author_login_from_rest_pull(payload: dict[str, Any]) -> str:
@@ -53,8 +56,8 @@ def author_login_from_rest_pull(payload: dict[str, Any]) -> str:
 
     Use REST ``user.login`` (same form as ``github.event.pull_request.user.login``
     and ``allowed_pr_authors.json``). Do **not** use ``gh pr view --json author``:
-    since gh >= 2.50 GraphQL returns ``app/github-actions`` for the Actions bot
-    while REST still returns ``github-actions[bot]``.
+    since gh >= 2.50 GraphQL returns ``app/…`` for GitHub Apps while REST still
+    returns the ``…[bot]`` login form used by workflow ``if`` conditions.
     """
     user = payload.get("user")
     if not isinstance(user, dict):
@@ -417,11 +420,20 @@ def _job_conclusion_by_exact_or_suffix(
 def dependency_review_job_conclusion(
     run_detail: dict[str, Any] | None,
 ) -> str | None:
-    """Conclusion of the dependency-review leaf job on the PR trigger run."""
+    """Conclusion of the dependency-review GH-AW terminal leaf on the PR trigger.
+
+    Nested reusable names look like
+    ``run-obs-aw-pull-request / dependency-review / dependency-review / conclusion``.
+    Matching only `` / dependency-review`` never hits those leaves (only the
+    skipped wrapper on ``labeled`` runs) and would false-timeout the waiter.
+    Do not treat ``notify-no-comment``, intermediate agent/activation jobs, or
+    unrelated GH-AW ``conclusion`` leaves (for example under automerge approve)
+    as the gate — require the lock ``conclusion`` leaf under the nested
+    dependency-review call, same fail-closed pattern as `` / automerge / automerge``.
+    """
     return _job_conclusion_by_exact_or_suffix(
         run_detail,
-        exact_names=("dependency-review",),
-        endswith_suffixes=(" / dependency-review",),
+        endswith_suffixes=(" / dependency-review / dependency-review / conclusion",),
     )
 
 
@@ -787,10 +799,7 @@ def run_live_case(
             }
         )
         author = str(pr_info.get("author_login") or "")
-        if (
-            trigger.get("require_github_actions_author", True)
-            and author != allowed_author
-        ):
+        if trigger.get("require_allowed_pr_author", True) and author != allowed_author:
             return {
                 "workflow_id": workflow_id,
                 "case_id": case.get("id", case_dir.name),
@@ -800,9 +809,12 @@ def run_live_case(
                 "blocked": True,
                 "block_reason": (
                     f"Fixture PR author is {author!r}, expected {allowed_author!r} "
-                    "(REST user.login). Run this harness under GitHub Actions with "
-                    "GITHUB_TOKEN so Contents API commits and gh pr create are "
-                    "authored as github-actions[bot] (matches updatecli)."
+                    "(REST user.login). Run under GitHub Actions with Vault "
+                    "create-token using workflow-token-policy from "
+                    "config/e2e.json (see e2e-automerge-vm-images.yml) "
+                    "so Contents API commits and gh pr create are authored as "
+                    "the Vault app (pull_request workflows then run without "
+                    "maintainer Approve-and-run)."
                 ),
                 "path_gates": {"dashboard_enabled": dashboard_ok},
                 "fixture": fixture_meta,
@@ -942,7 +954,7 @@ def run_live_case(
     path_gates = {
         "dashboard_enabled": dashboard_ok,
         "has_open_or_merged_pr": True,
-        "author_is_github_actions": author == allowed_author,
+        "author_matches_allowed": author == allowed_author,
     }
 
     return {
