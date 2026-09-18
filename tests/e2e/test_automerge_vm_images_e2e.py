@@ -465,6 +465,24 @@ def test_case_json_schema_matches_oracle_required_keys() -> None:
     assert oracle.case_trigger_schema_error(case["trigger"]) is None
 
 
+def test_harness_trigger_bool_accepts_legacy_author_key() -> None:
+    assert (
+        harness._trigger_bool(  # type: ignore[attr-defined]
+            {"require_github_actions_author": False},
+            "require_allowed_pr_author",
+            default=True,
+            aliases=("require_github_actions_author",),
+        )
+        is False
+    )
+
+
+def test_oracle_trigger_schema_accepts_legacy_author_key() -> None:
+    trigger = dict(_live_case()["trigger"])
+    trigger["require_github_actions_author"] = trigger.pop("require_allowed_pr_author")
+    assert oracle.case_trigger_schema_error(trigger) is None
+
+
 def test_required_dashboard_ids_from_config() -> None:
     cfg = json.loads(
         (ROOT / "config" / "obs" / "e2e-automerge-vm-images.json").read_text(

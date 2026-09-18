@@ -49,6 +49,7 @@ IMAGE_PIN_RE = re.compile(
 # Vault app — live harness mints create-token so pull_request workflows run
 # without the github-actions[bot] "Approve and run" gate (2026-06 changelog).
 ALLOWED_AUTHOR = "elastic-vault-github-plugin-prod[bot]"
+LEGACY_REQUIRE_ALLOWED_PR_AUTHOR_KEY = "require_github_actions_author"
 
 
 def author_login_from_rest_pull(payload: dict[str, Any]) -> str:
@@ -84,6 +85,25 @@ def _load_json(path: Path) -> Any:
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _trigger_bool(
+    trigger: dict[str, Any],
+    key: str,
+    *,
+    default: bool,
+    aliases: tuple[str, ...] = (),
+) -> bool:
+    for candidate in (key, *aliases):
+        if candidate not in trigger:
+            continue
+        value = trigger[candidate]
+        if isinstance(value, bool):
+            return value
+        raise TypeError(
+            f"trigger {candidate!r} must be bool, got {type(value).__name__}: {value!r}"
+        )
+    return default
 
 
 def load_e2e_config(path: Path) -> dict[str, Any]:
@@ -799,7 +819,15 @@ def run_live_case(
             }
         )
         author = str(pr_info.get("author_login") or "")
-        if trigger.get("require_allowed_pr_author", True) and author != allowed_author:
+        if (
+            _trigger_bool(
+                trigger,
+                "require_allowed_pr_author",
+                default=True,
+                aliases=(LEGACY_REQUIRE_ALLOWED_PR_AUTHOR_KEY,),
+            )
+            and author != allowed_author
+        ):
             return {
                 "workflow_id": workflow_id,
                 "case_id": case.get("id", case_dir.name),

@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 WORKFLOW_ID = "obs:automerge"
+LEGACY_REQUIRE_ALLOWED_PR_AUTHOR_KEY = "require_github_actions_author"
 
 _LIVE_REQUIRED_EXPECTATION_KEYS = (
     "dashboard_enabled",
@@ -46,7 +47,6 @@ _LIVE_REQUIRED_EXPECTATION_KEYS = (
 _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "require_open_pr",
     "force_vm_image_bump",
-    "require_allowed_pr_author",
     "wait_dependency_review",
     "wait_automerge",
 )
@@ -97,6 +97,20 @@ def _as_bool(value: Any) -> bool:
     raise TypeError(f"expected bool, got {type(value).__name__}: {value!r}")
 
 
+def _trigger_bool(
+    trigger: dict[str, Any],
+    key: str,
+    *,
+    default: bool,
+    aliases: tuple[str, ...] = (),
+) -> bool:
+    for candidate in (key, *aliases):
+        if candidate not in trigger:
+            continue
+        return _as_bool(trigger[candidate])
+    return default
+
+
 def case_expectations_schema_error(
     mode: str, expectations: dict[str, Any]
 ) -> str | None:
@@ -115,6 +129,11 @@ def case_expectations_schema_error(
 
 def case_trigger_schema_error(trigger: dict[str, Any]) -> str | None:
     missing = [k for k in _LIVE_REQUIRED_TRIGGER_BOOL_KEYS if k not in trigger]
+    if (
+        "require_allowed_pr_author" not in trigger
+        and LEGACY_REQUIRE_ALLOWED_PR_AUTHOR_KEY not in trigger
+    ):
+        missing.append("require_allowed_pr_author")
     if missing:
         return f"live trigger missing required keys: {missing}"
     for key in _LIVE_REQUIRED_TRIGGER_BOOL_KEYS:
@@ -122,6 +141,15 @@ def case_trigger_schema_error(trigger: dict[str, Any]) -> str | None:
             _as_bool(trigger[key])
         except TypeError as exc:
             return f"live trigger {key!r} must be bool ({exc})"
+    try:
+        _trigger_bool(
+            trigger,
+            "require_allowed_pr_author",
+            default=True,
+            aliases=(LEGACY_REQUIRE_ALLOWED_PR_AUTHOR_KEY,),
+        )
+    except TypeError as exc:
+        return f"live trigger 'require_allowed_pr_author' must be bool ({exc})"
     return None
 
 
@@ -281,7 +309,12 @@ def _evaluate_live(
         except TypeError as exc:
             _check(checks, "dashboard_enabled", False, str(exc))
 
-        if trigger.get("require_allowed_pr_author"):
+        if _trigger_bool(
+            trigger,
+            "require_allowed_pr_author",
+            default=True,
+            aliases=(LEGACY_REQUIRE_ALLOWED_PR_AUTHOR_KEY,),
+        ):
             try:
                 author_ok = _as_bool(path_gates.get("author_matches_allowed"))
                 _check(
