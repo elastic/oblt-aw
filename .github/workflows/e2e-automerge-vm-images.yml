@@ -89,8 +89,6 @@ jobs:
 
       - name: Run structured oracle
         id: oracle
-        env:
-          GH_TOKEN: ${{ steps.create-token.outputs.token }}
         run: |
           set -euo pipefail
           python3 scripts/oracle_automerge_vm_images_e2e.py \
