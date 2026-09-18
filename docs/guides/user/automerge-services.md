@@ -9,7 +9,7 @@ Automerge has two layers:
 
 This lets a team say: “We trust Automerge for these update types, but not for the rest.”
 
-If a service is **enabled**, matching bot PRs can continue through the normal validation, approval, and merge flow. If a service is **disabled**, those PRs stay unmerged and the dashboard points you back here so you can enable the right category if you want it.
+If a service is **enabled**, matching bot PRs can continue through the normal validation, approval, and merge flow. If a service is **disabled**, those PRs stay unmerged; use the Automerge link on the Control Plane Dashboard or the dependency-collection gate comment to review this catalogue and enable the right category if you want it.
 
 Technical details for eligibility, validation, approval, tokens, and merge behavior live in:
 
@@ -40,5 +40,6 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 ## Related dashboard behavior
 
 - The dashboard shows each service with a concise label and description.
+- The dashboard's **Automerge** link opens this guide for service selection, while the technical workflow and routing docs above cover implementation details.
 - The checkbox marker is the real parsing contract; the visible text is for humans.
 - Parent and service checkboxes are still subject to the normal Automerge workflow rules.
