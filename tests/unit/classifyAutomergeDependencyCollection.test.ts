@@ -288,6 +288,26 @@ test('classifyChangedFiles allows dashboard-enabled package-version collection',
   });
 });
 
+test('classifyChangedFiles allows dashboard-enabled root package-version collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'package-version',
+      'file-glob': ['.package-version', '**/.package-version'],
+    },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:package-version'];
+  const outcome = classifyChangedFiles(
+    ['.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'package-version',
+  });
+});
+
 test('classifyChangedFiles rejects dashboard-disabled package-version collection', () => {
   const collections = [
     ...COLLECTIONS,
