@@ -14,7 +14,7 @@ jobs:
     uses: ./.github/workflows/aw-prelude.yml
     with:
       control-plane-workflows: >-
-        ["obs-aw-issue-fixer.yml","obs-aw-mention-in-issue.yml"]
+        ["obs-aw-issue-fixer.yml","obs-aw-mention-in-issue.yml","obs-aw-plan.yml"]
       load-allowed-authors: false
 
   dashboard-audit-reason:
@@ -87,3 +87,27 @@ jobs:
       shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
       shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+
+  plan:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-plan.yml'] == 'true' &&
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      github.event.issue.pull_request == null &&
+      startsWith(github.event.comment.body, '/plan')
+    permissions:
+      actions: read
+      contents: read
+      copilot-requests: write
+      discussions: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/obs-aw-plan.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-plan.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}

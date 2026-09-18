@@ -57,11 +57,11 @@ Full platform view (distribution, dashboard sync, before/after ingress): [archit
 |-----------------|----------|-------------------|
 | `trigger-obs-aw-pull-request.yml` | `pull_request` (opened, synchronize, reopened, labeled) | `obs-aw-event-pull-request.yml` → automerge, dependency-review |
 | `trigger-obs-aw-issues.yml` | `issues` (opened, labeled, edited), `workflow_dispatch` | `obs-aw-event-issues.yml` → dashboard-audit (edited + `oblt-aw/dashboard`), issue-triage, duplicate-issue-detector, security superseder/triage/fixer, resource triage/fixer |
-| `trigger-obs-aw-issue-comment.yml` | `issue_comment` created | `obs-aw-event-issue-comment.yml` → dashboard-audit-reason (`oblt-aw/dashboard`), issue-fixer, mention-in-issue |
+| `trigger-obs-aw-issue-comment.yml` | `issue_comment` created | `obs-aw-event-issue-comment.yml` → dashboard-audit-reason (`oblt-aw/dashboard`), issue-fixer, mention-in-issue, plan |
 | `trigger-obs-aw-schedule.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `obs-aw-event-schedule.yml` → agent-suggestions, autodoc, security category detectors, resource-not-accessible detector |
 | `trigger-obs-aw-status.yml` | `status` (Buildkite failure only, job `if`) | `obs-aw-event-status.yml` → estc-pr-buildkite-detective |
 
-Route-specific conditions (labels, `/ai` comment prefix, allow-listed PR authors, and so on) are enforced inside each `obs-aw-*` reusable workflow after prelude gating.
+Route-specific conditions (labels, `/ai` or `/plan` comment prefixes, allow-listed PR authors, and so on) are enforced inside each `obs-aw-*` reusable workflow after prelude gating. For `/plan`, the outer bridge only narrows to created issue comments for APM efficiency; the compiled GH-AW `slash_command` roles gate is the authorization boundary.
 
 ## Configuration
 
