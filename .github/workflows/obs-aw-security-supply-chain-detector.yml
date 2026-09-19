@@ -64,7 +64,7 @@ jobs:
         run: |
           chmod +x _oblt-aw/scripts/obs/security-scan.sh
           _oblt-aw/scripts/obs/security-scan.sh target supply-chain 2>/dev/null | tee findings.txt || true
-          count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || echo 0)
+          count=$(grep -cve '^[[:space:]]*$' findings.txt 2>/dev/null || true)
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
       - name: Create ephemeral GitHub token (configured policy)

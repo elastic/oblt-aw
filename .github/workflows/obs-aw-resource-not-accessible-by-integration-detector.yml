@@ -107,6 +107,8 @@ jobs:
       inputs.shared-proceed == 'true' &&
       needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
     strategy:
+      fail-fast: false
+      max-parallel: 1
       matrix:
         workflow: ${{ fromJSON(needs.discover.outputs.workflows) }}
     uses: elastic/ai-github-actions/.github/workflows/gh-aw-log-searching-agent.lock.yml@main
