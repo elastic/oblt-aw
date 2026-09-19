@@ -9,6 +9,7 @@ This reusable wrapper runs the upstream agent-suggestions workflow with reposito
 ## Prerequisites
 
 - Triggered via `workflow_call`.
+- Nested lock accepts optional `GH_AW_GITHUB_TOKEN` / `GH_AW_GITHUB_MCP_SERVER_TOKEN`, but this wrapper does not use `secrets: inherit`.
 
 ## Usage
 

@@ -9,6 +9,7 @@ This reusable workflow automates documentation maintenance in two stages: audit 
 ## Prerequisites
 
 - Triggered via `workflow_call`.
+- Nested locks (`gh-aw-docs-patrol` and `gh-aw-create-pr-from-issue`) accept optional `GH_AW_GITHUB_TOKEN` / MCP secrets, but this wrapper avoids `secrets: inherit` and relies on least-privilege defaults.
 
 ## Usage
 
