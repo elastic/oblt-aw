@@ -48,6 +48,10 @@ Permissions:
 
 `notify-fix-failure` uses job-level `issues: write` only.
 
+Secret handling:
+
+- Nested reusable-workflow calls do not use `secrets: inherit`; jobs rely on GitHub's automatic token/context and optional explicit secrets in upstream locks.
+
 ## API / Interface
 
 `workflow_call` contract:
