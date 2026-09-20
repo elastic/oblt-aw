@@ -2,6 +2,7 @@
 name: E2E — All
 
 # Manual orchestrator: call every leaf e2e-*.yml via workflow_call in parallel.
+# Secret handling is explicit per callee; never use `secrets: inherit` here.
 # Add a new job here when introducing a new leaf E2E workflow.
 # Not part of the default PR required gate in ci.yml.
 on:
@@ -25,7 +26,6 @@ jobs:
       checks: read
       id-token: write
     uses: ./.github/workflows/e2e-automerge-vm-images.yml
-    secrets: inherit
 
   e2e-estc-pr-buildkite-detective:
     name: ESTC PR Buildkite Detective
@@ -37,4 +37,5 @@ jobs:
       issues: write
       checks: read
     uses: ./.github/workflows/e2e-estc-pr-buildkite-detective.yml
-    secrets: inherit
+    secrets:
+      BUILDKITE_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
