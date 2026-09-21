@@ -117,4 +117,3 @@ jobs:
       conclusion: "any"
       title-prefix: "[oblt-aw][resource-not-accessible-by-integration]"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-    secrets: inherit
