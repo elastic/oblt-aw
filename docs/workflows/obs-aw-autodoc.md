@@ -46,6 +46,10 @@ Permissions:
 - `issues: write`
 - `pull-requests: write`
 
+Secret handling:
+
+- Nested reusable-workflow calls do not use `secrets: inherit`; jobs rely on GitHub's automatic token/context and optional explicit secrets in upstream locks.
+
 `notify-fix-failure` uses job-level `issues: write` only.
 
 ## API / Interface
