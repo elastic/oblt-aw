@@ -36,4 +36,4 @@ compile-aw: install-aw
 
 ## Recompile every gh-aw workflow and fail if the generated lock files drift from the source.
 compile-aw-check: install-aw compile-aw
-	test -z "$$(git status --porcelain --untracked-files=all -- .github/workflows)"
+	test -z "$$(git status --porcelain --untracked-files=all -- ':(glob).github/workflows/*.lock.yml' ':(glob).github/workflows/**/*.lock.yml')"

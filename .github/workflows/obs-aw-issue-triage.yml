@@ -30,6 +30,7 @@ jobs:
 
   resolve-apm-assets:
     if: >-
+      inputs.shared-proceed == 'true' &&
       github.event_name == 'issues' &&
       github.event.action == 'opened' &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
@@ -46,6 +47,7 @@ jobs:
   issue-triage:
     needs: [resolve-apm-assets]
     if: >-
+      inputs.shared-proceed == 'true' &&
       github.event_name == 'issues' &&
       github.event.action == 'opened' &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&

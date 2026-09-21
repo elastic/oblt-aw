@@ -1,8 +1,10 @@
 # Agent instructions (oblt-aw / control-plane)
 
-## GOLD — pre-commit before commit / push
+## Critical Rules (Always Applicable)
 
-**Mandatory:** follow **[`.cursor/rules/ci-precommit-before-push.mdc`](.cursor/rules/ci-precommit-before-push.mdc)**. Do not commit, push, or open/update a PR until `pre-commit run --files <touched-paths>` passes locally (same gate as CI Pre-commit, including **actionlint**). Pytest alone is not enough. Install: `pre-commit install --hook-type pre-commit --hook-type pre-push`.
+1. **GOLD — pre-commit before commit / push**: follow **[`.cursor/rules/ci-precommit-before-push.mdc`](.cursor/rules/ci-precommit-before-push.mdc)**. Do not commit, push, or open/update a PR until `pre-commit run --files <touched-paths>` passes locally (same gate as CI Pre-commit, including **actionlint**). Pytest alone is not enough. Install: `pre-commit install --hook-type pre-commit --hook-type pre-push`.
+2. **After workflow markdown changes**: if you change a `.md` file under `.github/workflows/`, run `make compile-aw-check` before pushing.
+3. **Do not add generated lock files to .gitignore**: never add `.lock.yml` files to `.gitignore`.
 
 ## Client entrypoint changes
 
@@ -32,4 +34,6 @@ Before commit/push on harness, oracle, E2E tests, or related workflows: **`pre-c
 - Docs route reusables: `.github/workflows/docs-aw-*.yml` (same `shared-proceed` contract; prelude runs in `docs-aw-event-*` orchestrators).
 - Enforced by `scripts/validate_aw_workflow_prelude.py` in CI (excludes in-repo `gh-aw-*` / `*.lock.yml` primitives from registry subject discovery).
 - Some Observability-owned agentic primitives live in-repo as `gh-aw-*.md` + generated `gh-aw-*.lock.yml` (pilot: `gh-aw-estc-pr-buildkite-detective`). Edit the source `.md`, then run `make compile-aw-check` from the repo root to regenerate and verify the matching lock file in `.github/workflows/`; do not hand-edit the lock. Shared compile imports live under `.github/workflows/gh-aw-fragments/` (fleet defaults: `gh-aw-fragments/obs-defaults.md` for model, failure reporting, trusted users).
+- After workflow markdown changes (`.md` under `.github/workflows/`), run `make compile-aw-check`.
+- Do not add `.lock.yml` files to `.gitignore`.
 - Other upstream lock files in `elastic/ai-github-actions` / `elastic/docs-actions` keep the `gh-aw-*` prefix until migrated.

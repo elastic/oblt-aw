@@ -59,6 +59,24 @@ def test_validate_workflow_rejects_missing_shared_proceed(
     assert "shared-proceed" in errors[0]
 
 
+def test_validate_workflow_rejects_missing_shared_proceed_job_guard(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    bad = workflows / "obs-aw-test.yml"
+    bad.write_text(
+        "name: Test\non:\n  workflow_call:\n    inputs:\n      shared-proceed:\n"
+        "        required: true\n        type: string\njobs:\n  run:\n"
+        "    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "WORKFLOWS_DIR", workflows)
+    errors = validator.validate_workflow(bad)
+    assert len(errors) == 1
+    assert "inputs.shared-proceed" in errors[0]
+
+
 def test_validate_workflow_rejects_inline_prelude(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

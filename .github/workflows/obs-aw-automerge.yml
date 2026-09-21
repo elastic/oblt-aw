@@ -34,6 +34,7 @@ jobs:
 
   # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
   verify:
+    if: inputs.shared-proceed == 'true'
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -97,7 +98,7 @@ jobs:
   # Posts a single PR comment when the collection is inactive, ambiguous, or unclassified.
   check-dependency-collection:
     needs: verify
-    if: needs.verify.outputs.proceed == 'true'
+    if: inputs.shared-proceed == 'true' && needs.verify.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -167,6 +168,7 @@ jobs:
   resolve-apm-assets:
     needs: [verify, check-dependency-collection]
     if: >-
+      inputs.shared-proceed == 'true' &&
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true'
     permissions:
@@ -181,6 +183,7 @@ jobs:
   approve:
     needs: [verify, check-dependency-collection, resolve-apm-assets]
     if: >-
+      inputs.shared-proceed == 'true' &&
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true'
     permissions:
@@ -204,8 +207,13 @@ jobs:
         This PR already passed automerge validation in the workflow (GITHUB_TOKEN) for author, label, draft/fork/ref, and dependency collection `${{ needs.check-dependency-collection.outputs.collection-id }}` (file-path classification; no extra repo labels).
         Do not call check-run or commit status APIs. Required checks are enforced by GitHub when auto-merge is enabled.
 
+        Author allow list (single source of truth — do not invent other names):
+        - Canonical list (from config/obs/allowed_pr_authors.json): `${{ inputs.shared-allowed-pr-authors-csv }}`
+        - Webhook/REST login for this PR: `${{ github.event.pull_request.user.login }}`
+        - Before comparing any author string to that list, normalize GraphQL `app/<slug>` to `<slug>[bot]` (gh ≥ 2.50 `gh pr view` / pr.json often use the app/ form). Prefer the webhook/REST login above for the author gate.
+
         Approve the PR only when all of these gates are true:
-        - PR author is one of: dependabot[bot], renovate[bot], Dependabot, Renovate, elastic-vault-github-plugin-prod[bot], github-actions[bot]
+        - Normalized PR author is in the canonical allow list above
         - PR has label `oblt-aw/ai/merge-ready`
         - PR is not draft
         - PR is not from a fork (head repo equals base repo)
@@ -227,6 +235,7 @@ jobs:
     if: >-
       always() &&
       !cancelled() &&
+      inputs.shared-proceed == 'true' &&
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true' &&
       needs.approve.result == 'success'
