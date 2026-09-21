@@ -40,6 +40,10 @@ Permissions:
 - `issues: write`
 - `copilot-requests: write`
 
+Secret handling:
+
+- The matrix `search` call to the nested lock does not use `secrets: inherit`; token use is via GitHub's automatic token/context and optional explicit secrets only.
+
 ## API / Interface
 
 `workflow_call` contract:

@@ -53,6 +53,10 @@ Permissions:
 - `pull-requests: write`
 - `id-token: write`
 
+Secret handling:
+
+- The lock invocation does not use `secrets: inherit`; credentials are passed via the automatic token/context flow plus explicit inputs (for example `github-token-policy`) and upstream optional secret contracts.
+
 ## API / Interface
 
 `workflow_call` contract:
