@@ -207,8 +207,13 @@ jobs:
         This PR already passed automerge validation in the workflow (GITHUB_TOKEN) for author, label, draft/fork/ref, and dependency collection `${{ needs.check-dependency-collection.outputs.collection-id }}` (file-path classification; no extra repo labels).
         Do not call check-run or commit status APIs. Required checks are enforced by GitHub when auto-merge is enabled.
 
+        Author allow list (single source of truth — do not invent other names):
+        - Canonical list (from config/obs/allowed_pr_authors.json): `${{ inputs.shared-allowed-pr-authors-csv }}`
+        - Webhook/REST login for this PR: `${{ github.event.pull_request.user.login }}`
+        - Before comparing any author string to that list, normalize GraphQL `app/<slug>` to `<slug>[bot]` (gh ≥ 2.50 `gh pr view` / pr.json often use the app/ form). Prefer the webhook/REST login above for the author gate.
+
         Approve the PR only when all of these gates are true:
-        - PR author is one of: dependabot[bot], renovate[bot], Dependabot, Renovate, elastic-vault-github-plugin-prod[bot], github-actions[bot]
+        - Normalized PR author is in the canonical allow list above
         - PR has label `oblt-aw/ai/merge-ready`
         - PR is not draft
         - PR is not from a fork (head repo equals base repo)
