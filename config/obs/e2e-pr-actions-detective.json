@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "workflow_id": "obs:pr-actions-detective",
+  "consumer_repo": "elastic/oblt-aw",
+  "workflow_run_trigger_workflow_file": "trigger-obs-aw-workflow-run.yml",
+  "fail_workflow_file": "e2e-pr-actions-detective-fail.yml",
+  "fail_workflow_path": ".github/workflows/e2e-pr-actions-detective-fail.yml",
+  "fail_log_marker": "OBLT_AW_E2E_PR_ACTIONS_INTENTIONAL_FAILURE",
+  "poll_timeout_seconds": 2400,
+  "poll_interval_seconds": 20,
+  "fail_workflow_poll_timeout_seconds": 900,
+  "e2e_pr": {
+    "label": "e2e:pr-actions-detective",
+    "branch": "e2e/pr-actions-detective"
+  },
+  "agent_comment_markers": ["### TL;DR", "## Remediation"],
+  "dashboard_workflow_id": "obs:pr-actions-detective"
+}

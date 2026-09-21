@@ -38,3 +38,14 @@ jobs:
       checks: read
     uses: ./.github/workflows/e2e-estc-pr-buildkite-detective.yml
     secrets: inherit
+
+  e2e-pr-actions-detective:
+    name: PR Actions Detective
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      issues: write
+      checks: read
+    uses: ./.github/workflows/e2e-pr-actions-detective.yml
+    secrets: inherit

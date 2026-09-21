@@ -81,7 +81,7 @@ Copies in `elastic/ai-github-actions` remain for other consumers; this migration
 
 **Integration (no live model):** fixtures and wiring checks for resolve → wrapper → lock inputs live under [`testdata/agentic/pr-actions-detective/`](../../testdata/agentic/pr-actions-detective/) and [`tests/integration/test_pr_actions_detective.py`](../../tests/integration/test_pr_actions_detective.py) ([#2055](https://github.com/elastic/oblt-aw/issues/2055)).
 
-**E2E / production workflow_run validation:** deferred (sibling of [#1911](https://github.com/elastic/oblt-aw/issues/1911) / testing platform [#1877](https://github.com/elastic/oblt-aw/issues/1877)).
+**E2E / production workflow_run validation:** live harness under [`docs/testing/pr-actions-detective-e2e.md`](../testing/pr-actions-detective-e2e.md) (sibling of [#1911](https://github.com/elastic/oblt-aw/issues/1911) / testing platform [#1877](https://github.com/elastic/oblt-aw/issues/1877)). Manual dispatch: `gh workflow run e2e-pr-actions-detective.yml`.
 
 ## References
 
