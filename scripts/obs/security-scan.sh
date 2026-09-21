@@ -54,6 +54,60 @@ emit() {
   echo "$1|$2|$3|$4|$5"
 }
 
+is_generated_lock_workflow() {
+  case "$1" in
+    .github/workflows/*.lock.yml) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_sec002_run_context() {
+  local file_path="$1"
+  local line_number="$2"
+
+  if [ ! -f "$file_path" ]; then
+    return 1
+  fi
+  case "$line_number" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+
+  awk -v target="$line_number" '
+    function indent_of(s,    first) {
+      first = match(s, /[^ ]/)
+      if (first == 0) return 1000000
+      return first - 1
+    }
+    NR <= target { lines[NR] = $0 }
+    END {
+      if (target < 1 || target > NR) exit 1
+
+      current_indent = indent_of(lines[target])
+      for (i = target; i >= 1; i--) {
+        line = lines[i]
+        if (line ~ /^[[:space:]]*$/ || line ~ /^[[:space:]]*#/) continue
+
+        line_indent = indent_of(line)
+        if (line_indent > current_indent) continue
+
+        if (line ~ /^[[:space:]]*-[[:space:]]*run[[:space:]]*:/ ||
+            line ~ /^[[:space:]]*run[[:space:]]*:/) {
+          exit 0
+        }
+
+        if (line ~ /^[[:space:]]*-[[:space:]]*[^#[:space:]][^:]*:[[:space:]]*(#.*)?$/ ||
+            line ~ /^[[:space:]]*[^#[:space:]][^:]*:[[:space:]]*(#.*)?$/) {
+          exit 1
+        }
+
+        current_indent = line_indent
+      }
+
+      exit 1
+    }
+  ' "$file_path"
+}
+
 # Collect findings here, then dedupe by file|line (keep highest severity).
 FINDINGS_TMP="${TMPDIR:-/tmp}/security-scan-$$.txt"
 touch "$FINDINGS_TMP"
@@ -186,7 +240,22 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
       (if $rule == "SEC-030" then "medium" else $sev end) as $sev2 |
       "\($rel3)|\($line)|\($rule)|\($sev2)|zizmor [\($id)]: \($finding.desc | gsub("\\|"; " ")) (\($finding.url))"
     end
-  ' >>"$FINDINGS_TMP" 2>/dev/null || true
+  ' 2>/dev/null | while IFS='|' read -r finding_file finding_line finding_rule finding_sev finding_msg; do
+    if [ -z "$finding_file" ] || [ -z "$finding_line" ] || [ -z "$finding_rule" ] || [ -z "$finding_sev" ]; then
+      continue
+    fi
+
+    if [ "$finding_rule" = "SEC-002" ]; then
+      if is_generated_lock_workflow "$finding_file"; then
+        continue
+      fi
+      if ! is_sec002_run_context "$REPO_ROOT/$finding_file" "$finding_line"; then
+        continue
+      fi
+    fi
+
+    emit "$finding_file" "$finding_line" "$finding_rule" "$finding_sev" "$finding_msg"
+  done >>"$FINDINGS_TMP" || true
 fi
 
 # --- semgrep: community GitHub Actions rules (complements zizmor/actionlint) ---
