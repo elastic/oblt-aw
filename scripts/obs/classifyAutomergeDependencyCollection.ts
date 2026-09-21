@@ -20,6 +20,8 @@ const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
 
 const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate -->';
 const AUTOMERGE_PARENT_COMPOUND_ID = 'obs:automerge';
+const AUTOMERGE_SERVICES_GUIDE_URL =
+  'https://github.com/elastic/oblt-aw/blob/main/docs/guides/user/automerge-services.md';
 
 /** @typedef {object} DependencyCollection
  * @property {string} id
@@ -185,7 +187,7 @@ function buildGateCommentBody(outcome, changedFiles, enabledCollectionIds) {
     '',
     `**Collections enabled for automerge on this repository:** ${enabledList}`,
     '',
-    'Enable or disable collections under the Automerge workflow on the Control Plane Dashboard (`oblt-aw/dashboard` issue). Dependency-review may still have applied `oblt-aw/ai/merge-ready` for risk review. Only enabled collections proceed to Copilot approval and merge via this workflow.',
+    `Enable or disable collections under the Automerge workflow on the Control Plane Dashboard (\`oblt-aw/dashboard\` issue). See [Automerge services](${AUTOMERGE_SERVICES_GUIDE_URL}) for what each collection covers. Dependency-review may still have applied \`oblt-aw/ai/merge-ready\` for risk review. Only enabled collections proceed to Copilot approval and merge via this workflow.`,
     '',
     '**Changed files considered for classification:**',
     fileLines || '- _(none)_',

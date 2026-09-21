@@ -49,6 +49,8 @@ Every enable or disable of a workflow or sub-feature checkbox produces a comment
 
 Some workflows expose **indented child checkboxes** under the parent on the Control Plane Dashboard. These let you enable or disable individual parts of a composite workflow (for example, specific dependency collections under Automerge).
 
+For Automerge, these child checkboxes are **service enrollments**: first enable Automerge, then choose which dependency-update categories you want it to merge. See [Automerge services](../guides/user/automerge-services.md) for the user-facing catalogue.
+
 | Parent checkbox | Sub-feature checkbox | Effect |
 |-----------------|----------------------|--------|
 | Unchecked | Any | Parent and all sub-features are disabled |
@@ -107,5 +109,6 @@ If the sync workflow could not pin it automatically (e.g. you already have 3 pin
 ## References
 
 - [docs/operations/control-plane-dashboard-format.md](control-plane-dashboard-format.md) — Dashboard issue format and checkbox syntax
+- [docs/guides/user/automerge-services.md](../guides/user/automerge-services.md) — What Automerge services mean
 - [docs/operations/workflow-maturity.md](workflow-maturity.md) — Maturity level definitions
 - [docs/architecture/overview.md](../architecture/overview.md) — Control Plane Dashboard architecture

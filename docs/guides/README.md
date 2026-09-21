@@ -17,6 +17,7 @@ Pick your audience:
 - [Start from scratch](user/start-from-scratch.md) — Register a repository, receive client templates, and enable workflows from the Control Plane Dashboard.
 - [Enable a new workflow](user/enable-a-new-workflow.md) — Turn on a workflow that already exists in the org registry and client templates.
 - [Opt in or opt out](user/opt-in-opt-out.md) — Enable or disable workflows from the dashboard and understand runtime gating.
+- [Choose Automerge services](user/automerge-services.md) — Review the dependency-update categories that Automerge can merge for your repository.
 
 ## Operator stories
 

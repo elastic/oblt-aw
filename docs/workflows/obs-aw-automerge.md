@@ -19,6 +19,8 @@ This reusable `workflow_call` workflow handles a **single** pull request using `
 
 Ingress selects which events dispatch here; see [Automerge routing](../routing/automerge-routing.md).
 
+If you are choosing which dependency-update categories to enroll, start with [Automerge services](../guides/user/automerge-services.md).
+
 ## Prerequisites
 
 - Triggered via `workflow_call` from `trigger-obs-aw-automerge.yml` when prelude and route guards match author, `oblt-aw/ai/merge-ready`, and the right `pull_request` action.
@@ -83,3 +85,4 @@ required_pull_request_reviews {
 ## References
 
 - Routing rules: [docs/routing/automerge-routing.md](../routing/automerge-routing.md)
+- User guide: [docs/guides/user/automerge-services.md](../guides/user/automerge-services.md)

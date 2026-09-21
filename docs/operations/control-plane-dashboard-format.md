@@ -152,6 +152,8 @@ If a workflow checkbox already exists in the issue body, the current issue state
 
 When a control-plane workflow file is listed under a sub-feature’s `inner_workflows`, prelude gating requires **both** the parent compound id and the sub-feature compound id in `enabled-workflows`.
 
+The rendered child checkbox text may include a concise service description for humans, for example `VM / container images — CI runner or container image pin updates`. The invisible `<!-- oblt-aw:... -->` marker remains the parsing contract.
+
 ### Parsing Algorithm
 
 To extract enabled workflows from the issue body (when a dashboard issue exists):
@@ -178,7 +180,7 @@ To extract enabled workflows from the issue body (when a dashboard issue exists)
 |--------|-------------|
 | **Workflow** | Human-readable name from the org’s `workflow-registry.json`. When the entry sets `docs` (repo-relative path under `docs/workflows/`), the name is a Markdown link to `https://github.com/elastic/oblt-aw/blob/main/<docs>` |
 | **Maturity** | `stable`, `early-adoption`, or `experimental` (from the org’s `workflow-registry.json`) |
-| **Description** | Short description from the org’s `workflow-registry.json`, followed by `inner-workflows:` and backtick-quoted wrapper basenames (parent `inner_workflows` then each sub-feature’s list, de-duplicated). Those basenames are the keys consumers use under `x-oblt-aw.<org-key>.workflows.<id>.inner-workflows` in `apm.yml`. |
+| **Description** | Short description from the org’s `workflow-registry.json`, followed by `inner-workflows:` and backtick-quoted wrapper basenames (parent `inner_workflows` then each sub-feature’s list, de-duplicated). Those basenames are the keys consumers use under `x-oblt-aw.<org-key>.workflows.<id>.inner-workflows` in `apm.yml`. Child checkbox labels may also append a concise service description for readability. |
 
 ---
 
