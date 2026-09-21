@@ -143,7 +143,6 @@ jobs:
     if: >-
       inputs.shared-proceed == 'true' &&
       needs.evaluate-trigger.outputs.triage_triggered == 'true'
-    runs-on: ubuntu-slim
     permissions:
       contents: read
       id-token: write

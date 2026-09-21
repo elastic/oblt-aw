@@ -1417,7 +1417,7 @@ jobs:
       - activation
       - agent
     if: always() && needs.agent.result != 'skipped'
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       copilot-requests: write
