@@ -67,7 +67,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 15
     outputs:
       apm-manifest-present: ${{ steps.resolve.outputs.apm-manifest-present }}

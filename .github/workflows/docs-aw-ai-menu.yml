@@ -35,7 +35,7 @@ jobs:
     if: >-
       inputs.shared-proceed == 'true' &&
       (github.event_name == 'issues' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     permissions:
       contents: read
@@ -73,7 +73,7 @@ jobs:
       github.event.comment.user.login == 'github-actions[bot]' &&
       contains(github.event.comment.body, '<!-- docs-ai-menu:start -->') &&
       contains(github.event.comment.body, '<!-- docs-ai-menu:end -->')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     permissions:
       contents: read
@@ -107,7 +107,7 @@ jobs:
     if: >-
       needs.evaluate-trigger.outputs.triage_triggered == 'true' ||
       needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     permissions:
       contents: read
@@ -143,6 +143,7 @@ jobs:
     if: >-
       inputs.shared-proceed == 'true' &&
       needs.evaluate-trigger.outputs.triage_triggered == 'true'
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       id-token: write
@@ -198,7 +199,7 @@ jobs:
     name: Refresh AI menu after docs triage
     needs: [evaluate-trigger, refresh-menu-after-trigger, run-docs-triage]
     if: always() && needs.evaluate-trigger.outputs.triage_triggered == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     permissions:
       contents: read
@@ -232,7 +233,7 @@ jobs:
     name: Refresh AI menu after docs issue scope
     needs: [evaluate-trigger, refresh-menu-after-trigger, run-docs-issue-scope]
     if: always() && needs.evaluate-trigger.outputs.issue_scope_triggered == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     permissions:
       contents: read

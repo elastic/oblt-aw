@@ -96,7 +96,7 @@ jobs:
   request-reviewers:
     needs: res-not-accessible-integration-fixer
     if: needs.res-not-accessible-integration-fixer.outputs.created_pr_number != ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       pull-requests: write
     steps:
@@ -112,7 +112,7 @@ jobs:
       always() &&
       needs.res-not-accessible-integration-fixer.result == 'success' &&
       needs.res-not-accessible-integration-fixer.outputs.created_pr_number == ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       issues: write
     steps:

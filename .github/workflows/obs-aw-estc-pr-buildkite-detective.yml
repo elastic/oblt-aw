@@ -21,7 +21,7 @@ jobs:
       github.event_name == 'status' &&
       github.event.state == 'failure' &&
       contains(github.event.context, 'buildkite')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       has-open-pr: ${{ steps.find-pr.outputs.has-open-pr }}
     permissions:

@@ -90,7 +90,7 @@ jobs:
       always() &&
       needs.dependency-review.result == 'success' &&
       needs.dependency-review.outputs.comment_id == ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       pull-requests: write
     steps:
