@@ -39,6 +39,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # Shared E2E Vault role in config/e2e.json (wildcard e2e-*.yml policy
       # requires an explicit token-policy input; do not reuse trigger-obs-aw-*).
