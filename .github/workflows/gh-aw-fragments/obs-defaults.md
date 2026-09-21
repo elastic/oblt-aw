@@ -25,4 +25,4 @@ Failure reporting: `report-failure-as-issue` and `report-failed-jobs` are off, a
 
 Note: `on.bots` cannot be declared in a shared fragment; pin bot actors on each workflow that needs them (for example `github-actions[bot]` and `buildkite-limited-access[bot]`).
 
-Note: as of gh-aw v0.88.7, `report-failed-jobs` is not merged from imports into the main workflow `safe-outputs` — repeat it on each importing `gh-aw-*.md` until the compiler merges that meta field. Do not declare a bare `noop:` on the main workflow; that overrides this fragment and restores `report-as-issue: true`.
+Note: `report-failed-jobs` is not merged from imports into the main workflow `safe-outputs` — repeat it on each importing `gh-aw-*.md` until the compiler merges that meta field. Do not declare a bare `noop:` on the main workflow; that overrides this fragment and restores `report-as-issue: true`.

@@ -25,7 +25,7 @@
       "description": "Enables auto-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready when validation and approval gates pass; GitHub enforces required checks at merge time.",
       "maturity": "stable",
       "default_enabled": false,
-      "docs": "docs/workflows/obs-aw-automerge.md",
+      "docs": "docs/guides/user/automerge-services.md",
       "inner_workflows": ["obs-aw-automerge.yml"],
       "sub_features": [
         {

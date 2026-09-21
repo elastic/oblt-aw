@@ -147,6 +147,15 @@ def workflow_table_description(description: str, inner_workflows: list[str]) -> 
     return suffix
 
 
+def subfeature_display_name(subfeature: dict[str, Any]) -> str:
+    """Return the dashboard label for a sub-feature checkbox."""
+    name = str(subfeature.get("name") or subfeature.get("id") or "").strip()
+    description = str(subfeature.get("description", "") or "").strip()
+    if name and description:
+        return f"{name} — {description}"
+    return name or description
+
+
 def default_section_heading(org_key: str) -> str:
     """Fallback section title when ``workflow-registry.json`` omits ``section_title``."""
     if org_key == "obs":
@@ -240,7 +249,7 @@ def build_dashboard_body(
             lines.append(f"{checkbox} {marker} {name}")
             for sub in wf.get("sub_features") or []:
                 sub_id = sub["id"]
-                sub_name = sub.get("name", sub_id)
+                sub_name = subfeature_display_name({**sub, "id": sub_id})
                 sub_default = sub.get("default_enabled", False)
                 sub_key = compound_subfeature_key(org_key, wf_id, sub_id)
                 sub_enabled = parsed.get(sub_key, sub_default)
