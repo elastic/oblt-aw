@@ -34,7 +34,7 @@ jobs:
       contents: read
       id-token: write
       pull-requests: read
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout calling repository
         uses: actions/checkout@v7
