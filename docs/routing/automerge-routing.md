@@ -6,7 +6,7 @@ Client template: `trigger-obs-aw-automerge.yml` → `obs-aw-automerge.yml`
 
 Routed workflow source: `.github/workflows/obs-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, conditional `enable-merge-when-ready`, and `report-automerge-outcome` on the PR).
 
-**Approve:** Nested `gh-aw-mention-in-pr` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]` (Vault, Dependabot, Renovate, and other allowed authors). When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review (`verify` requires a non-empty policy in that case). The approve prompt prefers `github.event.pull_request.user.login` (REST/`…[bot]`) and also accepts GraphQL `app/…` aliases so Dependabot/Vault are not rejected when `gh pr view` returns `app/…` (gh ≥ 2.50). Ingress/`verify` keep REST-only allow list entries. Automerge continues via job `needs` (no re-trigger needed for the review). Classic `pull_request_bypassers` alone do not bypass org rulesets.
+**Approve:** Nested `gh-aw-mention-in-pr` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]` (Vault, Dependabot, Renovate, and other allowed authors). When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review (`verify` requires a non-empty policy in that case). Author allow list is **only** [allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json) (prelude CSV into the approve prompt). Matching normalizes GraphQL `app/<slug>` → `<slug>[bot]` (gh ≥ 2.50); do not maintain a second alias list. Automerge continues via job `needs` (no re-trigger needed for the review). Classic `pull_request_bypassers` alone do not bypass org rulesets.
 
 **Merge:** Uses **pascalgn/automerge-action** with an ephemeral Vault-app token when `shared-token-policy` is set, otherwise `GITHUB_TOKEN`. `MERGE_REQUIRED_APPROVALS` is `1`. When that step reports `merge_failed` or `not_ready`, the workflow retries a direct REST merge with the same token identity, then enables native GitHub auto-merge as a fallback. `mergeResult: skipped` does not trigger the fallback (missing label/approvals must not get a bypass-capable merge). If the PR remains unmerged without auto-merge enabled, the workflow fails and upserts a PR comment.
 
@@ -30,7 +30,7 @@ The client template includes `labeled` in `pull_request` types (`trigger-obs-aw-
 
 | Requirement | Details |
 |---------------|---------|
-| Author | Same allow list as dependency-review (see above) |
+| Author | Same allow list as dependency-review ([allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json)); GraphQL `app/<slug>` is normalized to `<slug>[bot]` before matching |
 | Token policy | Non-empty `shared-token-policy` required when author is `github-actions[bot]` (approve must use Vault, not self-APPROVE) |
 | Label | `oblt-aw/ai/merge-ready` must be present on the PR |
 | PR state | Not a draft |
