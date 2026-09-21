@@ -1,9 +1,9 @@
 name: Observability Agentic Workflow — Workflow Run
 
 on:
+  # No workflows: filter — consumer CI names vary; job if + dashboard gate narrow execution.
+  # actionlint ignore: see .github/actionlint.yaml (GitHub allows omit; linter does not).
   workflow_run: # zizmor: ignore[dangerous-triggers] -- trusted split-workflow handoff; gated on failure + associated PRs below and dashboard-disabled-by-default
-    # Match common consumer CI workflow `name:` values; customize after distribute if needed.
-    workflows: ["Internal: CI", "Internal: Tests", "CI", "Build", "Test"]
     types: [completed]
 
 permissions:

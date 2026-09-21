@@ -10,7 +10,7 @@ Reusable wrapper that calls the upstream PR Actions Detective lock. Client `trig
 
 - Triggered via `workflow_call` from the workflow-run event orchestrator (`obs-aw-event-workflow-run.yml` ← client `trigger-obs-aw-workflow-run.yml`).
 - No consumer secrets beyond the usual agentic token setup (no Buildkite token).
-- The client template listens for completed runs of common CI workflow names (`Internal: CI`, `Internal: Tests`, `CI`, `Build`, `Test`). Repositories whose CI `name:` differs should edit `workflows:` on the installed `trigger-obs-aw-workflow-run.yml` after distribution.
+- The client template listens for all completed `workflow_run` events; the job `if` keeps only failures with associated pull requests. Dashboard gating (`obs:pr-actions-detective`) remains off by default.
 
 ## Usage
 

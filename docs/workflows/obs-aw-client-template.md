@@ -60,7 +60,7 @@ Full platform view (distribution, dashboard sync, before/after ingress): [archit
 | `trigger-obs-aw-issue-comment.yml` | `issue_comment` created | `obs-aw-event-issue-comment.yml` → dashboard-audit-reason (`oblt-aw/dashboard`), issue-fixer, mention-in-issue |
 | `trigger-obs-aw-schedule.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `obs-aw-event-schedule.yml` → agent-suggestions, autodoc, security category detectors, resource-not-accessible detector |
 | `trigger-obs-aw-status.yml` | `status` (Buildkite failure only, job `if`) | `obs-aw-event-status.yml` → estc-pr-buildkite-detective |
-| `trigger-obs-aw-workflow-run.yml` | `workflow_run` completed for common CI names (`CI`, `Build`, `Test`, …; customize `workflows:` if needed); job `if` requires failure + associated PRs | `obs-aw-event-workflow-run.yml` → pr-actions-detective |
+| `trigger-obs-aw-workflow-run.yml` | `workflow_run` completed (any workflow); job `if` requires failure + associated PRs | `obs-aw-event-workflow-run.yml` → pr-actions-detective |
 
 Route-specific conditions (labels, `/ai` comment prefix, allow-listed PR authors, and so on) are enforced inside each `obs-aw-*` reusable workflow after prelude gating.
 
