@@ -30,7 +30,7 @@ Triggers:
 Behavior:
 
 1. Parse **repository** (`elastic/<repo>`) and **org key** (`obs` / `docs`) from the issue.
-2. Follow [Registering resources](../onboarding/registering-a-repository.md).
+2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps, appendix).
 3. Open up to four **normal (non-draft)** PRs (separate concerns); do not merge them.
 4. Comment a checklist and merge order on the issue.
 

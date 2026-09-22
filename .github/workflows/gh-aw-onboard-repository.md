@@ -102,18 +102,16 @@ If either value is missing, invalid, or the repository is already listed in `con
 
 ## Authoritative procedure (read and follow — do not invent)
 
-**Read and follow** these docs in the workspace; they are the technical contract. Do **not** restate or invent parallel steps.
+**Read and follow** these docs in the workspace. They are the technical contract. Do **not** invent parallel steps.
 
-1. `docs/onboarding/registering-a-repository.md` — required PRs, file shapes, TokenPolicy template, Vault bypassers, secrets, merge ordering, verification.
-2. `docs/guides/user/onboard-a-repository.md` — what the human does after registration merges (dashboard enablement).
+1. `docs/onboarding/registering-a-repository.md` — especially **Pull request inventory**, **Automation contract**, **Steps**, and the TokenPolicy appendix.
+2. `docs/guides/user/onboard-a-repository.md` — post-merge human steps (dashboard enablement) to cite in the issue comment.
 
-Use checked-out trees as the docs require (`repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and this repo’s root for `elastic/oblt-aw`). Match existing patterns in those trees and under `.github/remote-workflow-template/<org-key>/` when deriving `workflow_ref` values.
+Edit the checked-out trees named in the Automation contract (`repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and this repository root for `elastic/oblt-aw`).
 
-## Operating constraints (agent-only)
+## Safe-output constraints
 
-These are not repeated in the docs; obey them:
-
-- Open **separate** pull requests (one concern each) via `create-pull-request` (`draft: false`). **Do not merge** any PR. Do not close the onboard issue (`auto-close-issue` is already false).
-- Before finishing, `add-comment` on the triggering issue with: parsed repository and org-key; checklist of opened/skipped PRs with links; merge order from the registering doc (catalog-info before `elastic/oblt-aw`); that merges are **manual**; pointer to the user guide for post-merge steps.
-- Stop conditions: missing/invalid inputs; already registered; permissions/token failures — comment what failed; never invent credentials.
+- Open PRs only via `create-pull-request` (`draft: false`). Do not merge. Do not close the onboard issue.
+- Finish with `add-comment` per the Automation contract (checklist, merge order, manual merges, user-guide pointer).
+- On failure, comment what failed; never invent credentials.
 - Call at least one of: `create-pull-request`, `add-comment`, or `noop`. A text-only exit with zero safe outputs is a failure.
