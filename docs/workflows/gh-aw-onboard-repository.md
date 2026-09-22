@@ -17,7 +17,7 @@ This workflow is **not** part of the consumer agentic catalog:
 ## Prerequisites
 
 - Issue created from [.github/ISSUE_TEMPLATE/onboard-repository.yml](../../.github/ISSUE_TEMPLATE/onboard-repository.yml) (or otherwise labeled `oblt-aw/onboard/repository`).
-- Catalog TokenPolicy `token-policy-995e89faa204` active for `elastic/oblt-aw/.github/workflows/gh-aw-onboard-repository.lock.yml` (see companion catalog-info PR). The workflow imports `gh-aw-fragments/ephemeral-token-onboard-repository.md`, which mints via `elastic/oblt-actions/github/create-token@v1` with that policy in activation/agent/safe_outputs/conclusion. `make compile-aw` runs `scripts/wire_ephemeral_token.py` so lock jobs prefer the minted token, then `GH_AW_GITHUB_TOKEN` / `GITHUB_TOKEN` as fallback.
+- Catalog TokenPolicy from [`config/onboard-repository.json`](../../config/onboard-repository.json) (`workflow-token-policy`) active for `elastic/oblt-aw/.github/workflows/gh-aw-onboard-repository.lock.yml` (see companion catalog-info PR). The workflow imports generic `gh-aw-fragments/ephemeral-github-token.md` and sets `WORKFLOW_TOKEN_POLICY_CONFIG=config/onboard-repository.json` (same pattern as E2E + `config/e2e.json`). That fragment resolves the policy and mints via `elastic/oblt-actions/github/create-token@v1` in activation/agent/safe_outputs/conclusion. `make compile-aw` runs `scripts/wire_ephemeral_token.py` so lock jobs prefer the minted token, then `GH_AW_GITHUB_TOKEN` / `GITHUB_TOKEN` as fallback.
 
 ## Usage
 
@@ -40,7 +40,7 @@ User-facing steps: [Onboard a repository](../guides/user/onboard-a-repository.md
 Permissions (source intent; lock expands job-level scopes):
 
 - Workflow: `id-token: write` for OIDC `create-token`; agent reads contents/issues/pull-requests; Copilot requests.
-- Safe outputs create comments and pull requests with the minted Vault-app token (`token-policy-995e89faa204`).
+- Safe outputs create comments and pull requests with the minted Vault-app token (policy id from `config/onboard-repository.json`).
 
 Safe outputs:
 

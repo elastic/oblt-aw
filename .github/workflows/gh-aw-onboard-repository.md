@@ -4,7 +4,7 @@ name: "Onboard Repository"
 description: "Read an onboard-repository issue and open the required registration PRs"
 imports:
   - gh-aw-fragments/elastic-tools.md
-  - gh-aw-fragments/ephemeral-token-onboard-repository.md
+  - gh-aw-fragments/ephemeral-github-token.md
   - gh-aw-fragments/formatting.md
   - gh-aw-fragments/messages-footer.md
   - gh-aw-fragments/obs-defaults.md
@@ -24,6 +24,10 @@ on:
 concurrency:
   group: ${{ github.workflow }}-onboard-repository-${{ github.event.issue.number || github.run_id }}
   cancel-in-progress: true
+# Policy id lives in config/onboard-repository.json (same pattern as config/e2e.json).
+# Resolved by gh-aw-fragments/ephemeral-github-token.md before create-token.
+env:
+  WORKFLOW_TOKEN_POLICY_CONFIG: config/onboard-repository.json
 permissions:
   copilot-requests: write
   actions: read

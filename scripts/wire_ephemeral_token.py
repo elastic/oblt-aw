@@ -21,7 +21,7 @@ This post-process prefers create-token step outputs, then caller secrets, then
 GITHUB_TOKEN. It also adds id-token: write to jobs that mint tokens.
 
 Lock files are processed when they contain a create-token step (for example from
-gh-aw-fragments/ephemeral-token-onboard-repository.md) or a github-token-policy
+gh-aw-fragments/ephemeral-github-token.md) or a github-token-policy
 workflow_call input. The script is idempotent.
 """
 
