@@ -1,9 +1,10 @@
 name: Observability Agentic Workflow — Workflow Run
 
 on:
-  # No workflows: filter — consumer CI names vary; job if + dashboard gate narrow execution.
-  # actionlint ignore: see .github/actionlint.yaml (GitHub allows omit; linter does not).
   workflow_run: # zizmor: ignore[dangerous-triggers] -- trusted split-workflow handoff; gated on failure + associated PRs below and dashboard-disabled-by-default
+    # Dogfood allowlist for elastic/oblt-aw (matches active-repositories.json).
+    # Consumer copies are rendered at distribute from pr-actions-detective-workflows.
+    workflows: ["CI"]
     types: [completed]
 
 permissions:

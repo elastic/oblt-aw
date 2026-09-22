@@ -10,13 +10,14 @@ Reusable wrapper that calls the upstream PR Actions Detective lock. Client `trig
 
 - Triggered via `workflow_call` from the workflow-run event orchestrator (`obs-aw-event-workflow-run.yml` ← client `trigger-obs-aw-workflow-run.yml`).
 - No consumer secrets beyond the usual agentic token setup (no Buildkite token).
-- The client template listens for all completed `workflow_run` events; the job `if` keeps only failures with associated pull requests. Dashboard gating (`obs:pr-actions-detective`) remains off by default.
+- The client trigger is installed only when `pr-actions-detective-workflows` is non-empty in [active-repositories.json](../../config/obs/active-repositories.json). Distribute renders those workflow **`name:`** values into `on.workflow_run.workflows`. The job `if` keeps only failures with associated pull requests. Dashboard gating (`obs:pr-actions-detective`) remains off by default.
 
 ## Usage
 
 Ingress routes here when:
 
-- `github.event_name == 'workflow_run'`,
+- the consumer has a non-empty `pr-actions-detective-workflows` allowlist and the distributed trigger is present,
+- `github.event_name == 'workflow_run'` for one of those named workflows,
 - `github.event.workflow_run.conclusion == 'failure'`,
 - the completed run has a non-empty associated pull-request list, and
 - Dashboard gate passes for registry id `pr-actions-detective` (`enabled-workflows` contains `obs:pr-actions-detective`).

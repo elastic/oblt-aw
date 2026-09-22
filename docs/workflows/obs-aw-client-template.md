@@ -60,9 +60,13 @@ Full platform view (distribution, dashboard sync, before/after ingress): [archit
 | `trigger-obs-aw-issue-comment.yml` | `issue_comment` created | `obs-aw-event-issue-comment.yml` → dashboard-audit-reason (`oblt-aw/dashboard`), issue-fixer, mention-in-issue |
 | `trigger-obs-aw-schedule.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `obs-aw-event-schedule.yml` → agent-suggestions, autodoc, security category detectors, resource-not-accessible detector |
 | `trigger-obs-aw-status.yml` | `status` (Buildkite failure only, job `if`) | `obs-aw-event-status.yml` → estc-pr-buildkite-detective |
-| `trigger-obs-aw-workflow-run.yml` | `workflow_run` completed (any workflow); job `if` requires failure + associated PRs | `obs-aw-event-workflow-run.yml` → pr-actions-detective |
+| `trigger-obs-aw-workflow-run.yml` | `workflow_run` completed for names in `pr-actions-detective-workflows` (installed only when that allowlist is non-empty); job `if` requires failure + associated PRs | `obs-aw-event-workflow-run.yml` → pr-actions-detective |
 
 Route-specific conditions (labels, `/ai` comment prefix, allow-listed PR authors, and so on) are enforced inside each `obs-aw-*` reusable workflow after prelude gating.
+
+### PR Actions Detective allowlist
+
+`trigger-obs-aw-workflow-run.yml` is **not** byte-copied for every consumer. Distribute installs it only when the repository’s `pr-actions-detective-workflows` list in [config/obs/active-repositories.json](../../config/obs/active-repositories.json) is non-empty, and renders those GitHub Actions workflow **`name:`** values into `on.workflow_run.workflows`. See [distribute-client-workflow](../operations/distribute-client-workflow.md). Enable the dashboard checkbox only after the allowlist is set for that repository.
 
 ## Configuration
 

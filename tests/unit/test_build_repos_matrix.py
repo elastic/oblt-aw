@@ -101,6 +101,58 @@ class TestParseRepositories:
             ("elastic/bar", "token-policy-abc123", "token-policy-ai-456"),
             ("elastic/foo", "", ""),
         ]
+        assert entries[0].pr_actions_detective_workflows == ()
+        assert entries[1].pr_actions_detective_workflows == ()
+
+    def test_object_entry_with_pr_actions_detective_workflows(self) -> None:
+        content = json.dumps(
+            {
+                "repositories": [
+                    {
+                        "repository": "elastic/bar",
+                        "workflow-token-policy": "",
+                        "ai-assets-token-policy": "",
+                        "pr-actions-detective-workflows": [" CI ", "Build"],
+                    }
+                ]
+            }
+        )
+        entries = parse_active_repository_entries(content)
+        assert entries[0].pr_actions_detective_workflows == ("CI", "Build")
+
+    def test_invalid_pr_actions_detective_workflows_raises(self) -> None:
+        content = json.dumps(
+            {
+                "repositories": [
+                    {
+                        "repository": "elastic/bar",
+                        "pr-actions-detective-workflows": "CI",
+                    }
+                ]
+            }
+        )
+        with pytest.raises(SystemExit, match="pr-actions-detective-workflows"):
+            parse_active_repository_entries(content)
+
+    def test_duplicate_repo_conflicting_detective_workflows_raises(self) -> None:
+        content = json.dumps(
+            {
+                "repositories": [
+                    {
+                        "repository": "elastic/foo",
+                        "pr-actions-detective-workflows": ["CI"],
+                    },
+                    {
+                        "repository": "elastic/foo",
+                        "pr-actions-detective-workflows": ["Build"],
+                    },
+                ]
+            }
+        )
+        with pytest.raises(
+            SystemExit, match="conflicting pr-actions-detective-workflows"
+        ):
+            parse_active_repository_entries(content)
 
     def test_duplicate_repo_conflicting_policy_raises(self) -> None:
         content = json.dumps(
