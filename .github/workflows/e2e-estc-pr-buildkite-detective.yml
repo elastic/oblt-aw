@@ -9,6 +9,9 @@ name: E2E — ESTC PR Buildkite Detective
 on:
   workflow_dispatch:
   workflow_call:
+    secrets:
+      BUILDKITE_TOKEN:
+        required: true
 
 permissions:
   contents: read
