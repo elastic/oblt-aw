@@ -19,13 +19,13 @@
  * github-actions[bot] so approve can use Vault instead of self-APPROVE). Required status
  * checks are enforced by GitHub when auto-merge is enabled, not here.
  *
- * Allowed authors are defined in `config/obs/allowed_pr_authors.json` (Observability
- * control-plane; also reflected in `obs-aw-automerge.yml` via
- * `load-allowed-authors` and `obs-aw-dependency-review.yml` (CSV input from the same
- * loader), which cannot load that file in expressions). Specialized issue triage/fixer
- * wrappers (security, resource-not-accessible) pass `allowed_issue_authors_csv` from
- * `config/obs/allowed_issue_authors.json` via the same loader; generic `obs-aw-issue-triage`
- * / `obs-aw-issue-fixer` do not.
+ * Allowed authors are defined only in `config/obs/allowed_pr_authors.json` (Observability
+ * control-plane). Prelude loads that file into CSV/JSON for ingress and
+ * `allowed-bot-users`; do not duplicate the list in workflow prompts.
+ *
+ * GraphQL/`gh pr view` (gh ≥ 2.50) may return `app/<slug>` for GitHub Apps while REST
+ * and webhooks return `<slug>[bot]`. Matching always normalizes `app/<slug>` →
+ * `<slug>[bot]` before comparing to the JSON allow list.
  */
 const path = require('node:path');
 const fs = require('node:fs');
@@ -41,6 +41,29 @@ const ALLOWED_PR_AUTHORS = new Set(
     )
   )
 );
+
+/**
+ * Map GraphQL app actor logins to the REST/`…[bot]` form used in allowed_pr_authors.json.
+ * Leave other logins unchanged (including human Dependabot/Renovate display names).
+ */
+function normalizePrAuthorLogin(login) {
+  const raw = String(login || '').trim();
+  if (!raw) {
+    return '';
+  }
+  const appMatch = /^app\/([^/]+)$/i.exec(raw);
+  if (appMatch) {
+    return `${appMatch[1]}[bot]`;
+  }
+  return raw;
+}
+
+function isAllowedPrAuthor(login) {
+  return ALLOWED_PR_AUTHORS.has(normalizePrAuthorLogin(login));
+}
+
+module.exports.normalizePrAuthorLogin = normalizePrAuthorLogin;
+module.exports.isAllowedPrAuthor = isAllowedPrAuthor;
 
 module.exports.run = async function run({
   github,
@@ -63,9 +86,14 @@ module.exports.run = async function run({
     pull_number: prNumber,
   });
 
-  const author = pr.user?.login || '';
+  const authorRaw = pr.user?.login || '';
+  const author = normalizePrAuthorLogin(authorRaw);
   if (!ALLOWED_PR_AUTHORS.has(author)) {
-    core.info(`PR #${prNumber}: author '${author}' is not in the automerge allow list`);
+    core.info(
+      `PR #${prNumber}: author '${authorRaw}'` +
+        (author !== authorRaw ? ` (normalized '${author}')` : '') +
+        ' is not in the automerge allow list'
+    );
     return { ok: false };
   }
 

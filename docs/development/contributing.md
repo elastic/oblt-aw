@@ -51,10 +51,20 @@ pre-commit run --all-files
 
 > **macOS Python.org installer:** If you see `SSL: CERTIFICATE_VERIFY_FAILED` when pre-commit installs hooks, this is the classic Python.org macOS certificate issue. Run the bundled installer: `/Applications/Python 3.xx/Install Certificates.command`
 
+### gh-aw workflow compile check (required when editing workflow sources)
+
+If you touch a gh-aw workflow source or shared fragment, regenerate and validate the compiled workflow lock files before pushing:
+
+```bash
+make compile-aw-check
+```
+
+This command installs the pinned gh-aw compiler, recompiles the generated `.lock.yml` files under `.github/workflows/`, and fails if the checked-in outputs drift from the source markdown. Do not hand-edit the lock files; edit the source `.md` and rerun this command.
+
 ### Python tests
 
 ```bash
-pytest tests/ -v --tb=short
+pytest tests/unit tests/integration -v --tb=short
 ```
 
 ### TypeScript tests

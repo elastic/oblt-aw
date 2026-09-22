@@ -27,6 +27,7 @@ permissions:
 jobs:
 
   discover:
+    if: inputs.shared-proceed == 'true'
     permissions:
       actions: read
       contents: read
@@ -46,7 +47,9 @@ jobs:
 
   resolve-apm-assets:
     needs: [discover]
-    if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
     permissions:
       contents: read
       id-token: write
@@ -100,7 +103,9 @@ jobs:
       contents: read
       issues: write
       copilot-requests: write
-    if: needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      needs.discover.result == 'success' && needs.discover.outputs.workflows != '[]'
     strategy:
       matrix:
         workflow: ${{ fromJSON(needs.discover.outputs.workflows) }}

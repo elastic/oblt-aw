@@ -9,11 +9,11 @@ import sys
 
 import pytest
 
-_root = pathlib.Path(__file__).parent.parent
+_root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_root / "scripts"))
 
-import agentic_assets_resolver as resolver  # noqa: E402
-import autodocignore as adi  # noqa: E402
+import agentic_assets_resolver as resolver
+import autodocignore as adi
 
 
 @pytest.fixture

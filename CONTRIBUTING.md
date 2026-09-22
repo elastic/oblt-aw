@@ -6,7 +6,8 @@ Thank you for contributing to oblt-aw. Please follow the guidelines below.
 
 1. **Install pre-commit** and run `pre-commit install --hook-type pre-commit --hook-type pre-push`
 2. **Run checks** before pushing: `pre-commit run --files <touched-paths>` (or `pre-commit run --all-files`). Agents must follow [`.cursor/rules/ci-precommit-before-push.mdc`](.cursor/rules/ci-precommit-before-push.mdc) — pytest alone is not enough.
-3. **Run tests**: `pytest tests/` and `npm test`
+3. **If you changed a gh-aw source workflow** (for example a `.md` under `.github/workflows/` or a shared fragment), run `make compile-aw-check` from the repo root before pushing. This regenerates the generated `.lock.yml` files and fails if they drift from source.
+4. **Run tests**: `pytest tests/unit tests/integration` and `npm test` (live E2E suites live under `tests/e2e/` and are not part of default CI)
 
 ## Full Guide
 

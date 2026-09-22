@@ -11,7 +11,7 @@ from __future__ import annotations
 import pathlib
 import sys
 
-_root = pathlib.Path(__file__).parent.parent
+_root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_root / "scripts"))
 
 import sync_control_plane_dashboard as scpd
@@ -361,11 +361,13 @@ class TestBuildDashboardBody:
                     {
                         "id": "github-actions",
                         "name": "GitHub Actions",
+                        "description": "Auto-merge for GitHub Actions and composite action version bumps.",
                         "default_enabled": True,
                     },
                     {
                         "id": "python-dependencies",
                         "name": "Python",
+                        "description": "Auto-merge for Python package and lockfile updates.",
                         "default_enabled": False,
                     },
                 ],
@@ -386,7 +388,15 @@ class TestBuildDashboardBody:
         )
         assert parent_line.startswith("- [ ]")
         assert gh_line.startswith("  - [x]")
+        assert (
+            gh_line == "  - [x] <!-- oblt-aw:obs:automerge:github-actions --> "
+            "GitHub Actions — Auto-merge for GitHub Actions and composite action version bumps."
+        )
         assert py_line.startswith("  - [ ]")
+        assert (
+            py_line == "  - [ ] <!-- oblt-aw:obs:automerge:python-dependencies --> "
+            "Python — Auto-merge for Python package and lockfile updates."
+        )
 
     def test_renders_security_sub_features(self) -> None:
         workflows = [
@@ -399,11 +409,13 @@ class TestBuildDashboardBody:
                     {
                         "id": "injection",
                         "name": "Injection Detection",
+                        "description": "Checks for script-injection vulnerabilities in workflow expressions.",
                         "default_enabled": True,
                     },
                     {
                         "id": "supply-chain",
                         "name": "Supply-chain Hardening",
+                        "description": "Flags unpinned third-party actions and missing provenance checks.",
                         "default_enabled": True,
                     },
                 ],
@@ -417,6 +429,10 @@ class TestBuildDashboardBody:
             line for line in lines if "oblt-aw:obs:security:injection" in line
         )
         assert injection_line.startswith("  - [x]")
+        assert (
+            "Injection Detection — Checks for script-injection vulnerabilities in workflow expressions."
+            in body
+        )
 
     def test_appends_inner_workflows_in_description_column(self) -> None:
         workflows = [

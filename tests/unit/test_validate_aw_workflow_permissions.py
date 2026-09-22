@@ -7,10 +7,10 @@ import sys
 
 import yaml
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
 
-import validate_aw_workflow_permissions as validator  # noqa: E402
-from workflow_permissions import WorkflowPermissionResolver  # noqa: E402
+import validate_aw_workflow_permissions as validator
+from workflow_permissions import WorkflowPermissionResolver
 
 
 def _write_workflow(path: pathlib.Path, data: dict) -> None:

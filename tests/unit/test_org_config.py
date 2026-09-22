@@ -8,9 +8,9 @@ import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "scripts"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
 
-import common  # noqa: E402
+import common
 
 
 class TestDiscoverOrgConfigDirs:

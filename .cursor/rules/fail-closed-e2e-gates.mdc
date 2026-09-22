@@ -52,6 +52,10 @@ Check each of these explicitly (add a regression when any is open):
 | Shared mutable fixture | Do concurrent development PRs share one fixture PR/branch/status context without isolation? Prefer one global concurrency group for a long-lived fixture. |
 | Path-filtered self-trigger | Can fixture-branch sync commits start the privileged live job again? Exclude fixture branch prefix from the job `if`. |
 | Secrets on PR checkout | Is `pull_request_target` avoided? If secrets remain on same-repo `pull_request`, is that an explicit trust boundary (collaborator write + CODEOWNERS), with forks excluded? |
+| Nested reusable job identity | Does substring match on a reusable-call segment (e.g. ` / automerge`) also match sibling jobs (`verify`, `approve`)? Prefer leaf suffixes (` / automerge / automerge`, ` / automerge / approve / conclusion`). |
+| Sibling-job OR substitute | Does `merge_job OR approve_job` (waiter or oracle) green a merge-only expectation? Keep approve / merge / review as separate gates. |
+| Default-branch fixture seed | Does live harness overwrite an existing default-branch fixture when content differs? Seed only when missing; no-op or fail closed when present. |
+| Caller vs callee workflow file | Does config retarget `workflow_call`-only orchestrators (e.g. `obs-aw-event-pull-request.yml`) instead of the listable `pull_request` trigger (`trigger-obs-aw-*.yml`)? Nested jobs belong to the **caller** run. |
 
 If Copilot (or a human) files a follow-up on the same PR after a “fix,” treat that as incomplete first-pass evidence: extend the chain in the same change set; do not argue the first patch was enough.
 
@@ -75,7 +79,10 @@ If Copilot (or a human) files a follow-up on the same PR after a “fix,” trea
 - Binding `wait_for_new_run` to the first completed status workflow run without requiring named-job `status_job_executed` (pending→skipped races)
 - Substring / comment-only guards standing in for parsed config (e.g. `"github_commit_status" in yaml_text`)
 - Waiter context derived from env overrides (`E2E_BUILDKITE_ORG` / `E2E_BUILDKITE_PIPELINE`) without aligning to `buildkite/<pipeline>` publish
-
+- Broad job-name substrings on nested reusable paths (e.g. matching ` / automerge` or bare `automerge` anywhere) that also hit sibling jobs (`verify`, `approve`, collection checks)
+- Oracle or waiter `OR` across different named jobs (approve ≠ merge; review comment ≠ job conclusion)
+- Silently overwriting default-branch fixture files from a live harness when remote content differs
+- Retargeting live harness poll config from `trigger-obs-aw-*.yml` to a `workflow_call`-only orchestrator file because nested job *ids* live there — nested jobs are inspected on the **caller** run
 ## When reviewing Copilot / human fail-closed comments
 
 Treat the comment as a **symptom**. Plan the full chain fix in one change set. If a later review finds a remaining substitute path, that is a process failure from an incomplete first pass — extend the chain, do not argue the first patch was “enough.”

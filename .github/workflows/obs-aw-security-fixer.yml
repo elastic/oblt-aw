@@ -29,6 +29,7 @@ jobs:
 
   resolve-apm-assets:
     if: >-
+      inputs.shared-proceed == 'true' &&
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
       (
@@ -84,6 +85,7 @@ jobs:
       copilot-requests: write
       id-token: write
     if: >-
+      inputs.shared-proceed == 'true' &&
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
       (
@@ -103,7 +105,7 @@ jobs:
 
   request-reviewers:
     needs: security-issue-fixer
-    if: needs.security-issue-fixer.outputs.created_pr_number != ''
+    if: inputs.shared-proceed == 'true' && needs.security-issue-fixer.outputs.created_pr_number != ''
     runs-on: ubuntu-slim
     permissions:
       pull-requests: write

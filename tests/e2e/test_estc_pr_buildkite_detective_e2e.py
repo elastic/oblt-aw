@@ -11,7 +11,7 @@ import sys
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "scripts" / "obs" / "e2e"))
 
 import estc_pr_buildkite_detective_e2e_harness as harness
 import oracle_estc_pr_buildkite_detective_e2e as oracle

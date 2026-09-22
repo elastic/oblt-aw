@@ -31,6 +31,7 @@ jobs:
 
   resolve-apm-assets:
     if: >-
+      inputs.shared-proceed == 'true' &&
       github.event.issue.pull_request == null &&
       startsWith(github.event.comment.body, '/ai implement') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
@@ -85,6 +86,7 @@ jobs:
       copilot-requests: write
       id-token: write
     if: >-
+      inputs.shared-proceed == 'true' &&
       github.event.issue.pull_request == null &&
       startsWith(github.event.comment.body, '/ai implement') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
@@ -101,7 +103,7 @@ jobs:
 
   request-reviewers:
     needs: run
-    if: needs.run.outputs.created_pr_number != ''
+    if: inputs.shared-proceed == 'true' && needs.run.outputs.created_pr_number != ''
     runs-on: ubuntu-slim
     permissions:
       pull-requests: write

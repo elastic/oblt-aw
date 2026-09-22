@@ -22,7 +22,7 @@ Oracle pass/fail for the agent side effect is **comment presence**. Section mark
 2. **Secret** — `BUILDKITE_LOGS_API_TOKEN` on `elastic/oblt-aw` (mapped by `trigger-obs-aw-status.yml` into the wrapper). Must be able to **read** the E2E fail pipeline’s builds/logs.
 3. **Secret** — `BUILDKITE_TOKEN` with Buildkite scopes **`write_builds`** (+ read) / pipeline access level that can create builds so the harness can create and poll an intentional failure build.
 4. **Buildkite pipeline** — provisioned via [`catalog-info.yaml`](../../catalog-info.yaml) Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (steps: [`.buildkite/pipeline.e2e-estc-fail.yml`](../../.buildkite/pipeline.e2e-estc-fail.yml); statuses from `publish_commit_status: true`, context `buildkite/<pipeline>` e.g. `buildkite/oblt-aw-e2e-estc-fail`). After merge to `main`, confirm RRE reconciliation at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail. See [`.buildkite/README.e2e-estc-fail.md`](../../.buildkite/README.e2e-estc-fail.md). Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE` (default `oblt-aw-e2e-estc-fail`) — the harness derives the expected status context from the resolved pipeline name only.
-5. **Target PR** — harness creates or reuses one **long-lived** fixture PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective`. It is never closed by the harness. The exact label plus fixture branch skips repo `ci.yml` and agentic pull-request routes so the fixture does not burn CI or agent credits. Workflow concurrency (`e2e-estc-pr-buildkite-detective`) serializes live runs against that shared fixture. After syncing the fail-pipeline YAML onto the fixture branch, the harness creates the Buildkite build on the **Contents PUT commit SHA** (not a re-fetched PR `headRefOid`, which can lag and hide the status from the PR Checks UI).
+5. **Target PR** — harness creates or reuses one **long-lived** fixture PR labeled `e2e:estc-pr-buildkite-detective` on branch `e2e/estc-pr-buildkite-detective`. It is never closed by the harness. The `ci-gate` job in `ci.yml` skips work jobs for any `e2e:*` / `e2e/` fixture; the exact ESTC label/branch also skips agentic pull-request routes so the fixture does not burn CI or agent credits. Workflow concurrency (`e2e-estc-pr-buildkite-detective`) serializes live runs against that shared fixture. After syncing the fail-pipeline YAML onto the fixture branch, the harness creates the Buildkite build on the **Contents PUT commit SHA** (not a re-fetched PR `headRefOid`, which can lag and hide the status from the PR Checks UI).
 6. **Status context** — waiter always expects `buildkite/<resolved pipeline>` (from `E2E_BUILDKITE_PIPELINE` / config defaults). Config overrides that disagree fail closed before create.
 
 ### Reading failures
@@ -39,9 +39,11 @@ Workflow: [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.githu
 gh workflow run e2e-estc-pr-buildkite-detective.yml
 ```
 
+To run every leaf E2E (this one plus others): `gh workflow run e2e-all.yml`.
+
 Triggers:
 
-- `workflow_dispatch` only (manual). One run at a time via concurrency group `e2e-estc-pr-buildkite-detective`. Always runs case `status-failure-open-pr-live`.
+- `workflow_dispatch` (manual) and `workflow_call` (from `e2e-all.yml`). One run at a time via concurrency group `e2e-estc-pr-buildkite-detective`. Always runs case `status-failure-open-pr-live`.
 
 Not part of the default PR `required` job in [`ci.yml`](../../.github/workflows/ci.yml). Control-plane lock/wrapper still resolve via `@main` on the live status path (smoke); candidate-ref pinning is a separate follow-up.
 
@@ -68,6 +70,7 @@ Each run uploads `e2e-estc-pr-buildkite-detective-status-failure-open-pr-live-<r
 ## Related
 
 - Config: [`config/obs/e2e-estc-pr-buildkite-detective.json`](../../config/obs/e2e-estc-pr-buildkite-detective.json)
+- Harness/oracle: [`scripts/obs/e2e/`](../../scripts/obs/e2e/)
 - Workflow doc: [obs-aw-estc-pr-buildkite-detective](../workflows/obs-aw-estc-pr-buildkite-detective.md)
 - Design: [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md)
 - Integration fixtures (sibling): [#1910](https://github.com/elastic/oblt-aw/issues/1910)

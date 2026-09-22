@@ -25,7 +25,7 @@
       "description": "Enables auto-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready when validation and approval gates pass; GitHub enforces required checks at merge time.",
       "maturity": "stable",
       "default_enabled": false,
-      "docs": "docs/workflows/obs-aw-automerge.md",
+      "docs": "docs/guides/user/automerge-services.md",
       "inner_workflows": ["obs-aw-automerge.yml"],
       "sub_features": [
         {
@@ -53,6 +53,12 @@
           "default_enabled": false
         },
         {
+          "id": "update-beats",
+          "name": "Update beats",
+          "description": "Auto-merge for elastic-agent update-beats PRs (NOTICE, go modules, beats submodule).",
+          "default_enabled": false
+        },
+        {
           "id": "node-dependencies",
           "name": "Node dependencies",
           "description": "Auto-merge for npm/yarn/pnpm manifest and lockfile updates.",
@@ -74,6 +80,12 @@
           "id": "vm-images",
           "name": "VM / container images",
           "description": "Auto-merge for CI runner or container image pin updates.",
+          "default_enabled": false
+        },
+        {
+          "id": "package-version",
+          "name": "Package version",
+          "description": "Auto-merge for .package-version bump automation.",
           "default_enabled": false
         }
       ]

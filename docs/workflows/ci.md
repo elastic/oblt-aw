@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
 
-This workflow runs quality checks and tests on every pull request (any base branch). It enforces pre-commit checks (including Actionlint), Python tests (including `tests/integration/`), and TypeScript tests via `npm test`.
+This workflow runs quality checks and tests on every pull request (any base branch). It enforces pre-commit checks (including Actionlint), Python unit and integration tests (`tests/unit`, `tests/integration`; not live `tests/e2e/`), and TypeScript tests via `npm test`.
 
 ## Triggers
 
@@ -15,7 +15,7 @@ This workflow runs quality checks and tests on every pull request (any base bran
 | Job               | Purpose                                                                 |
 |-------------------|-------------------------------------------------------------------------|
 | `pre-commit`      | Runs all pre-commit hooks (YAML, shell, GitHub Actions lint, Python lint/format, mypy) |
-| `python-tests`    | Runs pytest on `tests/` and validates every `*-aw-*` workflow calls `aw-prelude.yml` |
+| `python-tests`    | Runs pytest on `tests/unit` and `tests/integration` (not `tests/e2e`) and validates every `*-aw-*` workflow calls `aw-prelude.yml` |
 | `typescript-tests`| Runs `npm test` (tsx) on `tests/unit/*.test.ts`                         |
 | `scorecard`       | OpenSSF Scorecard security analysis; uploads SARIF to GitHub Security   |
 | `required`        | Gate job; fails if any of the above jobs fail                           |
@@ -38,7 +38,7 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 
 - Python 3.14
 - Dependencies: `requirements-ci.txt` (includes `requirements-runtime.txt` and pytest)
-- Command: `pytest tests/ -v --tb=short` (includes unit tests and `tests/integration/`)
+- Command: `pytest tests/unit tests/integration -v --tb=short` (excludes live `tests/e2e/`)
 - Integration slice (no live model): `tests/integration/test_estc_pr_buildkite_detective.py` with fixtures in `testdata/agentic/estc-pr-buildkite-detective/` — see [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md)
 - Pip cache via `actions/setup-python` (`cache: pip`), keyed by `requirements-ci.txt` and `requirements-runtime.txt`
 

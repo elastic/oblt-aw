@@ -28,6 +28,7 @@ permissions:
 jobs:
 
   resolve-apm-assets:
+    if: inputs.shared-proceed == 'true'
     permissions:
       contents: read
       id-token: write
@@ -67,6 +68,7 @@ jobs:
         - The comment's "Labels Applied" section must reflect labels you actually applied via add_labels, not merely recommended. If you applied a label, say so; if you did not apply any, say "No labels applied."
 
   dependency-review:
+    if: inputs.shared-proceed == 'true'
     needs: [resolve-apm-assets]
     permissions:
       actions: read
