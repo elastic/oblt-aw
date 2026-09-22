@@ -86,6 +86,9 @@ jobs:
       - name: Validate gh-aw-* workflows call resolve-agentic-assets
         run: python scripts/validate_aw_workflow_resolve_agentic_assets.py
 
+      - name: Validate obs-aw-* callers set report-failure-as-issue false
+        run: python scripts/validate_aw_workflow_report_failure_as_issue.py
+
       - name: Validate reusable-workflow caller permissions
         env:
           GITHUB_TOKEN: ${{ github.token }}

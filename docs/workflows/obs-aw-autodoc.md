@@ -16,6 +16,7 @@ Jobs:
 
 - `audit`: calls `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Created issues always @mention `@elastic/observablt-ci` in the body so the team receives notifications.
 - `fix`: calls `gh-aw-create-pr-from-issue.lock.yml` only when `audit` created an issue.
+- Both `audit` and `fix` set `report-failure-as-issue: false` so agent/`missing_tool` failures stay in the Actions run and do not open `[aw] …` meta-issues. Intentional findings from `create_issue` (audit) are unchanged.
 - `finalize-pr`: requests a review from `@elastic/observablt-ci` and applies the `changelog:docs` label to the created PR if that label exists in the repository.
 - `notify-fix-failure`: when `fix` fails after an audit issue was created, comments recovery guidance on that issue (including `/ai implement`) and applies `oblt-aw/autodoc/fix-failed` when that label exists in the repository.
 
