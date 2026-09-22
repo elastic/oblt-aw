@@ -717,7 +717,13 @@ def sync_fail_workflow_to_fixture_branch(
     branch: str,
     workflow_path: Path | None = None,
 ) -> str | None:
-    """Ensure the fixture branch tip includes the fail-workflow YAML from this checkout."""
+    """Seed the fail-workflow YAML onto the fixture branch when missing.
+
+    No-ops when the remote file already matches this checkout. Refuses to
+    overwrite when remote content differs — only the nonce trigger file is
+    intentionally mutable each live run. Update the fixture workflow via a
+    normal PR when the checked-in YAML changes.
+    """
     path = workflow_path if workflow_path is not None else FAIL_WORKFLOW_PATH
     if not path.is_file():
         raise RuntimeError(
@@ -725,16 +731,42 @@ def sync_fail_workflow_to_fixture_branch(
         )
     content = path.read_text(encoding="utf-8")
     remote_path = str(FAIL_WORKFLOW_PATH).replace("\\", "/")
+    encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
+    existing = subprocess.run(
+        ["gh", "api", f"repos/{repo}/contents/{remote_path}?ref={branch}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if existing.returncode == 0:
+        payload = json.loads(existing.stdout)
+        remote_b64 = str(payload.get("content") or "").replace("\n", "")
+        if remote_b64 == encoded:
+            log_info(f"{remote_path} already current on {repo}@{branch}.")
+            return None
+        raise RuntimeError(
+            f"Fail workflow {remote_path} already exists on {repo}@{branch} "
+            "with different content; refusing to overwrite. Update the fixture "
+            "via a normal PR (or align the checked-in workflow) before "
+            "re-running live E2E. Only the nonce trigger file is mutated "
+            "each run."
+        )
+    err = (existing.stderr or existing.stdout or "").lower()
+    if existing.returncode != 0 and "404" not in err and "not found" not in err:
+        raise RuntimeError(
+            f"Failed to read {remote_path} on {repo}@{branch}: "
+            f"{(existing.stderr or existing.stdout or '').strip() or f'exit {existing.returncode}'}"
+        )
     synced_sha = put_branch_file(
         repo,
         branch=branch,
         path=remote_path,
         content=content,
-        message="chore(e2e): sync PR Actions Detective fail workflow onto fixture branch",
+        message="chore(e2e): seed PR Actions Detective fail workflow onto fixture branch",
     )
     if synced_sha:
         log_info(
-            f"Synced {remote_path} onto {repo}@{branch} "
+            f"Seeded {remote_path} onto {repo}@{branch} "
             f"(commit {synced_sha[:12]}) for intentional Actions failure."
         )
     else:
@@ -883,21 +915,33 @@ def wait_for_new_run(
     interval_seconds: int,
     exclude_run_ids: set[int] | None = None,
     event: str | None = "workflow_run",
+    not_before: datetime | None = None,
+    fail_run_id: int | None = None,
 ) -> dict[str, Any] | None:
     """Wait for a workflow_run-triggered caller run whose named job succeeded.
 
     Poll the **caller** ``trigger-obs-aw-workflow-run.yml`` run (not the
     ``workflow_call`` orchestrator). Skipped route jobs are ignored.
+
+    ``not_before`` (typically the intentional fail run's ``createdAt``) raises
+    the time floor above harness ``since`` so older caller runs cannot match.
+    When ``fail_run_id`` is set, prefer runs whose display title/URL mention
+    that id or the fail workflow basename; otherwise accept the first eligible
+    successful named-job run after the floor (concurrency serializes the live
+    harness; the fail wait is already bound to ``head_sha``).
     """
     excluded = set(exclude_run_ids or ())
+    floor = not_before if not_before is not None else since
     deadline = time.time() + timeout_seconds
+    preferred: dict[str, Any] | None = None
     while time.time() < deadline:
+        candidates: list[dict[str, Any]] = []
         for run in list_workflow_runs(repo, workflow_file):
             run_id = int(run["databaseId"])
             if run_id in excluded:
                 continue
             created = _parse_gh_time(run["createdAt"])
-            if created < since:
+            if created < floor:
                 continue
             if event and (run.get("event") or "").lower() != event.lower():
                 continue
@@ -910,18 +954,48 @@ def wait_for_new_run(
                         "--repo",
                         repo,
                         "--json",
-                        "databaseId,status,conclusion,url,jobs,createdAt,headSha,event",
+                        "databaseId,status,conclusion,url,jobs,createdAt,headSha,event,displayTitle",
                     ]
                 )
                 if detail.get("status") != "completed":
                     time.sleep(interval_seconds)
                     continue
-                if workflow_run_job_executed(detail):
-                    return cast(dict[str, Any], detail)
-                excluded.add(run_id)
+                if not workflow_run_job_executed(detail):
+                    excluded.add(run_id)
+                    break
+                candidates.append(cast(dict[str, Any], detail))
                 break
+        if candidates:
+            if fail_run_id is not None:
+                correlated = [
+                    c
+                    for c in candidates
+                    if _run_correlates_to_fail_run(c, fail_run_id=fail_run_id)
+                ]
+                if correlated:
+                    return correlated[0]
+            # No positive title/URL signal (common for workflow_run children
+            # whose displayTitle is the default-branch tip message). Accept the
+            # earliest eligible successful caller after the fail floor.
+            candidates.sort(key=lambda c: _parse_gh_time(str(c.get("createdAt") or "")))
+            preferred = candidates[0]
+            return preferred
         time.sleep(interval_seconds)
     return None
+
+
+def _run_correlates_to_fail_run(run: dict[str, Any], *, fail_run_id: int) -> bool:
+    """Return True when a run's title/URL positively mentions the fail run.
+
+    Used to *prefer* a caller/lock match. Absence of a signal must not alone
+    authorize a gate; callers combine this with head-SHA / time-floor checks.
+    """
+    needle = str(fail_run_id)
+    title = str(run.get("displayTitle") or "")
+    url = str(run.get("url") or "")
+    if needle in title or needle in url:
+        return True
+    return "e2e-pr-actions-detective-fail" in title.lower()
 
 
 def workflow_run_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
@@ -968,10 +1042,26 @@ def _view_run_jobs(repo: str, run_id: int) -> dict[str, Any] | None:
             "--repo",
             repo,
             "--json",
-            "databaseId,status,conclusion,url,jobs,createdAt,headSha",
+            "databaseId,status,conclusion,url,jobs,createdAt,headSha,displayTitle",
         ]
     )
     return cast(dict[str, Any], detail) if detail else None
+
+
+def _lock_run_bound_to_fail(
+    run: dict[str, Any],
+    *,
+    fail_run_id: int | None,
+    fail_head_sha: str | None,
+) -> bool:
+    """Require a positive binding from a lock run to the intentional fail."""
+    head = str(run.get("headSha") or "")
+    if fail_head_sha and head == fail_head_sha:
+        return True
+    return bool(
+        fail_run_id is not None
+        and _run_correlates_to_fail_run(run, fail_run_id=int(fail_run_id))
+    )
 
 
 def agent_job_invoked(
@@ -979,10 +1069,21 @@ def agent_job_invoked(
     run_detail: dict[str, Any] | None,
     *,
     since: datetime,
+    fail_run_id: int | None = None,
+    fail_head_sha: str | None = None,
 ) -> bool:
+    """Detect agent invocation on the correlated caller run or lock fallback.
+
+    Nested ``workflow_call`` jobs may appear on the caller run; otherwise scan
+    recent lock runs — but only when they bind to the intentional fail run
+    (matching ``headSha`` and/or fail run id in title/URL). A bare time window
+    never authorizes ``agent_invoked``.
+    """
     if _job_names_indicate_agent(run_detail):
         return True
     if not workflow_run_job_executed(run_detail):
+        return False
+    if fail_run_id is None and not fail_head_sha:
         return False
     for run in list_workflow_runs(
         repo, "gh-aw-pr-actions-detective.lock.yml", limit=30
@@ -996,7 +1097,15 @@ def agent_job_invoked(
         conclusion = (run.get("conclusion") or "").lower()
         if conclusion == "skipped":
             continue
+        if not _lock_run_bound_to_fail(
+            run, fail_run_id=fail_run_id, fail_head_sha=fail_head_sha
+        ):
+            continue
         detail = _view_run_jobs(repo, int(run["databaseId"]))
+        if detail is not None and not _lock_run_bound_to_fail(
+            detail, fail_run_id=fail_run_id, fail_head_sha=fail_head_sha
+        ):
+            continue
         if _job_names_indicate_agent(detail):
             return True
     return False
@@ -1008,10 +1117,16 @@ def run_live_case(
     *,
     run_url: str | None = None,
 ) -> dict[str, Any]:
+    # Import here so unit tests can monkeypatch oracle helpers and so this
+    # module stays importable when only harness helpers are exercised.
+    import oracle_pr_actions_detective_e2e as oracle
+
     case = _load_json(case_dir / "case.json")
     require_case_mode(case, "live", case_id=str(case.get("id", case_dir.name)))
-    trigger = case.get("trigger") or {}
-    expectations = case.get("expectations") or {}
+    trigger_raw = case.get("trigger") or {}
+    expectations_raw = case.get("expectations") or {}
+    trigger = trigger_raw if isinstance(trigger_raw, dict) else {}
+    expectations = expectations_raw if isinstance(expectations_raw, dict) else {}
     cfg = normalize_e2e_pr_config(cfg)
     repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
     workflow_id = str(case.get("workflow_id") or cfg.get("workflow_id") or WORKFLOW_ID)
@@ -1025,39 +1140,30 @@ def run_live_case(
         "label": cfg["e2e_pr"].get("label"),
     }
 
-    if not trigger.get("require_open_pr", True):
-        return {
+    def _blocked(reason: str, **extra: Any) -> dict[str, Any]:
+        out: dict[str, Any] = {
             "workflow_id": workflow_id,
             "case_id": case.get("id", case_dir.name),
             "layer": "e2e",
             "mode": "live",
             "agent_invoked": False,
             "blocked": True,
-            "block_reason": (
-                "Live E2E is happy-path only and requires an open fixture PR "
-                "(trigger.require_open_pr must be true)."
-            ),
+            "block_reason": reason,
             "path_gates": {"dashboard_enabled": False},
             "expectations": expectations,
+            "trigger": trigger,
             "run_url": run_url,
         }
-    if not trigger.get("create_failed_actions_run"):
-        return {
-            "workflow_id": workflow_id,
-            "case_id": case.get("id", case_dir.name),
-            "layer": "e2e",
-            "mode": "live",
-            "agent_invoked": False,
-            "blocked": True,
-            "block_reason": (
-                "Live E2E is happy-path only: set "
-                "trigger.create_failed_actions_run so an intentional GitHub "
-                "Actions failure produces the workflow_run entry event."
-            ),
-            "path_gates": {"dashboard_enabled": False},
-            "expectations": expectations,
-            "run_url": run_url,
-        }
+        out.update(extra)
+        return out
+
+    # Validate the full trigger/expectations contract before any remote writes.
+    trigger_err = oracle.case_trigger_schema_error(trigger)
+    if trigger_err:
+        return _blocked(f"Invalid live trigger contract: {trigger_err}")
+    expectations_err = oracle.case_expectations_schema_error("live", expectations)
+    if expectations_err:
+        return _blocked(f"Invalid live expectations contract: {expectations_err}")
 
     dashboard_ok = False
     sha: str | None = None
@@ -1068,22 +1174,14 @@ def run_live_case(
             repo, str(cfg.get("dashboard_workflow_id") or workflow_id)
         )
         if expectations.get("dashboard_enabled") and not dashboard_ok:
-            return {
-                "workflow_id": workflow_id,
-                "case_id": case.get("id", case_dir.name),
-                "layer": "e2e",
-                "mode": "live",
-                "agent_invoked": False,
-                "blocked": True,
-                "block_reason": (
+            return _blocked(
+                (
                     f"Dashboard does not enable {workflow_id} on {repo}. "
                     "Enable the checkbox on the Control Plane Dashboard issue, "
                     "then re-run."
                 ),
-                "path_gates": {"dashboard_enabled": False},
-                "expectations": expectations,
-                "run_url": run_url,
-            }
+                path_gates={"dashboard_enabled": False},
+            )
 
         pr_info = ensure_e2e_pr(repo, cfg)
         resolved_base = "main"
@@ -1095,7 +1193,7 @@ def run_live_case(
         fixture_meta["pr_number"] = target_pr_number
         fixture_meta["pr_url"] = pr_info.get("url")
 
-        if trigger.get("clear_prior_detective_comments"):
+        if trigger.get("clear_prior_detective_comments") is True:
             clear_detective_comments(repo, target_pr_number, markers)
 
         since = _utc_now().replace(microsecond=0)
@@ -1138,63 +1236,48 @@ def run_live_case(
             exclude_run_ids=known_fail_ids,
         )
         if fail_detail is None:
-            return {
-                "workflow_id": workflow_id,
-                "case_id": case.get("id", case_dir.name),
-                "layer": "e2e",
-                "mode": "live",
-                "agent_invoked": False,
-                "blocked": True,
-                "block_reason": (
+            return _blocked(
+                (
                     f"Timed out after {fail_timeout}s waiting for intentional "
                     f"fail workflow {fail_workflow!r} on commit {sha} "
                     f"(event={expected_event!r}, conclusion={expected_conclusion!r})."
                 ),
-                "path_gates": {"dashboard_enabled": dashboard_ok},
-                "fixture": fixture_meta,
-                "commit_sha": sha,
-                "pr_number": target_pr_number,
-                "trigger": trigger,
-                "expectations": expectations,
-                "run_url": run_url,
-            }
+                path_gates={"dashboard_enabled": dashboard_ok},
+                fixture=fixture_meta,
+                commit_sha=sha,
+                pr_number=target_pr_number,
+            )
 
+        fail_run_id = int(fail_detail["databaseId"])
+        fail_created = _parse_gh_time(str(fail_detail.get("createdAt") or since))
+        fail_head_sha = str(fail_detail.get("headSha") or sha or "")
         marker = str(cfg.get("fail_log_marker") or DEFAULT_FAIL_LOG_MARKER)
         marker_ok, marker_detail = verify_fail_log_marker(
-            repo, int(fail_detail["databaseId"]), marker=marker
+            repo, fail_run_id, marker=marker
         )
         fail_run_meta = {
             "source": "created",
             "workflow_file": fail_workflow,
-            "run_id": fail_detail.get("databaseId"),
+            "run_id": fail_run_id,
             "url": fail_detail.get("url"),
             "conclusion": fail_detail.get("conclusion"),
             "event": fail_detail.get("event"),
-            "head_sha": fail_detail.get("headSha"),
+            "head_sha": fail_head_sha,
             "fail_log_marker_verified": marker_ok,
             "fail_log_marker_detail": marker_detail,
         }
         if not marker_ok:
-            return {
-                "workflow_id": workflow_id,
-                "case_id": case.get("id", case_dir.name),
-                "layer": "e2e",
-                "mode": "live",
-                "agent_invoked": False,
-                "blocked": True,
-                "block_reason": (
+            return _blocked(
+                (
                     "Intentional fail workflow completed but log marker was not "
                     f"verified: {marker_detail}"
                 ),
-                "path_gates": {"dashboard_enabled": dashboard_ok},
-                "fail_workflow": fail_run_meta,
-                "fixture": fixture_meta,
-                "commit_sha": sha,
-                "pr_number": target_pr_number,
-                "trigger": trigger,
-                "expectations": expectations,
-                "run_url": run_url,
-            }
+                path_gates={"dashboard_enabled": dashboard_ok},
+                fail_workflow=fail_run_meta,
+                fixture=fixture_meta,
+                commit_sha=sha,
+                pr_number=target_pr_number,
+            )
 
         run_detail = wait_for_new_run(
             repo,
@@ -1204,6 +1287,8 @@ def run_live_case(
             interval_seconds=interval,
             exclude_run_ids=known_trigger_ids,
             event="workflow_run",
+            not_before=fail_created,
+            fail_run_id=fail_run_id,
         )
         if run_detail is None:
             raise TimeoutError(
@@ -1214,7 +1299,13 @@ def run_live_case(
 
         job_executed = workflow_run_job_executed(run_detail)
         job_conclusion = workflow_run_job_conclusion(run_detail)
-        invoked = agent_job_invoked(repo, run_detail, since=since)
+        invoked = agent_job_invoked(
+            repo,
+            run_detail,
+            since=since,
+            fail_run_id=fail_run_id,
+            fail_head_sha=fail_head_sha,
+        )
         comment = None
         if expectations.get("expect_agent_comment"):
             comment_deadline = time.time() + min(900, timeout)
@@ -1233,10 +1324,16 @@ def run_live_case(
                             "--repo",
                             repo,
                             "--json",
-                            "databaseId,status,conclusion,url,jobs,createdAt,headSha,event",
+                            "databaseId,status,conclusion,url,jobs,createdAt,headSha,event,displayTitle",
                         ]
                     )
-                invoked = agent_job_invoked(repo, run_detail, since=since)
+                invoked = agent_job_invoked(
+                    repo,
+                    run_detail,
+                    since=since,
+                    fail_run_id=fail_run_id,
+                    fail_head_sha=fail_head_sha,
+                )
                 time.sleep(interval)
         else:
             comment = find_agent_comment(

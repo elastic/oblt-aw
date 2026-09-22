@@ -44,7 +44,7 @@ Shared compile imports for this workflow also include the other files under [`.g
 
 ## Configuration
 
-Permissions on the agent job:
+Wrapper call permissions (max token scope passed into the lock):
 
 - `actions: read`
 - `contents: read`
@@ -52,7 +52,12 @@ Permissions on the agent job:
 - `pull-requests: write`
 - `copilot-requests: write`
 
-Conclusion and safe-outputs jobs request `pull-requests: write` only where needed; failure fallbacks do not create tracking issues (`obs-defaults`).
+Compiled lock job permissions (actual privilege boundary):
+
+- **agent** — `actions: read`, `contents: read`, `issues: read`, `pull-requests: read`, `copilot-requests: write` (analysis only; no direct PR writes)
+- **conclusion** / **safe_outputs** — `pull-requests: write` only where needed to post the detective comment
+
+Failure fallbacks do not create tracking issues (`obs-defaults`).
 
 ## API / Interface
 

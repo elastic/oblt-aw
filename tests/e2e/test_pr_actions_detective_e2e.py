@@ -181,7 +181,7 @@ class TestHarnessHelpers:
                 }
             )
 
-    def test_live_mode_blocks_without_create_failed_actions_run(
+    def test_live_mode_blocks_invalid_trigger_before_remote_writes(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         case_dir = tmp_path / "cases" / "bad"
@@ -194,7 +194,8 @@ class TestHarnessHelpers:
                     "workflow_id": "obs:pr-actions-detective",
                     "trigger": {
                         "require_open_pr": True,
-                        "create_failed_actions_run": False,
+                        # Truthy string must not reach ensure_e2e_pr / Contents API.
+                        "create_failed_actions_run": "false",
                         "clear_prior_detective_comments": True,
                         "fail_workflow_conclusion": "failure",
                         "fail_workflow_event": "pull_request",
@@ -209,13 +210,148 @@ class TestHarnessHelpers:
             ),
             encoding="utf-8",
         )
+        called: list[str] = []
+
+        def _boom(*_a: object, **_k: object) -> None:
+            called.append("ensure_e2e_pr")
+            raise AssertionError("ensure_e2e_pr must not run before schema validation")
+
+        monkeypatch.setattr(harness, "ensure_e2e_pr", _boom)
+        monkeypatch.setattr(
+            harness,
+            "dashboard_enables_workflow",
+            lambda *_a, **_k: (_ for _ in ()).throw(
+                AssertionError("dashboard check must not run before schema validation")
+            ),
+        )
         monkeypatch.chdir(ROOT)
         outcome = harness.run_live_case(
             case_dir,
             harness.load_e2e_config(ROOT / "config/obs/e2e-pr-actions-detective.json"),
         )
         assert outcome["blocked"] is True
-        assert "create_failed_actions_run" in str(outcome.get("block_reason"))
+        assert "Invalid live trigger contract" in str(outcome.get("block_reason"))
+        assert called == []
+
+    def test_sync_fail_workflow_refuses_differing_remote(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        workflow = tmp_path / "e2e-pr-actions-detective-fail.yml"
+        workflow.write_text("name: local\n", encoding="utf-8")
+        monkeypatch.setattr(harness, "FAIL_WORKFLOW_PATH", workflow)
+
+        def _fake_run(cmd: list[str], **_k: object) -> object:
+            class _Proc:
+                returncode = 0
+                stdout = json.dumps(
+                    {
+                        "sha": "abc",
+                        "content": "bm90LW1hdGNoCg==",  # "not-match\n" b64
+                    }
+                )
+                stderr = ""
+
+            assert "contents/" in " ".join(cmd)
+            return _Proc()
+
+        monkeypatch.setattr(harness.subprocess, "run", _fake_run)
+
+        def _put_must_not_run(*_a: object, **_k: object) -> None:
+            raise AssertionError("put_branch_file must not overwrite differing remote")
+
+        monkeypatch.setattr(harness, "put_branch_file", _put_must_not_run)
+        with pytest.raises(RuntimeError, match="refusing to overwrite"):
+            harness.sync_fail_workflow_to_fixture_branch(
+                "elastic/oblt-aw", branch="e2e/pr-actions-detective"
+            )
+
+    def test_agent_job_invoked_ignores_uncorrelated_lock_runs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = harness._utc_now().replace(microsecond=0)
+        caller = {
+            "jobs": [
+                {"name": "run-obs-aw-workflow-run", "conclusion": "success"},
+            ]
+        }
+        monkeypatch.setattr(
+            harness,
+            "list_workflow_runs",
+            lambda *_a, **_k: [
+                {
+                    "databaseId": 99,
+                    "createdAt": since.isoformat().replace("+00:00", "Z"),
+                    "status": "completed",
+                    "conclusion": "success",
+                    "headSha": "other-sha",
+                    "displayTitle": "unrelated detective run",
+                    "url": "https://example.test/runs/99",
+                }
+            ],
+        )
+        monkeypatch.setattr(
+            harness,
+            "_view_run_jobs",
+            lambda *_a, **_k: {
+                "jobs": [{"name": "agent", "conclusion": "success"}],
+                "headSha": "other-sha",
+                "displayTitle": "unrelated detective run",
+            },
+        )
+        assert (
+            harness.agent_job_invoked(
+                "elastic/oblt-aw",
+                caller,
+                since=since,
+                fail_run_id=42,
+                fail_head_sha="expected-sha",
+            )
+            is False
+        )
+
+    def test_agent_job_invoked_accepts_head_sha_bound_lock(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = harness._utc_now().replace(microsecond=0)
+        caller = {
+            "jobs": [
+                {"name": "run-obs-aw-workflow-run", "conclusion": "success"},
+            ]
+        }
+        monkeypatch.setattr(
+            harness,
+            "list_workflow_runs",
+            lambda *_a, **_k: [
+                {
+                    "databaseId": 99,
+                    "createdAt": since.isoformat().replace("+00:00", "Z"),
+                    "status": "completed",
+                    "conclusion": "success",
+                    "headSha": "expected-sha",
+                    "displayTitle": "lock run",
+                    "url": "https://example.test/runs/99",
+                }
+            ],
+        )
+        monkeypatch.setattr(
+            harness,
+            "_view_run_jobs",
+            lambda *_a, **_k: {
+                "jobs": [{"name": "agent", "conclusion": "success"}],
+                "headSha": "expected-sha",
+                "displayTitle": "lock run",
+            },
+        )
+        assert (
+            harness.agent_job_invoked(
+                "elastic/oblt-aw",
+                caller,
+                since=since,
+                fail_run_id=42,
+                fail_head_sha="expected-sha",
+            )
+            is True
+        )
 
 
 class TestOracleFailClosed:
@@ -315,6 +451,25 @@ class TestOracleFailClosed:
         assert trigger is not None
         assert oracle.case_expectations_schema_error("live", expectations) is None
         assert oracle.case_trigger_schema_error(trigger) is None
+
+    def test_trigger_schema_pins_failure_pull_request_contract(self) -> None:
+        trigger = dict(_NEGATIVE_CASE_TRIGGER)
+        assert oracle.case_trigger_schema_error(trigger) is None
+        bad_conclusion = {**trigger, "fail_workflow_conclusion": "success"}
+        err = oracle.case_trigger_schema_error(bad_conclusion)
+        assert err is not None
+        assert "failure" in err
+        bad_event = {**trigger, "fail_workflow_event": "push"}
+        err = oracle.case_trigger_schema_error(bad_event)
+        assert err is not None
+        assert "pull_request" in err
+        false_create = {**trigger, "create_failed_actions_run": False}
+        err = oracle.case_trigger_schema_error(false_create)
+        assert err is not None
+        assert "create_failed_actions_run" in err
+        string_bool = {**trigger, "require_open_pr": "true"}  # type: ignore[dict-item]
+        err = oracle.case_trigger_schema_error(string_bool)  # type: ignore[arg-type]
+        assert err is not None
 
     def test_layer_mismatch_fails(self) -> None:
         outcome = _synthetic_live_outcome()

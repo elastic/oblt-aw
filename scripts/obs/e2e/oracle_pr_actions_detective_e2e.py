@@ -76,10 +76,15 @@ _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "create_failed_actions_run",
     "clear_prior_detective_comments",
 )
-_LIVE_REQUIRED_TRIGGER_STR_KEYS = (
-    "fail_workflow_conclusion",
-    "fail_workflow_event",
+# Happy-path live E2E must drive an intentional pull_request failure.
+_LIVE_REQUIRED_TRIGGER_BOOL_TRUE_KEYS = (
+    "require_open_pr",
+    "create_failed_actions_run",
 )
+_LIVE_PINNED_TRIGGER_STRS = {
+    "fail_workflow_conclusion": "failure",
+    "fail_workflow_event": "pull_request",
+}
 
 
 def case_expectations_schema_error(
@@ -100,6 +105,11 @@ def case_expectations_schema_error(
 
 
 def case_trigger_schema_error(trigger: dict[str, Any]) -> str | None:
+    """Validate the checked-in live trigger contract (fail closed).
+
+    Pins the intentional ``pull_request`` / ``failure`` path so a typo or
+    alternate event/conclusion cannot redefine what the oracle proves.
+    """
     missing_bool = [k for k in _LIVE_REQUIRED_TRIGGER_BOOL_KEYS if k not in trigger]
     if missing_bool:
         return f"live trigger missing required keys: {missing_bool}"
@@ -108,13 +118,20 @@ def case_trigger_schema_error(trigger: dict[str, Any]) -> str | None:
             _as_bool(trigger[key])
         except TypeError as exc:
             return f"live trigger {key!r} must be bool ({exc})"
-    missing_str = [k for k in _LIVE_REQUIRED_TRIGGER_STR_KEYS if k not in trigger]
-    if missing_str:
-        return f"live trigger missing required keys: {missing_str}"
-    for key in _LIVE_REQUIRED_TRIGGER_STR_KEYS:
+    for key in _LIVE_REQUIRED_TRIGGER_BOOL_TRUE_KEYS:
+        if trigger.get(key) is not True:
+            return f"live trigger {key!r} must be true for happy-path E2E"
+    for key, expected in _LIVE_PINNED_TRIGGER_STRS.items():
+        if key not in trigger:
+            return f"live trigger missing required key: {key}"
         value = trigger.get(key)
         if not isinstance(value, str) or not value.strip():
             return f"live trigger {key!r} must be a non-empty string, got {value!r}"
+        if value.strip().lower() != expected:
+            return (
+                f"live trigger {key!r} must be {expected!r} "
+                f"(intentional Actions failure path), got {value!r}"
+            )
     return None
 
 
