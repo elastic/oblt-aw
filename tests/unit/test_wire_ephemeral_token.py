@@ -63,6 +63,19 @@ def test_wire_token_expressions_is_idempotent() -> None:
     assert "steps.create-token.outputs.token" in once
 
 
+def test_wire_token_expressions_only_on_minting_jobs() -> None:
+    updated = wire.wire_token_expressions(SAMPLE_LOCK)
+    safe_block, detection_block = updated.split("  detection:")
+    assert (
+        "steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN" in safe_block
+    )
+    assert "steps.create-token.outputs.token" not in detection_block
+    assert (
+        "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+        in detection_block
+    )
+
+
 def test_ensure_id_token_write_only_on_minting_jobs() -> None:
     updated = wire.ensure_id_token_write(SAMPLE_LOCK)
     safe_block, detection_block = updated.split("  detection:")
@@ -75,8 +88,13 @@ def test_process_lock_file_wires_create_token_step(tmp_path: Path) -> None:
     lock.write_text(SAMPLE_LOCK, encoding="utf-8")
     assert wire.process_lock_file(lock) is True
     text = lock.read_text(encoding="utf-8")
-    assert "steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN" in text
-    assert "id-token: write" in text
+    safe_block, detection_block = text.split("  detection:")
+    assert (
+        "steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN" in safe_block
+    )
+    assert "id-token: write" in safe_block
+    assert "steps.create-token.outputs.token" not in detection_block
+    assert "id-token: write" not in detection_block
 
 
 def test_process_lock_file_skips_without_create_token(tmp_path: Path) -> None:

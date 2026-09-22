@@ -9,7 +9,7 @@ Technical registration detail for maintainers and agents: [Registering resources
 ## Prerequisites
 
 - The target repository is under the `elastic` GitHub organization.
-- You can open issues in [elastic/oblt-aw](https://github.com/elastic/oblt-aw).
+- You have **write** access (or higher) on [elastic/oblt-aw](https://github.com/elastic/oblt-aw). Opening issues alone is not enough: GitHub only applies the form label when the creator has push access, and the agent role gate requires `write` / `maintain` / `admin`.
 - You (or a teammate) can merge pull requests in `elastic/catalog-info`, `elastic/oblt-aw`, `elastic/observability-github-settings`, and—when needed—`elastic/observability-github-secrets`.
 
 ## Steps
@@ -43,7 +43,7 @@ Technical registration detail for maintainers and agents: [Registering resources
 
 ## Troubleshooting
 
-- **No agent comment / no PRs** — Confirm the issue has `oblt-aw/onboard/repository`. Check the Actions run for `gh-aw-onboard-repository` in `elastic/oblt-aw`. Cross-repo PR creation needs write access configured for the agent (see [gh-aw-onboard-repository](../../workflows/gh-aw-onboard-repository.md)).
+- **No agent comment / no PRs** — Confirm you have **write** on `elastic/oblt-aw` and the issue has `oblt-aw/onboard/repository` (without write, GitHub drops the form label). Check the Actions run for `gh-aw-onboard-repository`. Cross-repo PR creation needs the agent TokenPolicy / minted token (see [gh-aw-onboard-repository](../../workflows/gh-aw-onboard-repository.md)).
 - **Registration merged too early** — If `oblt-aw` registration landed before catalog TokenPolicy was active, follow [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting).
 - **No install PR or dashboard** — Confirm the repository appears in `config/<org-key>/active-repositories.json` on `main`, then see [distribute-client-workflow](../../operations/distribute-client-workflow.md) and [sync-control-plane-dashboard](../../workflows/sync-control-plane-dashboard.md).
 

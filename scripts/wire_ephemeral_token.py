@@ -56,21 +56,6 @@ REPLACEMENTS: tuple[tuple[str, str], ...] = (
 ID_TOKEN_LINE = "      id-token: write"
 
 
-def wire_token_expressions(text: str) -> str:
-    """Prefer minted step outputs in known GH-AW token fallback expressions."""
-    rewritten: list[str] = []
-    for line in text.splitlines(keepends=True):
-        if "create-token.outputs.token" in line:
-            rewritten.append(line)
-            continue
-        for old, new in REPLACEMENTS:
-            if old in line:
-                line = line.replace(old, new)
-                break
-        rewritten.append(line)
-    return "".join(rewritten)
-
-
 def _job_blocks(text: str) -> list[tuple[int, int]]:
     """Return (start, end) line-index spans for top-level jobs.* blocks."""
     lines = text.splitlines(keepends=True)
@@ -99,6 +84,39 @@ def _job_blocks(text: str) -> list[tuple[int, int]]:
         end = starts[i + 1] if i + 1 < len(starts) else len(lines)
         spans.append((start, end))
     return spans
+
+
+def _rewrite_line(line: str) -> str:
+    """Prefer minted step outputs in one token-expression line."""
+    if "create-token.outputs.token" in line:
+        return line
+    for old, new in REPLACEMENTS:
+        if old in line:
+            return line.replace(old, new)
+    return line
+
+
+def wire_token_expressions(text: str) -> str:
+    """Prefer minted step outputs only inside jobs that mint create-token.
+
+    Non-minting jobs (for example detection) keep secrets.* fallbacks so they
+    do not reference a missing steps.create-token output.
+    """
+    lines = text.splitlines(keepends=True)
+    spans = _job_blocks(text)
+    if not spans:
+        return "".join(_rewrite_line(line) for line in lines)
+
+    minting = {
+        (start, end)
+        for start, end in spans
+        if "id: create-token" in "".join(lines[start:end])
+    }
+    rewritten: list[str] = []
+    for i, line in enumerate(lines):
+        in_minting = any(start <= i < end for start, end in minting)
+        rewritten.append(_rewrite_line(line) if in_minting else line)
+    return "".join(rewritten)
 
 
 def ensure_id_token_write(text: str) -> str:

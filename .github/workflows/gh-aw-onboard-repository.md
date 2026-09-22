@@ -14,8 +14,10 @@ engine:
   id: copilot
 on:
   stale-check: false
+  # Labeled only: issue-form labels emit `labeled` after create; `opened` bypasses
+  # the compiler's names filter and would run the agent on every new issue.
   issues:
-    types: [opened, labeled]
+    types: [labeled]
     names: [oblt-aw/onboard/repository]
   workflow_dispatch:
   roles: [admin, maintainer, write]
@@ -54,7 +56,6 @@ tools:
       - "elastic/catalog-info"
       - "elastic/observability-github-settings"
       - "elastic/observability-github-secrets"
-      - "elastic/*"
   bash: true
   web-fetch:
 network:
@@ -99,46 +100,20 @@ Parse the issue body (sanitized context) and extract exactly:
 
 If either value is missing, invalid, or the repository is already listed in `config/<org-key>/active-repositories.json`, call `add-comment` with a clear explanation and stop (use `noop` if no further action is possible).
 
-## Authoritative procedure
+## Authoritative procedure (read and follow — do not invent)
 
-Follow `docs/onboarding/registering-a-repository.md` for file shapes, TokenPolicy template, Vault bypassers HCL, and merge ordering.
+**Read and follow** these docs in the workspace; they are the technical contract. Do **not** restate or invent parallel steps.
 
-Also read:
+1. `docs/onboarding/registering-a-repository.md` — required PRs, file shapes, TokenPolicy template, Vault bypassers, secrets, merge ordering, verification.
+2. `docs/guides/user/onboard-a-repository.md` — what the human does after registration merges (dashboard enablement).
 
-- `config/<org-key>/active-repositories.json` (current fleet entries)
-- Client template triggers under `.github/remote-workflow-template/<org-key>/` to determine which `workflow_ref` values the TokenPolicy must cover
-- Existing TokenPolicy examples under `repos/catalog-info` (paths used by that repository)
-- Existing `branch-protections/<repo>/` modules under `repos/observability-github-settings` when present
+Use checked-out trees as the docs require (`repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and this repo’s root for `elastic/oblt-aw`). Match existing patterns in those trees and under `.github/remote-workflow-template/<org-key>/` when deriving `workflow_ref` values.
 
-## Required pull requests (normal, not draft)
+## Operating constraints (agent-only)
 
-Open **separate** pull requests (one concern each) with `create-pull-request`. Policy is `draft: false`. Do **not** merge any PR. `auto-close-issue` is already false — do not close the onboard issue.
+These are not repeated in the docs; obey them:
 
-| Order | `repo` | Workspace path | Change |
-|------:|--------|----------------|--------|
-| 1 | `elastic/catalog-info` | `repos/catalog-info` | TokenPolicy Resource(s) for the consumer’s client `workflow_ref` values (`refs/heads/main` only). Derive `token-policy-<12-char sha256(workflow ref base)>` per registering-a-repository.md. |
-| 2 | `elastic/oblt-aw` | repository root | Add `{ "repository": "elastic/<repo>", "workflow-token-policy": "<catalog metadata.name>", "ai-assets-token-policy": "" }` to `config/<org-key>/active-repositories.json`. Keep JSON sorted/consistent with existing style. |
-| 3 | `elastic/observability-github-settings` | `repos/observability-github-settings` | Add [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) to classic BP `pull_request_bypassers` for the default branch (`branch-protections/<repo>/`). **Add** to existing lists; do not remove other bypassers. |
-| 4 | `elastic/observability-github-secrets` | `repos/observability-github-secrets` | Only if registering-a-repository / per-workflow docs require secrets for this org’s intended defaults; otherwise skip and state “none” in the issue comment. |
-
-Checkout directories must contain the file edits for each cross-repo PR. For the `elastic/oblt-aw` PR, edit files in this workflow repository checkout (workspace root).
-
-## Issue comment (mandatory)
-
-Before finishing, `add-comment` on the triggering issue with:
-
-1. Parsed repository and org-key.
-2. Checklist of expected PRs with links (or “skipped: none needed” for secrets).
-3. **Merge order:** merge catalog-info **before** the `elastic/oblt-aw` registration PR.
-4. Reminder that merges are **manual**.
-5. After registration merges: expect distribute-client-workflow install PR and Control Plane Dashboard in `elastic/<repo>`; user then enables workflows on the dashboard (`docs/guides/user/onboard-a-repository.md`).
-
-## Stop conditions
-
-- Missing/invalid inputs → comment and stop.
-- Repository already registered for that org-key → comment and stop (do not open duplicate registration PRs).
-- Insufficient permissions / missing cross-repo token → comment with what failed and which secret/token policy is required; do not invent credentials.
-
-## Safe outputs
-
-Call at least one of: `create-pull-request`, `add-comment`, or `noop`. A text-only exit with zero safe outputs is a failure.
+- Open **separate** pull requests (one concern each) via `create-pull-request` (`draft: false`). **Do not merge** any PR. Do not close the onboard issue (`auto-close-issue` is already false).
+- Before finishing, `add-comment` on the triggering issue with: parsed repository and org-key; checklist of opened/skipped PRs with links; merge order from the registering doc (catalog-info before `elastic/oblt-aw`); that merges are **manual**; pointer to the user guide for post-merge steps.
+- Stop conditions: missing/invalid inputs; already registered; permissions/token failures — comment what failed; never invent credentials.
+- Call at least one of: `create-pull-request`, `add-comment`, or `noop`. A text-only exit with zero safe outputs is a failure.
