@@ -82,6 +82,8 @@ jobs:
       lookback-window: 1 day ago
       title-prefix: "[oblt-aw][autodoc]"
       additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
+      # Findings still use create_issue; do not open [aw] failure meta-issues.
+      report-failure-as-issue: false
     secrets: inherit
 
   resolve-apm-assets-fix:
@@ -147,6 +149,8 @@ jobs:
       target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
       draft-prs: true
       additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
+      # Keep missing_tool / agent failure signals in the run; do not open meta-issues.
+      report-failure-as-issue: false
     secrets: inherit
 
   # Step 3: Finalize autodoc PR — assign reviewer and apply labels
