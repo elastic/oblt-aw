@@ -178,7 +178,7 @@ To extract enabled workflows from the issue body (when a dashboard issue exists)
 
 | Column | Description |
 |--------|-------------|
-| **Workflow** | Human-readable name from the org’s `workflow-registry.json`. When the entry sets `docs` (repo-relative path under `docs/workflows/`), the name is a Markdown link to `https://github.com/elastic/oblt-aw/blob/main/<docs>` |
+| **Workflow** | Human-readable name from the org’s `workflow-registry.json`. When the entry sets `docs` (non-empty repo-relative documentation path), the name is a Markdown link to `https://github.com/elastic/oblt-aw/blob/main/<docs>` |
 | **Maturity** | `stable`, `early-adoption`, or `experimental` (from the org’s `workflow-registry.json`) |
 | **Description** | Short description from the org’s `workflow-registry.json`, followed by `inner-workflows:` and backtick-quoted wrapper basenames (parent `inner_workflows` then each sub-feature’s list, de-duplicated). Those basenames are the keys consumers use under `x-oblt-aw.<org-key>.workflows.<id>.inner-workflows` in `apm.yml`. Child checkbox labels may also append a concise service description for readability. |
 
