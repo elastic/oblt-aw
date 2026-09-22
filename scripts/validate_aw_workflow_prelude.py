@@ -30,6 +30,7 @@ import pathlib
 import re
 import sys
 
+import yaml  # type: ignore[import-untyped]
 from workflow_registry import validate_registry_against_workflows
 
 WORKFLOWS_DIR = pathlib.Path(".github/workflows")
@@ -44,8 +45,6 @@ PRELUDE_USES = re.compile(
 PRELUDE_JOB = re.compile(r"^\s+(?:prelude|run-aw-prelude):\s*$", re.MULTILINE)
 SHARED_PROCEED_INPUT = re.compile(r"^\s+shared-proceed:\s*$", re.MULTILINE)
 SHARED_PROCEED_JOB_IF = re.compile(r"inputs\.shared-proceed")
-JOB_HEADER = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$", re.MULTILINE)
-JOB_IF_LINE = re.compile(r"^    if:\s*(.*)$", re.MULTILINE)
 
 
 def list_subject_workflows() -> list[pathlib.Path]:
@@ -67,51 +66,20 @@ def list_subject_workflows() -> list[pathlib.Path]:
 
 def _job_if_expressions(text: str) -> list[str]:
     """Return each job-level ``if:`` expression body (may be multiline)."""
-    lines = text.splitlines()
     expressions: list[str] = []
-    i = 0
-    in_jobs = False
-    while i < len(lines):
-        line = lines[i]
-        if line == "jobs:" or line.startswith("jobs:"):
-            in_jobs = True
-            i += 1
+    data = yaml.safe_load(text)
+    if not isinstance(data, dict):
+        return expressions
+    jobs = data.get("jobs")
+    if not isinstance(jobs, dict):
+        return expressions
+    for job in jobs.values():
+        if not isinstance(job, dict):
             continue
-        if not in_jobs:
-            i += 1
+        expression = job.get("if")
+        if expression is None:
             continue
-        if line and not line.startswith(" ") and not line.startswith("#"):
-            break
-        job_match = JOB_HEADER.match(line)
-        if not job_match:
-            i += 1
-            continue
-        i += 1
-        if_parts: list[str] = []
-        while i < len(lines):
-            cur = lines[i]
-            if JOB_HEADER.match(cur) or (
-                cur and not cur.startswith(" ") and not cur.startswith("#")
-            ):
-                break
-            if_match = JOB_IF_LINE.match(cur)
-            if if_match:
-                first = if_match.group(1).strip()
-                if first in (">-", "|-", ">", "|") or first.endswith(">-"):
-                    i += 1
-                    while i < len(lines) and (
-                        lines[i].startswith("      ") or lines[i].strip() == ""
-                    ):
-                        if lines[i].strip():
-                            if_parts.append(lines[i].strip())
-                        i += 1
-                else:
-                    if_parts.append(first)
-                    i += 1
-                break
-            i += 1
-        if if_parts:
-            expressions.append(" ".join(if_parts))
+        expressions.append(" ".join(str(expression).split()))
     return expressions
 
 

@@ -105,3 +105,31 @@ def test_validate_workflow_accepts_shared_proceed_route(
     )
     monkeypatch.setattr(validator, "WORKFLOWS_DIR", workflows)
     assert validator.validate_workflow(good) == []
+
+
+def test_validate_workflow_accepts_shared_proceed_route_with_indented_multiline_if(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    good = workflows / "obs-aw-test.yml"
+    good.write_text(
+        "name: Test\n"
+        "on:\n"
+        "    workflow_call:\n"
+        "        inputs:\n"
+        "            shared-proceed:\n"
+        "                required: true\n"
+        "                type: string\n"
+        "jobs:\n"
+        "    run:\n"
+        "        if: >-\n"
+        "            inputs.shared-proceed == 'true' &&\n"
+        "            github.event_name == 'pull_request'\n"
+        "        runs-on: ubuntu-latest\n"
+        "        steps:\n"
+        "            - run: echo hi\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "WORKFLOWS_DIR", workflows)
+    assert validator.validate_workflow(good) == []
