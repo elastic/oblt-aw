@@ -94,8 +94,14 @@ def validate_route(path: pathlib.Path) -> list[str]:
         errors.append(f"{path}: route workflows must not call aw-prelude.yml")
     if not SHARED_PROCEED_INPUT.search(text):
         errors.append(f"{path}: must declare workflow_call input shared-proceed")
-    elif not any(
-        SHARED_PROCEED_JOB_IF.search(expr) for expr in _job_if_expressions(text)
+    else:
+        try:
+            expressions = _job_if_expressions(text)
+        except yaml.YAMLError as exc:
+            errors.append(f"{path}: invalid workflow YAML: {exc}")
+            return errors
+    if not errors and not any(
+        SHARED_PROCEED_JOB_IF.search(expr) for expr in expressions
     ):
         errors.append(
             f"{path}: must gate at least one job with inputs.shared-proceed "

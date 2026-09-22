@@ -133,3 +133,28 @@ def test_validate_workflow_accepts_shared_proceed_route_with_indented_multiline_
     )
     monkeypatch.setattr(validator, "WORKFLOWS_DIR", workflows)
     assert validator.validate_workflow(good) == []
+
+
+def test_validate_workflow_reports_invalid_yaml(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    bad = workflows / "obs-aw-test.yml"
+    bad.write_text(
+        "name: Test\n"
+        "on:\n"
+        "  workflow_call:\n"
+        "    inputs:\n"
+        "      shared-proceed:\n"
+        "        required: true\n"
+        "        type: string\n"
+        "jobs:\n"
+        "  run:\n"
+        "    if: [\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "WORKFLOWS_DIR", workflows)
+    errors = validator.validate_workflow(bad)
+    assert len(errors) == 1
+    assert "invalid workflow YAML" in errors[0]
