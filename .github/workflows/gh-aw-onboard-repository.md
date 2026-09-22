@@ -4,6 +4,7 @@ name: "Onboard Repository"
 description: "Read an onboard-repository issue and open the required registration PRs"
 imports:
   - gh-aw-fragments/elastic-tools.md
+  - gh-aw-fragments/ephemeral-token-onboard-repository.md
   - gh-aw-fragments/formatting.md
   - gh-aw-fragments/messages-footer.md
   - gh-aw-fragments/obs-defaults.md
@@ -29,17 +30,18 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+  id-token: write
 checkout:
   - fetch-depth: 0
   - repository: elastic/catalog-info
     path: repos/catalog-info
-    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   - repository: elastic/observability-github-settings
     path: repos/observability-github-settings
-    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   - repository: elastic/observability-github-secrets
     path: repos/observability-github-secrets
-    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 tools:
   github:
     toolsets: [repos, issues, pull_requests, search, actions]
@@ -57,7 +59,8 @@ network:
 safe-outputs:
   activation-comments: false
   report-failed-jobs: false
-  github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+  # Compile-time secrets chain; scripts/wire_ephemeral_token.py prefers create-token output.
+  github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   add-comment:
     max: 2
     issues: true

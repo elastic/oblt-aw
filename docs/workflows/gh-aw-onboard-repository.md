@@ -17,9 +17,7 @@ This workflow is **not** part of the consumer agentic catalog:
 ## Prerequisites
 
 - Issue created from [.github/ISSUE_TEMPLATE/onboard-repository.yml](../../.github/ISSUE_TEMPLATE/onboard-repository.yml) (or otherwise labeled `oblt-aw/onboard/repository`).
-- Cross-repository write access for opening PRs in `elastic/catalog-info`, `elastic/observability-github-settings`, and (when needed) `elastic/observability-github-secrets`.
-  - **Preferred (OIDC):** catalog TokenPolicy `token-policy-995e89faa204` bound to `elastic/oblt-aw/.github/workflows/gh-aw-onboard-repository.lock.yml` (hash of that workflow path). Wire `elastic/oblt-actions/github/create-token@v1` with that policy once the catalog PR is active.
-  - **Current compile path:** the generated lock uses `secrets.GH_AW_GITHUB_TOKEN` for cross-repo checkout and safe-output PR creation. Without that secret (or create-token wiring), the agent comments that PR creation cannot proceed.
+- Catalog TokenPolicy `token-policy-995e89faa204` active for `elastic/oblt-aw/.github/workflows/gh-aw-onboard-repository.lock.yml` (see companion catalog-info PR). The workflow imports `gh-aw-fragments/ephemeral-token-onboard-repository.md`, which mints via `elastic/oblt-actions/github/create-token@v1` with that policy in activation/agent/safe_outputs/conclusion. `make compile-aw` runs `scripts/wire_ephemeral_token.py` so lock jobs prefer the minted token, then `GH_AW_GITHUB_TOKEN` / `GITHUB_TOKEN` as fallback.
 
 ## Usage
 
@@ -41,8 +39,8 @@ User-facing steps: [Onboard a repository](../guides/user/onboard-a-repository.md
 
 Permissions (source intent; lock expands job-level scopes):
 
-- Agent reads contents/issues/pull-requests; Copilot requests.
-- Safe outputs create comments and pull requests using `GH_AW_GITHUB_TOKEN` when set.
+- Workflow: `id-token: write` for OIDC `create-token`; agent reads contents/issues/pull-requests; Copilot requests.
+- Safe outputs create comments and pull requests with the minted Vault-app token (`token-policy-995e89faa204`).
 
 Safe outputs:
 
