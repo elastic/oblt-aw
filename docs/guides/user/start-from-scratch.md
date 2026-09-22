@@ -10,12 +10,12 @@ For the full technical registration procedure (catalog token policy, secrets, ve
 
 ## Prerequisites
 
-- Permission to open issues (and merge related PRs) as described in [Onboard a repository](onboard-a-repository.md).
+- **Write** access on [elastic/oblt-aw](https://github.com/elastic/oblt-aw) (and ability to merge related PRs) as described in [Onboard a repository](onboard-a-repository.md).
 - The target repository is under the `elastic` GitHub organization.
 
 ## Steps
 
-1. **Open an onboard issue** — Use the **Onboard a repository** template in [elastic/oblt-aw](https://github.com/elastic/oblt-aw/issues/new/choose). Provide only `elastic/<repo>` and the org key (`obs` or `docs`). See [Onboard a repository](onboard-a-repository.md).
+1. **Open an onboard issue** — Use the **[Onboard a repository](https://github.com/elastic/oblt-aw/issues/new?template=onboard-repository.yml)** form (or pick it from [New issue](https://github.com/elastic/oblt-aw/issues/new/choose)). Provide only `elastic/<repo>` and the org key (`obs` or `docs`). See [Onboard a repository](onboard-a-repository.md).
 
 2. **Merge the agent-opened PRs manually** — Catalog TokenPolicy first, then `oblt-aw` registration, then settings (and secrets if any). Details and ordering: [Onboard a repository](onboard-a-repository.md).
 
