@@ -8,6 +8,8 @@ This guide onboards:
 2. **GitHub token policy (Backstage Resource) in `elastic/catalog-info`** — **Always** created for each newly registered consumer repository. It backs [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) for installed `trigger-obs-aw-*.yml` client workflows where `GITHUB_TOKEN` is insufficient ([obs-aw-security-detector](../workflows/obs-aw-security-detector.md), automerge, nested GH-AW lock jobs such as issue-triage / dependency-review / issue-fixer, and others).
 3. **Classic branch-protection `pull_request_bypassers` in `elastic/observability-github-settings`** — **Always** add [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) for each newly registered consumer repository so automerge can merge as the Vault app under CODEOWNERS (Apps cannot be CODEOWNERS). Automerge approves with an identity that is not the PR author (`GITHUB_TOKEN` / `github-actions[bot]` for Vault/Dependabot/Renovate; Vault for `github-actions[bot]`-authored PRs), then merges as Vault when `workflow-token-policy` is set. See [step 8](#steps).
 
+**Developer path:** prefer the issue form in [Onboard a repository](../guides/user/onboard-a-repository.md) (label `oblt-aw/onboard/repository`, agent [`gh-aw-onboard-repository`](../workflows/gh-aw-onboard-repository.md)). This page is the technical contract those automations must follow.
+
 The **catalog-info** token policy must be **merged and active** before you merge the **`elastic/oblt-aw`** change that adds the repository to `main`. Otherwise automation in the consumer repository can call `create-token` before the policy exists.
 
 ## Convention: Elastic organization and repository slug

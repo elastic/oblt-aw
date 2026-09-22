@@ -33,6 +33,7 @@ jobs:
       inputs.shared-proceed == 'true' &&
       github.event_name == 'issues' &&
       github.event.action == 'opened' &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
@@ -50,6 +51,7 @@ jobs:
       inputs.shared-proceed == 'true' &&
       github.event_name == 'issues' &&
       github.event.action == 'opened' &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&

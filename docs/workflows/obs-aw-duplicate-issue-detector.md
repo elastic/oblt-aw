@@ -14,8 +14,10 @@ Reusable wrapper that calls the locked duplicate-issue-detector workflow in [ela
 
 Ingress routes here when:
 
-- `github.event_name == 'issues'` and `github.event.action == 'opened'`, or `github.event_name == 'workflow_dispatch'`, and
+- `github.event_name == 'issues'` and `github.event.action == 'opened'` (and the issue is **not** labeled `oblt-aw/onboard/repository`), or `github.event_name == 'workflow_dispatch'`, and
 - Dashboard gate passes for registry id `duplicate-issue-detector` (`enabled-workflows` contains `obs:duplicate-issue-detector`).
+
+Onboard-repository issues are skipped so [`gh-aw-onboard-repository`](gh-aw-onboard-repository.md) remains the exclusive automation for that label.
 
 The job `duplicate-issue-detector` calls:
 

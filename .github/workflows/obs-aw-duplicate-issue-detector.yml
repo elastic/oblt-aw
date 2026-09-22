@@ -31,7 +31,8 @@ jobs:
     if: >-
       inputs.shared-proceed == 'true' &&
       (
-        (github.event_name == 'issues' && github.event.action == 'opened') ||
+        (github.event_name == 'issues' && github.event.action == 'opened' &&
+          !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository')) ||
         github.event_name == 'workflow_dispatch'
       )
     permissions:
@@ -42,7 +43,12 @@ jobs:
       workflow-basename: obs-aw-duplicate-issue-detector.yml
 
   duplicate-issue-detector:
-    if: inputs.shared-proceed == 'true'
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      (
+        github.event_name != 'issues' ||
+        !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository')
+      )
     needs: [resolve-apm-assets]
     permissions:
       actions: read

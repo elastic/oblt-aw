@@ -1,0 +1,35 @@
+name: Onboard a repository
+description: Register an elastic/* repository for OBLT Agentic Workflows (oblt-aw)
+title: "[onboard] elastic/<repo>"
+labels:
+  - "oblt-aw/onboard/repository"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to onboard a repository into the OBLT Agentic Workflows fleet.
+
+        After you submit, automation labeled `oblt-aw/onboard/repository` opens the required pull requests.
+        **Merge those PRs manually** (do not merge the `elastic/oblt-aw` registration PR until the catalog TokenPolicy PR is merged).
+
+        When registration and distribution finish, enable workflows from the Control Plane Dashboard in your repository.
+
+        Guide: [Onboard a repository](https://github.com/elastic/oblt-aw/blob/main/docs/guides/user/onboard-a-repository.md)
+  - type: input
+    id: repository
+    attributes:
+      label: Repository
+      description: Full GitHub name under the elastic organization (`elastic/<repo>`).
+      placeholder: elastic/my-repo
+    validations:
+      required: true
+  - type: dropdown
+    id: org-key
+    attributes:
+      label: Organization key
+      description: Which `config/<org-key>/` fleet this repository joins in elastic/oblt-aw.
+      options:
+        - obs
+        - docs
+    validations:
+      required: true
