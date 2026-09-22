@@ -23,7 +23,7 @@ flowchart TB
     C_PR["trigger-obs-aw-pull-request.yml\non: pull_request"]
     C_ISS["trigger-obs-aw-issues.yml\non: issues, workflow_dispatch"]
     C_COM["trigger-obs-aw-issue-comment.yml\non: issue_comment"]
-    C_SCH["trigger-obs-aw-schedule.yml\ntrigger-obs-aw-status.yml"]
+    C_SCH["trigger-obs-aw-schedule.yml\ntrigger-obs-aw-status.yml\ntrigger-obs-aw-workflow-run.yml"]
     DASH["Issue: [oblt-aw] Control Plane Dashboard"]
     EVT --> C_PR
     EVT --> C_ISS
@@ -60,8 +60,13 @@ Full platform view (distribution, dashboard sync, before/after ingress): [archit
 | `trigger-obs-aw-issue-comment.yml` | `issue_comment` created | `obs-aw-event-issue-comment.yml` → dashboard-audit-reason (`oblt-aw/dashboard`), issue-fixer, mention-in-issue |
 | `trigger-obs-aw-schedule.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `obs-aw-event-schedule.yml` → agent-suggestions, autodoc, security category detectors, resource-not-accessible detector |
 | `trigger-obs-aw-status.yml` | `status` (Buildkite failure only, job `if`) | `obs-aw-event-status.yml` → estc-pr-buildkite-detective |
+| `trigger-obs-aw-workflow-run.yml` | `workflow_run` completed for names in `pr-actions-detective-workflows` (installed only when that allowlist is non-empty); job `if` requires failure + associated PRs | `obs-aw-event-workflow-run.yml` → pr-actions-detective |
 
 Route-specific conditions (labels, `/ai` comment prefix, allow-listed PR authors, and so on) are enforced inside each `obs-aw-*` reusable workflow after prelude gating.
+
+### PR Actions Detective allowlist
+
+`trigger-obs-aw-workflow-run.yml` is **not** byte-copied for every consumer. Distribute installs it only when the repository’s `pr-actions-detective-workflows` list in [config/obs/active-repositories.json](../../config/obs/active-repositories.json) is non-empty, and renders those GitHub Actions workflow **`name:`** values into `on.workflow_run.workflows`. See [distribute-client-workflow](../operations/distribute-client-workflow.md). Enable the dashboard checkbox only after the allowlist is set for that repository.
 
 ## Configuration
 
@@ -80,6 +85,7 @@ Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull
 | `trigger-obs-aw-issue-comment.yml` | `run-obs-aw-issue-comment` | `actions: read`, `contents: write`, `copilot-requests: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-schedule.yml` | `run-obs-aw-schedule` | `actions: read`, `contents: write`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-status.yml` | `run-obs-aw-status` | `actions: read`, `contents: read`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trigger-obs-aw-workflow-run.yml` | `run-obs-aw-workflow-run` | `actions: read`, `contents: read`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 
 ### Secrets
 
@@ -89,7 +95,7 @@ Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull
 
 ## Migration from `trigger-oblt-aw-*` client templates
 
-1. Merge distribution PRs that replace `trigger-oblt-aw-*.yml` with `trigger-obs-aw-*.yml` (same event-scoped set: pull-request, issues, issue-comment, schedule, status).
+1. Merge distribution PRs that replace `trigger-oblt-aw-*.yml` with `trigger-obs-aw-*.yml` (same event-scoped set: pull-request, issues, issue-comment, schedule, status, workflow-run).
 2. Distribution removes client paths that are no longer in the template tree (including retired `trigger-oblt-aw-*.yml`).
 3. Update Backstage `workflow_ref` / token policies to reference the new client workflow files (for example `trigger-obs-aw-pull-request.yml`).
 

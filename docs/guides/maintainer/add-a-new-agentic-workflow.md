@@ -22,7 +22,7 @@ Follow the control-plane checklist in [Adopting a new remote agentic workflow](.
 3. **Register in `workflow-registry.json`** — Add `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (repo-relative path under `docs/workflows/`), and `inner_workflows` under `config/<org-key>/`.
 
 4. **Wire consumer triggers** — Client templates are grouped by **GitHub event family**, not one file per workflow ([Client template index](../../workflows/obs-aw-client-template.md)).
-   - **Existing event family** (`pull_request`, `issues`, `issue_comment`, `schedule`, or `status`): ensure the route is wired in the matching `obs-aw-event-*.yml` orchestrator (step 2). Consumer repos already have the corresponding `trigger-obs-aw-*.yml` — **no new client template**.
+   - **Existing event family** (`pull_request`, `issues`, `issue_comment`, `schedule`, `status`, or `workflow_run`): ensure the route is wired in the matching `obs-aw-event-*.yml` orchestrator (step 2). Consumer repos already have the corresponding `trigger-obs-aw-*.yml` — **no new client template**.
    - **New event family**: add a `trigger-obs-aw-*.yml` under `.github/remote-workflow-template/<org-key>/.github/workflows/` and a matching `obs-aw-event-*.yml` orchestrator on the control plane.
 
 5. **Update documentation** — `docs/workflows/obs-aw-<name>.md`, routing doc when triggers are non-trivial, and [docs/workflows/README.md](../../workflows/README.md).

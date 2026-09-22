@@ -63,7 +63,8 @@
     {
       "repository": "elastic/oblt-aw",
       "workflow-token-policy": "token-policy-26fea8cad514",
-      "ai-assets-token-policy": ""
+      "ai-assets-token-policy": "",
+      "pr-actions-detective-workflows": ["CI"]
     },
     {
       "repository": "elastic/oblt-cli",
