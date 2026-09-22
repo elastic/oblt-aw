@@ -4,6 +4,9 @@ name: E2E — PR Actions Detective
 # Live happy path only: intentional failed Actions run → workflow_run → agent.
 # Reuses one long-lived fixture PR (label e2e:pr-actions-detective,
 # branch e2e/pr-actions-detective); creates it if missing; never closes it.
+# Fixture Contents writes use the Vault app token (OIDC create-token from
+# config/e2e.json) so pull_request workflow_run events fire and bot-authored
+# fixture PRs are not held by the github-actions[bot] approval gate.
 # Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
@@ -31,12 +34,31 @@ jobs:
       actions: read
       issues: write
       checks: read
+      id-token: write
     env:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      # Shared E2E Vault role in config/e2e.json (wildcard e2e-*.yml policy
+      # requires an explicit token-policy input; do not reuse trigger-obs-aw-*).
+      - name: Resolve E2E Vault token policy
+        id: token-policy
+        run: |
+          set -euo pipefail
+          POLICY="$(jq -r '."workflow-token-policy" // empty' config/e2e.json)"
+          if [[ -z "${POLICY}" ]]; then
+            echo "::error::Missing non-empty workflow-token-policy in config/e2e.json"
+            exit 1
+          fi
+          echo "token-policy=${POLICY}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create ephemeral GitHub token (Vault app)
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ steps.token-policy.outputs.token-policy }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -54,6 +76,12 @@ jobs:
       - name: Run harness
         id: harness
         continue-on-error: true
+        env:
+          # Vault installation token so Contents + fixture PR writes are
+          # authored as elastic-vault-github-plugin-prod[bot] (GITHUB_TOKEN
+          # commits do not reliably fire pull_request; bot PRs avoid the
+          # github-actions[bot] "Approve and run" gate).
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
         run: |
           set +e
           python3 scripts/obs/e2e/pr_actions_detective_e2e_harness.py \

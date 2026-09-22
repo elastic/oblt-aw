@@ -22,6 +22,7 @@ _NEGATIVE_CASE_EXPECTATIONS = {
     "workflow_run_job_executed": False,
     "agent_invoked": False,
     "expect_agent_comment": False,
+    "agent_comment_markers": ["### TL;DR", "## Remediation"],
 }
 _NEGATIVE_CASE_TRIGGER = {
     "require_open_pr": True,
@@ -205,6 +206,7 @@ class TestHarnessHelpers:
                         "workflow_run_job_executed": True,
                         "agent_invoked": True,
                         "expect_agent_comment": True,
+                        "agent_comment_markers": ["### TL;DR", "## Remediation"],
                     },
                 }
             ),
@@ -470,6 +472,43 @@ class TestOracleFailClosed:
         string_bool = {**trigger, "require_open_pr": "true"}  # type: ignore[dict-item]
         err = oracle.case_trigger_schema_error(string_bool)  # type: ignore[arg-type]
         assert err is not None
+
+    def test_expectations_reject_empty_agent_comment_markers(self) -> None:
+        expectations = {
+            **_NEGATIVE_CASE_EXPECTATIONS,
+            "agent_comment_markers": [""],
+        }
+        err = oracle.case_expectations_schema_error("live", expectations)
+        assert err is not None
+        assert "agent_comment_markers" in err
+        false_dashboard = {**_NEGATIVE_CASE_EXPECTATIONS, "dashboard_enabled": False}
+        err = oracle.case_expectations_schema_error("live", false_dashboard)
+        assert err is not None
+        assert "dashboard_enabled" in err
+
+    def test_main_writes_blocked_outcome_on_preflight_error(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        outcome_path = tmp_path / "outcome.json"
+        monkeypatch.setattr(
+            harness,
+            "load_e2e_config",
+            lambda *_a, **_k: (_ for _ in ()).throw(
+                RuntimeError("bad e2e_pr.branch in config")
+            ),
+        )
+        rc = harness.main(
+            [
+                "--case-id",
+                LIVE_CASE_ID,
+                "--outcome-path",
+                str(outcome_path),
+            ]
+        )
+        assert rc == 2
+        payload = json.loads(outcome_path.read_text(encoding="utf-8"))
+        assert payload["blocked"] is True
+        assert "bad e2e_pr.branch" in str(payload.get("block_reason"))
 
     def test_layer_mismatch_fails(self) -> None:
         outcome = _synthetic_live_outcome()

@@ -1121,59 +1121,81 @@ def run_live_case(
     # module stays importable when only harness helpers are exercised.
     import oracle_pr_actions_detective_e2e as oracle
 
-    case = _load_json(case_dir / "case.json")
-    require_case_mode(case, "live", case_id=str(case.get("id", case_dir.name)))
-    trigger_raw = case.get("trigger") or {}
-    expectations_raw = case.get("expectations") or {}
-    trigger = trigger_raw if isinstance(trigger_raw, dict) else {}
-    expectations = expectations_raw if isinstance(expectations_raw, dict) else {}
-    cfg = normalize_e2e_pr_config(cfg)
-    repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
-    workflow_id = str(case.get("workflow_id") or cfg.get("workflow_id") or WORKFLOW_ID)
-    markers = list(
-        expectations.get("agent_comment_markers")
-        or cfg.get("agent_comment_markers")
-        or ["### TL;DR", "## Remediation"]
-    )
-    fixture_meta = {
-        "branch": cfg["e2e_pr"].get("branch"),
-        "label": cfg["e2e_pr"].get("label"),
-    }
+    workflow_id = WORKFLOW_ID
+    case_id: str = case_dir.name
+    trigger: dict[str, Any] = {}
+    expectations: dict[str, Any] = {}
+    fixture_meta: dict[str, Any] = {}
+    markers: list[str] = []
+    dashboard_ok = False
+    sha: str | None = None
+    target_pr_number: int | None = None
+    fail_run_meta: dict[str, Any] = {}
+    pr_info: dict[str, Any] = {}
+    e2e_branch = ""
+    resolved_base = "main"
+    invoked = False
+    comment: dict[str, Any] | None = None
+    job_executed = False
+    job_conclusion: str | None = None
+    run_detail: dict[str, Any] | None = None
 
     def _blocked(reason: str, **extra: Any) -> dict[str, Any]:
         out: dict[str, Any] = {
             "workflow_id": workflow_id,
-            "case_id": case.get("id", case_dir.name),
+            "case_id": case_id,
             "layer": "e2e",
             "mode": "live",
             "agent_invoked": False,
             "blocked": True,
             "block_reason": reason,
-            "path_gates": {"dashboard_enabled": False},
+            "path_gates": {"dashboard_enabled": dashboard_ok},
             "expectations": expectations,
             "trigger": trigger,
+            "fixture": fixture_meta,
             "run_url": run_url,
         }
         out.update(extra)
         return out
 
-    # Validate the full trigger/expectations contract before any remote writes.
-    trigger_err = oracle.case_trigger_schema_error(trigger)
-    if trigger_err:
-        return _blocked(f"Invalid live trigger contract: {trigger_err}")
-    expectations_err = oracle.case_expectations_schema_error("live", expectations)
-    if expectations_err:
-        return _blocked(f"Invalid live expectations contract: {expectations_err}")
-
-    dashboard_ok = False
-    sha: str | None = None
-    target_pr_number: int | None = None
-    fail_run_meta: dict[str, Any] = {}
     try:
+        case = _load_json(case_dir / "case.json")
+        require_case_mode(case, "live", case_id=str(case.get("id", case_dir.name)))
+        case_id = str(case.get("id", case_dir.name))
+        trigger_raw = case.get("trigger") or {}
+        expectations_raw = case.get("expectations") or {}
+        trigger = trigger_raw if isinstance(trigger_raw, dict) else {}
+        expectations = expectations_raw if isinstance(expectations_raw, dict) else {}
+        cfg = normalize_e2e_pr_config(cfg)
+        repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
+        workflow_id = str(
+            case.get("workflow_id") or cfg.get("workflow_id") or WORKFLOW_ID
+        )
+        fixture_meta = {
+            "branch": cfg["e2e_pr"].get("branch"),
+            "label": cfg["e2e_pr"].get("label"),
+        }
+
+        # Validate contracts before any remote writes.
+        trigger_err = oracle.case_trigger_schema_error(trigger)
+        if trigger_err:
+            return _blocked(f"Invalid live trigger contract: {trigger_err}")
+        expectations_err = oracle.case_expectations_schema_error("live", expectations)
+        if expectations_err:
+            return _blocked(f"Invalid live expectations contract: {expectations_err}")
+
+        markers_raw = expectations.get("agent_comment_markers")
+        markers_err = oracle.agent_comment_markers_schema_error(markers_raw)
+        if markers_err:
+            return _blocked(f"Invalid live expectations contract: {markers_err}")
+        assert isinstance(markers_raw, list)
+        markers = [str(m) for m in markers_raw]
+
         dashboard_ok = dashboard_enables_workflow(
             repo, str(cfg.get("dashboard_workflow_id") or workflow_id)
         )
-        if expectations.get("dashboard_enabled") and not dashboard_ok:
+        # Always block when the dashboard gate is off before mutating fixtures.
+        if not dashboard_ok:
             return _blocked(
                 (
                     f"Dashboard does not enable {workflow_id} on {repo}. "
@@ -1342,7 +1364,7 @@ def run_live_case(
     except (RuntimeError, TimeoutError, TypeError, ValueError, OSError) as exc:
         blocked: dict[str, Any] = {
             "workflow_id": workflow_id,
-            "case_id": case.get("id", case_dir.name),
+            "case_id": case_id,
             "layer": "e2e",
             "mode": "live",
             "agent_invoked": False,
@@ -1373,7 +1395,7 @@ def run_live_case(
 
     return {
         "workflow_id": workflow_id,
-        "case_id": case.get("id", case_dir.name),
+        "case_id": case_id,
         "layer": "e2e",
         "mode": "live",
         "agent_invoked": invoked,
@@ -1391,9 +1413,9 @@ def run_live_case(
             "run_seen": True,
             "job_executed": job_executed,
             "job_conclusion": job_conclusion,
-            "run_id": run_detail.get("databaseId"),
-            "conclusion": run_detail.get("conclusion"),
-            "url": run_detail.get("url"),
+            "run_id": (run_detail or {}).get("databaseId"),
+            "conclusion": (run_detail or {}).get("conclusion"),
+            "url": (run_detail or {}).get("url"),
         },
         "agent_comment": comment,
         "path_gates": path_gates,
@@ -1443,19 +1465,41 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    cfg = load_e2e_config(args.config_path)
-
-    case_dir = args.testdata_root / "cases" / args.case_id
-    if not case_dir.is_dir():
-        raise SystemExit(f"Case directory not found: {case_dir}")
-
-    outcome = run_live_case(
-        case_dir,
-        cfg,
-        run_url=args.run_url or None,
-    )
-
     args.outcome_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        cfg = load_e2e_config(args.config_path)
+        case_dir = args.testdata_root / "cases" / args.case_id
+        if not case_dir.is_dir():
+            raise RuntimeError(f"Case directory not found: {case_dir}")
+        outcome = run_live_case(
+            case_dir,
+            cfg,
+            run_url=args.run_url or None,
+        )
+    except (
+        RuntimeError,
+        TimeoutError,
+        TypeError,
+        ValueError,
+        OSError,
+        SystemExit,
+    ) as exc:
+        reason = str(exc)
+        if isinstance(exc, SystemExit):
+            reason = str(exc.code) if exc.code is not None else "SystemExit"
+        log_error(reason)
+        outcome = {
+            "workflow_id": WORKFLOW_ID,
+            "case_id": args.case_id,
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": reason,
+            "path_gates": {"dashboard_enabled": False},
+            "run_url": args.run_url or None,
+        }
+
     args.outcome_path.write_text(
         json.dumps(outcome, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

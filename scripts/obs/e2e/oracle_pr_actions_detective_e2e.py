@@ -70,7 +70,10 @@ _LIVE_REQUIRED_EXPECTATION_KEYS = (
     "workflow_run_job_executed",
     "agent_invoked",
     "expect_agent_comment",
+    "agent_comment_markers",
 )
+# Happy-path live E2E requires the dashboard gate on.
+_LIVE_REQUIRED_EXPECTATION_BOOL_TRUE_KEYS = ("dashboard_enabled",)
 _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "require_open_pr",
     "create_failed_actions_run",
@@ -87,6 +90,18 @@ _LIVE_PINNED_TRIGGER_STRS = {
 }
 
 
+def agent_comment_markers_schema_error(markers: Any) -> str | None:
+    """Require a non-empty list of non-empty strings (find/clear identity)."""
+    if not isinstance(markers, list) or not markers:
+        return "agent_comment_markers must be a non-empty list"
+    for idx, item in enumerate(markers):
+        if not isinstance(item, str) or not item.strip():
+            return (
+                f"agent_comment_markers[{idx}] must be a non-empty string, got {item!r}"
+            )
+    return None
+
+
 def case_expectations_schema_error(
     mode: str, expectations: dict[str, Any]
 ) -> str | None:
@@ -97,10 +112,20 @@ def case_expectations_schema_error(
     if missing:
         return f"live expectations missing required keys: {missing}"
     for key in _LIVE_REQUIRED_EXPECTATION_KEYS:
+        if key == "agent_comment_markers":
+            continue
         try:
             _as_bool(expectations[key])
         except TypeError as exc:
             return f"live expectation {key!r} must be bool ({exc})"
+    for key in _LIVE_REQUIRED_EXPECTATION_BOOL_TRUE_KEYS:
+        if expectations.get(key) is not True:
+            return f"live expectation {key!r} must be true for happy-path E2E"
+    markers_err = agent_comment_markers_schema_error(
+        expectations.get("agent_comment_markers")
+    )
+    if markers_err:
+        return f"live expectation {markers_err}"
     return None
 
 
