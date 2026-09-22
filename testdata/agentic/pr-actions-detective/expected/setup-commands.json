@@ -1,0 +1,4 @@
+[
+  "export PR_ACTIONS_FIXTURE=1",
+  "./scripts/pr-actions-fixture-setup.sh"
+]

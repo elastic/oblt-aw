@@ -1,0 +1,36 @@
+name: E2E — intentional Actions failure (pr-actions-detective)
+
+# Intentional failure for obs:pr-actions-detective live E2E.
+# Only runs on the long-lived same-repo fixture PR; ci-gate already skips
+# normal CI work jobs for e2e:* / e2e/* fixtures.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - "testdata/agentic/pr-actions-detective/e2e-fail-trigger.md"
+      - ".github/workflows/e2e-pr-actions-detective-fail.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-pr-actions-detective-fail-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  intentional-fail:
+    name: Intentional E2E failure
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'e2e:pr-actions-detective') &&
+      github.event.pull_request.head.ref == 'e2e/pr-actions-detective'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail on purpose for PR Actions Detective E2E
+        run: |
+          set -euo pipefail
+          echo "OBLT_AW_E2E_PR_ACTIONS_INTENTIONAL_FAILURE"
+          echo "This GitHub Actions job fails on purpose for obs:pr-actions-detective E2E."
+          echo "Do not treat this as a product regression."
+          exit 1

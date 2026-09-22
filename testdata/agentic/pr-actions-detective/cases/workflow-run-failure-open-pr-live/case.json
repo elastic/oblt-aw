@@ -1,0 +1,20 @@
+{
+  "id": "workflow-run-failure-open-pr-live",
+  "mode": "live",
+  "description": "Production path: intentional failed GitHub Actions workflow_run on an open PR runs the detective agent and posts a structured PR comment.",
+  "workflow_id": "obs:pr-actions-detective",
+  "trigger": {
+    "require_open_pr": true,
+    "create_failed_actions_run": true,
+    "clear_prior_detective_comments": true,
+    "fail_workflow_conclusion": "failure",
+    "fail_workflow_event": "pull_request"
+  },
+  "expectations": {
+    "dashboard_enabled": true,
+    "workflow_run_job_executed": true,
+    "agent_invoked": true,
+    "expect_agent_comment": true,
+    "agent_comment_markers": ["### TL;DR", "## Remediation"]
+  }
+}

@@ -31,9 +31,8 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-pr-actions-detective.lock.yml@main
+    uses: elastic/oblt-aw/.github/workflows/gh-aw-pr-actions-detective.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.
       setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), fromJSON('"\n"')) }}
-      report-failure-as-issue: false

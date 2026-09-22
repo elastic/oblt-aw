@@ -1,0 +1,22 @@
+# Synthetic consumer apm.yml for pr-actions-detective integration tests.
+# Not a production manifest — markers are asserted by pytest.
+x-oblt-aw:
+  version: 1
+  obs:
+    fragments:
+      pr-actions-fixture: .github/ai/fragments/pr-actions-fixture.md
+    common:
+      setup-commands:
+        - echo "PR_ACTIONS_COMMON_SETUP_SHOULD_NOT_APPLY"
+      inputs:
+        additional-instructions: PR_ACTIONS_COMMON_INLINE_SHOULD_NOT_APPLY
+    workflows:
+      pr-actions-detective:
+        additional-instructions-fragments:
+          - pr-actions-fixture
+        setup-commands:
+          - export PR_ACTIONS_FIXTURE=1
+          - ./scripts/pr-actions-fixture-setup.sh
+        inputs:
+          additional-instructions: |
+            PR_ACTIONS_CONSUMER_INLINE_MARKER
