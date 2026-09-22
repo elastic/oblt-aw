@@ -61,6 +61,10 @@ make compile-aw-check
 
 This command installs the pinned gh-aw compiler, recompiles the generated `.lock.yml` files under `.github/workflows/`, and fails if the checked-in outputs drift from the source markdown. Do not hand-edit the lock files; edit the source `.md` and rerun this command.
 
+### Workflow checkout hardening
+
+When editing `.github/workflows/*.yml`, require `persist-credentials: false` on each `actions/checkout` step unless a workflow has an explicit, reviewed reason to keep credential persistence enabled. This is required to prevent `zizmor[artipacked]` findings.
+
 ### Python tests
 
 ```bash
