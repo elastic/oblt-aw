@@ -34,27 +34,25 @@ Edit the GH-AW source [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/w
 
 | Opinionated (Observability-owned) | Preserved as lock inputs |
 |-----------------------------------|--------------------------|
-| Model, failure-issue suppression, and GitHub `trusted-users` via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) | `additional-instructions` (from `aw-resolve-agentic-assets`) |
-| Lookback window (`1 day ago`) and issue title prefix (`[oblt-aw][autodoc]`) hardcoded on the source | |
+| Model, failure-issue suppression, and GitHub `trusted-users` via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) | `additional-instructions` (from `aw-resolve-agentic-assets`: APM + `.oblt-aw.autodocignore` overlays) |
+| Lookback window (`1 day ago`), issue title prefix (`[oblt-aw][autodoc]`), and merged audit prompt in [`gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md) | |
 | Comment footer via [`messages-footer.md`](../../.github/workflows/gh-aw-fragments/messages-footer.md) | |
 | Bot actor hardcoded on the source (`github-actions[bot]`) | |
 
-Workflow-specific requirements passed to the PR stage:
+**Audit prompt:** docs-patrol lookback/drift analysis plus Observability gap criteria, secret-docs rules, false-positive / out-of-scope guards, and mandatory `@elastic/observablt-ci` issue notification live in [`gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md). The wrapper does not pass audit `platform-additional-instructions`.
+
+Workflow-specific requirements passed to the **fix** stage via `platform-additional-instructions`:
 
 - PR title must be `docs: Documentation analysis and improvement`
 - PR body must include analyzed files, issues found, and changes made
 - only documentation files may be changed
-
-Additional guidance encoded in `additional-instructions` for both audit and fix jobs:
-
-- **Secret documentation:** Audit and fix stages use distilled Observability org rules in `platform-additional-instructions` (prefer ephemeral tokens / catalog TokenPolicy; do not default to GitHub **Settings → Secrets**; when long-lived secrets are required, point readers at [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) for provisioning; use exact secret names from workflow docs). The agent must **not** attempt to read that private repository via GitHub tools or MCP. These rules align with [Configure a GitHub secret](../guides/operator/configure-a-github-secret.md).
-- Treat leading `-` (and similar) in **table cells** as potentially intentional (for example icon or status placeholders); avoid “cleaning” them without evidence of a real defect.
-- Preserve existing markdown link fragments (`#...`) unless target-heading verification proves a correction is required; when editing links with fragments, validate against the target heading slug first. This includes icon-prefixed headings where the valid slug starts with `-`: the `-` character is a valid replacement for a leading icon in heading text and therefore a valid part of the anchor slug (for example, changing `[Lab 01: Troubleshooting](01-installation-setup.md#-troubleshooting-quick-reference)` to `[Lab 01: Troubleshooting](01-installation-setup.md#troubleshooting-quick-reference)` is invalid when the verified slug is `#-troubleshooting-quick-reference`).
-- Do not hand-edit **auto-generated** documentation in the fix PR (docs-only); the audit should steer fixes toward generators, templates, or other sources of truth, and the PR body should record any follow-up that is outside this workflow’s scope.
-- Preserve or lightly refresh **legacy inline comments** that still document useful context or history; avoid deleting them only for brevity.
-- AI-related files are always out of scope for autodoc changes: AI assets, skills files, instruction/configuration files, and lock files (for example `*.lock*` and `*.lock.yml`).
-- Helm chart internal files are always out of scope for autodoc changes: template files (`helm-charts/**/templates/**`), notes files (`helm-charts/**/NOTES.txt`), and markdown files under `helm-charts/`.
-- When `.oblt-aw.autodocignore` exists at the repository root, patterns in that file use `.gitignore` (gitwildmatch) semantics. The audit must not propose findings that require editing ignored paths; the fix stage must not modify ignored paths. Active patterns are appended to agent instructions at runtime by `aw-resolve-agentic-assets`.
+- **Secret documentation:** distilled Observability org rules (prefer ephemeral tokens / catalog TokenPolicy; do not default to GitHub **Settings → Secrets**; when long-lived secrets are required, point readers at [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) for provisioning; use exact secret names from workflow docs). The agent must **not** attempt to read that private repository via GitHub tools or MCP. These rules align with [Configure a GitHub secret](../guides/operator/configure-a-github-secret.md).
+- Treat leading `-` (and similar) in **table cells** as potentially intentional; avoid “cleaning” them without evidence of a real defect.
+- Preserve existing markdown link fragments (`#...`) unless target-heading verification proves a correction is required (including icon-prefixed headings whose valid slug starts with `-`).
+- Do not hand-edit **auto-generated** documentation; note out-of-scope follow-up in the PR body.
+- Preserve or lightly refresh **legacy inline comments** that still document useful context.
+- AI-related files and Helm chart internals are always out of scope.
+- When `.oblt-aw.autodocignore` exists, do not modify matching paths; active patterns are appended at runtime by `aw-resolve-agentic-assets`.
 
 ## Configuration
 
@@ -70,7 +68,7 @@ Permissions:
 
 ## Cutover and rollback
 
-**Cutover:** the wrapper `audit` job `uses` `elastic/oblt-aw/.../gh-aw-docs-patrol.lock.yml@main` instead of `elastic/ai-github-actions/...@main`. Schedule routing and resolve inputs are unchanged; the lock interface is reduced to `additional-instructions` only.
+**Cutover:** the wrapper `audit` job `uses` `elastic/oblt-aw/.../gh-aw-docs-patrol.lock.yml@main` instead of `elastic/ai-github-actions/...@main`. Audit guidance is baked into the in-repo source; resolve still supplies APM / autodocignore overlays via `additional-instructions` only.
 
 **Rollback:** point the wrapper audit job back at the previous upstream lock:
 
