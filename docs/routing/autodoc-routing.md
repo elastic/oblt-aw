@@ -21,17 +21,21 @@ The event name is evaluated in the context of the workflow run that invoked the 
 
 ## Notes
 
-- `obs-aw-autodoc.yml` audit stage uses the Observability-owned lock in this repository:
+- `obs-aw-autodoc.yml` uses Observability-owned locks in this repository:
   - `elastic/oblt-aw/.github/workflows/gh-aw-docs-patrol.lock.yml@main` — detects documentation drift and creates an issue with findings (source: [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md))
-- Fix stage still uses upstream `elastic/ai-github-actions/.../gh-aw-create-pr-from-issue.lock.yml@main` until that primitive is migrated ([#2053](https://github.com/elastic/oblt-aw/issues/2053)).
+  - `elastic/oblt-aw/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main` — implements the findings and opens a docs-only PR when an issue was created (source: [`.github/workflows/gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md))
 - It is intended to analyze repository documentation and open a focused documentation PR.
 - It must not merge PRs automatically.
 
-### Cutover / rollback (audit)
+### Cutover / rollback
 
-**Cutover:** audit `uses` the in-repo docs-patrol lock (`@main`).
+**Cutover:** audit and fix `uses` the in-repo locks (`@main`).
 
-**Rollback:** point audit back at `elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main` with the prior `with:` inputs (`lookback-window`, `title-prefix`, `additional-instructions`, `report-failure-as-issue: false`). See [obs-aw-autodoc.md](../workflows/obs-aw-autodoc.md).
+**Rollback (audit):** point audit back at `elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main` with the prior `with:` inputs (`lookback-window`, `title-prefix`, `additional-instructions`, `report-failure-as-issue: false`).
+
+**Rollback (fix):** point fix back at `elastic/ai-github-actions/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main` with `target-issue-number`, `draft-prs: true`, `additional-instructions`, and `report-failure-as-issue: false`.
+
+See [obs-aw-autodoc.md](../workflows/obs-aw-autodoc.md).
 
 ## References
 

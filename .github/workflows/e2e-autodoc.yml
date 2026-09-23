@@ -1,9 +1,10 @@
 ---
-name: E2E — Autodoc audit
+name: E2E — Autodoc audit + fix
 
-# Manual production E2E for obs:autodoc audit against elastic/oblt-aw.
+# Manual production E2E for obs:autodoc against elastic/oblt-aw.
 # Seeds intentional undocumented bait on the default branch, dispatches
-# trigger-obs-aw-schedule.yml, waits for docs-patrol audit + issue, then cleans up.
+# trigger-obs-aw-schedule.yml, waits for docs-patrol audit + issue and
+# create-pr-from-issue fix + PR, then cleans up.
 # Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
@@ -17,13 +18,13 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  CASE_ID: schedule-audit-issue-live
+  CASE_ID: schedule-audit-fix-pr-live
 
 jobs:
   e2e:
-    name: Autodoc audit E2E
+    name: Autodoc audit+fix E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions:
       contents: write
       pull-requests: write

@@ -14,10 +14,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Live E2E harness for obs:autodoc audit (docs-patrol).
+"""Live E2E harness for obs:autodoc audit + optional fix (create-PR).
 
 Drives schedule/dispatch → prelude → obs-aw-autodoc audit → issue creation
-against elastic/oblt-aw by seeding intentional undocumented public API bait.
+(and optionally fix → PR) against elastic/oblt-aw by seeding intentional
+undocumented public API bait.
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ estc = cast(Any, importlib.import_module("estc_pr_buildkite_detective_e2e_harnes
 WORKFLOW_ID = "obs:autodoc"
 DEFAULT_CONFIG = Path("config/obs/e2e-autodoc.json")
 DEFAULT_TITLE_PREFIX = "[oblt-aw][autodoc]"
+DEFAULT_FIX_PR_TITLE = "docs: Documentation analysis and improvement"
 DEFAULT_BAIT_PATH = "scripts/e2e_autodoc_intentional_undocumented.py"
 DEFAULT_BAIT_SOURCE = Path(
     "testdata/agentic/autodoc/bait/e2e_autodoc_intentional_undocumented.py"
@@ -180,6 +182,103 @@ def audit_agent_invoked(run_detail: dict[str, Any] | None) -> bool:
     return schedule_audit_job_executed(run_detail)
 
 
+def autodoc_fix_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
+    """Return leaf fix/create-PR agent conclusion when present (fail closed).
+
+    Prefer leaf agent jobs under the autodoc fix / create-pr-from-issue path.
+    Do not treat overall schedule run conclusion or audit agent success as a
+    substitute for the fix agent.
+    """
+    if not run_detail:
+        return None
+    for job in run_detail.get("jobs") or []:
+        name = (job.get("name") or "").lower()
+        conclusion = (job.get("conclusion") or "").lower()
+        if conclusion in ("", "skipped"):
+            continue
+        # Nested: autodoc / fix / agent
+        if (
+            "autodoc" in name
+            and ("/ fix" in name or name.endswith("fix"))
+            and ("/ agent" in name or name.endswith(" / agent") or name == "agent")
+        ):
+            return conclusion or None
+        if "create-pr-from-issue" in name and (
+            "/ agent" in name or name.endswith(" / agent") or name == "agent"
+        ):
+            return conclusion or None
+        if "gh-aw-create-pr-from-issue" in name and (
+            "/ agent" in name or name.endswith(" / agent") or name == "agent"
+        ):
+            return conclusion or None
+    return None
+
+
+def schedule_fix_job_executed(run_detail: dict[str, Any] | None) -> bool:
+    return autodoc_fix_job_conclusion(run_detail) == "success"
+
+
+def fix_agent_invoked(run_detail: dict[str, Any] | None) -> bool:
+    return schedule_fix_job_executed(run_detail)
+
+
+def wait_for_schedule_fix_run(
+    repo: str,
+    workflow_file: str,
+    *,
+    since: datetime,
+    timeout_seconds: int,
+    interval_seconds: int,
+    exclude_run_ids: set[int] | None = None,
+    prefer_run_id: int | None = None,
+) -> dict[str, Any] | None:
+    """Wait for a completed schedule-trigger run with a successful autodoc fix agent."""
+    excluded = set(exclude_run_ids or ())
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        runs = list_schedule_trigger_runs(repo, workflow_file)
+        if prefer_run_id is not None:
+            preferred = [r for r in runs if int(r["databaseId"]) == prefer_run_id]
+            runs = preferred + [
+                r for r in runs if int(r["databaseId"]) != prefer_run_id
+            ]
+        for run in runs:
+            run_id = int(run["databaseId"])
+            if run_id in excluded:
+                continue
+            created = estc._parse_gh_time(run["createdAt"])
+            if created < since:
+                continue
+            event = (run.get("event") or "").lower()
+            if event not in ("schedule", "workflow_dispatch"):
+                continue
+            while time.time() < deadline:
+                detail = estc.gh_json(
+                    [
+                        "run",
+                        "view",
+                        str(run_id),
+                        "--repo",
+                        repo,
+                        "--json",
+                        "databaseId,status,conclusion,url,jobs,createdAt,headSha,event",
+                    ]
+                )
+                if detail.get("status") != "completed":
+                    # Fix may still be running after audit succeeded — keep polling
+                    # the same run until completed or timeout.
+                    if schedule_fix_job_executed(detail):
+                        return cast(dict[str, Any], detail)
+                    time.sleep(interval_seconds)
+                    continue
+                if schedule_fix_job_executed(detail):
+                    return cast(dict[str, Any], detail)
+                excluded.add(run_id)
+                break
+        time.sleep(interval_seconds)
+    return None
+
+
 def wait_for_schedule_audit_run(
     repo: str,
     workflow_file: str,
@@ -215,11 +314,14 @@ def wait_for_schedule_audit_run(
                         "databaseId,status,conclusion,url,jobs,createdAt,headSha,event",
                     ]
                 )
+                # Prefer returning as soon as the audit leaf succeeds so the
+                # fix-path case can continue waiting on the same run for the
+                # create-PR agent without requiring overall completion first.
+                if schedule_audit_job_executed(detail):
+                    return cast(dict[str, Any], detail)
                 if detail.get("status") != "completed":
                     time.sleep(interval_seconds)
                     continue
-                if schedule_audit_job_executed(detail):
-                    return cast(dict[str, Any], detail)
                 # Completed without audit agent success — keep polling others.
                 excluded.add(run_id)
                 break
@@ -272,6 +374,48 @@ def find_audit_issue(
         if created < since:
             continue
         matches.append(issue)
+    if not matches:
+        return None
+    matches.sort(key=lambda item: str(item.get("createdAt") or ""), reverse=True)
+    return matches[0]
+
+
+def find_fix_pr(
+    repo: str,
+    *,
+    title: str,
+    since: datetime,
+) -> dict[str, Any] | None:
+    """Return the newest open PR whose title equals ``title`` after ``since``."""
+    prs = (
+        estc.gh_json(
+            [
+                "pr",
+                "list",
+                "--repo",
+                repo,
+                "--state",
+                "open",
+                "--limit",
+                "30",
+                "--json",
+                "number,title,url,createdAt",
+            ]
+        )
+        or []
+    )
+    matches: list[dict[str, Any]] = []
+    for pr in prs:
+        if not isinstance(pr, dict):
+            continue
+        if str(pr.get("title") or "") != title:
+            continue
+        created_raw = str(pr.get("createdAt") or "")
+        if not created_raw:
+            continue
+        if estc._parse_gh_time(created_raw) < since:
+            continue
+        matches.append(pr)
     if not matches:
         return None
     matches.sort(key=lambda item: str(item.get("createdAt") or ""), reverse=True)
@@ -363,6 +507,7 @@ def run_live_case(
         cfg.get("schedule_trigger_workflow_file") or "trigger-obs-aw-schedule.yml"
     )
     title_prefix = str(cfg.get("issue_title_prefix") or DEFAULT_TITLE_PREFIX)
+    fix_pr_title = str(cfg.get("fix_pr_title") or DEFAULT_FIX_PR_TITLE)
     bait_path = str(cfg.get("bait_path") or DEFAULT_BAIT_PATH)
     dash_id = str(cfg.get("dashboard_workflow_id") or WORKFLOW_ID)
     timeout = int(cfg.get("poll_timeout_seconds") or 3600)
@@ -375,10 +520,14 @@ def run_live_case(
         expectations_raw if isinstance(expectations_raw, dict) else {}
     )
     case_id = str(case.get("id") or "")
+    want_fix = bool(
+        expectations.get("expect_fix_pr") or expectations.get("fix_agent_invoked")
+    )
 
     since = _utc_now()
     bait_sha: str | None = None
     issue: dict[str, Any] | None = None
+    fix_pr: dict[str, Any] | None = None
     run_detail: dict[str, Any] | None = None
     cleaned = False
     branch = ""
@@ -394,13 +543,19 @@ def run_live_case(
             "run_url": run_url,
             "path_gates": {"dashboard_enabled": False},
             "agent_invoked": False,
+            "fix_agent_invoked": False,
             "schedule_trigger": {
                 "run_seen": False,
                 "job_executed": False,
                 "job_conclusion": None,
                 "url": None,
             },
+            "fix_trigger": {
+                "job_executed": False,
+                "job_conclusion": None,
+            },
             "audit_issue": None,
+            "fix_pr": None,
             **extra,
         }
         write_outcome(outcome_path, outcome)
@@ -449,6 +604,8 @@ def run_live_case(
         completed_run: dict[str, Any] = run_detail
         job_conclusion = autodoc_audit_job_conclusion(completed_run)
         agent_ok = audit_agent_invoked(completed_run)
+        fix_job_conclusion = autodoc_fix_job_conclusion(completed_run)
+        fix_ok = fix_agent_invoked(completed_run)
 
         if expectations.get("expect_audit_issue"):
             deadline = time.time() + min(timeout, 900)
@@ -468,7 +625,84 @@ def run_live_case(
                         "url": completed_run.get("url"),
                     },
                     agent_invoked=agent_ok,
+                    fix_agent_invoked=fix_ok,
+                    fix_trigger={
+                        "job_executed": schedule_fix_job_executed(completed_run),
+                        "job_conclusion": fix_job_conclusion,
+                    },
                 )
+
+        if want_fix:
+            prefer_id = int(completed_run["databaseId"])
+            if not fix_ok:
+                fix_run = wait_for_schedule_fix_run(
+                    repo,
+                    workflow_file,
+                    since=since,
+                    timeout_seconds=timeout,
+                    interval_seconds=interval,
+                    prefer_run_id=prefer_id,
+                )
+                if fix_run is None:
+                    return _blocked(
+                        f"Timed out waiting for {workflow_file} autodoc fix agent success",
+                        path_gates={"dashboard_enabled": dashboard_ok},
+                        schedule_trigger={
+                            "run_seen": True,
+                            "job_executed": schedule_audit_job_executed(completed_run),
+                            "job_conclusion": job_conclusion,
+                            "url": completed_run.get("url"),
+                        },
+                        agent_invoked=agent_ok,
+                        audit_issue=(
+                            {
+                                "number": issue.get("number"),
+                                "title": issue.get("title"),
+                                "url": issue.get("url"),
+                            }
+                            if issue is not None
+                            else None
+                        ),
+                    )
+                completed_run = fix_run
+                fix_job_conclusion = autodoc_fix_job_conclusion(completed_run)
+                fix_ok = fix_agent_invoked(completed_run)
+
+            if expectations.get("expect_fix_pr"):
+                deadline = time.time() + min(timeout, 900)
+                while time.time() < deadline:
+                    fix_pr = find_fix_pr(repo, title=fix_pr_title, since=since)
+                    if fix_pr is not None:
+                        break
+                    time.sleep(interval)
+                if fix_pr is None:
+                    return _blocked(
+                        f"Timed out waiting for open PR titled {fix_pr_title!r}",
+                        path_gates={"dashboard_enabled": dashboard_ok},
+                        schedule_trigger={
+                            "run_seen": True,
+                            "job_executed": schedule_audit_job_executed(completed_run),
+                            "job_conclusion": autodoc_audit_job_conclusion(
+                                completed_run
+                            ),
+                            "url": completed_run.get("url"),
+                        },
+                        agent_invoked=audit_agent_invoked(completed_run),
+                        fix_agent_invoked=fix_ok,
+                        fix_trigger={
+                            "job_executed": schedule_fix_job_executed(completed_run),
+                            "job_conclusion": fix_job_conclusion,
+                        },
+                        audit_issue=(
+                            {
+                                "number": issue.get("number"),
+                                "title": issue.get("title"),
+                                "url": issue.get("url"),
+                            }
+                            if issue is not None
+                            else None
+                        ),
+                    )
 
         if trigger.get("cleanup_after"):
             if issue is not None:
@@ -498,12 +732,17 @@ def run_live_case(
             "blocked": False,
             "run_url": run_url,
             "path_gates": {"dashboard_enabled": dashboard_ok},
-            "agent_invoked": agent_ok,
+            "agent_invoked": audit_agent_invoked(completed_run),
+            "fix_agent_invoked": fix_agent_invoked(completed_run),
             "schedule_trigger": {
                 "run_seen": True,
                 "job_executed": schedule_audit_job_executed(completed_run),
-                "job_conclusion": job_conclusion,
+                "job_conclusion": autodoc_audit_job_conclusion(completed_run),
                 "url": completed_run.get("url"),
+            },
+            "fix_trigger": {
+                "job_executed": schedule_fix_job_executed(completed_run),
+                "job_conclusion": autodoc_fix_job_conclusion(completed_run),
             },
             "audit_issue": (
                 {
@@ -512,6 +751,15 @@ def run_live_case(
                     "url": issue.get("url"),
                 }
                 if issue is not None
+                else None
+            ),
+            "fix_pr": (
+                {
+                    "number": fix_pr.get("number"),
+                    "title": fix_pr.get("title"),
+                    "url": fix_pr.get("url"),
+                }
+                if fix_pr is not None
                 else None
             ),
             "cleanup": {"completed": cleaned, "bait_path": bait_path},

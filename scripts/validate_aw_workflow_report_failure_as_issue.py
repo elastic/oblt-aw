@@ -37,6 +37,7 @@ LOCKS_WITHOUT_REPORT_FAILURE_INPUT: frozenset[str] = frozenset(
         # In-repo lock: failure reporting baked via obs-defaults; no caller input.
         "gh-aw-estc-pr-buildkite-detective.lock.yml",
         "gh-aw-docs-patrol.lock.yml",
+        "gh-aw-create-pr-from-issue.lock.yml",
     }
 )
 
