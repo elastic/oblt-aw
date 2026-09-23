@@ -1,0 +1,62 @@
+name: Plan
+
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+permissions:
+  contents: read
+# The association gate below prevents untrusted comments from reaching the
+# privileged resolver. Native GH-AW roles remain the command authorization boundary.
+
+jobs:
+  resolve-apm-assets:
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      github.event.issue.pull_request == null &&
+      startsWith(github.event.comment.body, '/plan') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      workflow-basename: obs-aw-plan.yml
+
+  plan:
+    needs: [resolve-apm-assets]
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      github.event.issue.pull_request == null &&
+      startsWith(github.event.comment.body, '/plan') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    permissions:
+      actions: read
+      contents: read
+      copilot-requests: write
+      discussions: write
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/gh-aw-plan.lock.yml
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), fromJSON('"\n"')) }}

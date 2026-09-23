@@ -47,6 +47,19 @@ class TestResolveCompoundId:
             wr.resolve_compound_id(tmp_path, "obs-aw-automerge.yml") == "obs:automerge"
         )
 
+    def test_plan_entry(self, tmp_path: pathlib.Path) -> None:
+        _write_org(
+            tmp_path,
+            "obs",
+            [
+                {
+                    "id": "plan",
+                    "inner_workflows": ["obs-aw-plan.yml"],
+                }
+            ],
+        )
+        assert wr.resolve_compound_id(tmp_path, "obs-aw-plan.yml") == "obs:plan"
+
     def test_multi_file_entry(self, tmp_path: pathlib.Path) -> None:
         _write_org(
             tmp_path,

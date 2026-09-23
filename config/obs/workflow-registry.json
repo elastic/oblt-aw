@@ -127,6 +127,15 @@
       "inner_workflows": ["obs-aw-issue-fixer.yml"]
     },
     {
+      "id": "plan",
+      "name": "Plan",
+      "description": "Generates implementation plans from `/plan` issue comments and can create bounded follow-up issues or sub-issues.",
+      "maturity": "early-adoption",
+      "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-plan.md",
+      "inner_workflows": ["obs-aw-plan.yml"]
+    },
+    {
       "id": "mention-in-issue",
       "name": "Mention in Issue",
       "description": "AI assistant for issues — answers questions, debugs problems, and creates PRs on demand when triggered with a /ai comment.",
