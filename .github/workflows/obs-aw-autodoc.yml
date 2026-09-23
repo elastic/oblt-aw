@@ -77,13 +77,11 @@ jobs:
       issues: write
       pull-requests: read
       copilot-requests: write
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
+    uses: elastic/oblt-aw/.github/workflows/gh-aw-docs-patrol.lock.yml@main
     with:
-      lookback-window: 1 day ago
-      title-prefix: "[oblt-aw][autodoc]"
+      # Lookback (1 day), title-prefix ([oblt-aw][autodoc]), model/bots/footer,
+      # and failure-issue suppression are opinionated on the in-repo lock.
       additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
-      # Findings still use create_issue; do not open [aw] failure meta-issues.
-      report-failure-as-issue: false
     secrets: inherit
 
   resolve-apm-assets-fix:

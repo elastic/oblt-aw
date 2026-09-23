@@ -6,6 +6,8 @@ Source file: [.github/workflows/obs-aw-autodoc.yml](../../.github/workflows/obs-
 
 This reusable workflow automates documentation maintenance in two stages: audit for documentation drift, then open a docs-only PR when findings exist.
 
+Landing home for the audit primitive (under [#2052](https://github.com/elastic/oblt-aw/issues/2052) / [#1876](https://github.com/elastic/oblt-aw/issues/1876)): **`elastic/oblt-aw`**.
+
 ## Prerequisites
 
 - Triggered via `workflow_call`.
@@ -14,11 +16,28 @@ This reusable workflow automates documentation maintenance in two stages: audit 
 
 Jobs:
 
-- `audit`: calls `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Created issues always @mention `@elastic/observablt-ci` in the body so the team receives notifications.
-- `fix`: calls `gh-aw-create-pr-from-issue.lock.yml` only when `audit` created an issue.
-- Both `audit` and `fix` set `report-failure-as-issue: false` so agent/`missing_tool` failures stay in the Actions run and do not open `[aw] …` meta-issues. Intentional findings from `create_issue` (audit) are unchanged.
+- `audit`: calls the Observability-owned `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Created issues always @mention `@elastic/observablt-ci` in the body so the team receives notifications.
+- `fix`: calls `gh-aw-create-pr-from-issue.lock.yml` only when `audit` created an issue (still upstream until [#2053](https://github.com/elastic/oblt-aw/issues/2053)).
+- `audit` failure reporting is baked into the in-repo lock via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) (no `report-failure-as-issue` lock input). `fix` still sets `report-failure-as-issue: false` on the upstream create-PR lock. Intentional findings from `create_issue` (audit) are unchanged.
 - `finalize-pr`: requests a review from `@elastic/observablt-ci` and applies the `changelog:docs` label to the created PR if that label exists in the repository.
 - `notify-fix-failure`: when `fix` fails after an audit issue was created, comments recovery guidance on that issue (including `/ai implement`) and applies `oblt-aw/autodoc/fix-failed` when that label exists in the repository.
+
+The job `audit` calls:
+
+```yaml
+uses: elastic/oblt-aw/.github/workflows/gh-aw-docs-patrol.lock.yml@main
+```
+
+Edit the GH-AW source [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the lock).
+
+### Opinionated vs preserved
+
+| Opinionated (Observability-owned) | Preserved as lock inputs |
+|-----------------------------------|--------------------------|
+| Model, failure-issue suppression, and GitHub `trusted-users` via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) | `additional-instructions` (from `aw-resolve-agentic-assets`) |
+| Lookback window (`1 day ago`) and issue title prefix (`[oblt-aw][autodoc]`) hardcoded on the source | |
+| Comment footer via [`messages-footer.md`](../../.github/workflows/gh-aw-fragments/messages-footer.md) | |
+| Bot actor hardcoded on the source (`github-actions[bot]`) | |
 
 Workflow-specific requirements passed to the PR stage:
 
@@ -49,11 +68,30 @@ Permissions:
 
 `notify-fix-failure` uses job-level `issues: write` only.
 
-## API / Interface
+## Cutover and rollback
 
-`workflow_call` contract:
+**Cutover:** the wrapper `audit` job `uses` `elastic/oblt-aw/.../gh-aw-docs-patrol.lock.yml@main` instead of `elastic/ai-github-actions/...@main`. Schedule routing and resolve inputs are unchanged; the lock interface is reduced to `additional-instructions` only.
 
+**Rollback:** point the wrapper audit job back at the previous upstream lock:
+
+```yaml
+uses: elastic/ai-github-actions/.github/workflows/gh-aw-docs-patrol.lock.yml@main
+with:
+  lookback-window: 1 day ago
+  title-prefix: "[oblt-aw][autodoc]"
+  additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
+  report-failure-as-issue: false
+```
+
+Copies in `elastic/ai-github-actions` remain for other consumers; this cutover does not deprecate or remove them.
+
+**E2E:** production schedule-path validation for the audit stage lives under [autodoc-e2e](../testing/autodoc-e2e.md) ([#2052](https://github.com/elastic/oblt-aw/issues/2052)). Manual `workflow_dispatch` via [`.github/workflows/e2e-autodoc.yml`](../../.github/workflows/e2e-autodoc.yml); not a default PR required gate.
 
 ## References
 
 - Routing rules: [docs/routing/autodoc-routing.md](../routing/autodoc-routing.md)
+- In-repo source: [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md)
+- In-repo lock: [`.github/workflows/gh-aw-docs-patrol.lock.yml`](../../.github/workflows/gh-aw-docs-patrol.lock.yml)
+- Shared model defaults: [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md)
+- Prior upstream (rollback / other consumers): [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — `gh-aw-docs-patrol`
+- E2E harness: [autodoc-e2e](../testing/autodoc-e2e.md)
