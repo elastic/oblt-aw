@@ -32,6 +32,7 @@ jobs:
       inputs.shared-proceed == 'true' &&
       (
         (github.event_name == 'issues' && github.event.action == 'opened' &&
+          !startsWith(github.event.issue.title, '[onboard]') &&
           !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository')) ||
         github.event_name == 'workflow_dispatch'
       )
@@ -47,7 +48,10 @@ jobs:
       inputs.shared-proceed == 'true' &&
       (
         github.event_name != 'issues' ||
-        !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository')
+        (
+          !startsWith(github.event.issue.title, '[onboard]') &&
+          !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository')
+        )
       )
     needs: [resolve-apm-assets]
     permissions:

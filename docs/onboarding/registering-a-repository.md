@@ -42,11 +42,12 @@ Open **one pull request per concern** (do not combine catalog, registration, set
 When the in-repo agent [`gh-aw-onboard-repository`](../workflows/gh-aw-onboard-repository.md) runs from an issue labeled `oblt-aw/onboard/repository`, it must follow this page and:
 
 1. **Inputs** — Parse **repository** (`elastic/<repo>`) and **organization key** (existing `config/<org-key>/` directory, today `obs` or `docs`) from the issue. On missing/invalid inputs or an already-registered repository, comment on the issue and stop.
-2. **Workspace trees** — Edit checked-out paths: `repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and the workflow repository root for `elastic/oblt-aw`. Match existing file layout and naming in those trees.
-3. **Discover `workflow_ref` values** — Derive client trigger paths from `.github/remote-workflow-template/<org-key>/` (and the org’s [client template](../workflows/obs-aw-client-template.md) / docs equivalents) so TokenPolicy `bound_claims.workflow_ref` lists every installed `trigger-*-aw-*.yml` that calls `create-token`, always with `@refs/heads/main`.
-4. **PR policy** — Open **normal (non-draft)** PRs via safe-output `create-pull-request`, one concern each per the inventory above. **Do not merge** any PR. **Do not close** the onboard issue.
-5. **Issue comment** — Before finishing, comment on the triggering issue with: parsed repository and org-key; checklist of opened or skipped PRs with links; merge order (catalog-info before `elastic/oblt-aw`); that merges are **manual**; pointer to [Onboard a repository](../guides/user/onboard-a-repository.md) for post-merge dashboard enablement.
-6. **Failures** — On permission or token errors, comment what failed; never invent credentials or policies.
+2. **Retry safety** — Before opening PRs, search for **existing open** pull requests whose titles start with `[oblt-aw][onboard]` and that target the same `elastic/<repo>` (across allowlisted repos). If any match, comment with those links and **stop** — do not open duplicates. Re-applying the onboard label is the supported retry.
+3. **Workspace trees** — Edit checked-out paths: `repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and the workflow repository root for `elastic/oblt-aw`. Match existing file layout and naming in those trees.
+4. **Discover `workflow_ref` values** — Derive client trigger paths from `.github/remote-workflow-template/<org-key>/` (and the org’s [client template](../workflows/obs-aw-client-template.md) / docs equivalents) so TokenPolicy `bound_claims.workflow_ref` lists every installed `trigger-*-aw-*.yml` that calls `create-token`, always with `@refs/heads/main`.
+5. **PR policy** — Open **normal (non-draft)** PRs via safe-output `create-pull-request`, one concern each per the inventory above. **Do not merge** any PR. **Do not close** the onboard issue.
+6. **Issue comment** — Before finishing, comment on the triggering issue with: parsed repository and org-key; checklist of opened or skipped PRs with links; merge order (catalog-info before `elastic/oblt-aw`); that merges are **manual**; pointer to [Onboard a repository](../guides/user/onboard-a-repository.md) for post-merge dashboard enablement.
+7. **Failures** — On permission or token errors, comment what failed; never invent credentials or policies.
 
 Manual maintainers may still use draft PRs for early review; the agent path does not.
 

@@ -16,15 +16,15 @@ on:
   stale-check: false
   # Labeled only: issue-form labels emit `labeled` after create; `opened` bypasses
   # the compiler's names filter and would run the agent on every new issue.
+  # No workflow_dispatch: this agent requires the triggering issue for parse/comment.
   issues:
     types: [labeled]
     names: [oblt-aw/onboard/repository]
-  workflow_dispatch:
   roles: [admin, maintainer, write]
   bots:
     - "github-actions[bot]"
 concurrency:
-  group: ${{ github.workflow }}-onboard-repository-${{ github.event.issue.number || github.run_id }}
+  group: ${{ github.workflow }}-onboard-repository-${{ github.event.issue.number }}
   cancel-in-progress: true
 # Policy id lives in config/onboard-repository.json (same pattern as config/e2e.json).
 # Resolved by gh-aw-fragments/ephemeral-github-token.md before create-token.
@@ -99,6 +99,14 @@ Parse the issue body (sanitized context) and extract exactly:
 2. **Organization key** — must be an existing directory under `config/` in this repository (today: `obs` or `docs`).
 
 If either value is missing, invalid, or the repository is already listed in `config/<org-key>/active-repositories.json`, call `add-comment` with a clear explanation and stop (use `noop` if no further action is possible).
+
+## Retry safety (before opening PRs)
+
+Before calling `create-pull-request`, search for **existing open** pull requests whose titles start with `[oblt-aw][onboard]` and that target the same `elastic/<repo>` (in any of the allowlisted repos). Prefer GitHub search / `gh pr list` filtered by that title prefix.
+
+- If matching open PRs already exist, call `add-comment` with links to those PRs (and merge order) and **stop** — do **not** open duplicate PRs.
+- Only open new PRs when no such open onboarding PRs exist for that repository.
+- Re-applying the `oblt-aw/onboard/repository` label is the supported retry; treat prior open onboard PRs as the source of truth until they merge or close.
 
 ## Authoritative procedure (read and follow — do not invent)
 

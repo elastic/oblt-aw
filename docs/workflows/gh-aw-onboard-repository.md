@@ -25,14 +25,16 @@ This workflow is **not** part of the consumer agentic catalog:
 Triggers:
 
 - `issues` `labeled` when the label is `oblt-aw/onboard/repository` (issue forms apply the label after create and emit this event)
-- `workflow_dispatch` (compiler-added manual path)
+
+There is **no** `workflow_dispatch` path: the agent requires the triggering issue for input parsing and `add-comment`. Retry by re-applying the onboard label (idempotent when open `[oblt-aw][onboard]` PRs already exist).
 
 Behavior:
 
 1. Parse **repository** (`elastic/<repo>`) and **org key** (`obs` / `docs`) from the issue.
 2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps, appendix).
-3. Open up to four **normal (non-draft)** PRs (separate concerns); do not merge them.
-4. Comment a checklist and merge order on the issue.
+3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; if found, comment links and stop.
+4. Otherwise open up to four **normal (non-draft)** PRs (separate concerns); do not merge them.
+5. Comment a checklist and merge order on the issue.
 
 User-facing steps: [Onboard a repository](../guides/user/onboard-a-repository.md).
 
@@ -50,7 +52,10 @@ Safe outputs:
 
 ## Related exclusions
 
-Generic `obs-aw-issue-triage` and `obs-aw-duplicate-issue-detector` skip issues labeled `oblt-aw/onboard/repository` so catalog routes do not compete with this agent on `elastic/oblt-aw`.
+Generic catalog routes skip onboard issues so they do not compete with this agent on `elastic/oblt-aw`:
+
+- `obs-aw-issue-triage` and `obs-aw-duplicate-issue-detector` on `issues` `opened` when the title starts with `[onboard]` **or** the issue has label `oblt-aw/onboard/repository` (title covers the form create race before the label event).
+- `obs-aw-issue-fixer` and `obs-aw-mention-in-issue` on `issue_comment` under the same title/label guards.
 
 ## References
 

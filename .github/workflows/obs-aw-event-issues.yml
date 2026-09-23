@@ -35,6 +35,7 @@ jobs:
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-issue-triage.yml'] == 'true' &&
       github.event_name == 'issues' &&
       github.event.action == 'opened' &&
+      !startsWith(github.event.issue.title, '[onboard]') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
@@ -62,6 +63,7 @@ jobs:
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-duplicate-issue-detector.yml'] == 'true' &&
       (
         (github.event_name == 'issues' && github.event.action == 'opened' &&
+          !startsWith(github.event.issue.title, '[onboard]') &&
           !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository')) ||
         github.event_name == 'workflow_dispatch'
       )
