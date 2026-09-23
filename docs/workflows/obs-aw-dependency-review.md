@@ -4,46 +4,48 @@
 
 Source file: [.github/workflows/obs-aw-dependency-review.yml](../../.github/workflows/obs-aw-dependency-review.yml)
 
-This reusable workflow delegates dependency-update PR analysis to a locked workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
+Reusable wrapper that calls the Observability-owned Dependency Review lock in this repository. Client `trigger-obs-aw-pull-request.yml` routes allowed-author `pull_request` events here when prelude allows `obs:dependency-review`.
+
+Landing home for this primitive (under [#2098](https://github.com/elastic/oblt-aw/issues/2098) / [#1876](https://github.com/elastic/oblt-aw/issues/1876)): **`elastic/oblt-aw`**.
+
+Instruction ownership for this import: **Merge**. Noop / CVE / merge-ready / GitHub-read safe-output rules live in [`.github/workflows/gh-aw-dependency-review.md`](../../.github/workflows/gh-aw-dependency-review.md). The control-plane fragment map no longer composes a dependency-review layer; `aw-resolve-agentic-assets` only merges consumer APM instructions.
 
 ## Prerequisites
 
-- Triggered via `workflow_call`.
-- Allow list: `needs.run-aw-prelude.outputs.allowed-pr-authors-csv` from [aw-prelude](aw-prelude.md) / [load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml), derived from [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json).
+- Triggered via `workflow_call` from the pull_request event orchestrator (`obs-aw-event-pull-request.yml` ← client `trigger-obs-aw-pull-request.yml`).
+- Allow list for the route `if:` condition still comes from prelude / [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json). Bot actors accepted by the lock are hardcoded to that same list on the GH-AW source.
 
 ## Usage
 
+Ingress routes here when:
+
+- `github.event_name == 'pull_request'`,
+- action is `opened` / `synchronize` / `reopened`,
+- author is on the allowed PR authors list, and
+- Dashboard gate passes for registry id `dependency-review` (`enabled-workflows` contains `obs:dependency-review`).
+
 The job `dependency-review` calls:
 
-- [elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-dependency-review.lock.yml)
+```yaml
+uses: elastic/oblt-aw/.github/workflows/gh-aw-dependency-review.lock.yml@main
+```
 
-Forwarded inputs include:
+Edit the GH-AW source [`.github/workflows/gh-aw-dependency-review.md`](../../.github/workflows/gh-aw-dependency-review.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the lock). Compile also runs `scripts/wire_ephemeral_token.py` so minted `create-token` outputs win over `GITHUB_TOKEN` when `github-token-policy` is set.
 
-- `allowed-bot-users`: from caller (CSV aligned with the control-plane allow list)
-- `classification-labels`: `oblt-aw/ai/merge-ready`
-- `additional-instructions`: control-plane fragments plus Noop-when-not-applicable rules, CVE-focused and internal-change impact analysis instructions.
-- `github-token-policy`: from `shared-token-policy` (`aw-prelude` / `workflow-token-policy`). When non-empty, the nested lock workflow mints an OIDC installation token in the same job that applies labels (labels then re-trigger downstream workflows). Empty keeps `GITHUB_TOKEN` (no re-trigger).
+### Opinionated vs preserved
 
-Shared GitHub-read/safe-output contract is composed from [`config/obs/instruction-fragments/dependency-review-github-read-and-safe-outputs.md`](../../config/obs/instruction-fragments/dependency-review-github-read-and-safe-outputs.md) via [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)).
+| Opinionated (Observability-owned) | Preserved as lock inputs |
+|-----------------------------------|--------------------------|
+| Model, failure-issue suppression, and trusted-user baseline via [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) (trusted-users overridden on the workflow to the Obs allow list) | `additional-instructions` (from `aw-resolve-agentic-assets`) |
+| Comment footer via [`.github/workflows/gh-aw-fragments/messages-footer.md`](../../.github/workflows/gh-aw-fragments/messages-footer.md) | `setup-commands` (joined from consumer `apm.yml` when non-empty) |
+| Bots + `classification-labels` default `oblt-aw/ai/merge-ready` on the source (callers must not override `classification-labels`; the fragment sanitizer reads that input) | `github-token-policy` (from `shared-token-policy`) |
+| Noop / CVE / merge-ready / GitHub-read rules in the prompt body | |
 
-Noop semantics (in additional-instructions):
-
-- When the PR has no dependency updates to review (no version bumps, no lockfile changes indicating dependency updates, or changes outside supported ecosystems), the agent MUST call `noop` and must NOT call `add_comment` (no analysis comment from the agent).
-- When the PR has dependency updates but the agent cannot gather enough context, it MUST call `report_incomplete` (or `missing_tool` / `missing_data`) — not a text-only exit.
-- Intentional `noop` still leaves `comment_id` empty, so `notify-no-comment` may still upsert a control-plane note on the PR (not an analysis comment).
-
-Labeling semantics (in additional-instructions):
-
-- The agent assigns overall risk (**low**, **low-to-moderate**, **moderate**, **high**). Add `oblt-aw/ai/merge-ready` when risk is **low** or **low-to-moderate**, including when changelogs include CVEs/GHSAs/security fixes (those do not block the label in those bands; document them in the analysis). Also require: no breaking changes affecting this repo, ecosystem checks pass, and workflows are testable or the dependency is dev-only. Do not add the label when risk is moderate or high, or when other gates fail.
-- Label application: when all criteria are met, the agent MUST call `add_labels` with that label (not only recommend in the comment). The comment's "Labels Applied" section must reflect labels actually applied via `add_labels`; if none were applied, it must say "No labels applied."
-
-`notify-no-comment` runs when the lock succeeds with an empty `comment_id` and **upserts** a single comment on the **triggering PR** (marker `obs-aw-dependency-review:notify-no-comment`) with the latest run URL and retry guidance. Re-runs on the same PR update that comment instead of posting duplicates. The lock call sets `report-failure-as-issue: false` so empty bailouts do not open a separate `[aw] … produced no safe outputs` meta-issue.
+`notify-no-comment` runs when the lock succeeds with an empty `comment_id` and **upserts** a single comment on the **triggering PR** (marker `obs-aw-dependency-review:notify-no-comment`) with the latest run URL and retry guidance. Re-runs on the same PR update that comment instead of posting duplicates. Failure-issue suppression comes from `obs-defaults` (no `report-failure-as-issue` lock input).
 
 ## Failure mode (empty safe outputs)
 
 If the agent exits with text only and zero safe outputs, the lock may still report success with an empty `comment_id`. `notify-no-comment` then upserts a human-visible comment on the PR (run URL + retry guidance). Retry by pushing a new commit to the PR branch (or close/reopen) so `pull_request` re-runs dependency-review.
-
-Empty-safe-outputs hardening for Elastic consumers is owned by this control-plane route (instruction fragment + `notify-no-comment`), not by duplicating that contract in the shared upstream prompt.
 
 ## Configuration
 
@@ -55,10 +57,39 @@ Permissions:
 
 ## API / Interface
 
-`workflow_call` contract:
+Wrapper `workflow_call` contract:
 
-- Inputs: shared prelude gate and allow-list / token-policy inputs (`shared-proceed`, `shared-allowed-pr-authors-*`, `shared-allowed-issue-authors-*`, `shared-token-policy`).
+- Inputs: `shared-proceed`, `shared-token-policy` (allow-list inputs were dropped from the wrapper after bots were hardcoded on the lock).
+
+Lock inputs passed by the wrapper:
+
+- `additional-instructions` — resolved consumer instructions
+- `setup-commands` — `join(fromJSON(resolved-setup-commands-json), fromJSON('"\n"'))` from resolve
+- `github-token-policy` — from `shared-token-policy`
+
+The lock also declares `classification-labels` with default `oblt-aw/ai/merge-ready` so the `safe-output-add-labels` sanitizer can read it. The wrapper must not pass or override that input.
+
+## Cutover and rollback
+
+**Cutover:** the wrapper `uses` `elastic/oblt-aw/.../gh-aw-dependency-review.lock.yml@main` instead of `elastic/ai-github-actions/...@main`. Event routing and dashboard id are unchanged.
+
+**Rollback:** point the wrapper job back at the previous upstream lock:
+
+```yaml
+uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.yml@main
+```
+
+and restore any upstream-required inputs (`allowed-bot-users`, `classification-labels`, `report-failure-as-issue`) if needed. Copies in `elastic/ai-github-actions` remain for other consumers; this cutover does not deprecate or remove them.
+
+**Integration (no live model):** fixtures and wiring checks for resolve → wrapper → lock inputs live under [`testdata/agentic/dependency-review/`](../../testdata/agentic/dependency-review/) and [`tests/integration/test_dependency_review.py`](../../tests/integration/test_dependency_review.py).
+
+**E2E:** production path on **`elastic/oblt-aw`** via [`.github/workflows/e2e-dependency-review.yml`](../../.github/workflows/e2e-dependency-review.yml) (`workflow_dispatch` / `workflow_call` from `e2e-all.yml`). Live happy path: Vault-authored Actions pin-bump PR → dependency-review comment + `oblt-aw/ai/merge-ready`. See [dependency-review-e2e](../testing/dependency-review-e2e.md).
 
 ## References
 
-- Routing rules: [docs/routing/dependency-review-routing.md](../routing/dependency-review-routing.md)
+- Client template: [obs-aw-client-template.md](obs-aw-client-template.md) — registry id `dependency-review`
+- Routing: [docs/routing/dependency-review-routing.md](../routing/dependency-review-routing.md)
+- In-repo source: [`.github/workflows/gh-aw-dependency-review.md`](../../.github/workflows/gh-aw-dependency-review.md)
+- In-repo lock: [`.github/workflows/gh-aw-dependency-review.lock.yml`](../../.github/workflows/gh-aw-dependency-review.lock.yml)
+- Shared model defaults: [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md)
+- Prior upstream (rollback / other consumers): [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-dependency-review.lock.yml`](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-dependency-review.lock.yml)

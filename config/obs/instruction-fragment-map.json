@@ -1,11 +1,6 @@
 {
   "common": [],
   "workflows": {
-    "dependency-review": {
-      "fragments": [
-        "dependency-review-github-read-and-safe-outputs"
-      ]
-    },
     "issue-triage": {
       "fragments": [
         "triage-comment-format"

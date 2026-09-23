@@ -1,0 +1,22 @@
+# Synthetic consumer apm.yml for dependency-review integration tests.
+# Not a production manifest — markers are asserted by pytest.
+x-oblt-aw:
+  version: 1
+  obs:
+    fragments:
+      dependency-review-fixture: .github/ai/fragments/dependency-review-fixture.md
+    common:
+      setup-commands:
+        - echo "DR_COMMON_SETUP_SHOULD_NOT_APPLY"
+      inputs:
+        additional-instructions: DR_COMMON_INLINE_SHOULD_NOT_APPLY
+    workflows:
+      dependency-review:
+        additional-instructions-fragments:
+          - dependency-review-fixture
+        setup-commands:
+          - export DR_FIXTURE=1
+          - ./scripts/dr-fixture-setup.sh
+        inputs:
+          additional-instructions: |
+            DR_CONSUMER_INLINE_MARKER
