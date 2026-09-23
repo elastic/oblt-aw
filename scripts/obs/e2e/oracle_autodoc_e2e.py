@@ -331,8 +331,8 @@ def evaluate_outcome(
                 actual == expected,
                 f"expected={expected} actual={actual}",
             )
-            # Fail closed for both polarities: job_executed must match the
-            # expected fix-agent state (no silent skip when expected is false).
+            # Fail closed for both polarities: job_executed means the leaf
+            # ran (non-skipped). Success is asserted separately when expected.
             try:
                 job_executed = _as_bool(fix_trigger.get("job_executed"))
             except TypeError as exc:
@@ -509,6 +509,7 @@ def main(argv: list[str] | None = None) -> int:
         "run_url": report.get("run_url"),
         "schedule_trigger_url": report.get("schedule_trigger_url"),
         "issue_url": report.get("issue_url"),
+        "fix_pr_url": report.get("fix_pr_url"),
         "workflow_id": report.get("workflow_id"),
         "layer": report.get("layer"),
         "mode": report.get("mode"),

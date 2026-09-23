@@ -258,6 +258,7 @@ def autodoc_audit_job_conclusion(run_detail: dict[str, Any] | None) -> str | Non
 
     Prefer leaf agent jobs under the autodoc audit path. Do not treat the
     overall schedule run conclusion or sibling autodoc agent jobs as substitutes.
+    Skipped/empty conclusions are ignored so a later non-skipped leaf can win.
     """
     if not run_detail:
         return None
@@ -266,16 +267,28 @@ def autodoc_audit_job_conclusion(run_detail: dict[str, Any] | None) -> str | Non
         if not _is_audit_agent_leaf(str(name)):
             continue
         conclusion = (job.get("conclusion") or "").lower()
+        if conclusion in ("", "skipped"):
+            continue
         return conclusion or None
     return None
 
 
 def schedule_audit_job_executed(run_detail: dict[str, Any] | None) -> bool:
-    return autodoc_audit_job_conclusion(run_detail) == "success"
+    """True when the audit agent leaf ran (any non-skipped conclusion).
+
+    Success is a separate signal via ``job_conclusion`` / oracle
+    ``schedule_job_success``. A failed audit must not look like "never ran".
+    """
+    conclusion = autodoc_audit_job_conclusion(run_detail)
+    return conclusion is not None and conclusion not in ("", "skipped")
 
 
 def audit_agent_invoked(run_detail: dict[str, Any] | None) -> bool:
     return schedule_audit_job_executed(run_detail)
+
+
+def audit_agent_succeeded(run_detail: dict[str, Any] | None) -> bool:
+    return autodoc_audit_job_conclusion(run_detail) == "success"
 
 
 def _is_fix_agent_leaf(name: str) -> bool:
@@ -308,11 +321,22 @@ def autodoc_fix_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
 
 
 def schedule_fix_job_executed(run_detail: dict[str, Any] | None) -> bool:
-    return autodoc_fix_job_conclusion(run_detail) == "success"
+    """True when the fix/create-PR agent leaf ran (any non-skipped conclusion).
+
+    Success is a separate signal via ``job_conclusion`` / oracle
+    ``fix_job_success``. A failed fix must not satisfy negative
+    ``fix_agent_invoked: false`` expectations.
+    """
+    conclusion = autodoc_fix_job_conclusion(run_detail)
+    return conclusion is not None and conclusion not in ("", "skipped")
 
 
 def fix_agent_invoked(run_detail: dict[str, Any] | None) -> bool:
     return schedule_fix_job_executed(run_detail)
+
+
+def fix_agent_succeeded(run_detail: dict[str, Any] | None) -> bool:
+    return autodoc_fix_job_conclusion(run_detail) == "success"
 
 
 def wait_for_schedule_audit_run(
@@ -353,7 +377,7 @@ def wait_for_schedule_audit_run(
                 if detail.get("status") != "completed":
                     time.sleep(interval_seconds)
                     continue
-                if schedule_audit_job_executed(detail):
+                if audit_agent_succeeded(detail):
                     return cast(dict[str, Any], detail)
                 # Completed without audit agent success — keep polling others.
                 excluded.add(run_id)
@@ -709,7 +733,8 @@ def run_live_case(
         job_conclusion = autodoc_audit_job_conclusion(completed_run)
         agent_ok = audit_agent_invoked(completed_run)
         fix_job_conclusion = autodoc_fix_job_conclusion(completed_run)
-        fix_ok = fix_agent_invoked(completed_run)
+        fix_ran = schedule_fix_job_executed(completed_run)
+        fix_succeeded = fix_agent_succeeded(completed_run)
 
         if expectations.get("expect_audit_issue"):
             issue_deadline = min(case_deadline, time.time() + 900)
@@ -735,16 +760,16 @@ def run_live_case(
                         "url": completed_run.get("url"),
                     },
                     agent_invoked=agent_ok,
-                    fix_agent_invoked=fix_ok,
+                    fix_agent_invoked=fix_ran,
                     fix_trigger={
-                        "job_executed": schedule_fix_job_executed(completed_run),
+                        "job_executed": fix_ran,
                         "job_conclusion": fix_job_conclusion,
                     },
                 )
                 return result
 
         if want_fix:
-            if not fix_ok:
+            if not fix_succeeded:
                 result = _blocked(
                     f"Autodoc fix agent did not succeed "
                     f"(conclusion={fix_job_conclusion!r})",
@@ -756,9 +781,10 @@ def run_live_case(
                         "url": completed_run.get("url"),
                     },
                     agent_invoked=agent_ok,
-                    fix_agent_invoked=False,
+                    # Preserve execution evidence: a failed leaf ran.
+                    fix_agent_invoked=fix_ran,
                     fix_trigger={
-                        "job_executed": schedule_fix_job_executed(completed_run),
+                        "job_executed": fix_ran,
                         "job_conclusion": fix_job_conclusion,
                     },
                     audit_issue=(
@@ -783,9 +809,9 @@ def run_live_case(
                         "url": completed_run.get("url"),
                     },
                     agent_invoked=agent_ok,
-                    fix_agent_invoked=fix_ok,
+                    fix_agent_invoked=fix_ran,
                     fix_trigger={
-                        "job_executed": True,
+                        "job_executed": fix_ran,
                         "job_conclusion": fix_job_conclusion,
                     },
                 )
@@ -813,9 +839,9 @@ def run_live_case(
                             "url": completed_run.get("url"),
                         },
                         agent_invoked=agent_ok,
-                        fix_agent_invoked=fix_ok,
+                        fix_agent_invoked=fix_ran,
                         fix_trigger={
-                            "job_executed": True,
+                            "job_executed": fix_ran,
                             "job_conclusion": fix_job_conclusion,
                         },
                         audit_issue={

@@ -21,6 +21,7 @@ Jobs:
 - Failure meta-issue suppression for both stages is baked into the in-repo locks via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) (no `report-failure-as-issue` lock input). Intentional findings from `create_issue` (audit) are unchanged.
 - `finalize-pr`: requests a review from `@elastic/observablt-ci` and applies the `changelog:docs` label to the created PR if that label exists in the repository.
 - `notify-fix-failure`: when `fix` fails after an audit issue was created, comments recovery guidance on that issue (including `/ai implement`) and applies `oblt-aw/autodoc/fix-failed` when that label exists in the repository.
+- `notify-no-pr`: when `fix` succeeds with an empty `created_pr_number`, comments recovery guidance on the audit issue (same pattern as issue/security/RNAI fixers).
 
 The job `audit` calls:
 
@@ -69,7 +70,7 @@ Permissions:
 - `issues: write`
 - `pull-requests: write`
 
-`notify-fix-failure` uses job-level `issues: write` only.
+`notify-fix-failure` and `notify-no-pr` use job-level `issues: write` only.
 
 ## Cutover and rollback
 

@@ -119,6 +119,13 @@ jobs:
           issue = outcome.get("audit_issue") or {}
           if isinstance(issue, dict) and issue.get("url"):
               print(f"Issue: {issue.get('url')}")
+          fix_pr_url = summary.get("fix_pr_url")
+          if not fix_pr_url:
+              fix_pr = outcome.get("fix_pr") or {}
+              if isinstance(fix_pr, dict):
+                  fix_pr_url = fix_pr.get("url")
+          if fix_pr_url:
+              print(f"Fix PR: {fix_pr_url}")
           first = str(detail).splitlines()[0]
           print(f"::error::E2E {case_id}: {first}")
           PY

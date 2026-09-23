@@ -180,3 +180,26 @@ class TestCreatePrProtectedFilesExcludes:
             )
         # Remaining protected paths stay gated (do not unlock everything).
         assert protected, "protected_files list must remain non-empty after excludes"
+
+
+class TestAutodocNotifyNoPr:
+    def test_wrapper_notifies_on_success_without_pr(self) -> None:
+        wrapper = _load_yaml(WRAPPER_PATH)
+        jobs = wrapper["jobs"]
+        assert "notify-no-pr" in jobs, (
+            "obs-aw-autodoc must notify when fix succeeds with empty created_pr_number "
+            "(parity with issue/security/RNAI fixers)"
+        )
+        notify = jobs["notify-no-pr"]
+        assert notify.get("needs") == ["audit", "fix"] or set(
+            notify.get("needs") or []
+        ) >= {
+            "audit",
+            "fix",
+        }
+        condition = str(notify.get("if") or "")
+        assert "needs.fix.result == 'success'" in condition
+        assert "created_pr_number == ''" in condition
+        assert "notify-fix-failure" in jobs
+        failure_if = str(jobs["notify-fix-failure"].get("if") or "")
+        assert "needs.fix.result == 'failure'" in failure_if

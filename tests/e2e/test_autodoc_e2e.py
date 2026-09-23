@@ -189,6 +189,46 @@ class TestOracleHappyPath:
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "fix_job_executed" in failed_ids
 
+    def test_failed_fix_leaf_fails_negative_expectations(self) -> None:
+        """A failed attempt must not green fix_agent_invoked: false."""
+        case = _fix_case()
+        expectations = dict(case["expectations"])
+        expectations["fix_agent_invoked"] = False
+        expectations["expect_fix_pr"] = False
+        report = oracle.evaluate_outcome(
+            _synthetic_fix_outcome(
+                fix_agent_invoked=True,
+                fix_trigger={
+                    "job_executed": True,
+                    "job_conclusion": "failure",
+                },
+                fix_pr=None,
+            ),
+            case_expectations=expectations,
+            case_trigger=case["trigger"],
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "fix_agent_invoked" in failed_ids
+        assert "fix_job_executed" in failed_ids
+
+    def test_failed_fix_conclusion_fails_success_check(self) -> None:
+        case = _fix_case()
+        report = oracle.evaluate_outcome(
+            _synthetic_fix_outcome(
+                fix_agent_invoked=True,
+                fix_trigger={
+                    "job_executed": True,
+                    "job_conclusion": "failure",
+                },
+            ),
+            case_expectations=case["expectations"],
+            case_trigger=case["trigger"],
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "fix_job_success" in failed_ids
+
     def test_unexpected_fix_pr_fails_when_expect_absent(self) -> None:
         case = _fix_case()
         expectations = dict(case["expectations"])
@@ -352,6 +392,34 @@ class TestJobNameMatching:
             ]
         }
         assert harness.schedule_audit_job_executed(detail) is False
+        assert harness.audit_agent_succeeded(detail) is False
+
+    def test_failed_fix_leaf_counts_as_executed_not_succeeded(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "autodoc / fix / agent",
+                    "conclusion": "failure",
+                }
+            ]
+        }
+        assert harness.schedule_fix_job_executed(detail) is True
+        assert harness.fix_agent_invoked(detail) is True
+        assert harness.fix_agent_succeeded(detail) is False
+        assert harness.autodoc_fix_job_conclusion(detail) == "failure"
+
+    def test_failed_audit_leaf_counts_as_executed_not_succeeded(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "autodoc / audit / agent",
+                    "conclusion": "failure",
+                }
+            ]
+        }
+        assert harness.schedule_audit_job_executed(detail) is True
+        assert harness.audit_agent_invoked(detail) is True
+        assert harness.audit_agent_succeeded(detail) is False
 
 
 class TestIssueAndPrCorrelation:
@@ -415,3 +483,34 @@ class TestHarnessDashboardGate:
         assert outcome["blocked"] is True
         assert "Dashboard" in str(outcome.get("block_reason") or "")
         assert outcome_path.is_file()
+
+
+class TestOracleCliSummary:
+    def test_summary_includes_fix_pr_url(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(ROOT)
+        outcome_path = tmp_path / "outcome.json"
+        report_path = tmp_path / "report.json"
+        summary_path = tmp_path / "summary.json"
+        outcome_path.write_text(
+            json.dumps(_synthetic_fix_outcome()),
+            encoding="utf-8",
+        )
+        code = oracle.main(
+            [
+                "--outcome-path",
+                str(outcome_path),
+                "--report-path",
+                str(report_path),
+                "--summary-path",
+                str(summary_path),
+                "--testdata-root",
+                str(TESTDATA_ROOT),
+            ]
+        )
+        assert code == 0
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        assert summary["pass"] is True
+        assert summary["fix_pr_url"] == "https://example.test/pull/99"
+        assert summary["issue_url"] == "https://example.test/issues/42"
