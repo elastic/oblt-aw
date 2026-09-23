@@ -44,7 +44,7 @@ Review for the issues that are most expensive to miss in this repo:
 
 ### 1. Workflow and gh-aw correctness
 
-- If a source file under `.github/workflows/*.md` changed, check whether generated `.lock.yml` files were regenerated and committed.
+- If any Markdown source under `.github/workflows/` changes—including imports under `gh-aw-fragments/`—check whether `make compile-aw-check` regenerated the affected `.lock.yml` files and that they are committed.
 - For workflow-source edits, prefer `make compile-aw-check` as the authoritative validation step.
 - Verify the source file and the compiled lock stay in sync; do not hand-edit lock files.
 - Treat a workflow-source `.md` change without the matching generated `.lock.yml` update as a blocker until `make compile-aw-check` has been run and the drift resolved.
