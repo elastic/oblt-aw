@@ -34,7 +34,9 @@ tools:
   bash: true
 strict: false
 safe-outputs:
+  report-failed-jobs: false
   noop:
+    report-as-issue: false
   create-issue:
     max: 1
     title-prefix: ${{ inputs.title-prefix }}

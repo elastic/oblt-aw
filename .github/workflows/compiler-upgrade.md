@@ -38,6 +38,7 @@ network:
     - github
 strict: false
 safe-outputs:
+  report-failed-jobs: false
   noop:
     report-as-issue: false
   create-issue:
