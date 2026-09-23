@@ -23,6 +23,7 @@ Also keep these live-harness lessons (from automerge vm-images E2E review):
 - Never `OR` distinct named jobs in waiters/oracles (approve ≠ merge).
 - Seed default-branch fixtures only when missing; refuse silent overwrite when remote content differs.
 - Label ensure and path-gate `_as_bool` must fail closed (no crash, no “any error ⇒ create”).
+- Before first review of a **new** live harness / owned lock: complete the **New live harness / owned-lock design checklist** in [`.cursor/rules/fail-closed-e2e-gates.mdc`](.cursor/rules/fail-closed-e2e-gates.mdc) (branch-prefix/event-guard lockstep, fixture create rollback, cleanup must fail the run, oracle identity fields, no “hardcoded via default input”).
 
 Before commit/push on harness, oracle, E2E tests, or related workflows: **`pre-commit run --files <paths>` is mandatory** (includes mypy). Pytest alone does not authorize push. See also **[`.cursor/rules/ci-precommit-before-push.mdc`](.cursor/rules/ci-precommit-before-push.mdc)**.
 

@@ -10,7 +10,8 @@ imports:
   - gh-aw-fragments/mcp-pagination.md
   - gh-aw-fragments/messages-footer.md
   - gh-aw-fragments/safe-output-add-comment-pr.md
-  - gh-aw-fragments/safe-output-add-labels.md
+  # Hardcoded merge-ready allowlist (not a workflow_call input — callers cannot widen it).
+  - gh-aw-fragments/safe-output-add-labels-merge-ready.md
   - gh-aw-fragments/network-ecosystems.md
   - gh-aw-fragments/obs-defaults.md
 engine:
@@ -31,13 +32,6 @@ on:
         type: string
         required: false
         default: ""
-      # Fixed allowlist for add_labels sanitization (safe-output-add-labels fragment).
-      # Callers must not override; Observability owns merge-ready semantics in this prompt.
-      classification-labels:
-        description: "Comma-separated labels the agent may apply (Observability-owned default)"
-        type: string
-        required: false
-        default: "oblt-aw/ai/merge-ready"
       github-token-policy:
         description: "Elastic TokenPolicy id for create-token. When set, mint an OIDC ephemeral token so labels/comments re-trigger downstream workflows. Leave empty to use GITHUB_TOKEN."
         type: string

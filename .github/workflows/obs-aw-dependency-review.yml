@@ -42,8 +42,8 @@ jobs:
       # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.
       setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), fromJSON('"\n"')) }}
       github-token-policy: ${{ inputs.shared-token-policy }}
-      # classification-labels default (oblt-aw/ai/merge-ready) and bots are opinionated
-      # on the in-repo lock. Failure-issue suppression comes from obs-defaults.
+      # Bots + merge-ready label allowlist are hardcoded on the in-repo lock
+      # (safe-output-add-labels-merge-ready). Failure-issue suppression from obs-defaults.
 
   notify-no-comment:
     needs: dependency-review

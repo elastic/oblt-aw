@@ -260,6 +260,53 @@ def test_oracle_fails_when_merge_ready_missing() -> None:
     )
 
 
+def test_oracle_rejects_wrong_merge_ready_label_name() -> None:
+    """applied=true with a non-canonical name must not green the gate."""
+    report = _evaluate(
+        _synthetic_live_outcome(
+            merge_ready_label={"name": "oblt-aw/ai/something-else", "applied": True}
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "merge_ready_label_applied" and not c["pass"]
+        for c in report["checks"]
+    )
+
+
+def test_oracle_rejects_cleanup_error_when_pr_present() -> None:
+    report = _evaluate(
+        _synthetic_live_outcome(
+            pr_number=42,
+            fixture={
+                "pr_number": 42,
+                "cleaned_up": False,
+                "cleanup_error": "gh pr close failed",
+            },
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "fixture_cleaned_up" and not c["pass"] for c in report["checks"]
+    )
+
+
+def test_normalize_fixture_branch_prefix_rejects_malicious_suffix() -> None:
+    with pytest.raises(RuntimeError, match="exact event-guard prefix"):
+        harness.normalize_fixture_branch_prefix("e2e/dependency-review-malicious/")
+
+
+def test_normalize_fixture_branch_prefix_accepts_canonical() -> None:
+    assert (
+        harness.normalize_fixture_branch_prefix("e2e/dependency-review")
+        == harness.FIXTURE_BRANCH_PREFIX
+    )
+    assert (
+        harness.normalize_fixture_branch_prefix(harness.FIXTURE_BRANCH_PREFIX)
+        == harness.FIXTURE_BRANCH_PREFIX
+    )
+
+
 def test_oracle_fails_when_comment_missing() -> None:
     report = _evaluate(_synthetic_live_outcome(dependency_review_comment=None))
     assert report["pass"] is False

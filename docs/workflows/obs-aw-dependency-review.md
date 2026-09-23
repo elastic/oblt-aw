@@ -38,7 +38,7 @@ Edit the GH-AW source [`.github/workflows/gh-aw-dependency-review.md`](../../.gi
 |-----------------------------------|--------------------------|
 | Model, failure-issue suppression, and trusted-user baseline via [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) (trusted-users overridden on the workflow to the Obs allow list) | `additional-instructions` (from `aw-resolve-agentic-assets`) |
 | Comment footer via [`.github/workflows/gh-aw-fragments/messages-footer.md`](../../.github/workflows/gh-aw-fragments/messages-footer.md) | `setup-commands` (joined from consumer `apm.yml` when non-empty) |
-| Bots + `classification-labels` default `oblt-aw/ai/merge-ready` on the source (callers must not override `classification-labels`; the fragment sanitizer reads that input) | `github-token-policy` (from `shared-token-policy`) |
+| Bots + hardcoded `oblt-aw/ai/merge-ready` allowlist via [safe-output-add-labels-merge-ready.md](../../.github/workflows/gh-aw-fragments/safe-output-add-labels-merge-ready.md) (not a lock input) | `github-token-policy` (from `shared-token-policy`) |
 | Noop / CVE / merge-ready / GitHub-read rules in the prompt body | |
 
 `notify-no-comment` runs when the lock succeeds with an empty `comment_id` and **upserts** a single comment on the **triggering PR** (marker `obs-aw-dependency-review:notify-no-comment`) with the latest run URL and retry guidance. Re-runs on the same PR update that comment instead of posting duplicates. Failure-issue suppression comes from `obs-defaults` (no `report-failure-as-issue` lock input).
@@ -67,7 +67,7 @@ Lock inputs passed by the wrapper:
 - `setup-commands` — `join(fromJSON(resolved-setup-commands-json), fromJSON('"\n"'))` from resolve
 - `github-token-policy` — from `shared-token-policy`
 
-The lock also declares `classification-labels` with default `oblt-aw/ai/merge-ready` so the `safe-output-add-labels` sanitizer can read it. The wrapper must not pass or override that input.
+The lock hardcodes the add-labels allowlist to `oblt-aw/ai/merge-ready` in the merge-ready fragment (no `classification-labels` input). Callers cannot widen the allowlist.
 
 ## Cutover and rollback
 

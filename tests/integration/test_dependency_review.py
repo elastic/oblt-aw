@@ -107,20 +107,20 @@ class TestDependencyReviewWrapperLockWiring:
             "additional-instructions",
             "setup-commands",
             "github-token-policy",
-            "classification-labels",
         ):
             assert key in lock_inputs, (
                 f"{LOCK_BASENAME} must declare workflow_call input {key!r}"
             )
-        assert (
-            lock_inputs["classification-labels"].get("default")
-            == "oblt-aw/ai/merge-ready"
+        assert "classification-labels" not in lock_inputs, (
+            f"{LOCK_BASENAME} must hardcode the merge-ready allowlist "
+            "(no caller-overridable classification-labels input)"
         )
         for dropped in (
             "model",
             "allowed-bot-users",
             "messages-footer",
             "report-failure-as-issue",
+            "classification-labels",
         ):
             assert dropped not in lock_inputs, (
                 f"{LOCK_BASENAME} must not expose simplified-away input {dropped!r}"

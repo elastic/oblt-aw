@@ -31,10 +31,19 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# scripts/ siblings (e.g. get_enabled_workflows via shared ESTC helpers) when this
+# file lives under scripts/obs/e2e/.
+_SCRIPTS_DIR = Path(__file__).resolve().parents[2]
+_E2E_DIR = Path(__file__).resolve().parent
+for _path in (_E2E_DIR, _SCRIPTS_DIR):
+    if str(_path) not in sys.path:
+        sys.path.insert(0, str(_path))
 
 # Reuse shared gh / Contents helpers from the ESTC harness and PR-route waiters
 # from the automerge harness.
@@ -216,6 +225,31 @@ def seed_fixture_workflow_on_default_branch(
     )
 
 
+def delete_fixture_branch(repo: str, branch: str) -> None:
+    """Delete a fixture head branch ref (best-effort helpers call this on rollback)."""
+    delete = subprocess.run(
+        [
+            "gh",
+            "api",
+            "--method",
+            "DELETE",
+            f"repos/{repo}/git/refs/heads/{branch}",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if delete.returncode == 0:
+        return
+    combined = f"{delete.stderr or ''}{delete.stdout or ''}".lower()
+    if "not found" in combined or "does not exist" in combined:
+        return
+    raise RuntimeError(
+        f"Failed to delete fixture branch {branch!r}: "
+        f"{(delete.stderr or delete.stdout or '').strip() or f'exit {delete.returncode}'}"
+    )
+
+
 def cleanup_fixture_pr(repo: str, pr_number: int, branch: str | None) -> None:
     """Close the ephemeral fixture PR and delete its head branch."""
     close = subprocess.run(
@@ -239,23 +273,31 @@ def cleanup_fixture_pr(repo: str, pr_number: int, branch: str | None) -> None:
     combined = f"{close.stderr or ''}{close.stdout or ''}".lower()
     if "already closed" in combined or "not open" in combined:
         if branch:
-            subprocess.run(
-                [
-                    "gh",
-                    "api",
-                    "--method",
-                    "DELETE",
-                    f"repos/{repo}/git/refs/heads/{branch}",
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            delete_fixture_branch(repo, branch)
         return
     raise RuntimeError(
         f"Failed to close fixture PR #{pr_number}: "
         f"{(close.stderr or close.stdout or '').strip() or f'exit {close.returncode}'}"
     )
+
+
+def normalize_fixture_branch_prefix(raw: str | None) -> str:
+    """Return a fixture branch prefix that matches the event-orchestrator skip guard.
+
+    Production skip uses ``startsWith(head.ref, 'e2e/dependency-review/')``.
+    Validation must use that full prefix (including the trailing slash) so values
+    like ``e2e/dependency-review-malicious/`` fail closed instead of bypassing
+    the automerge skip while still carrying the fixture label.
+    """
+    branch_prefix = str(raw or FIXTURE_BRANCH_PREFIX).strip() or FIXTURE_BRANCH_PREFIX
+    if not branch_prefix.endswith("/"):
+        branch_prefix = f"{branch_prefix}/"
+    if not branch_prefix.startswith(FIXTURE_BRANCH_PREFIX):
+        raise RuntimeError(
+            f"e2e_pr.branch_prefix {branch_prefix!r} must start with "
+            f"{FIXTURE_BRANCH_PREFIX!r} (exact event-guard prefix, including '/')"
+        )
+    return branch_prefix
 
 
 def create_pin_bump_pr(
@@ -272,17 +314,9 @@ def create_pin_bump_pr(
             f"e2e_pr.label {label!r} must be {FIXTURE_LABEL!r} "
             "(CI skip guards require the canonical fixture label)."
         )
-    branch_prefix = (
-        str(e2e.get("branch_prefix") or FIXTURE_BRANCH_PREFIX).strip()
-        or FIXTURE_BRANCH_PREFIX
+    branch_prefix = normalize_fixture_branch_prefix(
+        str(e2e.get("branch_prefix") or FIXTURE_BRANCH_PREFIX)
     )
-    if not branch_prefix.startswith(FIXTURE_BRANCH_PREFIX.rstrip("/")):
-        raise RuntimeError(
-            f"e2e_pr.branch_prefix {branch_prefix!r} must start with "
-            f"{FIXTURE_BRANCH_PREFIX!r}"
-        )
-    if not branch_prefix.endswith("/"):
-        branch_prefix = f"{branch_prefix}/"
     branch = f"{branch_prefix}{run_id}"
     workflow_rel = str(
         cfg.get("fixture_workflow_path") or DEFAULT_FIXTURE_WORKFLOW
@@ -309,116 +343,146 @@ def create_pin_bump_pr(
     base_sha = estc.gh_text(
         ["api", f"repos/{repo}/git/ref/heads/{default_branch}", "--jq", ".object.sha"]
     ).strip()
-    estc.gh_json(
-        [
-            "api",
-            "--method",
-            "POST",
-            f"repos/{repo}/git/refs",
-            "-f",
-            f"ref=refs/heads/{branch}",
-            "-f",
-            f"sha={base_sha}",
-        ]
-    )
 
-    base_content = local_workflow.read_text(encoding="utf-8")
-    remote = subprocess.run(
-        ["gh", "api", f"repos/{repo}/contents/{workflow_rel}?ref={default_branch}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if remote.returncode == 0:
-        payload = json.loads(remote.stdout)
-        remote_b64 = str(payload.get("content") or "").replace("\n", "")
-        if remote_b64:
-            base_content = base64.b64decode(remote_b64).decode("utf-8")
-
-    bumped = bump_checkout_pin(
-        base_content, sha=BUMP_CHECKOUT_SHA, version=BUMP_CHECKOUT_VERSION
-    )
-    commit_sha = estc.put_branch_file(
-        repo,
-        branch=branch,
-        path=workflow_rel,
-        content=bumped,
-        message=(
-            f"chore(e2e): bump actions/checkout pin to "
-            f"{BUMP_CHECKOUT_SHA[:12]} ({BUMP_CHECKOUT_VERSION})"
-        ),
-    )
-    if not commit_sha:
-        raise RuntimeError(
-            "Forced actions/checkout pin bump produced no commit "
-            "(content already matched)."
+    created_branch: str | None = None
+    created_pr: int | None = None
+    try:
+        estc.gh_json(
+            [
+                "api",
+                "--method",
+                "POST",
+                f"repos/{repo}/git/refs",
+                "-f",
+                f"ref=refs/heads/{branch}",
+                "-f",
+                f"sha={base_sha}",
+            ]
         )
+        created_branch = branch
 
-    title = str(
-        e2e.get("title_template")
-        or "[e2e] Bump actions/checkout pin for dependency-review"
-    )
-    body = str(e2e.get("body") or "").strip() or (
-        "Ephemeral E2E fixture PR for obs:dependency-review (Actions pin bump)."
-    )
-    create = subprocess.run(
-        [
-            "gh",
-            "pr",
-            "create",
-            "--repo",
-            repo,
-            "--base",
-            default_branch,
-            "--head",
-            branch,
-            "--title",
-            title,
-            "--body",
-            body,
-            "--label",
-            label,
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    create_out = f"{create.stderr or ''}{create.stdout or ''}"
-    if create.returncode != 0:
-        raise RuntimeError(
-            f"gh pr create failed: {(create.stderr or create.stdout or '').strip()}"
+        base_content = local_workflow.read_text(encoding="utf-8")
+        remote = subprocess.run(
+            [
+                "gh",
+                "api",
+                f"repos/{repo}/contents/{workflow_rel}?ref={default_branch}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
         )
-    pr_number = estc._pr_number_from_gh_output(create.stdout or create_out)
-    if pr_number is None:
-        raise RuntimeError(f"Could not parse PR number from gh pr create: {create_out}")
+        if remote.returncode == 0:
+            payload = json.loads(remote.stdout)
+            remote_b64 = str(payload.get("content") or "").replace("\n", "")
+            if remote_b64:
+                base_content = base64.b64decode(remote_b64).decode("utf-8")
 
-    pr = estc.gh_json(
-        [
-            "pr",
-            "view",
-            str(pr_number),
-            "--repo",
+        bumped = bump_checkout_pin(
+            base_content, sha=BUMP_CHECKOUT_SHA, version=BUMP_CHECKOUT_VERSION
+        )
+        commit_sha = estc.put_branch_file(
             repo,
-            "--json",
-            "number,url,headRefName,headRefOid,baseRefName,labels,state",
-        ]
-    )
-    author_login = rest_pr_author_login(repo, pr_number)
-    return {
-        "number": int(pr["number"]),
-        "url": pr.get("url"),
-        "headRefName": pr.get("headRefName"),
-        "headRefOid": pr.get("headRefOid") or commit_sha,
-        "baseRefName": pr.get("baseRefName") or default_branch,
-        "author_login": author_login,
-        "labels": [
-            lbl.get("name") for lbl in (pr.get("labels") or []) if lbl.get("name")
-        ],
-        "branch": branch,
-        "checkout_sha": BUMP_CHECKOUT_SHA,
-        "checkout_version": BUMP_CHECKOUT_VERSION,
-        "commit_sha": commit_sha,
-    }
+            branch=branch,
+            path=workflow_rel,
+            content=bumped,
+            message=(
+                f"chore(e2e): bump actions/checkout pin to "
+                f"{BUMP_CHECKOUT_SHA[:12]} ({BUMP_CHECKOUT_VERSION})"
+            ),
+        )
+        if not commit_sha:
+            raise RuntimeError(
+                "Forced actions/checkout pin bump produced no commit "
+                "(content already matched)."
+            )
+
+        title = str(
+            e2e.get("title_template")
+            or "[e2e] Bump actions/checkout pin for dependency-review"
+        )
+        body = str(e2e.get("body") or "").strip() or (
+            "Ephemeral E2E fixture PR for obs:dependency-review (Actions pin bump)."
+        )
+        create = subprocess.run(
+            [
+                "gh",
+                "pr",
+                "create",
+                "--repo",
+                repo,
+                "--base",
+                default_branch,
+                "--head",
+                branch,
+                "--title",
+                title,
+                "--body",
+                body,
+                "--label",
+                label,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        create_out = f"{create.stderr or ''}{create.stdout or ''}"
+        if create.returncode != 0:
+            raise RuntimeError(
+                f"gh pr create failed: {(create.stderr or create.stdout or '').strip()}"
+            )
+        pr_number = estc._pr_number_from_gh_output(create.stdout or create_out)
+        if pr_number is None:
+            raise RuntimeError(
+                f"Could not parse PR number from gh pr create: {create_out}"
+            )
+        created_pr = pr_number
+
+        pr = estc.gh_json(
+            [
+                "pr",
+                "view",
+                str(pr_number),
+                "--repo",
+                repo,
+                "--json",
+                "number,url,headRefName,headRefOid,baseRefName,labels,state",
+            ]
+        )
+        author_login = rest_pr_author_login(repo, pr_number)
+        return {
+            "number": int(pr["number"]),
+            "url": pr.get("url"),
+            "headRefName": pr.get("headRefName"),
+            "headRefOid": pr.get("headRefOid") or commit_sha,
+            "baseRefName": pr.get("baseRefName") or default_branch,
+            "author_login": author_login,
+            "labels": [
+                lbl.get("name") for lbl in (pr.get("labels") or []) if lbl.get("name")
+            ],
+            "branch": branch,
+            "checkout_sha": BUMP_CHECKOUT_SHA,
+            "checkout_version": BUMP_CHECKOUT_VERSION,
+            "commit_sha": commit_sha,
+        }
+    except (RuntimeError, OSError, TypeError, ValueError):
+        if created_pr is not None:
+            try:
+                cleanup_fixture_pr(repo, created_pr, created_branch)
+            except (RuntimeError, OSError, TypeError, ValueError) as rollback_exc:
+                estc.log_error(
+                    f"Rollback cleanup failed for partial fixture PR "
+                    f"#{created_pr}: {rollback_exc}"
+                )
+        elif created_branch is not None:
+            try:
+                delete_fixture_branch(repo, created_branch)
+            except (RuntimeError, OSError, TypeError, ValueError) as rollback_exc:
+                estc.log_error(
+                    f"Rollback delete failed for partial fixture branch "
+                    f"{created_branch!r}: {rollback_exc}"
+                )
+        raise
 
 
 def run_live_case(
@@ -700,9 +764,26 @@ def run_live_case(
                     f"{cleanup_exc}"
                 )
                 fixture_meta["cleanup_error"] = str(cleanup_exc)
+                fixture_meta["cleaned_up"] = False
 
     if outcome is None:
         raise RuntimeError("Live E2E harness produced no outcome")
+    # Fail closed: cleanup leaks must not leave a green live outcome.
+    if fixture_meta.get("cleanup_error"):
+        outcome["fixture"] = fixture_meta
+        if not outcome.get("blocked"):
+            outcome["blocked"] = True
+            outcome["block_reason"] = (
+                "Fixture PR cleanup failed after the live run: "
+                f"{fixture_meta['cleanup_error']}"
+            )
+        elif "cleanup" not in str(outcome.get("block_reason") or "").lower():
+            outcome["block_reason"] = (
+                f"{outcome.get('block_reason')}; "
+                f"cleanup also failed: {fixture_meta['cleanup_error']}"
+            )
+    elif fixture_meta.get("cleaned_up"):
+        outcome["fixture"] = fixture_meta
     return outcome
 
 

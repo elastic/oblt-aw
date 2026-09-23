@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 WORKFLOW_ID = "obs:dependency-review"
+CANONICAL_MERGE_READY_LABEL = "oblt-aw/ai/merge-ready"
 
 _LIVE_REQUIRED_EXPECTATION_KEYS = (
     "dashboard_enabled",
@@ -319,14 +320,32 @@ def _evaluate_live(
         try:
             expected = _as_bool(expectations["merge_ready_label_applied"])
             actual = _as_bool(merge_ready.get("applied"))
+            label_name = str(merge_ready.get("name") or "")
+            # Fail closed: applied=true with a wrong name must not green the gate.
+            name_ok = (not expected) or (label_name == CANONICAL_MERGE_READY_LABEL)
             _check(
                 checks,
                 "merge_ready_label_applied",
-                actual == expected,
-                f"expected={expected} actual={actual} label={merge_ready.get('name')!r}",
+                actual == expected and name_ok,
+                f"expected={expected} actual={actual} label={label_name!r} "
+                f"canonical={CANONICAL_MERGE_READY_LABEL!r}",
             )
         except TypeError as exc:
             _check(checks, "merge_ready_label_applied", False, str(exc))
+
+        fixture = outcome.get("fixture") or {}
+        if isinstance(fixture, dict) and (
+            outcome.get("pr_number") is not None or fixture.get("pr_number") is not None
+        ):
+            cleanup_error = fixture.get("cleanup_error")
+            cleaned_up = fixture.get("cleaned_up") is True
+            _check(
+                checks,
+                "fixture_cleaned_up",
+                cleaned_up and not cleanup_error,
+                f"cleaned_up={fixture.get('cleaned_up')!r} "
+                f"cleanup_error={cleanup_error!r}",
+            )
 
         try:
             expected = _as_bool(expectations["dependency_review_comment"])
