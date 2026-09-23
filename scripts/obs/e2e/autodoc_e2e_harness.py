@@ -400,12 +400,17 @@ def close_issue(repo: str, number: int, *, comment: str) -> None:
     )
 
 
-def _pr_references_issue(body: str, issue_number: int) -> bool:
-    """True when PR body explicitly references the audit issue number."""
+def _pr_references_issue(body: str, issue_number: int, *, repo: str) -> bool:
+    """True when PR body explicitly references the audit issue in ``repo``."""
     text = body or ""
+    owner, sep, name = repo.partition("/")
+    if not sep or not owner or not name or "/" in name:
+        raise ValueError(f"repo must be 'owner/name', got {repo!r}")
+    owner_re = re.escape(owner)
+    name_re = re.escape(name)
     patterns = (
         rf"(?i)\b(?:closes|fixes|resolves)\s+#\s*{issue_number}\b",
-        rf"(?i)\b(?:closes|fixes|resolves)\s+https?://github\.com/[^/\s]+/[^/\s]+/issues/{issue_number}\b",
+        rf"(?i)\b(?:closes|fixes|resolves)\s+https?://github\.com/{owner_re}/{name_re}/issues/{issue_number}\b",
         rf"#\s*{issue_number}\b",
     )
     return any(re.search(pattern, text) for pattern in patterns)
@@ -434,7 +439,7 @@ def list_fix_prs_for_issue(repo: str, *, issue_number: int) -> list[dict[str, An
     for pr in prs:
         if not isinstance(pr, dict):
             continue
-        if _pr_references_issue(str(pr.get("body") or ""), issue_number):
+        if _pr_references_issue(str(pr.get("body") or ""), issue_number, repo=repo):
             linked.append(pr)
     return linked
 

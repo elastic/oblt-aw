@@ -239,11 +239,24 @@ class TestIssueAndPrCorrelation:
         )
 
     def test_pr_must_reference_issue_number(self) -> None:
-        assert harness._pr_references_issue("Closes #42\n\nDone.", 42)
-        assert harness._pr_references_issue("Fixes #42", 42)
-        assert harness._pr_references_issue("See #42 for context", 42)
-        assert not harness._pr_references_issue("docs: Documentation analysis", 42)
-        assert not harness._pr_references_issue("Closes #43", 42)
+        repo = "elastic/oblt-aw"
+        assert harness._pr_references_issue("Closes #42\n\nDone.", 42, repo=repo)
+        assert harness._pr_references_issue("Fixes #42", 42, repo=repo)
+        assert harness._pr_references_issue("See #42 for context", 42, repo=repo)
+        assert harness._pr_references_issue(
+            "Fixes https://github.com/elastic/oblt-aw/issues/42",
+            42,
+            repo=repo,
+        )
+        assert not harness._pr_references_issue(
+            "docs: Documentation analysis", 42, repo=repo
+        )
+        assert not harness._pr_references_issue("Closes #43", 42, repo=repo)
+        assert not harness._pr_references_issue(
+            "Fixes https://github.com/other/repo/issues/42",
+            42,
+            repo=repo,
+        )
 
 
 class TestBaitContent:
