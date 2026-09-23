@@ -3,14 +3,14 @@ inlined-imports: true
 description: "Detect code changes that require documentation updates and file issues"
 imports:
   - gh-aw-fragments/elastic-tools.md
+  - gh-aw-fragments/ensure-full-history.md
   - gh-aw-fragments/formatting.md
-  - gh-aw-fragments/messages-footer.md
   - gh-aw-fragments/mcp-pagination.md
+  - gh-aw-fragments/messages-footer.md
   - gh-aw-fragments/network-ecosystems.md
   - gh-aw-fragments/obs-defaults.md
-  - gh-aw-fragments/ensure-full-history.md
-  - gh-aw-fragments/previous-findings.md
   - gh-aw-fragments/pick-three-keep-many.md
+  - gh-aw-fragments/previous-findings.md
   - gh-aw-fragments/rigor.md
   - gh-aw-fragments/runtime-setup.md
   - gh-aw-fragments/safe-output-create-issue.md
