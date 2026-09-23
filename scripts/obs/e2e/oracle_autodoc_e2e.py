@@ -42,6 +42,11 @@ _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "seed_doc_drift_bait",
     "cleanup_after",
 )
+# Live schedule-audit case contract: these trigger flags must be true.
+_LIVE_REQUIRED_TRIGGER_TRUE_KEYS = (
+    "dispatch_schedule_trigger",
+    "seed_doc_drift_bait",
+)
 
 
 def _load_json(path: Path) -> Any:
@@ -97,6 +102,9 @@ def case_expectations_schema_error(
     missing = [k for k in _LIVE_REQUIRED_EXPECTATION_KEYS if k not in expectations]
     if missing:
         return f"live expectations missing required keys: {missing}"
+    unknown = sorted(set(expectations) - set(_LIVE_REQUIRED_EXPECTATION_KEYS))
+    if unknown:
+        return f"live expectations have unknown keys: {unknown}"
     for key in _LIVE_REQUIRED_EXPECTATION_KEYS:
         try:
             _as_bool(expectations[key])
@@ -109,11 +117,17 @@ def case_trigger_schema_error(trigger: dict[str, Any]) -> str | None:
     missing = [k for k in _LIVE_REQUIRED_TRIGGER_BOOL_KEYS if k not in trigger]
     if missing:
         return f"live trigger missing required keys: {missing}"
+    unknown = sorted(set(trigger) - set(_LIVE_REQUIRED_TRIGGER_BOOL_KEYS))
+    if unknown:
+        return f"live trigger has unknown keys: {unknown}"
     for key in _LIVE_REQUIRED_TRIGGER_BOOL_KEYS:
         try:
             _as_bool(trigger[key])
         except TypeError as exc:
             return f"live trigger {key!r} must be bool ({exc})"
+    for key in _LIVE_REQUIRED_TRIGGER_TRUE_KEYS:
+        if trigger[key] is not True:
+            return f"live trigger {key!r} must be true for schedule-audit E2E"
     return None
 
 
@@ -201,6 +215,8 @@ def evaluate_outcome(
     raw_schedule = outcome.get("schedule_trigger")
     schedule: dict[str, Any] = raw_schedule if isinstance(raw_schedule, dict) else {}
     issue = outcome.get("audit_issue")
+    raw_cleanup = outcome.get("cleanup")
+    cleanup: dict[str, Any] = raw_cleanup if isinstance(raw_cleanup, dict) else {}
 
     try:
         expected = _as_bool(expectations["dashboard_enabled"])
@@ -263,7 +279,11 @@ def evaluate_outcome(
         _check(checks, "expect_audit_issue", False, str(exc))
     else:
         if expect_issue is True:
-            present = isinstance(issue, dict) and bool(issue.get("number"))
+            present = (
+                isinstance(issue, dict)
+                and bool(issue.get("number"))
+                and bool(str(issue.get("url") or "").strip())
+            )
             _check(
                 checks,
                 "audit_issue_present",
@@ -277,6 +297,23 @@ def evaluate_outcome(
                 issue is None,
                 f"issue={issue}",
             )
+
+    try:
+        cleanup_after = _as_bool(trigger["cleanup_after"])
+    except TypeError as exc:
+        _check(checks, "cleanup_after", False, str(exc))
+    else:
+        if cleanup_after is True:
+            try:
+                completed = _as_bool(cleanup.get("completed"))
+                _check(
+                    checks,
+                    "cleanup_completed",
+                    completed is True,
+                    f"cleanup={cleanup}",
+                )
+            except TypeError as exc:
+                _check(checks, "cleanup_completed", False, str(exc))
 
     overall = all(item["pass"] for item in checks)
     agent_flag = False
@@ -303,7 +340,8 @@ def evaluate_outcome(
         "notes": [
             (
                 "Live oracle asserts dashboard gate, schedule audit job execution, "
-                "agent invocation, and issue presence — never agent prose."
+                "agent invocation, issue presence (number+url), and cleanup when "
+                "required — never agent prose."
             ),
             "Promote (#1878) should consume report.pass / summary.json.",
         ],

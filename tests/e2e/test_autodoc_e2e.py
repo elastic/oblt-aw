@@ -28,6 +28,13 @@ def _live_case() -> dict:
     )
 
 
+def _live_expectations(**overrides: object) -> dict:
+    case = _live_case()
+    expectations = dict(case["expectations"])
+    expectations.update(overrides)
+    return expectations
+
+
 def _synthetic_live_outcome(**overrides: object) -> dict:
     base: dict = {
         "workflow_id": "obs:autodoc",
@@ -46,6 +53,16 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
             "number": 42,
             "title": "[oblt-aw][autodoc] Document e2e bait",
             "url": "https://example.test/issues/42",
+        },
+        "cleanup": {
+            "completed": True,
+            "bait_path": "scripts/e2e_autodoc_intentional_undocumented.py",
+            "closed_prs": [],
+        },
+        "bait": {
+            "path": "scripts/e2e_autodoc_intentional_undocumented.py",
+            "commit_sha": "abc123",
+            "created_by_this_run": True,
         },
     }
     base.update(overrides)
@@ -80,6 +97,20 @@ class TestOracleHappyPath:
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "audit_issue_present" in failed_ids
 
+    def test_issue_without_url_fails(self) -> None:
+        report = _evaluate(
+            _synthetic_live_outcome(
+                audit_issue={
+                    "number": 42,
+                    "title": "[oblt-aw][autodoc] Document e2e bait",
+                    "url": "",
+                }
+            )
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "audit_issue_present" in failed_ids
+
     def test_empty_expectations_fail_closed(self) -> None:
         report = _evaluate(_synthetic_live_outcome(), case_expectations={})
         assert report["pass"] is False
@@ -94,6 +125,39 @@ class TestOracleHappyPath:
         assert report["pass"] is False
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "case_expectations" in failed_ids
+
+    def test_unknown_expectation_key_with_required_keys_fails(self) -> None:
+        expectations = _live_expectations(typo_extra=True)
+        report = _evaluate(_synthetic_live_outcome(), case_expectations=expectations)
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "case_expectations" in failed_ids
+
+    def test_unknown_trigger_key_fails(self) -> None:
+        case = _live_case()
+        trigger = dict(case["trigger"])
+        trigger["typo_extra"] = True
+        report = _evaluate(_synthetic_live_outcome(), case_trigger=trigger)
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "case_trigger" in failed_ids
+
+    def test_dispatch_false_trigger_fails(self) -> None:
+        case = _live_case()
+        trigger = dict(case["trigger"])
+        trigger["dispatch_schedule_trigger"] = False
+        report = _evaluate(_synthetic_live_outcome(), case_trigger=trigger)
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "case_trigger" in failed_ids
+
+    def test_cleanup_incomplete_fails_when_required(self) -> None:
+        report = _evaluate(
+            _synthetic_live_outcome(cleanup={"completed": False, "bait_path": "x"})
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "cleanup_completed" in failed_ids
 
     def test_blocked_outcome_fails(self) -> None:
         report = _evaluate(
@@ -134,6 +198,18 @@ class TestJobNameMatching:
         }
         assert harness.schedule_audit_job_executed(detail) is False
 
+    def test_fix_agent_sibling_is_not_audit(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "autodoc / fix / agent",
+                    "conclusion": "success",
+                }
+            ]
+        }
+        assert harness.schedule_audit_job_executed(detail) is False
+        assert harness.autodoc_audit_job_conclusion(detail) is None
+
     def test_skipped_audit_agent_fails(self) -> None:
         detail = {
             "jobs": [
@@ -146,9 +222,43 @@ class TestJobNameMatching:
         assert harness.schedule_audit_job_executed(detail) is False
 
 
+class TestIssueAndPrCorrelation:
+    def test_issue_body_requires_bait_marker(self) -> None:
+        bait_path = "scripts/e2e_autodoc_intentional_undocumented.py"
+        assert harness._issue_body_matches_bait(
+            f"Document {harness.E2E_AUTODOC_BAIT_MARKER} entrypoint",
+            bait_path,
+        )
+        assert harness._issue_body_matches_bait(
+            f"Update docs for `{bait_path}`",
+            bait_path,
+        )
+        assert not harness._issue_body_matches_bait(
+            "Generic documentation drift finding",
+            bait_path,
+        )
+
+    def test_pr_must_reference_issue_number(self) -> None:
+        assert harness._pr_references_issue("Closes #42\n\nDone.", 42)
+        assert harness._pr_references_issue("Fixes #42", 42)
+        assert harness._pr_references_issue("See #42 for context", 42)
+        assert not harness._pr_references_issue("docs: Documentation analysis", 42)
+        assert not harness._pr_references_issue("Closes #43", 42)
+
+
 class TestBaitContent:
     def test_bait_is_valid_python(self) -> None:
         compile(harness.bait_content(), "<bait>", "exec")
+
+    def test_bait_contains_correlation_marker(self) -> None:
+        assert harness.E2E_AUTODOC_BAIT_MARKER in harness.bait_content()
+
+
+class TestContentsHelpers:
+    def test_contents_absent_detects_404(self) -> None:
+        assert harness._contents_get_error_is_absent("HTTP 404: Not Found", "")
+        assert harness._contents_get_error_is_absent("", "Not Found")
+        assert not harness._contents_get_error_is_absent("HTTP 403: Forbidden", "")
 
 
 class TestHarnessDashboardGate:

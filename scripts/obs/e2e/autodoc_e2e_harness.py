@@ -23,9 +23,11 @@ against elastic/oblt-aw by seeding intentional undocumented public API bait.
 from __future__ import annotations
 
 import argparse
+import base64
 import importlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -45,6 +47,10 @@ DEFAULT_BAIT_PATH = "scripts/e2e_autodoc_intentional_undocumented.py"
 DEFAULT_BAIT_SOURCE = Path(
     "testdata/agentic/autodoc/bait/e2e_autodoc_intentional_undocumented.py"
 )
+# Must appear in bait source and in correlated audit issue bodies.
+E2E_AUTODOC_BAIT_MARKER = "E2E_AUTODOC_BAIT_MARKER"
+# After the audit issue is found, wait this long for a linked fix PR before cleanup.
+FIX_PR_POLL_SECONDS = 600
 
 
 def bait_content(source: Path = DEFAULT_BAIT_SOURCE) -> str:
@@ -52,7 +58,25 @@ def bait_content(source: Path = DEFAULT_BAIT_SOURCE) -> str:
     text = source.read_text(encoding="utf-8")
     if not text.strip():
         raise RuntimeError(f"Bait source is empty: {source}")
+    if E2E_AUTODOC_BAIT_MARKER not in text:
+        raise RuntimeError(
+            f"Bait source missing correlation marker {E2E_AUTODOC_BAIT_MARKER!r}: {source}"
+        )
     return text
+
+
+def bait_markers(bait_path: str) -> tuple[str, ...]:
+    """Strings that must appear in an E2E audit issue body for correlation."""
+    basename = Path(bait_path).name
+    markers = (E2E_AUTODOC_BAIT_MARKER, bait_path, basename)
+    # Deduplicate while preserving order.
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for marker in markers:
+        if marker and marker not in seen:
+            seen.add(marker)
+            ordered.append(marker)
+    return tuple(ordered)
 
 
 def _load_json(path: Path) -> Any:
@@ -71,11 +95,19 @@ def load_e2e_config(path: Path) -> dict[str, Any]:
 
 
 def default_branch(repo: str) -> str:
-    payload = estc.gh_json(["api", f"repos/{repo}", "--jq", ".default_branch"])
-    branch = str(payload or "").strip()
+    raw = estc.gh_text(
+        ["api", f"repos/{repo}", "--jq", ".default_branch"],
+        check=True,
+    )
+    branch = str(raw or "").strip()
     if not branch:
         raise RuntimeError(f"Could not resolve default branch for {repo}")
     return branch
+
+
+def _contents_get_error_is_absent(stderr: str, stdout: str) -> bool:
+    err = f"{stderr}\n{stdout}".lower()
+    return "404" in err or "not found" in err
 
 
 def delete_branch_file(
@@ -85,7 +117,10 @@ def delete_branch_file(
     path: str,
     message: str,
 ) -> None:
-    """Delete a file on ``branch`` when present (Contents API)."""
+    """Delete a file on ``branch`` when present (Contents API).
+
+    Propagates non-404 Contents GET failures instead of treating them as absent.
+    """
     existing = subprocess.run(
         ["gh", "api", f"repos/{repo}/contents/{path}?ref={branch}"],
         capture_output=True,
@@ -93,7 +128,12 @@ def delete_branch_file(
         check=False,
     )
     if existing.returncode != 0:
-        return
+        if _contents_get_error_is_absent(existing.stderr or "", existing.stdout or ""):
+            return
+        raise RuntimeError(
+            f"Failed to read {path} on {branch}: "
+            f"{(existing.stderr or existing.stdout or '').strip() or f'exit {existing.returncode}'}"
+        )
     payload = json.loads(existing.stdout)
     sha = str(payload.get("sha") or "").strip()
     if not sha:
@@ -112,6 +152,66 @@ def delete_branch_file(
             f"branch={branch}",
         ]
     )
+
+
+def _remote_file_content_b64(repo: str, *, branch: str, path: str) -> str | None:
+    """Return remote Contents API base64 payload, or None when absent (404)."""
+    existing = subprocess.run(
+        ["gh", "api", f"repos/{repo}/contents/{path}?ref={branch}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if existing.returncode != 0:
+        if _contents_get_error_is_absent(existing.stderr or "", existing.stdout or ""):
+            return None
+        raise RuntimeError(
+            f"Failed to read {path} on {branch}: "
+            f"{(existing.stderr or existing.stdout or '').strip() or f'exit {existing.returncode}'}"
+        )
+    payload = json.loads(existing.stdout)
+    return str(payload.get("content") or "").replace("\n", "")
+
+
+def remote_bait_matches(repo: str, *, branch: str, path: str, content: str) -> bool:
+    """True when the remote file exists and matches ``content`` exactly."""
+    remote_b64 = _remote_file_content_b64(repo, branch=branch, path=path)
+    if remote_b64 is None:
+        return False
+    encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
+    return remote_b64 == encoded
+
+
+def seed_bait_on_default_branch(
+    repo: str,
+    *,
+    branch: str,
+    path: str,
+    content: str,
+) -> tuple[str | None, bool]:
+    """Create bait on ``branch`` only when missing.
+
+    Returns ``(commit_sha_or_none, created_by_this_run)``.
+    Refuses to overwrite when remote content differs. No-ops when content matches.
+    """
+    encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
+    remote_b64 = _remote_file_content_b64(repo, branch=branch, path=path)
+    if remote_b64 is not None:
+        if remote_b64 == encoded:
+            return None, False
+        raise RuntimeError(
+            f"Bait {path} already exists on {branch} with different content; "
+            "refusing to overwrite. Remove or align the remote file before "
+            "re-running live E2E."
+        )
+    commit_sha = estc.put_branch_file(
+        repo,
+        branch=branch,
+        path=path,
+        content=content,
+        message="chore(e2e): seed autodoc intentional undocumented bait",
+    )
+    return commit_sha, True
 
 
 def list_schedule_trigger_runs(
@@ -137,38 +237,35 @@ def list_schedule_trigger_runs(
     return cast(list[dict[str, Any]], payload)
 
 
-def autodoc_audit_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
-    """Return leave audit job conclusion when present (fail closed on name match).
+def _is_audit_agent_leaf(name: str) -> bool:
+    """True only for nested audit agent leaves (not fix / other autodoc siblings)."""
+    lowered = name.lower()
+    if "gh-aw-docs-patrol" in lowered and (
+        "/ agent" in lowered or lowered.endswith(" / agent") or lowered == "agent"
+    ):
+        return True
+    # Nested: … / audit / … / agent (require both audit segment and agent leaf).
+    if "autodoc" not in lowered:
+        return False
+    if "/ audit" not in lowered and not lowered.endswith("audit"):
+        return False
+    return "/ agent" in lowered or lowered.endswith(" / agent") or lowered == "agent"
 
-    Prefer leaf agent / lock jobs under the autodoc audit path. Do not treat the
-    overall schedule run conclusion as a substitute.
+
+def autodoc_audit_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
+    """Return leaf audit job conclusion when present (fail closed on name match).
+
+    Prefer leaf agent jobs under the autodoc audit path. Do not treat the
+    overall schedule run conclusion or sibling autodoc agent jobs as substitutes.
     """
     if not run_detail:
         return None
     for job in run_detail.get("jobs") or []:
-        name = (job.get("name") or "").lower()
-        conclusion = (job.get("conclusion") or "").lower()
-        # Nested: autodoc / audit / agent (or safe_outputs after agent).
-        if (
-            "autodoc" in name
-            and ("/ audit" in name or name.endswith("audit"))
-            and ("/ agent" in name or name.endswith(" / agent") or name == "agent")
-        ):
-            return conclusion or None
-        if "gh-aw-docs-patrol" in name and (
-            "/ agent" in name or name.endswith(" / agent") or name == "agent"
-        ):
-            return conclusion or None
-    # Fallback: any non-skipped agent job under autodoc when leaf naming differs.
-    for job in run_detail.get("jobs") or []:
-        name = (job.get("name") or "").lower()
-        conclusion = (job.get("conclusion") or "").lower()
-        if conclusion in ("", "skipped"):
+        name = job.get("name") or ""
+        if not _is_audit_agent_leaf(str(name)):
             continue
-        if "autodoc" in name and (
-            name.endswith(" / agent") or "/ agent" in name or name == "agent"
-        ):
-            return conclusion or None
+        conclusion = (job.get("conclusion") or "").lower()
+        return conclusion or None
     return None
 
 
@@ -234,13 +331,20 @@ def dispatch_schedule_trigger(repo: str, workflow_file: str) -> None:
     )
 
 
+def _issue_body_matches_bait(body: str, bait_path: str) -> bool:
+    """Require at least one bait correlation marker in the issue body."""
+    text = body or ""
+    return any(marker in text for marker in bait_markers(bait_path))
+
+
 def find_audit_issue(
     repo: str,
     *,
     title_prefix: str,
     since: datetime,
+    bait_path: str,
 ) -> dict[str, Any] | None:
-    """Return the newest open issue whose title starts with ``title_prefix``."""
+    """Return the newest open issue correlated to this E2E bait run."""
     issues = (
         estc.gh_json(
             [
@@ -253,7 +357,7 @@ def find_audit_issue(
                 "--limit",
                 "50",
                 "--json",
-                "number,title,url,createdAt,author",
+                "number,title,url,createdAt,author,body",
             ]
         )
         or []
@@ -270,6 +374,9 @@ def find_audit_issue(
             continue
         created = estc._parse_gh_time(created_raw)
         if created < since:
+            continue
+        body = str(issue.get("body") or "")
+        if not _issue_body_matches_bait(body, bait_path):
             continue
         matches.append(issue)
     if not matches:
@@ -293,8 +400,19 @@ def close_issue(repo: str, number: int, *, comment: str) -> None:
     )
 
 
-def close_autodoc_fix_prs(repo: str, *, since: datetime) -> list[int]:
-    """Close open autodoc fix PRs created after ``since`` (best-effort cleanup)."""
+def _pr_references_issue(body: str, issue_number: int) -> bool:
+    """True when PR body explicitly references the audit issue number."""
+    text = body or ""
+    patterns = (
+        rf"(?i)\b(?:closes|fixes|resolves)\s+#\s*{issue_number}\b",
+        rf"(?i)\b(?:closes|fixes|resolves)\s+https?://github\.com/[^/\s]+/[^/\s]+/issues/{issue_number}\b",
+        rf"#\s*{issue_number}\b",
+    )
+    return any(re.search(pattern, text) for pattern in patterns)
+
+
+def list_fix_prs_for_issue(repo: str, *, issue_number: int) -> list[dict[str, Any]]:
+    """Open PRs whose body references the audit issue (not title/time heuristics)."""
     prs = (
         estc.gh_json(
             [
@@ -307,26 +425,24 @@ def close_autodoc_fix_prs(repo: str, *, since: datetime) -> list[int]:
                 "--limit",
                 "30",
                 "--json",
-                "number,title,createdAt,url",
+                "number,title,createdAt,url,body",
             ]
         )
         or []
     )
-    closed: list[int] = []
+    linked: list[dict[str, Any]] = []
     for pr in prs:
         if not isinstance(pr, dict):
             continue
-        title = str(pr.get("title") or "")
-        if (
-            "Documentation analysis and improvement" not in title
-            and not title.startswith("docs:")
-        ):
-            continue
-        created_raw = str(pr.get("createdAt") or "")
-        if not created_raw:
-            continue
-        if estc._parse_gh_time(created_raw) < since:
-            continue
+        if _pr_references_issue(str(pr.get("body") or ""), issue_number):
+            linked.append(pr)
+    return linked
+
+
+def close_prs_for_issue(repo: str, *, issue_number: int) -> list[int]:
+    """Close open PRs that reference ``issue_number``."""
+    closed: list[int] = []
+    for pr in list_fix_prs_for_issue(repo, issue_number=issue_number):
         number = int(pr["number"])
         estc.gh_text(
             [
@@ -342,6 +458,23 @@ def close_autodoc_fix_prs(repo: str, *, since: datetime) -> list[int]:
         )
         closed.append(number)
     return closed
+
+
+def wait_for_fix_pr_for_issue(
+    repo: str,
+    *,
+    issue_number: int,
+    timeout_seconds: int,
+    interval_seconds: int,
+) -> list[dict[str, Any]]:
+    """Poll for fix PRs linked to the audit issue; return whatever is present at deadline."""
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        linked = list_fix_prs_for_issue(repo, issue_number=issue_number)
+        if linked:
+            return linked
+        time.sleep(interval_seconds)
+    return list_fix_prs_for_issue(repo, issue_number=issue_number)
 
 
 def write_outcome(path: Path, outcome: dict[str, Any]) -> None:
@@ -378,6 +511,7 @@ def run_live_case(
 
     since = _utc_now()
     bait_sha: str | None = None
+    bait_created = False
     issue: dict[str, Any] | None = None
     run_detail: dict[str, Any] | None = None
     cleaned = False
@@ -401,6 +535,12 @@ def run_live_case(
                 "url": None,
             },
             "audit_issue": None,
+            "cleanup": {"completed": False, "bait_path": bait_path},
+            "bait": {
+                "path": bait_path,
+                "commit_sha": bait_sha,
+                "created_by_this_run": bait_created,
+            },
             **extra,
         }
         write_outcome(outcome_path, outcome)
@@ -418,16 +558,19 @@ def run_live_case(
         dashboard_ok = True
         branch = default_branch(repo)
         if trigger.get("seed_doc_drift_bait"):
-            bait_sha = estc.put_branch_file(
+            bait_sha, bait_created = seed_bait_on_default_branch(
                 repo,
                 branch=branch,
                 path=bait_path,
                 content=bait_content(),
-                message="chore(e2e): seed autodoc intentional undocumented bait",
             )
             estc.log_info(
                 f"Seeded bait {bait_path} on {repo}@{branch}"
-                + (f" (commit {bait_sha[:12]})" if bait_sha else " (already present)")
+                + (
+                    f" (commit {bait_sha[:12]})"
+                    if bait_sha
+                    else " (already present, matching)"
+                )
             )
         if trigger.get("dispatch_schedule_trigger"):
             dispatch_schedule_trigger(repo, workflow_file)
@@ -453,13 +596,19 @@ def run_live_case(
         if expectations.get("expect_audit_issue"):
             deadline = time.time() + min(timeout, 900)
             while time.time() < deadline:
-                issue = find_audit_issue(repo, title_prefix=title_prefix, since=since)
+                issue = find_audit_issue(
+                    repo,
+                    title_prefix=title_prefix,
+                    since=since,
+                    bait_path=bait_path,
+                )
                 if issue is not None:
                     break
                 time.sleep(interval)
             if issue is None:
                 return _blocked(
-                    f"Timed out waiting for open issue with title prefix {title_prefix!r}",
+                    f"Timed out waiting for open issue with title prefix "
+                    f"{title_prefix!r} and bait marker for {bait_path!r}",
                     path_gates={"dashboard_enabled": dashboard_ok},
                     schedule_trigger={
                         "run_seen": True,
@@ -470,24 +619,46 @@ def run_live_case(
                     agent_invoked=agent_ok,
                 )
 
+        closed_prs: list[int] = []
+        bait_removed = False
         if trigger.get("cleanup_after"):
             if issue is not None:
+                issue_number = int(issue["number"])
+                # Allow the caller fix job time to open a PR linked to this issue.
+                wait_for_fix_pr_for_issue(
+                    repo,
+                    issue_number=issue_number,
+                    timeout_seconds=min(FIX_PR_POLL_SECONDS, timeout),
+                    interval_seconds=interval,
+                )
+                closed_prs = close_prs_for_issue(repo, issue_number=issue_number)
                 close_issue(
                     repo,
-                    int(issue["number"]),
+                    issue_number,
                     comment="Closed by obs:autodoc E2E harness cleanup.",
                 )
-            closed_prs = close_autodoc_fix_prs(repo, since=since)
-            delete_branch_file(
-                repo,
-                branch=branch,
-                path=bait_path,
-                message="chore(e2e): remove autodoc intentional undocumented bait",
-            )
+            # Delete only bait this run created, or an exact matching stale copy.
+            if trigger.get("seed_doc_drift_bait"):
+                content = bait_content()
+                if bait_created or remote_bait_matches(
+                    repo, branch=branch, path=bait_path, content=content
+                ):
+                    delete_branch_file(
+                        repo,
+                        branch=branch,
+                        path=bait_path,
+                        message=(
+                            "chore(e2e): remove autodoc intentional undocumented bait"
+                        ),
+                    )
+                    bait_removed = True
             cleaned = True
-            issue_number = issue.get("number") if issue is not None else None
+            cleaned_issue_number: int | None = (
+                int(issue["number"]) if issue is not None else None
+            )
             estc.log_info(
-                f"Cleanup done (issue={issue_number}, prs={closed_prs}, bait removed)"
+                f"Cleanup done (issue={cleaned_issue_number}, prs={closed_prs}, "
+                f"bait_removed={bait_removed})"
             )
 
         outcome = {
@@ -514,22 +685,34 @@ def run_live_case(
                 if issue is not None
                 else None
             ),
-            "cleanup": {"completed": cleaned, "bait_path": bait_path},
-            "bait": {"path": bait_path, "commit_sha": bait_sha},
+            "cleanup": {
+                "completed": cleaned,
+                "bait_path": bait_path,
+                "closed_prs": closed_prs,
+            },
+            "bait": {
+                "path": bait_path,
+                "commit_sha": bait_sha,
+                "created_by_this_run": bait_created,
+            },
         }
         write_outcome(outcome_path, outcome)
         return outcome
     except Exception as exc:  # noqa: BLE001 — harness must always write outcome
         estc.log_error(str(exc))
-        # Best-effort bait cleanup on failure.
+        # Best-effort bait cleanup on failure — only delete matching E2E bait.
         try:
-            if trigger.get("seed_doc_drift_bait") and not cleaned:
-                delete_branch_file(
-                    repo,
-                    branch=branch,
-                    path=bait_path,
-                    message="chore(e2e): remove autodoc bait after harness error",
-                )
+            if trigger.get("seed_doc_drift_bait") and branch and not cleaned:
+                content = bait_content()
+                if bait_created or remote_bait_matches(
+                    repo, branch=branch, path=bait_path, content=content
+                ):
+                    delete_branch_file(
+                        repo,
+                        branch=branch,
+                        path=bait_path,
+                        message="chore(e2e): remove autodoc bait after harness error",
+                    )
         except Exception as cleanup_exc:  # noqa: BLE001
             estc.log_error(f"bait cleanup failed: {cleanup_exc}")
         return _blocked(str(exc), path_gates={"dashboard_enabled": False})

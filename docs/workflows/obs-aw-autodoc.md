@@ -16,7 +16,7 @@ Landing home for the audit primitive (under [#2052](https://github.com/elastic/o
 
 Jobs:
 
-- `audit`: calls the Observability-owned `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Created issues always @mention `@elastic/observablt-ci` in the body so the team receives notifications.
+- `audit`: calls the Observability-owned `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Safe-output issue bodies neutralize `@mentions`; triage uses the baked `[oblt-aw][autodoc]` title prefix and concrete source paths.
 - `fix`: calls `gh-aw-create-pr-from-issue.lock.yml` only when `audit` created an issue (still upstream until [#2053](https://github.com/elastic/oblt-aw/issues/2053)).
 - `audit` failure reporting is baked into the in-repo lock via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) (no `report-failure-as-issue` lock input). `fix` still sets `report-failure-as-issue: false` on the upstream create-PR lock. Intentional findings from `create_issue` (audit) are unchanged.
 - `finalize-pr`: requests a review from `@elastic/observablt-ci` and applies the `changelog:docs` label to the created PR if that label exists in the repository.
@@ -39,7 +39,7 @@ Edit the GH-AW source [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/w
 | Comment footer via [`messages-footer.md`](../../.github/workflows/gh-aw-fragments/messages-footer.md) | |
 | Bot actor hardcoded on the source (`github-actions[bot]`) | |
 
-**Audit prompt:** docs-patrol lookback/drift analysis plus Observability gap criteria, secret-docs rules, false-positive / out-of-scope guards, and mandatory `@elastic/observablt-ci` issue notification live in [`gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md). The wrapper does not pass audit `platform-additional-instructions`.
+**Audit prompt:** docs-patrol lookback/drift analysis plus Observability gap criteria, secret-docs rules, false-positive / out-of-scope guards, and title-prefix triage guidance live in [`gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md). The wrapper does not pass audit `platform-additional-instructions`.
 
 Workflow-specific requirements passed to the **fix** stage via `platform-additional-instructions`:
 
