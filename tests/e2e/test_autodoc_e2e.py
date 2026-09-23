@@ -151,6 +151,23 @@ class TestOracleHappyPath:
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "fix_pr_present" in failed_ids
 
+    def test_fix_job_executed_false_fails_despite_success_conclusion(self) -> None:
+        case = _fix_case()
+        report = oracle.evaluate_outcome(
+            _synthetic_fix_outcome(
+                fix_agent_invoked=True,
+                fix_trigger={
+                    "job_executed": False,
+                    "job_conclusion": "success",
+                },
+            ),
+            case_expectations=case["expectations"],
+            case_trigger=case["trigger"],
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "fix_job_executed" in failed_ids
+
     def test_partial_fix_expectations_fail_closed(self) -> None:
         report = _evaluate(
             _synthetic_live_outcome(),

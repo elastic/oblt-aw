@@ -332,6 +332,17 @@ def evaluate_outcome(
                 f"expected={expected} actual={actual}",
             )
             if expected is True:
+                try:
+                    job_executed = _as_bool(fix_trigger.get("job_executed"))
+                except TypeError as exc:
+                    _check(checks, "fix_job_executed", False, str(exc))
+                else:
+                    _check(
+                        checks,
+                        "fix_job_executed",
+                        job_executed is True,
+                        f"job_executed={job_executed}",
+                    )
                 job_conclusion = str(fix_trigger.get("job_conclusion") or "").lower()
                 _check(
                     checks,

@@ -75,7 +75,10 @@ safe-outputs:
     discussions: false
     target: "${{ inputs.target-issue-number }}"
   create-pull-request:
-    # draft: true is set in safe-output-create-pr.md (no draft-prs lock input).
+    # Top-level mapping shadows imported safe-output-create-pr.md; keep draft +
+    # patch-format here so the compiled lock retains both (no draft-prs lock input).
+    draft: true
+    patch-format: bundle
     protected-files:
       # Compiler v0.88.7 schema uses underscore; hyphen form is docs-only alias in newer docs.
       policy: request_review

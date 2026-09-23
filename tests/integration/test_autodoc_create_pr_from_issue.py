@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import pathlib
-import re
 import sys
 
 import yaml
@@ -59,12 +58,25 @@ def _lock_workflow_call_inputs(lock: dict) -> dict:
 
 
 def _first_safe_outputs_config(lock_text: str) -> dict:
-    match = re.search(r"GH_AW_SAFE_OUTPUTS_CONFIG:\s*\"(\{.*?\})\"", lock_text)
-    assert match is not None, f"{LOCK_BASENAME}: missing GH_AW_SAFE_OUTPUTS_CONFIG"
-    raw = match.group(1).encode("utf-8").decode("unicode_escape")
-    cfg = json.loads(raw)
-    assert isinstance(cfg, dict)
-    return cfg
+    """Parse the first GH_AW_SAFE_OUTPUTS_CONFIG double-quoted JSON scalar.
+
+    Avoid non-greedy ``{.*?}`` regexes: values can contain ``}`` (for example
+    ``${GH_AW_INPUT_TARGET_ISSUE_NUMBER}``). Take the YAML line's quoted
+    scalar and unicode-unescape it instead.
+    """
+    for line in lock_text.splitlines():
+        if "GH_AW_SAFE_OUTPUTS_CONFIG:" not in line:
+            continue
+        _, _, rest = line.partition(":")
+        rest = rest.strip()
+        assert rest.startswith('"') and rest.endswith('"'), (
+            f"{LOCK_BASENAME}: GH_AW_SAFE_OUTPUTS_CONFIG must be a double-quoted scalar"
+        )
+        raw = rest[1:-1].encode("utf-8").decode("unicode_escape")
+        cfg = json.loads(raw)
+        assert isinstance(cfg, dict)
+        return cfg
+    raise AssertionError(f"{LOCK_BASENAME}: missing GH_AW_SAFE_OUTPUTS_CONFIG")
 
 
 class TestAutodocCreatePrWrapperLockWiring:
@@ -136,6 +148,16 @@ class TestCreatePrProtectedFilesExcludes:
         cfg = _first_safe_outputs_config(LOCK_PATH.read_text(encoding="utf-8"))
         create_pr = cfg.get("create_pull_request") or {}
         assert isinstance(create_pr, dict)
+        assert create_pr.get("draft") is True, (
+            "create_pull_request.draft must be true in compiled lock "
+            f"(got {create_pr.get('draft')!r}; top-level source must not shadow "
+            "safe-output-create-pr.md)"
+        )
+        patch_format = create_pr.get("patch_format") or create_pr.get("patch-format")
+        assert patch_format == "bundle", (
+            "create_pull_request.patch_format must be bundle in compiled lock "
+            f"(got {patch_format!r})"
+        )
         policy = create_pr.get("protected_files_policy")
         assert policy in ("request_review", "request-review"), (
             f"unexpected protected_files_policy: {policy!r}"

@@ -504,15 +504,26 @@ def wait_for_fix_pr_for_issue(
     issue_number: int,
     timeout_seconds: int,
     interval_seconds: int,
+    required_title: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Poll for fix PRs linked to the audit issue; return whatever is present at deadline."""
-    deadline = time.time() + timeout_seconds
-    while time.time() < deadline:
-        linked = list_fix_prs_for_issue(repo, issue_number=issue_number)
-        if linked:
+    """Poll for fix PRs linked to the audit issue; return matches at deadline.
+
+    When ``required_title`` is set, only PRs with that exact title count — any
+    other linked PR is ignored (fail closed).
+    """
+    deadline = time.time() + max(0, timeout_seconds)
+
+    def _matches(linked: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if required_title is None:
             return linked
+        return [pr for pr in linked if str(pr.get("title") or "") == required_title]
+
+    while time.time() < deadline:
+        matched = _matches(list_fix_prs_for_issue(repo, issue_number=issue_number))
+        if matched:
+            return matched
         time.sleep(interval_seconds)
-    return list_fix_prs_for_issue(repo, issue_number=issue_number)
+    return _matches(list_fix_prs_for_issue(repo, issue_number=issue_number))
 
 
 def write_outcome(path: Path, outcome: dict[str, Any]) -> None:
@@ -552,13 +563,19 @@ def run_live_case(
     )
 
     since = _utc_now()
+    case_deadline = time.time() + timeout
     bait_sha: str | None = None
     bait_created = False
     issue: dict[str, Any] | None = None
     fix_pr: dict[str, Any] | None = None
     run_detail: dict[str, Any] | None = None
     cleaned = False
+    closed_prs: list[int] = []
     branch = ""
+    result: dict[str, Any] | None = None
+
+    def _seconds_left() -> int:
+        return max(0, int(case_deadline - time.time()))
 
     def _blocked(reason: str, **extra: Any) -> dict[str, Any]:
         outcome = {
@@ -595,14 +612,63 @@ def run_live_case(
         write_outcome(outcome_path, outcome)
         return outcome
 
+    def _perform_cleanup(*, wait_for_fix_before_close: bool) -> list[int]:
+        """Close linked PRs/issue and remove matching bait when cleanup_after."""
+        nonlocal cleaned
+        if cleaned or not trigger.get("cleanup_after"):
+            return []
+        closed: list[int] = []
+        bait_removed = False
+        if issue is not None:
+            issue_number = int(issue["number"])
+            # Audit-only success: give the caller fix job a short window to open
+            # a PR before cleanup closes the issue.
+            if wait_for_fix_before_close and not want_fix:
+                wait_for_fix_pr_for_issue(
+                    repo,
+                    issue_number=issue_number,
+                    timeout_seconds=min(FIX_PR_POLL_SECONDS, _seconds_left()),
+                    interval_seconds=interval,
+                )
+            closed = close_prs_for_issue(repo, issue_number=issue_number)
+            close_issue(
+                repo,
+                issue_number,
+                comment="Closed by obs:autodoc E2E harness cleanup.",
+            )
+        if trigger.get("seed_doc_drift_bait") and branch:
+            content = bait_content()
+            if bait_created or remote_bait_matches(
+                repo, branch=branch, path=bait_path, content=content
+            ):
+                delete_branch_file(
+                    repo,
+                    branch=branch,
+                    path=bait_path,
+                    message=(
+                        "chore(e2e): remove autodoc intentional undocumented bait"
+                    ),
+                )
+                bait_removed = True
+        cleaned = True
+        cleaned_issue_number: int | None = (
+            int(issue["number"]) if issue is not None else None
+        )
+        estc.log_info(
+            f"Cleanup done (issue={cleaned_issue_number}, prs={closed}, "
+            f"bait_removed={bait_removed})"
+        )
+        return closed
+
     try:
         if expectations.get(
             "dashboard_enabled"
         ) and not estc.dashboard_enables_workflow(repo, dash_id):
-            return _blocked(
+            result = _blocked(
                 f"Dashboard does not enable {dash_id!r} for {repo}",
                 path_gates={"dashboard_enabled": False},
             )
+            return result
 
         dashboard_ok = True
         branch = default_branch(repo)
@@ -629,14 +695,15 @@ def run_live_case(
             repo,
             workflow_file,
             since=since,
-            timeout_seconds=timeout,
+            timeout_seconds=_seconds_left(),
             interval_seconds=interval,
         )
         if run_detail is None:
-            return _blocked(
+            result = _blocked(
                 f"Timed out waiting for {workflow_file} autodoc audit agent success",
                 path_gates={"dashboard_enabled": dashboard_ok},
             )
+            return result
 
         completed_run: dict[str, Any] = run_detail
         job_conclusion = autodoc_audit_job_conclusion(completed_run)
@@ -645,8 +712,8 @@ def run_live_case(
         fix_ok = fix_agent_invoked(completed_run)
 
         if expectations.get("expect_audit_issue"):
-            deadline = time.time() + min(timeout, 900)
-            while time.time() < deadline:
+            issue_deadline = min(case_deadline, time.time() + 900)
+            while time.time() < issue_deadline:
                 issue = find_audit_issue(
                     repo,
                     title_prefix=title_prefix,
@@ -657,7 +724,7 @@ def run_live_case(
                     break
                 time.sleep(interval)
             if issue is None:
-                return _blocked(
+                result = _blocked(
                     f"Timed out waiting for open issue with title prefix "
                     f"{title_prefix!r} and bait marker for {bait_path!r}",
                     path_gates={"dashboard_enabled": dashboard_ok},
@@ -674,10 +741,11 @@ def run_live_case(
                         "job_conclusion": fix_job_conclusion,
                     },
                 )
+                return result
 
         if want_fix:
             if not fix_ok:
-                return _blocked(
+                result = _blocked(
                     f"Autodoc fix agent did not succeed "
                     f"(conclusion={fix_job_conclusion!r})",
                     path_gates={"dashboard_enabled": dashboard_ok},
@@ -703,8 +771,9 @@ def run_live_case(
                         else None
                     ),
                 )
+                return result
             if issue is None:
-                return _blocked(
+                result = _blocked(
                     "Fix-path case requires an audit issue before waiting for a PR",
                     path_gates={"dashboard_enabled": dashboard_ok},
                     schedule_trigger={
@@ -720,22 +789,19 @@ def run_live_case(
                         "job_conclusion": fix_job_conclusion,
                     },
                 )
+                return result
             if expectations.get("expect_fix_pr"):
-                linked = wait_for_fix_pr_for_issue(
+                titled = wait_for_fix_pr_for_issue(
                     repo,
                     issue_number=int(issue["number"]),
-                    timeout_seconds=min(timeout, 3600),
+                    timeout_seconds=min(3600, _seconds_left()),
                     interval_seconds=interval,
+                    required_title=fix_pr_title,
                 )
-                # Prefer the canonical autodoc fix title when several PRs link.
-                titled = [
-                    pr for pr in linked if str(pr.get("title") or "") == fix_pr_title
-                ]
-                chosen = titled[0] if titled else (linked[0] if linked else None)
-                if chosen is None:
-                    return _blocked(
+                if not titled:
+                    result = _blocked(
                         f"Timed out waiting for open PR linked to issue "
-                        f"#{issue['number']} (expected title {fix_pr_title!r})",
+                        f"#{issue['number']} with title {fix_pr_title!r}",
                         path_gates={"dashboard_enabled": dashboard_ok},
                         schedule_trigger={
                             "run_seen": True,
@@ -755,51 +821,10 @@ def run_live_case(
                             "url": issue.get("url"),
                         },
                     )
-                fix_pr = chosen
+                    return result
+                fix_pr = titled[0]
 
-        closed_prs: list[int] = []
-        bait_removed = False
-        if trigger.get("cleanup_after"):
-            if issue is not None:
-                issue_number = int(issue["number"])
-                # Allow the caller fix job time to open a PR linked to this issue
-                # when the audit-only case is not asserting expect_fix_pr.
-                if not want_fix:
-                    wait_for_fix_pr_for_issue(
-                        repo,
-                        issue_number=issue_number,
-                        timeout_seconds=min(FIX_PR_POLL_SECONDS, timeout),
-                        interval_seconds=interval,
-                    )
-                closed_prs = close_prs_for_issue(repo, issue_number=issue_number)
-                close_issue(
-                    repo,
-                    issue_number,
-                    comment="Closed by obs:autodoc E2E harness cleanup.",
-                )
-            # Delete only bait this run created, or an exact matching stale copy.
-            if trigger.get("seed_doc_drift_bait"):
-                content = bait_content()
-                if bait_created or remote_bait_matches(
-                    repo, branch=branch, path=bait_path, content=content
-                ):
-                    delete_branch_file(
-                        repo,
-                        branch=branch,
-                        path=bait_path,
-                        message=(
-                            "chore(e2e): remove autodoc intentional undocumented bait"
-                        ),
-                    )
-                    bait_removed = True
-            cleaned = True
-            cleaned_issue_number: int | None = (
-                int(issue["number"]) if issue is not None else None
-            )
-            estc.log_info(
-                f"Cleanup done (issue={cleaned_issue_number}, prs={closed_prs}, "
-                f"bait_removed={bait_removed})"
-            )
+        closed_prs = _perform_cleanup(wait_for_fix_before_close=True)
 
         outcome = {
             "workflow_id": WORKFLOW_ID,
@@ -851,25 +876,27 @@ def run_live_case(
             },
         }
         write_outcome(outcome_path, outcome)
-        return outcome
+        result = outcome
+        return result
     except Exception as exc:  # noqa: BLE001 — harness must always write outcome
         estc.log_error(str(exc))
-        # Best-effort bait cleanup on failure — only delete matching E2E bait.
-        try:
-            if trigger.get("seed_doc_drift_bait") and branch and not cleaned:
-                content = bait_content()
-                if bait_created or remote_bait_matches(
-                    repo, branch=branch, path=bait_path, content=content
-                ):
-                    delete_branch_file(
-                        repo,
-                        branch=branch,
-                        path=bait_path,
-                        message="chore(e2e): remove autodoc bait after harness error",
-                    )
-        except Exception as cleanup_exc:  # noqa: BLE001
-            estc.log_error(f"bait cleanup failed: {cleanup_exc}")
-        return _blocked(str(exc), path_gates={"dashboard_enabled": False})
+        result = _blocked(str(exc), path_gates={"dashboard_enabled": False})
+        return result
+    finally:
+        # Every post-seed exit (blocked, exception, or missed success cleanup)
+        # must remove bait / close issue+PRs when cleanup_after is set.
+        if trigger.get("cleanup_after") and not cleaned:
+            try:
+                closed = _perform_cleanup(wait_for_fix_before_close=False)
+                if result is not None:
+                    result["cleanup"] = {
+                        "completed": cleaned,
+                        "bait_path": bait_path,
+                        "closed_prs": closed,
+                    }
+                    write_outcome(outcome_path, result)
+            except Exception as cleanup_exc:  # noqa: BLE001
+                estc.log_error(f"cleanup failed: {cleanup_exc}")
 
 
 def main(argv: list[str] | None = None) -> int:
