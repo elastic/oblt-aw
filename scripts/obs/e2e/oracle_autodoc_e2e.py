@@ -53,6 +53,16 @@ _LIVE_REQUIRED_TRIGGER_TRUE_KEYS = (
 )
 
 
+def live_case_selects_fix(expectations: dict[str, Any]) -> bool:
+    """True when case expectations include any fix-path key (value may be false).
+
+    Key presence — not truthiness — selects the fix contract. A negative case
+    with ``fix_agent_invoked: false`` / ``expect_fix_pr: false`` still selects
+    fix mode so the harness can serialize unexpected PRs for ``fix_pr_absent``.
+    """
+    return any(key in expectations for key in _LIVE_FIX_EXPECTATION_KEYS)
+
+
 def _live_required_expectation_keys(
     expectations: dict[str, Any],
 ) -> tuple[str, ...]:
@@ -61,7 +71,7 @@ def _live_required_expectation_keys(
     Audit-only cases use the audit key set. Any presence of a fix-path key
     requires the full audit+fix set (partial maps and unknown keys fail).
     """
-    if any(key in expectations for key in _LIVE_FIX_EXPECTATION_KEYS):
+    if live_case_selects_fix(expectations):
         return _LIVE_AUDIT_EXPECTATION_KEYS + _LIVE_FIX_EXPECTATION_KEYS
     return _LIVE_AUDIT_EXPECTATION_KEYS
 
@@ -238,8 +248,7 @@ def evaluate_outcome(
     fix_pr = outcome.get("fix_pr")
     raw_cleanup = outcome.get("cleanup")
     cleanup: dict[str, Any] = raw_cleanup if isinstance(raw_cleanup, dict) else {}
-    required_keys = _live_required_expectation_keys(expectations)
-    want_fix = "expect_fix_pr" in required_keys
+    want_fix = live_case_selects_fix(expectations)
 
     try:
         expected = _as_bool(expectations["dashboard_enabled"])

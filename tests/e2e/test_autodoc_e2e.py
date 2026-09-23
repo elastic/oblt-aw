@@ -242,6 +242,33 @@ class TestOracleHappyPath:
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "fix_pr_absent" in failed_ids
 
+    def test_both_false_fix_keys_still_select_fix_contract(self) -> None:
+        """Key presence (not truthiness) selects fix mode for negative cases."""
+        case = _fix_case()
+        expectations = dict(case["expectations"])
+        expectations["fix_agent_invoked"] = False
+        expectations["expect_fix_pr"] = False
+        assert oracle.live_case_selects_fix(expectations) is True
+        report = oracle.evaluate_outcome(
+            _synthetic_fix_outcome(
+                fix_agent_invoked=False,
+                fix_trigger={"job_executed": False, "job_conclusion": None},
+                fix_pr={
+                    "number": 99,
+                    "title": "docs: Documentation analysis and improvement",
+                    "url": "https://example.test/pull/99",
+                },
+            ),
+            case_expectations=expectations,
+            case_trigger=case["trigger"],
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "fix_pr_absent" in failed_ids
+
+    def test_audit_only_expectations_do_not_select_fix(self) -> None:
+        assert oracle.live_case_selects_fix(_live_case()["expectations"]) is False
+
     def test_partial_fix_expectations_fail_closed(self) -> None:
         report = _evaluate(
             _synthetic_live_outcome(),
@@ -483,6 +510,107 @@ class TestHarnessDashboardGate:
         assert outcome["blocked"] is True
         assert "Dashboard" in str(outcome.get("block_reason") or "")
         assert outcome_path.is_file()
+
+    def test_negative_fix_case_serializes_unexpected_pr(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Both-false fix keys must still snapshot title-matched PRs."""
+        monkeypatch.chdir(ROOT)
+        case = _fix_case()
+        case = {
+            **case,
+            "expectations": {
+                **case["expectations"],
+                "fix_agent_invoked": False,
+                "expect_fix_pr": False,
+            },
+            "trigger": {
+                **case["trigger"],
+                "cleanup_after": False,
+            },
+        }
+        unexpected_pr = {
+            "number": 77,
+            "title": "docs: Documentation analysis and improvement",
+            "url": "https://example.test/pull/77",
+        }
+        monkeypatch.setattr(
+            harness.estc,
+            "dashboard_enables_workflow",
+            lambda repo, workflow_id: True,
+        )
+        monkeypatch.setattr(harness, "default_branch", lambda repo: "main")
+        monkeypatch.setattr(
+            harness,
+            "seed_bait_on_default_branch",
+            lambda *args, **kwargs: ("abc123", True),
+        )
+        monkeypatch.setattr(
+            harness, "dispatch_schedule_trigger", lambda *args, **kwargs: None
+        )
+        monkeypatch.setattr(
+            harness,
+            "wait_for_schedule_audit_run",
+            lambda *args, **kwargs: {
+                "url": "https://example.test/schedule",
+                "jobs": [
+                    {
+                        "name": "autodoc / audit / agent",
+                        "conclusion": "success",
+                    }
+                ],
+            },
+        )
+        monkeypatch.setattr(
+            harness,
+            "find_audit_issue",
+            lambda *args, **kwargs: {
+                "number": 42,
+                "title": "[oblt-aw][autodoc] Document e2e bait",
+                "url": "https://example.test/issues/42",
+            },
+        )
+        monkeypatch.setattr(
+            harness,
+            "list_fix_prs_for_issue",
+            lambda *args, **kwargs: [unexpected_pr],
+        )
+        monkeypatch.setattr(
+            harness,
+            "schedule_audit_job_executed",
+            lambda run: True,
+        )
+        monkeypatch.setattr(harness, "audit_agent_invoked", lambda run: True)
+        monkeypatch.setattr(
+            harness, "autodoc_audit_job_conclusion", lambda run: "success"
+        )
+        monkeypatch.setattr(harness, "schedule_fix_job_executed", lambda run: False)
+        monkeypatch.setattr(harness, "fix_agent_invoked", lambda run: False)
+        monkeypatch.setattr(harness, "fix_agent_succeeded", lambda run: False)
+        monkeypatch.setattr(harness, "autodoc_fix_job_conclusion", lambda run: None)
+
+        outcome_path = tmp_path / "outcome.json"
+        cfg = harness.load_e2e_config(ROOT / "config" / "obs" / "e2e-autodoc.json")
+        outcome = harness.run_live_case(
+            case=case,
+            cfg=cfg,
+            outcome_path=outcome_path,
+            run_url="https://example.test/run",
+        )
+        assert outcome["blocked"] is False
+        assert outcome.get("fix_pr") == {
+            "number": 77,
+            "title": "docs: Documentation analysis and improvement",
+            "url": "https://example.test/pull/77",
+        }
+        report = oracle.evaluate_outcome(
+            outcome,
+            case_expectations=case["expectations"],
+            case_trigger=case["trigger"],
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "fix_pr_absent" in failed_ids
 
 
 class TestOracleCliSummary:

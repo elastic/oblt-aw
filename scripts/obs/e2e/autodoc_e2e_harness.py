@@ -39,6 +39,8 @@ from typing import Any, cast
 # importlib keeps mypy from type-checking that module as a follow-import
 # (its get_enabled_workflows ignore is unused when other scripts/ files are checked).
 estc = cast(Any, importlib.import_module("estc_pr_buildkite_detective_e2e_harness"))
+# Fix-path selection must match the oracle (key presence, not truthiness).
+oracle = cast(Any, importlib.import_module("oracle_autodoc_e2e"))
 
 WORKFLOW_ID = "obs:autodoc"
 DEFAULT_CONFIG = Path("config/obs/e2e-autodoc.json")
@@ -582,9 +584,10 @@ def run_live_case(
         expectations_raw if isinstance(expectations_raw, dict) else {}
     )
     case_id = str(case.get("id") or "")
-    want_fix = bool(
-        expectations.get("expect_fix_pr") or expectations.get("fix_agent_invoked")
-    )
+    # Key presence (not truthiness): negative fix cases still select fix mode.
+    want_fix = bool(oracle.live_case_selects_fix(expectations))
+    expect_fix_invoked = bool(expectations.get("fix_agent_invoked"))
+    expect_fix_pr = bool(expectations.get("expect_fix_pr"))
 
     since = _utc_now()
     case_deadline = time.time() + timeout
@@ -769,7 +772,9 @@ def run_live_case(
                 return result
 
         if want_fix:
-            if not fix_succeeded:
+            # Positive invocation/PR paths require fix success. Negative paths
+            # must still snapshot unexpected PRs without that gate.
+            if (expect_fix_invoked or expect_fix_pr) and not fix_succeeded:
                 result = _blocked(
                     f"Autodoc fix agent did not succeed "
                     f"(conclusion={fix_job_conclusion!r})",
@@ -798,7 +803,7 @@ def run_live_case(
                     ),
                 )
                 return result
-            if issue is None:
+            if expect_fix_pr and issue is None:
                 result = _blocked(
                     "Fix-path case requires an audit issue before waiting for a PR",
                     path_gates={"dashboard_enabled": dashboard_ok},
@@ -816,10 +821,12 @@ def run_live_case(
                     },
                 )
                 return result
-            # Always title-filter linked PRs so expect_fix_pr:false is
-            # fail-closed (oracle sees any unexpected match). Presence cases
-            # wait; absence cases take a single snapshot.
-            if expectations.get("expect_fix_pr"):
+            # Title-filter linked PRs so expect_fix_pr:false is fail-closed
+            # (oracle sees any unexpected match). Presence waits; absence
+            # snapshots once — including when fix was not expected to run.
+            if expect_fix_pr:
+                # Narrowed above: expect_fix_pr requires a non-None issue.
+                assert issue is not None
                 titled = wait_for_fix_pr_for_issue(
                     repo,
                     issue_number=int(issue["number"]),
@@ -852,7 +859,7 @@ def run_live_case(
                     )
                     return result
                 fix_pr = titled[0]
-            else:
+            elif issue is not None:
                 titled = [
                     pr
                     for pr in list_fix_prs_for_issue(
