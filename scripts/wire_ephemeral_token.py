@@ -104,8 +104,10 @@ def wire_token_expressions(text: str) -> str:
     """
     lines = text.splitlines(keepends=True)
     spans = _job_blocks(text)
+    # No parseable jobs (or empty jobs): never invent steps.create-token refs.
+    # should_process can still be true via github-token-policy alone.
     if not spans:
-        return "".join(_rewrite_line(line) for line in lines)
+        return text
 
     minting = {
         (start, end)

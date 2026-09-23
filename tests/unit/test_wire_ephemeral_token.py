@@ -101,3 +101,29 @@ def test_process_lock_file_skips_without_create_token(tmp_path: Path) -> None:
     lock = tmp_path / "gh-aw-other.lock.yml"
     lock.write_text("jobs:\n  run:\n    steps: []\n", encoding="utf-8")
     assert wire.process_lock_file(lock) is False
+
+
+# Policy input without jobs: should_process is true, but rewriting would invent
+# invalid steps.create-token references.
+POLICY_ONLY_NO_JOBS = """on:
+  workflow_call:
+    inputs:
+      github-token-policy:
+        type: string
+env:
+  TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+"""
+
+
+def test_wire_token_expressions_skips_when_no_job_spans() -> None:
+    assert wire.should_process(POLICY_ONLY_NO_JOBS) is True
+    assert wire._job_blocks(POLICY_ONLY_NO_JOBS) == []
+    assert wire.wire_token_expressions(POLICY_ONLY_NO_JOBS) == POLICY_ONLY_NO_JOBS
+    assert "steps.create-token.outputs.token" not in POLICY_ONLY_NO_JOBS
+
+
+def test_process_lock_file_skips_policy_only_without_jobs(tmp_path: Path) -> None:
+    lock = tmp_path / "gh-aw-policy-only.lock.yml"
+    lock.write_text(POLICY_ONLY_NO_JOBS, encoding="utf-8")
+    assert wire.process_lock_file(lock) is False
+    assert lock.read_text(encoding="utf-8") == POLICY_ONLY_NO_JOBS
