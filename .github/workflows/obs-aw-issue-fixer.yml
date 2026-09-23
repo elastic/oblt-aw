@@ -35,6 +35,8 @@ jobs:
       github.event.issue.pull_request == null &&
       startsWith(github.event.comment.body, '/ai implement') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      !startsWith(github.event.issue.title, '[onboard]') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
@@ -59,6 +61,7 @@ jobs:
           - `oblt-aw/detector/res-not-accessible-by-integration`
           - `oblt-aw/triage/security-*`
           - `oblt-aw/triage/res-not-accessible-by-integration`
+        - Do not proceed for repository-onboard issues (`oblt-aw/onboard/repository` or title starting with `[onboard]`).
         - The issue must already contain a triage-generated resolution plan in the issue body or comments. Read it via GitHub MCP / `github` CLI.
 
         **Implementation Workflow (sequential and methodical):**
@@ -90,6 +93,8 @@ jobs:
       github.event.issue.pull_request == null &&
       startsWith(github.event.comment.body, '/ai implement') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      !startsWith(github.event.issue.title, '[onboard]') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&

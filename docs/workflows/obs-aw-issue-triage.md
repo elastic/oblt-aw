@@ -15,6 +15,9 @@ Reusable wrapper that calls the locked generic issue-triage workflow in [elastic
 Ingress routes here when:
 
 - `github.event_name == 'issues'` and `github.event.action == 'opened'`, and
+- the issue is **not** an onboard-repository issue:
+  - title does **not** start with `[onboard]` (issue-form default), and
+  - label `oblt-aw/onboard/repository` is absent, and
 - the issue does **not** carry specialized detector or triage labels:
   - `oblt-aw/detector/security`
   - `oblt-aw/detector/res-not-accessible-by-integration`
@@ -22,7 +25,7 @@ Ingress routes here when:
   - `oblt-aw/triage/res-not-accessible-by-integration`, and
 - Dashboard gate passes for registry id `issue-triage` (`enabled-workflows` contains `obs:issue-triage`).
 
-Those exclusions keep specialized security and resource-not-accessible triage authoritative when their detector or triage labels are present.
+Those exclusions keep specialized security and resource-not-accessible triage authoritative when their detector or triage labels are present, and keep repository-onboard issues for [`gh-aw-onboard-repository`](gh-aw-onboard-repository.md) (title gate covers `opened` before the form label event).
 
 The job `issue-triage` calls:
 

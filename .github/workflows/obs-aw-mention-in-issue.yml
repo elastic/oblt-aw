@@ -35,7 +35,9 @@ jobs:
       github.event.issue.pull_request == null &&
       startsWith(github.event.comment.body, '/ai') &&
       !startsWith(github.event.comment.body, '/ai implement') &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      !startsWith(github.event.issue.title, '[onboard]') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository')
     permissions:
       contents: read
       id-token: write
@@ -52,7 +54,9 @@ jobs:
       github.event.issue.pull_request == null &&
       startsWith(github.event.comment.body, '/ai') &&
       !startsWith(github.event.comment.body, '/ai implement') &&
-      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      !startsWith(github.event.issue.title, '[onboard]') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository')
     permissions:
       actions: read
       contents: write
