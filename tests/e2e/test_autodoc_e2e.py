@@ -159,6 +159,12 @@ class TestOracleHappyPath:
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "cleanup_completed" in failed_ids
 
+    def test_live_oracle_rejects_wrong_layer(self) -> None:
+        report = _evaluate(_synthetic_live_outcome(layer="integration"))
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "layer_e2e" in failed_ids
+
     def test_blocked_outcome_fails(self) -> None:
         report = _evaluate(
             {
@@ -257,6 +263,23 @@ class TestIssueAndPrCorrelation:
             42,
             repo=repo,
         )
+
+
+class TestClosePrsForIssue:
+    def test_close_failure_propagates(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            harness,
+            "list_fix_prs_for_issue",
+            lambda repo, *, issue_number: [{"number": 7, "body": "Fixes #1"}],
+        )
+
+        def _failing_gh_text(args: list[str], *, check: bool = True) -> str:
+            assert check is True
+            raise RuntimeError("gh pr close failed (1): boom")
+
+        monkeypatch.setattr(harness.estc, "gh_text", _failing_gh_text)
+        with pytest.raises(RuntimeError, match="gh pr close failed"):
+            harness.close_prs_for_issue("elastic/oblt-aw", issue_number=1)
 
 
 class TestBaitContent:

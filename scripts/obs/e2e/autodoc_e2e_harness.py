@@ -445,7 +445,11 @@ def list_fix_prs_for_issue(repo: str, *, issue_number: int) -> list[dict[str, An
 
 
 def close_prs_for_issue(repo: str, *, issue_number: int) -> list[int]:
-    """Close open PRs that reference ``issue_number``."""
+    """Close open PRs that reference ``issue_number``.
+
+    Propagates ``gh pr close`` failures so cleanup cannot report success while a
+    linked fix PR remains open.
+    """
     closed: list[int] = []
     for pr in list_fix_prs_for_issue(repo, issue_number=issue_number):
         number = int(pr["number"])
@@ -459,7 +463,7 @@ def close_prs_for_issue(repo: str, *, issue_number: int) -> list[int]:
                 "--comment",
                 "Closed by obs:autodoc E2E harness cleanup.",
             ],
-            check=False,
+            check=True,
         )
         closed.append(number)
     return closed
