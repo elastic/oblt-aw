@@ -7,20 +7,20 @@ Production end-to-end harness for the autodoc **audit** and **fix** stages ([#20
 Live E2E only against **`elastic/oblt-aw`**:
 
 1. Enablement gate for `obs:autodoc` on the Control Plane Dashboard.
-2. Seed intentional undocumented public API bait on the default branch (within the docs-patrol lookback window).
+2. Seed intentional undocumented public API bait on the default branch **only when missing** (refuse overwrite if remote content differs).
 3. Dispatch `trigger-obs-aw-schedule.yml` → prelude → `obs-aw-autodoc`.
-4. Wait for nested audit agent success and an open issue titled with `[oblt-aw][autodoc]`.
-5. For the fix-path case: wait for nested create-PR agent success and an open autodoc fix PR.
-6. Cleanup: close the issue, close any autodoc fix PR opened in the window, delete the bait file.
+4. Wait for the nested **audit** agent leaf job success (not fix/sibling agent jobs) and an open issue titled with `[oblt-aw][autodoc]` whose body cites the bait marker / path.
+5. For the fix-path case: wait for nested **fix** / create-PR agent success and an open PR that references that issue (title `docs: Documentation analysis and improvement`).
+6. Cleanup: close only that issue, close only PRs that reference it, and delete bait only when this run created it or remote content still matches the checked-in bait.
 
-Oracle pass/fail for agent side effects is **issue / PR presence** (number + URL). Issue or PR body prose is out of scope.
+Oracle pass/fail for agent side effects is **issue / PR presence** (number + URL) plus `cleanup.completed` when `cleanup_after` is true. Issue or PR body prose beyond bait/issue correlation markers is out of scope.
 
 ## Live cases
 
 | Case id | Expectation |
 |---------|-------------|
 | `schedule-audit-issue-live` | Seed bait → schedule dispatch → audit agent → issue with `[oblt-aw][autodoc]` prefix |
-| `schedule-audit-fix-pr-live` | Same as above, then fix agent → PR titled `docs: Documentation analysis and improvement` |
+| `schedule-audit-fix-pr-live` | Same as above, then fix agent → PR linked to that issue |
 
 The GitHub Actions workflow runs **`schedule-audit-fix-pr-live`** (full path). The audit-only case remains for oracle unit coverage and optional local harness runs.
 

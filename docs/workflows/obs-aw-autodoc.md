@@ -16,7 +16,7 @@ Landing home for the audit and fix primitives (under [#2052](https://github.com/
 
 Jobs:
 
-- `audit`: calls the Observability-owned `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Created issues always @mention `@elastic/observablt-ci` in the body so the team receives notifications.
+- `audit`: calls the Observability-owned `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Safe-output issue bodies neutralize `@mentions`; triage uses the baked `[oblt-aw][autodoc]` title prefix and concrete source paths.
 - `fix`: calls the Observability-owned `gh-aw-create-pr-from-issue.lock.yml` only when `audit` created an issue.
 - Failure meta-issue suppression for both stages is baked into the in-repo locks via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) (no `report-failure-as-issue` lock input). Intentional findings from `create_issue` (audit) are unchanged.
 - `finalize-pr`: requests a review from `@elastic/observablt-ci` and applies the `changelog:docs` label to the created PR if that label exists in the repository.

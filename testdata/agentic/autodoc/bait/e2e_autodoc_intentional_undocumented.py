@@ -18,6 +18,9 @@
 The live autodoc E2E harness copies this file onto the default branch so
 docs-patrol has a concrete undocumented public entrypoint within the
 lookback window. The harness deletes the remote copy after the run.
+
+Marker (must appear in E2E audit issue bodies for correlation):
+E2E_AUTODOC_BAIT_MARKER
 """
 
 

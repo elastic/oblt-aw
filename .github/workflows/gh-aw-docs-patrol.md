@@ -146,18 +146,17 @@ Do not file for: vague "could be improved" suggestions, minor wording drift, or 
 
 **Issue title:** Brief summary of what's out of date (e.g., "Update README for new CLI flag")
 
-**Team notification (mandatory):** Always @mention `@elastic/observablt-ci` at the top of the issue body so the team receives notifications. Example: `cc @elastic/observablt-ci` or `Notify: @elastic/observablt-ci` at the start of the body.
+**Team discovery:** Safe-output issue bodies neutralize `@mentions` (they are backticked and do not notify). Do not rely on `@elastic/observablt-ci` for alerts. Use the baked title prefix `[oblt-aw][autodoc]` and concrete file paths so the team can find and triage issues.
 
 **Issue body:**
 
-> cc @elastic/observablt-ci
->
 > Recent code changes in the repository have introduced documentation drift. The following changes need corresponding documentation updates.
 >
 > ## Changes Requiring Documentation Updates
 >
 > ### 1. [Brief description of the change]
 >
+> **Source path(s):** [exact repository path(s) that need documentation — required]
 > **Commit(s):** [SHA(s) with links]
 > **What changed:** [Concise description of the code change]
 > **Documentation impact:** [Which doc file(s) need updating and what specifically needs to change]
@@ -168,6 +167,6 @@ Do not file for: vague "could be improved" suggestions, minor wording drift, or 
 >
 > - [ ] [Specific, actionable checkbox for each documentation update needed — reference file paths and describe the change]
 
-For each finding, include a clear, actionable checklist of specific documentation changes to make. Each item should reference file paths and describe the change needed.
+For each finding, include a clear, actionable checklist of specific documentation changes to make. Each item must reference exact source file paths and describe the change needed.
 
 ${{ inputs.additional-instructions }}

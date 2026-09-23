@@ -46,6 +46,11 @@ _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "seed_doc_drift_bait",
     "cleanup_after",
 )
+# Live schedule-audit case contract: these trigger flags must be true.
+_LIVE_REQUIRED_TRIGGER_TRUE_KEYS = (
+    "dispatch_schedule_trigger",
+    "seed_doc_drift_bait",
+)
 
 
 def _live_required_expectation_keys(
@@ -54,7 +59,7 @@ def _live_required_expectation_keys(
     """Return the required expectation key set for this case (fail closed).
 
     Audit-only cases use the audit key set. Any presence of a fix-path key
-    requires the full audit+fix set (partial maps fail).
+    requires the full audit+fix set (partial maps and unknown keys fail).
     """
     if any(key in expectations for key in _LIVE_FIX_EXPECTATION_KEYS):
         return _LIVE_AUDIT_EXPECTATION_KEYS + _LIVE_FIX_EXPECTATION_KEYS
@@ -115,6 +120,9 @@ def case_expectations_schema_error(
     missing = [k for k in required if k not in expectations]
     if missing:
         return f"live expectations missing required keys: {missing}"
+    unknown = sorted(set(expectations) - set(required))
+    if unknown:
+        return f"live expectations have unknown keys: {unknown}"
     for key in required:
         try:
             _as_bool(expectations[key])
@@ -127,11 +135,17 @@ def case_trigger_schema_error(trigger: dict[str, Any]) -> str | None:
     missing = [k for k in _LIVE_REQUIRED_TRIGGER_BOOL_KEYS if k not in trigger]
     if missing:
         return f"live trigger missing required keys: {missing}"
+    unknown = sorted(set(trigger) - set(_LIVE_REQUIRED_TRIGGER_BOOL_KEYS))
+    if unknown:
+        return f"live trigger has unknown keys: {unknown}"
     for key in _LIVE_REQUIRED_TRIGGER_BOOL_KEYS:
         try:
             _as_bool(trigger[key])
         except TypeError as exc:
             return f"live trigger {key!r} must be bool ({exc})"
+    for key in _LIVE_REQUIRED_TRIGGER_TRUE_KEYS:
+        if trigger[key] is not True:
+            return f"live trigger {key!r} must be true for schedule-audit E2E"
     return None
 
 
@@ -222,6 +236,8 @@ def evaluate_outcome(
     fix_trigger: dict[str, Any] = raw_fix if isinstance(raw_fix, dict) else {}
     issue = outcome.get("audit_issue")
     fix_pr = outcome.get("fix_pr")
+    raw_cleanup = outcome.get("cleanup")
+    cleanup: dict[str, Any] = raw_cleanup if isinstance(raw_cleanup, dict) else {}
     required_keys = _live_required_expectation_keys(expectations)
     want_fix = "expect_fix_pr" in required_keys
 
@@ -286,7 +302,11 @@ def evaluate_outcome(
         _check(checks, "expect_audit_issue", False, str(exc))
     else:
         if expect_issue is True:
-            present = isinstance(issue, dict) and bool(issue.get("number"))
+            present = (
+                isinstance(issue, dict)
+                and bool(issue.get("number"))
+                and bool(str(issue.get("url") or "").strip())
+            )
             _check(
                 checks,
                 "audit_issue_present",
@@ -328,7 +348,11 @@ def evaluate_outcome(
             _check(checks, "expect_fix_pr", False, str(exc))
         else:
             if expect_pr is True:
-                present = isinstance(fix_pr, dict) and bool(fix_pr.get("number"))
+                present = (
+                    isinstance(fix_pr, dict)
+                    and bool(fix_pr.get("number"))
+                    and bool(str(fix_pr.get("url") or "").strip())
+                )
                 _check(
                     checks,
                     "fix_pr_present",
@@ -343,6 +367,23 @@ def evaluate_outcome(
                     f"fix_pr={fix_pr}",
                 )
 
+    try:
+        cleanup_after = _as_bool(trigger["cleanup_after"])
+    except TypeError as exc:
+        _check(checks, "cleanup_after", False, str(exc))
+    else:
+        if cleanup_after is True:
+            try:
+                completed = _as_bool(cleanup.get("completed"))
+                _check(
+                    checks,
+                    "cleanup_completed",
+                    completed is True,
+                    f"cleanup={cleanup}",
+                )
+            except TypeError as exc:
+                _check(checks, "cleanup_completed", False, str(exc))
+
     overall = all(item["pass"] for item in checks)
     agent_flag = False
     try:
@@ -353,13 +394,6 @@ def evaluate_outcome(
         )
     except TypeError:
         agent_flag = False
-    notes = [
-        (
-            "Live oracle asserts dashboard gate, schedule audit/fix job execution, "
-            "agent invocation, and issue/PR presence — never agent prose."
-        ),
-        "Promote (#1878) should consume report.pass / summary.json.",
-    ]
     return {
         "workflow_id": workflow_id,
         "case_id": case_id,
@@ -373,7 +407,14 @@ def evaluate_outcome(
         "fix_pr_url": fix_pr.get("url") if isinstance(fix_pr, dict) else None,
         "checks": checks,
         "agent_invoked": agent_flag,
-        "notes": notes,
+        "notes": [
+            (
+                "Live oracle asserts dashboard gate, schedule audit/fix job "
+                "execution, agent invocation, issue/PR presence (number+url), "
+                "and cleanup when required — never agent prose."
+            ),
+            "Promote (#1878) should consume report.pass / summary.json.",
+        ],
     }
 
 
