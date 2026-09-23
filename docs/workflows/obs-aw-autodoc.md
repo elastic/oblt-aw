@@ -53,6 +53,13 @@ Permissions:
 
 `workflow_call` contract:
 
+- `shared-proceed` (`required: true`, string) — prelude gate; jobs run only when this is `'true'`.
+- `shared-allowed-pr-authors-json` (`required: true`, string) — PR author allowlist JSON from prelude.
+- `shared-allowed-pr-authors-csv` (`required: true`, string) — PR author allowlist CSV from prelude.
+- `shared-allowed-issue-authors-json` (`required: true`, string) — issue author allowlist JSON from prelude.
+- `shared-allowed-issue-authors-csv` (`required: true`, string) — issue author allowlist CSV from prelude.
+- `shared-token-policy` (`required: true`, string) — token policy identifier passed from prelude for workflows that need ephemeral token minting.
+
 
 ## References
 

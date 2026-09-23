@@ -26,6 +26,7 @@ Configured instructions define:
 - required resolution plan structure
 
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty in the same job that applies labels, so `oblt-aw/ai/fix-ready` re-triggers the fixer route.
+The wrapper sets `report-failure-as-issue: false` on the lock workflow call so runtime/tooling failures stay in the Actions run instead of opening `[aw] ...` meta-issues; intentional findings from normal safe-output actions are unchanged.
 
 ## Configuration
 

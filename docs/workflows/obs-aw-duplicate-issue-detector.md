@@ -22,6 +22,7 @@ The job `duplicate-issue-detector` calls:
 - [elastic/ai-github-actions/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-duplicate-issue-detector.lock.yml)
 
 Behavior and agent instructions for the locked workflow are defined in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
+The wrapper sets `report-failure-as-issue: false` on the lock workflow call so runtime/tooling failures stay in the Actions run instead of opening `[aw] ...` meta-issues; intentional findings from normal safe-output actions are unchanged.
 
 ## Configuration
 
@@ -35,6 +36,13 @@ Permissions (job-level on the control-plane reusable; union mirrored on the clie
 ## API / Interface
 
 `workflow_call` contract:
+
+- `shared-proceed` (`required: true`, string) — prelude gate; jobs run only when this is `'true'`.
+- `shared-allowed-pr-authors-json` (`required: true`, string) — PR author allowlist JSON from prelude.
+- `shared-allowed-pr-authors-csv` (`required: true`, string) — PR author allowlist CSV from prelude.
+- `shared-allowed-issue-authors-json` (`required: true`, string) — issue author allowlist JSON from prelude.
+- `shared-allowed-issue-authors-csv` (`required: true`, string) — issue author allowlist CSV from prelude.
+- `shared-token-policy` (`required: true`, string) — token policy identifier passed from prelude for workflows that need ephemeral token minting.
 
 
 ## References

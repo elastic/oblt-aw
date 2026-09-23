@@ -37,6 +37,8 @@ Jobs:
 - `enable-merge-when-ready`: runs when `automerge` outputs `merge_failed` or `not_ready`; uses the same token choice (Vault when policy is set, else `GITHUB_TOKEN`), retries `PUT .../pulls/{n}/merge`, then falls back to `gh pr merge --auto --squash` when direct merge is rejected (for example merge queue). Does **not** retry on `skipped` (missing label or approvals).
 - `report-automerge-outcome`: after automerge (and optional fallback), succeeds when the PR was merged or native auto-merge is enabled; otherwise upserts a single PR comment (marker `obs-aw-automerge:outcome-gate`) explaining the blocker and fails the workflow so a successful conclusion cannot hide an unmerged PR.
 
+The wrapper sets `report-failure-as-issue: false` on the lock workflow call so runtime/tooling failures stay in the Actions run instead of opening `[aw] ...` meta-issues; intentional findings from normal safe-output actions are unchanged.
+
 There is no discover step. Prelude supplies **`allowed-pr-authors-csv`** into the `approve` job’s `oblt-aw-mention-in-pr` call. Merge-ready label and PR author gating remain in `validateAutomergePr.ts` and workflow `if` conditions; the canonical PR author list is [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json).
 
 ## Configuration

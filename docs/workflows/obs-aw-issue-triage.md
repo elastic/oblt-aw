@@ -29,6 +29,7 @@ The job `issue-triage` calls:
 - [elastic/ai-github-actions/.github/workflows/gh-aw-issue-triage.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-triage.lock.yml)
 
 Behavior and agent instructions for the locked workflow are defined in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so label writes re-trigger downstream routes.
+The wrapper sets `report-failure-as-issue: false` on the lock workflow call so runtime/tooling failures stay in the Actions run instead of opening `[aw] ...` meta-issues; intentional findings from normal safe-output actions are unchanged.
 
 ## Configuration
 
