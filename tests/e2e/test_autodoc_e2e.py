@@ -168,6 +168,40 @@ class TestOracleHappyPath:
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "fix_job_executed" in failed_ids
 
+    def test_fix_job_executed_true_fails_when_fix_agent_not_expected(self) -> None:
+        case = _fix_case()
+        expectations = dict(case["expectations"])
+        expectations["fix_agent_invoked"] = False
+        expectations["expect_fix_pr"] = False
+        report = oracle.evaluate_outcome(
+            _synthetic_fix_outcome(
+                fix_agent_invoked=False,
+                fix_trigger={
+                    "job_executed": True,
+                    "job_conclusion": "success",
+                },
+                fix_pr=None,
+            ),
+            case_expectations=expectations,
+            case_trigger=case["trigger"],
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "fix_job_executed" in failed_ids
+
+    def test_unexpected_fix_pr_fails_when_expect_absent(self) -> None:
+        case = _fix_case()
+        expectations = dict(case["expectations"])
+        expectations["expect_fix_pr"] = False
+        report = oracle.evaluate_outcome(
+            _synthetic_fix_outcome(),
+            case_expectations=expectations,
+            case_trigger=case["trigger"],
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "fix_pr_absent" in failed_ids
+
     def test_partial_fix_expectations_fail_closed(self) -> None:
         report = _evaluate(
             _synthetic_live_outcome(),

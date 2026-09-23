@@ -158,6 +158,17 @@ class TestCreatePrProtectedFilesExcludes:
             "create_pull_request.patch_format must be bundle in compiled lock "
             f"(got {patch_format!r})"
         )
+        # Compiler maps github-token-for-extra-empty-commit onto the handler
+        # env GH_AW_CI_TRIGGER_TOKEN (not into SAFE_OUTPUTS_CONFIG JSON).
+        lock_text = LOCK_PATH.read_text(encoding="utf-8")
+        assert (
+            "GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.EXTRA_COMMIT_GITHUB_TOKEN }}"
+            in lock_text
+        ), (
+            "handler must map GH_AW_CI_TRIGGER_TOKEN from EXTRA_COMMIT_GITHUB_TOKEN "
+            "(top-level create-pull-request shadows the fragment; field must be "
+            "re-declared on the source mapping)"
+        )
         policy = create_pr.get("protected_files_policy")
         assert policy in ("request_review", "request-review"), (
             f"unexpected protected_files_policy: {policy!r}"

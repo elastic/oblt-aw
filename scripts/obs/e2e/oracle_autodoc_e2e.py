@@ -331,18 +331,20 @@ def evaluate_outcome(
                 actual == expected,
                 f"expected={expected} actual={actual}",
             )
+            # Fail closed for both polarities: job_executed must match the
+            # expected fix-agent state (no silent skip when expected is false).
+            try:
+                job_executed = _as_bool(fix_trigger.get("job_executed"))
+            except TypeError as exc:
+                _check(checks, "fix_job_executed", False, str(exc))
+            else:
+                _check(
+                    checks,
+                    "fix_job_executed",
+                    job_executed is expected,
+                    f"expected={expected} job_executed={job_executed}",
+                )
             if expected is True:
-                try:
-                    job_executed = _as_bool(fix_trigger.get("job_executed"))
-                except TypeError as exc:
-                    _check(checks, "fix_job_executed", False, str(exc))
-                else:
-                    _check(
-                        checks,
-                        "fix_job_executed",
-                        job_executed is True,
-                        f"job_executed={job_executed}",
-                    )
                 job_conclusion = str(fix_trigger.get("job_conclusion") or "").lower()
                 _check(
                     checks,

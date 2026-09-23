@@ -790,6 +790,9 @@ def run_live_case(
                     },
                 )
                 return result
+            # Always title-filter linked PRs so expect_fix_pr:false is
+            # fail-closed (oracle sees any unexpected match). Presence cases
+            # wait; absence cases take a single snapshot.
             if expectations.get("expect_fix_pr"):
                 titled = wait_for_fix_pr_for_issue(
                     repo,
@@ -823,6 +826,16 @@ def run_live_case(
                     )
                     return result
                 fix_pr = titled[0]
+            else:
+                titled = [
+                    pr
+                    for pr in list_fix_prs_for_issue(
+                        repo, issue_number=int(issue["number"])
+                    )
+                    if str(pr.get("title") or "") == fix_pr_title
+                ]
+                if titled:
+                    fix_pr = titled[0]
 
         closed_prs = _perform_cleanup(wait_for_fix_before_close=True)
 

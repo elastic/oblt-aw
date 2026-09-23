@@ -75,10 +75,12 @@ safe-outputs:
     discussions: false
     target: "${{ inputs.target-issue-number }}"
   create-pull-request:
-    # Top-level mapping shadows imported safe-output-create-pr.md; keep draft +
-    # patch-format here so the compiled lock retains both (no draft-prs lock input).
+    # Top-level mapping shadows imported safe-output-create-pr.md; keep draft,
+    # patch-format, and extra-commit token here so the compiled lock retains them
+    # (no draft-prs lock input).
     draft: true
     patch-format: bundle
+    github-token-for-extra-empty-commit: ${{ secrets.EXTRA_COMMIT_GITHUB_TOKEN }}
     protected-files:
       # Compiler v0.88.7 schema uses underscore; hyphen form is docs-only alias in newer docs.
       policy: request_review
@@ -116,7 +118,7 @@ Your task is to implement the documentation improvements described in the issue.
   - Summary of files analyzed
   - List of issues found (with file paths and concise descriptions)
   - List of changes made (with rationale for each change)
-- Convert from `Draft` to `Open` (ready for review) only when all changes are implemented and internally consistent.
+- Leave the pull request as a **draft** for human review. Do not mark it ready for review (safe-output creates drafts only; this workflow has no promotion step).
 
 ### Constraints
 
