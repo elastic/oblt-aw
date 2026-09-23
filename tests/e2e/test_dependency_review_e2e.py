@@ -422,3 +422,40 @@ def test_evaluate_defaults_to_checked_in_case_not_outcome_expectations() -> None
     )
     report = _evaluate(outcome)
     assert report["pass"] is True
+
+
+def test_oracle_main_rejects_case_id_mismatch(tmp_path: pathlib.Path) -> None:
+    """CLI must bind outcome.case_id to --expected-case-id before loading case.json."""
+    outcome_path = tmp_path / "outcome.json"
+    report_path = tmp_path / "report.json"
+    summary_path = tmp_path / "summary.json"
+    outcome_path.write_text(
+        json.dumps(
+            {
+                "workflow_id": "obs:dependency-review",
+                "case_id": "other-live-case",
+                "layer": "e2e",
+                "mode": "live",
+                "agent_invoked": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert (
+        oracle.main(
+            [
+                "--outcome-path",
+                str(outcome_path),
+                "--report-path",
+                str(report_path),
+                "--summary-path",
+                str(summary_path),
+                "--testdata-root",
+                str(TESTDATA_ROOT),
+                "--expected-case-id",
+                LIVE_CASE_ID,
+            ]
+        )
+        == 2
+    )
+    assert not report_path.exists()

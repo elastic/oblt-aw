@@ -417,7 +417,24 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     outcome = _load_json(args.outcome_path)
-    case_path = args.testdata_root / "cases" / args.expected_case_id / "case.json"
+    if not isinstance(outcome, dict):
+        print(f"Outcome must be a JSON object: {args.outcome_path}", file=sys.stderr)
+        return 2
+
+    expected_case_id = str(args.expected_case_id).strip()
+    if not expected_case_id:
+        print("--expected-case-id must be a non-empty string", file=sys.stderr)
+        return 2
+    outcome_case_id = str(outcome.get("case_id") or "")
+    if outcome_case_id != expected_case_id:
+        print(
+            f"Outcome case_id {outcome_case_id!r} does not match "
+            f"--expected-case-id {expected_case_id!r}",
+            file=sys.stderr,
+        )
+        return 2
+
+    case_path = args.testdata_root / "cases" / expected_case_id / "case.json"
     if not case_path.is_file():
         print(f"Missing case.json: {case_path}", file=sys.stderr)
         return 2
@@ -448,7 +465,7 @@ def main(argv: list[str] | None = None) -> int:
     if not report.get("pass"):
         _emit_oracle_failure_logs(report)
         return 1
-    print(f"Oracle pass for case {args.expected_case_id}", flush=True)
+    print(f"Oracle pass for case {expected_case_id}", flush=True)
     return 0
 
 

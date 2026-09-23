@@ -478,7 +478,7 @@ def load_e2e_config(path: Path) -> dict[str, Any]:
 
 
 def dashboard_enables_workflow(repo: str, workflow_id: str) -> bool:
-    from get_enabled_workflows import (  # type: ignore[import-not-found]
+    from get_enabled_workflows import (  # type: ignore[import-not-found,unused-ignore]
         parse_enabled_ids_from_body,
     )
 
