@@ -18,7 +18,7 @@ Technical registration detail for maintainers and agents: [Registering resources
 
 2. **Fill only two fields**
    - **Repository** — `elastic/<repo>` (example: `elastic/my-repo`).
-   - **Organization key** — `obs` or `docs` (the fleet under `config/<org-key>/` in `elastic/oblt-aw`).
+   - **Organization key** — `obs` or `docs` (matches a `config/<org-key>/` folder in `elastic/oblt-aw`).
 
 3. **Submit** — The form applies the label `oblt-aw/onboard/repository`. That starts the in-repo agent `gh-aw-onboard-repository` in `elastic/oblt-aw` only (this is **not** a consumer catalog / Control Plane Dashboard workflow).
 

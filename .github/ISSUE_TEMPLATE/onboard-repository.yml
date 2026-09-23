@@ -24,7 +24,7 @@ body:
     id: org-key
     attributes:
       label: Organization key
-      description: Which `config/<org-key>/` fleet this repository joins in elastic/oblt-aw.
+      description: Which organization key in elastic/oblt-aw (`config/<org-key>/`) this repository joins.
       options:
         - obs
         - docs
