@@ -233,6 +233,12 @@ def evaluate_outcome(
 
     _check(
         checks,
+        "layer_e2e",
+        layer == "e2e",
+        f"layer={layer!r}",
+    )
+    _check(
+        checks,
         "workflow_id",
         workflow_id == WORKFLOW_ID,
         f"expected={WORKFLOW_ID!r} actual={workflow_id!r}",

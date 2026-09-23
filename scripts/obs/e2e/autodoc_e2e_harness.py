@@ -28,6 +28,7 @@ import importlib
 import json
 import os
 import re
+import secrets
 import subprocess
 import sys
 import time
@@ -52,12 +53,53 @@ DEFAULT_BAIT_SOURCE = Path(
 )
 # Must appear in bait source and in correlated audit issue bodies.
 E2E_AUTODOC_BAIT_MARKER = "E2E_AUTODOC_BAIT_MARKER"
+E2E_AUTODOC_RUN_TOKEN_PREFIX = "E2E_AUTODOC_RUN_TOKEN="
 # After the audit issue is found, wait this long for a linked fix PR before cleanup.
 FIX_PR_POLL_SECONDS = 600
 
 
-def bait_content(source: Path = DEFAULT_BAIT_SOURCE) -> str:
-    """Load checked-in bait source used for intentional default-branch drift."""
+def new_run_token() -> str:
+    """Return a per-harness-run token used in bait path and issue correlation."""
+    return secrets.token_hex(8)
+
+
+def bait_path_for_run(run_token: str, *, base_path: str = DEFAULT_BAIT_PATH) -> str:
+    """Default-branch path unique to this E2E run (avoids cross-run bait reuse).
+
+    ``base_path`` is the configured template (e.g. ``…/undocumented.py``); the
+    run token is inserted before the suffix so each live run owns a distinct file.
+    """
+    token = (run_token or "").strip()
+    if not token or any(ch in token for ch in ("/", "\\", "..")):
+        raise ValueError(f"invalid run_token for bait path: {run_token!r}")
+    base = Path(base_path)
+    if ".." in base.parts or base.is_absolute():
+        raise ValueError(f"invalid bait base_path: {base_path!r}")
+    stem = base.stem or "e2e_autodoc_intentional_undocumented"
+    suffix = base.suffix or ".py"
+    parent = base.parent.as_posix().strip(".")
+    name = f"{stem}_{token}{suffix}"
+    return f"{parent}/{name}" if parent and parent != "." else name
+
+
+def run_token_marker(run_token: str) -> str:
+    """Exact string that must appear in bait content and correlated issue bodies."""
+    token = (run_token or "").strip()
+    if not token:
+        raise ValueError("run_token must be non-empty")
+    return f"{E2E_AUTODOC_RUN_TOKEN_PREFIX}{token}"
+
+
+def bait_content(
+    source: Path = DEFAULT_BAIT_SOURCE,
+    *,
+    run_token: str | None = None,
+) -> str:
+    """Load checked-in bait source used for intentional default-branch drift.
+
+    When ``run_token`` is set, inject a per-run marker next to the static bait
+    marker in the module docstring so agents that quote the file header see it.
+    """
     text = source.read_text(encoding="utf-8")
     if not text.strip():
         raise RuntimeError(f"Bait source is empty: {source}")
@@ -65,21 +107,33 @@ def bait_content(source: Path = DEFAULT_BAIT_SOURCE) -> str:
         raise RuntimeError(
             f"Bait source missing correlation marker {E2E_AUTODOC_BAIT_MARKER!r}: {source}"
         )
-    return text
+    if run_token is None:
+        return text
+    marker = run_token_marker(run_token)
+    if marker in text:
+        return text
+    return text.replace(
+        E2E_AUTODOC_BAIT_MARKER,
+        f"{E2E_AUTODOC_BAIT_MARKER}\n{marker}",
+        1,
+    )
 
 
-def bait_markers(bait_path: str) -> tuple[str, ...]:
-    """Strings that must appear in an E2E audit issue body for correlation."""
+def bait_markers(bait_path: str, *, run_token: str) -> tuple[str, ...]:
+    """Correlation markers for this E2E run.
+
+    Callers must require the static marker plus at least one path form
+    (full path or basename). Both path forms embed ``run_token``.
+    """
+    token = (run_token or "").strip()
+    if not token:
+        raise ValueError("run_token must be non-empty")
     basename = Path(bait_path).name
-    markers = (E2E_AUTODOC_BAIT_MARKER, bait_path, basename)
-    # Deduplicate while preserving order.
-    seen: set[str] = set()
-    ordered: list[str] = []
-    for marker in markers:
-        if marker and marker not in seen:
-            seen.add(marker)
-            ordered.append(marker)
-    return tuple(ordered)
+    if token not in bait_path or token not in basename:
+        raise ValueError(
+            f"bait_path {bait_path!r} must embed run_token {token!r} for correlation"
+        )
+    return (E2E_AUTODOC_BAIT_MARKER, bait_path, basename)
 
 
 def _load_json(path: Path) -> Any:
@@ -395,10 +449,13 @@ def dispatch_schedule_trigger(repo: str, workflow_file: str) -> None:
     )
 
 
-def _issue_body_matches_bait(body: str, bait_path: str) -> bool:
-    """Require at least one bait correlation marker in the issue body."""
+def _issue_body_matches_bait(body: str, bait_path: str, *, run_token: str) -> bool:
+    """Require static bait marker and a per-run path form in the issue body."""
     text = body or ""
-    return any(marker in text for marker in bait_markers(bait_path))
+    static_marker, full_path, basename = bait_markers(bait_path, run_token=run_token)
+    if static_marker not in text:
+        return False
+    return full_path in text or basename in text
 
 
 def find_audit_issue(
@@ -407,6 +464,7 @@ def find_audit_issue(
     title_prefix: str,
     since: datetime,
     bait_path: str,
+    run_token: str,
 ) -> dict[str, Any] | None:
     """Return the newest open issue correlated to this E2E bait run."""
     issues = (
@@ -440,7 +498,7 @@ def find_audit_issue(
         if created < since:
             continue
         body = str(issue.get("body") or "")
-        if not _issue_body_matches_bait(body, bait_path):
+        if not _issue_body_matches_bait(body, bait_path, run_token=run_token):
             continue
         matches.append(issue)
     if not matches:
@@ -464,13 +522,23 @@ def close_issue(repo: str, number: int, *, comment: str) -> None:
     )
 
 
-def _pr_references_issue(body: str, issue_number: int) -> bool:
-    """True when PR body explicitly references the audit issue number."""
+def _pr_references_issue(body: str, issue_number: int, *, repo: str) -> bool:
+    """True when PR body explicitly references the audit issue in ``repo``.
+
+    Bare ``#N`` must not match cross-repo shorthand such as ``other/repo#N``.
+    """
     text = body or ""
+    owner, sep, name = repo.partition("/")
+    if not sep or not owner or not name or "/" in name:
+        raise ValueError(f"repo must be 'owner/name', got {repo!r}")
+    owner_re = re.escape(owner)
+    name_re = re.escape(name)
     patterns = (
         rf"(?i)\b(?:closes|fixes|resolves)\s+#\s*{issue_number}\b",
-        rf"(?i)\b(?:closes|fixes|resolves)\s+https?://github\.com/[^/\s]+/[^/\s]+/issues/{issue_number}\b",
-        rf"#\s*{issue_number}\b",
+        rf"(?i)\b(?:closes|fixes|resolves)\s+https?://github\.com/{owner_re}/{name_re}/issues/{issue_number}\b",
+        rf"(?i)\b{owner_re}/{name_re}#{issue_number}\b",
+        # Bare #N: disallow when preceded by owner/name path characters.
+        rf"(?<![\w.-])#\s*{issue_number}\b",
     )
     return any(re.search(pattern, text) for pattern in patterns)
 
@@ -498,13 +566,17 @@ def list_fix_prs_for_issue(repo: str, *, issue_number: int) -> list[dict[str, An
     for pr in prs:
         if not isinstance(pr, dict):
             continue
-        if _pr_references_issue(str(pr.get("body") or ""), issue_number):
+        if _pr_references_issue(str(pr.get("body") or ""), issue_number, repo=repo):
             linked.append(pr)
     return linked
 
 
 def close_prs_for_issue(repo: str, *, issue_number: int) -> list[int]:
-    """Close open PRs that reference ``issue_number``."""
+    """Close open PRs that reference ``issue_number``.
+
+    Propagates ``gh pr close`` failures so cleanup cannot report success while a
+    linked fix PR remains open.
+    """
     closed: list[int] = []
     for pr in list_fix_prs_for_issue(repo, issue_number=issue_number):
         number = int(pr["number"])
@@ -518,7 +590,7 @@ def close_prs_for_issue(repo: str, *, issue_number: int) -> list[int]:
                 "--comment",
                 "Closed by obs:autodoc E2E harness cleanup.",
             ],
-            check=False,
+            check=True,
         )
         closed.append(number)
     return closed
@@ -572,7 +644,6 @@ def run_live_case(
     )
     title_prefix = str(cfg.get("issue_title_prefix") or DEFAULT_TITLE_PREFIX)
     fix_pr_title = str(cfg.get("fix_pr_title") or DEFAULT_FIX_PR_TITLE)
-    bait_path = str(cfg.get("bait_path") or DEFAULT_BAIT_PATH)
     dash_id = str(cfg.get("dashboard_workflow_id") or WORKFLOW_ID)
     timeout = int(cfg.get("poll_timeout_seconds") or 3600)
     interval = int(cfg.get("poll_interval_seconds") or 20)
@@ -589,7 +660,15 @@ def run_live_case(
     expect_fix_invoked = bool(expectations.get("fix_agent_invoked"))
     expect_fix_pr = bool(expectations.get("expect_fix_pr"))
 
-    since = _utc_now()
+    # Per-run identity: unique bait path + content token so concurrent scheduled
+    # audits cannot satisfy issue correlation with a static marker/path.
+    run_token = new_run_token()
+    bait_base = str(cfg.get("bait_path") or DEFAULT_BAIT_PATH)
+    bait_path = bait_path_for_run(run_token, base_path=bait_base)
+    bait_text = bait_content(run_token=run_token)
+    # Coarse clock (drop microseconds) to avoid missing runs whose GitHub
+    # createdAt truncates fractional seconds earlier than the runner clock.
+    since = _utc_now().replace(microsecond=0)
     case_deadline = time.time() + timeout
     bait_sha: str | None = None
     bait_created = False
@@ -633,6 +712,7 @@ def run_live_case(
                 "path": bait_path,
                 "commit_sha": bait_sha,
                 "created_by_this_run": bait_created,
+                "run_token": run_token,
             },
             **extra,
         }
@@ -663,20 +743,23 @@ def run_live_case(
                 issue_number,
                 comment="Closed by obs:autodoc E2E harness cleanup.",
             )
-        if trigger.get("seed_doc_drift_bait") and branch:
-            content = bait_content()
-            if bait_created or remote_bait_matches(
-                repo, branch=branch, path=bait_path, content=content
-            ):
-                delete_branch_file(
-                    repo,
-                    branch=branch,
-                    path=bait_path,
-                    message=(
-                        "chore(e2e): remove autodoc intentional undocumented bait"
-                    ),
+        if (
+            trigger.get("seed_doc_drift_bait")
+            and branch
+            and (
+                bait_created
+                or remote_bait_matches(
+                    repo, branch=branch, path=bait_path, content=bait_text
                 )
-                bait_removed = True
+            )
+        ):
+            delete_branch_file(
+                repo,
+                branch=branch,
+                path=bait_path,
+                message=("chore(e2e): remove autodoc intentional undocumented bait"),
+            )
+            bait_removed = True
         cleaned = True
         cleaned_issue_number: int | None = (
             int(issue["number"]) if issue is not None else None
@@ -704,7 +787,7 @@ def run_live_case(
                 repo,
                 branch=branch,
                 path=bait_path,
-                content=bait_content(),
+                content=bait_text,
             )
             estc.log_info(
                 f"Seeded bait {bait_path} on {repo}@{branch}"
@@ -714,6 +797,13 @@ def run_live_case(
                     else " (already present, matching)"
                 )
             )
+
+        # Snapshot existing runs before dispatch so a concurrent schedule cannot
+        # be attributed as this E2E's run.
+        known_run_ids = {
+            int(run["databaseId"])
+            for run in list_schedule_trigger_runs(repo, workflow_file)
+        }
         if trigger.get("dispatch_schedule_trigger"):
             dispatch_schedule_trigger(repo, workflow_file)
             estc.log_info(f"Dispatched {workflow_file} on {repo}")
@@ -724,6 +814,7 @@ def run_live_case(
             since=since,
             timeout_seconds=_seconds_left(),
             interval_seconds=interval,
+            exclude_run_ids=known_run_ids,
         )
         if run_detail is None:
             result = _blocked(
@@ -738,6 +829,10 @@ def run_live_case(
         fix_job_conclusion = autodoc_fix_job_conclusion(completed_run)
         fix_ran = schedule_fix_job_executed(completed_run)
         fix_succeeded = fix_agent_succeeded(completed_run)
+        # Prefer the accepted run's createdAt so older concurrent issues cannot match.
+        run_created_raw = str(completed_run.get("createdAt") or "")
+        issue_since = estc._parse_gh_time(run_created_raw) if run_created_raw else since
+        issue_since = max(issue_since, since)
 
         if expectations.get("expect_audit_issue"):
             issue_deadline = min(case_deadline, time.time() + 900)
@@ -745,8 +840,9 @@ def run_live_case(
                 issue = find_audit_issue(
                     repo,
                     title_prefix=title_prefix,
-                    since=since,
+                    since=issue_since,
                     bait_path=bait_path,
+                    run_token=run_token,
                 )
                 if issue is not None:
                     break
@@ -754,7 +850,7 @@ def run_live_case(
             if issue is None:
                 result = _blocked(
                     f"Timed out waiting for open issue with title prefix "
-                    f"{title_prefix!r} and bait marker for {bait_path!r}",
+                    f"{title_prefix!r} and per-run bait markers for {bait_path!r}",
                     path_gates={"dashboard_enabled": dashboard_ok},
                     schedule_trigger={
                         "run_seen": True,
@@ -887,6 +983,7 @@ def run_live_case(
                 "job_executed": schedule_audit_job_executed(completed_run),
                 "job_conclusion": job_conclusion,
                 "url": completed_run.get("url"),
+                "database_id": completed_run.get("databaseId"),
             },
             "fix_trigger": {
                 "job_executed": schedule_fix_job_executed(completed_run),
@@ -919,6 +1016,7 @@ def run_live_case(
                 "path": bait_path,
                 "commit_sha": bait_sha,
                 "created_by_this_run": bait_created,
+                "run_token": run_token,
             },
         }
         write_outcome(outcome_path, outcome)
