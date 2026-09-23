@@ -7,12 +7,12 @@ Production end-to-end harness for the autodoc **audit** stage ([#2052](https://g
 Live E2E only against **`elastic/oblt-aw`**:
 
 1. Enablement gate for `obs:autodoc` on the Control Plane Dashboard.
-2. Seed intentional undocumented public API bait on the default branch **only when missing** (refuse overwrite if remote content differs).
-3. Dispatch `trigger-obs-aw-schedule.yml` → prelude → `obs-aw-autodoc` audit (`gh-aw-docs-patrol`).
-4. Wait for the nested **audit** agent leaf job success (not fix/sibling agent jobs) and an open issue titled with `[oblt-aw][autodoc]` whose body cites the bait marker / path.
-5. Optionally wait briefly for a fix PR that references that issue, then cleanup: close only that issue, close only PRs that reference it, and delete bait only when this run created it or remote content still matches the checked-in bait.
+2. Seed intentional undocumented public API bait on the default branch at a **per-run path** (config `bait_path` plus a run token) **only when missing** (refuse overwrite if remote content differs).
+3. Snapshot existing schedule-trigger run IDs, then dispatch `trigger-obs-aw-schedule.yml` → prelude → `obs-aw-autodoc` audit (`gh-aw-docs-patrol`).
+4. Wait for a **new** nested **audit** agent leaf job success (not a pre-existing concurrent run, and not fix/sibling agent jobs) and an open issue titled with `[oblt-aw][autodoc]` whose body cites the static bait marker **and** the per-run bait path (or its basename).
+5. Optionally wait briefly for a fix PR that references that issue (same-repo `#N` / URL / `owner/name#N` only), then cleanup: close only that issue, close only PRs that reference it, and delete bait only when this run created it or remote content still matches the seeded bait.
 
-Oracle pass/fail for the agent side effect is **issue presence** (number + URL) plus `cleanup.completed` when `cleanup_after` is true. Issue body prose beyond the bait correlation marker is out of scope.
+Oracle pass/fail for the agent side effect is **issue presence** (number + URL) plus `cleanup.completed` when `cleanup_after` is true. Issue body prose beyond the bait correlation markers is out of scope.
 
 ## Live case
 
