@@ -15,7 +15,7 @@ This workflow runs quality checks and tests on every pull request (any base bran
 | Job               | Purpose                                                                 |
 |-------------------|-------------------------------------------------------------------------|
 | `pre-commit`      | Runs all pre-commit hooks (YAML, shell, GitHub Actions lint, Python lint/format, mypy) |
-| `python-tests`    | Runs pytest on `tests/unit` and `tests/integration` (not `tests/e2e`) and validates every `*-aw-*` workflow calls `aw-prelude.yml` |
+| `python-tests`    | Runs pytest on `tests/unit` and `tests/integration` (not `tests/e2e`) and validates workflow contracts (`aw-prelude`, `aw-resolve-agentic-assets`, `report-failure-as-issue: false` on `obs-aw-*` callers of `gh-aw-*`, and reusable-workflow caller permissions) |
 | `typescript-tests`| Runs `npm test` (tsx) on `tests/unit/*.test.ts`                         |
 | `scorecard`       | OpenSSF Scorecard security analysis; uploads SARIF to GitHub Security   |
 | `required`        | Gate job; fails if any of the above jobs fail                           |
@@ -39,6 +39,11 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 - Python 3.14
 - Dependencies: `requirements-ci.txt` (includes `requirements-runtime.txt` and pytest)
 - Command: `pytest tests/unit tests/integration -v --tb=short` (excludes live `tests/e2e/`)
+- Additional validators in this job:
+  - `python scripts/validate_aw_workflow_prelude.py`
+  - `python scripts/validate_aw_workflow_resolve_agentic_assets.py`
+  - `python scripts/validate_aw_workflow_report_failure_as_issue.py`
+  - `python scripts/validate_aw_workflow_permissions.py`
 - Integration slice (no live model): `tests/integration/test_estc_pr_buildkite_detective.py` with fixtures in `testdata/agentic/estc-pr-buildkite-detective/` — see [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md)
 - Pip cache via `actions/setup-python` (`cache: pip`), keyed by `requirements-ci.txt` and `requirements-runtime.txt`
 

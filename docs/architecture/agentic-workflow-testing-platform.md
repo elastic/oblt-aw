@@ -56,6 +56,7 @@ CI steps beyond pytest:
 
 - `python scripts/validate_aw_workflow_prelude.py`
 - `python scripts/validate_aw_workflow_resolve_agentic_assets.py`
+- `python scripts/validate_aw_workflow_report_failure_as_issue.py`
 - `python scripts/validate_aw_workflow_permissions.py`
 - Pre-commit (yamllint, actionlint, ruff, mypy on `scripts/`, and related hooks)
 
