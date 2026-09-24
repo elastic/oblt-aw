@@ -408,6 +408,8 @@ def create_pin_bump_pr(
         body = str(e2e.get("body") or "").strip() or (
             "Ephemeral E2E fixture PR for obs:dependency-review (Actions pin bump)."
         )
+        repo_owner = repo.partition("/")[0]
+        head_ref = f"{repo_owner}:{branch}" if repo_owner else branch
         create = subprocess.run(
             [
                 "gh",
@@ -418,7 +420,7 @@ def create_pin_bump_pr(
                 "--base",
                 default_branch,
                 "--head",
-                branch,
+                head_ref,
                 "--title",
                 title,
                 "--body",

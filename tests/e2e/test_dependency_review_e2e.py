@@ -135,6 +135,88 @@ def test_author_login_from_rest_pull_uses_webhook_form() -> None:
     assert login == "elastic-vault-github-plugin-prod[bot]"
 
 
+def test_create_pin_bump_pr_uses_explicit_owner_head_ref(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workflow = tmp_path / "fixture.yml"
+    workflow.write_text(
+        (
+            "uses: actions/checkout@"
+            f"{harness.SEED_CHECKOUT_SHA} # {harness.SEED_CHECKOUT_VERSION}\n"
+        ),
+        encoding="utf-8",
+    )
+    cfg = {
+        "fixture_workflow_path": str(workflow),
+        "e2e_pr": {},
+    }
+    pr_create_cmd: list[str] = []
+
+    def fake_gh_text(args: list[str]) -> str:
+        if args[:3] == ["repo", "view", "elastic/oblt-aw"]:
+            return "main"
+        if args[:2] == ["api", "repos/elastic/oblt-aw/git/ref/heads/main"]:
+            return "a" * 40
+        raise AssertionError(args)
+
+    def fake_gh_json(args: list[str]) -> object:
+        if args[:4] == ["api", "--method", "POST", "repos/elastic/oblt-aw/git/refs"]:
+            return {}
+        if args[:4] == ["pr", "view", "42", "--repo"]:
+            return {
+                "number": 42,
+                "url": "https://example.test/pr/42",
+                "headRefName": f"{harness.FIXTURE_BRANCH_PREFIX}run-1",
+                "headRefOid": "b" * 40,
+                "baseRefName": "main",
+                "labels": [{"name": harness.FIXTURE_LABEL}],
+                "state": "OPEN",
+            }
+        raise AssertionError(args)
+
+    def fake_run(cmd: list[str], **_kwargs: object) -> object:
+        nonlocal pr_create_cmd
+
+        class Proc:
+            def __init__(
+                self, returncode: int, stdout: str = "", stderr: str = ""
+            ) -> None:
+                self.returncode = returncode
+                self.stdout = stdout
+                self.stderr = stderr
+
+        if cmd[:2] == ["gh", "api"]:
+            return Proc(1)
+        if cmd[:3] == ["gh", "pr", "create"]:
+            pr_create_cmd = cmd
+            return Proc(0, stdout="https://example.test/pr/42\n")
+        raise AssertionError(cmd)
+
+    monkeypatch.setattr(harness, "ensure_label", lambda _repo, _label: None)
+    monkeypatch.setattr(
+        harness,
+        "seed_fixture_workflow_on_default_branch",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(harness.estc, "gh_text", fake_gh_text)
+    monkeypatch.setattr(harness.estc, "gh_json", fake_gh_json)
+    monkeypatch.setattr(
+        harness.estc, "put_branch_file", lambda *_args, **_kwargs: "c" * 40
+    )
+    monkeypatch.setattr(harness.estc, "_pr_number_from_gh_output", lambda _out: 42)
+    monkeypatch.setattr(
+        harness, "rest_pr_author_login", lambda _repo, _pr: harness.ALLOWED_AUTHOR
+    )
+    monkeypatch.setattr(harness.subprocess, "run", fake_run)
+
+    harness.create_pin_bump_pr("elastic/oblt-aw", cfg, run_id="run-1")
+
+    head_idx = pr_create_cmd.index("--head")
+    assert (
+        pr_create_cmd[head_idx + 1] == f"elastic:{harness.FIXTURE_BRANCH_PREFIX}run-1"
+    )
+
+
 def test_dependency_review_job_matches_nested_conclusion_leaf() -> None:
     """GH-AW terminal leaf authorizes; skipped wrapper / siblings do not."""
     success = {
