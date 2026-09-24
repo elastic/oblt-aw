@@ -273,6 +273,10 @@ def cleanup_fixture_pr(repo: str, pr_number: int, branch: str | None) -> None:
         check=False,
     )
     if close.returncode == 0:
+        if branch and fixture_branch_exists(repo, branch):
+            raise RuntimeError(
+                f"Fixture branch {branch!r} still exists after closing PR #{pr_number}"
+            )
         return
     combined = f"{close.stderr or ''}{close.stdout or ''}".lower()
     if "already closed" in combined or "not open" in combined:
@@ -282,6 +286,28 @@ def cleanup_fixture_pr(repo: str, pr_number: int, branch: str | None) -> None:
     raise RuntimeError(
         f"Failed to close fixture PR #{pr_number}: "
         f"{(close.stderr or close.stdout or '').strip() or f'exit {close.returncode}'}"
+    )
+
+
+def fixture_branch_exists(repo: str, branch: str) -> bool:
+    check_ref = subprocess.run(
+        [
+            "gh",
+            "api",
+            f"repos/{repo}/git/ref/heads/{branch}",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if check_ref.returncode == 0:
+        return True
+    combined = f"{check_ref.stderr or ''}{check_ref.stdout or ''}".lower()
+    if "not found" in combined or "does not exist" in combined:
+        return False
+    raise RuntimeError(
+        f"Failed to verify fixture branch {branch!r}: "
+        f"{(check_ref.stderr or check_ref.stdout or '').strip() or f'exit {check_ref.returncode}'}"
     )
 
 

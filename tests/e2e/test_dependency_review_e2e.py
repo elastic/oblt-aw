@@ -217,6 +217,34 @@ def test_create_pin_bump_pr_uses_explicit_owner_head_ref(
     )
 
 
+def test_cleanup_fixture_pr_rejects_existing_branch_after_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(cmd: list[str], **_kwargs: object) -> object:
+        class Proc:
+            def __init__(
+                self, returncode: int, stdout: str = "", stderr: str = ""
+            ) -> None:
+                self.returncode = returncode
+                self.stdout = stdout
+                self.stderr = stderr
+
+        if cmd[:3] == ["gh", "pr", "close"]:
+            return Proc(0)
+        if cmd[:2] == ["gh", "api"]:
+            return Proc(0, stdout='{"ref":"refs/heads/e2e/dependency-review/run-1"}')
+        raise AssertionError(cmd)
+
+    monkeypatch.setattr(harness.subprocess, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match="still exists after closing PR"):
+        harness.cleanup_fixture_pr(
+            "elastic/oblt-aw",
+            42,
+            f"{harness.FIXTURE_BRANCH_PREFIX}run-1",
+        )
+
+
 def test_dependency_review_job_matches_nested_conclusion_leaf() -> None:
     """GH-AW terminal leaf authorizes; skipped wrapper / siblings do not."""
     success = {
