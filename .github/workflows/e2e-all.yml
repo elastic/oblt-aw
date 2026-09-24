@@ -59,5 +59,6 @@ jobs:
       actions: write
       issues: write
       checks: read
+      id-token: write
     uses: ./.github/workflows/e2e-autodoc.yml
     secrets: inherit

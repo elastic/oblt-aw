@@ -7,7 +7,7 @@ Production end-to-end harness for the autodoc **audit** and **fix** stages ([#20
 Live E2E only against **`elastic/oblt-aw`**:
 
 1. Enablement gate for `obs:autodoc` on the Control Plane Dashboard.
-2. Seed intentional undocumented public API bait on the default branch at a **per-run path** (config `bait_path` plus a run token) **only when missing** (refuse overwrite if remote content differs).
+2. Seed intentional undocumented public API bait on the default branch at a **per-run path** (config `bait_path` plus a run token) **only when missing** (refuse overwrite if remote content differs), authored as **`elastic-vault-github-plugin-prod[bot]`** via OIDC [`create-token`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) using `workflow-token-policy` from [`config/e2e.json`](../../config/e2e.json) (same `token-policy-6cd7ac55e207` / `e2e-*.yml` binding as other live E2Es — `GITHUB_TOKEN` cannot satisfy default-branch rulesets).
 3. Snapshot existing schedule-trigger run IDs, then dispatch `trigger-obs-aw-schedule.yml` → prelude → `obs-aw-autodoc` audit (`gh-aw-docs-patrol`).
 4. Wait for a **new** nested **audit** agent leaf job success (not a pre-existing concurrent run, and not fix/sibling agent jobs) and an open issue titled with `[oblt-aw][autodoc]` whose body cites the **per-run bait path** (full path or basename; both embed the run token).
 5. For the fix-path case: wait for nested **fix** / create-PR agent success and an open PR that references that issue (title `docs: Documentation analysis and improvement`).
@@ -27,9 +27,10 @@ The GitHub Actions workflow runs **`schedule-audit-fix-pr-live`** (full path). T
 ## Prerequisites (live)
 
 1. **Dashboard** — enable `obs:autodoc` on the Control Plane Dashboard for `elastic/oblt-aw`.
-2. **Permissions** — the E2E workflow needs Contents write (bait), Actions write (dispatch schedule), Issues write (close cleanup), Pull requests write (close fix PRs).
-3. **Collateral** — dispatching the schedule trigger may also run other dashboard-enabled schedule routes (agent-suggestions, security detectors). The harness polls only for autodoc audit / fix agent leaf jobs.
-4. **Duration** — the fix path runs a second Copilot stage; budget up to ~3 hours.
+2. **Token policy** — `token-policy-6cd7ac55e207` must exist in `elastic/catalog-info` (bound to `elastic/oblt-aw/.github/workflows/e2e-*.yml@*`). Shared role name lives in [`config/e2e.json`](../../config/e2e.json) (`workflow-token-policy`); the workflow passes it explicitly to `create-token` (wildcard policies cannot auto-derive). Required so default-branch bait seed/delete can satisfy repository rulesets.
+3. **Permissions** — the E2E workflow needs Contents write (bait), Actions write (dispatch schedule), Issues write (close cleanup), Pull requests write (close fix PRs), and `id-token: write` (OIDC for `create-token`).
+4. **Collateral** — dispatching the schedule trigger may also run other dashboard-enabled schedule routes (agent-suggestions, security detectors). The harness polls only for autodoc audit / fix agent leaf jobs.
+5. **Duration** — the fix path runs a second Copilot stage; budget up to ~3 hours.
 
 Control-plane lock/wrapper still resolve via `@main` on the live schedule path (smoke); candidate-ref pinning is a separate follow-up.
 
