@@ -16,8 +16,8 @@
 
 """Structured oracle for obs:autodoc live E2E outcomes.
 
-Asserts dashboard gate, schedule audit job execution, agent invocation, and
-issue presence — never free-text golden equality of agent prose.
+Asserts dashboard gate, schedule audit/fix job execution, agent invocation,
+and issue/PR presence — never free-text golden equality of agent prose.
 """
 
 from __future__ import annotations
@@ -31,11 +31,15 @@ from typing import Any
 
 WORKFLOW_ID = "obs:autodoc"
 
-_LIVE_REQUIRED_EXPECTATION_KEYS = (
+_LIVE_AUDIT_EXPECTATION_KEYS = (
     "dashboard_enabled",
     "schedule_job_executed",
     "audit_agent_invoked",
     "expect_audit_issue",
+)
+_LIVE_FIX_EXPECTATION_KEYS = (
+    "fix_agent_invoked",
+    "expect_fix_pr",
 )
 _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "dispatch_schedule_trigger",
@@ -47,6 +51,29 @@ _LIVE_REQUIRED_TRIGGER_TRUE_KEYS = (
     "dispatch_schedule_trigger",
     "seed_doc_drift_bait",
 )
+
+
+def live_case_selects_fix(expectations: dict[str, Any]) -> bool:
+    """True when case expectations include any fix-path key (value may be false).
+
+    Key presence — not truthiness — selects the fix contract. A negative case
+    with ``fix_agent_invoked: false`` / ``expect_fix_pr: false`` still selects
+    fix mode so the harness can serialize unexpected PRs for ``fix_pr_absent``.
+    """
+    return any(key in expectations for key in _LIVE_FIX_EXPECTATION_KEYS)
+
+
+def _live_required_expectation_keys(
+    expectations: dict[str, Any],
+) -> tuple[str, ...]:
+    """Return the required expectation key set for this case (fail closed).
+
+    Audit-only cases use the audit key set. Any presence of a fix-path key
+    requires the full audit+fix set (partial maps and unknown keys fail).
+    """
+    if live_case_selects_fix(expectations):
+        return _LIVE_AUDIT_EXPECTATION_KEYS + _LIVE_FIX_EXPECTATION_KEYS
+    return _LIVE_AUDIT_EXPECTATION_KEYS
 
 
 def _load_json(path: Path) -> Any:
@@ -99,13 +126,14 @@ def case_expectations_schema_error(
 ) -> str | None:
     if mode != "live":
         return f"unsupported outcome mode {mode!r}; only live E2E is supported"
-    missing = [k for k in _LIVE_REQUIRED_EXPECTATION_KEYS if k not in expectations]
+    required = _live_required_expectation_keys(expectations)
+    missing = [k for k in required if k not in expectations]
     if missing:
         return f"live expectations missing required keys: {missing}"
-    unknown = sorted(set(expectations) - set(_LIVE_REQUIRED_EXPECTATION_KEYS))
+    unknown = sorted(set(expectations) - set(required))
     if unknown:
         return f"live expectations have unknown keys: {unknown}"
-    for key in _LIVE_REQUIRED_EXPECTATION_KEYS:
+    for key in required:
         try:
             _as_bool(expectations[key])
         except TypeError as exc:
@@ -220,9 +248,13 @@ def evaluate_outcome(
     path_gates: dict[str, Any] = raw_gates if isinstance(raw_gates, dict) else {}
     raw_schedule = outcome.get("schedule_trigger")
     schedule: dict[str, Any] = raw_schedule if isinstance(raw_schedule, dict) else {}
+    raw_fix = outcome.get("fix_trigger")
+    fix_trigger: dict[str, Any] = raw_fix if isinstance(raw_fix, dict) else {}
     issue = outcome.get("audit_issue")
+    fix_pr = outcome.get("fix_pr")
     raw_cleanup = outcome.get("cleanup")
     cleanup: dict[str, Any] = raw_cleanup if isinstance(raw_cleanup, dict) else {}
+    want_fix = live_case_selects_fix(expectations)
 
     try:
         expected = _as_bool(expectations["dashboard_enabled"])
@@ -304,6 +336,65 @@ def evaluate_outcome(
                 f"issue={issue}",
             )
 
+    if want_fix:
+        try:
+            expected = _as_bool(expectations["fix_agent_invoked"])
+            actual = _as_bool(outcome.get("fix_agent_invoked"))
+            _check(
+                checks,
+                "fix_agent_invoked",
+                actual == expected,
+                f"expected={expected} actual={actual}",
+            )
+            # Fail closed for both polarities: job_executed means the leaf
+            # ran (non-skipped). Success is asserted separately when expected.
+            try:
+                job_executed = _as_bool(fix_trigger.get("job_executed"))
+            except TypeError as exc:
+                _check(checks, "fix_job_executed", False, str(exc))
+            else:
+                _check(
+                    checks,
+                    "fix_job_executed",
+                    job_executed is expected,
+                    f"expected={expected} job_executed={job_executed}",
+                )
+            if expected is True:
+                job_conclusion = str(fix_trigger.get("job_conclusion") or "").lower()
+                _check(
+                    checks,
+                    "fix_job_success",
+                    job_conclusion == "success",
+                    f"job_conclusion={job_conclusion!r}",
+                )
+        except TypeError as exc:
+            _check(checks, "fix_agent_invoked", False, str(exc))
+
+        try:
+            expect_pr = _as_bool(expectations["expect_fix_pr"])
+        except TypeError as exc:
+            _check(checks, "expect_fix_pr", False, str(exc))
+        else:
+            if expect_pr is True:
+                present = (
+                    isinstance(fix_pr, dict)
+                    and bool(fix_pr.get("number"))
+                    and bool(str(fix_pr.get("url") or "").strip())
+                )
+                _check(
+                    checks,
+                    "fix_pr_present",
+                    present,
+                    f"fix_pr={fix_pr}",
+                )
+            else:
+                _check(
+                    checks,
+                    "fix_pr_absent",
+                    fix_pr is None,
+                    f"fix_pr={fix_pr}",
+                )
+
     try:
         cleanup_after = _as_bool(trigger["cleanup_after"])
     except TypeError as exc:
@@ -341,13 +432,14 @@ def evaluate_outcome(
         "run_url": outcome.get("run_url"),
         "schedule_trigger_url": schedule.get("url"),
         "issue_url": issue.get("url") if isinstance(issue, dict) else None,
+        "fix_pr_url": fix_pr.get("url") if isinstance(fix_pr, dict) else None,
         "checks": checks,
         "agent_invoked": agent_flag,
         "notes": [
             (
-                "Live oracle asserts dashboard gate, schedule audit job execution, "
-                "agent invocation, issue presence (number+url), and cleanup when "
-                "required — never agent prose."
+                "Live oracle asserts dashboard gate, schedule audit/fix job "
+                "execution, agent invocation, issue/PR presence (number+url), "
+                "and cleanup when required — never agent prose."
             ),
             "Promote (#1878) should consume report.pass / summary.json.",
         ],
@@ -432,6 +524,7 @@ def main(argv: list[str] | None = None) -> int:
         "run_url": report.get("run_url"),
         "schedule_trigger_url": report.get("schedule_trigger_url"),
         "issue_url": report.get("issue_url"),
+        "fix_pr_url": report.get("fix_pr_url"),
         "workflow_id": report.get("workflow_id"),
         "layer": report.get("layer"),
         "mode": report.get("mode"),

@@ -1,0 +1,19 @@
+{
+  "id": "schedule-audit-fix-pr-live",
+  "mode": "live",
+  "description": "Production path: schedule/dispatch → autodoc audit → issue → create-PR fix → docs PR after intentional doc drift bait.",
+  "workflow_id": "obs:autodoc",
+  "trigger": {
+    "dispatch_schedule_trigger": true,
+    "seed_doc_drift_bait": true,
+    "cleanup_after": true
+  },
+  "expectations": {
+    "dashboard_enabled": true,
+    "schedule_job_executed": true,
+    "audit_agent_invoked": true,
+    "expect_audit_issue": true,
+    "fix_agent_invoked": true,
+    "expect_fix_pr": true
+  }
+}

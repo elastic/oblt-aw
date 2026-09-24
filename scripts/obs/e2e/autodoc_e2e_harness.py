@@ -40,10 +40,13 @@ from typing import Any, cast
 # importlib keeps mypy from type-checking that module as a follow-import
 # (its get_enabled_workflows ignore is unused when other scripts/ files are checked).
 estc = cast(Any, importlib.import_module("estc_pr_buildkite_detective_e2e_harness"))
+# Fix-path selection must match the oracle (key presence, not truthiness).
+oracle = cast(Any, importlib.import_module("oracle_autodoc_e2e"))
 
 WORKFLOW_ID = "obs:autodoc"
 DEFAULT_CONFIG = Path("config/obs/e2e-autodoc.json")
 DEFAULT_TITLE_PREFIX = "[oblt-aw][autodoc]"
+DEFAULT_FIX_PR_TITLE = "docs: Documentation analysis and improvement"
 DEFAULT_BAIT_PATH = "scripts/e2e_autodoc_intentional_undocumented.py"
 DEFAULT_BAIT_SOURCE = Path(
     "testdata/agentic/autodoc/bait/e2e_autodoc_intentional_undocumented.py"
@@ -311,6 +314,7 @@ def autodoc_audit_job_conclusion(run_detail: dict[str, Any] | None) -> str | Non
 
     Prefer leaf agent jobs under the autodoc audit path. Do not treat the
     overall schedule run conclusion or sibling autodoc agent jobs as substitutes.
+    Skipped/empty conclusions are ignored so a later non-skipped leaf can win.
     """
     if not run_detail:
         return None
@@ -319,16 +323,76 @@ def autodoc_audit_job_conclusion(run_detail: dict[str, Any] | None) -> str | Non
         if not _is_audit_agent_leaf(str(name)):
             continue
         conclusion = (job.get("conclusion") or "").lower()
+        if conclusion in ("", "skipped"):
+            continue
         return conclusion or None
     return None
 
 
 def schedule_audit_job_executed(run_detail: dict[str, Any] | None) -> bool:
-    return autodoc_audit_job_conclusion(run_detail) == "success"
+    """True when the audit agent leaf ran (any non-skipped conclusion).
+
+    Success is a separate signal via ``job_conclusion`` / oracle
+    ``schedule_job_success``. A failed audit must not look like "never ran".
+    """
+    conclusion = autodoc_audit_job_conclusion(run_detail)
+    return conclusion is not None and conclusion not in ("", "skipped")
 
 
 def audit_agent_invoked(run_detail: dict[str, Any] | None) -> bool:
     return schedule_audit_job_executed(run_detail)
+
+
+def audit_agent_succeeded(run_detail: dict[str, Any] | None) -> bool:
+    return autodoc_audit_job_conclusion(run_detail) == "success"
+
+
+def _is_fix_agent_leaf(name: str) -> bool:
+    """True only for nested fix / create-pr agent leaves (not audit)."""
+    lowered = name.lower()
+    if "create-pr-from-issue" in lowered or "gh-aw-create-pr-from-issue" in lowered:
+        return (
+            "/ agent" in lowered or lowered.endswith(" / agent") or lowered == "agent"
+        )
+    if "autodoc" not in lowered:
+        return False
+    if "/ fix" not in lowered and not lowered.endswith("fix"):
+        return False
+    return "/ agent" in lowered or lowered.endswith(" / agent") or lowered == "agent"
+
+
+def autodoc_fix_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
+    """Return leaf fix/create-PR agent conclusion when present (fail closed)."""
+    if not run_detail:
+        return None
+    for job in run_detail.get("jobs") or []:
+        name = job.get("name") or ""
+        if not _is_fix_agent_leaf(str(name)):
+            continue
+        conclusion = (job.get("conclusion") or "").lower()
+        if conclusion in ("", "skipped"):
+            continue
+        return conclusion or None
+    return None
+
+
+def schedule_fix_job_executed(run_detail: dict[str, Any] | None) -> bool:
+    """True when the fix/create-PR agent leaf ran (any non-skipped conclusion).
+
+    Success is a separate signal via ``job_conclusion`` / oracle
+    ``fix_job_success``. A failed fix must not satisfy negative
+    ``fix_agent_invoked: false`` expectations.
+    """
+    conclusion = autodoc_fix_job_conclusion(run_detail)
+    return conclusion is not None and conclusion not in ("", "skipped")
+
+
+def fix_agent_invoked(run_detail: dict[str, Any] | None) -> bool:
+    return schedule_fix_job_executed(run_detail)
+
+
+def fix_agent_succeeded(run_detail: dict[str, Any] | None) -> bool:
+    return autodoc_fix_job_conclusion(run_detail) == "success"
 
 
 def wait_for_schedule_audit_run(
@@ -369,7 +433,7 @@ def wait_for_schedule_audit_run(
                 if detail.get("status") != "completed":
                     time.sleep(interval_seconds)
                     continue
-                if schedule_audit_job_executed(detail):
+                if audit_agent_succeeded(detail):
                     return cast(dict[str, Any], detail)
                 # Completed without audit agent success — keep polling others.
                 excluded.add(run_id)
@@ -538,15 +602,26 @@ def wait_for_fix_pr_for_issue(
     issue_number: int,
     timeout_seconds: int,
     interval_seconds: int,
+    required_title: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Poll for fix PRs linked to the audit issue; return whatever is present at deadline."""
-    deadline = time.time() + timeout_seconds
-    while time.time() < deadline:
-        linked = list_fix_prs_for_issue(repo, issue_number=issue_number)
-        if linked:
+    """Poll for fix PRs linked to the audit issue; return matches at deadline.
+
+    When ``required_title`` is set, only PRs with that exact title count — any
+    other linked PR is ignored (fail closed).
+    """
+    deadline = time.time() + max(0, timeout_seconds)
+
+    def _matches(linked: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if required_title is None:
             return linked
+        return [pr for pr in linked if str(pr.get("title") or "") == required_title]
+
+    while time.time() < deadline:
+        matched = _matches(list_fix_prs_for_issue(repo, issue_number=issue_number))
+        if matched:
+            return matched
         time.sleep(interval_seconds)
-    return list_fix_prs_for_issue(repo, issue_number=issue_number)
+    return _matches(list_fix_prs_for_issue(repo, issue_number=issue_number))
 
 
 def write_outcome(path: Path, outcome: dict[str, Any]) -> None:
@@ -568,6 +643,7 @@ def run_live_case(
         cfg.get("schedule_trigger_workflow_file") or "trigger-obs-aw-schedule.yml"
     )
     title_prefix = str(cfg.get("issue_title_prefix") or DEFAULT_TITLE_PREFIX)
+    fix_pr_title = str(cfg.get("fix_pr_title") or DEFAULT_FIX_PR_TITLE)
     dash_id = str(cfg.get("dashboard_workflow_id") or WORKFLOW_ID)
     timeout = int(cfg.get("poll_timeout_seconds") or 3600)
     interval = int(cfg.get("poll_interval_seconds") or 20)
@@ -579,6 +655,10 @@ def run_live_case(
         expectations_raw if isinstance(expectations_raw, dict) else {}
     )
     case_id = str(case.get("id") or "")
+    # Key presence (not truthiness): negative fix cases still select fix mode.
+    want_fix = bool(oracle.live_case_selects_fix(expectations))
+    expect_fix_invoked = bool(expectations.get("fix_agent_invoked"))
+    expect_fix_pr = bool(expectations.get("expect_fix_pr"))
 
     # Per-run identity: unique bait path + content token so concurrent scheduled
     # audits cannot satisfy issue correlation with a static marker/path.
@@ -589,12 +669,19 @@ def run_live_case(
     # Coarse clock (drop microseconds) to avoid missing runs whose GitHub
     # createdAt truncates fractional seconds earlier than the runner clock.
     since = _utc_now().replace(microsecond=0)
+    case_deadline = time.time() + timeout
     bait_sha: str | None = None
     bait_created = False
     issue: dict[str, Any] | None = None
+    fix_pr: dict[str, Any] | None = None
     run_detail: dict[str, Any] | None = None
     cleaned = False
+    closed_prs: list[int] = []
     branch = ""
+    result: dict[str, Any] | None = None
+
+    def _seconds_left() -> int:
+        return max(0, int(case_deadline - time.time()))
 
     def _blocked(reason: str, **extra: Any) -> dict[str, Any]:
         outcome = {
@@ -607,13 +694,19 @@ def run_live_case(
             "run_url": run_url,
             "path_gates": {"dashboard_enabled": False},
             "agent_invoked": False,
+            "fix_agent_invoked": False,
             "schedule_trigger": {
                 "run_seen": False,
                 "job_executed": False,
                 "job_conclusion": None,
                 "url": None,
             },
+            "fix_trigger": {
+                "job_executed": False,
+                "job_conclusion": None,
+            },
             "audit_issue": None,
+            "fix_pr": None,
             "cleanup": {"completed": False, "bait_path": bait_path},
             "bait": {
                 "path": bait_path,
@@ -626,14 +719,66 @@ def run_live_case(
         write_outcome(outcome_path, outcome)
         return outcome
 
+    def _perform_cleanup(*, wait_for_fix_before_close: bool) -> list[int]:
+        """Close linked PRs/issue and remove matching bait when cleanup_after."""
+        nonlocal cleaned
+        if cleaned or not trigger.get("cleanup_after"):
+            return []
+        closed: list[int] = []
+        bait_removed = False
+        if issue is not None:
+            issue_number = int(issue["number"])
+            # Audit-only success: give the caller fix job a short window to open
+            # a PR before cleanup closes the issue.
+            if wait_for_fix_before_close and not want_fix:
+                wait_for_fix_pr_for_issue(
+                    repo,
+                    issue_number=issue_number,
+                    timeout_seconds=min(FIX_PR_POLL_SECONDS, _seconds_left()),
+                    interval_seconds=interval,
+                )
+            closed = close_prs_for_issue(repo, issue_number=issue_number)
+            close_issue(
+                repo,
+                issue_number,
+                comment="Closed by obs:autodoc E2E harness cleanup.",
+            )
+        if (
+            trigger.get("seed_doc_drift_bait")
+            and branch
+            and (
+                bait_created
+                or remote_bait_matches(
+                    repo, branch=branch, path=bait_path, content=bait_text
+                )
+            )
+        ):
+            delete_branch_file(
+                repo,
+                branch=branch,
+                path=bait_path,
+                message=("chore(e2e): remove autodoc intentional undocumented bait"),
+            )
+            bait_removed = True
+        cleaned = True
+        cleaned_issue_number: int | None = (
+            int(issue["number"]) if issue is not None else None
+        )
+        estc.log_info(
+            f"Cleanup done (issue={cleaned_issue_number}, prs={closed}, "
+            f"bait_removed={bait_removed})"
+        )
+        return closed
+
     try:
         if expectations.get(
             "dashboard_enabled"
         ) and not estc.dashboard_enables_workflow(repo, dash_id):
-            return _blocked(
+            result = _blocked(
                 f"Dashboard does not enable {dash_id!r} for {repo}",
                 path_gates={"dashboard_enabled": False},
             )
+            return result
 
         dashboard_ok = True
         branch = default_branch(repo)
@@ -667,27 +812,31 @@ def run_live_case(
             repo,
             workflow_file,
             since=since,
-            timeout_seconds=timeout,
+            timeout_seconds=_seconds_left(),
             interval_seconds=interval,
             exclude_run_ids=known_run_ids,
         )
         if run_detail is None:
-            return _blocked(
+            result = _blocked(
                 f"Timed out waiting for {workflow_file} autodoc audit agent success",
                 path_gates={"dashboard_enabled": dashboard_ok},
             )
+            return result
 
         completed_run: dict[str, Any] = run_detail
         job_conclusion = autodoc_audit_job_conclusion(completed_run)
         agent_ok = audit_agent_invoked(completed_run)
+        fix_job_conclusion = autodoc_fix_job_conclusion(completed_run)
+        fix_ran = schedule_fix_job_executed(completed_run)
+        fix_succeeded = fix_agent_succeeded(completed_run)
         # Prefer the accepted run's createdAt so older concurrent issues cannot match.
         run_created_raw = str(completed_run.get("createdAt") or "")
         issue_since = estc._parse_gh_time(run_created_raw) if run_created_raw else since
         issue_since = max(issue_since, since)
 
         if expectations.get("expect_audit_issue"):
-            deadline = time.time() + min(timeout, 900)
-            while time.time() < deadline:
+            issue_deadline = min(case_deadline, time.time() + 900)
+            while time.time() < issue_deadline:
                 issue = find_audit_issue(
                     repo,
                     title_prefix=title_prefix,
@@ -699,7 +848,7 @@ def run_live_case(
                     break
                 time.sleep(interval)
             if issue is None:
-                return _blocked(
+                result = _blocked(
                     f"Timed out waiting for open issue with title prefix "
                     f"{title_prefix!r} and per-run bait markers for {bait_path!r}",
                     path_gates={"dashboard_enabled": dashboard_ok},
@@ -710,50 +859,114 @@ def run_live_case(
                         "url": completed_run.get("url"),
                     },
                     agent_invoked=agent_ok,
+                    fix_agent_invoked=fix_ran,
+                    fix_trigger={
+                        "job_executed": fix_ran,
+                        "job_conclusion": fix_job_conclusion,
+                    },
                 )
+                return result
 
-        closed_prs: list[int] = []
-        bait_removed = False
-        if trigger.get("cleanup_after"):
-            if issue is not None:
-                issue_number = int(issue["number"])
-                # Allow the caller fix job time to open a PR linked to this issue.
-                wait_for_fix_pr_for_issue(
-                    repo,
-                    issue_number=issue_number,
-                    timeout_seconds=min(FIX_PR_POLL_SECONDS, timeout),
-                    interval_seconds=interval,
-                )
-                closed_prs = close_prs_for_issue(repo, issue_number=issue_number)
-                close_issue(
-                    repo,
-                    issue_number,
-                    comment="Closed by obs:autodoc E2E harness cleanup.",
-                )
-            # Delete only bait this run created, or an exact matching stale copy.
-            if trigger.get("seed_doc_drift_bait") and (
-                bait_created
-                or remote_bait_matches(
-                    repo, branch=branch, path=bait_path, content=bait_text
-                )
-            ):
-                delete_branch_file(
-                    repo,
-                    branch=branch,
-                    path=bait_path,
-                    message=(
-                        "chore(e2e): remove autodoc intentional undocumented bait"
+        if want_fix:
+            # Positive invocation/PR paths require fix success. Negative paths
+            # must still snapshot unexpected PRs without that gate.
+            if (expect_fix_invoked or expect_fix_pr) and not fix_succeeded:
+                result = _blocked(
+                    f"Autodoc fix agent did not succeed "
+                    f"(conclusion={fix_job_conclusion!r})",
+                    path_gates={"dashboard_enabled": dashboard_ok},
+                    schedule_trigger={
+                        "run_seen": True,
+                        "job_executed": schedule_audit_job_executed(completed_run),
+                        "job_conclusion": job_conclusion,
+                        "url": completed_run.get("url"),
+                    },
+                    agent_invoked=agent_ok,
+                    # Preserve execution evidence: a failed leaf ran.
+                    fix_agent_invoked=fix_ran,
+                    fix_trigger={
+                        "job_executed": fix_ran,
+                        "job_conclusion": fix_job_conclusion,
+                    },
+                    audit_issue=(
+                        {
+                            "number": issue.get("number"),
+                            "title": issue.get("title"),
+                            "url": issue.get("url"),
+                        }
+                        if issue is not None
+                        else None
                     ),
                 )
-                bait_removed = True
-            cleaned = True
-            cleaned_issue_number: int | None = (
-                int(issue["number"]) if issue is not None else None
-            )
-            estc.log_info(
-                f"Cleanup done (issue={cleaned_issue_number}, prs={closed_prs}, "
-                f"bait_removed={bait_removed})"
-            )
+                return result
+            if expect_fix_pr and issue is None:
+                result = _blocked(
+                    "Fix-path case requires an audit issue before waiting for a PR",
+                    path_gates={"dashboard_enabled": dashboard_ok},
+                    schedule_trigger={
+                        "run_seen": True,
+                        "job_executed": schedule_audit_job_executed(completed_run),
+                        "job_conclusion": job_conclusion,
+                        "url": completed_run.get("url"),
+                    },
+                    agent_invoked=agent_ok,
+                    fix_agent_invoked=fix_ran,
+                    fix_trigger={
+                        "job_executed": fix_ran,
+                        "job_conclusion": fix_job_conclusion,
+                    },
+                )
+                return result
+            # Title-filter linked PRs so expect_fix_pr:false is fail-closed
+            # (oracle sees any unexpected match). Presence waits; absence
+            # snapshots once — including when fix was not expected to run.
+            if expect_fix_pr:
+                # Narrowed above: expect_fix_pr requires a non-None issue.
+                assert issue is not None
+                titled = wait_for_fix_pr_for_issue(
+                    repo,
+                    issue_number=int(issue["number"]),
+                    timeout_seconds=min(3600, _seconds_left()),
+                    interval_seconds=interval,
+                    required_title=fix_pr_title,
+                )
+                if not titled:
+                    result = _blocked(
+                        f"Timed out waiting for open PR linked to issue "
+                        f"#{issue['number']} with title {fix_pr_title!r}",
+                        path_gates={"dashboard_enabled": dashboard_ok},
+                        schedule_trigger={
+                            "run_seen": True,
+                            "job_executed": schedule_audit_job_executed(completed_run),
+                            "job_conclusion": job_conclusion,
+                            "url": completed_run.get("url"),
+                        },
+                        agent_invoked=agent_ok,
+                        fix_agent_invoked=fix_ran,
+                        fix_trigger={
+                            "job_executed": fix_ran,
+                            "job_conclusion": fix_job_conclusion,
+                        },
+                        audit_issue={
+                            "number": issue.get("number"),
+                            "title": issue.get("title"),
+                            "url": issue.get("url"),
+                        },
+                    )
+                    return result
+                fix_pr = titled[0]
+            elif issue is not None:
+                titled = [
+                    pr
+                    for pr in list_fix_prs_for_issue(
+                        repo, issue_number=int(issue["number"])
+                    )
+                    if str(pr.get("title") or "") == fix_pr_title
+                ]
+                if titled:
+                    fix_pr = titled[0]
+
+        closed_prs = _perform_cleanup(wait_for_fix_before_close=True)
 
         outcome = {
             "workflow_id": WORKFLOW_ID,
@@ -764,12 +977,17 @@ def run_live_case(
             "run_url": run_url,
             "path_gates": {"dashboard_enabled": dashboard_ok},
             "agent_invoked": agent_ok,
+            "fix_agent_invoked": fix_agent_invoked(completed_run),
             "schedule_trigger": {
                 "run_seen": True,
                 "job_executed": schedule_audit_job_executed(completed_run),
                 "job_conclusion": job_conclusion,
                 "url": completed_run.get("url"),
                 "database_id": completed_run.get("databaseId"),
+            },
+            "fix_trigger": {
+                "job_executed": schedule_fix_job_executed(completed_run),
+                "job_conclusion": autodoc_fix_job_conclusion(completed_run),
             },
             "audit_issue": (
                 {
@@ -778,6 +996,15 @@ def run_live_case(
                     "url": issue.get("url"),
                 }
                 if issue is not None
+                else None
+            ),
+            "fix_pr": (
+                {
+                    "number": fix_pr.get("number"),
+                    "title": fix_pr.get("title"),
+                    "url": fix_pr.get("url"),
+                }
+                if fix_pr is not None
                 else None
             ),
             "cleanup": {
@@ -793,31 +1020,27 @@ def run_live_case(
             },
         }
         write_outcome(outcome_path, outcome)
-        return outcome
+        result = outcome
+        return result
     except Exception as exc:  # noqa: BLE001 — harness must always write outcome
         estc.log_error(str(exc))
-        # Best-effort bait cleanup on failure — only delete matching E2E bait.
-        try:
-            if (
-                trigger.get("seed_doc_drift_bait")
-                and branch
-                and not cleaned
-                and (
-                    bait_created
-                    or remote_bait_matches(
-                        repo, branch=branch, path=bait_path, content=bait_text
-                    )
-                )
-            ):
-                delete_branch_file(
-                    repo,
-                    branch=branch,
-                    path=bait_path,
-                    message="chore(e2e): remove autodoc bait after harness error",
-                )
-        except Exception as cleanup_exc:  # noqa: BLE001
-            estc.log_error(f"bait cleanup failed: {cleanup_exc}")
-        return _blocked(str(exc), path_gates={"dashboard_enabled": False})
+        result = _blocked(str(exc), path_gates={"dashboard_enabled": False})
+        return result
+    finally:
+        # Every post-seed exit (blocked, exception, or missed success cleanup)
+        # must remove bait / close issue+PRs when cleanup_after is set.
+        if trigger.get("cleanup_after") and not cleaned:
+            try:
+                closed = _perform_cleanup(wait_for_fix_before_close=False)
+                if result is not None:
+                    result["cleanup"] = {
+                        "completed": cleaned,
+                        "bait_path": bait_path,
+                        "closed_prs": closed,
+                    }
+                    write_outcome(outcome_path, result)
+            except Exception as cleanup_exc:  # noqa: BLE001
+                estc.log_error(f"cleanup failed: {cleanup_exc}")
 
 
 def main(argv: list[str] | None = None) -> int:

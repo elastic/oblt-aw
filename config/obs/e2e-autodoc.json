@@ -3,9 +3,10 @@
   "workflow_id": "obs:autodoc",
   "consumer_repo": "elastic/oblt-aw",
   "schedule_trigger_workflow_file": "trigger-obs-aw-schedule.yml",
-  "poll_timeout_seconds": 3600,
+  "poll_timeout_seconds": 7200,
   "poll_interval_seconds": 20,
   "issue_title_prefix": "[oblt-aw][autodoc]",
+  "fix_pr_title": "docs: Documentation analysis and improvement",
   "bait_path": "scripts/e2e_autodoc_intentional_undocumented.py",
   "dashboard_workflow_id": "obs:autodoc"
 }
