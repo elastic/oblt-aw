@@ -52,6 +52,10 @@ on:
 concurrency:
   group: ${{ github.workflow }}-dependency-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
+# Map workflow_call policy input into the shared ephemeral-token fragment
+# (resolves WORKFLOW_TOKEN_POLICY / WORKFLOW_TOKEN_POLICY_CONFIG).
+env:
+  WORKFLOW_TOKEN_POLICY: ${{ inputs.github-token-policy }}
 permissions:
   copilot-requests: write
   actions: read

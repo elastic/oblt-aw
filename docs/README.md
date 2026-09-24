@@ -29,7 +29,8 @@ Use this index as the starting point and then navigate by topic.
 - Distribution operations: [docs/operations/distribute-client-workflow.md](operations/distribute-client-workflow.md)
 - Control Plane Dashboard (user instructions): [docs/operations/control-plane-dashboard.md](operations/control-plane-dashboard.md)
 - Contributing and local setup: [docs/development/contributing.md](development/contributing.md)
-- Onboarding (step-by-step guides): [docs/onboarding/README.md](onboarding/README.md)
+- Onboard a repository (developers): [docs/guides/user/onboard-a-repository.md](guides/user/onboard-a-repository.md)
+- Onboarding (technical / long-form): [docs/onboarding/README.md](onboarding/README.md)
 
 ## References
 

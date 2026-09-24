@@ -11,7 +11,9 @@ Reusable wrapper that calls the locked generic issue-fixer workflow in [elastic/
 - Triggered via `workflow_call` from `trigger-obs-aw-issue-fixer.yml` client templates.
 - Triggering issue comment must start with `/ai implement` (for example, `/ai implement` or `/ai implement this`).
 - Triggering comment author association must be one of: `OWNER`, `MEMBER`, `COLLABORATOR`.
-- Issue must not include specialized detector or triage labels:
+- Issue must not include specialized detector, triage, or onboard markers:
+  - title starting with `[onboard]`
+  - `oblt-aw/onboard/repository`
   - `oblt-aw/detector/security`
   - `oblt-aw/detector/res-not-accessible-by-integration`
   - `oblt-aw/triage/security-*`
@@ -25,6 +27,7 @@ Ingress routes here when:
 - comment is on an issue (not a PR), and
 - `startsWith(github.event.comment.body, '/ai implement')`, and
 - `github.event.comment.author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR`, and
+- issue is not an onboard-repository issue (title `[onboard]…` or label `oblt-aw/onboard/repository`), and
 - issue labels do not match the specialized security or resource-not-accessible fixer routes, and
 - Dashboard gate passes for registry id `issue-fixer` (`enabled-workflows` contains `obs:issue-fixer`).
 

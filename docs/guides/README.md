@@ -14,7 +14,8 @@ Pick your audience:
 
 ## User stories
 
-- [Start from scratch](user/start-from-scratch.md) — Register a repository, receive client templates, and enable workflows from the Control Plane Dashboard.
+- [Onboard a repository](user/onboard-a-repository.md) — Open an issue in `elastic/oblt-aw`, merge agent-opened PRs, then enable workflows from the Control Plane Dashboard.
+- [Start from scratch](user/start-from-scratch.md) — Short pointer to the issue-driven onboard path (and technical registration).
 - [Enable a new workflow](user/enable-a-new-workflow.md) — Turn on a workflow that already exists in the org registry and client templates.
 - [Opt in or opt out](user/opt-in-opt-out.md) — Enable or disable workflows from the dashboard and understand runtime gating.
 - [Choose Automerge services](user/automerge-services.md) — Review the dependency-update categories that Automerge can merge for your repository.

@@ -20,8 +20,9 @@ The gh-aw compiler rejects mixed steps.* || secrets.* github-token expressions.
 This post-process prefers create-token step outputs, then caller secrets, then
 GITHUB_TOKEN. It also adds id-token: write to jobs that mint tokens.
 
-Only lock files that declare the github-token-policy workflow_call input are
-modified. The script is idempotent.
+Lock files are processed when they contain a create-token step (for example from
+gh-aw-fragments/ephemeral-github-token.md) or a github-token-policy
+workflow_call input. The script is idempotent.
 """
 
 from __future__ import annotations
@@ -46,24 +47,13 @@ REPLACEMENTS: tuple[tuple[str, str], ...] = (
         + MINTED_PREFIX
         + "secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
     ),
+    (
+        "${{ secrets.GH_AW_GITHUB_TOKEN }}",
+        "${{ " + MINTED_PREFIX + "secrets.GH_AW_GITHUB_TOKEN }}",
+    ),
 )
 
 ID_TOKEN_LINE = "      id-token: write"
-
-
-def wire_token_expressions(text: str) -> str:
-    """Prefer minted step outputs in known GH-AW token fallback expressions."""
-    rewritten: list[str] = []
-    for line in text.splitlines(keepends=True):
-        if "create-token.outputs.token" in line:
-            rewritten.append(line)
-            continue
-        for old, new in REPLACEMENTS:
-            if old in line:
-                line = line.replace(old, new)
-                break
-        rewritten.append(line)
-    return "".join(rewritten)
 
 
 def _job_blocks(text: str) -> list[tuple[int, int]]:
@@ -96,6 +86,41 @@ def _job_blocks(text: str) -> list[tuple[int, int]]:
     return spans
 
 
+def _rewrite_line(line: str) -> str:
+    """Prefer minted step outputs in one token-expression line."""
+    if "create-token.outputs.token" in line:
+        return line
+    for old, new in REPLACEMENTS:
+        if old in line:
+            return line.replace(old, new)
+    return line
+
+
+def wire_token_expressions(text: str) -> str:
+    """Prefer minted step outputs only inside jobs that mint create-token.
+
+    Non-minting jobs (for example detection) keep secrets.* fallbacks so they
+    do not reference a missing steps.create-token output.
+    """
+    lines = text.splitlines(keepends=True)
+    spans = _job_blocks(text)
+    # No parseable jobs (or empty jobs): never invent steps.create-token refs.
+    # should_process can still be true via github-token-policy alone.
+    if not spans:
+        return text
+
+    minting = {
+        (start, end)
+        for start, end in spans
+        if "id: create-token" in "".join(lines[start:end])
+    }
+    rewritten: list[str] = []
+    for i, line in enumerate(lines):
+        in_minting = any(start <= i < end for start, end in minting)
+        rewritten.append(_rewrite_line(line) if in_minting else line)
+    return "".join(rewritten)
+
+
 def ensure_id_token_write(text: str) -> str:
     """Add id-token: write to permissions of jobs that mint create-token."""
     lines = text.splitlines(keepends=True)
@@ -121,10 +146,15 @@ def ensure_id_token_write(text: str) -> str:
     return "".join(lines)
 
 
+def should_process(text: str) -> bool:
+    """True when the lock mints create-token or declares github-token-policy."""
+    return "id: create-token" in text or "github-token-policy:" in text
+
+
 def process_lock_file(path: Path) -> bool:
     """Rewrite one lock file. Return True when the file changed."""
     original = path.read_text(encoding="utf-8")
-    if "github-token-policy:" not in original:
+    if not should_process(original):
         return False
     updated = wire_token_expressions(original)
     updated = ensure_id_token_write(updated)
@@ -140,9 +170,9 @@ def main() -> int:
     changed = 0
     for lock_file in sorted(workflows.glob("gh-aw-*.lock.yml")):
         if process_lock_file(lock_file):
-            print(f"  ✓ {lock_file.name}")
+            print(f"  wired {lock_file.name}")
             changed += 1
-    print(f"✓ Wired ephemeral token outputs in {changed} lock file(s)")
+    print(f"Wired ephemeral token outputs in {changed} lock file(s)")
     return 0
 
 
