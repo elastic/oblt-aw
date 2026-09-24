@@ -31,6 +31,10 @@ def _live_case() -> dict:
 
 
 def _synthetic_live_outcome(**overrides: object) -> dict:
+    branch = f"{harness.FIXTURE_BRANCH_PREFIX}run-1"
+    matched_job = (
+        "run-obs-aw-pull-request / dependency-review / dependency-review / conclusion"
+    )
     base = {
         "workflow_id": "obs:dependency-review",
         "case_id": LIVE_CASE_ID,
@@ -39,10 +43,11 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
         "agent_invoked": True,
         "pr_author": oracle.CANONICAL_ALLOWED_PR_AUTHOR,
         "pr_number": 42,
+        "pr_head_branch": branch,
         "fixture": {
             "label": harness.FIXTURE_LABEL,
             "branch_prefix": harness.FIXTURE_BRANCH_PREFIX,
-            "branch": f"{harness.FIXTURE_BRANCH_PREFIX}run-1",
+            "branch": branch,
             "pr_number": 42,
             "seed_checkout_sha": harness.SEED_CHECKOUT_SHA,
             "seed_checkout_version": harness.SEED_CHECKOUT_VERSION,
@@ -58,6 +63,7 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
             "run_seen": True,
             "job_executed": True,
             "job_conclusion": "success",
+            "matched_job_name": matched_job,
             "url": "https://example.test/dr",
         },
         "merge_ready_label": {
@@ -155,6 +161,9 @@ def test_dependency_review_job_matches_nested_conclusion_leaf() -> None:
     }
     assert harness.dependency_review_job_executed(success) is True
     assert harness.dependency_review_job_conclusion(success) == "success"
+    assert harness.dependency_review_matched_job_name(success) == (
+        "run-obs-aw-pull-request / dependency-review / dependency-review / conclusion"
+    )
 
 
 def test_dependency_review_job_ignores_broad_suffix() -> None:
@@ -180,6 +189,7 @@ def test_dependency_review_job_ignores_broad_suffix() -> None:
     }
     assert harness.dependency_review_job_executed(broad_only) is False
     assert harness.dependency_review_job_conclusion(broad_only) is None
+    assert harness.dependency_review_matched_job_name(broad_only) is None
 
 
 def test_oracle_happy_path_passes() -> None:
@@ -355,6 +365,124 @@ def test_oracle_rejects_force_actions_pin_bump_false() -> None:
     )
 
 
+def test_oracle_rejects_wait_dependency_review_false() -> None:
+    """Schema-accepted false for wait_dependency_review must not green live."""
+    case = _live_case()
+    trigger = dict(case["trigger"])
+    trigger["wait_dependency_review"] = False
+    report = _evaluate(_synthetic_live_outcome(), case_trigger=trigger)
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "case_trigger_enforced" and not c["pass"] for c in report["checks"]
+    )
+
+
+def test_run_live_case_rejects_wait_dependency_review_false_before_mutation(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Harness must block before dashboard/PR create when wait flag is false."""
+    case = _live_case()
+    case["trigger"] = dict(case["trigger"])
+    case["trigger"]["wait_dependency_review"] = False
+    case_dir = tmp_path / "case"
+    case_dir.mkdir()
+    (case_dir / "case.json").write_text(json.dumps(case), encoding="utf-8")
+
+    def _boom(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("remote mutation must not run when wait is false")
+
+    monkeypatch.setattr(harness, "dashboard_enables_all", _boom)
+    monkeypatch.setattr(harness, "create_pin_bump_pr", _boom)
+    cfg = json.loads(
+        (ROOT / "config" / "obs" / "e2e-dependency-review.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    outcome = harness.run_live_case(case_dir, cfg)
+    assert outcome["blocked"] is True
+    assert "wait_dependency_review" in str(outcome.get("block_reason") or "")
+
+
+def test_oracle_rejects_mismatched_pr_head_branch() -> None:
+    """Observed head ref must match fixture.branch under the canonical prefix."""
+    report = _evaluate(
+        _synthetic_live_outcome(
+            pr_head_branch="e2e/dependency-review-malicious/run-1",
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "fixture_identity" and not c["pass"] for c in report["checks"]
+    )
+
+
+def test_oracle_rejects_missing_pr_head_branch() -> None:
+    report = _evaluate(_synthetic_live_outcome(pr_head_branch=""))
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "fixture_identity" and not c["pass"] for c in report["checks"]
+    )
+
+
+def test_oracle_rejects_non_canonical_pin_bump_sha() -> None:
+    """Shape-valid but non-canonical pin SHA must not green fixture_identity."""
+    report = _evaluate(
+        _synthetic_live_outcome(
+            fixture={
+                "label": harness.FIXTURE_LABEL,
+                "branch": f"{harness.FIXTURE_BRANCH_PREFIX}run-1",
+                "pr_number": 42,
+                "bump_checkout_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "bump_checkout_version": harness.BUMP_CHECKOUT_VERSION,
+                "cleaned_up": True,
+            },
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "fixture_identity" and not c["pass"] for c in report["checks"]
+    )
+
+
+def test_oracle_rejects_missing_matched_job_name() -> None:
+    """job_executed + success without leaf identity must not green the gate."""
+    report = _evaluate(
+        _synthetic_live_outcome(
+            dependency_review={
+                "run_seen": True,
+                "job_executed": True,
+                "job_conclusion": "success",
+                "matched_job_name": "",
+            }
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "dependency_review_job_executed" and not c["pass"]
+        for c in report["checks"]
+    )
+
+
+def test_oracle_rejects_wrong_matched_job_name() -> None:
+    report = _evaluate(
+        _synthetic_live_outcome(
+            dependency_review={
+                "run_seen": True,
+                "job_executed": True,
+                "job_conclusion": "success",
+                "matched_job_name": (
+                    "run-obs-aw-pull-request / dependency-review / notify-no-comment"
+                ),
+            }
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "dependency_review_job_executed" and not c["pass"]
+        for c in report["checks"]
+    )
+
+
 def test_trigger_bool_rejects_string_false() -> None:
     """Malformed string bools must fail closed (not truthy Python strings)."""
     with pytest.raises(TypeError, match="must be bool|expected bool"):
@@ -428,6 +556,12 @@ def test_config_allowed_author_is_vault_bot() -> None:
     assert oracle.CANONICAL_ALLOWED_PR_AUTHOR == harness.ALLOWED_AUTHOR
     assert oracle.CANONICAL_FIXTURE_LABEL == harness.FIXTURE_LABEL
     assert oracle.CANONICAL_FIXTURE_BRANCH_PREFIX == harness.FIXTURE_BRANCH_PREFIX
+    assert oracle.CANONICAL_BUMP_CHECKOUT_SHA == harness.BUMP_CHECKOUT_SHA
+    assert oracle.CANONICAL_BUMP_CHECKOUT_VERSION == harness.BUMP_CHECKOUT_VERSION
+    assert (
+        oracle.CANONICAL_DEPENDENCY_REVIEW_JOB_SUFFIX
+        == harness.DEPENDENCY_REVIEW_CONCLUSION_LEAF_SUFFIX
+    )
     cfg = json.loads(
         (ROOT / "config" / "obs" / "e2e-dependency-review.json").read_text(
             encoding="utf-8"

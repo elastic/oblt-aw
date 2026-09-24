@@ -32,6 +32,11 @@ from typing import Any
 
 WORKFLOW_ID = "obs:dependency-review"
 CANONICAL_ALLOWED_PR_AUTHOR = "elastic-vault-github-plugin-prod[bot]"
+CANONICAL_BUMP_CHECKOUT_SHA = "08eba0b27e820071cde6df949e0beb9ba4906955"
+CANONICAL_BUMP_CHECKOUT_VERSION = "v4.3.0"
+CANONICAL_DEPENDENCY_REVIEW_JOB_SUFFIX = (
+    " / dependency-review / dependency-review / conclusion"
+)
 CANONICAL_FIXTURE_BRANCH_PREFIX = "e2e/dependency-review/"
 CANONICAL_FIXTURE_LABEL = "e2e:dependency-review"
 CANONICAL_MERGE_READY_LABEL = "oblt-aw/ai/merge-ready"
@@ -313,16 +318,23 @@ def _evaluate_live(
         pr_number = outcome.get("pr_number")
         fixture_pr = fixture.get("pr_number")
         branch = str(fixture.get("branch") or "")
+        pr_head = str(outcome.get("pr_head_branch") or "")
         label = str(fixture.get("label") or "")
         bump_sha = str(fixture.get("bump_checkout_sha") or "")
         bump_version = str(fixture.get("bump_checkout_version") or "")
         pr_ok = isinstance(pr_number, int) and pr_number > 0 and fixture_pr == pr_number
-        branch_ok = branch.startswith(CANONICAL_FIXTURE_BRANCH_PREFIX)
+        # Fail closed: event guards use the observed PR head ref, not only
+        # producer-reported fixture.branch metadata.
+        branch_ok = (
+            branch.startswith(CANONICAL_FIXTURE_BRANCH_PREFIX)
+            and pr_head.startswith(CANONICAL_FIXTURE_BRANCH_PREFIX)
+            and pr_head == branch
+        )
         label_ok = label == CANONICAL_FIXTURE_LABEL
+        # Fail closed: shape-only pin checks allow arbitrary substituted SHAs.
         pin_ok = (
-            len(bump_sha) == 40
-            and all(ch in "0123456789abcdef" for ch in bump_sha)
-            and bump_version.startswith("v")
+            bump_sha == CANONICAL_BUMP_CHECKOUT_SHA
+            and bump_version == CANONICAL_BUMP_CHECKOUT_VERSION
         )
         _check(
             checks,
@@ -330,7 +342,7 @@ def _evaluate_live(
             pr_ok and branch_ok and label_ok and pin_ok,
             (
                 f"pr_number={pr_number!r} fixture_pr={fixture_pr!r} "
-                f"branch={branch!r} label={label!r} "
+                f"branch={branch!r} pr_head_branch={pr_head!r} label={label!r} "
                 f"bump_sha={bump_sha!r} bump_version={bump_version!r}"
             ),
         )
@@ -365,13 +377,19 @@ def _evaluate_live(
             actual = _as_bool(dr.get("job_executed"))
             # Fail closed: overall run conclusion is not a substitute.
             job_conclusion = dr.get("job_conclusion")
+            matched_job = str(dr.get("matched_job_name") or "")
+            # Fail closed: when expected true, require the canonical leaf identity.
+            leaf_ok = (not expected) or matched_job.lower().endswith(
+                CANONICAL_DEPENDENCY_REVIEW_JOB_SUFFIX.lower()
+            )
             named_ok = actual and job_conclusion == "success"
             _check(
                 checks,
                 "dependency_review_job_executed",
-                named_ok == expected,
+                named_ok == expected and leaf_ok,
                 f"expected={expected} job_executed={actual} "
-                f"job_conclusion={job_conclusion!r}",
+                f"job_conclusion={job_conclusion!r} "
+                f"matched_job_name={matched_job!r}",
             )
         except TypeError as exc:
             _check(checks, "dependency_review_job_executed", False, str(exc))

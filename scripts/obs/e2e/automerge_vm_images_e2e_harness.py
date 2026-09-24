@@ -411,30 +411,53 @@ def list_pr_trigger_runs(repo: str, workflow_file: str) -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], runs)
 
 
-def _job_conclusion_by_exact_or_suffix(
+# Canonical GH-AW terminal leaf under the nested dependency-review call.
+DEPENDENCY_REVIEW_CONCLUSION_LEAF_SUFFIX = (
+    " / dependency-review / dependency-review / conclusion"
+)
+
+
+def _job_match_by_exact_or_suffix(
     run_detail: dict[str, Any] | None,
     *,
     exact_names: tuple[str, ...] = (),
     endswith_suffixes: tuple[str, ...] = (),
-) -> str | None:
-    """Return conclusion for the first non-skipped job matching exact/suffix names.
+) -> tuple[str, str] | None:
+    """Return ``(job_name, conclusion)`` for the first non-skipped match.
 
     Prefer leaf suffixes (for example `` / automerge / automerge``) so sibling
     jobs under the same reusable call (verify, approve) cannot authorize a
-    different named gate.
+    different named gate. Name and conclusion come from the same match so
+    producers/oracles cannot diverge.
     """
     if not run_detail:
         return None
     exact = {n.lower() for n in exact_names}
     suffixes = tuple(s.lower() for s in endswith_suffixes)
     for job in run_detail.get("jobs") or []:
-        name = (job.get("name") or "").lower()
+        raw_name = str(job.get("name") or "")
+        name = raw_name.lower()
         conclusion = (job.get("conclusion") or "").lower()
         if conclusion in ("", "skipped"):
             continue
         if name in exact or any(name.endswith(suffix) for suffix in suffixes):
-            return conclusion or None
+            return (raw_name, conclusion)
     return None
+
+
+def _job_conclusion_by_exact_or_suffix(
+    run_detail: dict[str, Any] | None,
+    *,
+    exact_names: tuple[str, ...] = (),
+    endswith_suffixes: tuple[str, ...] = (),
+) -> str | None:
+    """Return conclusion for the first non-skipped job matching exact/suffix names."""
+    match = _job_match_by_exact_or_suffix(
+        run_detail,
+        exact_names=exact_names,
+        endswith_suffixes=endswith_suffixes,
+    )
+    return match[1] if match else None
 
 
 def dependency_review_job_conclusion(
@@ -453,8 +476,19 @@ def dependency_review_job_conclusion(
     """
     return _job_conclusion_by_exact_or_suffix(
         run_detail,
-        endswith_suffixes=(" / dependency-review / dependency-review / conclusion",),
+        endswith_suffixes=(DEPENDENCY_REVIEW_CONCLUSION_LEAF_SUFFIX,),
     )
+
+
+def dependency_review_matched_job_name(
+    run_detail: dict[str, Any] | None,
+) -> str | None:
+    """Display name of the dependency-review conclusion leaf that authorized the gate."""
+    match = _job_match_by_exact_or_suffix(
+        run_detail,
+        endswith_suffixes=(DEPENDENCY_REVIEW_CONCLUSION_LEAF_SUFFIX,),
+    )
+    return match[0] if match else None
 
 
 def dependency_review_job_executed(run_detail: dict[str, Any] | None) -> bool:
