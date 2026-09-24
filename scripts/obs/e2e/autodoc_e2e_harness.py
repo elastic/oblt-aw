@@ -817,6 +817,7 @@ def run_live_case(
         )
         return closed
 
+    dashboard_ok = False
     try:
         if dashboard_enabled and not estc.dashboard_enables_workflow(repo, dash_id):
             result = _blocked(
@@ -1110,7 +1111,7 @@ def run_live_case(
         return result
     except Exception as exc:  # noqa: BLE001 — harness must always write outcome
         estc.log_error(str(exc))
-        result = _blocked(str(exc), path_gates={"dashboard_enabled": False})
+        result = _blocked(str(exc), path_gates={"dashboard_enabled": dashboard_ok})
         return result
     finally:
         # Every post-seed exit (blocked, exception, or missed success cleanup)

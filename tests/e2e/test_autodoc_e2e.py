@@ -952,6 +952,34 @@ class TestHarnessDashboardGate:
         )
         assert dashboard_called is False
 
+    def test_exception_after_dashboard_pass_preserves_dashboard_gate(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(ROOT)
+        case = _live_case()
+        outcome_path = tmp_path / "outcome.json"
+        cfg = harness.load_e2e_config(ROOT / "config" / "obs" / "e2e-autodoc.json")
+        monkeypatch.setattr(
+            harness.estc,
+            "dashboard_enables_workflow",
+            lambda repo, workflow_id: True,
+        )
+        monkeypatch.setattr(harness, "default_branch", lambda repo: "main")
+
+        def _boom(*_args: object, **_kwargs: object) -> tuple[str, bool]:
+            raise RuntimeError("seed failed")
+
+        monkeypatch.setattr(harness, "seed_bait_on_default_branch", _boom)
+        outcome = harness.run_live_case(
+            case=case,
+            cfg=cfg,
+            outcome_path=outcome_path,
+            run_url="https://example.test/run",
+        )
+        assert outcome["blocked"] is True
+        assert outcome["path_gates"]["dashboard_enabled"] is True
+        assert "seed failed" in str(outcome.get("block_reason") or "")
+
 
 class TestOracleCliSummary:
     def test_summary_includes_fix_pr_url(
