@@ -34,7 +34,7 @@ Behavior:
 2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps, appendix).
 3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones (especially secrets after full registry-doc discovery). Stop with **exact PR URLs** only when the inventory is complete.
 4. Open up to four **normal (non-draft)** PRs (separate concerns); do not merge them. Discover secrets from **every** org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines — do **not** filter by `default_enabled`; then resolve shared modules in the secrets checkout.
-5. Comment a checklist with exact PR links (safe-output `temporary_id` / `#aw_…` rewrite) and merge order on the issue.
+5. Comment with the mandatory `### Onboarding PR checklist` template (real Markdown newlines; full PR URLs or `#aw_…` rewrite; merge order) — see the agent source Issue comment section.
 
 User-facing steps: [Onboard a repository](../guides/user/onboard-a-repository.md).
 

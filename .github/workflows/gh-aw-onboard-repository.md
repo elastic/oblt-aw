@@ -141,13 +141,42 @@ Before deciding whether to open a secrets PR (do **not** hardcode secret names):
 
 Follow `docs/onboarding/registering-a-repository.md` (**Consumer secrets discovery**) in full.
 
-### Issue comment links
+### Issue comment (mandatory template)
 
-On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_obltaw`, `aw_settings`, `aw_secrets` as needed). In the checklist body, link with the same `#aw_…` ids so safe-outputs rewrite them to exact PR URLs. Never invent title-search URLs.
+On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_obltaw`, `aw_settings`, `aw_secrets` as needed). In the checklist body, link newly opened PRs with the same `#aw_…` ids so safe-outputs rewrite them to exact PR URLs. For already-open PRs, use the real `https://github.com/<owner>/<repo>/pull/<n>` URL from search / `gh pr list`.
+
+Call `add-comment` with **real Markdown newlines** (never the two-character sequence `\` + `n`, never a single-line body with escaped newlines). Do **not** invent headings such as “Onboard PR inventory”, “Catalog (required)”, or discovery essays. Do **not** invent `pulls?q=` search links. Do **not** use `owner/repo#n` shorthand — use full PR URLs or `#aw_…` ids.
+
+Use this skeleton exactly (fill checkboxes, titles, and links; omit a secrets row’s PR title link only when skipped as “none” after full discovery):
+
+```markdown
+Parsed input:
+- Repository: `elastic/<repo>`
+- Organization key: `<org-key>`
+
+### Onboarding PR checklist
+- [x] `elastic/catalog-info` — `[oblt-aw][onboard] Add token policy for elastic/<repo>` (#aw_catalog or https://github.com/elastic/catalog-info/pull/<n>)
+- [x] `elastic/oblt-aw` — `[oblt-aw][onboard] Register elastic/<repo> in <org-key> active repositories` (#aw_obltaw or https://github.com/elastic/oblt-aw/pull/<n>)
+- [x] `elastic/observability-github-settings` — `[oblt-aw][onboard] Add branch protection for elastic/<repo>` (#aw_settings or https://github.com/elastic/observability-github-settings/pull/<n>)
+- [x] `elastic/observability-github-secrets` — `[oblt-aw][onboard] …` (#aw_secrets or https://github.com/elastic/observability-github-secrets/pull/<n>)
+  <!-- when empty after full discovery, use instead:
+  - [ ] `elastic/observability-github-secrets` — skipped (`none` required after full registry-doc discovery)
+  -->
+
+### Merge order (manual)
+1. Merge the **catalog-info** TokenPolicy PR first.
+2. Merge the **oblt-aw** registration PR after TokenPolicy is merged/active.
+3. Merge the **observability-github-settings** PR (and secrets PR, if any) before relying on automerge or secret-backed workflows in production.
+
+Merges for this onboarding set are **manual**.
+
+After the `oblt-aw` registration PR reaches `main`, follow post-merge dashboard/client enablement steps in the user guide:
+https://github.com/elastic/oblt-aw/blob/main/docs/guides/user/onboard-a-repository.md
+```
 
 ## Safe-output constraints
 
 - Open PRs only via `create-pull-request` (`draft: false`). Do not merge. Do not close the onboard issue.
-- Finish with `add-comment` per the Automation contract (checklist with exact PR links, merge order, manual merges, user-guide pointer).
+- Finish with `add-comment` using the **Issue comment** template above (real newlines; exact PR links; merge order; manual merges; user-guide pointer).
 - On failure, comment what failed; never invent credentials.
 - Call at least one of: `create-pull-request`, `add-comment`, or `noop`. A text-only exit with zero safe outputs is a failure.
