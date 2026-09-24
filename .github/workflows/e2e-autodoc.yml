@@ -2,10 +2,14 @@
 name: E2E — Autodoc audit + fix
 
 # Manual production E2E for obs:autodoc against elastic/oblt-aw.
-# Seeds intentional undocumented bait on the default branch, dispatches
+# Seeds intentional undocumented bait on the default branch as the Vault
+# app (OIDC create-token using workflow-token-policy from config/e2e.json,
+# bound to e2e-*.yml via token-policy-6cd7ac55e207), dispatches
 # trigger-obs-aw-schedule.yml, waits for docs-patrol audit + issue and
-# create-pr-from-issue fix + PR, then cleans up.
-# Not part of the default PR required gate in ci.yml.
+# create-pr-from-issue fix + PR, then cleans up. Vault token is required
+# so Contents PUT/DELETE on the default branch can satisfy repository
+# rulesets (GITHUB_TOKEN cannot). Not part of the default PR required
+# gate in ci.yml.
 on:
   workflow_dispatch:
   workflow_call:
@@ -31,12 +35,31 @@ jobs:
       actions: write
       issues: write
       checks: read
+      id-token: write
     env:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      # Shared E2E Vault role in config/e2e.json (wildcard e2e-*.yml policy
+      # requires an explicit token-policy input; do not reuse trigger-obs-aw-*).
+      - name: Resolve E2E Vault token policy
+        id: token-policy
+        run: |
+          set -euo pipefail
+          POLICY="$(jq -r '."workflow-token-policy" // empty' config/e2e.json)"
+          if [[ -z "${POLICY}" ]]; then
+            echo "::error::Missing non-empty workflow-token-policy in config/e2e.json"
+            exit 1
+          fi
+          echo "token-policy=${POLICY}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create ephemeral GitHub token (Vault app)
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ steps.token-policy.outputs.token-policy }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -54,6 +77,10 @@ jobs:
       - name: Run harness
         id: harness
         continue-on-error: true
+        env:
+          # Vault installation token so Contents seed/delete on the default
+          # branch can satisfy repository rulesets (GITHUB_TOKEN cannot).
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
         run: |
           set +e
           python3 scripts/obs/e2e/autodoc_e2e_harness.py \
