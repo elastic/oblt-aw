@@ -47,6 +47,10 @@ Permissions:
 - `issues: write`
 - `pull-requests: write`
 
+Secret handling:
+
+- The nested `audit` and `fix` lock calls intentionally avoid `secrets: inherit`; token use remains through GitHub's automatic token/context flow plus optional explicit upstream secret contracts.
+
 `notify-fix-failure` uses job-level `issues: write` only.
 
 ## API / Interface
