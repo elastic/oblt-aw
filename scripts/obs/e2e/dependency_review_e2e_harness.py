@@ -296,9 +296,9 @@ def normalize_fixture_branch_prefix(raw: str | None) -> str:
     branch_prefix = str(raw or FIXTURE_BRANCH_PREFIX).strip() or FIXTURE_BRANCH_PREFIX
     if not branch_prefix.endswith("/"):
         branch_prefix = f"{branch_prefix}/"
-    if not branch_prefix.startswith(FIXTURE_BRANCH_PREFIX):
+    if branch_prefix != FIXTURE_BRANCH_PREFIX:
         raise RuntimeError(
-            f"e2e_pr.branch_prefix {branch_prefix!r} must start with "
+            f"e2e_pr.branch_prefix {branch_prefix!r} must equal "
             f"{FIXTURE_BRANCH_PREFIX!r} (exact event-guard prefix, including '/')"
         )
     return branch_prefix

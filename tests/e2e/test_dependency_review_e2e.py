@@ -550,6 +550,11 @@ def test_normalize_fixture_branch_prefix_rejects_malicious_suffix() -> None:
         harness.normalize_fixture_branch_prefix("e2e/dependency-review-malicious/")
 
 
+def test_normalize_fixture_branch_prefix_rejects_nested_suffix() -> None:
+    with pytest.raises(RuntimeError, match="exact event-guard prefix"):
+        harness.normalize_fixture_branch_prefix("e2e/dependency-review/malicious/")
+
+
 def test_normalize_fixture_branch_prefix_accepts_canonical() -> None:
     assert (
         harness.normalize_fixture_branch_prefix("e2e/dependency-review")
