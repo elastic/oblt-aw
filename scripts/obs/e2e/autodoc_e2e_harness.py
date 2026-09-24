@@ -863,7 +863,7 @@ def run_live_case(
         )
         if run_detail is None:
             result = _blocked(
-                f"Timed out waiting for {workflow_file} autodoc audit agent success",
+                f"Timed out waiting for {workflow_file} autodoc audit leaf execution",
                 path_gates={"dashboard_enabled": dashboard_ok},
             )
             return result
