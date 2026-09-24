@@ -540,7 +540,8 @@ def run_live_case(
         or ["Labels Applied"]
     )
     allowed_author = str(cfg.get("allowed_pr_author") or ALLOWED_AUTHOR)
-    timeout = int(cfg.get("poll_timeout_seconds") or 3600)
+    raw_timeout = cfg.get("poll_timeout_seconds")
+    timeout = int(3600 if raw_timeout is None else raw_timeout)
     raw_interval = cfg.get("poll_interval_seconds")
     interval = int(20 if raw_interval is None else raw_interval)
     dash_ids = required_dashboard_ids(cfg)
@@ -631,6 +632,23 @@ def run_live_case(
                 "Live E2E requires trigger.wait_dependency_review so the harness "
                 "waits for the named dependency-review leaf before side-effect "
                 "checks (reject before any remote mutation)."
+            ),
+            "path_gates": {"dashboard_enabled": False},
+            "expectations": expectations,
+            "trigger": trigger,
+            "run_url": run_url,
+        }
+    if timeout <= 0:
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": (
+                "Live E2E requires config.poll_timeout_seconds to be a positive "
+                "integer for polling."
             ),
             "path_gates": {"dashboard_enabled": False},
             "expectations": expectations,
