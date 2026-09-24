@@ -9,11 +9,11 @@ Live E2E only against **`elastic/oblt-aw`**:
 1. Enablement gate for `obs:autodoc` on the Control Plane Dashboard.
 2. Seed intentional undocumented public API bait on the default branch at a **per-run path** (config `bait_path` plus a run token) **only when missing** (refuse overwrite if remote content differs).
 3. Snapshot existing schedule-trigger run IDs, then dispatch `trigger-obs-aw-schedule.yml` → prelude → `obs-aw-autodoc` audit (`gh-aw-docs-patrol`).
-4. Wait for a **new** nested **audit** agent leaf job success (not a pre-existing concurrent run, and not fix/sibling agent jobs) and an open issue titled with `[oblt-aw][autodoc]` whose body cites the static bait marker **and** the per-run bait path (or its basename).
+4. Wait for a **new** nested **audit** agent leaf job success (not a pre-existing concurrent run, and not fix/sibling agent jobs) and an open issue titled with `[oblt-aw][autodoc]` whose body cites the **per-run bait path** (full path or basename; both embed the run token).
 5. For the fix-path case: wait for nested **fix** / create-PR agent success and an open PR that references that issue (title `docs: Documentation analysis and improvement`).
-6. Cleanup: close only that issue, close only PRs that reference it, and delete bait only when this run created it or remote content still matches the seeded bait.
+6. Cleanup: close only that issue, close only PRs that reference it, and delete bait only when this run created it or remote content still matches the seeded bait. Soft-skip delete must not mark cleanup complete while the path remains; record `bait_absent` after cleanup.
 
-Oracle pass/fail for agent side effects is **issue / PR presence** (number + URL) plus `cleanup.completed` when `cleanup_after` is true. Issue or PR body prose beyond bait/issue correlation markers is out of scope.
+Oracle pass/fail for agent side effects is **issue / PR presence** (number + URL) plus `cleanup.completed` **and** `cleanup.bait_absent` when `cleanup_after` / `seed_doc_drift_bait` are true. Issue or PR body prose beyond per-run bait path / issue correlation is out of scope.
 
 ## Live cases
 

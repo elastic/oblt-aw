@@ -73,6 +73,8 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
         "cleanup": {
             "completed": True,
             "bait_path": "scripts/e2e_autodoc_intentional_undocumented.py",
+            "bait_removed": True,
+            "bait_absent": True,
             "closed_prs": [],
         },
         "bait": {
@@ -339,13 +341,60 @@ class TestOracleHappyPath:
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "case_trigger" in failed_ids
 
+    def test_cleanup_after_false_trigger_fails(self) -> None:
+        case = _live_case()
+        trigger = dict(case["trigger"])
+        trigger["cleanup_after"] = False
+        report = _evaluate(_synthetic_live_outcome(), case_trigger=trigger)
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "case_trigger" in failed_ids
+
     def test_cleanup_incomplete_fails_when_required(self) -> None:
         report = _evaluate(
-            _synthetic_live_outcome(cleanup={"completed": False, "bait_path": "x"})
+            _synthetic_live_outcome(
+                cleanup={
+                    "completed": False,
+                    "bait_path": "x",
+                    "bait_removed": False,
+                    "bait_absent": False,
+                }
+            )
         )
         assert report["pass"] is False
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "cleanup_completed" in failed_ids
+
+    def test_cleanup_completed_without_bait_absent_fails(self) -> None:
+        """Producer completed flag alone must not green when bait remains."""
+        report = _evaluate(
+            _synthetic_live_outcome(
+                cleanup={
+                    "completed": True,
+                    "bait_path": "scripts/e2e_bait.py",
+                    "bait_removed": False,
+                    "bait_absent": False,
+                    "closed_prs": [],
+                }
+            )
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "cleanup_bait_absent" in failed_ids
+
+    def test_cleanup_missing_bait_absent_fails_closed(self) -> None:
+        report = _evaluate(
+            _synthetic_live_outcome(
+                cleanup={
+                    "completed": True,
+                    "bait_path": "scripts/e2e_bait.py",
+                    "closed_prs": [],
+                }
+            )
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "cleanup_bait_absent" in failed_ids
 
     def test_live_oracle_rejects_wrong_layer(self) -> None:
         report = _evaluate(_synthetic_live_outcome(layer="integration"))
@@ -457,29 +506,23 @@ class TestJobNameMatching:
 
 
 class TestIssueAndPrCorrelation:
-    def test_issue_body_requires_static_marker_and_per_run_path(self) -> None:
+    def test_issue_body_requires_per_run_path(self) -> None:
         run_token = "abcd1234efgh5678"
         bait_path = harness.bait_path_for_run(run_token)
         basename = Path(bait_path).name
         assert harness._issue_body_matches_bait(
-            f"Document {harness.E2E_AUTODOC_BAIT_MARKER} for `{bait_path}`",
+            f"Update docs for `{bait_path}`",
             bait_path,
             run_token=run_token,
         )
         assert harness._issue_body_matches_bait(
-            f"Document {harness.E2E_AUTODOC_BAIT_MARKER} in {basename}",
+            f"Document {basename} entrypoint",
             bait_path,
             run_token=run_token,
         )
-        # Static marker alone is not enough (cross-run / production substitute).
+        # Static fixture marker alone is not enough (no per-run path).
         assert not harness._issue_body_matches_bait(
             f"Document {harness.E2E_AUTODOC_BAIT_MARKER} entrypoint",
-            bait_path,
-            run_token=run_token,
-        )
-        # Path alone without the static marker is not enough.
-        assert not harness._issue_body_matches_bait(
-            f"Update docs for `{bait_path}`",
             bait_path,
             run_token=run_token,
         )
@@ -491,7 +534,7 @@ class TestIssueAndPrCorrelation:
         # Wrong (other-run) path must not match this run_token.
         other_path = harness.bait_path_for_run("deadbeefdeadbeef")
         assert not harness._issue_body_matches_bait(
-            f"Document {harness.E2E_AUTODOC_BAIT_MARKER} for `{other_path}`",
+            f"Update docs for `{other_path}`",
             bait_path,
             run_token=run_token,
         )
@@ -500,6 +543,7 @@ class TestIssueAndPrCorrelation:
         repo = "elastic/oblt-aw"
         assert harness._pr_references_issue("Closes #42\n\nDone.", 42, repo=repo)
         assert harness._pr_references_issue("Fixes #42", 42, repo=repo)
+        assert harness._pr_references_issue("Related issue: #42", 42, repo=repo)
         assert harness._pr_references_issue("See #42 for context", 42, repo=repo)
         assert harness._pr_references_issue(
             "Fixes https://github.com/elastic/oblt-aw/issues/42",
@@ -620,10 +664,6 @@ class TestHarnessDashboardGate:
                 "fix_agent_invoked": False,
                 "expect_fix_pr": False,
             },
-            "trigger": {
-                **case["trigger"],
-                "cleanup_after": False,
-            },
         }
         unexpected_pr = {
             "number": 77,
@@ -640,6 +680,9 @@ class TestHarnessDashboardGate:
             harness,
             "seed_bait_on_default_branch",
             lambda *args, **kwargs: ("abc123", True),
+        )
+        monkeypatch.setattr(
+            harness, "list_schedule_trigger_runs", lambda *args, **kwargs: []
         )
         monkeypatch.setattr(
             harness, "dispatch_schedule_trigger", lambda *args, **kwargs: None
@@ -684,6 +727,11 @@ class TestHarnessDashboardGate:
         monkeypatch.setattr(harness, "fix_agent_invoked", lambda run: False)
         monkeypatch.setattr(harness, "fix_agent_succeeded", lambda run: False)
         monkeypatch.setattr(harness, "autodoc_fix_job_conclusion", lambda run: None)
+        monkeypatch.setattr(harness, "close_prs_for_issue", lambda *a, **k: [])
+        monkeypatch.setattr(harness, "close_issue", lambda *a, **k: None)
+        monkeypatch.setattr(harness, "delete_branch_file", lambda *a, **k: None)
+        monkeypatch.setattr(harness, "remote_bait_absent", lambda *a, **k: True)
+        monkeypatch.setattr(harness, "remote_bait_matches", lambda *a, **k: True)
 
         outcome_path = tmp_path / "outcome.json"
         cfg = harness.load_e2e_config(ROOT / "config" / "obs" / "e2e-autodoc.json")

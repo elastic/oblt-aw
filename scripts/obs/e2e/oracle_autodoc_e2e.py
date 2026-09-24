@@ -48,6 +48,7 @@ _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
 )
 # Live schedule-audit case contract: these trigger flags must be true.
 _LIVE_REQUIRED_TRIGGER_TRUE_KEYS = (
+    "cleanup_after",
     "dispatch_schedule_trigger",
     "seed_doc_drift_bait",
 )
@@ -411,6 +412,23 @@ def evaluate_outcome(
                 )
             except TypeError as exc:
                 _check(checks, "cleanup_completed", False, str(exc))
+            # Seeded bait: completed alone is not evidence — require absence.
+            try:
+                seed_bait = _as_bool(trigger["seed_doc_drift_bait"])
+            except TypeError as exc:
+                _check(checks, "cleanup_bait_absent", False, str(exc))
+            else:
+                if seed_bait is True:
+                    try:
+                        bait_absent = _as_bool(cleanup.get("bait_absent"))
+                        _check(
+                            checks,
+                            "cleanup_bait_absent",
+                            bait_absent is True,
+                            f"cleanup={cleanup}",
+                        )
+                    except TypeError as exc:
+                        _check(checks, "cleanup_bait_absent", False, str(exc))
 
     overall = all(item["pass"] for item in checks)
     agent_flag = False
@@ -439,7 +457,8 @@ def evaluate_outcome(
             (
                 "Live oracle asserts dashboard gate, schedule audit/fix job "
                 "execution, agent invocation, issue/PR presence (number+url), "
-                "and cleanup when required — never agent prose."
+                "cleanup completion, and seeded-bait absence when required — "
+                "never agent prose."
             ),
             "Promote (#1878) should consume report.pass / summary.json.",
         ],

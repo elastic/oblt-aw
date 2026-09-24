@@ -6,13 +6,14 @@ steps:
       TITLE_PREFIX: "[oblt-aw][autodoc]"
     run: |
       set -euo pipefail
+      # Fail closed: an empty history would disable duplicate detection.
       gh issue list \
         --repo "$GITHUB_REPOSITORY" \
         --search "in:title \"$TITLE_PREFIX\"" \
         --state all \
         --limit 100 \
         --json number,title,state \
-        > /tmp/previous-findings.json || { echo "::warning::Failed to fetch previous findings — dedup will be skipped"; echo "[]" > /tmp/previous-findings.json; }
+        > /tmp/previous-findings.json
 ---
 
 ## Previous Findings

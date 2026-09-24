@@ -120,10 +120,11 @@ def bait_content(
 
 
 def bait_markers(bait_path: str, *, run_token: str) -> tuple[str, ...]:
-    """Correlation markers for this E2E run.
+    """Per-run path forms used to correlate audit issues to this E2E run.
 
-    Callers must require the static marker plus at least one path form
-    (full path or basename). Both path forms embed ``run_token``.
+    Both forms embed ``run_token``. The static bait-file marker is kept in the
+    fixture for humans; issue correlation requires only a path form (aligned with
+    the audit prompt's required source path(s)).
     """
     token = (run_token or "").strip()
     if not token:
@@ -133,7 +134,7 @@ def bait_markers(bait_path: str, *, run_token: str) -> tuple[str, ...]:
         raise ValueError(
             f"bait_path {bait_path!r} must embed run_token {token!r} for correlation"
         )
-    return (E2E_AUTODOC_BAIT_MARKER, bait_path, basename)
+    return (bait_path, basename)
 
 
 def _load_json(path: Path) -> Any:
@@ -237,6 +238,11 @@ def remote_bait_matches(repo: str, *, branch: str, path: str, content: str) -> b
         return False
     encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
     return remote_b64 == encoded
+
+
+def remote_bait_absent(repo: str, *, branch: str, path: str) -> bool:
+    """True when Contents GET reports the path absent (404) on ``branch``."""
+    return _remote_file_content_b64(repo, branch=branch, path=path) is None
 
 
 def seed_bait_on_default_branch(
@@ -450,11 +456,9 @@ def dispatch_schedule_trigger(repo: str, workflow_file: str) -> None:
 
 
 def _issue_body_matches_bait(body: str, bait_path: str, *, run_token: str) -> bool:
-    """Require static bait marker and a per-run path form in the issue body."""
+    """Require a per-run bait path form (full path or basename) in the issue body."""
     text = body or ""
-    static_marker, full_path, basename = bait_markers(bait_path, run_token=run_token)
-    if static_marker not in text:
-        return False
+    full_path, basename = bait_markers(bait_path, run_token=run_token)
     return full_path in text or basename in text
 
 
@@ -707,7 +711,12 @@ def run_live_case(
             },
             "audit_issue": None,
             "fix_pr": None,
-            "cleanup": {"completed": False, "bait_path": bait_path},
+            "cleanup": {
+                "completed": False,
+                "bait_path": bait_path,
+                "bait_removed": False,
+                "bait_absent": False,
+            },
             "bait": {
                 "path": bait_path,
                 "commit_sha": bait_sha,
@@ -719,13 +728,28 @@ def run_live_case(
         write_outcome(outcome_path, outcome)
         return outcome
 
+    bait_removed = False
+    bait_absent = False
+
+    def _cleanup_payload(*, closed_prs: list[int]) -> dict[str, Any]:
+        return {
+            "completed": cleaned,
+            "bait_path": bait_path,
+            "bait_removed": bait_removed,
+            "bait_absent": bait_absent,
+            "closed_prs": closed_prs,
+        }
+
     def _perform_cleanup(*, wait_for_fix_before_close: bool) -> list[int]:
-        """Close linked PRs/issue and remove matching bait when cleanup_after."""
-        nonlocal cleaned
+        """Close linked PRs/issue and remove matching bait when cleanup_after.
+
+        Soft-skip delete (content mismatch) must not set ``cleaned`` while the
+        bait path remains. Completion requires bait absence when seeding.
+        """
+        nonlocal cleaned, bait_removed, bait_absent
         if cleaned or not trigger.get("cleanup_after"):
             return []
         closed: list[int] = []
-        bait_removed = False
         if issue is not None:
             issue_number = int(issue["number"])
             # Audit-only success: give the caller fix job a short window to open
@@ -743,30 +767,33 @@ def run_live_case(
                 issue_number,
                 comment="Closed by obs:autodoc E2E harness cleanup.",
             )
-        if (
-            trigger.get("seed_doc_drift_bait")
-            and branch
-            and (
-                bait_created
-                or remote_bait_matches(
-                    repo, branch=branch, path=bait_path, content=bait_text
+        if trigger.get("seed_doc_drift_bait") and branch:
+            if bait_created or remote_bait_matches(
+                repo, branch=branch, path=bait_path, content=bait_text
+            ):
+                delete_branch_file(
+                    repo,
+                    branch=branch,
+                    path=bait_path,
+                    message=(
+                        "chore(e2e): remove autodoc intentional undocumented bait"
+                    ),
                 )
-            )
-        ):
-            delete_branch_file(
-                repo,
-                branch=branch,
-                path=bait_path,
-                message=("chore(e2e): remove autodoc intentional undocumented bait"),
-            )
-            bait_removed = True
+                bait_removed = True
+            bait_absent = remote_bait_absent(repo, branch=branch, path=bait_path)
+            if not bait_absent:
+                raise RuntimeError(
+                    f"Cleanup left bait present on {branch} at {bait_path!r}"
+                )
+        else:
+            bait_absent = True
         cleaned = True
         cleaned_issue_number: int | None = (
             int(issue["number"]) if issue is not None else None
         )
         estc.log_info(
             f"Cleanup done (issue={cleaned_issue_number}, prs={closed}, "
-            f"bait_removed={bait_removed})"
+            f"bait_removed={bait_removed}, bait_absent={bait_absent})"
         )
         return closed
 
@@ -966,7 +993,46 @@ def run_live_case(
                 if titled:
                     fix_pr = titled[0]
 
-        closed_prs = _perform_cleanup(wait_for_fix_before_close=True)
+        try:
+            closed_prs = _perform_cleanup(wait_for_fix_before_close=True)
+        except Exception as cleanup_exc:  # noqa: BLE001 — keep audit/PR evidence
+            result = _blocked(
+                str(cleanup_exc),
+                path_gates={"dashboard_enabled": dashboard_ok},
+                schedule_trigger={
+                    "run_seen": True,
+                    "job_executed": schedule_audit_job_executed(completed_run),
+                    "job_conclusion": job_conclusion,
+                    "url": completed_run.get("url"),
+                    "database_id": completed_run.get("databaseId"),
+                },
+                agent_invoked=agent_ok,
+                fix_agent_invoked=fix_agent_invoked(completed_run),
+                fix_trigger={
+                    "job_executed": schedule_fix_job_executed(completed_run),
+                    "job_conclusion": autodoc_fix_job_conclusion(completed_run),
+                },
+                audit_issue=(
+                    {
+                        "number": issue.get("number"),
+                        "title": issue.get("title"),
+                        "url": issue.get("url"),
+                    }
+                    if issue is not None
+                    else None
+                ),
+                fix_pr=(
+                    {
+                        "number": fix_pr.get("number"),
+                        "title": fix_pr.get("title"),
+                        "url": fix_pr.get("url"),
+                    }
+                    if fix_pr is not None
+                    else None
+                ),
+                cleanup=_cleanup_payload(closed_prs=[]),
+            )
+            return result
 
         outcome = {
             "workflow_id": WORKFLOW_ID,
@@ -1007,11 +1073,7 @@ def run_live_case(
                 if fix_pr is not None
                 else None
             ),
-            "cleanup": {
-                "completed": cleaned,
-                "bait_path": bait_path,
-                "closed_prs": closed_prs,
-            },
+            "cleanup": _cleanup_payload(closed_prs=closed_prs),
             "bait": {
                 "path": bait_path,
                 "commit_sha": bait_sha,
@@ -1033,14 +1095,18 @@ def run_live_case(
             try:
                 closed = _perform_cleanup(wait_for_fix_before_close=False)
                 if result is not None:
-                    result["cleanup"] = {
-                        "completed": cleaned,
-                        "bait_path": bait_path,
-                        "closed_prs": closed,
-                    }
+                    result["cleanup"] = _cleanup_payload(closed_prs=closed)
                     write_outcome(outcome_path, result)
             except Exception as cleanup_exc:  # noqa: BLE001
                 estc.log_error(f"cleanup failed: {cleanup_exc}")
+                if result is not None and not result.get("blocked"):
+                    result["blocked"] = True
+                    result["block_reason"] = f"cleanup failed: {cleanup_exc}"
+                    result["cleanup"] = _cleanup_payload(closed_prs=[])
+                    write_outcome(outcome_path, result)
+                elif result is not None:
+                    result["cleanup"] = _cleanup_payload(closed_prs=[])
+                    write_outcome(outcome_path, result)
 
 
 def main(argv: list[str] | None = None) -> int:

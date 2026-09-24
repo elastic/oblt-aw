@@ -114,7 +114,7 @@ Your task is to implement the documentation improvements described in the issue.
 
 - Title: `docs: Documentation analysis and improvement`
 - Body must include:
-  - `Closes #<issue-number>` at the top to link and auto-close the audit issue on merge
+  - A plain reference to the target issue near the top (for example `Related issue: #<issue-number>` or `elastic/<repo>#<issue-number>`). Safe-output **neutralizes** closing keywords such as `Closes #…` / `Fixes #…`, so do **not** rely on those for auto-close; humans can close the audit issue after review.
   - Summary of files analyzed
   - List of issues found (with file paths and concise descriptions)
   - List of changes made (with rationale for each change)
@@ -171,7 +171,7 @@ When `.oblt-aw.autodocignore` exists at the repository root, treat its patterns 
 2. Investigate the relevant documentation paths and implement a focused docs-only fix for the issue.
 3. Run required repo checks (lint/build/test) relevant to your change when applicable. If required commands cannot run, explain why and do not open a PR.
 4. Call `ready_to_make_pr` and apply its checklist.
-5. Call `create_pull_request` with the required title/body that references and closes issue #${{ inputs.target-issue-number }}.
+5. Call `create_pull_request` with the required title/body that references issue #${{ inputs.target-issue-number }} (plain link — not a neutralized `Closes`/`Fixes` keyword).
 6. If implementation is blocked or unclear, call `add_comment` on the issue with a concise status update and concrete next step.
 
 ${{ inputs.additional-instructions }}
