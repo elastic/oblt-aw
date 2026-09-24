@@ -73,8 +73,12 @@ rest_pr_author_login = automerge.rest_pr_author_login
 author_login_from_rest_pull = automerge.author_login_from_rest_pull
 dashboard_enables_all = automerge.dashboard_enables_all
 wait_for_pr_route_run = automerge.wait_for_pr_route_run
+DEPENDENCY_REVIEW_CONCLUSION_LEAF_SUFFIX = (
+    automerge.DEPENDENCY_REVIEW_CONCLUSION_LEAF_SUFFIX
+)
 dependency_review_job_conclusion = automerge.dependency_review_job_conclusion
 dependency_review_job_executed = automerge.dependency_review_job_executed
+dependency_review_matched_job_name = automerge.dependency_review_matched_job_name
 wait_for_label = automerge.wait_for_label
 find_comment_with_marker = automerge.find_comment_with_marker
 list_pr_trigger_runs = automerge.list_pr_trigger_runs
@@ -583,6 +587,24 @@ def run_live_case(
             "trigger": trigger,
             "run_url": run_url,
         }
+    if not wait_dependency_review:
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": (
+                "Live E2E requires trigger.wait_dependency_review so the harness "
+                "waits for the named dependency-review leaf before side-effect "
+                "checks (reject before any remote mutation)."
+            ),
+            "path_gates": {"dashboard_enabled": False},
+            "expectations": expectations,
+            "trigger": trigger,
+            "run_url": run_url,
+        }
 
     try:
         dashboard_ok, missing = dashboard_enables_all(repo, dash_ids)
@@ -736,6 +758,7 @@ def run_live_case(
                 "run_seen": dr_run is not None,
                 "job_executed": dependency_review_job_executed(dr_run),
                 "job_conclusion": dependency_review_job_conclusion(dr_run),
+                "matched_job_name": dependency_review_matched_job_name(dr_run),
                 "run_id": (dr_run or {}).get("databaseId"),
                 "url": (dr_run or {}).get("url"),
             },

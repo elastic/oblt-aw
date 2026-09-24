@@ -97,6 +97,54 @@ def test_process_lock_file_wires_create_token_step(tmp_path: Path) -> None:
     assert "id-token: write" not in detection_block
 
 
+def test_wire_token_expressions_rewrites_mcp_fallback_chain() -> None:
+    """Longer MCP fallback must rewrite without leaving GH_AW_GITHUB_TOKEN alone."""
+    lock = """on:
+  issues:
+    types: [labeled]
+jobs:
+  safe_outputs:
+    permissions:
+      issues: write
+    steps:
+      - id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+      - name: MCP
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+"""
+    updated = wire.wire_token_expressions(lock)
+    assert (
+        "steps.create-token.outputs.token || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN"
+        in updated
+    )
+    # Idempotent on both short and long variants.
+    assert wire.wire_token_expressions(updated) == updated
+
+
+def test_wire_token_expressions_rewrites_short_github_token_only() -> None:
+    lock = """on:
+  issues:
+    types: [labeled]
+jobs:
+  safe_outputs:
+    permissions:
+      issues: write
+    steps:
+      - id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+      - name: Process
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+"""
+    updated = wire.wire_token_expressions(lock)
+    assert (
+        "github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN }}"
+        in updated
+    )
+    assert wire.wire_token_expressions(updated) == updated
+
+
 def test_process_lock_file_skips_without_create_token(tmp_path: Path) -> None:
     lock = tmp_path / "gh-aw-other.lock.yml"
     lock.write_text("jobs:\n  run:\n    steps: []\n", encoding="utf-8")
