@@ -96,6 +96,11 @@
       "ai-assets-token-policy": ""
     },
     {
+      "repository": "elastic/obs-execution",
+      "workflow-token-policy": "token-policy-5a23e553e209",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/observability-catalog",
       "workflow-token-policy": "token-policy-b9e1a2856692",
       "ai-assets-token-policy": ""
