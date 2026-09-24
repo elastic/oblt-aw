@@ -44,7 +44,7 @@ Technical registration detail for maintainers and agents: [Registering resources
 ## Troubleshooting
 
 - **No agent comment / no PRs** — Confirm you have **write** on `elastic/oblt-aw` and the issue has `oblt-aw/onboard/repository` (without write, GitHub drops the form label). Check the Actions run for `gh-aw-onboard-repository`. Cross-repo PR creation needs the agent TokenPolicy / minted token (see [gh-aw-onboard-repository](../../workflows/gh-aw-onboard-repository.md)).
-- **Retry after a partial run** — Remove and re-apply the `oblt-aw/onboard/repository` label. If open PRs with title prefix `[oblt-aw][onboard]` for that repository already exist, the agent comments with those links and does not open duplicates.
+- **Retry after a partial run** — Remove and re-apply the `oblt-aw/onboard/repository` label. The agent does not open duplicates for concerns that already have an open `[oblt-aw][onboard]` PR; it gap-fills missing concerns (for example a secrets PR that was skipped incorrectly) and comments with exact PR URLs when the inventory is complete.
 - **Registration merged too early** — If `oblt-aw` registration landed before catalog TokenPolicy was active, follow [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting).
 - **No install PR or dashboard** — Confirm the repository appears in `config/<org-key>/active-repositories.json` on `main`, then see [distribute-client-workflow](../../operations/distribute-client-workflow.md) and [sync-control-plane-dashboard](../../workflows/sync-control-plane-dashboard.md).
 

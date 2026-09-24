@@ -26,14 +26,14 @@ Triggers:
 
 - `issues` `labeled` when the label is `oblt-aw/onboard/repository` (issue forms apply the label after create and emit this event)
 
-There is **no** `workflow_dispatch` path: the agent requires the triggering issue for input parsing and `add-comment`. Retry by re-applying the onboard label (idempotent when open `[oblt-aw][onboard]` PRs already exist).
+There is **no** `workflow_dispatch` path: the agent requires the triggering issue for input parsing and `add-comment`. Retry by re-applying the onboard label (gap-fills missing inventory concerns; does not duplicate open `[oblt-aw][onboard]` PRs).
 
 Behavior:
 
 1. Parse **repository** (`elastic/<repo>`) and **org key** (`obs` / `docs`) from the issue.
 2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps, appendix).
-3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; if found, comment **exact PR URLs** and stop.
-4. Otherwise open up to four **normal (non-draft)** PRs (separate concerns); do not merge them. Discover secrets from each org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines; then resolve shared modules in the secrets checkout.
+3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones (especially secrets after full registry-doc discovery). Stop with **exact PR URLs** only when the inventory is complete.
+4. Open up to four **normal (non-draft)** PRs (separate concerns); do not merge them. Discover secrets from **every** org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines — do **not** filter by `default_enabled`; then resolve shared modules in the secrets checkout.
 5. Comment a checklist with exact PR links (safe-output `temporary_id` / `#aw_…` rewrite) and merge order on the issue.
 
 User-facing steps: [Onboard a repository](../guides/user/onboard-a-repository.md).
