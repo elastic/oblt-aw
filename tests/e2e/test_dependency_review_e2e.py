@@ -37,6 +37,7 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
         "layer": "e2e",
         "mode": "live",
         "agent_invoked": True,
+        "pr_author": oracle.CANONICAL_ALLOWED_PR_AUTHOR,
         "path_gates": {
             "dashboard_enabled": True,
             "author_matches_allowed": True,
@@ -316,13 +317,29 @@ def test_oracle_fails_when_comment_missing() -> None:
     )
 
 
-def test_oracle_fails_closed_on_non_bool_author_gate() -> None:
+def test_oracle_rejects_author_matches_allowed_without_canonical_pr_author() -> None:
+    """Boolean alone must not green author_allowed when pr_author is wrong/missing."""
     report = _evaluate(
         _synthetic_live_outcome(
+            pr_author="unauthorized-bot[bot]",
             path_gates={
                 "dashboard_enabled": True,
-                "author_matches_allowed": "yes",
-            }
+                "author_matches_allowed": True,
+            },
+        )
+    )
+    assert report["pass"] is False
+    assert any(c["id"] == "author_allowed" and not c["pass"] for c in report["checks"])
+
+
+def test_oracle_rejects_missing_pr_author_even_when_author_gate_true() -> None:
+    report = _evaluate(
+        _synthetic_live_outcome(
+            pr_author="",
+            path_gates={
+                "dashboard_enabled": True,
+                "author_matches_allowed": True,
+            },
         )
     )
     assert report["pass"] is False
@@ -331,6 +348,7 @@ def test_oracle_fails_closed_on_non_bool_author_gate() -> None:
 
 def test_config_allowed_author_is_vault_bot() -> None:
     assert harness.ALLOWED_AUTHOR == "elastic-vault-github-plugin-prod[bot]"
+    assert oracle.CANONICAL_ALLOWED_PR_AUTHOR == harness.ALLOWED_AUTHOR
     cfg = json.loads(
         (ROOT / "config" / "obs" / "e2e-dependency-review.json").read_text(
             encoding="utf-8"

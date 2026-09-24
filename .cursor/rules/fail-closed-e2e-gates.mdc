@@ -59,7 +59,7 @@ Check each of these explicitly (add a regression when any is open):
 | Fixture branch-prefix / event-guard lockstep | Does harness validation use a **looser** prefix than the workflow `startsWith` / label skip (e.g. `rstrip("/")` so `e2e/foo-malicious/` passes the harness but misses the automerge skip)? Require the **same** canonical prefix string the workflow guard uses (including the trailing `/`). |
 | Ephemeral fixture create rollback | If branch or PR creation fails mid-function, does `finally` still see identifiers to close/delete? Track `branch` / `pr_number` **incrementally** and roll back on raise — do not assign `pr_info` only after a full success return. |
 | Cleanup must fail the run | Does a failed fixture close/delete only log while the outcome stays `blocked=false` / oracle `pass=true`? Cleanup errors must set `blocked` + `block_reason` (and/or an oracle check on `fixture.cleanup_error` / `cleaned_up`). |
-| Oracle identity fields | Does the oracle assert only a boolean (`applied`, `job_executed`) while accepting a wrong `name` / job identity in the same object? When the expectation is true, also assert the **canonical** label name (or leaf job identity) — not only the flag. |
+| Oracle identity fields | Does the oracle assert only a boolean (`applied`, `author_matches_allowed`, `job_executed`) while accepting a wrong `name` / `pr_author` / job identity in the same object? When the expectation is true, also assert the **canonical** label name, allowed PR author login, or leaf job identity — not only the flag. |
 | “Hardcoded” reusable inputs | Does docs/comments say callers must not override an input while `workflow_call.inputs` still exposes it (defaults are not enforcement)? Prefer a hardcoded fragment/env, remove the public input, or fail closed when the value ≠ the owned allowlist. |
 
 If Copilot (or a human) files a follow-up on the same PR after a “fix,” treat that as incomplete first-pass evidence: extend the chain in the same change set; do not argue the first patch was enough.
@@ -91,7 +91,7 @@ If Copilot (or a human) files a follow-up on the same PR after a “fix,” trea
 - Validating fixture `branch_prefix` with `startswith(prefix.rstrip("/"))` (or any prefix weaker than the workflow `startsWith` guard)
 - Creating ephemeral branches/PRs inside a helper that only returns identifiers on full success, so `finally` cannot clean up partial creates
 - Logging fixture cleanup failures while leaving `blocked=false` / oracle green
-- Oracle checks that green on `applied: true` (or similar) regardless of `name` / identity mismatches
+- Oracle checks that green on `applied: true` / `author_matches_allowed: true` (or similar) regardless of `name` / `pr_author` / identity mismatches
 - Declaring a “fixed” allowlist as a public `workflow_call` input with a default and documenting “do not override” instead of hardcoding
 
 ### New live harness / owned-lock design checklist (before first review)

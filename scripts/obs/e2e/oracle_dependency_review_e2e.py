@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 WORKFLOW_ID = "obs:dependency-review"
+CANONICAL_ALLOWED_PR_AUTHOR = "elastic-vault-github-plugin-prod[bot]"
 CANONICAL_MERGE_READY_LABEL = "oblt-aw/ai/merge-ready"
 
 _LIVE_REQUIRED_EXPECTATION_KEYS = (
@@ -290,16 +291,16 @@ def _evaluate_live(
             _check(checks, "dashboard_enabled", False, str(exc))
 
         if _trigger_bool(trigger, "require_allowed_pr_author", default=True):
-            try:
-                author_ok = _as_bool(path_gates.get("author_matches_allowed"))
-                _check(
-                    checks,
-                    "author_allowed",
-                    author_ok,
-                    f"author_matches_allowed={author_ok}",
-                )
-            except TypeError as exc:
-                _check(checks, "author_allowed", False, str(exc))
+            # Fail closed: do not trust path_gates.author_matches_allowed alone;
+            # assert the reported login against the canonical Vault bot identity.
+            pr_author = str(outcome.get("pr_author") or "")
+            identity_ok = pr_author == CANONICAL_ALLOWED_PR_AUTHOR
+            _check(
+                checks,
+                "author_allowed",
+                identity_ok,
+                f"pr_author={pr_author!r} canonical={CANONICAL_ALLOWED_PR_AUTHOR!r}",
+            )
 
         try:
             expected = _as_bool(expectations["dependency_review_job_executed"])
