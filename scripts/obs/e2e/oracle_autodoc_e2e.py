@@ -30,7 +30,16 @@ from pathlib import Path
 from typing import Any
 
 WORKFLOW_ID = "obs:autodoc"
-CANONICAL_SCHEDULE_AUDIT_JOB_NAME = "autodoc / audit / agent"
+# Leaf suffix only — GitHub nests caller prefixes (e.g. run-obs-aw-schedule / …).
+CANONICAL_SCHEDULE_AUDIT_JOB_LEAF = "autodoc / audit / agent"
+
+
+def schedule_audit_job_name_matches(job_name: str | None) -> bool:
+    """True when ``job_name`` is the canonical audit agent leaf (nested OK)."""
+    lowered = str(job_name or "").strip().lower()
+    leaf = CANONICAL_SCHEDULE_AUDIT_JOB_LEAF
+    return lowered == leaf or lowered.endswith(f" / {leaf}")
+
 
 _LIVE_AUDIT_EXPECTATION_KEYS = (
     "dashboard_enabled",
@@ -298,11 +307,10 @@ def evaluate_outcome(
                 job_conclusion == "success",
                 f"job_conclusion={job_conclusion!r}",
             )
-            job_name = str(schedule.get("job_name") or "").strip().lower()
             _check(
                 checks,
                 "schedule_job_name",
-                job_name == CANONICAL_SCHEDULE_AUDIT_JOB_NAME,
+                schedule_audit_job_name_matches(str(schedule.get("job_name") or "")),
                 f"job_name={schedule.get('job_name')!r}",
             )
     except TypeError as exc:

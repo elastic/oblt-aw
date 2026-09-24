@@ -250,6 +250,29 @@ class TestOracleHappyPath:
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "schedule_job_name" in failed_ids
 
+    def test_nested_schedule_leaf_name_matches_canonical_suffix(self) -> None:
+        """Caller-prefixed nested names must pass (exact leaf equality false-fails)."""
+        report = _evaluate(
+            _synthetic_live_outcome(
+                schedule_trigger={
+                    "run_seen": True,
+                    "job_executed": True,
+                    "job_conclusion": "success",
+                    "job_name": ("run-obs-aw-schedule / autodoc / audit / agent"),
+                    "url": "https://example.test/schedule",
+                }
+            )
+        )
+        assert report["pass"] is True
+        assert oracle.schedule_audit_job_name_matches(
+            "run-obs-aw-schedule / autodoc / audit / agent"
+        )
+        assert oracle.schedule_audit_job_name_matches("autodoc / audit / agent")
+        assert not oracle.schedule_audit_job_name_matches(
+            "run-obs-aw-schedule / autodoc / audit / verify / agent"
+        )
+        assert not oracle.schedule_audit_job_name_matches("")
+
     def test_unexpected_fix_pr_fails_when_expect_absent(self) -> None:
         case = _fix_case()
         expectations = dict(case["expectations"])
