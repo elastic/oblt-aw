@@ -425,7 +425,7 @@ def wait_for_schedule_audit_run(
     interval_seconds: int,
     exclude_run_ids: set[int] | None = None,
 ) -> dict[str, Any] | None:
-    """Wait for a completed schedule-trigger run with a successful autodoc audit agent."""
+    """Wait for a completed schedule-trigger run with an executed audit leaf."""
     excluded = set(exclude_run_ids or ())
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
@@ -454,9 +454,9 @@ def wait_for_schedule_audit_run(
                 if detail.get("status") != "completed":
                     time.sleep(interval_seconds)
                     continue
-                if audit_agent_succeeded(detail):
+                if schedule_audit_job_executed(detail):
                     return cast(dict[str, Any], detail)
-                # Completed without audit agent success — keep polling others.
+                # Completed without an executed audit leaf — keep polling others.
                 excluded.add(run_id)
                 break
         time.sleep(interval_seconds)

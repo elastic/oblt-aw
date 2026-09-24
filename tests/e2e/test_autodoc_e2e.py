@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -535,6 +536,38 @@ class TestJobNameMatching:
             harness.schedule_audit_job_name(detail)
             == "autodoc / audit / verify / agent"
         )
+
+    def test_wait_for_schedule_audit_run_returns_failed_audit_leaf(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        run = {
+            "databaseId": 123,
+            "createdAt": "2026-09-24T09:00:00Z",
+            "event": "schedule",
+        }
+        detail = {
+            "databaseId": 123,
+            "status": "completed",
+            "url": "https://example.test/runs/123",
+            "jobs": [
+                {
+                    "name": "autodoc / audit / agent",
+                    "conclusion": "failure",
+                }
+            ],
+        }
+        monkeypatch.setattr(
+            harness, "list_schedule_trigger_runs", lambda *args, **kwargs: [run]
+        )
+        monkeypatch.setattr(harness.estc, "gh_json", lambda *args, **kwargs: detail)
+        result = harness.wait_for_schedule_audit_run(
+            "elastic/oblt-aw",
+            "trigger-obs-aw-schedule.yml",
+            since=datetime(2026, 9, 24, 8, 0, tzinfo=timezone.utc),
+            timeout_seconds=1,
+            interval_seconds=0,
+        )
+        assert result == detail
 
 
 class TestIssueAndPrCorrelation:
