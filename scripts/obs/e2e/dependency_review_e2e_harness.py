@@ -738,9 +738,8 @@ def run_live_case(
                     since=since,
                     markers=dr_markers,
                 )
-                if dr_comment:
-                    break
-                time.sleep(interval)
+                if dr_comment is None:
+                    time.sleep(interval)
             if dr_comment is None:
                 raise TimeoutError(
                     f"No dependency-review comment with markers {dr_markers!r} "
