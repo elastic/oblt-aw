@@ -315,6 +315,21 @@ def _is_audit_agent_leaf(name: str) -> bool:
     return "/ agent" in lowered or lowered.endswith(" / agent") or lowered == "agent"
 
 
+def schedule_audit_job_name(run_detail: dict[str, Any] | None) -> str | None:
+    """Return the matched audit leaf job name when present."""
+    if not run_detail:
+        return None
+    for job in run_detail.get("jobs") or []:
+        name = str(job.get("name") or "")
+        if not _is_audit_agent_leaf(name):
+            continue
+        conclusion = (job.get("conclusion") or "").lower()
+        if conclusion in ("", "skipped"):
+            continue
+        return name
+    return None
+
+
 def autodoc_audit_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
     """Return leaf audit job conclusion when present (fail closed on name match).
 
@@ -659,10 +674,6 @@ def run_live_case(
         expectations_raw if isinstance(expectations_raw, dict) else {}
     )
     case_id = str(case.get("id") or "")
-    # Key presence (not truthiness): negative fix cases still select fix mode.
-    want_fix = bool(oracle.live_case_selects_fix(expectations))
-    expect_fix_invoked = bool(expectations.get("fix_agent_invoked"))
-    expect_fix_pr = bool(expectations.get("expect_fix_pr"))
 
     # Per-run identity: unique bait path + content token so concurrent scheduled
     # audits cannot satisfy issue correlation with a static marker/path.
@@ -703,6 +714,7 @@ def run_live_case(
                 "run_seen": False,
                 "job_executed": False,
                 "job_conclusion": None,
+                "job_name": None,
                 "url": None,
             },
             "fix_trigger": {
@@ -728,6 +740,29 @@ def run_live_case(
         write_outcome(outcome_path, outcome)
         return outcome
 
+    schema_err = oracle.case_expectations_schema_error("live", expectations)
+    if schema_err:
+        return _blocked(
+            f"Checked-in case expectations failed schema validation: {schema_err}"
+        )
+    trigger_err = oracle.case_trigger_schema_error(trigger)
+    if trigger_err:
+        return _blocked(
+            f"Checked-in case trigger failed schema validation: {trigger_err}"
+        )
+
+    # Key presence (not truthiness): negative fix cases still select fix mode.
+    want_fix = bool(oracle.live_case_selects_fix(expectations))
+    dashboard_enabled = cast(bool, expectations["dashboard_enabled"])
+    expect_audit_issue = cast(bool, expectations["expect_audit_issue"])
+    dispatch_trigger_enabled = cast(bool, trigger["dispatch_schedule_trigger"])
+    seed_doc_drift_bait = cast(bool, trigger["seed_doc_drift_bait"])
+    cleanup_after = cast(bool, trigger["cleanup_after"])
+    expect_fix_invoked = (
+        cast(bool, expectations["fix_agent_invoked"]) if want_fix else False
+    )
+    expect_fix_pr = cast(bool, expectations["expect_fix_pr"]) if want_fix else False
+
     bait_removed = False
     bait_absent = False
 
@@ -747,7 +782,7 @@ def run_live_case(
         bait path remains. Completion requires bait absence when seeding.
         """
         nonlocal cleaned, bait_removed, bait_absent
-        if cleaned or not trigger.get("cleanup_after"):
+        if cleaned or not cleanup_after:
             return []
         closed: list[int] = []
         if issue is not None:
@@ -767,7 +802,7 @@ def run_live_case(
                 issue_number,
                 comment="Closed by obs:autodoc E2E harness cleanup.",
             )
-        if trigger.get("seed_doc_drift_bait") and branch:
+        if seed_doc_drift_bait and branch:
             if bait_created or remote_bait_matches(
                 repo, branch=branch, path=bait_path, content=bait_text
             ):
@@ -798,9 +833,7 @@ def run_live_case(
         return closed
 
     try:
-        if expectations.get(
-            "dashboard_enabled"
-        ) and not estc.dashboard_enables_workflow(repo, dash_id):
+        if dashboard_enabled and not estc.dashboard_enables_workflow(repo, dash_id):
             result = _blocked(
                 f"Dashboard does not enable {dash_id!r} for {repo}",
                 path_gates={"dashboard_enabled": False},
@@ -809,7 +842,7 @@ def run_live_case(
 
         dashboard_ok = True
         branch = default_branch(repo)
-        if trigger.get("seed_doc_drift_bait"):
+        if seed_doc_drift_bait:
             bait_sha, bait_created = seed_bait_on_default_branch(
                 repo,
                 branch=branch,
@@ -831,7 +864,7 @@ def run_live_case(
             int(run["databaseId"])
             for run in list_schedule_trigger_runs(repo, workflow_file)
         }
-        if trigger.get("dispatch_schedule_trigger"):
+        if dispatch_trigger_enabled:
             dispatch_schedule_trigger(repo, workflow_file)
             estc.log_info(f"Dispatched {workflow_file} on {repo}")
 
@@ -861,7 +894,7 @@ def run_live_case(
         issue_since = estc._parse_gh_time(run_created_raw) if run_created_raw else since
         issue_since = max(issue_since, since)
 
-        if expectations.get("expect_audit_issue"):
+        if expect_audit_issue:
             issue_deadline = min(case_deadline, time.time() + 900)
             while time.time() < issue_deadline:
                 issue = find_audit_issue(
@@ -883,6 +916,7 @@ def run_live_case(
                         "run_seen": True,
                         "job_executed": schedule_audit_job_executed(completed_run),
                         "job_conclusion": job_conclusion,
+                        "job_name": schedule_audit_job_name(completed_run),
                         "url": completed_run.get("url"),
                     },
                     agent_invoked=agent_ok,
@@ -1003,6 +1037,7 @@ def run_live_case(
                     "run_seen": True,
                     "job_executed": schedule_audit_job_executed(completed_run),
                     "job_conclusion": job_conclusion,
+                    "job_name": schedule_audit_job_name(completed_run),
                     "url": completed_run.get("url"),
                     "database_id": completed_run.get("databaseId"),
                 },
@@ -1048,6 +1083,7 @@ def run_live_case(
                 "run_seen": True,
                 "job_executed": schedule_audit_job_executed(completed_run),
                 "job_conclusion": job_conclusion,
+                "job_name": schedule_audit_job_name(completed_run),
                 "url": completed_run.get("url"),
                 "database_id": completed_run.get("databaseId"),
             },
@@ -1091,7 +1127,7 @@ def run_live_case(
     finally:
         # Every post-seed exit (blocked, exception, or missed success cleanup)
         # must remove bait / close issue+PRs when cleanup_after is set.
-        if trigger.get("cleanup_after") and not cleaned:
+        if cleanup_after and not cleaned:
             try:
                 closed = _perform_cleanup(wait_for_fix_before_close=False)
                 if result is not None:

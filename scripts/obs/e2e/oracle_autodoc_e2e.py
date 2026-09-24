@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 WORKFLOW_ID = "obs:autodoc"
+CANONICAL_SCHEDULE_AUDIT_JOB_NAME = "autodoc / audit / agent"
 
 _LIVE_AUDIT_EXPECTATION_KEYS = (
     "dashboard_enabled",
@@ -296,6 +297,13 @@ def evaluate_outcome(
                 "schedule_job_success",
                 job_conclusion == "success",
                 f"job_conclusion={job_conclusion!r}",
+            )
+            job_name = str(schedule.get("job_name") or "").strip().lower()
+            _check(
+                checks,
+                "schedule_job_name",
+                job_name == CANONICAL_SCHEDULE_AUDIT_JOB_NAME,
+                f"job_name={schedule.get('job_name')!r}",
             )
     except TypeError as exc:
         _check(checks, "schedule_job_executed", False, str(exc))

@@ -58,6 +58,7 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
             "run_seen": True,
             "job_executed": True,
             "job_conclusion": "success",
+            "job_name": "autodoc / audit / agent",
             "url": "https://example.test/schedule",
         },
         "fix_trigger": {
@@ -231,6 +232,22 @@ class TestOracleHappyPath:
         assert report["pass"] is False
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "fix_job_success" in failed_ids
+
+    def test_wrong_schedule_leaf_name_fails_even_with_success(self) -> None:
+        report = _evaluate(
+            _synthetic_live_outcome(
+                schedule_trigger={
+                    "run_seen": True,
+                    "job_executed": True,
+                    "job_conclusion": "success",
+                    "job_name": "autodoc / audit / verify / agent",
+                    "url": "https://example.test/schedule",
+                }
+            )
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "schedule_job_name" in failed_ids
 
     def test_unexpected_fix_pr_fails_when_expect_absent(self) -> None:
         case = _fix_case()
@@ -504,6 +521,21 @@ class TestJobNameMatching:
         assert harness.audit_agent_invoked(detail) is True
         assert harness.audit_agent_succeeded(detail) is False
 
+    def test_schedule_audit_job_name_preserves_matched_leaf_identity(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "autodoc / audit / verify / agent",
+                    "conclusion": "success",
+                }
+            ]
+        }
+        assert harness.schedule_audit_job_executed(detail) is True
+        assert (
+            harness.schedule_audit_job_name(detail)
+            == "autodoc / audit / verify / agent"
+        )
+
 
 class TestIssueAndPrCorrelation:
     def test_issue_body_requires_per_run_path(self) -> None:
@@ -755,6 +787,67 @@ class TestHarnessDashboardGate:
         assert report["pass"] is False
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "fix_pr_absent" in failed_ids
+
+    def test_invalid_trigger_blocks_before_remote_mutation(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(ROOT)
+        case = _live_case()
+        case["trigger"] = {**case["trigger"], "seed_doc_drift_bait": "false"}
+        outcome_path = tmp_path / "outcome.json"
+        cfg = harness.load_e2e_config(ROOT / "config" / "obs" / "e2e-autodoc.json")
+        dashboard_called = False
+
+        def _dashboard(*_args: object, **_kwargs: object) -> bool:
+            nonlocal dashboard_called
+            dashboard_called = True
+            return True
+
+        monkeypatch.setattr(harness.estc, "dashboard_enables_workflow", _dashboard)
+        outcome = harness.run_live_case(
+            case=case,
+            cfg=cfg,
+            outcome_path=outcome_path,
+            run_url="https://example.test/run",
+        )
+        assert outcome["blocked"] is True
+        assert (
+            "case trigger failed schema validation"
+            in str(outcome.get("block_reason") or "").lower()
+        )
+        assert dashboard_called is False
+
+    def test_invalid_fix_expectation_blocks_before_remote_mutation(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(ROOT)
+        case = _fix_case()
+        case["expectations"] = {
+            **case["expectations"],
+            "fix_agent_invoked": "false",
+        }
+        outcome_path = tmp_path / "outcome.json"
+        cfg = harness.load_e2e_config(ROOT / "config" / "obs" / "e2e-autodoc.json")
+        dashboard_called = False
+
+        def _dashboard(*_args: object, **_kwargs: object) -> bool:
+            nonlocal dashboard_called
+            dashboard_called = True
+            return True
+
+        monkeypatch.setattr(harness.estc, "dashboard_enables_workflow", _dashboard)
+        outcome = harness.run_live_case(
+            case=case,
+            cfg=cfg,
+            outcome_path=outcome_path,
+            run_url="https://example.test/run",
+        )
+        assert outcome["blocked"] is True
+        assert (
+            "case expectations failed schema validation"
+            in str(outcome.get("block_reason") or "").lower()
+        )
+        assert dashboard_called is False
 
 
 class TestOracleCliSummary:
