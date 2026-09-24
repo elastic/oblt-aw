@@ -11,7 +11,7 @@ Landing home for this primitive (pilot under [#1882](https://github.com/elastic/
 ## Prerequisites
 
 - Triggered via `workflow_call` from the status event orchestrator (`obs-aw-event-status.yml` ← client `trigger-obs-aw-status.yml`).
-- Required secret: `BUILDKITE_API_TOKEN` — a Buildkite API token with read access to build logs for the repository's Buildkite organization. In consumer repositories, map this from `BUILDKITE_LOGS_API_TOKEN`.
+- Required secret: `BUILDKITE_API_TOKEN` — a Buildkite API token with read access to build logs for the repository's Buildkite organization. In consumer repositories, provision **`BUILDKITE_LOGS_API_TOKEN`** (mapped by `trigger-obs-aw-status.yml`).
 
 ## Usage
 

@@ -29,7 +29,7 @@ Technical registration detail for maintainers and agents: [Registering resources
    | 1 | `elastic/catalog-info` | TokenPolicy for client `create-token` |
    | 2 | `elastic/oblt-aw` | Entry in `config/<org-key>/active-repositories.json` |
    | 3 | `elastic/observability-github-settings` | Vault app in classic branch-protection `pull_request_bypassers` |
-   | 4 | `elastic/observability-github-secrets` | Only when required secrets are identified; otherwise the agent notes “none” |
+   | 4 | `elastic/observability-github-secrets` | When org workflow docs’ **Prerequisites** (or **API / Interface**) require consumer secrets; otherwise the agent notes “none” |
 
 5. **Merge manually in order** — Humans merge. Merge the **catalog-info** TokenPolicy PR **before** the **oblt-aw** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed workflows in production. Auto-merge of these PRs is **out of scope** for now.
 

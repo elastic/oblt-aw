@@ -87,6 +87,8 @@ Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull
 |--------|-----------|
 | `BUILDKITE_LOGS_API_TOKEN` → `BUILDKITE_API_TOKEN` | `trigger-obs-aw-status.yml` only |
 
+Consumer-facing names for onboarding come from each workflow doc’s **Prerequisites** (with **API / Interface** as wrapper-contract fallback), not this table. See [Consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery) and [obs-aw-estc-pr-buildkite-detective](obs-aw-estc-pr-buildkite-detective.md).
+
 ## Migration from `trigger-oblt-aw-*` client templates
 
 1. Merge distribution PRs that replace `trigger-oblt-aw-*.yml` with `trigger-obs-aw-*.yml` (same event-scoped set: pull-request, issues, issue-comment, schedule, status).

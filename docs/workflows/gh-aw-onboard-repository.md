@@ -31,10 +31,10 @@ There is **no** `workflow_dispatch` path: the agent requires the triggering issu
 Behavior:
 
 1. Parse **repository** (`elastic/<repo>`) and **org key** (`obs` / `docs`) from the issue.
-2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps, appendix).
-3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; if found, comment links and stop.
-4. Otherwise open up to four **normal (non-draft)** PRs (separate concerns); do not merge them.
-5. Comment a checklist and merge order on the issue.
+2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps, appendix).
+3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; if found, comment **exact PR URLs** and stop.
+4. Otherwise open up to four **normal (non-draft)** PRs (separate concerns); do not merge them. Discover secrets from each org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines; then resolve shared modules in the secrets checkout.
+5. Comment a checklist with exact PR links (safe-output `temporary_id` / `#aw_…` rewrite) and merge order on the issue.
 
 User-facing steps: [Onboard a repository](../guides/user/onboard-a-repository.md).
 
