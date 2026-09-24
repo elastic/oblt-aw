@@ -141,13 +141,32 @@ Before deciding whether to open a secrets PR (do **not** hardcode secret names):
 
 Follow `docs/onboarding/registering-a-repository.md` (**Consumer secrets discovery**) in full.
 
-### Issue comment links
+### Markdown format (comments and PR bodies)
 
-On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_obltaw`, `aw_settings`, `aw_secrets` as needed). In the checklist body, link with the same `#aw_…` ids so safe-outputs rewrite them to exact PR URLs. Never invent title-search URLs.
+Pass **real newlines** in every safe-output text field that GitHub renders as Markdown:
+
+- `add-comment` `body`
+- `create-pull-request` `body` (and titles without embedded `\n`)
+
+Never put the two-character sequence `\` + `n` in those fields; never collapse a multi-line body into one escaped line. Use headings and lists GitHub can render. For links, prefer full `https://github.com/.../pull/<n>` URLs or `#aw_…` ids — not `owner/repo#n` shorthand and not invented `pulls?q=` search links.
+
+### Issue comment
+
+On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_obltaw`, `aw_settings`, `aw_secrets` as needed). Link newly opened PRs with those `#aw_…` ids so safe-outputs rewrite them to exact PR URLs. For already-open PRs, use real `https://github.com/<owner>/<repo>/pull/<n>` URLs from search / `gh pr list`.
+
+**Content to include** in the issue comment (wording and heading text may vary):
+
+- Parsed repository and organization key
+- Checklist of opened or skipped PRs (one entry per inventory concern)
+- Merge order (catalog-info before `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows)
+- That merges are **manual**
+- Pointer to `docs/guides/user/onboard-a-repository.md` for post-merge dashboard enablement
+
+**Pull request bodies** must also follow [Markdown format](#markdown-format-comments-and-pr-bodies). Keep them short (summary of the concern-specific change); do not paste discovery essays or escaped newline sequences.
 
 ## Safe-output constraints
 
 - Open PRs only via `create-pull-request` (`draft: false`). Do not merge. Do not close the onboard issue.
-- Finish with `add-comment` per the Automation contract (checklist with exact PR links, merge order, manual merges, user-guide pointer).
+- Finish with `add-comment` covering the content above, in **valid Markdown** (real newlines; exact PR links).
 - On failure, comment what failed; never invent credentials.
 - Call at least one of: `create-pull-request`, `add-comment`, or `noop`. A text-only exit with zero safe outputs is a failure.
