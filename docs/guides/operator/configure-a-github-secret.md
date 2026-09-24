@@ -24,11 +24,11 @@ See [Use GitHub ephemeral tokens](../maintainer/use-gh-ephemeral-tokens.md) for 
 
 ## When repository secrets are required
 
-1. **Read the workflow doc** — Each `docs/workflows/obs-aw-*.md` (or `docs-aw-*.md`) states declared secrets, if any. Start at [docs/workflows/README.md](../../workflows/README.md).
+1. **Read the workflow doc** — Each `docs/workflows/obs-aw-*.md` (or `docs-aw-*.md`) that needs a long-lived consumer secret states it under **Prerequisites** (consumer-facing name when it differs from the wrapper). **API / Interface** lists the wrapper `Secret:` contract. Start at [docs/workflows/README.md](../../workflows/README.md). Onboarding unions those names from `config/<org-key>/workflow-registry.json` ([Consumer secrets discovery](../../onboarding/registering-a-repository.md#consumer-secrets-discovery)).
 
-2. **Provision through Observability secrets** — Do not rely only on per-repository **Settings → Secrets** unless your process explicitly allows it. Follow [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) for provisioning. Registration step 7: [Registering resources](../../onboarding/registering-a-repository.md).
+2. **Provision through Observability secrets** — Do not rely only on per-repository **Settings → Secrets** unless your process explicitly allows it. Resolve the shared Terraform module in [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets) (`conf/shared` / README Create Secret table), then follow that repo’s process. Registration step 7: [Registering resources](../../onboarding/registering-a-repository.md).
 
-3. **Example: workflow-specific secret** — [obs-aw-estc-pr-buildkite-detective](../../workflows/obs-aw-estc-pr-buildkite-detective.md) documents `BUILDKITE_LOGS_API_TOKEN` (migration note from `BUILDKITE_API_TOKEN`). Always use the name in the workflow doc, not a generic list.
+3. **Example: workflow-specific secret** — [obs-aw-estc-pr-buildkite-detective](../../workflows/obs-aw-estc-pr-buildkite-detective.md) **Prerequisites** requires consumer `BUILDKITE_LOGS_API_TOKEN` (mapped to wrapper `BUILDKITE_API_TOKEN`). Always use the consumer name for provisioning.
 
 ## Ephemeral tokens versus catalog policy
 
