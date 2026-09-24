@@ -39,6 +39,8 @@ Check each of these explicitly (add a regression when any is open):
 | Typo / partial map | Does `{"typo": true}` or a missing required mode key skip `if key in` gates? |
 | Nested thresholds | Does a non-empty parent object accept `min_failed_jobs: 0` or a truncated required-key list? |
 | Schema vs evaluator lockstep | Does the schema accept a value the evaluator never asserts (e.g. live `expect_agent_comment: "true"` string)? |
+| Trigger bool type before mutation | Does the live harness use raw `trigger.get(...)` truthiness so a string `"false"` creates a fixture PR? Require `_trigger_bool` (or equivalent) before any remote mutation; schema/oracle failure is too late. |
+| Trigger contract vs fixture evidence | Does the oracle schema-check `require_open_pr` / `force_*` without asserting those bools **true** and without requiring canonical fixture PR/branch/label/pin evidence? Enforce the contract in `_evaluate_live` and reject substitute outcomes with no fixture identity. |
 | Trigger / routing contract | Do live status state/context/publisher/URL gates still depend on harness-copied `outcome.trigger` instead of checked-in `case.trigger`? |
 | Call-site vs helper | Does a unit test of a helper alone leave a call site free to regress `fallback=`? Prefer a named seam used at the call site. |
 | Test/prod parity | Do unit helpers still default to harness-copied outcome blobs while CLI loads `case.json`? |

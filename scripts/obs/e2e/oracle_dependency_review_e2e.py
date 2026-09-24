@@ -32,6 +32,8 @@ from typing import Any
 
 WORKFLOW_ID = "obs:dependency-review"
 CANONICAL_ALLOWED_PR_AUTHOR = "elastic-vault-github-plugin-prod[bot]"
+CANONICAL_FIXTURE_BRANCH_PREFIX = "e2e/dependency-review/"
+CANONICAL_FIXTURE_LABEL = "e2e:dependency-review"
 CANONICAL_MERGE_READY_LABEL = "oblt-aw/ai/merge-ready"
 
 _LIVE_REQUIRED_EXPECTATION_KEYS = (
@@ -274,8 +276,64 @@ def _evaluate_live(
     dr = outcome.get("dependency_review") or {}
     merge_ready = outcome.get("merge_ready_label") or {}
     dr_comment = outcome.get("dependency_review_comment")
+    raw_fixture = outcome.get("fixture")
+    fixture: dict[str, Any] = raw_fixture if isinstance(raw_fixture, dict) else {}
 
     _check(checks, "layer_e2e", layer == "e2e", f"layer={layer!r}")
+
+    # Fail closed: schema-checking trigger keys is not enough — enforce the
+    # live contract and require canonical fixture evidence before side effects.
+    require_open_pr = False
+    force_actions_pin_bump = False
+    try:
+        require_open_pr = _trigger_bool(trigger, "require_open_pr", default=False)
+        force_actions_pin_bump = _trigger_bool(
+            trigger, "force_actions_pin_bump", default=False
+        )
+        wait_dependency_review = _trigger_bool(
+            trigger, "wait_dependency_review", default=False
+        )
+        trigger_ok = (
+            require_open_pr and force_actions_pin_bump and wait_dependency_review
+        )
+        _check(
+            checks,
+            "case_trigger_enforced",
+            trigger_ok,
+            (
+                f"require_open_pr={require_open_pr} "
+                f"force_actions_pin_bump={force_actions_pin_bump} "
+                f"wait_dependency_review={wait_dependency_review}"
+            ),
+        )
+    except TypeError as exc:
+        _check(checks, "case_trigger_enforced", False, str(exc))
+
+    if require_open_pr and force_actions_pin_bump:
+        pr_number = outcome.get("pr_number")
+        fixture_pr = fixture.get("pr_number")
+        branch = str(fixture.get("branch") or "")
+        label = str(fixture.get("label") or "")
+        bump_sha = str(fixture.get("bump_checkout_sha") or "")
+        bump_version = str(fixture.get("bump_checkout_version") or "")
+        pr_ok = isinstance(pr_number, int) and pr_number > 0 and fixture_pr == pr_number
+        branch_ok = branch.startswith(CANONICAL_FIXTURE_BRANCH_PREFIX)
+        label_ok = label == CANONICAL_FIXTURE_LABEL
+        pin_ok = (
+            len(bump_sha) == 40
+            and all(ch in "0123456789abcdef" for ch in bump_sha)
+            and bump_version.startswith("v")
+        )
+        _check(
+            checks,
+            "fixture_identity",
+            pr_ok and branch_ok and label_ok and pin_ok,
+            (
+                f"pr_number={pr_number!r} fixture_pr={fixture_pr!r} "
+                f"branch={branch!r} label={label!r} "
+                f"bump_sha={bump_sha!r} bump_version={bump_version!r}"
+            ),
+        )
 
     if expectations:
         try:
@@ -334,10 +392,7 @@ def _evaluate_live(
         except TypeError as exc:
             _check(checks, "merge_ready_label_applied", False, str(exc))
 
-        fixture = outcome.get("fixture") or {}
-        if isinstance(fixture, dict) and (
-            outcome.get("pr_number") is not None or fixture.get("pr_number") is not None
-        ):
+        if outcome.get("pr_number") is not None or fixture.get("pr_number") is not None:
             cleanup_error = fixture.get("cleanup_error")
             cleaned_up = fixture.get("cleaned_up") is True
             _check(

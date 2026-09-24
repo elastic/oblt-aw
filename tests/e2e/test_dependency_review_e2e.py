@@ -38,6 +38,18 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
         "mode": "live",
         "agent_invoked": True,
         "pr_author": oracle.CANONICAL_ALLOWED_PR_AUTHOR,
+        "pr_number": 42,
+        "fixture": {
+            "label": harness.FIXTURE_LABEL,
+            "branch_prefix": harness.FIXTURE_BRANCH_PREFIX,
+            "branch": f"{harness.FIXTURE_BRANCH_PREFIX}run-1",
+            "pr_number": 42,
+            "seed_checkout_sha": harness.SEED_CHECKOUT_SHA,
+            "seed_checkout_version": harness.SEED_CHECKOUT_VERSION,
+            "bump_checkout_sha": harness.BUMP_CHECKOUT_SHA,
+            "bump_checkout_version": harness.BUMP_CHECKOUT_VERSION,
+            "cleaned_up": True,
+        },
         "path_gates": {
             "dashboard_enabled": True,
             "author_matches_allowed": True,
@@ -278,9 +290,15 @@ def test_oracle_rejects_wrong_merge_ready_label_name() -> None:
 def test_oracle_rejects_cleanup_error_when_pr_present() -> None:
     report = _evaluate(
         _synthetic_live_outcome(
-            pr_number=42,
             fixture={
+                "label": harness.FIXTURE_LABEL,
+                "branch_prefix": harness.FIXTURE_BRANCH_PREFIX,
+                "branch": f"{harness.FIXTURE_BRANCH_PREFIX}run-1",
                 "pr_number": 42,
+                "seed_checkout_sha": harness.SEED_CHECKOUT_SHA,
+                "seed_checkout_version": harness.SEED_CHECKOUT_VERSION,
+                "bump_checkout_sha": harness.BUMP_CHECKOUT_SHA,
+                "bump_checkout_version": harness.BUMP_CHECKOUT_VERSION,
                 "cleaned_up": False,
                 "cleanup_error": "gh pr close failed",
             },
@@ -290,6 +308,65 @@ def test_oracle_rejects_cleanup_error_when_pr_present() -> None:
     assert any(
         c["id"] == "fixture_cleaned_up" and not c["pass"] for c in report["checks"]
     )
+
+
+def test_oracle_rejects_missing_fixture_identity() -> None:
+    """Live trigger contract requires canonical fixture PR/branch/pin evidence."""
+    report = _evaluate(
+        _synthetic_live_outcome(
+            pr_number=None,
+            fixture={},
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "fixture_identity" and not c["pass"] for c in report["checks"]
+    )
+
+
+def test_oracle_rejects_wrong_fixture_branch_prefix() -> None:
+    report = _evaluate(
+        _synthetic_live_outcome(
+            fixture={
+                "label": harness.FIXTURE_LABEL,
+                "branch": "e2e/dependency-review-malicious/run-1",
+                "pr_number": 42,
+                "bump_checkout_sha": harness.BUMP_CHECKOUT_SHA,
+                "bump_checkout_version": harness.BUMP_CHECKOUT_VERSION,
+                "cleaned_up": True,
+            },
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "fixture_identity" and not c["pass"] for c in report["checks"]
+    )
+
+
+def test_oracle_rejects_force_actions_pin_bump_false() -> None:
+    """Schema-accepted false for force_actions_pin_bump must not green live."""
+    case = _live_case()
+    trigger = dict(case["trigger"])
+    trigger["force_actions_pin_bump"] = False
+    report = _evaluate(_synthetic_live_outcome(), case_trigger=trigger)
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "case_trigger_enforced" and not c["pass"] for c in report["checks"]
+    )
+
+
+def test_trigger_bool_rejects_string_false() -> None:
+    """Malformed string bools must fail closed (not truthy Python strings)."""
+    with pytest.raises(TypeError, match="must be bool|expected bool"):
+        harness._trigger_bool(
+            {"require_open_pr": "false"}, "require_open_pr", default=True
+        )
+    with pytest.raises(TypeError, match="must be bool|expected bool"):
+        oracle._trigger_bool(
+            {"force_actions_pin_bump": "false"},
+            "force_actions_pin_bump",
+            default=False,
+        )
 
 
 def test_normalize_fixture_branch_prefix_rejects_malicious_suffix() -> None:
@@ -349,6 +426,8 @@ def test_oracle_rejects_missing_pr_author_even_when_author_gate_true() -> None:
 def test_config_allowed_author_is_vault_bot() -> None:
     assert harness.ALLOWED_AUTHOR == "elastic-vault-github-plugin-prod[bot]"
     assert oracle.CANONICAL_ALLOWED_PR_AUTHOR == harness.ALLOWED_AUTHOR
+    assert oracle.CANONICAL_FIXTURE_LABEL == harness.FIXTURE_LABEL
+    assert oracle.CANONICAL_FIXTURE_BRANCH_PREFIX == harness.FIXTURE_BRANCH_PREFIX
     cfg = json.loads(
         (ROOT / "config" / "obs" / "e2e-dependency-review.json").read_text(
             encoding="utf-8"

@@ -524,7 +524,32 @@ def run_live_case(
     pr_info: dict[str, Any] | None = None
     outcome: dict[str, Any] | None = None
 
-    if not trigger.get("require_open_pr", True):
+    # Fail closed: validate trigger bool types before any remote mutation.
+    # Raw trigger.get(...) treats strings like "false" as truthy.
+    try:
+        require_open_pr = _trigger_bool(trigger, "require_open_pr", default=True)
+        force_actions_pin_bump = _trigger_bool(
+            trigger, "force_actions_pin_bump", default=True
+        )
+        wait_dependency_review = _trigger_bool(
+            trigger, "wait_dependency_review", default=True
+        )
+    except TypeError as exc:
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": str(exc),
+            "path_gates": {"dashboard_enabled": False},
+            "expectations": expectations,
+            "trigger": trigger,
+            "run_url": run_url,
+        }
+
+    if not require_open_pr:
         return {
             "workflow_id": workflow_id,
             "case_id": case.get("id", case_dir.name),
@@ -538,9 +563,10 @@ def run_live_case(
             ),
             "path_gates": {"dashboard_enabled": False},
             "expectations": expectations,
+            "trigger": trigger,
             "run_url": run_url,
         }
-    if not trigger.get("force_actions_pin_bump", True):
+    if not force_actions_pin_bump:
         return {
             "workflow_id": workflow_id,
             "case_id": case.get("id", case_dir.name),
@@ -554,6 +580,7 @@ def run_live_case(
             ),
             "path_gates": {"dashboard_enabled": False},
             "expectations": expectations,
+            "trigger": trigger,
             "run_url": run_url,
         }
 
@@ -631,7 +658,7 @@ def run_live_case(
 
         head_branch = str(pr_info.get("headRefName") or pr_info.get("branch") or "")
         dr_run: dict[str, Any] | None = None
-        if trigger.get("wait_dependency_review", True):
+        if wait_dependency_review:
             estc.log_info(
                 f"Waiting for dependency-review on {workflow_file} "
                 f"(PR #{pr_info['number']}, branch {head_branch})…"
