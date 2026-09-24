@@ -495,6 +495,17 @@ class TestJobNameMatching:
         assert harness.autodoc_audit_job_conclusion(detail) is None
         assert harness.schedule_fix_job_executed(detail) is True
 
+    def test_non_autodoc_docs_patrol_leaf_is_not_audit(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "docs-route / gh-aw-docs-patrol / agent",
+                    "conclusion": "success",
+                }
+            ]
+        }
+        assert harness.schedule_audit_job_executed(detail) is False
+
     def test_audit_success_is_not_fix(self) -> None:
         detail = {
             "jobs": [
@@ -531,6 +542,18 @@ class TestJobNameMatching:
         assert harness.fix_agent_invoked(detail) is True
         assert harness.fix_agent_succeeded(detail) is False
         assert harness.autodoc_fix_job_conclusion(detail) == "failure"
+
+    def test_non_autodoc_create_pr_leaf_is_not_fix(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "docs-route / gh-aw-create-pr-from-issue / agent",
+                    "conclusion": "success",
+                }
+            ]
+        }
+        assert harness.schedule_fix_job_executed(detail) is False
+        assert harness.autodoc_fix_job_conclusion(detail) is None
 
     def test_failed_audit_leaf_counts_as_executed_not_succeeded(self) -> None:
         detail = {
