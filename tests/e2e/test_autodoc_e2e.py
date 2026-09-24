@@ -572,7 +572,7 @@ class TestJobNameMatching:
         detail = {
             "jobs": [
                 {
-                    "name": "autodoc / audit / verify / agent",
+                    "name": "run-obs-aw-schedule / autodoc / audit / agent",
                     "conclusion": "success",
                 }
             ]
@@ -580,8 +580,32 @@ class TestJobNameMatching:
         assert harness.schedule_audit_job_executed(detail) is True
         assert (
             harness.schedule_audit_job_name(detail)
-            == "autodoc / audit / verify / agent"
+            == "run-obs-aw-schedule / autodoc / audit / agent"
         )
+
+    def test_audit_verify_sibling_is_not_leaf(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "autodoc / audit / verify / agent",
+                    "conclusion": "success",
+                }
+            ]
+        }
+        assert harness.schedule_audit_job_executed(detail) is False
+        assert harness.schedule_audit_job_name(detail) is None
+
+    def test_fix_verify_sibling_is_not_leaf(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "autodoc / fix / verify / agent",
+                    "conclusion": "success",
+                }
+            ]
+        }
+        assert harness.schedule_fix_job_executed(detail) is False
+        assert harness.autodoc_fix_job_conclusion(detail) is None
 
     def test_wait_for_schedule_audit_run_returns_failed_audit_leaf(
         self, monkeypatch: pytest.MonkeyPatch

@@ -301,19 +301,10 @@ def list_schedule_trigger_runs(
 
 
 def _is_audit_agent_leaf(name: str) -> bool:
-    """True only for nested audit agent leaves (not fix / other autodoc siblings)."""
+    """True only for the canonical nested audit leaf (caller prefixes allowed)."""
     lowered = name.lower()
-    has_agent_leaf = (
-        "/ agent" in lowered or lowered.endswith(" / agent") or lowered == "agent"
-    )
-    if "autodoc" not in lowered:
-        return False
-    if "gh-aw-docs-patrol" in lowered:
-        return has_agent_leaf
-    # Nested: … / audit / … / agent (require both audit segment and agent leaf).
-    if "/ audit" not in lowered and not lowered.endswith("audit"):
-        return False
-    return has_agent_leaf
+    leaf = "autodoc / audit / agent"
+    return lowered == leaf or lowered.endswith(f" / {leaf}")
 
 
 def schedule_audit_job_name(run_detail: dict[str, Any] | None) -> str | None:
@@ -370,18 +361,10 @@ def audit_agent_succeeded(run_detail: dict[str, Any] | None) -> bool:
 
 
 def _is_fix_agent_leaf(name: str) -> bool:
-    """True only for nested fix / create-pr agent leaves (not audit)."""
+    """True only for the canonical nested fix leaf (caller prefixes allowed)."""
     lowered = name.lower()
-    has_agent_leaf = (
-        "/ agent" in lowered or lowered.endswith(" / agent") or lowered == "agent"
-    )
-    if "autodoc" not in lowered:
-        return False
-    if "create-pr-from-issue" in lowered or "gh-aw-create-pr-from-issue" in lowered:
-        return has_agent_leaf
-    if "/ fix" not in lowered and not lowered.endswith("fix"):
-        return False
-    return has_agent_leaf
+    leaf = "autodoc / fix / agent"
+    return lowered == leaf or lowered.endswith(f" / {leaf}")
 
 
 def autodoc_fix_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
