@@ -533,6 +533,32 @@ def test_run_live_case_rejects_require_allowed_pr_author_false_before_mutation(
     assert "require_allowed_pr_author" in str(outcome.get("block_reason") or "")
 
 
+def test_run_live_case_rejects_non_positive_poll_interval_before_mutation(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _live_case()
+    case_dir = tmp_path / "case"
+    case_dir.mkdir()
+    (case_dir / "case.json").write_text(json.dumps(case), encoding="utf-8")
+
+    def _boom(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError(
+            "remote mutation must not run when poll interval is invalid"
+        )
+
+    monkeypatch.setattr(harness, "dashboard_enables_all", _boom)
+    monkeypatch.setattr(harness, "create_pin_bump_pr", _boom)
+    cfg = json.loads(
+        (ROOT / "config" / "obs" / "e2e-dependency-review.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    cfg["poll_interval_seconds"] = 0
+    outcome = harness.run_live_case(case_dir, cfg)
+    assert outcome["blocked"] is True
+    assert "poll_interval_seconds" in str(outcome.get("block_reason") or "")
+
+
 def test_oracle_rejects_mismatched_pr_head_branch() -> None:
     """Observed head ref must match fixture.branch under the canonical prefix."""
     report = _evaluate(
