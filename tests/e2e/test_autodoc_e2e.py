@@ -495,6 +495,17 @@ class TestJobNameMatching:
         assert harness.autodoc_audit_job_conclusion(detail) is None
         assert harness.schedule_fix_job_executed(detail) is True
 
+    def test_non_autodoc_docs_patrol_leaf_is_not_audit(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "docs-route / gh-aw-docs-patrol / agent",
+                    "conclusion": "success",
+                }
+            ]
+        }
+        assert harness.schedule_audit_job_executed(detail) is False
+
     def test_audit_success_is_not_fix(self) -> None:
         detail = {
             "jobs": [
@@ -532,6 +543,18 @@ class TestJobNameMatching:
         assert harness.fix_agent_succeeded(detail) is False
         assert harness.autodoc_fix_job_conclusion(detail) == "failure"
 
+    def test_non_autodoc_create_pr_leaf_is_not_fix(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "docs-route / gh-aw-create-pr-from-issue / agent",
+                    "conclusion": "success",
+                }
+            ]
+        }
+        assert harness.schedule_fix_job_executed(detail) is False
+        assert harness.autodoc_fix_job_conclusion(detail) is None
+
     def test_failed_audit_leaf_counts_as_executed_not_succeeded(self) -> None:
         detail = {
             "jobs": [
@@ -549,7 +572,7 @@ class TestJobNameMatching:
         detail = {
             "jobs": [
                 {
-                    "name": "autodoc / audit / verify / agent",
+                    "name": "run-obs-aw-schedule / autodoc / audit / agent",
                     "conclusion": "success",
                 }
             ]
@@ -557,8 +580,32 @@ class TestJobNameMatching:
         assert harness.schedule_audit_job_executed(detail) is True
         assert (
             harness.schedule_audit_job_name(detail)
-            == "autodoc / audit / verify / agent"
+            == "run-obs-aw-schedule / autodoc / audit / agent"
         )
+
+    def test_audit_verify_sibling_is_not_leaf(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "autodoc / audit / verify / agent",
+                    "conclusion": "success",
+                }
+            ]
+        }
+        assert harness.schedule_audit_job_executed(detail) is False
+        assert harness.schedule_audit_job_name(detail) is None
+
+    def test_fix_verify_sibling_is_not_leaf(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "autodoc / fix / verify / agent",
+                    "conclusion": "success",
+                }
+            ]
+        }
+        assert harness.schedule_fix_job_executed(detail) is False
+        assert harness.autodoc_fix_job_conclusion(detail) is None
 
     def test_wait_for_schedule_audit_run_returns_failed_audit_leaf(
         self, monkeypatch: pytest.MonkeyPatch
@@ -904,6 +951,34 @@ class TestHarnessDashboardGate:
             in str(outcome.get("block_reason") or "").lower()
         )
         assert dashboard_called is False
+
+    def test_exception_after_dashboard_pass_preserves_dashboard_gate(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(ROOT)
+        case = _live_case()
+        outcome_path = tmp_path / "outcome.json"
+        cfg = harness.load_e2e_config(ROOT / "config" / "obs" / "e2e-autodoc.json")
+        monkeypatch.setattr(
+            harness.estc,
+            "dashboard_enables_workflow",
+            lambda repo, workflow_id: True,
+        )
+        monkeypatch.setattr(harness, "default_branch", lambda repo: "main")
+
+        def _boom(*_args: object, **_kwargs: object) -> tuple[str, bool]:
+            raise RuntimeError("seed failed")
+
+        monkeypatch.setattr(harness, "seed_bait_on_default_branch", _boom)
+        outcome = harness.run_live_case(
+            case=case,
+            cfg=cfg,
+            outcome_path=outcome_path,
+            run_url="https://example.test/run",
+        )
+        assert outcome["blocked"] is True
+        assert outcome["path_gates"]["dashboard_enabled"] is True
+        assert "seed failed" in str(outcome.get("block_reason") or "")
 
 
 class TestOracleCliSummary:

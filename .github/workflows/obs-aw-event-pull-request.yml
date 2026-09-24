@@ -1,7 +1,10 @@
 name: Observability Agentic Workflow — Pull Request Event
 
 # Event-scoped orchestrator: one shared prelude chain for all pull_request routes.
-# Skip agentic PR routes only for the dedicated same-repo ESTC E2E fixture PR.
+# Skip agentic PR routes for dedicated same-repo E2E fixtures:
+# - ESTC: skip automerge + dependency-review (status-path fixture must not burn credits).
+# - dependency-review: skip automerge only (fixture must still run DR; merge-ready must
+#   not arm automerge:github-actions on the Actions pin-bump PR).
 on:
   workflow_call:
 permissions:
@@ -24,6 +27,11 @@ jobs:
       !(
         contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
         github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      ) &&
+      !(
+        contains(github.event.pull_request.labels.*.name, 'e2e:dependency-review') &&
+        startsWith(github.event.pull_request.head.ref, 'e2e/dependency-review/') &&
         github.event.pull_request.head.repo.full_name == github.repository
       ) &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge.yml'] == 'true' &&
@@ -70,8 +78,4 @@ jobs:
     uses: ./.github/workflows/obs-aw-dependency-review.yml
     with:
       shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-dependency-review.yml'] }}
-      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
-      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
-      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
-      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}

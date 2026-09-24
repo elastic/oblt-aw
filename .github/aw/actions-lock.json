@@ -23,7 +23,7 @@
     "elastic/oblt-actions/github/create-token@v1": {
       "repo": "elastic/oblt-actions/github/create-token",
       "version": "v1",
-      "sha": "d8162ef6546992b5b3354c825ead9b8582d25132"
+      "sha": "645d97cb15a7742c25352c2bd4d1e2ea0590c746"
     },
     "github/gh-aw-actions/setup-cli@v0.88.7": {
       "repo": "github/gh-aw-actions/setup-cli",

@@ -25,6 +25,9 @@ For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), 
 
 When the lock succeeds without a `comment_id`, `notify-no-comment` upserts a single comment on the triggering PR (marker `obs-aw-dependency-review:notify-no-comment`; run URL + retry guidance). See [docs/workflows/obs-aw-dependency-review.md](../workflows/obs-aw-dependency-review.md) for the empty-safe-outputs failure mode.
 
+The agentic lock lives in-repo as `gh-aw-dependency-review` (Observability-owned). Bots and `oblt-aw/ai/merge-ready` semantics are hardcoded on that source; the wrapper only forwards `shared-proceed`, `shared-token-policy`, and resolved consumer instructions.
+
 ## References
 
 - [docs/workflows/obs-aw-dependency-review.md](../workflows/obs-aw-dependency-review.md)
+- Live E2E: [docs/testing/dependency-review-e2e.md](../testing/dependency-review-e2e.md)

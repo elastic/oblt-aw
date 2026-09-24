@@ -301,18 +301,10 @@ def list_schedule_trigger_runs(
 
 
 def _is_audit_agent_leaf(name: str) -> bool:
-    """True only for nested audit agent leaves (not fix / other autodoc siblings)."""
+    """True only for the canonical nested audit leaf (caller prefixes allowed)."""
     lowered = name.lower()
-    if "gh-aw-docs-patrol" in lowered and (
-        "/ agent" in lowered or lowered.endswith(" / agent") or lowered == "agent"
-    ):
-        return True
-    # Nested: … / audit / … / agent (require both audit segment and agent leaf).
-    if "autodoc" not in lowered:
-        return False
-    if "/ audit" not in lowered and not lowered.endswith("audit"):
-        return False
-    return "/ agent" in lowered or lowered.endswith(" / agent") or lowered == "agent"
+    leaf = "autodoc / audit / agent"
+    return lowered == leaf or lowered.endswith(f" / {leaf}")
 
 
 def schedule_audit_job_name(run_detail: dict[str, Any] | None) -> str | None:
@@ -369,17 +361,10 @@ def audit_agent_succeeded(run_detail: dict[str, Any] | None) -> bool:
 
 
 def _is_fix_agent_leaf(name: str) -> bool:
-    """True only for nested fix / create-pr agent leaves (not audit)."""
+    """True only for the canonical nested fix leaf (caller prefixes allowed)."""
     lowered = name.lower()
-    if "create-pr-from-issue" in lowered or "gh-aw-create-pr-from-issue" in lowered:
-        return (
-            "/ agent" in lowered or lowered.endswith(" / agent") or lowered == "agent"
-        )
-    if "autodoc" not in lowered:
-        return False
-    if "/ fix" not in lowered and not lowered.endswith("fix"):
-        return False
-    return "/ agent" in lowered or lowered.endswith(" / agent") or lowered == "agent"
+    leaf = "autodoc / fix / agent"
+    return lowered == leaf or lowered.endswith(f" / {leaf}")
 
 
 def autodoc_fix_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
@@ -832,6 +817,7 @@ def run_live_case(
         )
         return closed
 
+    dashboard_ok = False
     try:
         if dashboard_enabled and not estc.dashboard_enables_workflow(repo, dash_id):
             result = _blocked(
@@ -878,7 +864,7 @@ def run_live_case(
         )
         if run_detail is None:
             result = _blocked(
-                f"Timed out waiting for {workflow_file} autodoc audit agent success",
+                f"Timed out waiting for {workflow_file} autodoc audit leaf execution",
                 path_gates={"dashboard_enabled": dashboard_ok},
             )
             return result
@@ -1125,7 +1111,7 @@ def run_live_case(
         return result
     except Exception as exc:  # noqa: BLE001 — harness must always write outcome
         estc.log_error(str(exc))
-        result = _blocked(str(exc), path_gates={"dashboard_enabled": False})
+        result = _blocked(str(exc), path_gates={"dashboard_enabled": dashboard_ok})
         return result
     finally:
         # Every post-seed exit (blocked, exception, or missed success cleanup)

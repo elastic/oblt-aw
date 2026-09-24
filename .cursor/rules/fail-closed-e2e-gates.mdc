@@ -39,6 +39,11 @@ Check each of these explicitly (add a regression when any is open):
 | Typo / partial map | Does `{"typo": true}` or a missing required mode key skip `if key in` gates? |
 | Nested thresholds | Does a non-empty parent object accept `min_failed_jobs: 0` or a truncated required-key list? |
 | Schema vs evaluator lockstep | Does the schema accept a value the evaluator never asserts (e.g. live `expect_agent_comment: "true"` string)? |
+| Trigger bool type before mutation | Does the live harness use raw `trigger.get(...)` truthiness so a string `"false"` creates a fixture PR? Require `_trigger_bool` (or equivalent) before any remote mutation; schema/oracle failure is too late. |
+| Required live trigger false before mutation | After typing, does any required-true live flag (`force_*`, `require_open_pr`, `wait_*`) still reach dashboard/PR create when set to `false`? Reject **every** required-true flag before remote mutation — not only the ones named in the latest review comment. |
+| Trigger contract vs fixture evidence | Does the oracle schema-check `require_open_pr` / `force_*` / `wait_*` without asserting those bools **true** and without requiring canonical fixture PR/`pr_head_branch`/branch/label/**exact pin SHA+version** evidence? Enforce the contract in `_evaluate_live` and reject substitute outcomes with no fixture identity. |
+| Observed PR head vs fixture branch | Does the oracle trust producer `fixture.branch` while production event guards use `github.event.pull_request.head.ref` / outcome `pr_head_branch`? Require `pr_head_branch` present, under the canonical prefix, and equal to `fixture.branch`. |
+| Canonical pin / fixture targets | Does pin-bump (or similar) evidence check only shape (`40`-hex, `v…`) instead of the checked-in canonical `BUMP_*` / fixture constants? Compare exact values. |
 | Trigger / routing contract | Do live status state/context/publisher/URL gates still depend on harness-copied `outcome.trigger` instead of checked-in `case.trigger`? |
 | Call-site vs helper | Does a unit test of a helper alone leave a call site free to regress `fallback=`? Prefer a named seam used at the call site. |
 | Test/prod parity | Do unit helpers still default to harness-copied outcome blobs while CLI loads `case.json`? |
@@ -53,6 +58,7 @@ Check each of these explicitly (add a regression when any is open):
 | Path-filtered self-trigger | Can fixture-branch sync commits start the privileged live job again? Exclude fixture branch prefix from the job `if`. |
 | Secrets on PR checkout | Is `pull_request_target` avoided? If secrets remain on same-repo `pull_request`, is that an explicit trust boundary (collaborator write + CODEOWNERS), with forks excluded? |
 | Nested reusable job identity | Does substring match on a reusable-call segment (e.g. ` / automerge`) also match sibling jobs (`verify`, `approve`)? Prefer leaf suffixes (` / automerge / automerge`, ` / automerge / approve / conclusion`). |
+| Matched leaf job in outcome | Does `job_executed` / `job_conclusion` green without emitting and asserting the matched leaf job name (or canonical suffix) in the outcome? Producer and oracle must share the same leaf matcher. |
 | Sibling-job OR substitute | Does `merge_job OR approve_job` (waiter or oracle) green a merge-only expectation? Keep approve / merge / review as separate gates. |
 | Default-branch fixture seed | Does live harness overwrite an existing default-branch fixture when content differs? Seed only when missing; no-op or fail closed when present. |
 | Caller vs callee workflow file | Does config retarget `workflow_call`-only orchestrators (e.g. `obs-aw-event-pull-request.yml`) instead of the listable `pull_request` trigger (`trigger-obs-aw-*.yml`)? Nested jobs belong to the **caller** run. |
@@ -60,7 +66,7 @@ Check each of these explicitly (add a regression when any is open):
 | Ephemeral fixture create rollback | If branch or PR creation fails mid-function, does `finally` still see identifiers to close/delete? Track `branch` / `pr_number` **incrementally** and roll back on raise — do not assign `pr_info` only after a full success return. |
 | Cleanup must fail the run | Does a failed fixture close/delete only log while the outcome stays `blocked=false` / oracle `pass=true`? Cleanup errors must set `blocked` + `block_reason` (and/or an oracle check on `fixture.cleanup_error` / `cleaned_up`). |
 | Cleanup success without side-effect | Does `cleanup.completed: true` (or `cleaned_up`) green while the seeded bait/fixture/PR still exists? Soft-skip delete paths (content mismatch, “already handled”) must not set `completed`; after cleanup, verify absence and record it; oracle must assert that evidence (`bait_absent` / fixture gone), not only the producer flag. |
-| Oracle identity fields | Does the oracle assert only a boolean (`applied`, `job_executed`) while accepting a wrong `name` / job identity in the same object? When the expectation is true, also assert the **canonical** label name (or leaf job identity) — not only the flag. |
+| Oracle identity fields | Does the oracle assert only a boolean (`applied`, `author_matches_allowed`, `job_executed`) while accepting a wrong `name` / `pr_author` / job identity in the same object? When the expectation is true, also assert the **canonical** label name, allowed PR author login, or leaf job identity — not only the flag. |
 | “Hardcoded” reusable inputs | Does docs/comments say callers must not override an input while `workflow_call.inputs` still exposes it (defaults are not enforcement)? Prefer a hardcoded fragment/env, remove the public input, or fail closed when the value ≠ the owned allowlist. |
 
 If Copilot (or a human) files a follow-up on the same PR after a “fix,” treat that as incomplete first-pass evidence: extend the chain in the same change set; do not argue the first patch was enough.
@@ -94,7 +100,11 @@ If Copilot (or a human) files a follow-up on the same PR after a “fix,” trea
 - Logging fixture cleanup failures while leaving `blocked=false` / oracle green
 - Setting `cleanup.completed: true` after a soft-skip delete while the bait/fixture path still exists on the branch
 - Oracle checks that green on `cleanup.completed` (or `cleaned_up`) without asserting absence/removal evidence for seeded fixtures
-- Oracle checks that green on `applied: true` (or similar) regardless of `name` / identity mismatches
+- Oracle checks that green on `applied: true` / `author_matches_allowed: true` (or similar) regardless of `name` / `pr_author` / identity mismatches
+- Typing trigger bools but still allowing `wait_*: false` / `force_*: false` / `require_*: false` to create fixture PRs before the oracle fails
+- Oracle `fixture_identity` that trusts producer `fixture.branch` without requiring observed `pr_head_branch` under the same canonical prefix and equal to the fixture branch
+- Pin-bump evidence that accepts any 40-hex SHA / `v…` string instead of the checked-in canonical bump target
+- `job_executed` + `job_conclusion: success` without a matched leaf job name ending in the canonical conclusion suffix
 - Declaring a “fixed” allowlist as a public `workflow_call` input with a default and documenting “do not override” instead of hardcoding
 
 ### New live harness / owned-lock design checklist (before first review)
