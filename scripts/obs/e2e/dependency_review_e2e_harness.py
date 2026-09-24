@@ -535,6 +535,9 @@ def run_live_case(
         force_actions_pin_bump = _trigger_bool(
             trigger, "force_actions_pin_bump", default=True
         )
+        require_allowed_pr_author = _trigger_bool(
+            trigger, "require_allowed_pr_author", default=True
+        )
         wait_dependency_review = _trigger_bool(
             trigger, "wait_dependency_review", default=True
         )
@@ -605,6 +608,24 @@ def run_live_case(
             "trigger": trigger,
             "run_url": run_url,
         }
+    if not require_allowed_pr_author:
+        return {
+            "workflow_id": workflow_id,
+            "case_id": case.get("id", case_dir.name),
+            "layer": "e2e",
+            "mode": "live",
+            "agent_invoked": False,
+            "blocked": True,
+            "block_reason": (
+                "Live E2E requires trigger.require_allowed_pr_author so the "
+                "harness rejects non-Vault fixture PR authors before any "
+                "remote mutation."
+            ),
+            "path_gates": {"dashboard_enabled": False},
+            "expectations": expectations,
+            "trigger": trigger,
+            "run_url": run_url,
+        }
 
     try:
         dashboard_ok, missing = dashboard_enables_all(repo, dash_ids)
@@ -645,14 +666,7 @@ def run_live_case(
             }
         )
         author = str(pr_info.get("author_login") or "")
-        if (
-            _trigger_bool(
-                trigger,
-                "require_allowed_pr_author",
-                default=True,
-            )
-            and author != allowed_author
-        ):
+        if require_allowed_pr_author and author != allowed_author:
             outcome = {
                 "workflow_id": workflow_id,
                 "case_id": case.get("id", case_dir.name),

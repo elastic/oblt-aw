@@ -377,6 +377,29 @@ def test_oracle_rejects_wait_dependency_review_false() -> None:
     )
 
 
+def test_case_trigger_schema_rejects_require_allowed_pr_author_false() -> None:
+    case = _live_case()
+    trigger = dict(case["trigger"])
+    trigger["require_allowed_pr_author"] = False
+    assert (
+        oracle.case_trigger_schema_error(trigger)
+        == "live trigger 'require_allowed_pr_author' must be true"
+    )
+
+
+def test_oracle_rejects_require_allowed_pr_author_false() -> None:
+    case = _live_case()
+    trigger = dict(case["trigger"])
+    trigger["require_allowed_pr_author"] = False
+    report = _evaluate(
+        _synthetic_live_outcome(pr_author="unauthorized-bot[bot]"), case_trigger=trigger
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "case_trigger_enforced" and not c["pass"] for c in report["checks"]
+    )
+
+
 def test_run_live_case_rejects_wait_dependency_review_false_before_mutation(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -401,6 +424,31 @@ def test_run_live_case_rejects_wait_dependency_review_false_before_mutation(
     outcome = harness.run_live_case(case_dir, cfg)
     assert outcome["blocked"] is True
     assert "wait_dependency_review" in str(outcome.get("block_reason") or "")
+
+
+def test_run_live_case_rejects_require_allowed_pr_author_false_before_mutation(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _live_case()
+    case["trigger"] = dict(case["trigger"])
+    case["trigger"]["require_allowed_pr_author"] = False
+    case_dir = tmp_path / "case"
+    case_dir.mkdir()
+    (case_dir / "case.json").write_text(json.dumps(case), encoding="utf-8")
+
+    def _boom(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("remote mutation must not run when author gate is false")
+
+    monkeypatch.setattr(harness, "dashboard_enables_all", _boom)
+    monkeypatch.setattr(harness, "create_pin_bump_pr", _boom)
+    cfg = json.loads(
+        (ROOT / "config" / "obs" / "e2e-dependency-review.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    outcome = harness.run_live_case(case_dir, cfg)
+    assert outcome["blocked"] is True
+    assert "require_allowed_pr_author" in str(outcome.get("block_reason") or "")
 
 
 def test_oracle_rejects_mismatched_pr_head_branch() -> None:

@@ -139,9 +139,11 @@ def case_trigger_schema_error(trigger: dict[str, Any]) -> str | None:
         except TypeError as exc:
             return f"live trigger {key!r} must be bool ({exc})"
     try:
-        _as_bool(trigger["require_allowed_pr_author"])
+        require_allowed_pr_author = _as_bool(trigger["require_allowed_pr_author"])
     except TypeError as exc:
         return f"live trigger 'require_allowed_pr_author' must be bool ({exc})"
+    if not require_allowed_pr_author:
+        return "live trigger 'require_allowed_pr_author' must be true"
     return None
 
 
@@ -290,16 +292,23 @@ def _evaluate_live(
     # live contract and require canonical fixture evidence before side effects.
     require_open_pr = False
     force_actions_pin_bump = False
+    require_allowed_pr_author = False
     try:
         require_open_pr = _trigger_bool(trigger, "require_open_pr", default=False)
         force_actions_pin_bump = _trigger_bool(
             trigger, "force_actions_pin_bump", default=False
         )
+        require_allowed_pr_author = _trigger_bool(
+            trigger, "require_allowed_pr_author", default=False
+        )
         wait_dependency_review = _trigger_bool(
             trigger, "wait_dependency_review", default=False
         )
         trigger_ok = (
-            require_open_pr and force_actions_pin_bump and wait_dependency_review
+            require_open_pr
+            and force_actions_pin_bump
+            and require_allowed_pr_author
+            and wait_dependency_review
         )
         _check(
             checks,
@@ -308,6 +317,7 @@ def _evaluate_live(
             (
                 f"require_open_pr={require_open_pr} "
                 f"force_actions_pin_bump={force_actions_pin_bump} "
+                f"require_allowed_pr_author={require_allowed_pr_author} "
                 f"wait_dependency_review={wait_dependency_review}"
             ),
         )
@@ -360,7 +370,7 @@ def _evaluate_live(
         except TypeError as exc:
             _check(checks, "dashboard_enabled", False, str(exc))
 
-        if _trigger_bool(trigger, "require_allowed_pr_author", default=True):
+        if require_allowed_pr_author:
             # Fail closed: do not trust path_gates.author_matches_allowed alone;
             # assert the reported login against the canonical Vault bot identity.
             pr_author = str(outcome.get("pr_author") or "")
