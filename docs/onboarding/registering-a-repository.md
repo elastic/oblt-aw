@@ -31,23 +31,41 @@ Open **one pull request per concern** (do not combine catalog, registration, set
 | 1 | `elastic/catalog-info` | Backstage TokenPolicy Resource(s) for the consumer’s client `workflow_ref` values (`refs/heads/main` only). Derive `token-policy-<12-char sha256(workflow ref base)>` per step **2**. | **Always** |
 | 2 | `elastic/oblt-aw` | Add `{ "repository": "elastic/<repo>", "workflow-token-policy": "<catalog metadata.name>", "ai-assets-token-policy": "" }` to `config/<org-key>/active-repositories.json`. Keep JSON sorted and styled like neighboring entries. | **Always** |
 | 3 | `elastic/observability-github-settings` | Add [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) to classic BP `pull_request_bypassers` for the default branch under `branch-protections/<repo>/`. **Add** to existing lists; do not remove other bypassers. | **Always** |
-| 4 | `elastic/observability-github-secrets` | Provision secrets only when [docs/workflows/](../workflows/) (and org registry intent) require them for this consumer. | **Only if required**; otherwise skip and record “none” |
+| 4 | `elastic/observability-github-secrets` | Provision consumer secrets discovered from org workflow docs (see [Consumer secrets discovery](#consumer-secrets-discovery)). | **When discovery returns a non-empty set**; otherwise skip and record “none” |
 
 **Merge order (humans):** merge **catalog-info** before the **`elastic/oblt-aw`** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed workflows in production. Auto-merge of these registration PRs is **out of scope**.
 
 **Out of scope for registration PRs:** do not edit `config/<org-key>/workflow-registry.json`, client templates under `.github/remote-workflow-template/`, or Control Plane Dashboard checkbox definitions. Those apply after registration via distribute / sync / human dashboard opt-in.
+
+## Consumer secrets discovery
+
+Do **not** hardcode secret names in this onboarding guide. Required long-lived consumer secrets are declared on each workflow doc — primarily under **Prerequisites**, with **API / Interface** as the wrapper contract fallback.
+
+Discovery procedure (agents and maintainers):
+
+1. Read `config/<org-key>/workflow-registry.json`.
+2. For every entry with a `docs:` path under this repository, **open that markdown file** and collect required consumer repository secret names:
+   - Read **Prerequisites** first. When the doc says consumers provision or map a specific secret name (for example provision `BUILDKITE_LOGS_API_TOKEN`), use that consumer-facing name.
+   - If Prerequisites only names the wrapper secret (or is silent) and **API / Interface** lists a required `Secret:`, use that name.
+   - Union across **all** registry workflows for that org, not only `default_enabled`. Skip missing docs paths or docs with no required secrets.
+3. For each unique secret name, resolve the shared module in the checked-out `repos/observability-github-secrets` tree: search `conf/shared/**/*.tf` for that quoted name, or use the README Create Secret table (`secret=` query). The module path is relative to `conf/shared` (for example `buildkite/logs.tf` for `./cli secret -s`). Fail closed if a name cannot be resolved — do not invent modules.
+4. If the union is empty, skip the secrets PR and record “none”.
+5. If non-empty, open or update `conf/resources/<repo>/` (and `docs/<repo>.md`) so the project depends on each resolved shared module (scaffold with `./cli scaffold` / `./cli secret` when practical; otherwise mirror neighboring manifests). Never invent Vault paths or secret values.
+
+Example: [obs-aw-estc-pr-buildkite-detective](../workflows/obs-aw-estc-pr-buildkite-detective.md) **Prerequisites** requires consumer secret `BUILDKITE_LOGS_API_TOKEN`.
 
 ## Automation contract (`gh-aw-onboard-repository`)
 
 When the in-repo agent [`gh-aw-onboard-repository`](../workflows/gh-aw-onboard-repository.md) runs from an issue labeled `oblt-aw/onboard/repository`, it must follow this page and:
 
 1. **Inputs** — Parse **repository** (`elastic/<repo>`) and **organization key** (existing `config/<org-key>/` directory, today `obs` or `docs`) from the issue. On missing/invalid inputs or an already-registered repository, comment on the issue and stop.
-2. **Retry safety** — Before opening PRs, search for **existing open** pull requests whose titles start with `[oblt-aw][onboard]` and that target the same `elastic/<repo>` (across allowlisted repos). If any match, comment with those links and **stop** — do not open duplicates. Re-applying the onboard label is the supported retry.
+2. **Retry safety** — Before opening PRs, search for **existing open** pull requests whose titles start with `[oblt-aw][onboard]` and that target the same `elastic/<repo>` (across allowlisted repos). If any match, comment with **exact PR URLs** (and merge order) and **stop** — do not open duplicates. Re-applying the onboard label is the supported retry.
 3. **Workspace trees** — Edit checked-out paths: `repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and the workflow repository root for `elastic/oblt-aw`. Match existing file layout and naming in those trees.
 4. **Discover `workflow_ref` values** — Derive client trigger paths from `.github/remote-workflow-template/<org-key>/` (and the org’s [client template](../workflows/obs-aw-client-template.md) / docs equivalents) so TokenPolicy `bound_claims.workflow_ref` lists every installed `trigger-*-aw-*.yml` that calls `create-token`, always with `@refs/heads/main`.
-5. **PR policy** — Open **normal (non-draft)** PRs via safe-output `create-pull-request`, one concern each per the inventory above. **Do not merge** any PR. **Do not close** the onboard issue.
-6. **Issue comment** — Before finishing, comment on the triggering issue with: parsed repository and org-key; checklist of opened or skipped PRs with links; merge order (catalog-info before `elastic/oblt-aw`); that merges are **manual**; pointer to [Onboard a repository](../guides/user/onboard-a-repository.md) for post-merge dashboard enablement.
-7. **Failures** — On permission or token errors, comment what failed; never invent credentials or policies.
+5. **Consumer secrets** — Run [Consumer secrets discovery](#consumer-secrets-discovery) for the parsed org key. Open the secrets PR only when the resolved set is non-empty.
+6. **PR policy** — Open **normal (non-draft)** PRs via safe-output `create-pull-request`, one concern each per the inventory above. Assign a distinct `temporary_id` on each call (for example `aw_catalog`, `aw_obltaw`, `aw_settings`, `aw_secrets`). **Do not merge** any PR. **Do not close** the onboard issue.
+7. **Issue comment** — Before finishing, comment on the triggering issue with: parsed repository and org-key; checklist of opened or skipped PRs; merge order (catalog-info before `elastic/oblt-aw`); that merges are **manual**; pointer to [Onboard a repository](../guides/user/onboard-a-repository.md) for post-merge dashboard enablement. For newly requested PRs, link checklist items with the same `#aw_…` temporary IDs so safe-outputs rewrite them to exact PR URLs. **Do not** invent `pulls?q=` search links. On retry with already-open PRs, use the real URLs from search / `gh pr list`.
+8. **Failures** — On permission or token errors, comment what failed; never invent credentials or policies.
 
 Manual maintainers may still use draft PRs for early review; the agent path does not.
 
@@ -95,7 +113,7 @@ Manual maintainers may still use draft PRs for early review; the agent path does
 
 6. **Verify the Control Plane Dashboard issue** — Confirm **sync-control-plane-dashboard** created or updated the open issue labeled **`oblt-aw/dashboard`** with title **`[oblt-aw] Control Plane Dashboard`** in **`elastic/<repo>`** ([sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md), [control-plane-dashboard](../operations/control-plane-dashboard.md)).
 
-7. **Configure Action secrets through `elastic/observability-github-secrets`** — Do **not** rely only on per-repository **Settings → Secrets** in GitHub unless your process explicitly allows it. Workflow secrets, if any, are listed in [docs/workflows/](../workflows/) in **`elastic/oblt-aw`**. Follow the processes in **[`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets)** to provision any required secrets. If no secrets are required for the org’s intended defaults, **skip** this PR and record “none” (see [inventory](#pull-request-inventory-separate-concerns)).
+7. **Configure Action secrets through `elastic/observability-github-secrets`** — Do **not** rely only on per-repository **Settings → Secrets** in GitHub unless your process explicitly allows it. Discover required consumer secret names via [Consumer secrets discovery](#consumer-secrets-discovery), resolve shared modules in the secrets checkout, and provision through **[`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets)**. If discovery returns none, **skip** this PR and record “none” (see [inventory](#pull-request-inventory-separate-concerns)).
 
 8. **Add the Vault app as a classic branch-protection `pull_request_bypassers` in `elastic/observability-github-settings` (mandatory)** — For every newly registered consumer repository, open a PR in **[`elastic/observability-github-settings`](https://github.com/elastic/observability-github-settings)** so classic branch protection for the default branch lists [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) in `required_pull_request_reviews.pull_request_bypassers`. GitHub Apps cannot be CODEOWNERS; automerge mints an ephemeral Vault-app token and merges as that app when `workflow-token-policy` / `shared-token-policy` is non-empty. Without this bypasser, CODEOWNERS blocks Dependabot/Renovate, Vault-authored, and other bot dependency merges after they receive an author-aware approve (usually `github-actions[bot]`; Vault when the PR author is `github-actions[bot]`). A non-empty `workflow-token-policy` is required for `github-actions[bot]`-authored automerge PRs. Configuration lives under **`branch-protections/<repo>/`** in that repository (for example `branch-protections/<repo>/main.tf`); follow that repo’s contribution and apply process. Typical HCL shape (grounded in existing consumer branch-protection modules; adjust to match the file already used for **`elastic/<repo>`**):
 
