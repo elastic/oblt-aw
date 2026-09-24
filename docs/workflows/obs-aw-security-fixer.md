@@ -35,6 +35,7 @@ Configured instructions require:
 `notify-no-pr` runs when the lock succeeds with an empty `created_pr_number` and comments on the **source** issue with the run URL and retry guidance. The lock call sets `report-failure-as-issue: false` so empty bailouts do not open a separate `[aw] … produced no safe outputs` meta-issue.
 
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
+Its optional `GH_AW_GITHUB_TOKEN` / MCP secret contract is intentionally not consumed via `secrets: inherit` by this wrapper.
 
 Workflow-specific prompt text (including least-privilege and env-indirection) lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from control-plane fragments under `workflows.security.inner-workflows.obs-aw-security-fixer.yml` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Triage does not load those fixer fragments.
 

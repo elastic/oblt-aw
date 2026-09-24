@@ -84,7 +84,6 @@ jobs:
       additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
       # Findings still use create_issue; do not open [aw] failure meta-issues.
       report-failure-as-issue: false
-    secrets: inherit
 
   resolve-apm-assets-fix:
     needs: audit
@@ -151,7 +150,6 @@ jobs:
       additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
       # Keep missing_tool / agent failure signals in the run; do not open meta-issues.
       report-failure-as-issue: false
-    secrets: inherit
 
   # Step 3: Finalize autodoc PR — assign reviewer and apply labels
   finalize-pr:

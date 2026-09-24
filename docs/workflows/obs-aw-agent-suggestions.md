@@ -32,6 +32,10 @@ Permissions:
 - `issues: write`
 - `pull-requests: read`
 
+Secret handling:
+
+- The nested reusable-workflow call intentionally avoids `secrets: inherit`; token use remains through GitHub's automatic token/context flow plus optional explicit upstream secret contracts.
+
 ## API / Interface
 
 `workflow_call` contract:
