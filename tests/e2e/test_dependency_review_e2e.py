@@ -559,6 +559,47 @@ def test_run_live_case_rejects_non_positive_poll_interval_before_mutation(
     assert "poll_interval_seconds" in str(outcome.get("block_reason") or "")
 
 
+def test_run_live_case_reports_author_gate_on_wrong_author(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = _live_case()
+    case_dir = tmp_path / "case"
+    case_dir.mkdir()
+    (case_dir / "case.json").write_text(json.dumps(case), encoding="utf-8")
+
+    monkeypatch.setattr(
+        harness, "dashboard_enables_all", lambda _repo, _ids: (True, [])
+    )
+    monkeypatch.setattr(
+        harness,
+        "list_pr_trigger_runs",
+        lambda _repo, _workflow_file: [],
+    )
+    monkeypatch.setattr(
+        harness,
+        "create_pin_bump_pr",
+        lambda _repo, _cfg, run_id: {
+            "number": 42,
+            "url": "https://example.test/pr/42",
+            "branch": f"{harness.FIXTURE_BRANCH_PREFIX}{run_id}",
+            "author_login": "unauthorized-bot[bot]",
+            "commit_sha": "c" * 40,
+            "headRefName": f"{harness.FIXTURE_BRANCH_PREFIX}{run_id}",
+        },
+    )
+    cfg = json.loads(
+        (ROOT / "config" / "obs" / "e2e-dependency-review.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    outcome = harness.run_live_case(case_dir, cfg)
+
+    assert outcome["blocked"] is True
+    assert outcome["path_gates"]["dashboard_enabled"] is True
+    assert outcome["path_gates"]["author_matches_allowed"] is False
+
+
 def test_oracle_rejects_mismatched_pr_head_branch() -> None:
     """Observed head ref must match fixture.branch under the canonical prefix."""
     report = _evaluate(

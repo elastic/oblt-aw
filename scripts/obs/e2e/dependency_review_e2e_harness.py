@@ -703,7 +703,10 @@ def run_live_case(
                     "the Vault app (pull_request workflows then run without "
                     "maintainer Approve-and-run)."
                 ),
-                "path_gates": {"dashboard_enabled": dashboard_ok},
+                "path_gates": {
+                    "dashboard_enabled": dashboard_ok,
+                    "author_matches_allowed": author == allowed_author,
+                },
                 "fixture": fixture_meta,
                 "pr_number": pr_info["number"],
                 "commit_sha": pr_info.get("commit_sha"),
