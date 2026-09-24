@@ -50,3 +50,14 @@ jobs:
       checks: read
     uses: ./.github/workflows/e2e-estc-pr-buildkite-detective.yml
     secrets: inherit
+
+  e2e-autodoc:
+    name: Autodoc audit
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+      issues: write
+      checks: read
+    uses: ./.github/workflows/e2e-autodoc.yml
+    secrets: inherit
