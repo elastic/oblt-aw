@@ -77,6 +77,36 @@ safe-outputs:
 strict: false
 timeout-minutes: 60
 steps:
+  # REST injection for Actions commit.verification (issue #2097). Runs on the
+  # runner with GITHUB_TOKEN before the agent sandbox; MCP get_commit omits
+  # verification fields. Prefer the local scripts/obs copy (oblt-aw) else fetch
+  # the collector from elastic/oblt-aw@main so consumer checkouts still work.
+  - name: Collect Actions commit verification (REST)
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    run: |
+      set -euo pipefail
+      OUT="${GITHUB_WORKSPACE}/actions-commit-verification.json"
+      SCRIPT=""
+      if [[ -f scripts/obs/collect_actions_commit_verification.py ]]; then
+        SCRIPT="scripts/obs/collect_actions_commit_verification.py"
+      else
+        mkdir -p "${RUNNER_TEMP}/oblt-aw-tools"
+        SCRIPT="${RUNNER_TEMP}/oblt-aw-tools/collect_actions_commit_verification.py"
+        gh api "repos/elastic/oblt-aw/contents/scripts/obs/collect_actions_commit_verification.py?ref=main" \
+          --jq .content | base64 --decode > "${SCRIPT}"
+      fi
+      if [[ -z "${PR_NUMBER}" ]]; then
+        echo "::warning::pull_request.number missing; writing empty Actions verification facts"
+        printf '%s\n' '{"version":1,"source":"github-rest-commit-verification","pins":[]}' > "${OUT}"
+        exit 0
+      fi
+      python3 "${SCRIPT}" \
+        --pull-number "${PR_NUMBER}" \
+        --output "${OUT}"
   - name: Repo-specific setup
     if: ${{ inputs.setup-commands != '' }}
     env:
@@ -104,7 +134,8 @@ This workflow is read-only. You can read files, search code, run commands, and c
 
 - The pull request head is already checked out in `GITHUB_WORKSPACE`. Start by reading the local PR diff (e.g. `git --no-pager log --name-status --oneline -n 50` to see changed files, and `git --no-pager diff --name-only HEAD~1..HEAD` for single-commit PRs) to identify dependency updates. Do **not** stop solely because shell `gh` cannot reach GitHub.
 - Shell `gh` is **not** authenticated in the agent sandbox. That does **not** mean GitHub is unreachable.
-- When you need GitHub API data (PR metadata, release notes, commit verification), use the read-only **GitHub MCP**. Do not use shell `gh` for those reads.
+- When you need GitHub API data (PR metadata, release notes), use the read-only **GitHub MCP**. Do not use shell `gh` for those reads.
+- **Actions commit verification:** Do **not** use MCP `get_commit` (or shell `gh`) for `commit.verification`. A pre-agent runner step writes `actions-commit-verification.json` at the workspace root using GitHub REST. That file is the **only** source of truth for the Actions commit-verification ecosystem check.
 - Before finishing you **MUST** call at least one safe-output tool: `add_comment`, `add_labels`, `noop`, `report_incomplete`, `missing_tool`, or `missing_data`. A text-only exit with zero safe outputs is a failure.
 - Use `noop` only when the PR truly has no dependency updates to review. If you cannot gather enough context to analyze a real dependency update, call `report_incomplete` (or `missing_tool` / `missing_data`) — do not claim noop in prose and do not exit without a tool call.
 
@@ -147,9 +178,13 @@ For each updated dependency, perform the following checks:
 
 If the action reference uses a commit SHA (e.g. `uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd`):
 
-1. Verify the commit is a verified commit via GitHub MCP / API (not shell `gh`).
-2. If the commit is **not verified**, flag this prominently. Unverified commits in pinned actions are a supply-chain risk.
-3. Check whether the commit SHA corresponds to a known release tag, then verify the tag points to the expected SHA.
+1. Read **`actions-commit-verification.json`** at the workspace root (pre-agent REST facts). Match each SHA-pinned Action in the PR by `action` + `sha` (or by `sha` alone when unique).
+2. Apply this decision table (mandatory):
+   - **`verified: true`** → Commit verified ✅. Ecosystem commit check **passes** for this pin.
+   - **`verified: false`** → Commit verified ⚠️ No (`reason` when present). Ecosystem commit check **fails** for this pin. Unverified / unsigned Action pins are a supply-chain risk — do **not** apply `oblt-aw/ai/merge-ready`.
+   - **`verified` is null / pin missing / `error` set** → verification data is **unavailable**. Call `missing_data` or `report_incomplete` explaining the gap. Do **not** invent “MCP field not exposed”, do **not** mark overall risk **moderate** solely because verification data is missing, and do **not** post a full low-risk analysis that withholds the label only for that reason.
+3. Do **not** call MCP `get_commit` (or shell `gh`) to re-check `commit.verification` — MCP responses omit those fields and caused false negatives.
+4. Still check whether the commit SHA corresponds to a known release tag and that the tag points at the expected SHA (MCP releases/tags is fine for tag mapping). Tag mapping does **not** replace a `verified: false` result from the facts file.
 
 #### 3b: Changelog and Release Notes
 
@@ -237,12 +272,14 @@ First assign an overall risk level for the PR: **low**, **low-to-moderate**, **m
 Apply `oblt-aw/ai/merge-ready` when ALL of the following are true:
 - Overall risk is **low** OR **low-to-moderate** (including when changelogs mention CVEs, GHSAs, or security fixes—those entries do **not** disqualify the label in these two bands; they must still be documented in your analysis).
 - No breaking changes to APIs, inputs, or features used by this repository.
-- Ecosystem checks pass (commit verified for Actions, pin format acceptable for Buildkite, etc.).
+- Ecosystem checks pass (Actions commit verification per Step 3a / `actions-commit-verification.json`, pin format acceptable for Buildkite, etc.).
 - Workflows using the dependency are testable in PR context (pull_request or pull_request_target trigger), OR the dependency is dev-only (e.g. pre-commit, linters) with no production impact.
 
 Minor behavioral changes (e.g. ignore-pattern handling, formatting) that do not affect this repo's usage do NOT disqualify the label when risk is low or low-to-moderate.
 
-Do NOT add `oblt-aw/ai/merge-ready` when: overall risk is **moderate** or **high**, breaking changes affect this repo, ecosystem checks fail, or workflows are untestable and the dependency has production impact.
+Do NOT add `oblt-aw/ai/merge-ready` when: overall risk is **moderate** or **high**, breaking changes affect this repo, ecosystem checks fail (including any Actions pin with `verified: false` in the facts file), or workflows are untestable and the dependency has production impact.
+
+Missing Actions verification data (`verified: null` / missing pin / collector error) is **not** an automatic moderate-risk or soft “withhold label while claiming low risk” outcome — use `missing_data` / `report_incomplete` per Step 3a.
 
 ### Step 5: Post Analysis Comment
 
@@ -260,7 +297,7 @@ Call `add_comment` on the PR with a structured analysis. Use the following forma
 > | --- | --- |
 > | Breaking changes | ✅ None found / ⚠️ Found (details below) |
 > | Testable in PR | ✅ Yes / ⚠️ No — workflow only runs on [events] |
-> | Commit verified | ✅ Yes / ⚠️ No *(GitHub Actions only)* |
+> | Commit verified | ✅ Yes / ⚠️ No / ⚠️ Unavailable *(GitHub Actions only; from `actions-commit-verification.json`)* |
 > | Pin format | ✅ SHA-pinned / ⚠️ Mutable tag *(GitHub Actions / Buildkite only)* |
 >
 > Only include rows relevant to the dependency ecosystem. For example, "Commit verified" and "Pin format" only apply to GitHub Actions and Buildkite.
