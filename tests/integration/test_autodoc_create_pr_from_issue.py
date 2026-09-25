@@ -101,6 +101,20 @@ class TestAutodocCreatePrWrapperLockWiring:
         assert resolve_job["with"]["workflow-basename"] == WRAPPER_BASENAME
         assert "platform-additional-instructions" not in (resolve_job.get("with") or {})
 
+    def test_audit_resolve_gates_e2e_platform_text_on_mode_flag(self) -> None:
+        wrapper = _load_yaml(WRAPPER_PATH)
+        audit_resolve = wrapper["jobs"]["resolve-apm-assets-audit"]
+        platform = (audit_resolve.get("with") or {}).get(
+            "platform-additional-instructions"
+        )
+        assert isinstance(platform, str)
+        assert "inputs.e2e-autodoc-mode" in platform
+        assert "E2E_AUTODOC_MODE=true" in platform
+        assert "docs/testing/fixtures/e2e-autodoc-bait.md" in platform
+        assert "e2e-additional-instructions" not in wrapper.get("on", {}).get(
+            "workflow_call", {}
+        ).get("inputs", {})
+
     def test_fix_job_passes_minimal_inputs_to_in_repo_lock(self) -> None:
         wrapper = _load_yaml(WRAPPER_PATH)
         lock = _load_yaml(LOCK_PATH)

@@ -74,15 +74,15 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
         "fix_pr": None,
         "cleanup": {
             "completed": True,
-            "bait_path": "scripts/e2e_autodoc_intentional_undocumented.py",
-            "bait_removed": True,
-            "bait_absent": True,
+            "bait_path": "docs/testing/fixtures/e2e-autodoc-bait.md",
+            "bait_removed": False,
+            "bait_present": True,
             "closed_prs": [],
         },
         "bait": {
-            "path": "scripts/e2e_autodoc_intentional_undocumented.py",
-            "commit_sha": "abc123",
-            "created_by_this_run": True,
+            "path": "docs/testing/fixtures/e2e-autodoc-bait.md",
+            "commit_sha": None,
+            "created_by_this_run": False,
         },
     }
     base.update(overrides)
@@ -398,7 +398,7 @@ class TestOracleHappyPath:
                     "completed": False,
                     "bait_path": "x",
                     "bait_removed": False,
-                    "bait_absent": False,
+                    "bait_present": False,
                 }
             )
         )
@@ -406,24 +406,24 @@ class TestOracleHappyPath:
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "cleanup_completed" in failed_ids
 
-    def test_cleanup_completed_without_bait_absent_fails(self) -> None:
-        """Producer completed flag alone must not green when bait remains."""
+    def test_cleanup_completed_without_bait_present_fails(self) -> None:
+        """Producer completed flag alone must not green when bait is missing."""
         report = _evaluate(
             _synthetic_live_outcome(
                 cleanup={
                     "completed": True,
                     "bait_path": "scripts/e2e_bait.py",
                     "bait_removed": False,
-                    "bait_absent": False,
+                    "bait_present": False,
                     "closed_prs": [],
                 }
             )
         )
         assert report["pass"] is False
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
-        assert "cleanup_bait_absent" in failed_ids
+        assert "cleanup_bait_present" in failed_ids
 
-    def test_cleanup_missing_bait_absent_fails_closed(self) -> None:
+    def test_cleanup_missing_bait_present_fails_closed(self) -> None:
         report = _evaluate(
             _synthetic_live_outcome(
                 cleanup={
@@ -435,7 +435,7 @@ class TestOracleHappyPath:
         )
         assert report["pass"] is False
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
-        assert "cleanup_bait_absent" in failed_ids
+        assert "cleanup_bait_present" in failed_ids
 
     def test_live_oracle_rejects_wrong_layer(self) -> None:
         report = _evaluate(_synthetic_live_outcome(layer="integration"))
@@ -632,7 +632,7 @@ class TestJobNameMatching:
         monkeypatch.setattr(harness.estc, "gh_json", lambda *args, **kwargs: detail)
         result = harness.wait_for_schedule_audit_run(
             "elastic/oblt-aw",
-            "trigger-obs-aw-schedule.yml",
+            "e2e-trigger-obs-aw-schedule.yml",
             since=datetime(2026, 9, 24, 8, 0, tzinfo=timezone.utc),
             timeout_seconds=1,
             interval_seconds=0,
@@ -641,37 +641,31 @@ class TestJobNameMatching:
 
 
 class TestIssueAndPrCorrelation:
-    def test_issue_body_requires_per_run_path(self) -> None:
-        run_token = "abcd1234efgh5678"
-        bait_path = harness.bait_path_for_run(run_token)
+    def test_issue_body_requires_path_and_fixture_marker(self) -> None:
+        bait_path = harness.DEFAULT_BAIT_PATH
         basename = Path(bait_path).name
+        fixture = harness.E2E_AUTODOC_BAIT_MARKER
         assert harness._issue_body_matches_bait(
+            f"Update docs for `{bait_path}` ({fixture})",
+            bait_path,
+        )
+        assert harness._issue_body_matches_bait(
+            f"Document {basename} entrypoint {fixture}",
+            bait_path,
+        )
+        # Path without fixture marker is not enough.
+        assert not harness._issue_body_matches_bait(
             f"Update docs for `{bait_path}`",
             bait_path,
-            run_token=run_token,
         )
-        assert harness._issue_body_matches_bait(
-            f"Document {basename} entrypoint",
-            bait_path,
-            run_token=run_token,
-        )
-        # Static fixture marker alone is not enough (no per-run path).
+        # Static fixture marker alone is not enough.
         assert not harness._issue_body_matches_bait(
-            f"Document {harness.E2E_AUTODOC_BAIT_MARKER} entrypoint",
+            f"Document {fixture} entrypoint",
             bait_path,
-            run_token=run_token,
         )
         assert not harness._issue_body_matches_bait(
             "Generic documentation drift finding",
             bait_path,
-            run_token=run_token,
-        )
-        # Wrong (other-run) path must not match this run_token.
-        other_path = harness.bait_path_for_run("deadbeefdeadbeef")
-        assert not harness._issue_body_matches_bait(
-            f"Update docs for `{other_path}`",
-            bait_path,
-            run_token=run_token,
         )
 
     def test_pr_must_reference_issue_number(self) -> None:
@@ -730,28 +724,23 @@ class TestClosePrsForIssue:
 
 
 class TestBaitContent:
-    def test_bait_is_valid_python(self) -> None:
-        compile(harness.bait_content(), "<bait>", "exec")
-        compile(harness.bait_content(run_token="abcd1234efgh5678"), "<bait>", "exec")
-
-    def test_bait_contains_correlation_marker(self) -> None:
-        assert harness.E2E_AUTODOC_BAIT_MARKER in harness.bait_content()
-
-    def test_bait_content_embeds_run_token(self) -> None:
-        token = "abcd1234efgh5678"
-        text = harness.bait_content(run_token=token)
-        assert harness.run_token_marker(token) in text
+    def test_bait_is_markdown_with_marker(self) -> None:
+        text = harness.bait_content()
+        assert text.lstrip().startswith("#")
         assert harness.E2E_AUTODOC_BAIT_MARKER in text
+        assert "Incomplete on purpose" in text
 
-    def test_bait_path_for_run_is_unique(self) -> None:
-        a = harness.bait_path_for_run("aaaaaaaaaaaaaaaa")
-        b = harness.bait_path_for_run("bbbbbbbbbbbbbbbb")
-        assert a != b
-        assert a.endswith("_aaaaaaaaaaaaaaaa.py")
+    def test_bait_markers_reject_empty_and_traversal(self) -> None:
+        path, basename = harness.bait_markers(harness.DEFAULT_BAIT_PATH)
+        assert path == harness.DEFAULT_BAIT_PATH
+        assert basename == "e2e-autodoc-bait.md"
         with pytest.raises(ValueError):
-            harness.bait_path_for_run("../escape")
+            harness.bait_markers("")
         with pytest.raises(ValueError):
-            harness.bait_path_for_run("")
+            harness.bait_markers("../escape.md")
+
+    def test_mode_sentinel_is_stable(self) -> None:
+        assert harness.E2E_AUTODOC_MODE_SENTINEL == "E2E_AUTODOC_MODE=true"
 
 
 class TestContentsHelpers:
@@ -783,8 +772,7 @@ class TestHarnessDashboardGate:
         assert outcome["blocked"] is True
         assert "Dashboard" in str(outcome.get("block_reason") or "")
         assert outcome_path.is_file()
-        assert outcome["bait"]["run_token"]
-        assert outcome["bait"]["path"].endswith(f"_{outcome['bait']['run_token']}.py")
+        assert outcome["bait"]["path"] == harness.DEFAULT_BAIT_PATH
 
     def test_negative_fix_case_serializes_unexpected_pr(
         self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
@@ -813,8 +801,8 @@ class TestHarnessDashboardGate:
         monkeypatch.setattr(harness, "default_branch", lambda repo: "main")
         monkeypatch.setattr(
             harness,
-            "seed_bait_on_default_branch",
-            lambda *args, **kwargs: ("abc123", True),
+            "ensure_checked_in_bait",
+            lambda *args, **kwargs: None,
         )
         monkeypatch.setattr(
             harness, "list_schedule_trigger_runs", lambda *args, **kwargs: []
@@ -864,8 +852,6 @@ class TestHarnessDashboardGate:
         monkeypatch.setattr(harness, "autodoc_fix_job_conclusion", lambda run: None)
         monkeypatch.setattr(harness, "close_prs_for_issue", lambda *a, **k: [])
         monkeypatch.setattr(harness, "close_issue", lambda *a, **k: None)
-        monkeypatch.setattr(harness, "delete_branch_file", lambda *a, **k: None)
-        monkeypatch.setattr(harness, "remote_bait_absent", lambda *a, **k: True)
         monkeypatch.setattr(harness, "remote_bait_matches", lambda *a, **k: True)
 
         outcome_path = tmp_path / "outcome.json"
@@ -966,10 +952,10 @@ class TestHarnessDashboardGate:
         )
         monkeypatch.setattr(harness, "default_branch", lambda repo: "main")
 
-        def _boom(*_args: object, **_kwargs: object) -> tuple[str, bool]:
-            raise RuntimeError("seed failed")
+        def _boom(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("bait fixture missing")
 
-        monkeypatch.setattr(harness, "seed_bait_on_default_branch", _boom)
+        monkeypatch.setattr(harness, "ensure_checked_in_bait", _boom)
         outcome = harness.run_live_case(
             case=case,
             cfg=cfg,
@@ -978,7 +964,7 @@ class TestHarnessDashboardGate:
         )
         assert outcome["blocked"] is True
         assert outcome["path_gates"]["dashboard_enabled"] is True
-        assert "seed failed" in str(outcome.get("block_reason") or "")
+        assert "bait fixture missing" in str(outcome.get("block_reason") or "")
 
 
 class TestOracleCliSummary:

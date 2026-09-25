@@ -1,7 +1,7 @@
 {
   "id": "schedule-audit-issue-live",
   "mode": "live",
-  "description": "Production path: schedule/dispatch → autodoc audit → issue with [oblt-aw][autodoc] title prefix after intentional doc drift bait.",
+  "description": "Production path: schedule/dispatch with e2e-autodoc-mode → autodoc audit → issue with [oblt-aw][autodoc] title prefix against checked-in bait markdown.",
   "workflow_id": "obs:autodoc",
   "trigger": {
     "dispatch_schedule_trigger": true,

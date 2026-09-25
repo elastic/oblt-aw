@@ -428,23 +428,23 @@ def evaluate_outcome(
                 )
             except TypeError as exc:
                 _check(checks, "cleanup_completed", False, str(exc))
-            # Seeded bait: completed alone is not evidence — require absence.
+            # Checked-in bait: completed alone is not enough — require presence.
             try:
                 seed_bait = _as_bool(trigger["seed_doc_drift_bait"])
             except TypeError as exc:
-                _check(checks, "cleanup_bait_absent", False, str(exc))
+                _check(checks, "cleanup_bait_present", False, str(exc))
             else:
                 if seed_bait is True:
                     try:
-                        bait_absent = _as_bool(cleanup.get("bait_absent"))
+                        bait_present = _as_bool(cleanup.get("bait_present"))
                         _check(
                             checks,
-                            "cleanup_bait_absent",
-                            bait_absent is True,
+                            "cleanup_bait_present",
+                            bait_present is True,
                             f"cleanup={cleanup}",
                         )
                     except TypeError as exc:
-                        _check(checks, "cleanup_bait_absent", False, str(exc))
+                        _check(checks, "cleanup_bait_present", False, str(exc))
 
     overall = all(item["pass"] for item in checks)
     agent_flag = False
@@ -473,7 +473,7 @@ def evaluate_outcome(
             (
                 "Live oracle asserts dashboard gate, schedule audit/fix job "
                 "execution, agent invocation, issue/PR presence (number+url), "
-                "cleanup completion, and seeded-bait absence when required — "
+                "cleanup completion, and checked-in bait presence when required — "
                 "never agent prose."
             ),
             "Promote (#1878) should consume report.pass / summary.json.",
