@@ -149,6 +149,7 @@ This workflow is read-only. You can read files, search code, run commands, and c
 - Use the format: {"noop": {"message": "No action needed: [brief explanation]"}}
 - Examples: "No action needed: no dependency version updates found in the PR diff" or "No action needed: PR changes do not match supported dependency ecosystems"
 - Do not emit an analysis comment for no-op outcomes. The noop tool provides transparency; a separate control-plane job may still note an empty `comment_id` on the PR.
+- **Never noop CI / VM image pin bumps.** Changes to `IMAGE_*` / `platform-ingest-*` (or similar runner/container/snapshot image IDs) under `.buildkite/**`, `Dockerfile*`, `docker-compose*.yml`, or `testing/environments/snapshot.yml` are in-scope **CI / VM image** dependency updates. Analyze them and apply `oblt-aw/ai/merge-ready` when Step 4 passes — do not treat them as "unsupported ecosystem."
 
 ## Instructions
 
@@ -160,14 +161,15 @@ This workflow is read-only. You can read files, search code, run commands, and c
 ### Step 2: Identify and Classify Updated Dependencies
 
 Parse the diff to identify each dependency being updated. For each dependency, extract:
-- **Ecosystem**: GitHub Actions, Buildkite plugin, Go module, npm package, Python (pip/Poetry/uv), Maven/Gradle (Java), or other
-- **Package name**: e.g. `actions/checkout`, `golang.org/x/net`, `express`, `requests`
+- **Ecosystem**: GitHub Actions, Buildkite plugin, CI / VM image, Go module, npm package, Python (pip/Poetry/uv), Maven/Gradle (Java), or other
+- **Package name**: e.g. `actions/checkout`, `golang.org/x/net`, `express`, `requests`, `IMAGE_UBUNTU`
 - **Old version**: tag, SHA, or version before the update
 - **New version**: tag, SHA, or version after the update
 
 Classify each dependency by looking at the files changed:
 - `.github/workflows/*.yml` or `.github/workflows/*.yaml` → **GitHub Actions**
-- `pipeline.yml`, `.buildkite/` files → **Buildkite plugin**
+- `.buildkite/**`, `Dockerfile`, `Dockerfile.*`, `docker-compose.yml`, `docker-compose.yaml`, or `testing/environments/snapshot.yml` when the diff only (or primarily) bumps runner/container/snapshot **image** IDs (`IMAGE_*`, `platform-ingest-*`, similar env pins) → **CI / VM image** (not Buildkite plugin)
+- `pipeline.yml` or `.buildkite/` files that bump **plugin** SHAs/tags (not image env pins) → **Buildkite plugin**
 - `go.mod`, `go.sum` → **Go module**
 - `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml` → **npm/Node**
 - `pyproject.toml`, `requirements*.txt`, `Pipfile*`, `poetry.lock`, `uv.lock` → **Python**
@@ -243,7 +245,15 @@ For Buildkite plugin updates:
 2. Check if the update moves from one mutable tag to another mutable tag (moderate risk).
 3. SHA-to-SHA or tag-to-SHA-pinned updates are preferred.
 
-#### 3f: Ecosystem-Specific Guidance
+#### 3f: CI / VM image pins
+
+For **CI / VM image** updates (aligned with automerge collection `vm-images`):
+1. Confirm the diff is limited to image identifier / env pin bumps (for example `IMAGE_UBUNTU`, `IMAGE_UBUNTU_ARM`, `platform-ingest-elastic-agent-*`), not unrelated pipeline logic.
+2. Treat pure image-ID bumps as typically **low** risk when they only change the numeric/suffix pin and keep the same image family/name prefix.
+3. Skip Actions commit verification and Buildkite plugin pin-format rows in the analysis table; document old → new image IDs instead.
+4. Do **not** call `noop` for these PRs.
+
+#### 3g: Ecosystem-Specific Guidance
 
 Apply the following additional checks based on the dependency ecosystem:
 
@@ -276,8 +286,8 @@ First assign an overall risk level for the PR: **low**, **low-to-moderate**, **m
 Apply `oblt-aw/ai/merge-ready` when ALL of the following are true:
 - Overall risk is **low** OR **low-to-moderate** (including when changelogs mention CVEs, GHSAs, or security fixes—those entries do **not** disqualify the label in these two bands; they must still be documented in your analysis).
 - No breaking changes to APIs, inputs, or features used by this repository.
-- Ecosystem checks pass (Actions commit verification per Step 3a / `actions-commit-verification.json`, pin format acceptable for Buildkite, etc.).
-- Workflows using the dependency are testable in PR context (pull_request or pull_request_target trigger), OR the dependency is dev-only (e.g. pre-commit, linters) with no production impact.
+- Ecosystem checks pass (Actions commit verification per Step 3a / `actions-commit-verification.json`, pin format acceptable for Buildkite plugins, CI / VM image pin family unchanged per Step 3f, etc.).
+- Workflows using the dependency are testable in PR context (pull_request or pull_request_target trigger), OR the dependency is dev-only / CI-only (e.g. pre-commit, linters, Buildkite VM image pins) with no production application impact.
 
 Minor behavioral changes (e.g. ignore-pattern handling, formatting) that do not affect this repo's usage do NOT disqualify the label when risk is low or low-to-moderate.
 
@@ -295,7 +305,7 @@ Call `add_comment` on the PR with a structured analysis. Use the following forma
 >
 > ### [Dependency 1: package vOLD → vNEW]
 >
-> **Ecosystem**: [GitHub Actions / Go / npm / Python / Java / Buildkite / other]
+> **Ecosystem**: [GitHub Actions / Go / npm / Python / Java / Buildkite plugin / CI / VM image / other]
 >
 > | Check | Result |
 > | --- | --- |
