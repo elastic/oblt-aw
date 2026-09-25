@@ -2,18 +2,18 @@
 
 ## Overview
 
-Client template: `trigger-obs-aw-schedule.yml` → `obs-aw-event-schedule.yml` → `obs-aw-autodoc.yml`
+Client template chain: `trigger-obs-aw-schedule.yml` → `obs-aw-event-schedule.yml` → `obs-aw-autodoc.yml`
 
 Routed workflow source: `.github/workflows/obs-aw-autodoc.yml`
 
 ## Usage
 
-Ingress routes to autodoc when:
+`obs-aw-event-schedule.yml` routes to autodoc when:
 
 - `github.event_name` is `schedule` or `workflow_dispatch` on the schedule client trigger
 - The Control Plane dashboard gate allows registry id `autodoc` (see `docs/workflows/aw-prelude.md` — `get-enabled-workflows` / `enabled-workflows`)
 
-The event name is evaluated in the context of the workflow run that invoked the ingress (`workflow_call`).
+The event name is evaluated in the context of the workflow run that invoked the event orchestrator (`workflow_call`).
 
 ## Routed workflow
 
@@ -40,4 +40,5 @@ See [obs-aw-autodoc.md](../workflows/obs-aw-autodoc.md).
 ## References
 
 - `docs/workflows/obs-aw-autodoc.md`
+- `docs/workflows/obs-aw-client-template.md`
 - E2E: `docs/testing/autodoc-e2e.md`

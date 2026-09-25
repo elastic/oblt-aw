@@ -2,7 +2,7 @@
 
 ## Overview
 
-Client template: `trigger-obs-aw-automerge.yml` → `obs-aw-automerge.yml`
+Client template chain: `trigger-obs-aw-pull-request.yml` → `obs-aw-event-pull-request.yml` → `obs-aw-automerge.yml`
 
 For the user-facing Automerge service catalogue, see [Automerge services](../guides/user/automerge-services.md).
 
@@ -24,7 +24,7 @@ There is **no** `schedule` trigger for automerge. The reusable workflow uses `gi
 - Author is in the same allow list as dependency-review: `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`, `elastic-vault-github-plugin-prod[bot]`, `github-actions[bot]`
 - PR has label `oblt-aw/ai/merge-ready` at event time
 
-The client template includes `labeled` in `pull_request` types (`trigger-obs-aw-automerge.yml`).
+The event-scoped client template includes `labeled` in `pull_request` types (`trigger-obs-aw-pull-request.yml`).
 
 ## Mandatory requirements evaluated at runtime
 
@@ -68,3 +68,4 @@ The routed workflow uses `GITHUB_TOKEN` with the permissions listed in `obs-aw-a
 ## References
 
 - `docs/workflows/obs-aw-automerge.md`
+- `docs/workflows/obs-aw-client-template.md`
