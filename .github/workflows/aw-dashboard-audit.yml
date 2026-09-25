@@ -1,0 +1,62 @@
+name: Agentic Workflow — Control Plane Dashboard Audit
+
+# Shared (org-agnostic) reusable: audit dashboard checkbox enable/disable on the
+# dashboard issue itself. Not gated by aw-prelude / dashboard checkboxes.
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: >-
+          checkbox-delta (issues edited) or record-reason (issue_comment created)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  audit-dashboard:
+    permissions:
+      contents: read
+      issues: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout oblt-aw (dashboard audit scripts)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/dashboard_audit.py
+            scripts/common.py
+            requirements-runtime.txt
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: _oblt-aw/requirements-runtime.txt
+
+      - name: Audit checkbox enablement delta
+        if: inputs.mode == 'checkbox-delta'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python _oblt-aw/scripts/dashboard_audit.py checkbox-delta \
+            --event-path "${GITHUB_EVENT_PATH}"
+
+      - name: Record deactivation reason from comment
+        if: inputs.mode == 'record-reason'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python _oblt-aw/scripts/dashboard_audit.py record-reason \
+            --event-path "${GITHUB_EVENT_PATH}"

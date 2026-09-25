@@ -1,0 +1,175 @@
+name: Automated Documentation Analysis and Improvement
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+permissions:
+  contents: read
+
+jobs:
+
+  # Step 1: Detect docs drift from recent code changes and create an issue with findings
+  # Audit prompt lives in gh-aw-docs-patrol.md; resolve still merges APM + autodocignore.
+  resolve-apm-assets-audit:
+    if: inputs.shared-proceed == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      workflow-basename: obs-aw-autodoc.yml
+
+  audit:
+    if: inputs.shared-proceed == 'true'
+    needs: [resolve-apm-assets-audit]
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: read
+      copilot-requests: write
+    uses: elastic/oblt-aw/.github/workflows/gh-aw-docs-patrol.lock.yml@main
+    with:
+      # Lookback (1 day), title-prefix ([oblt-aw][autodoc]), model/bots/footer,
+      # and failure-issue suppression are opinionated on the in-repo lock.
+      additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
+    secrets: inherit
+
+  # Fix prompt lives in gh-aw-create-pr-from-issue.md; resolve still merges APM + autodocignore.
+  resolve-apm-assets-fix:
+    needs: audit
+    if: inputs.shared-proceed == 'true' && needs.audit.outputs.created_issue_number != ''
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      workflow-basename: obs-aw-autodoc.yml
+
+  # Step 2: Create a PR implementing the audit findings (only when an issue was created)
+  fix:
+    needs: [audit, resolve-apm-assets-fix]
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+    if: inputs.shared-proceed == 'true' && needs.audit.outputs.created_issue_number != ''
+    uses: elastic/oblt-aw/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
+    with:
+      # Draft PRs, model/bots/footer, failure-issue suppression, and docs-only
+      # prompt (including top-level docs protected-files excludes) are
+      # opinionated on the in-repo lock.
+      target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
+      additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
+    secrets: inherit
+
+  # Step 3: Finalize autodoc PR — assign reviewer and apply labels
+  finalize-pr:
+    needs: fix
+    if: inputs.shared-proceed == 'true' && needs.fix.outputs.created_pr_number != ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Request review from elastic/observablt-ci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.fix.outputs.created_pr_number }}
+        run: gh pr edit "$PR_NUMBER" --add-reviewer "elastic/observablt-ci" --repo "$GITHUB_REPOSITORY"
+      - name: Apply changelog:docs label if it exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.fix.outputs.created_pr_number }}
+        run: |
+          if gh label list --repo "$GITHUB_REPOSITORY" --json name --jq '.[].name' | grep -qx "changelog:docs"; then
+            gh pr edit "$PR_NUMBER" --add-label "changelog:docs" --repo "$GITHUB_REPOSITORY"
+          fi
+
+  # When the PR stage fails after an audit issue was created (for example Copilot
+  # CAPI 502 proxy errors), leave recoverable guidance on the issue.
+  notify-fix-failure:
+    needs: [audit, fix]
+    if: >-
+      always() &&
+      needs.audit.result == 'success' &&
+      needs.audit.outputs.created_issue_number != '' &&
+      needs.fix.result == 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Comment recovery guidance on the audit issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.audit.outputs.created_issue_number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Autodoc created this issue, but the follow-up PR stage failed."
+            echo
+            echo "- Workflow run: ${RUN_URL}"
+            echo "- Common cause: transient Copilot API errors such as \`CAPIError: 502 \"Proxy error\"\`"
+            echo
+            echo "**Recovery:** as an OWNER, MEMBER, or COLLABORATOR, comment \`/ai implement\` on this issue to retry PR creation via issue-fixer. You can also wait for the next successful autodoc schedule after the API recovers."
+          } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
+      - name: Apply autodoc fix-failed label if it exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.audit.outputs.created_issue_number }}
+        run: |
+          set -euo pipefail
+          if gh label list --repo "$GITHUB_REPOSITORY" --json name --jq '.[].name' | grep -qx "oblt-aw/autodoc/fix-failed"; then
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "oblt-aw/autodoc/fix-failed"
+          fi
+
+  # Lock can succeed with empty created_pr_number (no create_pull_request safe
+  # output). Mirror issue/security/RNAI fixers: leave recovery on the audit issue.
+  notify-no-pr:
+    needs: [audit, fix]
+    if: >-
+      always() &&
+      needs.audit.result == 'success' &&
+      needs.audit.outputs.created_issue_number != '' &&
+      needs.fix.result == 'success' &&
+      needs.fix.outputs.created_pr_number == ''
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Comment on audit issue when fix opened no PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.audit.outputs.created_issue_number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Autodoc fix finished without opening a pull request."
+            echo
+            echo "- Workflow run: ${RUN_URL}"
+            echo "- If the agent intentionally called \`noop\` / \`report_incomplete\`, treat that as the completion signal."
+            echo "- If you expected a PR, check the run artifacts for empty safe outputs."
+            echo
+            echo "**Recovery:** as an OWNER, MEMBER, or COLLABORATOR, comment \`/ai implement\` on this issue to retry PR creation via issue-fixer."
+          } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -

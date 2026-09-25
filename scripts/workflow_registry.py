@@ -18,7 +18,7 @@
 Load and validate per-org workflow-registry.json files.
 
 Each workflow entry maps a dashboard ``id`` to one or more control-plane reusable
-workflow files under ``.github/workflows/`` via ``control_plane_workflows``.
+workflow files under ``.github/workflows/`` via ``inner_workflows``.
 Optional ``sub_features`` expose independently toggleable child capabilities.
 """
 
@@ -36,8 +36,8 @@ from common import (
 )
 
 CONTROL_PLANE_WORKFLOW_NAME = re.compile(r"^[a-z0-9-]+-aw-[a-z0-9-]+\.ya?ml$")
-PRELUDE_CONTROL_PLANE_WORKFLOW = re.compile(
-    r"control-plane-workflow:\s*([^\s#]+)",
+WORKFLOW_BASENAME_INPUT = re.compile(
+    r"workflow-basename:\s*([^\s#]+)",
     re.MULTILINE,
 )
 LEGACY_ENABLED_WORKFLOW_ID = re.compile(
@@ -52,7 +52,7 @@ class RegistrySubFeatureEntry:
     org_key: str
     workflow_id: str
     sub_feature_id: str
-    control_plane_workflows: tuple[str, ...]
+    inner_workflows: tuple[str, ...]
 
     @property
     def compound_id(self) -> str:
@@ -69,7 +69,7 @@ class RegistrySubFeatureEntry:
 class RegistryWorkflowEntry:
     org_key: str
     workflow_id: str
-    control_plane_workflows: tuple[str, ...]
+    inner_workflows: tuple[str, ...]
     sub_features: tuple[RegistrySubFeatureEntry, ...] = ()
 
     @property
@@ -102,7 +102,7 @@ def load_workflow_registry(org_dir: Path) -> dict[str, object]:
     path = org_dir / "workflow-registry.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
-        raise ValueError(f"{org_dir}: workflow-registry.json must be a JSON object")
+        raise TypeError(f"{org_dir}: workflow-registry.json must be a JSON object")
     return data
 
 
@@ -114,16 +114,16 @@ def _normalize_control_plane_workflow_names(
     context: str,
 ) -> tuple[str, ...]:
     if not isinstance(files, list):
-        raise ValueError(
+        raise TypeError(
             f"{org_dir}: {context} ({workflow_id!r}) must define "
-            "control_plane_workflows as an array"
+            "inner_workflows as an array"
         )
     normalized: list[str] = []
     for file_index, name in enumerate(files):
         if not isinstance(name, str) or not CONTROL_PLANE_WORKFLOW_NAME.match(name):
             raise ValueError(
                 f"{org_dir}: {context} ({workflow_id!r}) "
-                f"control_plane_workflows[{file_index}] must match *-aw-*.yml or *-aw-*.yaml, "
+                f"inner_workflows[{file_index}] must match *-aw-*.yml or *-aw-*.yaml, "
                 f"got {name!r}"
             )
         normalized.append(name)
@@ -140,7 +140,7 @@ def _parse_sub_features(
     if raw_sub_features is None:
         return ()
     if not isinstance(raw_sub_features, list):
-        raise ValueError(
+        raise TypeError(
             f"{org_dir}: workflows entry {workflow_id!r} sub_features must be an array"
         )
 
@@ -149,7 +149,7 @@ def _parse_sub_features(
     entries: list[RegistrySubFeatureEntry] = []
     for index, item in enumerate(raw_sub_features):
         if not isinstance(item, dict):
-            raise ValueError(
+            raise TypeError(
                 f"{org_dir}: workflows entry {workflow_id!r} sub_features[{index}] "
                 "must be an object"
             )
@@ -166,7 +166,7 @@ def _parse_sub_features(
             )
         seen_sub_ids.add(sub_id)
 
-        raw_files = item.get("control_plane_workflows", [])
+        raw_files = item.get("inner_workflows", [])
         sub_files = _normalize_control_plane_workflow_names(
             org_dir,
             workflow_id,
@@ -177,7 +177,7 @@ def _parse_sub_features(
         if overlap:
             raise ValueError(
                 f"{org_dir}: workflows entry {workflow_id!r} sub_features[{index}] "
-                f"({sub_id!r}) lists control_plane_workflows also assigned to the "
+                f"({sub_id!r}) lists inner_workflows also assigned to the "
                 f"parent: {sorted(overlap)}"
             )
         entries.append(
@@ -185,7 +185,7 @@ def _parse_sub_features(
                 org_key=org_key,
                 workflow_id=workflow_id,
                 sub_feature_id=sub_id,
-                control_plane_workflows=sub_files,
+                inner_workflows=sub_files,
             )
         )
     return tuple(entries)
@@ -195,7 +195,7 @@ def parse_registry_entries(org_dir: Path) -> list[RegistryWorkflowEntry]:
     raw = load_workflow_registry(org_dir)
     workflows = raw.get("workflows")
     if not isinstance(workflows, list):
-        raise ValueError(
+        raise TypeError(
             f"{org_dir}: workflow-registry.json must contain a workflows array"
         )
 
@@ -203,18 +203,18 @@ def parse_registry_entries(org_dir: Path) -> list[RegistryWorkflowEntry]:
     entries: list[RegistryWorkflowEntry] = []
     for index, item in enumerate(workflows):
         if not isinstance(item, dict):
-            raise ValueError(f"{org_dir}: workflows[{index}] must be an object")
+            raise TypeError(f"{org_dir}: workflows[{index}] must be an object")
         workflow_id = item.get("id")
         if not isinstance(workflow_id, str) or not workflow_id:
             raise ValueError(
                 f"{org_dir}: workflows[{index}].id must be a non-empty string"
             )
 
-        files = item.get("control_plane_workflows")
+        files = item.get("inner_workflows")
         if not isinstance(files, list) or not files:
             raise ValueError(
                 f"{org_dir}: workflows[{index}] ({workflow_id!r}) must define a "
-                "non-empty control_plane_workflows array"
+                "non-empty inner_workflows array"
             )
         normalized = list(
             _normalize_control_plane_workflow_names(
@@ -235,7 +235,7 @@ def parse_registry_entries(org_dir: Path) -> list[RegistryWorkflowEntry]:
             RegistryWorkflowEntry(
                 org_key=org_key,
                 workflow_id=workflow_id,
-                control_plane_workflows=tuple(normalized),
+                inner_workflows=tuple(normalized),
                 sub_features=sub_features,
             )
         )
@@ -295,11 +295,11 @@ def build_control_plane_workflow_index(
         entries = parse_registry_entries(org_dir)
         validate_automerge_sub_features(config_dir, entries)
         for entry in entries:
-            for filename in entry.control_plane_workflows:
+            for filename in entry.inner_workflows:
                 if filename in index:
                     previous = index[filename]
                     raise ValueError(
-                        f"control_plane_workflows[{filename!r}] is listed under both "
+                        f"inner_workflows[{filename!r}] is listed under both "
                         f"{previous.org_key}:{previous.workflow_id}"
                         f"{':' + previous.sub_feature_id if previous.sub_feature_id else ''} "
                         f"and {entry.org_key}:{entry.workflow_id}"
@@ -309,11 +309,11 @@ def build_control_plane_workflow_index(
                     workflow_id=entry.workflow_id,
                 )
             for sub_feature in entry.sub_features:
-                for filename in sub_feature.control_plane_workflows:
+                for filename in sub_feature.inner_workflows:
                     if filename in index:
                         previous = index[filename]
                         raise ValueError(
-                            f"control_plane_workflows[{filename!r}] is listed under both "
+                            f"inner_workflows[{filename!r}] is listed under both "
                             f"{previous.org_key}:{previous.workflow_id}"
                             f"{':' + previous.sub_feature_id if previous.sub_feature_id else ''} "
                             f"and {entry.org_key}:{entry.workflow_id}:{sub_feature.sub_feature_id}"
@@ -326,14 +326,14 @@ def build_control_plane_workflow_index(
     return index
 
 
-def resolve_compound_id(config_dir: Path, control_plane_workflow: str) -> str:
+def resolve_compound_id(config_dir: Path, workflow_basename: str) -> str:
     index = build_control_plane_workflow_index(config_dir)
-    entry = index.get(control_plane_workflow)
+    entry = index.get(workflow_basename)
     if entry is None:
         known = ", ".join(sorted(index))
         raise ValueError(
-            f"control-plane workflow {control_plane_workflow!r} is not listed in any "
-            f"workflow-registry.json control_plane_workflows (known: {known})"
+            f"workflow basename {workflow_basename!r} is not listed in any "
+            f"workflow-registry.json inner_workflows (known: {known})"
         )
     return entry.compound_id
 
@@ -347,7 +347,7 @@ def validate_registry_against_workflows(
     errors: list[str] = []
     try:
         index = build_control_plane_workflow_index(config_dir)
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         return [str(exc)]
 
     registered = set(index)
@@ -356,7 +356,7 @@ def validate_registry_against_workflows(
         for name in sorted(missing):
             errors.append(
                 f"{workflows_dir / name}: not listed in any "
-                "workflow-registry.json control_plane_workflows"
+                "workflow-registry.json inner_workflows"
             )
 
     stale = registered - subject_workflow_names
@@ -375,20 +375,18 @@ def validate_registry_against_workflows(
         text = path.read_text(encoding="utf-8")
         if LEGACY_ENABLED_WORKFLOW_ID.search(text):
             errors.append(
-                f"{path}: use control-plane-workflow instead of enabled-workflow-id "
+                f"{path}: use workflow-basename instead of enabled-workflow-id "
                 "(compound id is resolved from workflow-registry.json)"
             )
             continue
-        match = PRELUDE_CONTROL_PLANE_WORKFLOW.search(text)
+        match = WORKFLOW_BASENAME_INPUT.search(text)
         if not match:
-            errors.append(
-                f"{path}: prelude must pass control-plane-workflow matching this file"
-            )
+            errors.append(f"{path}: must pass workflow-basename matching this file")
             continue
         declared = match.group(1)
         if declared != path_name:
             errors.append(
-                f"{path}: control-plane-workflow is {declared!r}, expected {path_name!r}"
+                f"{path}: workflow-basename is {declared!r}, expected {path_name!r}"
             )
             continue
     return errors

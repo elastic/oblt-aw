@@ -1,0 +1,159 @@
+---
+name: E2E — Dependency review
+
+# Manual production E2E for obs:dependency-review against elastic/oblt-aw.
+# Creates an ephemeral Actions pin-bump PR as the Vault app (OIDC create-token
+# using workflow-token-policy from config/e2e.json, bound to e2e-*.yml via
+# token-policy-6cd7ac55e207), then asserts dependency-review → analysis
+# comment → merge-ready. Does not wait for automerge. Vault authorship avoids
+# the github-actions[bot] "Approve and run" gate on pull_request workflows.
+# Not part of the default PR required gate in ci.yml.
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-dependency-review
+  cancel-in-progress: false
+
+env:
+  CASE_ID: actions-pin-bump-live
+
+jobs:
+  e2e:
+    name: Dependency review E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      issues: write
+      checks: read
+      id-token: write
+    env:
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Shared E2E Vault role in config/e2e.json (wildcard e2e-*.yml policy
+      # requires an explicit token-policy input; do not reuse trigger-obs-aw-*).
+      - name: Resolve E2E Vault token policy
+        id: token-policy
+        run: |
+          set -euo pipefail
+          POLICY="$(jq -r '."workflow-token-policy" // empty' config/e2e.json)"
+          if [[ -z "${POLICY}" ]]; then
+            echo "::error::Missing non-empty workflow-token-policy in config/e2e.json"
+            exit 1
+          fi
+          echo "token-policy=${POLICY}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create ephemeral GitHub token (Vault app)
+        id: create-token
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ steps.token-policy.outputs.token-policy }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-runtime.txt
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-runtime.txt
+
+      - name: Prepare artifact directory
+        run: mkdir -p "artifacts/e2e/dependency-review/${CASE_ID}"
+
+      - name: Run harness
+        id: harness
+        continue-on-error: true
+        env:
+          # Vault installation token so Contents + gh pr create are authored as
+          # elastic-vault-github-plugin-prod[bot] (pull_request workflows run
+          # without maintainer "Approve and run").
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+        run: |
+          set +e
+          python3 scripts/obs/e2e/dependency_review_e2e_harness.py \
+            --case-id "${CASE_ID}" \
+            --run-url "${RUN_URL}" \
+            --outcome-path "artifacts/e2e/dependency-review/${CASE_ID}/outcome.json"
+          echo "harness_exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Run structured oracle
+        id: oracle
+        run: |
+          set -euo pipefail
+          python3 scripts/obs/e2e/oracle_dependency_review_e2e.py \
+            --outcome-path "artifacts/e2e/dependency-review/${CASE_ID}/outcome.json" \
+            --report-path "artifacts/e2e/dependency-review/${CASE_ID}/oracle-report.json" \
+            --summary-path "artifacts/e2e/dependency-review/${CASE_ID}/summary.json" \
+            --testdata-root testdata/agentic/dependency-review \
+            --expected-case-id "${CASE_ID}"
+
+      - name: Print E2E failure summary
+        if: always()
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          case_id = os.environ["CASE_ID"]
+          out_dir = Path(f"artifacts/e2e/dependency-review/{case_id}")
+          summary_path = out_dir / "summary.json"
+          outcome_path = out_dir / "outcome.json"
+          if not summary_path.is_file() and not outcome_path.is_file():
+              print(f"No E2E artifacts under {out_dir}; nothing to summarize.")
+              raise SystemExit(0)
+
+          summary = {}
+          if summary_path.is_file():
+              summary = json.loads(summary_path.read_text(encoding="utf-8"))
+          outcome = {}
+          if outcome_path.is_file():
+              outcome = json.loads(outcome_path.read_text(encoding="utf-8"))
+
+          passed = summary.get("pass")
+          if passed is True:
+              print(f"E2E case {case_id}: pass=true")
+              raise SystemExit(0)
+
+          print(f"E2E case {case_id}: pass={passed!r}")
+          detail = (
+              summary.get("failure_detail")
+              or summary.get("block_reason")
+              or outcome.get("block_reason")
+              or "(no failure_detail/block_reason in artifacts)"
+          )
+          print("Failure detail:")
+          print(detail)
+          failed = summary.get("failed_checks") or []
+          if failed:
+              print("Failed checks:")
+              for item in failed:
+                  print(f"  - [{item.get('id')}] {item.get('detail')}")
+          fixture = outcome.get("fixture") or {}
+          if isinstance(fixture, dict) and fixture.get("pr_number"):
+              print(f"Fixture PR: {fixture.get('pr_number')} {fixture.get('pr_url')}")
+          first = str(detail).splitlines()[0]
+          print(f"::error::E2E {case_id}: {first}")
+          PY
+
+      - name: Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-dependency-review-${{ env.CASE_ID }}-${{ github.run_id }}
+          path: artifacts/e2e/dependency-review/${{ env.CASE_ID }}/
+          if-no-files-found: warn
+          retention-days: 30

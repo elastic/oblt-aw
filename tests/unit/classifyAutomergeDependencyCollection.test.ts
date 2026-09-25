@@ -39,7 +39,7 @@ const ENABLED = ['obs:automerge', 'obs:automerge:github-actions'];
 
 test('classifyChangedFiles allows dashboard-enabled github-actions-only PR', () => {
   const outcome = classifyChangedFiles(
-    ['.github/workflows/trigger-oblt-aw-automerge.yml'],
+    ['.github/workflows/trigger-obs-aw-automerge.yml'],
     COLLECTIONS,
     enabledAutomergeCollectionIds(ENABLED)
   );
@@ -172,6 +172,203 @@ test('classifyChangedFiles allows dashboard-enabled open-policy-agent collection
   });
 });
 
+const UPDATE_BEATS_GLOBS = [
+  'NOTICE.txt',
+  'NOTICE-fips.txt',
+  '**/NOTICE.txt',
+  '**/NOTICE-fips.txt',
+  'go.mod',
+  'go.sum',
+  '**/go.mod',
+  '**/go.sum',
+  'beats',
+];
+
+const GO_DEPENDENCY_GLOBS = ['go.mod', 'go.sum', '**/go.mod', '**/go.sum'];
+const VM_IMAGES_COLLECTION = {
+  id: 'vm-images',
+  'file-glob': [
+    '.buildkite/**',
+    '**/Dockerfile',
+    '**/Dockerfile.*',
+    '**/docker-compose.yml',
+    '**/docker-compose.yaml',
+    'testing/environments/snapshot.yml',
+  ],
+};
+
+test('classifyChangedFiles allows dashboard-enabled update-beats collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'go-dependencies', 'file-glob': GO_DEPENDENCY_GLOBS },
+    { id: 'update-beats', 'file-glob': UPDATE_BEATS_GLOBS },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:update-beats'];
+  const outcome = classifyChangedFiles(
+    [
+      'NOTICE-fips.txt',
+      'NOTICE.txt',
+      'beats',
+      'go.mod',
+      'go.sum',
+      'internal/edot/go.mod',
+      'internal/edot/go.sum',
+    ],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'update-beats',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled update-beats collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'go-dependencies', 'file-glob': GO_DEPENDENCY_GLOBS },
+    { id: 'update-beats', 'file-glob': UPDATE_BEATS_GLOBS },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:go-dependencies'];
+  const outcome = classifyChangedFiles(
+    ['NOTICE.txt', 'NOTICE-fips.txt', 'go.mod', 'go.sum', 'beats'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: 'update-beats',
+  });
+});
+
+test('classifyChangedFiles allows dashboard-enabled vm-images snapshot.yml PR', () => {
+  const collections = [...COLLECTIONS, VM_IMAGES_COLLECTION];
+  const enabled = ['obs:automerge', 'obs:automerge:vm-images'];
+  const outcome = classifyChangedFiles(
+    ['testing/environments/snapshot.yml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'vm-images',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled vm-images snapshot.yml PR', () => {
+  const collections = [...COLLECTIONS, VM_IMAGES_COLLECTION];
+  const outcome = classifyChangedFiles(
+    ['testing/environments/snapshot.yml'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: 'vm-images',
+  });
+});
+
+test('classifyChangedFiles allows dashboard-enabled package-version collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'package-version',
+      'file-glob': ['.package-version', '**/.package-version'],
+    },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:package-version'];
+  const outcome = classifyChangedFiles(
+    ['nested/.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'package-version',
+  });
+
+  const rootOutcome = classifyChangedFiles(
+    ['.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(rootOutcome, {
+    status: 'allowed',
+    collectionId: 'package-version',
+  });
+});
+
+test('classifyChangedFiles allows dashboard-enabled root package-version collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'package-version',
+      'file-glob': ['.package-version', '**/.package-version'],
+    },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:package-version'];
+  const outcome = classifyChangedFiles(
+    ['.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'package-version',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled package-version collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'package-version',
+      'file-glob': ['.package-version', '**/.package-version'],
+    },
+  ];
+  const outcome = classifyChangedFiles(
+    ['nested/.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: 'package-version',
+  });
+
+  const rootOutcome = classifyChangedFiles(
+    ['.package-version'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(rootOutcome, {
+    status: 'disabled',
+    collectionId: 'package-version',
+  });
+});
+
+test('classifyChangedFiles prefers go-dependencies over update-beats for go-only PRs', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'go-dependencies', 'file-glob': GO_DEPENDENCY_GLOBS },
+    { id: 'update-beats', 'file-glob': UPDATE_BEATS_GLOBS },
+  ];
+  const enabled = [
+    'obs:automerge',
+    'obs:automerge:go-dependencies',
+    'obs:automerge:update-beats',
+  ];
+  const outcome = classifyChangedFiles(
+    ['go.mod', 'go.sum', 'internal/edot/go.mod'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'go-dependencies',
+  });
+});
+
 test('enabledAutomergeCollectionIds returns empty when parent disabled', () => {
   const enabled = ['obs:automerge:github-actions'];
   assert.deepEqual(enabledAutomergeCollectionIds(enabled), []);
@@ -192,4 +389,5 @@ test('buildGateCommentBody includes disabled collection and enabled list', () =>
   assert.match(body, /github-actions/);
   assert.match(body, /dependency-collection-gate/);
   assert.match(body, /Control Plane Dashboard/);
+  assert.match(body, /docs\/guides\/user\/automerge-services\.md/);
 });

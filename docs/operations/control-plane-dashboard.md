@@ -37,12 +37,19 @@ There is no config file. When the client workflow runs, the ingress (`get-enable
 1. Open the Control Plane Dashboard issue
 2. Find the workflow you want to disable
 3. **Uncheck** the checkbox next to the workflow (click it). GitHub saves the change immediately.
+4. An **audit comment** is posted on the same issue asking for a short **deactivation reason** and mentioning `@elastic/observablt-ci`. Reply on the issue with the reason so it is recorded on the audit entry.
 
 The ingress dashboard stage excludes the workflow from `enabled-workflows` at runtime. The workflow will no longer run for your repository until you enable it again.
+
+### Audit trail
+
+Every enable or disable of a workflow or sub-feature checkbox produces a comment on the Control Plane Dashboard issue with **when**, **what** (compound id + enabled/disabled), and **who**. Activations are audit-only (no team mention). Deactivations require a reason (via follow-up comment) and mention `@elastic/observablt-ci`. Sync / `force-sync-defaults` resets are also audited (actor = automation, fixed reason string). See [aw-dashboard-audit](../workflows/aw-dashboard-audit.md).
 
 ### Sub-features (composite workflows)
 
 Some workflows expose **indented child checkboxes** under the parent on the Control Plane Dashboard. These let you enable or disable individual parts of a composite workflow (for example, specific dependency collections under Automerge).
+
+For Automerge, these child checkboxes are **service enrollments**: first enable Automerge, then choose which dependency-update categories you want it to merge. See [Automerge services](../guides/user/automerge-services.md) for the user-facing catalogue.
 
 | Parent checkbox | Sub-feature checkbox | Effect |
 |-----------------|----------------------|--------|
@@ -56,7 +63,7 @@ Sub-features only take effect while the parent workflow is enabled.
 
 ## What Happens at Runtime
 
-1. **You edit the issue** — Check or uncheck one or more workflow checkboxes (no immediate action; no PRs)
+1. **You edit the issue** — Check or uncheck one or more workflow checkboxes (no PRs). An [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) comment records when / what / who on the same issue; deactivations also ask for a reason and mention `@elastic/observablt-ci`.
 2. **Client runs** — On the next trigger (schedule, workflow_dispatch, pull_request, etc.), the client workflow starts
 3. **`get-enabled-workflows` runs inside the ingress** — If there is no open dashboard issue, `effective-raw` is empty and normalized `enabled-workflows` is `[]` (no workflows run). Otherwise it fetches the issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:<org-key>:<workflow-id> -->` at line start; legacy `obs` lines without an org segment are accepted), and writes normalized `enabled-workflows` as a JSON array string (`[]` or `["org:workflow-id", ...]`).
 4. **Ingress gating** — The ingress uses `enabled-workflows` and `effective-raw` from `get-enabled-workflows` to gate downstream jobs.
@@ -102,5 +109,6 @@ If the sync workflow could not pin it automatically (e.g. you already have 3 pin
 ## References
 
 - [docs/operations/control-plane-dashboard-format.md](control-plane-dashboard-format.md) — Dashboard issue format and checkbox syntax
+- [docs/guides/user/automerge-services.md](../guides/user/automerge-services.md) — What Automerge services mean
 - [docs/operations/workflow-maturity.md](workflow-maturity.md) — Maturity level definitions
 - [docs/architecture/overview.md](../architecture/overview.md) — Control Plane Dashboard architecture

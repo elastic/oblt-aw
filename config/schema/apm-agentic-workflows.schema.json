@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/elastic/oblt-aw/config/schema/apm-agentic-workflows.schema.json",
   "title": "OBLT AW agentic assets (apm.yml extension)",
-  "description": "Extension block x-oblt-aw in consumer apm.yml. Each org key (e.g. obs, docs) owns common and workflows; workflow ids match config/<org-key>/workflow-registry.json.",
+  "description": "Extension block x-oblt-aw in consumer apm.yml. Each org key (e.g. obs, docs) owns common and workflows; workflow ids match config/<org-key>/workflow-registry.json. Use inner-workflows.<basename> when several control-plane wrappers share one registry id.",
   "type": "object",
   "additionalProperties": {
     "$ref": "#/$defs/orgBlock"
@@ -21,19 +21,71 @@
       "additionalProperties": false,
       "required": ["common"],
       "properties": {
+        "fragments": {
+          "type": "object",
+          "description": "Local fragment id to repo-relative Markdown path.",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "propertyNames": {
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          }
+        },
         "common": {
-          "$ref": "#/$defs/assetBlock",
+          "$ref": "#/$defs/leafAssetBlock",
           "description": "Assets shared by all agentic workflows for this org when no workflow-specific block exists."
         },
         "workflows": {
           "type": "object",
-          "description": "Per-workflow assets for this org. When a workflow id is present, common is ignored entirely (override).",
+          "description": "Per-workflow assets for this org. When a workflow id is present, common is ignored entirely (override). Prefer inner-workflows when wrappers share one id.",
           "additionalProperties": {
             "$ref": "#/$defs/assetBlock"
           },
           "propertyNames": {
             "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
           }
+        }
+      }
+    },
+    "leafAssetBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "setup-commands": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            }
+          ],
+          "description": "Inline shell commands (string or list). Multiline strings are split into one command per non-empty, non-comment line. List entries may be script paths or arbitrary shell."
+        },
+        "setup-commands-file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative path to a UTF-8 file with one shell command per line (same line splitting as setup-commands)."
+        },
+        "additional-instructions-fragments": {
+          "type": "array",
+          "description": "Ordered fragment ids from the org fragments map; materialized before inline additional-instructions.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          }
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Overrides for agentic workflow inputs (kebab-case keys). Values may be scalars or *-file paths.",
+          "additionalProperties": true
         }
       }
     },
@@ -63,10 +115,25 @@
           "minLength": 1,
           "description": "Repo-relative path to a UTF-8 file with one shell command per line (same line splitting as setup-commands)."
         },
+        "additional-instructions-fragments": {
+          "type": "array",
+          "description": "Ordered fragment ids from the org fragments map; materialized before inline additional-instructions.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          }
+        },
         "inputs": {
           "type": "object",
           "description": "Overrides for agentic workflow inputs (kebab-case keys). Values may be scalars or *-file paths.",
           "additionalProperties": true
+        },
+        "inner-workflows": {
+          "type": "object",
+          "description": "Per control-plane wrapper basename assets when several wrappers share this workflow id. When the running basename matches, that block overrides the parent workflow block.",
+          "additionalProperties": {
+            "$ref": "#/$defs/leafAssetBlock"
+          }
         }
       }
     }

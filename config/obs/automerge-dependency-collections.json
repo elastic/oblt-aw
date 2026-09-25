@@ -35,6 +35,21 @@
       "file-glob": ["go.mod", "go.sum", "**/go.mod", "**/go.sum"]
     },
     {
+      "id": "update-beats",
+      "description": "elastic-agent update-beats bumps (NOTICE, go modules, beats submodule)",
+      "file-glob": [
+        "NOTICE.txt",
+        "NOTICE-fips.txt",
+        "**/NOTICE.txt",
+        "**/NOTICE-fips.txt",
+        "go.mod",
+        "go.sum",
+        "**/go.mod",
+        "**/go.sum",
+        "beats"
+      ]
+    },
+    {
       "id": "node-dependencies",
       "description": "npm/yarn/pnpm manifest and lockfile updates",
       "file-glob": [
@@ -74,14 +89,20 @@
     },
     {
       "id": "vm-images",
-      "description": "CI runner or container image pin updates",
+      "description": "CI runner, container, or testing snapshot environment image pin updates",
       "file-glob": [
         ".buildkite/**",
         "**/Dockerfile",
         "**/Dockerfile.*",
         "**/docker-compose.yml",
-        "**/docker-compose.yaml"
+        "**/docker-compose.yaml",
+        "testing/environments/snapshot.yml"
       ]
+    },
+    {
+      "id": "package-version",
+      "description": "Package version bump automation (.package-version)",
+      "file-glob": [".package-version", "**/.package-version"]
     }
   ]
 }

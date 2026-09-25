@@ -24,10 +24,10 @@ pip install pre-commit
 ### 2. Install pre-commit hooks
 
 ```bash
-pre-commit install
+pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 
-This installs the hooks from [.pre-commit-config.yaml](../../.pre-commit-config.yaml). They run automatically on `git commit`.
+This installs the hooks from [.pre-commit-config.yaml](../../.pre-commit-config.yaml). They run on `git commit` and `git push`. Agents must also follow the GOLD rule [.cursor/rules/ci-precommit-before-push.mdc](../../.cursor/rules/ci-precommit-before-push.mdc).
 
 ### 3. Install Python dependencies
 
@@ -51,10 +51,20 @@ pre-commit run --all-files
 
 > **macOS Python.org installer:** If you see `SSL: CERTIFICATE_VERIFY_FAILED` when pre-commit installs hooks, this is the classic Python.org macOS certificate issue. Run the bundled installer: `/Applications/Python 3.xx/Install Certificates.command`
 
+### gh-aw workflow compile check (required when editing workflow sources)
+
+If you touch a gh-aw workflow source or shared fragment, regenerate and validate the compiled workflow lock files before pushing:
+
+```bash
+make compile-aw-check
+```
+
+This command installs the pinned gh-aw compiler, recompiles the generated `.lock.yml` files under `.github/workflows/`, and fails if the checked-in outputs drift from the source markdown. Do not hand-edit the lock files; edit the source `.md` and rerun this command.
+
 ### Python tests
 
 ```bash
-pytest tests/ -v --tb=short
+pytest tests/unit tests/integration -v --tb=short
 ```
 
 ### TypeScript tests
@@ -111,7 +121,7 @@ The following hooks run on commit (and in CI via the pre-commit job):
 
 ## CI Workflow
 
-The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) runs on every PR to `main`. See [docs/workflows/ci.md](../workflows/ci.md) for details.
+The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) runs on every pull request (any base branch). See [docs/workflows/ci.md](../workflows/ci.md) for details.
 
 ## References
 

@@ -2,13 +2,13 @@
 
 ## Overview
 
-Client template chain: `trigger-oblt-aw-schedule.yml` → `oblt-aw-event-schedule.yml` → `oblt-aw-agent-suggestions.yml`
+Client template chain: `trigger-obs-aw-schedule.yml` → `obs-aw-event-schedule.yml` → `obs-aw-agent-suggestions.yml`
 
-Routed workflow source: `.github/workflows/oblt-aw-agent-suggestions.yml`
+Routed workflow source: `.github/workflows/obs-aw-agent-suggestions.yml`
 
 ## Usage
 
-`oblt-aw-event-schedule.yml` routes to agent suggestions when:
+`obs-aw-event-schedule.yml` routes to agent suggestions when:
 
 - `github.event_name == 'schedule'`
 - The Control Plane dashboard gate allows registry id `agent-suggestions` (see `docs/workflows/aw-prelude.md` — `get-enabled-workflows` / `enabled-workflows`)
@@ -32,5 +32,5 @@ The wrapper delegates to:
 
 ## References
 
-- `docs/workflows/oblt-aw-agent-suggestions.md`
-- `docs/workflows/oblt-aw-client-template.md`
+- `docs/workflows/obs-aw-agent-suggestions.md`
+- `docs/workflows/obs-aw-client-template.md`

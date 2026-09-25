@@ -5,7 +5,10 @@
 This guide onboards:
 
 1. **GitHub repository** — Listed in `elastic/oblt-aw` under `config/<org-key>/active-repositories.json` so [distribute-client-workflow](../operations/distribute-client-workflow.md) can install the client template and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) can maintain the Control Plane Dashboard issue.
-2. **GitHub token policy (Backstage Resource) in `elastic/catalog-info`** — **Always** created for each newly registered consumer repository. It backs [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) for installed `trigger-oblt-aw-*.yml` client workflows where `GITHUB_TOKEN` is insufficient ([oblt-aw-security-detector](../workflows/oblt-aw-security-detector.md), automerge, dependency-review follow-ups, and others).
+2. **GitHub token policy (Backstage Resource) in `elastic/catalog-info`** — **Always** created for each newly registered consumer repository. It backs [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) for installed `trigger-obs-aw-*.yml` client workflows where `GITHUB_TOKEN` is insufficient ([obs-aw-security-detector](../workflows/obs-aw-security-detector.md), automerge, nested GH-AW lock jobs such as issue-triage / dependency-review / issue-fixer, and others).
+3. **Classic branch-protection `pull_request_bypassers` in `elastic/observability-github-settings`** — **Always** add [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) for each newly registered consumer repository so automerge can merge as the Vault app under CODEOWNERS (Apps cannot be CODEOWNERS). Automerge approves with an identity that is not the PR author (`GITHUB_TOKEN` / `github-actions[bot]` for Vault/Dependabot/Renovate; Vault for `github-actions[bot]`-authored PRs), then merges as Vault when `workflow-token-policy` is set. See [step 8](#steps).
+
+**Developer path:** prefer the issue form in [Onboard a repository](../guides/user/onboard-a-repository.md) (label `oblt-aw/onboard/repository`, agent [`gh-aw-onboard-repository`](../workflows/gh-aw-onboard-repository.md)). This page is the technical contract those automations must follow—including [Pull request inventory](#pull-request-inventory-separate-concerns) and [Automation contract](#automation-contract-gh-aw-onboard-repository).
 
 The **catalog-info** token policy must be **merged and active** before you merge the **`elastic/oblt-aw`** change that adds the repository to `main`. Otherwise automation in the consumer repository can call `create-token` before the policy exists.
 
@@ -15,34 +18,82 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
 ## Prerequisites
 
-- Permission to open pull requests to **`elastic/oblt-aw`**, **`elastic/catalog-info`**, and (for secrets) **`elastic/observability-github-secrets`** as required by your team’s process.
-- Layout and approval rules inside **`elastic/catalog-info`** are **Unknown** in this repository—follow that repo’s maintainers.
+- Permission to open pull requests to **`elastic/oblt-aw`**, **`elastic/catalog-info`**, **`elastic/observability-github-settings`** (branch protection / `pull_request_bypassers`), and (for secrets) **`elastic/observability-github-secrets`** as required by your team’s process.
+- Layout and approval rules inside **`elastic/catalog-info`** and **`elastic/observability-github-settings`** are **Unknown** in this repository—follow those repos’ maintainers.
+- Target repository is **not** already listed in `config/<org-key>/active-repositories.json` for the chosen org key. If it is, stop (do not open duplicate registration PRs).
+
+## Pull request inventory (separate concerns)
+
+Open **one pull request per concern** (do not combine catalog, registration, settings, and secrets into a single PR). Preferred open order matches merge dependency:
+
+| Order | Repository | What changes | Required? |
+|------:|------------|--------------|-----------|
+| 1 | `elastic/catalog-info` | Backstage TokenPolicy Resource(s) for the consumer’s client `workflow_ref` values (`refs/heads/main` only). Derive `token-policy-<12-char sha256(workflow ref base)>` per step **2**. | **Always** |
+| 2 | `elastic/oblt-aw` | Add `{ "repository": "elastic/<repo>", "workflow-token-policy": "<catalog metadata.name>", "ai-assets-token-policy": "" }` to `config/<org-key>/active-repositories.json`. Keep JSON sorted and styled like neighboring entries. | **Always** |
+| 3 | `elastic/observability-github-settings` | Add [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) to classic BP `pull_request_bypassers` for the default branch under `branch-protections/<repo>/`. **Add** to existing lists; do not remove other bypassers. | **Always** |
+| 4 | `elastic/observability-github-secrets` | Provision consumer secrets discovered from org workflow docs (see [Consumer secrets discovery](#consumer-secrets-discovery)). | **When discovery returns a non-empty set**; otherwise skip and record “none” |
+
+**Merge order (humans):** merge **catalog-info** before the **`elastic/oblt-aw`** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed workflows in production. Auto-merge of these registration PRs is **out of scope**.
+
+**Out of scope for registration PRs:** do not edit `config/<org-key>/workflow-registry.json`, client templates under `.github/remote-workflow-template/`, or Control Plane Dashboard checkbox definitions. Those apply after registration via distribute / sync / human dashboard opt-in.
+
+## Consumer secrets discovery
+
+Do **not** hardcode secret names in this onboarding guide. Required long-lived consumer secrets are declared on each workflow doc — primarily under **Prerequisites**, with **API / Interface** as the wrapper contract fallback.
+
+Discovery procedure (agents and maintainers):
+
+1. Read `config/<org-key>/workflow-registry.json`.
+2. For every entry with a `docs:` path under this repository, **open that markdown file** and collect required consumer repository secret names:
+   - Read **Prerequisites** first. When the doc says consumers provision or map a specific secret name (for example provision `BUILDKITE_LOGS_API_TOKEN`), use that consumer-facing name.
+   - If Prerequisites only names the wrapper secret (or is silent) and **API / Interface** lists a required `Secret:`, use that name.
+   - Union across **all** registry workflows for that org. Do **not** filter by `default_enabled`, “onboarding defaults”, maturity, or expected dashboard opt-in. Skip missing docs paths or docs with no required secrets.
+3. For each unique secret name, resolve the shared module in the checked-out `repos/observability-github-secrets` tree: search `conf/shared/**/*.tf` for that quoted name, or use the README Create Secret table (`secret=` query). The module path is relative to `conf/shared` (for example `buildkite/logs.tf` for `./cli secret -s`). Fail closed if a name cannot be resolved — do not invent modules.
+4. If the union is empty **after** opening every registry docs path, skip the secrets PR and record “none”. Do not record “none” because only default-enabled workflows were inspected or docs files were not opened.
+5. If non-empty, open or update `conf/resources/<repo>/` (and `docs/<repo>.md`) so the project depends on each resolved shared module (scaffold with `./cli scaffold` / `./cli secret` when practical; otherwise mirror neighboring manifests). Never invent Vault paths or secret values.
+
+Example: [obs-aw-estc-pr-buildkite-detective](../workflows/obs-aw-estc-pr-buildkite-detective.md) **Prerequisites** requires consumer secret `BUILDKITE_LOGS_API_TOKEN`.
+
+## Automation contract (`gh-aw-onboard-repository`)
+
+When the in-repo agent [`gh-aw-onboard-repository`](../workflows/gh-aw-onboard-repository.md) runs from an issue labeled `oblt-aw/onboard/repository`, it must follow this page and:
+
+1. **Inputs** — Parse **repository** (`elastic/<repo>`) and **organization key** (existing `config/<org-key>/` directory, today `obs` or `docs`) from the issue. On missing/invalid inputs or an already-registered repository, comment on the issue and stop.
+2. **Retry safety** — Before opening PRs, search for **existing open** pull requests whose titles start with `[oblt-aw][onboard]` and that target the same `elastic/<repo>` (across allowlisted repos). Map matches to inventory concerns (catalog / registration / settings / secrets). **Never duplicate** an open concern. **Gap-fill** missing concerns (run [Consumer secrets discovery](#consumer-secrets-discovery); open a secrets PR when the resolved set is non-empty and no open secrets onboard PR exists). Stop with **exact PR URLs** and merge order only when every required concern is covered (secrets open, or correctly skipped as “none” after full discovery). Re-applying the onboard label is the supported retry.
+3. **Workspace trees** — Edit checked-out paths: `repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and the workflow repository root for `elastic/oblt-aw`. Match existing file layout and naming in those trees.
+4. **Discover `workflow_ref` values** — Derive client trigger paths from `.github/remote-workflow-template/<org-key>/` (and the org’s [client template](../workflows/obs-aw-client-template.md) / docs equivalents) so TokenPolicy `bound_claims.workflow_ref` lists every installed `trigger-*-aw-*.yml` that calls `create-token`, always with `@refs/heads/main`.
+5. **Consumer secrets** — Run [Consumer secrets discovery](#consumer-secrets-discovery) for the parsed org key. Open the secrets PR only when the resolved set is non-empty.
+6. **PR policy** — Open **normal (non-draft)** PRs via safe-output `create-pull-request`, one concern each per the inventory above. Assign a distinct `temporary_id` on each call (for example `aw_catalog`, `aw_obltaw`, `aw_settings`, `aw_secrets`). **Do not merge** any PR. **Do not close** the onboard issue. Each PR `body` must be **valid Markdown with real newlines** (never escaped `\n`); keep it short and concern-specific.
+7. **Issue comment** — Before finishing, call `add-comment` with: parsed repository and org-key; checklist of opened or skipped PRs; merge order (catalog-info before `elastic/oblt-aw`); that merges are **manual**; pointer to [Onboard a repository](../guides/user/onboard-a-repository.md) for post-merge dashboard enablement. The body must be **valid Markdown with real newlines** (never escaped `\n`). Prefer full `https://github.com/.../pull/<n>` URLs or `#aw_…` temporary IDs — not `owner/repo#n` or invented `pulls?q=` search links. Heading text may vary. For newly requested PRs, use matching `#aw_…` ids; on retry with already-open PRs, use real URLs from search / `gh pr list`.
+8. **Failures** — On permission or token errors, comment what failed; never invent credentials or policies.
+
+Manual maintainers may still use draft PRs for early review; the agent path does not.
 
 ## Steps
 
-1. **Create a new branch on `elastic/oblt-aw`, choose the org, and add the repository** — From an up-to-date `main`, create a **feature branch** (for example `git checkout -b feat/oblt-aw-register-<repo>`; exact naming is your team’s convention). On that branch only, identify the owning **`config/<org-key>/`** folder ([multi-org design](../architecture/multi-org-agentic-workflows.md)) and edit **`active-repositories.json`** to add an object with **`repository`** set to **`elastic/<repo>`**, **`workflow-token-policy`** set to a Backstage policy name when this repo should use an explicit policy for agentic workflow `create-token` calls (via `aw-prelude`), or **`""`** otherwise, and **`ai-assets-token-policy`** set when `apm install` must clone private APM packages from other repositories ([distribute-client-workflow](../operations/distribute-client-workflow.md), [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md)):
+1. **Create the catalog token policy first, then add the repository to `elastic/oblt-aw`** — From an up-to-date `main`, prepare the consumer repository’s Backstage **`TokenPolicy`** change in **`elastic/catalog-info`** (open a **separate** PR once the manifest is authored—see [inventory](#pull-request-inventory-separate-concerns)). Then take the policy name from the TokenPolicy manifest’s **`spec.implementation.metadata.name`** (the value under the nested `metadata.name` inside the `TokenPolicy` resource; for example `token-policy-f36777a25870`) and use that exact string in the `elastic/oblt-aw` registration entry’s **`workflow-token-policy`** field. Only use **`""`** when you intentionally want the repo to rely on Vault auto-policy / control-plane defaults instead of an explicit repository-scoped policy. On the `elastic/oblt-aw` branch, identify the owning **`config/<org-key>/`** folder ([multi-org design](../architecture/multi-org-agentic-workflows.md)) and edit **`active-repositories.json`** to add an object with **`repository`** set to **`elastic/<repo>`**, **`workflow-token-policy`** set to that catalog policy name, and **`ai-assets-token-policy`** set when `apm install` must clone private APM packages from other repositories ([distribute-client-workflow](../operations/distribute-client-workflow.md), [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md)):
 
    ```json
    {
      "repositories": [
        {
          "repository": "elastic/<repo>",
-         "workflow-token-policy": "",
+         "workflow-token-policy": "token-policy-<12-char sha256(workflow ref base)>",
          "ai-assets-token-policy": ""
        }
      ]
    }
    ```
 
-   Commit on the branch and open a pull request to **`main`**, but **do not merge** that registration PR until **step 3** is complete.
+   Commit on the `elastic/oblt-aw` branch and open a pull request to **`main`**, but **do not merge** that registration PR until **step 3** is complete.
 
-   - **`id-token: write` on the client** — Confirm each [client template](../workflows/oblt-aw-client-template.md) that needs OIDC grants **`id-token: write`** on the client entrypoint job (for example `run-oblt-aw-pull-request`) so nested workflows can call `create-token`.
+   - **`id-token: write` on the client** — Confirm each [client template](../workflows/obs-aw-client-template.md) that needs OIDC grants **`id-token: write`** on the client entrypoint job (for example `run-obs-aw-pull-request`) so nested workflows can call `create-token`.
 
 2. **Add the GitHub token policy in `elastic/catalog-info` (mandatory)** — In **[`elastic/catalog-info`](https://github.com/elastic/catalog-info)**, add or update the Backstage **`Resource`** / **`TokenPolicy`** for this consumer repository. Follow the [appendix template](#appendix-token-policy-yaml-template) and complete every subpoint below before opening the catalog PR (or fold them into one catalog PR as your process allows).
 
-   - **a. `workflow_ref`** — Set `bound_claims.workflow_ref` to each installed client workflow that calls `create-token` (for example **`elastic/<repo>/.github/workflows/trigger-oblt-aw-security-detector.yml@refs/heads/main`**, **`…/trigger-oblt-aw-automerge.yml@refs/heads/main`**). Use one TokenPolicy per distinct `workflow_ref` when your vault model requires narrow claims. Branch ref is **always** `refs/heads/main` for this contract.
+   - **a. `workflow_ref`** — Set `bound_claims.workflow_ref` to each installed client workflow that calls `create-token` (for example **`elastic/<repo>/.github/workflows/trigger-obs-aw-security-detector.yml@refs/heads/main`**, **`…/trigger-obs-aw-automerge.yml@refs/heads/main`**). Discover the trigger filenames from `.github/remote-workflow-template/<org-key>/` in **`elastic/oblt-aw`** (and the matching [client template](../workflows/obs-aw-client-template.md) / docs equivalents). Use one TokenPolicy per distinct `workflow_ref` when your vault model requires narrow claims. Branch ref is **always** `refs/heads/main` for this contract.
 
-   - **b. `additional_permissions`** — Populate `permissionset.additional_permissions` with the **union** of GitHub permissions required to run **every** agentic workflow listed for the **selected org** in `elastic/oblt-aw`’s `config/<org-key>/workflow-registry.json` (all `workflows[].id` values for that org). For each registry entry, use the matching **`docs/workflows/oblt-aw-*.md`** (and routing docs where relevant) in `elastic/oblt-aw` to determine token, OIDC, and secret requirements. There is no single canonical YAML block maintained here (**Unknown**); Platform Engineering and **`elastic/catalog-info`** reviewers approve the final mapping ([Ephemeral tokens / GitHub Actions](https://docs.elastic.dev/platform-engineering-productivity/services/ephemeral-tokens/github-actions)). The shape is a mapping of permission names to access levels; for example (illustrative only—not the full union for any org):
+   - **b. `additional_permissions`** — Populate `permissionset.additional_permissions` with the **union** of GitHub permissions required to run the workflows you intend to enable for the selected org in `elastic/oblt-aw`’s `config/<org-key>/workflow-registry.json`. For each registry entry, use the matching **`docs/workflows/obs-aw-*.md`** (and routing docs where relevant) in `elastic/oblt-aw` to determine token, OIDC, and secret requirements. There is no single canonical YAML block maintained here (**Unknown**); Platform Engineering and **`elastic/catalog-info`** reviewers approve the final mapping ([Ephemeral tokens / GitHub Actions](https://docs.elastic.dev/platform-engineering-productivity/services/ephemeral-tokens/github-actions)). The shape is a mapping of permission names to access levels; for example (illustrative only—not the full union for any org):
 
      ```yaml
      additional_permissions:
@@ -50,7 +101,7 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
        issues: write
      ```
 
-   - **c. `TokenPolicy.metadata.name` (`token-policy-<12-char sha256(workflow ref base)>`)** — Derive the suffix from each **workflow ref base** (the `workflow_ref` value without `@refs/heads/main`), for example **`elastic/<repo>/.github/workflows/trigger-oblt-aw-automerge.yml`**. Set the nested name to **`token-policy-<12-char sha256(workflow ref base)>`** per policy.
+   - **c. `TokenPolicy.metadata.name` (`token-policy-<12-char sha256(workflow ref base)>`)** — Derive the suffix from each **workflow ref base** (the `workflow_ref` value without `@refs/heads/main`), for example **`elastic/<repo>/.github/workflows/trigger-obs-aw-automerge.yml`**. Set the nested name to **`token-policy-<12-char sha256(workflow ref base)>`** per policy. Use that exact **`metadata.name`** value in the `elastic/oblt-aw` registration entry’s **`workflow-token-policy`** field once the catalog PR exists.
 
    - **d. Author the manifest** — Write the YAML file(s) under paths required by **`elastic/catalog-info`**, filling the template fields from **a–c** and the [appendix](#appendix-token-policy-yaml-template).
 
@@ -58,13 +109,29 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
 4. **Merge the `elastic/oblt-aw` registration pull request** — Merge the feature branch from step **1** into **`main`**. That triggers **distribute-client-workflow** and **sync-control-plane-dashboard** for the new target.
 
-5. **Verify the client workflow distribution pull request** — After the push to **`main`**, confirm **distribute-client-workflow** produced an install or update PR in **`elastic/<repo>`** that adds the `trigger-oblt-aw-*.yml` client templates from [remote-workflow-template/obs](../../.github/remote-workflow-template/obs/) ([client template index](../workflows/oblt-aw-client-template.md)). Remove legacy `.github/workflows/oblt-aw.yml` if the PR does not already delete it.
+5. **Verify the client workflow distribution pull request** — After the push to **`main`**, confirm **distribute-client-workflow** produced an install or update PR in **`elastic/<repo>`** that adds the `trigger-obs-aw-*.yml` client templates from [remote-workflow-template/obs](../../.github/remote-workflow-template/obs/) ([client template index](../workflows/obs-aw-client-template.md)). Remove legacy `.github/workflows/oblt-aw.yml` if the PR does not already delete it.
 
 6. **Verify the Control Plane Dashboard issue** — Confirm **sync-control-plane-dashboard** created or updated the open issue labeled **`oblt-aw/dashboard`** with title **`[oblt-aw] Control Plane Dashboard`** in **`elastic/<repo>`** ([sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md), [control-plane-dashboard](../operations/control-plane-dashboard.md)).
 
-7. **Configure Action secrets through `elastic/observability-github-secrets`** — Do **not** rely only on per-repository **Settings → Secrets** in GitHub unless your process explicitly allows it. Workflow secrets, if any, are listed in [docs/workflows/](../workflows/) in **`elastic/oblt-aw`**. Follow the processes in **[`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets)** to provision any required secrets.
+7. **Configure Action secrets through `elastic/observability-github-secrets`** — Do **not** rely only on per-repository **Settings → Secrets** in GitHub unless your process explicitly allows it. Discover required consumer secret names via [Consumer secrets discovery](#consumer-secrets-discovery), resolve shared modules in the secrets checkout, and provision through **[`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets)**. If discovery returns none, **skip** this PR and record “none” (see [inventory](#pull-request-inventory-separate-concerns)).
 
-8. **Humans — Opt workflows in or out from the Control Plane Dashboard** — **Humans** complete this step in the GitHub web UI by checking or unchecking task-list checkboxes on the dashboard issue (GitHub saves on click). Workflow enablement is **not** configured in `active-repositories.json`; it is controlled only through the **Control Plane Dashboard** issue in **`elastic/<repo>`** (task-list checkboxes and `<!-- oblt-aw:<org-key>:<workflow-id> -->` markers). Read [Dashboard gating](adopting-agentic-workflows.md#dashboard-gating-reference) and complete [steps 1–2 in *Adopting a new remote agentic workflow*](adopting-agentic-workflows.md#consumer-repositories): confirm rows exist after sync, then check or uncheck workflows to match policy; wait for a **client** run for changes to apply ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)).
+8. **Add the Vault app as a classic branch-protection `pull_request_bypassers` in `elastic/observability-github-settings` (mandatory)** — For every newly registered consumer repository, open a PR in **[`elastic/observability-github-settings`](https://github.com/elastic/observability-github-settings)** so classic branch protection for the default branch lists [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) in `required_pull_request_reviews.pull_request_bypassers`. GitHub Apps cannot be CODEOWNERS; automerge mints an ephemeral Vault-app token and merges as that app when `workflow-token-policy` / `shared-token-policy` is non-empty. Without this bypasser, CODEOWNERS blocks Dependabot/Renovate, Vault-authored, and other bot dependency merges after they receive an author-aware approve (usually `github-actions[bot]`; Vault when the PR author is `github-actions[bot]`). A non-empty `workflow-token-policy` is required for `github-actions[bot]`-authored automerge PRs. Configuration lives under **`branch-protections/<repo>/`** in that repository (for example `branch-protections/<repo>/main.tf`); follow that repo’s contribution and apply process. Typical HCL shape (grounded in existing consumer branch-protection modules; adjust to match the file already used for **`elastic/<repo>`**):
+
+   ```hcl
+   required_pull_request_reviews {
+     # Vault-app automerge merges with an ephemeral installation token. Apps cannot be
+     # CODEOWNERS, so allow this app to bypass required PR/CODEOWNERS reviews when it merges.
+     pull_request_bypassers = [
+       data.github_app.elastic-vault-github-plugin-prod.node_id,
+     ]
+     require_code_owner_reviews      = true
+     required_approving_review_count = 1
+   }
+   ```
+
+   If the repository already has other `pull_request_bypassers`, **add** the Vault app to the list—do not replace existing entries. Merge and apply the settings change before relying on [obs-aw-automerge](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens) in production. Detail: [CODEOWNERS and ephemeral tokens](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens).
+
+9. **Humans — Opt workflows in or out from the Control Plane Dashboard** — **Humans** complete this step in the GitHub web UI by checking or unchecking task-list checkboxes on the dashboard issue (GitHub saves on click). Workflow enablement is **not** configured in `active-repositories.json`; it is controlled only through the **Control Plane Dashboard** issue in **`elastic/<repo>`** (task-list checkboxes and `<!-- oblt-aw:<org-key>:<workflow-id> -->` markers). Read [Dashboard gating](adopting-agentic-workflows.md#dashboard-gating-reference) and complete [steps 1–2 in *Adopting a new remote agentic workflow*](adopting-agentic-workflows.md#consumer-repositories): confirm rows exist after sync, then check or uncheck workflows to match policy; wait for a **client** run for changes to apply ([obs-aw-client-template](../workflows/obs-aw-client-template.md)).
 
 ## Appendix: Token policy YAML template
 
@@ -100,7 +167,7 @@ spec:
         identity_provider: github
         bound_claims:
           # workflow_ref is always this exact string (refs/heads/main only)
-          workflow_ref: elastic/<repo>/.github/workflows/trigger-oblt-aw-automerge.yml@refs/heads/main
+          workflow_ref: elastic/<repo>/.github/workflows/trigger-obs-aw-automerge.yml@refs/heads/main
       cached: true
       permissionset:
         additional_permissions: {}
@@ -125,19 +192,22 @@ Draft placeholder for `additional_permissions` (not valid YAML until substituted
 |--------------------|-------------------------------------------------------|
 | [distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml) | `token-policy-63405ab45244` |
 | [sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml) | `token-policy-8b60ba56dd3f` |
-| Category detector workflows (for example `oblt-aw-security-injection-detector.yml`) | `-` (no explicit `with.token-policy` on `create-token`) |
-| [oblt-aw-automerge.yml](../../.github/workflows/oblt-aw-automerge.yml) (ephemeral token step) | `-` (no explicit `with.token-policy` on `create-token`) |
+| Category detector workflows (for example `obs-aw-security-injection-detector.yml`) | `-` (no explicit `with.token-policy` on `create-token`) |
+| [obs-aw-automerge.yml](../../.github/workflows/obs-aw-automerge.yml) (ephemeral token step) | `-` (no explicit `with.token-policy` on `create-token`) |
 
 ## Troubleshooting
 
 - **No install PR in the target repository** — See [distribute-client-workflow](../operations/distribute-client-workflow.md): path filters, matrix outputs, and `workflow_dispatch` / `force`.
 - **No dashboard issue** — Confirm **`elastic/<repo>`** is in the union of per-org `active-repositories.json` files and that [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) completed on **`main`**.
-- **Ephemeral token / OIDC failures** — Match `workflow_ref` exactly to the client workflow file that invoked `create-token`; confirm **`id-token: write`** on that client’s `run-oblt-aw-<event>` job ([oblt-aw-client-template](../workflows/oblt-aw-client-template.md)); confirm the catalog policy merged **before** merging **`elastic/oblt-aw`** registration to **`main`**.
+- **Ephemeral token / OIDC failures** — Match `workflow_ref` exactly to the client workflow file that invoked `create-token`; confirm **`id-token: write`** on that client’s `run-obs-aw-<event>` job ([obs-aw-client-template](../workflows/obs-aw-client-template.md)); confirm the catalog policy merged **before** merging **`elastic/oblt-aw`** registration to **`main`**.
+- **Automerge blocked by CODEOWNERS or required reviews** — Confirm step **8**: [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) is in classic BP `pull_request_bypassers` for the default branch in **`elastic/observability-github-settings`**, `workflow-token-policy` is non-empty so merge uses the Vault app token, and the settings change was applied. See [obs-aw-automerge — CODEOWNERS and ephemeral tokens](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens).
 
 ## References
 
 - [Distribution operation: distribute-client-workflow](../operations/distribute-client-workflow.md)
 - [Sync Control Plane Dashboard](../workflows/sync-control-plane-dashboard.md)
 - [Multi-organization agentic workflows](../architecture/multi-org-agentic-workflows.md)
-- [oblt-aw-security-detector](../workflows/oblt-aw-security-detector.md)
+- [obs-aw-security-detector](../workflows/obs-aw-security-detector.md)
+- [obs-aw-automerge — CODEOWNERS and ephemeral tokens](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens)
+- [`elastic/observability-github-settings`](https://github.com/elastic/observability-github-settings)
 - [Adopting a new remote agentic workflow](adopting-agentic-workflows.md)

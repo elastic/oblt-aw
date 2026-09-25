@@ -1,0 +1,381 @@
+"""
+Unit tests for scripts/build_target_operations.py
+
+These tests exercise the pure-logic functions (parse_repositories,
+parse_bool, write_outputs) in isolation, without touching the network,
+the file-system (beyond tmp files created by tmp_path), or git.
+"""
+
+from __future__ import annotations
+
+import json
+import pathlib
+import subprocess
+import sys
+
+import pytest
+
+# Make the scripts/ package importable without installation.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
+
+import build_target_operations as bto
+
+# ── parse_repositories ────────────────────────────────────────────────────────
+
+
+class TestParseRepositories:
+    def test_list_of_strings(self) -> None:
+        content = json.dumps(["elastic/foo", "elastic/bar"])
+        result = bto.parse_repositories(content)
+        assert result == ["elastic/bar", "elastic/foo"]  # sorted
+
+    def test_object_with_repositories_key(self) -> None:
+        content = json.dumps({"repositories": ["elastic/zoo", "elastic/abc"]})
+        result = bto.parse_repositories(content)
+        assert result == ["elastic/abc", "elastic/zoo"]
+
+    def test_deduplication(self) -> None:
+        content = json.dumps(["elastic/dup", "elastic/dup", "elastic/other"])
+        result = bto.parse_repositories(content)
+        assert result == ["elastic/dup", "elastic/other"]
+
+    def test_whitespace_trimmed(self) -> None:
+        content = json.dumps(["  elastic/trimmed  "])
+        result = bto.parse_repositories(content)
+        assert result == ["elastic/trimmed"]
+
+    def test_empty_repositories_key(self) -> None:
+        content = json.dumps({"repositories": []})
+        result = bto.parse_repositories(content)
+        assert result == []
+
+    def test_empty_list(self) -> None:
+        result = bto.parse_repositories(json.dumps([]))
+        assert result == []
+
+    def test_empty_string_returns_empty(self) -> None:
+        result = bto.parse_repositories("")
+        assert result == []
+
+    def test_invalid_entry_raises(self) -> None:
+        content = json.dumps(["not-a-valid-repo"])
+        with pytest.raises(SystemExit, match="Invalid repository entry"):
+            bto.parse_repositories(content)
+
+    def test_non_string_entry_raises(self) -> None:
+        content = json.dumps([123])
+        with pytest.raises(SystemExit, match="Invalid repository entry"):
+            bto.parse_repositories(content)
+
+    def test_invalid_top_level_type_raises(self) -> None:
+        content = json.dumps("a string, not a list or dict")
+        with pytest.raises(SystemExit):
+            bto.parse_repositories(content)
+
+    def test_repositories_not_a_list_raises(self) -> None:
+        content = json.dumps({"repositories": "elastic/foo"})
+        with pytest.raises(SystemExit, match="`repositories` must be a list"):
+            bto.parse_repositories(content)
+
+
+# ── parse_bool ────────────────────────────────────────────────────────────────
+
+
+class TestHasRelevantGitChanges:
+    def test_detects_non_empty_git_diff(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def fake_run(
+            cmd: list[str], **kwargs: object
+        ) -> subprocess.CompletedProcess[str]:
+            assert cmd[:4] == ["git", "diff", "--name-only", "base-sha"]
+            return subprocess.CompletedProcess(
+                cmd, 0, ".github/remote-workflow-template/obs/x.yml\n"
+            )
+
+        monkeypatch.setattr(bto.subprocess, "run", fake_run)
+        assert bto.has_relevant_git_changes("base-sha") is True
+
+    def test_empty_git_diff_returns_false(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fake_run(
+            cmd: list[str], **kwargs: object
+        ) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(cmd, 0, "")
+
+        monkeypatch.setattr(bto.subprocess, "run", fake_run)
+        assert bto.has_relevant_git_changes("base-sha") is False
+
+    def test_invalid_base_ref_returns_false(self) -> None:
+        assert bto.has_relevant_git_changes("") is False
+        assert bto.has_relevant_git_changes(bto.ZERO_SHA) is False
+
+
+class TestShouldRunDistribution:
+    def test_force_overrides_zero_counts(self) -> None:
+        assert bto.should_run_distribution(0, True, "") is True
+
+    def test_changed_files_count_triggers_run(self) -> None:
+        assert bto.should_run_distribution(3, False, "") is True
+
+    def test_git_fallback_when_changed_files_zero(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(bto, "has_relevant_git_changes", lambda _: True)
+        assert bto.should_run_distribution(0, False, "abc123") is True
+
+    def test_skips_when_no_signals(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(bto, "has_relevant_git_changes", lambda _: False)
+        assert bto.should_run_distribution(0, False, "abc123") is False
+
+
+class TestParseBool:
+    @pytest.mark.parametrize("value", ["true", "True", "TRUE", "1", "yes", "on"])
+    def test_truthy_values(self, value: str) -> None:
+        assert bto.parse_bool(value) is True
+
+    @pytest.mark.parametrize("value", ["false", "False", "FALSE", "0", "no", "off", ""])
+    def test_falsy_values(self, value: str) -> None:
+        assert bto.parse_bool(value) is False
+
+    def test_whitespace_stripped(self) -> None:
+        assert bto.parse_bool("  true  ") is True
+
+
+# ── write_outputs ─────────────────────────────────────────────────────────────
+
+
+class TestWriteOutputs:
+    def test_writes_key_value_pairs(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        output_file = tmp_path / "github_output"
+        output_file.touch()
+        monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
+
+        bto.write_outputs({"targets": "[]", "has_targets": "false"})
+
+        content = output_file.read_text()
+        assert "targets=[]\n" in content
+        assert "has_targets=false\n" in content
+
+    def test_raises_when_env_not_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+        with pytest.raises(SystemExit, match="GITHUB_OUTPUT is not set"):
+            bto.write_outputs({"key": "value"})
+
+
+# ── main() integration ────────────────────────────────────────────────────────
+
+
+class TestMain:
+    def _setup_env(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+        *,
+        changed_files_count: int = 1,
+        force: str = "false",
+        base_ref: str = "",
+        repos: list[str] | None = None,
+    ) -> pathlib.Path:
+        output_file = tmp_path / "github_output"
+        output_file.touch()
+        monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
+        monkeypatch.setenv("CHANGED_FILES_COUNT", str(changed_files_count))
+        monkeypatch.setenv("FORCE_DISTRIBUTION", force)
+        monkeypatch.setenv("BASE_REF", base_ref)
+        monkeypatch.chdir(tmp_path)
+
+        config = {"repositories": repos or ["elastic/foo", "elastic/bar"]}
+        (tmp_path / "config").mkdir(exist_ok=True)
+        (tmp_path / "config" / "obs").mkdir(exist_ok=True)
+        (tmp_path / "config" / "obs" / "workflow-registry.json").write_text(
+            json.dumps({"workflows": []})
+        )
+        (tmp_path / "config" / "obs" / "active-repositories.json").write_text(
+            json.dumps(config)
+        )
+        tmpl = (
+            tmp_path
+            / ".github"
+            / "remote-workflow-template"
+            / "obs"
+            / ".github"
+            / "workflows"
+        )
+        tmpl.mkdir(parents=True, exist_ok=True)
+        (tmpl / "trigger-obs-aw-pull-request.yml").write_text("name: client\n")
+        return output_file
+
+    def test_no_changes_skips_work(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        output_file = self._setup_env(monkeypatch, tmp_path, changed_files_count=0)
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        assert "has_targets=false" in content
+
+    def test_with_changes_builds_targets(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        output_file = self._setup_env(monkeypatch, tmp_path, changed_files_count=2)
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        assert "has_targets=true" in content
+        targets = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in content.splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        repos = {t["repository"] for t in targets}
+        assert repos == {"elastic/foo", "elastic/bar"}
+        ops = {t["operation"] for t in targets}
+        assert ops == {"install"}
+        for t in targets:
+            assert t["operation"] == "install"
+            assert "files" in t
+            assert isinstance(t["files"], list)
+            assert len(t["files"]) >= 1
+            dsts = {f["dst"] for f in t["files"]}
+            assert ".github/workflows/trigger-obs-aw-pull-request.yml" in dsts
+            assert "remove_files" in t
+            assert t["remove_files"] == []
+
+    def test_force_distribution(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        output_file = self._setup_env(
+            monkeypatch, tmp_path, changed_files_count=0, force="true"
+        )
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        assert "has_targets=true" in content
+
+    def test_removed_repositories_added_as_remove_ops(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """When BASE_REF resolves to a previous list with extra repos, those appear as 'remove'."""
+        output_file = self._setup_env(
+            monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/bar"]
+        )
+
+        # Patch read_previous_repo_org_assignments to simulate a previous state with an extra repo.
+        monkeypatch.setattr(
+            bto,
+            "read_previous_repo_org_assignments",
+            lambda _: {"elastic/bar": ["obs"], "elastic/gone": ["obs"]},
+        )
+
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        targets_raw = next(
+            line.split("=", 1)[1]
+            for line in content.splitlines()
+            if line.startswith("targets=")
+        )
+        targets = json.loads(targets_raw)
+
+        ops_by_repo = {t["repository"]: t["operation"] for t in targets}
+        assert ops_by_repo["elastic/bar"] == "install"
+        assert ops_by_repo["elastic/gone"] == "remove"
+        for t in targets:
+            assert "files" in t
+            assert isinstance(t["files"], list)
+            if t["operation"] == "install":
+                assert "remove_files" in t
+                assert isinstance(t["remove_files"], list)
+
+    def test_zero_changed_files_with_git_template_diff_builds_targets(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """Renames-only pushes: changed-files count 0 but git diff still distributes."""
+        output_file = self._setup_env(
+            monkeypatch, tmp_path, changed_files_count=0, base_ref="deadbeef"
+        )
+        monkeypatch.setattr(bto, "has_relevant_git_changes", lambda _: True)
+        monkeypatch.setattr(
+            bto,
+            "read_previous_repo_org_assignments",
+            lambda _: {"elastic/foo": ["obs"]},
+        )
+
+        def fake_list_at_ref(org_key: str, ref: str) -> list[dict[str, str]]:
+            assert org_key == "obs"
+            assert ref == "deadbeef"
+            return [
+                {
+                    "src": ".github/remote-workflow-template/obs/.github/workflows/trg-oblt-aw-automerge.yml",
+                    "dst": ".github/workflows/trg-oblt-aw-automerge.yml",
+                },
+            ]
+
+        monkeypatch.setattr(bto, "list_org_template_files_at_ref", fake_list_at_ref)
+
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        assert "has_targets=true" in content
+        targets = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in content.splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        install = next(t for t in targets if t["repository"] == "elastic/foo")
+        assert ".github/workflows/trg-oblt-aw-automerge.yml" in install["remove_files"]
+        dsts = {f["dst"] for f in install["files"]}
+        assert ".github/workflows/trigger-obs-aw-pull-request.yml" in dsts
+
+    def test_install_includes_remove_files_for_dropped_templates(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """remove_files includes template dst paths dropped since BASE_REF."""
+        output_file = self._setup_env(
+            monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/foo"]
+        )
+
+        monkeypatch.setattr(
+            bto,
+            "read_previous_repo_org_assignments",
+            lambda _: {"elastic/foo": ["obs"]},
+        )
+
+        def fake_list_at_ref(org_key: str, ref: str) -> list[dict[str, str]]:
+            assert org_key == "obs"
+            assert ref == "deadbeef"
+            return [
+                {
+                    "src": ".github/remote-workflow-template/obs/.github/workflows/oblt-aw.yml",
+                    "dst": ".github/workflows/oblt-aw.yml",
+                },
+                {
+                    "src": ".github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-pull-request.yml",
+                    "dst": ".github/workflows/trigger-obs-aw-pull-request.yml",
+                },
+            ]
+
+        monkeypatch.setattr(bto, "list_org_template_files_at_ref", fake_list_at_ref)
+        monkeypatch.setenv("BASE_REF", "deadbeef")
+
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        targets = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in content.splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        install = next(t for t in targets if t["repository"] == "elastic/foo")
+        assert install["operation"] == "install"
+        assert ".github/workflows/oblt-aw.yml" in install["remove_files"]
+        dsts = {f["dst"] for f in install["files"]}
+        assert ".github/workflows/trigger-obs-aw-pull-request.yml" in dsts

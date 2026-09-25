@@ -28,10 +28,10 @@ This document defines the ruleset used by the oblt-aw security detector to ident
 | GitHub Actions security best practices checks | SEC-040–SEC-044, SEC-030, and workflow-structure rules |
 | Secret scanning patterns | SEC-001–SEC-003, SEC-020–SEC-022 |
 | Shell script security analysis (shellcheck with security relevance) | SEC-011 and shellcheck-backed findings (quoting, unsafe eval) |
-| Dependency vulnerability scanning | SEC-033–SEC-035 (manifests in repo); complementary: `oblt-aw-dependency-review` via ingress for rich GitHub Dependency Review |
+| Dependency vulnerability scanning | SEC-033–SEC-035 (manifests in repo); complementary: `obs-aw-dependency-review` via ingress for rich GitHub Dependency Review |
 | YAML injection pattern detection | SEC-010, SEC-012 |
 
-**Complementary workflow (not a duplicate ruleset):** Repositories using oblt-aw ingress may already run [`oblt-aw-dependency-review`](./oblt-aw-dependency-review.md) for **dependency and license** signals at PR time. The **security detector** still implements SEC-033–SEC-035 where lockfiles or manifests exist without a PR, and aligns severity/titles with this ruleset.
+**Complementary workflow (not a duplicate ruleset):** Repositories using oblt-aw ingress may already run [`obs-aw-dependency-review`](./obs-aw-dependency-review.md) for **dependency and license** signals at PR time. The **security detector** still implements SEC-033–SEC-035 where lockfiles or manifests exist without a PR, and aligns severity/titles with this ruleset.
 
 ## Rule-to-implementation traceability
 
@@ -72,7 +72,7 @@ The table below documents how each rule ID is currently represented in the detec
 | **Low** | `oblt-aw/detector/security` | Best-practice gaps and defense-in-depth. |
 
 > [!NOTE]
-> The current issue-creation script adds only `oblt-aw/detector/security` to detector-created issues (no `oblt-aw/severity/*` labels are emitted). Severity still appears in each finding entry and maps to this table. See [workflow documentation: `oblt-aw-security-detector.md`](oblt-aw-security-detector.md) and [`scripts/obs/create-security-issues.sh`](../../scripts/obs/create-security-issues.sh).
+> The current issue-creation script adds only `oblt-aw/detector/security` to detector-created issues (no `oblt-aw/severity/*` labels are emitted). Severity still appears in each finding entry and maps to this table. See [workflow documentation: `obs-aw-security-detector.md`](obs-aw-security-detector.md) and [`scripts/obs/create-security-issues.sh`](../../scripts/obs/create-security-issues.sh).
 
 ---
 
@@ -202,7 +202,9 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Description**: Third-party actions (`uses:`) should pin to a full commit SHA per [GitHub hardening guidance](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-third-party-actions). Tag-only or branch refs are higher drift and takeover risk.
 
-**Pattern**: `uses: org/name@main`, `uses: org/name@v1` without SHA (policy may allow `actions/*` exceptions if documented).
+**Pattern**: `uses: org/name@main`, `uses: org/name@v1` without SHA.
+
+**Trusted-namespace exception (detector):** zizmor `unpinned-uses` is configured in [`.github/zizmor.yml`](../../.github/zizmor.yml) so `actions/*` and `elastic/*` may use tag or branch refs (`ref-pin`). All other namespaces must be hash-pinned. [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) passes that config via `--config` on every detector run (override with `ZIZMOR_CONFIG`).
 
 ---
 
@@ -308,9 +310,9 @@ The table below documents how each rule ID is currently represented in the detec
 
 ## Implementation Notes
 
-- **Implementation:** Map each rule ID to a check in the detector scripts or job matrix. Complementary ingress workflows (for example `oblt-aw-dependency-review`) may supplement dependency findings where SEC-033–SEC-035 reference PR-time review.
+- **Implementation:** Map each rule ID to a check in the detector scripts or job matrix. Complementary ingress workflows (for example `obs-aw-dependency-review`) may supplement dependency findings where SEC-033–SEC-035 reference PR-time review.
 - **False positives**: Expression-injection rules (SEC-010) may need triage tuning; during early rollout, triage may temporarily down-rank individual findings to Medium until confidence improves, while SEC-010 remains defined as High severity.
-- **Dependency overlap**: For PR-time dependency review, prefer enabling `oblt-aw-dependency-review` in ingress; SEC-033 remains for scheduled full-repo audits without a PR.
+- **Dependency overlap**: For PR-time dependency review, prefer enabling `obs-aw-dependency-review` in ingress; SEC-033 remains for scheduled full-repo audits without a PR.
 
 ---
 

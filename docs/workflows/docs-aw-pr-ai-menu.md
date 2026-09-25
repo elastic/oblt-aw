@@ -21,6 +21,10 @@ Jobs and routing behavior:
 
 Menu comment automation checks out `elastic/oblt-aw` with sparse checkout of `scripts/docs/pr-menu`.
 
+Menu copy references for docs-actions workflows use the `gh-aw-*` docs:
+
+- Docs review: [elastic/docs-actions/.github/workflows/gh-aw-docs-review.md](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-docs-review.md)
+
 ## Configuration
 
 Top-level permissions:

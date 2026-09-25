@@ -23,12 +23,14 @@ Use this index as the starting point and then navigate by topic.
 
 - **Guides by role** (user, operator, maintainer stories): [docs/guides/README.md](guides/README.md)
 - Architecture overview: [docs/architecture/overview.md](architecture/overview.md)
+- Agentic workflow testing platform (design): [docs/architecture/agentic-workflow-testing-platform.md](architecture/agentic-workflow-testing-platform.md)
 - Workflow catalog: [docs/workflows/README.md](workflows/README.md)
 - Routing guide: [docs/routing/README.md](routing/README.md)
 - Distribution operations: [docs/operations/distribute-client-workflow.md](operations/distribute-client-workflow.md)
 - Control Plane Dashboard (user instructions): [docs/operations/control-plane-dashboard.md](operations/control-plane-dashboard.md)
 - Contributing and local setup: [docs/development/contributing.md](development/contributing.md)
-- Onboarding (step-by-step guides): [docs/onboarding/README.md](onboarding/README.md)
+- Onboard a repository (developers): [docs/guides/user/onboard-a-repository.md](guides/user/onboard-a-repository.md)
+- Onboarding (technical / long-form): [docs/onboarding/README.md](onboarding/README.md)
 
 ## References
 

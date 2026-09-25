@@ -1,3 +1,16 @@
-# These owners will be the default owners for everything in
-# the repo.
-*       @elastic/observablt-robots
+# Default owners for everything in the repo.
+* @elastic/observablt-ci
+
+# Observability (obs) org
+/config/obs/ @elastic/observablt-ci
+/scripts/obs/ @elastic/observablt-ci
+/.github/remote-workflow-template/obs/ @elastic/observablt-ci
+/.github/workflows/obs-aw-* @elastic/observablt-ci
+/.github/workflows/trigger-obs-aw-* @elastic/observablt-ci
+
+# Docs org
+/config/docs/ @elastic/obs-docs
+/scripts/docs/ @elastic/obs-docs
+/.github/remote-workflow-template/docs/ @elastic/obs-docs
+/.github/workflows/docs-aw-* @elastic/obs-docs
+/.github/workflows/trigger-docs-aw-* @elastic/obs-docs

@@ -18,8 +18,10 @@ const fs = require('node:fs');
 
 const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
 
-const GATE_COMMENT_MARKER = '<!-- oblt-aw-automerge:dependency-collection-gate -->';
+const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate -->';
 const AUTOMERGE_PARENT_COMPOUND_ID = 'obs:automerge';
+const AUTOMERGE_SERVICES_GUIDE_URL =
+  'https://github.com/elastic/oblt-aw/blob/main/docs/guides/user/automerge-services.md';
 
 /** @typedef {object} DependencyCollection
  * @property {string} id
@@ -101,6 +103,31 @@ function collectionMatchesAllFiles(collection, files) {
   return files.every((file) => pathMatchesAnyGlob(file, globs));
 }
 
+/**
+ * When several collections cover every changed file, drop any whose file-glob
+ * set is a strict superset of another matched collection. That keeps go-only
+ * PRs on go-dependencies when update-beats (NOTICE + go + beats) also matches.
+ * @param {DependencyCollection[]} matched
+ * @returns {DependencyCollection[]}
+ */
+function preferNonSupersetCollections(matched) {
+  return matched.filter((candidate) => {
+    const candidateGlobs = new Set(candidate['file-glob'] || []);
+    return !matched.some((other) => {
+      if (other.id === candidate.id) {
+        return false;
+      }
+      const otherGlobs = other['file-glob'] || [];
+      if (otherGlobs.length === 0 || otherGlobs.length >= candidateGlobs.size) {
+        return false;
+      }
+      const otherIsSubset = otherGlobs.every((g) => candidateGlobs.has(g));
+      const sameSize = otherGlobs.length === candidateGlobs.size;
+      return otherIsSubset && !sameSize;
+    });
+  });
+}
+
 function classifyChangedFiles(files, collections, enabledCollectionIds) {
   const changed = [...new Set(files.map((f) => f.trim()).filter(Boolean))];
   const enabledSet = new Set(enabledCollectionIds);
@@ -108,8 +135,8 @@ function classifyChangedFiles(files, collections, enabledCollectionIds) {
     return { status: 'unclassified', collectionId: null };
   }
 
-  const matched = collections.filter((c) =>
-    collectionMatchesAllFiles(c, changed)
+  const matched = preferNonSupersetCollections(
+    collections.filter((c) => collectionMatchesAllFiles(c, changed))
   );
 
   if (matched.length === 0) {
@@ -160,7 +187,7 @@ function buildGateCommentBody(outcome, changedFiles, enabledCollectionIds) {
     '',
     `**Collections enabled for automerge on this repository:** ${enabledList}`,
     '',
-    'Enable or disable collections under the Automerge workflow on the Control Plane Dashboard (`oblt-aw/dashboard` issue). Dependency-review may still have applied `oblt-aw/ai/merge-ready` for risk review. Only enabled collections proceed to Copilot approval and merge via this workflow.',
+    `Enable or disable collections under the Automerge workflow on the Control Plane Dashboard (\`oblt-aw/dashboard\` issue). See [Automerge services](${AUTOMERGE_SERVICES_GUIDE_URL}) for what each collection covers. Dependency-review may still have applied \`oblt-aw/ai/merge-ready\` for risk review. Only enabled collections proceed to Copilot approval and merge via this workflow.`,
     '',
     '**Changed files considered for classification:**',
     fileLines || '- _(none)_',

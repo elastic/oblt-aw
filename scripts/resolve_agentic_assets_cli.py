@@ -29,6 +29,7 @@ Environment:
   PLATFORM_ADDITIONAL_INSTRUCTIONS  Multiline platform baseline text
   PLATFORM_INPUTS_JSON JSON object of platform workflow_call inputs
   CONTROL_PLANE_CONFIG_DIR  Optional path to config/ for registry validation
+  WORKFLOW_BASENAME         Basename of the calling wrapper (for inner-workflows)
 """
 
 from __future__ import annotations
@@ -47,6 +48,7 @@ def main() -> int:
     compound = os.environ.get("ENABLED_WORKFLOW_ID", "").strip()
     workflow_id = os.environ.get("WORKFLOW_ID", "").strip()
     org_key = os.environ.get("ORG_KEY", "obs").strip() or "obs"
+    workflow_basename = os.environ.get("WORKFLOW_BASENAME", "").strip()
 
     if compound:
         from apm_agentic_assets import parse_compound_workflow_id
@@ -86,8 +88,9 @@ def main() -> int:
             platform_additional_instructions=platform_text,
             platform_inputs=platform_inputs_typed,
             config_dir=config_dir,
+            workflow_basename=workflow_basename,
         )
-    except (OSError, ValueError, FileNotFoundError) as exc:
+    except (OSError, ValueError, TypeError, FileNotFoundError) as exc:
         print(
             f"agentic_assets_resolver.resolve_agentic_assets failed: {exc}",
             file=sys.stderr,
@@ -97,6 +100,9 @@ def main() -> int:
     additional = resolved["additional_instructions"]
     inputs_json = json.dumps(resolved["inputs"], ensure_ascii=False)
     setup_json = json.dumps(resolved["setup_commands"], ensure_ascii=False)
+    layers_json = json.dumps(
+        resolved.get("instruction_layers") or {}, ensure_ascii=False
+    )
 
     write_outputs(
         {
@@ -109,6 +115,7 @@ def main() -> int:
             "asset-source": str(resolved["asset_source"]),
             "resolved-inputs-json": inputs_json,
             "resolved-setup-commands-json": setup_json,
+            "resolved-instruction-layers-json": layers_json,
         }
     )
     append_multiline_github_output("resolved-additional-instructions", additional)
@@ -117,7 +124,8 @@ def main() -> int:
         "Resolved agentic assets: "
         f"manifest={resolved['apm_manifest_present']} "
         f"extension={resolved['apm_extension_present']} "
-        f"source={resolved['asset_source']}"
+        f"source={resolved['asset_source']} "
+        f"workflow-basename={workflow_basename or '(none)'}"
     )
     return 0
 

@@ -82,7 +82,7 @@ scripts/
     pr-menu/                                # Docs AI PR menu (github-script modules)
 
 .github/workflows/
-  oblt-aw-*.yml                               # Reusable agent workflows — see §4
+  obs-aw-*.yml                               # Reusable agent workflows — see §4
   sync-control-plane-dashboard.yml
   distribute-client-workflow.yml
   ...
@@ -92,11 +92,11 @@ scripts/
 
 ---
 
-## 4. `oblt-aw-*` workflow files (naming and location)
+## 4. `obs-aw-*` workflow files (naming and location)
 
-- **Keep existing flat names** such as `oblt-aw-dependency-review.yml`, `oblt-aw-agent-suggestions.yml`, etc., at **`.github/workflows/`** (same as today).
+- **Keep existing flat names** such as `obs-aw-dependency-review.yml`, `obs-aw-agent-suggestions.yml`, etc., at **`.github/workflows/`** (same as today).
 - **Do not move reusable workflows into subfolders:** GitHub requires reusable workflows to live **directly** under `.github/workflows/` — **subdirectories are not supported** for reusable workflows ([Reuse workflows — limitations](https://docs.github.com/en/actions/using-workflows/reusing-workflows#creating-a-reusable-workflow)).
-- If you need clearer grouping without breaking `uses:` paths, rely on **naming prefixes** (e.g. `oblt-aw-obs-*.yml` only if you adopt a convention) or **documentation**, not nested directories for callable workflows.
+- If you need clearer grouping without breaking `uses:` paths, rely on **naming prefixes** (org key is already the `obs-aw-` / `docs-aw-` prefix) or **documentation**, not nested directories for callable workflows.
 
 ---
 

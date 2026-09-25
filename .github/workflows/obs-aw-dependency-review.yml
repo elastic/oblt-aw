@@ -1,0 +1,81 @@
+name: Dependency Review
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+# Nested GH-AW jobs mint OIDC ephemeral tokens when github-token-policy is non-empty.
+permissions:
+  contents: read
+
+jobs:
+
+  resolve-apm-assets:
+    if: inputs.shared-proceed == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      workflow-basename: obs-aw-dependency-review.yml
+      # Prompt body (noop / CVE / merge-ready / GitHub-read) lives in
+      # gh-aw-dependency-review.md. Resolve only merges consumer APM fragments.
+
+  dependency-review:
+    if: inputs.shared-proceed == 'true'
+    needs: [resolve-apm-assets]
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+      id-token: write
+    uses: elastic/oblt-aw/.github/workflows/gh-aw-dependency-review.lock.yml@main
+    with:
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), fromJSON('"\n"')) }}
+      github-token-policy: ${{ inputs.shared-token-policy }}
+      # Bots + merge-ready label allowlist are hardcoded on the in-repo lock
+      # (safe-output-add-labels-merge-ready). Failure-issue suppression from obs-defaults.
+
+  notify-no-comment:
+    needs: dependency-review
+    if: >-
+      always() &&
+      needs.dependency-review.result == 'success' &&
+      needs.dependency-review.outputs.comment_id == ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Upsert PR comment when dependency-review posted no analysis
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          MARKER='<!-- obs-aw-dependency-review:notify-no-comment -->'
+          body="$(printf '%s\n\n%s\n\n%s\n%s\n%s\n\n%s' \
+            "$MARKER" \
+            'Dependency review finished without posting an analysis comment.' \
+            "- Workflow run: ${RUN_URL}" \
+            "- If the agent intentionally called \`noop\` (no dependency updates to review), treat that as the completion signal." \
+            '- If you expected an analysis, check the run artifacts for empty safe outputs.' \
+            "To retry after a false bailout: push a new commit to the PR branch (or close/reopen) so \`pull_request\` re-runs dependency-review.")"
+          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+            | head -n 1)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          fi

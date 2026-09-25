@@ -40,7 +40,7 @@ def _proceed_for_compound_id(
         return False
     enabled = json.loads(enabled_workflows_json)
     if not isinstance(enabled, list):
-        raise ValueError("enabled-workflows must be a JSON array")
+        raise TypeError("enabled-workflows must be a JSON array")
     enabled_set = set(enabled)
     if compound_id not in enabled_set:
         return False
@@ -64,7 +64,7 @@ def evaluate_gates(
             known = ", ".join(sorted(index))
             raise ValueError(
                 f"control-plane workflow {basename!r} is not listed in any "
-                f"workflow-registry.json control_plane_workflows (known: {known})"
+                f"workflow-registry.json inner_workflows (known: {known})"
             )
         compound_id = index[basename].compound_id
         allowed = _proceed_for_compound_id(
@@ -126,7 +126,7 @@ def main() -> int:
             args.effective_raw,
             args.enabled_workflows,
         )
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 

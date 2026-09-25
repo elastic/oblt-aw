@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "workflow_id": "obs:dependency-review",
+  "consumer_repo": "elastic/oblt-aw",
+  "pull_request_trigger_workflow_file": "trigger-obs-aw-pull-request.yml",
+  "poll_timeout_seconds": 3600,
+  "poll_interval_seconds": 20,
+  "e2e_pr": {
+    "label": "e2e:dependency-review",
+    "branch_prefix": "e2e/dependency-review/",
+    "title_template": "[e2e] Bump actions/checkout pin for dependency-review",
+    "body": "Ephemeral E2E fixture PR for obs:dependency-review (Actions pin bump). Created as Vault app so pull_request workflows run without Approve-and-run."
+  },
+  "fixture_workflow_path": ".github/workflows/e2e-dependency-review-actions-fixture.yml",
+  "required_dashboard_ids": ["obs:dependency-review"],
+  "merge_ready_label": "oblt-aw/ai/merge-ready",
+  "dependency_review_comment_markers": ["Labels Applied"],
+  "allowed_pr_author": "elastic-vault-github-plugin-prod[bot]"
+}

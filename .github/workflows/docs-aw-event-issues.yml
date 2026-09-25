@@ -16,6 +16,18 @@ jobs:
       control-plane-workflows: '["docs-aw-ai-menu.yml"]'
       load-allowed-authors: false
 
+  dashboard-audit:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'edited' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/dashboard')
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/aw-dashboard-audit.yml
+    with:
+      mode: checkbox-delta
+
   ai-menu:
     needs: run-aw-prelude
     if: >-

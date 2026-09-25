@@ -1,0 +1,4 @@
+[
+  "export DR_FIXTURE=1",
+  "./scripts/dr-fixture-setup.sh"
+]

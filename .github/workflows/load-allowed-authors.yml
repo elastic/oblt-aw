@@ -1,5 +1,5 @@
 # Checks out elastic/oblt-aw (sparse: PR + issue allow-list JSON only).
-# ref=main matches consumers’ uses: elastic/oblt-aw/.../oblt-aw-*.yml@main via aw-prelude.
+# ref=main matches consumers’ uses: elastic/oblt-aw/.../obs-aw-*.yml@main via aw-prelude.
 # Invoked from aw-prelude when load-allowed-authors is true on pull_request / issues events.
 # Other callers (e.g. workflow_dispatch) can invoke this reusable workflow directly.
 name: Load allowed authors

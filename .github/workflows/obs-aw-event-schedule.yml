@@ -1,0 +1,156 @@
+name: Observability Agentic Workflow — Schedule Event
+
+# Event-scoped orchestrator: one shared prelude chain for all schedule/workflow_dispatch routes.
+on:
+  workflow_call:
+permissions:
+  contents: read
+
+jobs:
+  run-aw-prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflows: >-
+        ["obs-aw-agent-suggestions.yml","obs-aw-autodoc.yml","obs-aw-security-injection-detector.yml","obs-aw-security-supply-chain-detector.yml","obs-aw-security-secrets-detector.yml","obs-aw-security-least-privilege-detector.yml","obs-aw-resource-not-accessible-by-integration-detector.yml"]
+      load-allowed-authors: false
+
+  agent-suggestions:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-agent-suggestions.yml'] == 'true'
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: read
+      copilot-requests: write
+    uses: ./.github/workflows/obs-aw-agent-suggestions.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-agent-suggestions.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+  autodoc:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-autodoc.yml'] == 'true'
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+    uses: ./.github/workflows/obs-aw-autodoc.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-autodoc.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+  security-injection-detector:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-injection-detector.yml'] == 'true' &&
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/obs-aw-security-injection-detector.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-injection-detector.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+
+  security-supply-chain-detector:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-supply-chain-detector.yml'] == 'true' &&
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/obs-aw-security-supply-chain-detector.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-supply-chain-detector.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+
+  security-secrets-detector:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-secrets-detector.yml'] == 'true' &&
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/obs-aw-security-secrets-detector.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-secrets-detector.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+
+  security-least-privilege-detector:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-least-privilege-detector.yml'] == 'true' &&
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/obs-aw-security-least-privilege-detector.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-least-privilege-detector.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+
+  resource-not-accessible-detector:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-resource-not-accessible-by-integration-detector.yml'] == 'true' &&
+      github.event_name == 'schedule'
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: write
+      copilot-requests: write
+    uses: ./.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-resource-not-accessible-by-integration-detector.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}

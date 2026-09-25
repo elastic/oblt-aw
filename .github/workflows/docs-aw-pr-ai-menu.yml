@@ -172,7 +172,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
-      control-plane-workflow: docs-aw-pr-ai-menu.yml
+      workflow-basename: docs-aw-pr-ai-menu.yml
       platform-additional-instructions: |
         This repository stores documentation as markdown across the repository.
         Prefer concise, high-signal review comments with exact replacement text when possible.

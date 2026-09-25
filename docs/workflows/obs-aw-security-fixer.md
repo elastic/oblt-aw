@@ -1,0 +1,67 @@
+# Workflow: `obs-aw-security-fixer.yml`
+
+## Overview
+
+Source file: [.github/workflows/obs-aw-security-fixer.yml](../../.github/workflows/obs-aw-security-fixer.yml)
+
+This reusable workflow executes issue-based fixes for security vulnerabilities. It calls [elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml) via `workflow_call` with security-specific instructions (no separate clone of [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions)). That lock may open draft PRs that change `.github/` (including workflow YAML). Remediation scope follows the ruleset in [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) and triage resolution plans.
+
+## Prerequisites
+
+- Triggered via `workflow_call`.
+- Issue labels must include:
+  - `oblt-aw/ai/fix-ready`
+  - At least one of: `oblt-aw/triage/security-injection`, `oblt-aw/triage/security-secrets`, `oblt-aw/triage/security-supply-chain`, `oblt-aw/triage/security-least-privilege`
+
+## Usage
+
+The job `security-issue-fixer` calls:
+
+- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml)
+
+Configured instructions require:
+
+- workflow `if:` already enforced label gates — do not refuse solely because shell `gh` cannot re-check labels
+- read the issue body, labels, and triage plan via GitHub MCP / `github` CLI (not shell `gh`)
+- mandatory safe-output tool before finishing (`create_pull_request`, `noop`, `report_incomplete`, `missing_tool`, or `missing_data`)
+- for verified remediations under `.github/` / workflow YAML, prefer `create_pull_request` over comment-only
+- strict execution of triage-generated resolution plan
+- **least-privilege**: grant only minimum permissions required; no over-broad scopes
+- **env-indirection**: never interpolate secrets/tokens in command strings; always pass via `env:` blocks
+- draft PR first, then ready-for-review after validation
+- reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
+- no auto-merge
+
+`notify-no-pr` runs when the lock succeeds with an empty `created_pr_number` and comments on the **source** issue with the run URL and retry guidance. The lock call sets `report-failure-as-issue: false` so empty bailouts do not open a separate `[aw] … produced no safe outputs` meta-issue.
+
+The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
+
+Workflow-specific prompt text (including least-privilege and env-indirection) lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from control-plane fragments under `workflows.security.inner-workflows.obs-aw-security-fixer.yml` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Triage does not load those fixer fragments.
+
+## Failure mode (empty safe outputs)
+
+If the agent exits with text only and zero safe outputs, the lock may still report success with an empty `created_pr_number`. `notify-no-pr` then leaves a human-visible comment on the source issue (run URL + retry guidance). Retry by removing and re-applying `oblt-aw/ai/fix-ready` while keeping a `oblt-aw/triage/security-*` label.
+
+## Configuration
+
+Permissions:
+
+- `actions: read`
+- `contents: write`
+- `discussions: write`
+- `issues: write`
+- `pull-requests: write`
+- `id-token: write`
+
+## API / Interface
+
+`workflow_call` contract:
+
+- Input: `allowed-bot-users` (`required: true`) — comma-separated GitHub logins for the upstream issue-fixer-unrestricted lock; ingress passes `allowed_issue_authors_csv` from [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json).
+
+## References
+
+- Routing rules: [docs/routing/security-routing.md](../routing/security-routing.md)
+- Security scanning ruleset: [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md)
+- Upstream unrestricted lock: [elastic/ai-github-actions#2038](https://github.com/elastic/ai-github-actions/pull/2038)
+- Hardening follow-up: https://github.com/elastic/oblt-aw/issues/1855

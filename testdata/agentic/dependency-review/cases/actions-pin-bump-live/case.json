@@ -1,0 +1,18 @@
+{
+  "id": "actions-pin-bump-live",
+  "mode": "live",
+  "description": "Production path: Vault-app Actions pin-bump PR runs dependency-review, posts analysis comment, and applies merge-ready. Does not wait for automerge.",
+  "workflow_id": "obs:dependency-review",
+  "trigger": {
+    "require_open_pr": true,
+    "force_actions_pin_bump": true,
+    "require_allowed_pr_author": true,
+    "wait_dependency_review": true
+  },
+  "expectations": {
+    "dashboard_enabled": true,
+    "dependency_review_job_executed": true,
+    "merge_ready_label_applied": true,
+    "dependency_review_comment": true
+  }
+}

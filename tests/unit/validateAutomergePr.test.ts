@@ -17,7 +17,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { run } = require('../../scripts/obs/validateAutomergePr.ts');
+const {
+  run,
+  normalizePrAuthorLogin,
+  isAllowedPrAuthor,
+} = require('../../scripts/obs/validateAutomergePr.ts');
 
 function makeCore() {
   const infoMessages = [];
@@ -37,6 +41,26 @@ function basePr(overrides = {}) {
     ...overrides,
   };
 }
+
+test('normalizePrAuthorLogin maps GraphQL app/ to REST bot login', () => {
+  assert.equal(normalizePrAuthorLogin('app/dependabot'), 'dependabot[bot]');
+  assert.equal(
+    normalizePrAuthorLogin('app/elastic-vault-github-plugin-prod'),
+    'elastic-vault-github-plugin-prod[bot]'
+  );
+  assert.equal(normalizePrAuthorLogin('app/github-actions'), 'github-actions[bot]');
+  assert.equal(normalizePrAuthorLogin('dependabot[bot]'), 'dependabot[bot]');
+  assert.equal(normalizePrAuthorLogin('Dependabot'), 'Dependabot');
+  assert.equal(normalizePrAuthorLogin(''), '');
+});
+
+test('isAllowedPrAuthor uses allowed_pr_authors.json after normalize', () => {
+  assert.equal(isAllowedPrAuthor('dependabot[bot]'), true);
+  assert.equal(isAllowedPrAuthor('app/dependabot'), true);
+  assert.equal(isAllowedPrAuthor('app/renovate'), true);
+  assert.equal(isAllowedPrAuthor('app/other-bot'), false);
+  assert.equal(isAllowedPrAuthor('human'), false);
+});
 
 test('validateAutomergePr returns not ok for invalid pr number', async () => {
   const { core } = makeCore();
@@ -123,6 +147,24 @@ test('validateAutomergePr returns ok when all gates pass', async () => {
   assert.equal(r.ok, true);
 });
 
+test('validateAutomergePr allows GraphQL app/dependabot via normalize', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr({ user: { login: 'app/dependabot' } }) }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 1115,
+    core,
+  });
+  assert.equal(r.ok, true);
+});
+
 test('validateAutomergePr allows elastic-vault-github-plugin-prod[bot]', async () => {
   const { core } = makeCore();
   const github = {
@@ -139,4 +181,43 @@ test('validateAutomergePr allows elastic-vault-github-plugin-prod[bot]', async (
     core,
   });
   assert.equal(r.ok, true);
+});
+
+test('validateAutomergePr allows github-actions[bot] when shared-token-policy is set', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr({ user: { login: 'github-actions[bot]' } }) }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 8,
+    core,
+    sharedTokenPolicy: 'token-policy-example',
+  });
+  assert.equal(r.ok, true);
+});
+
+test('validateAutomergePr rejects github-actions[bot] when shared-token-policy is empty', async () => {
+  const { core, infoMessages } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr({ user: { login: 'github-actions[bot]' } }) }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 8,
+    core,
+    sharedTokenPolicy: '',
+  });
+  assert.equal(r.ok, false);
+  assert.match(infoMessages.join('\n'), /shared-token-policy/);
 });

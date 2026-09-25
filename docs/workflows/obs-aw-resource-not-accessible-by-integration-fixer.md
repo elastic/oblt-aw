@@ -1,0 +1,58 @@
+# Workflow: `obs-aw-resource-not-accessible-by-integration-fixer.yml`
+
+## Overview
+
+Source file: [.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml)
+
+This reusable workflow executes issue-based fixes for issues labeled as ready to fix in the Resource Not Accessible by Integration flow.
+
+## Prerequisites
+
+- Triggered via `workflow_call`.
+- Issue labels must include:
+  - `oblt-aw/ai/fix-ready`
+  - `oblt-aw/triage/res-not-accessible-by-integration`
+
+## Usage
+
+The job `res-not-accessible-integration-fixer` calls:
+
+- [elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer.lock.yml)
+
+Configured instructions require:
+
+- workflow `if:` already enforced label gates — do not refuse solely because shell `gh` cannot re-check labels
+- read the issue and triage plan via GitHub MCP / `github` CLI; mandatory safe-output tool before finishing
+- strict execution of triage-generated plan
+- least-privilege permission fixes
+- draft PR first, then ready-for-review after validation
+- reviewer request to [elastic/observablt-ci](https://github.com/orgs/elastic/teams/observablt-ci)
+- no auto-merge
+
+`notify-no-pr` comments on the source issue when the lock succeeds without a `created_pr_number`. The lock call sets `report-failure-as-issue: false` so empty bailouts do not open a separate meta-issue.
+
+The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
+
+Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from control-plane fragments under `workflows.resource-not-accessible-by-integration.inner-workflows.obs-aw-resource-not-accessible-by-integration-fixer.yml` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Detector and triage wrappers do not load those fixer fragments.
+
+## Configuration
+
+Permissions:
+
+- `actions: read`
+- `contents: write`
+- `discussions: write`
+- `issues: write`
+- `pull-requests: write`
+- `id-token: write`
+
+## API / Interface
+
+`workflow_call` contract:
+
+- Required inputs: `shared-proceed`, `shared-allowed-pr-authors-json`, `shared-allowed-pr-authors-csv`, `shared-allowed-issue-authors-json`, `shared-allowed-issue-authors-csv`, and `shared-token-policy`.
+- No `workflow_call.secrets`: `GITHUB_TOKEN` is system-reserved and cannot be declared. Callers must not use `secrets: inherit` or map `GITHUB_TOKEN`. Local jobs and the nested lock use the automatic `secrets.GITHUB_TOKEN` / `github.token`.
+
+## References
+
+- Routing rules: [docs/routing/resource-not-accessible-by-integration-routing.md](../routing/resource-not-accessible-by-integration-routing.md)

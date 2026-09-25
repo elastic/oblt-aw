@@ -25,7 +25,7 @@ const WORKFLOW_CONFIG = {
   },
   issueScope: {
     label:
-      'Scope the docs work ([`docs-issue-scope`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/oblt-aw-docs-issue-scope.md)).',
+      'Scope the docs work ([`docs-issue-scope`](https://github.com/elastic/docs-actions/blob/main/.github/workflows/gh-aw-issue-scope.md)).',
     marker: '<!-- docs-ai-menu:issue-scope -->',
   },
 };

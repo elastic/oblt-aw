@@ -4,9 +4,10 @@ Thank you for contributing to oblt-aw. Please follow the guidelines below.
 
 ## Quick Start
 
-1. **Install pre-commit** and run `pre-commit install`
-2. **Run checks** before pushing: `pre-commit run --all-files`
-3. **Run tests**: `pytest tests/` and `npm test`
+1. **Install pre-commit** and run `pre-commit install --hook-type pre-commit --hook-type pre-push`
+2. **Run checks** before pushing: `pre-commit run --files <touched-paths>` (or `pre-commit run --all-files`). Agents must follow [`.cursor/rules/ci-precommit-before-push.mdc`](.cursor/rules/ci-precommit-before-push.mdc) — pytest alone is not enough.
+3. **If you changed a gh-aw source workflow** (for example a `.md` under `.github/workflows/` or a shared fragment), run `make compile-aw-check` from the repo root before pushing. This regenerates the generated `.lock.yml` files and fails if they drift from source.
+4. **Run tests**: `pytest tests/unit tests/integration` and `npm test` (live E2E suites live under `tests/e2e/` and are not part of default CI)
 
 ## Full Guide
 
@@ -18,11 +19,11 @@ See [docs/development/contributing.md](docs/development/contributing.md) for:
 - Pre-commit hook reference
 - CI workflow overview
 
-## Client entrypoint workflows (`trigger-oblt-aw-*.yml`)
+## Client entrypoint workflows (`trigger-obs-aw-*.yml`)
 
-Edit only the distributed client templates under [`.github/remote-workflow-template/`](.github/remote-workflow-template/) (for example [`.github/remote-workflow-template/obs/.github/workflows/`](.github/remote-workflow-template/obs/.github/workflows/) for Observability and [`.github/remote-workflow-template/docs/.github/workflows/`](.github/remote-workflow-template/docs/.github/workflows/) for Docs). See [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md) and [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md).
+Edit only the distributed client templates under [`.github/remote-workflow-template/`](.github/remote-workflow-template/) (for example [`.github/remote-workflow-template/obs/.github/workflows/`](.github/remote-workflow-template/obs/.github/workflows/) for Observability and [`.github/remote-workflow-template/docs/.github/workflows/`](.github/remote-workflow-template/docs/.github/workflows/) for Docs). See [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md) and [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md).
 
-Details: [docs/workflows/oblt-aw-client-template.md](docs/workflows/oblt-aw-client-template.md).
+Details: [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md).
 
 ## CI
 
