@@ -54,11 +54,10 @@ jobs:
   e2e-autodoc:
     name: Autodoc audit
     permissions:
-      contents: write
-      pull-requests: write
       actions: write
-      issues: write
       checks: read
-      id-token: write
+      contents: read
+      issues: write
+      pull-requests: write
     uses: ./.github/workflows/e2e-autodoc.yml
     secrets: inherit

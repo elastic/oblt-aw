@@ -3,6 +3,14 @@ name: Observability Agentic Workflow — Schedule Event
 # Event-scoped orchestrator: one shared prelude chain for all schedule/workflow_dispatch routes.
 on:
   workflow_call:
+    inputs:
+      e2e-additional-instructions:
+        description: >-
+          Optional E2E-only platform instructions forwarded to obs:autodoc
+          (empty for normal schedule/manual runs).
+        required: false
+        type: string
+        default: ""
 permissions:
   contents: read
 
@@ -55,6 +63,7 @@ jobs:
       shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
       shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+      e2e-additional-instructions: ${{ inputs.e2e-additional-instructions }}
   security-injection-detector:
     needs: run-aw-prelude
     if: >-

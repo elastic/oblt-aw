@@ -114,6 +114,7 @@ For each potentially impactful change or gap:
 - Changes where documentation was already updated in the same or a later commit
 - Changes where an open issue or PR already tracks the documentation update
 - Test-only changes
+- **Intentional E2E autodoc bait** — Unless `additional-instructions` explicitly request E2E evaluation of `scripts/e2e_autodoc_intentional_undocumented.py`, skip that path (checked-in live-E2E fixture; see `docs/testing/autodoc-e2e-bait.md`). When those instructions are present, evaluate the path even if the lookback window has no commits, and cite the path plus any required `E2E_AUTODOC_*` markers in the issue body.
 - Minor changes where the existing docs are still substantially correct (e.g., a new optional parameter with a sensible default)
 - Changes that only affect internal implementation details not referenced in any documentation
 - **Markdown tables** — A leading `-` (or similar punctuation) inside a table cell can be intentional (for example as a lightweight icon or status marker, not a broken nested list). Do not flag these as formatting defects unless you can show they break rendering or contradict repository conventions.

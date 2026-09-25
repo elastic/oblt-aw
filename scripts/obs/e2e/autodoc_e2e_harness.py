@@ -17,7 +17,8 @@
 """Live E2E harness for obs:autodoc audit (docs-patrol).
 
 Drives schedule/dispatch → prelude → obs-aw-autodoc audit → issue creation
-against elastic/oblt-aw by seeding intentional undocumented public API bait.
+against elastic/oblt-aw using the checked-in intentional undocumented bait and
+E2E additional-instructions (no default-branch Contents mutation).
 """
 
 from __future__ import annotations
@@ -48,9 +49,7 @@ DEFAULT_CONFIG = Path("config/obs/e2e-autodoc.json")
 DEFAULT_TITLE_PREFIX = "[oblt-aw][autodoc]"
 DEFAULT_FIX_PR_TITLE = "docs: Documentation analysis and improvement"
 DEFAULT_BAIT_PATH = "scripts/e2e_autodoc_intentional_undocumented.py"
-DEFAULT_BAIT_SOURCE = Path(
-    "testdata/agentic/autodoc/bait/e2e_autodoc_intentional_undocumented.py"
-)
+DEFAULT_BAIT_SOURCE = Path("scripts/e2e_autodoc_intentional_undocumented.py")
 # Must appear in bait source and in correlated audit issue bodies.
 E2E_AUTODOC_BAIT_MARKER = "E2E_AUTODOC_BAIT_MARKER"
 E2E_AUTODOC_RUN_TOKEN_PREFIX = "E2E_AUTODOC_RUN_TOKEN="
@@ -59,15 +58,15 @@ FIX_PR_POLL_SECONDS = 600
 
 
 def new_run_token() -> str:
-    """Return a per-harness-run token used in bait path and issue correlation."""
+    """Return a per-harness-run token used in E2E instructions and issue correlation."""
     return secrets.token_hex(8)
 
 
 def bait_path_for_run(run_token: str, *, base_path: str = DEFAULT_BAIT_PATH) -> str:
-    """Default-branch path unique to this E2E run (avoids cross-run bait reuse).
+    """Legacy helper: unique default-branch path (no longer used by live E2E).
 
-    ``base_path`` is the configured template (e.g. ``…/undocumented.py``); the
-    run token is inserted before the suffix so each live run owns a distinct file.
+    Kept for unit coverage of path validation. Live runs use the fixed
+    ``DEFAULT_BAIT_PATH`` plus a run token in additional-instructions.
     """
     token = (run_token or "").strip()
     if not token or any(ch in token for ch in ("/", "\\", "..")):
@@ -83,23 +82,15 @@ def bait_path_for_run(run_token: str, *, base_path: str = DEFAULT_BAIT_PATH) -> 
 
 
 def run_token_marker(run_token: str) -> str:
-    """Exact string that must appear in bait content and correlated issue bodies."""
+    """Exact string that must appear in E2E instructions and correlated issue bodies."""
     token = (run_token or "").strip()
     if not token:
         raise ValueError("run_token must be non-empty")
     return f"{E2E_AUTODOC_RUN_TOKEN_PREFIX}{token}"
 
 
-def bait_content(
-    source: Path = DEFAULT_BAIT_SOURCE,
-    *,
-    run_token: str | None = None,
-) -> str:
-    """Load checked-in bait source used for intentional default-branch drift.
-
-    When ``run_token`` is set, inject a per-run marker next to the static bait
-    marker in the module docstring so agents that quote the file header see it.
-    """
+def bait_content(source: Path = DEFAULT_BAIT_SOURCE) -> str:
+    """Load checked-in bait source used as the intentional default-branch fixture."""
     text = source.read_text(encoding="utf-8")
     if not text.strip():
         raise RuntimeError(f"Bait source is empty: {source}")
@@ -107,34 +98,38 @@ def bait_content(
         raise RuntimeError(
             f"Bait source missing correlation marker {E2E_AUTODOC_BAIT_MARKER!r}: {source}"
         )
-    if run_token is None:
-        return text
+    return text
+
+
+def e2e_additional_instructions(*, bait_path: str, run_token: str) -> str:
+    """Platform instructions that force docs-patrol to evaluate the checked-in bait."""
+    path = (bait_path or "").strip()
+    if not path or ".." in Path(path).parts:
+        raise ValueError(f"invalid bait_path: {bait_path!r}")
     marker = run_token_marker(run_token)
-    if marker in text:
-        return text
-    return text.replace(
-        E2E_AUTODOC_BAIT_MARKER,
-        f"{E2E_AUTODOC_BAIT_MARKER}\n{marker}",
-        1,
+    return (
+        "E2E autodoc bait (mandatory): Evaluate "
+        f"`{path}` as an undocumented public API even if the lookback window "
+        "has no commits and even if you would otherwise skip it. Do not treat "
+        "it as test-only. File an issue that cites that path and includes both "
+        f"`{E2E_AUTODOC_BAIT_MARKER}` and `{marker}` in the issue body."
     )
 
 
 def bait_markers(bait_path: str, *, run_token: str) -> tuple[str, ...]:
-    """Per-run path forms used to correlate audit issues to this E2E run.
+    """Path forms plus run-token marker used to correlate audit issues.
 
-    Both forms embed ``run_token``. The static bait-file marker is kept in the
-    fixture for humans; issue correlation requires only a path form (aligned with
-    the audit prompt's required source path(s)).
+    Live E2E uses a fixed bait path; isolation comes from ``run_token`` in
+    additional-instructions and the issue body.
     """
     token = (run_token or "").strip()
     if not token:
         raise ValueError("run_token must be non-empty")
-    basename = Path(bait_path).name
-    if token not in bait_path or token not in basename:
-        raise ValueError(
-            f"bait_path {bait_path!r} must embed run_token {token!r} for correlation"
-        )
-    return (bait_path, basename)
+    path = (bait_path or "").strip()
+    if not path:
+        raise ValueError("bait_path must be non-empty")
+    basename = Path(path).name
+    return (path, basename, run_token_marker(token))
 
 
 def _load_json(path: Path) -> Any:
@@ -168,50 +163,6 @@ def _contents_get_error_is_absent(stderr: str, stdout: str) -> bool:
     return "404" in err or "not found" in err
 
 
-def delete_branch_file(
-    repo: str,
-    *,
-    branch: str,
-    path: str,
-    message: str,
-) -> None:
-    """Delete a file on ``branch`` when present (Contents API).
-
-    Propagates non-404 Contents GET failures instead of treating them as absent.
-    """
-    existing = subprocess.run(
-        ["gh", "api", f"repos/{repo}/contents/{path}?ref={branch}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if existing.returncode != 0:
-        if _contents_get_error_is_absent(existing.stderr or "", existing.stdout or ""):
-            return
-        raise RuntimeError(
-            f"Failed to read {path} on {branch}: "
-            f"{(existing.stderr or existing.stdout or '').strip() or f'exit {existing.returncode}'}"
-        )
-    payload = json.loads(existing.stdout)
-    sha = str(payload.get("sha") or "").strip()
-    if not sha:
-        raise RuntimeError(f"Contents GET for {path} missing sha; cannot delete")
-    estc.gh_json(
-        [
-            "api",
-            "--method",
-            "DELETE",
-            f"repos/{repo}/contents/{path}",
-            "-f",
-            f"message={message}",
-            "-f",
-            f"sha={sha}",
-            "-f",
-            f"branch={branch}",
-        ]
-    )
-
-
 def _remote_file_content_b64(repo: str, *, branch: str, path: str) -> str | None:
     """Return remote Contents API base64 payload, or None when absent (404)."""
     existing = subprocess.run(
@@ -240,41 +191,35 @@ def remote_bait_matches(repo: str, *, branch: str, path: str, content: str) -> b
     return remote_b64 == encoded
 
 
-def remote_bait_absent(repo: str, *, branch: str, path: str) -> bool:
-    """True when Contents GET reports the path absent (404) on ``branch``."""
-    return _remote_file_content_b64(repo, branch=branch, path=path) is None
+def remote_bait_present(repo: str, *, branch: str, path: str) -> bool:
+    """True when Contents GET finds ``path`` on ``branch``."""
+    return _remote_file_content_b64(repo, branch=branch, path=path) is not None
 
 
-def seed_bait_on_default_branch(
+def ensure_checked_in_bait(
     repo: str,
     *,
     branch: str,
     path: str,
     content: str,
-) -> tuple[str | None, bool]:
-    """Create bait on ``branch`` only when missing.
+) -> None:
+    """Fail closed unless the checked-in bait is present and matches on ``branch``.
 
-    Returns ``(commit_sha_or_none, created_by_this_run)``.
-    Refuses to overwrite when remote content differs. No-ops when content matches.
+    Live E2E never creates or deletes default-branch files (org Require-a-PR).
     """
     encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
     remote_b64 = _remote_file_content_b64(repo, branch=branch, path=path)
-    if remote_b64 is not None:
-        if remote_b64 == encoded:
-            return None, False
+    if remote_b64 is None:
         raise RuntimeError(
-            f"Bait {path} already exists on {branch} with different content; "
-            "refusing to overwrite. Remove or align the remote file before "
-            "re-running live E2E."
+            f"Checked-in E2E bait missing on {branch} at {path!r}. "
+            "Merge scripts/e2e_autodoc_intentional_undocumented.py before "
+            "running live autodoc E2E (see docs/testing/autodoc-e2e-bait.md)."
         )
-    commit_sha = estc.put_branch_file(
-        repo,
-        branch=branch,
-        path=path,
-        content=content,
-        message="chore(e2e): seed autodoc intentional undocumented bait",
-    )
-    return commit_sha, True
+    if remote_b64 != encoded:
+        raise RuntimeError(
+            f"Remote bait {path} on {branch} differs from the checked-in fixture; "
+            "refusing to proceed. Align main with the in-repo bait file."
+        )
 
 
 def list_schedule_trigger_runs(
@@ -448,17 +393,25 @@ def wait_for_schedule_audit_run(
     return None
 
 
-def dispatch_schedule_trigger(repo: str, workflow_file: str) -> None:
-    estc.gh_text(
-        ["workflow", "run", workflow_file, "--repo", repo],
-        check=True,
-    )
+def dispatch_schedule_trigger(
+    repo: str,
+    workflow_file: str,
+    *,
+    e2e_additional_instructions: str = "",
+) -> None:
+    args = ["workflow", "run", workflow_file, "--repo", repo]
+    instructions = (e2e_additional_instructions or "").strip()
+    if instructions:
+        args.extend(["-f", f"e2e-additional-instructions={instructions}"])
+    estc.gh_text(args, check=True)
 
 
 def _issue_body_matches_bait(body: str, bait_path: str, *, run_token: str) -> bool:
-    """Require a per-run bait path form (full path or basename) in the issue body."""
+    """Require bait path (or basename) and the per-run token marker in the issue body."""
     text = body or ""
-    full_path, basename = bait_markers(bait_path, run_token=run_token)
+    full_path, basename, token_marker = bait_markers(bait_path, run_token=run_token)
+    if token_marker not in text:
+        return False
     return full_path in text or basename in text
 
 
@@ -660,18 +613,19 @@ def run_live_case(
     )
     case_id = str(case.get("id") or "")
 
-    # Per-run identity: unique bait path + content token so concurrent scheduled
-    # audits cannot satisfy issue correlation with a static marker/path.
+    # Fixed checked-in bait path; per-run isolation via instructions + issue marker.
     run_token = new_run_token()
-    bait_base = str(cfg.get("bait_path") or DEFAULT_BAIT_PATH)
-    bait_path = bait_path_for_run(run_token, base_path=bait_base)
-    bait_text = bait_content(run_token=run_token)
+    bait_path = (
+        str(cfg.get("bait_path") or DEFAULT_BAIT_PATH).strip() or DEFAULT_BAIT_PATH
+    )
+    bait_text = bait_content()
+    e2e_instructions = e2e_additional_instructions(
+        bait_path=bait_path, run_token=run_token
+    )
     # Coarse clock (drop microseconds) to avoid missing runs whose GitHub
     # createdAt truncates fractional seconds earlier than the runner clock.
     since = _utc_now().replace(microsecond=0)
     case_deadline = time.time() + timeout
-    bait_sha: str | None = None
-    bait_created = False
     issue: dict[str, Any] | None = None
     fix_pr: dict[str, Any] | None = None
     run_detail: dict[str, Any] | None = None
@@ -712,12 +666,12 @@ def run_live_case(
                 "completed": False,
                 "bait_path": bait_path,
                 "bait_removed": False,
-                "bait_absent": False,
+                "bait_present": False,
             },
             "bait": {
                 "path": bait_path,
-                "commit_sha": bait_sha,
-                "created_by_this_run": bait_created,
+                "commit_sha": None,
+                "created_by_this_run": False,
                 "run_token": run_token,
             },
             **extra,
@@ -749,24 +703,24 @@ def run_live_case(
     expect_fix_pr = cast(bool, expectations["expect_fix_pr"]) if want_fix else False
 
     bait_removed = False
-    bait_absent = False
+    bait_present = False
 
     def _cleanup_payload(*, closed_prs: list[int]) -> dict[str, Any]:
         return {
             "completed": cleaned,
             "bait_path": bait_path,
             "bait_removed": bait_removed,
-            "bait_absent": bait_absent,
+            "bait_present": bait_present,
             "closed_prs": closed_prs,
         }
 
     def _perform_cleanup(*, wait_for_fix_before_close: bool) -> list[int]:
-        """Close linked PRs/issue and remove matching bait when cleanup_after.
+        """Close linked PRs/issue; leave the checked-in bait fixture in place.
 
-        Soft-skip delete (content mismatch) must not set ``cleaned`` while the
-        bait path remains. Completion requires bait absence when seeding.
+        Completion requires the fixed bait path still present when
+        ``seed_doc_drift_bait`` is true (no Contents delete on the default branch).
         """
-        nonlocal cleaned, bait_removed, bait_absent
+        nonlocal cleaned, bait_removed, bait_present
         if cleaned or not cleanup_after:
             return []
         closed: list[int] = []
@@ -788,32 +742,22 @@ def run_live_case(
                 comment="Closed by obs:autodoc E2E harness cleanup.",
             )
         if seed_doc_drift_bait and branch:
-            if bait_created or remote_bait_matches(
-                repo, branch=branch, path=bait_path, content=bait_text
-            ):
-                delete_branch_file(
-                    repo,
-                    branch=branch,
-                    path=bait_path,
-                    message=(
-                        "chore(e2e): remove autodoc intentional undocumented bait"
-                    ),
-                )
-                bait_removed = True
-            bait_absent = remote_bait_absent(repo, branch=branch, path=bait_path)
-            if not bait_absent:
+            bait_present = remote_bait_present(repo, branch=branch, path=bait_path)
+            if not bait_present:
                 raise RuntimeError(
-                    f"Cleanup left bait present on {branch} at {bait_path!r}"
+                    f"Checked-in bait missing on {branch} at {bait_path!r} after cleanup"
                 )
+            bait_removed = False
         else:
-            bait_absent = True
+            bait_present = True
+            bait_removed = False
         cleaned = True
         cleaned_issue_number: int | None = (
             int(issue["number"]) if issue is not None else None
         )
         estc.log_info(
             f"Cleanup done (issue={cleaned_issue_number}, prs={closed}, "
-            f"bait_removed={bait_removed}, bait_absent={bait_absent})"
+            f"bait_removed={bait_removed}, bait_present={bait_present})"
         )
         return closed
 
@@ -829,20 +773,13 @@ def run_live_case(
         dashboard_ok = True
         branch = default_branch(repo)
         if seed_doc_drift_bait:
-            bait_sha, bait_created = seed_bait_on_default_branch(
+            ensure_checked_in_bait(
                 repo,
                 branch=branch,
                 path=bait_path,
                 content=bait_text,
             )
-            estc.log_info(
-                f"Seeded bait {bait_path} on {repo}@{branch}"
-                + (
-                    f" (commit {bait_sha[:12]})"
-                    if bait_sha
-                    else " (already present, matching)"
-                )
-            )
+            estc.log_info(f"Verified checked-in bait {bait_path} on {repo}@{branch}")
 
         # Snapshot existing runs before dispatch so a concurrent schedule cannot
         # be attributed as this E2E's run.
@@ -851,7 +788,13 @@ def run_live_case(
             for run in list_schedule_trigger_runs(repo, workflow_file)
         }
         if dispatch_trigger_enabled:
-            dispatch_schedule_trigger(repo, workflow_file)
+            dispatch_schedule_trigger(
+                repo,
+                workflow_file,
+                e2e_additional_instructions=(
+                    e2e_instructions if seed_doc_drift_bait else ""
+                ),
+            )
             estc.log_info(f"Dispatched {workflow_file} on {repo}")
 
         run_detail = wait_for_schedule_audit_run(
@@ -1101,8 +1044,8 @@ def run_live_case(
             "cleanup": _cleanup_payload(closed_prs=closed_prs),
             "bait": {
                 "path": bait_path,
-                "commit_sha": bait_sha,
-                "created_by_this_run": bait_created,
+                "commit_sha": None,
+                "created_by_this_run": False,
                 "run_token": run_token,
             },
         }

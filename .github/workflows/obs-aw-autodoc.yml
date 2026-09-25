@@ -21,6 +21,13 @@ on:
       shared-token-policy:
         required: true
         type: string
+      e2e-additional-instructions:
+        description: >-
+          Optional E2E-only platform instructions merged ahead of APM/autodocignore
+          (empty for normal schedule/manual runs).
+        required: false
+        type: string
+        default: ""
 permissions:
   contents: read
 
@@ -36,6 +43,7 @@ jobs:
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       workflow-basename: obs-aw-autodoc.yml
+      platform-additional-instructions: ${{ inputs.e2e-additional-instructions }}
 
   audit:
     if: inputs.shared-proceed == 'true'
@@ -63,6 +71,7 @@ jobs:
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       workflow-basename: obs-aw-autodoc.yml
+      platform-additional-instructions: ${{ inputs.e2e-additional-instructions }}
 
   # Step 2: Create a PR implementing the audit findings (only when an issue was created)
   fix:

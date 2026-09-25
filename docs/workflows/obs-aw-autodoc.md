@@ -41,9 +41,9 @@ Edit the GH-AW sources [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/
 
 | Opinionated (Observability-owned) | Preserved as lock inputs |
 |-----------------------------------|--------------------------|
-| Model, failure-issue suppression, and GitHub `trusted-users` via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) | Audit/fix: `additional-instructions` (from `aw-resolve-agentic-assets`: APM + `.oblt-aw.autodocignore` overlays) |
+| Model, failure-issue suppression, and GitHub `trusted-users` via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) | Audit/fix: `additional-instructions` (from `aw-resolve-agentic-assets`: APM + `.oblt-aw.autodocignore` overlays; optional E2E `e2e-additional-instructions` as platform text) |
 | Lookback window (`1 day ago`), issue title prefix (`[oblt-aw][autodoc]`), and merged audit prompt in [`gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md) | Fix: `target-issue-number` (from `audit.outputs.created_issue_number`) |
-| Docs-only fix prompt, draft PRs, and top-level docs `protected-files` excludes in [`gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md) | |
+| Docs-only fix prompt, draft PRs, and top-level docs `protected-files` excludes in [`gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md) | Optional schedule `e2e-additional-instructions` (empty for normal runs; live E2E only) |
 | Comment footer via [`messages-footer.md`](../../.github/workflows/gh-aw-fragments/messages-footer.md) | |
 | Bot actor hardcoded on each source (`github-actions[bot]`) | |
 
