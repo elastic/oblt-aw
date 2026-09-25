@@ -149,6 +149,28 @@ def build_facts(
     }
 
 
+def flatten_slurped_pages(payload: Any) -> list[Any]:
+    """Flatten ``gh api --paginate --slurp`` output into a single list.
+
+    ``--slurp`` wraps each page (itself a JSON array) in an outer array.
+    """
+    if payload is None:
+        return []
+    if not isinstance(payload, list):
+        raise TypeError(
+            f"expected list from paginated gh api, got {type(payload).__name__}"
+        )
+    if not payload:
+        return []
+    if all(isinstance(page, list) for page in payload):
+        flat: list[Any] = []
+        for page in payload:
+            flat.extend(page)
+        return flat
+    # Single-page response may already be a flat list of objects.
+    return payload
+
+
 def pull_request_diff(repo: str, pull_number: int, *, gh_run: Any | None = None) -> str:
     """Return concatenated file patches for a pull request via ``gh api``."""
     runner = gh_run or _default_gh_run
@@ -158,17 +180,17 @@ def pull_request_diff(repo: str, pull_number: int, *, gh_run: Any | None = None)
             "api",
             f"repos/{repo}/pulls/{pull_number}/files",
             "--paginate",
+            "--slurp",
         ]
     )
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or f"exit {proc.returncode}").strip()
         raise RuntimeError(f"failed to list PR files: {err}")
     try:
-        files = json.loads(proc.stdout or "[]")
+        payload = json.loads(proc.stdout or "[]")
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"invalid JSON listing PR files: {exc}") from exc
-    if not isinstance(files, list):
-        raise TypeError("PR files API payload must be a JSON array")
+    files = flatten_slurped_pages(payload)
     patches: list[str] = []
     for item in files:
         if not isinstance(item, dict):

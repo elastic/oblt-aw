@@ -35,8 +35,10 @@ from collect_actions_commit_verification import (
     build_facts,
     extract_action_sha_pins,
     fetch_commit_verification,
+    flatten_slurped_pages,
     git_diff,
     main,
+    pull_request_diff,
 )
 
 
@@ -138,29 +140,72 @@ def test_build_facts_maps_pins(monkeypatch: pytest.MonkeyPatch) -> None:
     assert calls == [("github/codeql-action", sha)]
 
 
-def test_pull_request_diff_filters_workflow_patches() -> None:
-    from collect_actions_commit_verification import pull_request_diff
+def test_flatten_slurped_pages_joins_page_arrays() -> None:
+    assert flatten_slurped_pages([[{"a": 1}], [{"b": 2}, {"c": 3}]]) == [
+        {"a": 1},
+        {"b": 2},
+        {"c": 3},
+    ]
+    assert flatten_slurped_pages([{"a": 1}]) == [{"a": 1}]
+    assert flatten_slurped_pages([]) == []
 
+
+def test_pull_request_diff_filters_workflow_patches() -> None:
     sha = "08eba0b27e820071cde6df949e0beb9ba4906955"
 
     def gh_run(argv: list[str]) -> SimpleNamespace:
         assert "pulls/99/files" in " ".join(argv)
+        assert "--paginate" in argv
+        assert "--slurp" in argv
+        # Single-page slurped shape: outer array of one page array.
         payload = [
-            {
-                "filename": ".github/workflows/ci.yml",
-                "patch": f"+      - uses: actions/checkout@{sha}\n",
-            },
-            {
-                "filename": "README.md",
-                "patch": f"+uses: actions/checkout@{sha}\n",
-            },
-            {"filename": ".github/workflows/big.yml", "patch": None},
+            [
+                {
+                    "filename": ".github/workflows/ci.yml",
+                    "patch": f"+      - uses: actions/checkout@{sha}\n",
+                },
+                {
+                    "filename": "README.md",
+                    "patch": f"+uses: actions/checkout@{sha}\n",
+                },
+                {"filename": ".github/workflows/big.yml", "patch": None},
+            ]
         ]
         return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
 
     text = pull_request_diff("elastic/oblt-aw", 99, gh_run=gh_run)
     assert f"actions/checkout@{sha}" in text
     assert extract_action_sha_pins(text) == [("actions/checkout", sha)]
+
+
+def test_pull_request_diff_flattens_multi_page_slurp() -> None:
+    sha_a = "08eba0b27e820071cde6df949e0beb9ba4906955"
+    sha_b = "11bd71901bbe5b1630ceea73d27597364c9af683"
+
+    def gh_run(argv: list[str]) -> SimpleNamespace:
+        assert "--paginate" in argv and "--slurp" in argv
+        # Two pages without --slurp would be concatenated JSON arrays and break
+        # json.loads; with --slurp this is one parseable outer array.
+        payload = [
+            [
+                {
+                    "filename": ".github/workflows/a.yml",
+                    "patch": f"+      - uses: actions/checkout@{sha_a}\n",
+                }
+            ],
+            [
+                {
+                    "filename": ".github/workflows/b.yml",
+                    "patch": f"+      - uses: actions/setup-node@{sha_b}\n",
+                }
+            ],
+        ]
+        return SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+
+    text = pull_request_diff("elastic/oblt-aw", 42, gh_run=gh_run)
+    pins = extract_action_sha_pins(text)
+    assert ("actions/checkout", sha_a) in pins
+    assert ("actions/setup-node", sha_b) in pins
 
 
 def test_main_writes_facts_from_diff_file(
