@@ -2,11 +2,12 @@
 name: E2E — Autodoc audit + fix
 
 # Manual production E2E for obs:autodoc against elastic/oblt-aw.
-# Verifies the checked-in intentional undocumented bait, dispatches
-# trigger-obs-aw-schedule.yml with e2e-additional-instructions so docs-patrol
-# evaluates that path, waits for audit + issue and create-pr-from-issue fix +
-# PR, then closes the issue/PR (bait fixture stays on the default branch).
+# Verifies the checked-in E2E bait markdown, dispatches
+# e2e-trigger-obs-aw-schedule.yml with e2e-autodoc-mode=true so docs-patrol
+# evaluates only that file, waits for audit + issue and create-pr-from-issue
+# fix + PR, then closes the issue/PR (bait fixture stays on the default branch).
 # Not part of the default PR required gate in ci.yml.
+# Production trigger-obs-aw-schedule.yml (client template) stays E2E-free.
 on:
   workflow_dispatch:
   workflow_call:
@@ -34,7 +35,6 @@ jobs:
       checks: read
     env:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -55,6 +55,8 @@ jobs:
       - name: Run harness
         id: harness
         continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
           python3 scripts/obs/e2e/autodoc_e2e_harness.py \

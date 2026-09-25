@@ -17,8 +17,8 @@
 """Live E2E harness for obs:autodoc audit (docs-patrol).
 
 Drives schedule/dispatch → prelude → obs-aw-autodoc audit → issue creation
-against elastic/oblt-aw using the checked-in intentional undocumented bait and
-E2E additional-instructions (no default-branch Contents mutation).
+against elastic/oblt-aw using the checked-in E2E bait markdown and
+``e2e-autodoc-mode=true`` (no default-branch Contents mutation).
 """
 
 from __future__ import annotations
@@ -29,7 +29,6 @@ import importlib
 import json
 import os
 import re
-import secrets
 import subprocess
 import sys
 import time
@@ -48,49 +47,17 @@ WORKFLOW_ID = "obs:autodoc"
 DEFAULT_CONFIG = Path("config/obs/e2e-autodoc.json")
 DEFAULT_TITLE_PREFIX = "[oblt-aw][autodoc]"
 DEFAULT_FIX_PR_TITLE = "docs: Documentation analysis and improvement"
-DEFAULT_BAIT_PATH = "scripts/e2e_autodoc_intentional_undocumented.py"
-DEFAULT_BAIT_SOURCE = Path("scripts/e2e_autodoc_intentional_undocumented.py")
+DEFAULT_BAIT_PATH = "docs/testing/fixtures/e2e-autodoc-bait.md"
+DEFAULT_BAIT_SOURCE = Path(DEFAULT_BAIT_PATH)
 # Must appear in bait source and in correlated audit issue bodies.
 E2E_AUTODOC_BAIT_MARKER = "E2E_AUTODOC_BAIT_MARKER"
-E2E_AUTODOC_RUN_TOKEN_PREFIX = "E2E_AUTODOC_RUN_TOKEN="
+E2E_AUTODOC_MODE_SENTINEL = "E2E_AUTODOC_MODE=true"
 # After the audit issue is found, wait this long for a linked fix PR before cleanup.
 FIX_PR_POLL_SECONDS = 600
 
 
-def new_run_token() -> str:
-    """Return a per-harness-run token used in E2E instructions and issue correlation."""
-    return secrets.token_hex(8)
-
-
-def bait_path_for_run(run_token: str, *, base_path: str = DEFAULT_BAIT_PATH) -> str:
-    """Legacy helper: unique default-branch path (no longer used by live E2E).
-
-    Kept for unit coverage of path validation. Live runs use the fixed
-    ``DEFAULT_BAIT_PATH`` plus a run token in additional-instructions.
-    """
-    token = (run_token or "").strip()
-    if not token or any(ch in token for ch in ("/", "\\", "..")):
-        raise ValueError(f"invalid run_token for bait path: {run_token!r}")
-    base = Path(base_path)
-    if ".." in base.parts or base.is_absolute():
-        raise ValueError(f"invalid bait base_path: {base_path!r}")
-    stem = base.stem or "e2e_autodoc_intentional_undocumented"
-    suffix = base.suffix or ".py"
-    parent = base.parent.as_posix().strip(".")
-    name = f"{stem}_{token}{suffix}"
-    return f"{parent}/{name}" if parent and parent != "." else name
-
-
-def run_token_marker(run_token: str) -> str:
-    """Exact string that must appear in E2E instructions and correlated issue bodies."""
-    token = (run_token or "").strip()
-    if not token:
-        raise ValueError("run_token must be non-empty")
-    return f"{E2E_AUTODOC_RUN_TOKEN_PREFIX}{token}"
-
-
 def bait_content(source: Path = DEFAULT_BAIT_SOURCE) -> str:
-    """Load checked-in bait source used as the intentional default-branch fixture."""
+    """Load checked-in bait markdown used as the intentional default-branch fixture."""
     text = source.read_text(encoding="utf-8")
     if not text.strip():
         raise RuntimeError(f"Bait source is empty: {source}")
@@ -101,35 +68,14 @@ def bait_content(source: Path = DEFAULT_BAIT_SOURCE) -> str:
     return text
 
 
-def e2e_additional_instructions(*, bait_path: str, run_token: str) -> str:
-    """Platform instructions that force docs-patrol to evaluate the checked-in bait."""
-    path = (bait_path or "").strip()
-    if not path or ".." in Path(path).parts:
-        raise ValueError(f"invalid bait_path: {bait_path!r}")
-    marker = run_token_marker(run_token)
-    return (
-        "E2E autodoc bait (mandatory): Evaluate "
-        f"`{path}` as an undocumented public API even if the lookback window "
-        "has no commits and even if you would otherwise skip it. Do not treat "
-        "it as test-only. File an issue that cites that path and includes both "
-        f"`{E2E_AUTODOC_BAIT_MARKER}` and `{marker}` in the issue body."
-    )
-
-
-def bait_markers(bait_path: str, *, run_token: str) -> tuple[str, ...]:
-    """Path forms plus run-token marker used to correlate audit issues.
-
-    Live E2E uses a fixed bait path; isolation comes from ``run_token`` in
-    additional-instructions and the issue body.
-    """
-    token = (run_token or "").strip()
-    if not token:
-        raise ValueError("run_token must be non-empty")
+def bait_markers(bait_path: str) -> tuple[str, str]:
+    """Path forms used to correlate audit issues to the checked-in bait markdown."""
     path = (bait_path or "").strip()
     if not path:
         raise ValueError("bait_path must be non-empty")
-    basename = Path(path).name
-    return (path, basename, run_token_marker(token))
+    if ".." in Path(path).parts:
+        raise ValueError(f"invalid bait_path: {bait_path!r}")
+    return path, Path(path).name
 
 
 def _load_json(path: Path) -> Any:
@@ -212,7 +158,7 @@ def ensure_checked_in_bait(
     if remote_b64 is None:
         raise RuntimeError(
             f"Checked-in E2E bait missing on {branch} at {path!r}. "
-            "Merge scripts/e2e_autodoc_intentional_undocumented.py before "
+            "Merge docs/testing/fixtures/e2e-autodoc-bait.md before "
             "running live autodoc E2E (see docs/testing/autodoc-e2e-bait.md)."
         )
     if remote_b64 != encoded:
@@ -397,21 +343,20 @@ def dispatch_schedule_trigger(
     repo: str,
     workflow_file: str,
     *,
-    e2e_additional_instructions: str = "",
+    e2e_autodoc_mode: bool = False,
 ) -> None:
     args = ["workflow", "run", workflow_file, "--repo", repo]
-    instructions = (e2e_additional_instructions or "").strip()
-    if instructions:
-        args.extend(["-f", f"e2e-additional-instructions={instructions}"])
+    if e2e_autodoc_mode:
+        args.extend(["-f", "e2e-autodoc-mode=true"])
     estc.gh_text(args, check=True)
 
 
-def _issue_body_matches_bait(body: str, bait_path: str, *, run_token: str) -> bool:
-    """Require bait path (or basename) and the per-run token marker in the issue body."""
+def _issue_body_matches_bait(body: str, bait_path: str) -> bool:
+    """Require fixture marker and bait path (or basename) in the issue body."""
     text = body or ""
-    full_path, basename, token_marker = bait_markers(bait_path, run_token=run_token)
-    if token_marker not in text:
+    if E2E_AUTODOC_BAIT_MARKER not in text:
         return False
+    full_path, basename = bait_markers(bait_path)
     return full_path in text or basename in text
 
 
@@ -421,7 +366,6 @@ def find_audit_issue(
     title_prefix: str,
     since: datetime,
     bait_path: str,
-    run_token: str,
 ) -> dict[str, Any] | None:
     """Return the newest open issue correlated to this E2E bait run."""
     issues = (
@@ -455,7 +399,7 @@ def find_audit_issue(
         if created < since:
             continue
         body = str(issue.get("body") or "")
-        if not _issue_body_matches_bait(body, bait_path, run_token=run_token):
+        if not _issue_body_matches_bait(body, bait_path):
             continue
         matches.append(issue)
     if not matches:
@@ -613,15 +557,11 @@ def run_live_case(
     )
     case_id = str(case.get("id") or "")
 
-    # Fixed checked-in bait path; per-run isolation via instructions + issue marker.
-    run_token = new_run_token()
+    # Fixed checked-in bait markdown; E2E mode flag scopes docs-patrol to this path.
     bait_path = (
         str(cfg.get("bait_path") or DEFAULT_BAIT_PATH).strip() or DEFAULT_BAIT_PATH
     )
     bait_text = bait_content()
-    e2e_instructions = e2e_additional_instructions(
-        bait_path=bait_path, run_token=run_token
-    )
     # Coarse clock (drop microseconds) to avoid missing runs whose GitHub
     # createdAt truncates fractional seconds earlier than the runner clock.
     since = _utc_now().replace(microsecond=0)
@@ -672,7 +612,6 @@ def run_live_case(
                 "path": bait_path,
                 "commit_sha": None,
                 "created_by_this_run": False,
-                "run_token": run_token,
             },
             **extra,
         }
@@ -742,10 +681,13 @@ def run_live_case(
                 comment="Closed by obs:autodoc E2E harness cleanup.",
             )
         if seed_doc_drift_bait and branch:
-            bait_present = remote_bait_present(repo, branch=branch, path=bait_path)
+            bait_present = remote_bait_matches(
+                repo, branch=branch, path=bait_path, content=bait_text
+            )
             if not bait_present:
                 raise RuntimeError(
-                    f"Checked-in bait missing on {branch} at {bait_path!r} after cleanup"
+                    f"Checked-in bait missing or content mismatch on {branch} "
+                    f"at {bait_path!r} after cleanup"
                 )
             bait_removed = False
         else:
@@ -791,9 +733,7 @@ def run_live_case(
             dispatch_schedule_trigger(
                 repo,
                 workflow_file,
-                e2e_additional_instructions=(
-                    e2e_instructions if seed_doc_drift_bait else ""
-                ),
+                e2e_autodoc_mode=bool(seed_doc_drift_bait),
             )
             estc.log_info(f"Dispatched {workflow_file} on {repo}")
 
@@ -831,7 +771,6 @@ def run_live_case(
                     title_prefix=title_prefix,
                     since=issue_since,
                     bait_path=bait_path,
-                    run_token=run_token,
                 )
                 if issue is not None:
                     break
@@ -839,7 +778,7 @@ def run_live_case(
             if issue is None:
                 result = _blocked(
                     f"Timed out waiting for open issue with title prefix "
-                    f"{title_prefix!r} and per-run bait markers for {bait_path!r}",
+                    f"{title_prefix!r} and bait markers for {bait_path!r}",
                     path_gates={"dashboard_enabled": dashboard_ok},
                     schedule_trigger={
                         "run_seen": True,
@@ -1046,7 +985,6 @@ def run_live_case(
                 "path": bait_path,
                 "commit_sha": None,
                 "created_by_this_run": False,
-                "run_token": run_token,
             },
         }
         write_outcome(outcome_path, outcome)

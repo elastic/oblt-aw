@@ -74,13 +74,13 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
         "fix_pr": None,
         "cleanup": {
             "completed": True,
-            "bait_path": "scripts/e2e_autodoc_intentional_undocumented.py",
+            "bait_path": "docs/testing/fixtures/e2e-autodoc-bait.md",
             "bait_removed": False,
             "bait_present": True,
             "closed_prs": [],
         },
         "bait": {
-            "path": "scripts/e2e_autodoc_intentional_undocumented.py",
+            "path": "docs/testing/fixtures/e2e-autodoc-bait.md",
             "commit_sha": None,
             "created_by_this_run": False,
         },
@@ -632,7 +632,7 @@ class TestJobNameMatching:
         monkeypatch.setattr(harness.estc, "gh_json", lambda *args, **kwargs: detail)
         result = harness.wait_for_schedule_audit_run(
             "elastic/oblt-aw",
-            "trigger-obs-aw-schedule.yml",
+            "e2e-trigger-obs-aw-schedule.yml",
             since=datetime(2026, 9, 24, 8, 0, tzinfo=timezone.utc),
             timeout_seconds=1,
             interval_seconds=0,
@@ -641,43 +641,31 @@ class TestJobNameMatching:
 
 
 class TestIssueAndPrCorrelation:
-    def test_issue_body_requires_path_and_run_token(self) -> None:
-        run_token = "abcd1234efgh5678"
+    def test_issue_body_requires_path_and_fixture_marker(self) -> None:
         bait_path = harness.DEFAULT_BAIT_PATH
         basename = Path(bait_path).name
-        marker = harness.run_token_marker(run_token)
+        fixture = harness.E2E_AUTODOC_BAIT_MARKER
         assert harness._issue_body_matches_bait(
-            f"Update docs for `{bait_path}` ({marker})",
+            f"Update docs for `{bait_path}` ({fixture})",
             bait_path,
-            run_token=run_token,
         )
         assert harness._issue_body_matches_bait(
-            f"Document {basename} entrypoint {marker}",
+            f"Document {basename} entrypoint {fixture}",
             bait_path,
-            run_token=run_token,
         )
-        # Path without run-token marker is not enough.
+        # Path without fixture marker is not enough.
         assert not harness._issue_body_matches_bait(
             f"Update docs for `{bait_path}`",
             bait_path,
-            run_token=run_token,
         )
         # Static fixture marker alone is not enough.
         assert not harness._issue_body_matches_bait(
-            f"Document {harness.E2E_AUTODOC_BAIT_MARKER} entrypoint",
+            f"Document {fixture} entrypoint",
             bait_path,
-            run_token=run_token,
         )
         assert not harness._issue_body_matches_bait(
             "Generic documentation drift finding",
             bait_path,
-            run_token=run_token,
-        )
-        # Wrong run token must not match.
-        assert not harness._issue_body_matches_bait(
-            f"Update docs for `{bait_path}` ({harness.run_token_marker('deadbeefdeadbeef')})",
-            bait_path,
-            run_token=run_token,
         )
 
     def test_pr_must_reference_issue_number(self) -> None:
@@ -736,30 +724,23 @@ class TestClosePrsForIssue:
 
 
 class TestBaitContent:
-    def test_bait_is_valid_python(self) -> None:
-        compile(harness.bait_content(), "<bait>", "exec")
-
-    def test_bait_contains_correlation_marker(self) -> None:
-        assert harness.E2E_AUTODOC_BAIT_MARKER in harness.bait_content()
-
-    def test_e2e_additional_instructions_embed_run_token(self) -> None:
-        token = "abcd1234efgh5678"
-        text = harness.e2e_additional_instructions(
-            bait_path=harness.DEFAULT_BAIT_PATH, run_token=token
-        )
-        assert harness.run_token_marker(token) in text
-        assert harness.DEFAULT_BAIT_PATH in text
+    def test_bait_is_markdown_with_marker(self) -> None:
+        text = harness.bait_content()
+        assert text.lstrip().startswith("#")
         assert harness.E2E_AUTODOC_BAIT_MARKER in text
+        assert "Incomplete on purpose" in text
 
-    def test_bait_path_for_run_is_unique(self) -> None:
-        a = harness.bait_path_for_run("aaaaaaaaaaaaaaaa")
-        b = harness.bait_path_for_run("bbbbbbbbbbbbbbbb")
-        assert a != b
-        assert a.endswith("_aaaaaaaaaaaaaaaa.py")
+    def test_bait_markers_reject_empty_and_traversal(self) -> None:
+        path, basename = harness.bait_markers(harness.DEFAULT_BAIT_PATH)
+        assert path == harness.DEFAULT_BAIT_PATH
+        assert basename == "e2e-autodoc-bait.md"
         with pytest.raises(ValueError):
-            harness.bait_path_for_run("../escape")
+            harness.bait_markers("")
         with pytest.raises(ValueError):
-            harness.bait_path_for_run("")
+            harness.bait_markers("../escape.md")
+
+    def test_mode_sentinel_is_stable(self) -> None:
+        assert harness.E2E_AUTODOC_MODE_SENTINEL == "E2E_AUTODOC_MODE=true"
 
 
 class TestContentsHelpers:
@@ -791,7 +772,6 @@ class TestHarnessDashboardGate:
         assert outcome["blocked"] is True
         assert "Dashboard" in str(outcome.get("block_reason") or "")
         assert outcome_path.is_file()
-        assert outcome["bait"]["run_token"]
         assert outcome["bait"]["path"] == harness.DEFAULT_BAIT_PATH
 
     def test_negative_fix_case_serializes_unexpected_pr(
@@ -872,7 +852,7 @@ class TestHarnessDashboardGate:
         monkeypatch.setattr(harness, "autodoc_fix_job_conclusion", lambda run: None)
         monkeypatch.setattr(harness, "close_prs_for_issue", lambda *a, **k: [])
         monkeypatch.setattr(harness, "close_issue", lambda *a, **k: None)
-        monkeypatch.setattr(harness, "remote_bait_present", lambda *a, **k: True)
+        monkeypatch.setattr(harness, "remote_bait_matches", lambda *a, **k: True)
 
         outcome_path = tmp_path / "outcome.json"
         cfg = harness.load_e2e_config(ROOT / "config" / "obs" / "e2e-autodoc.json")

@@ -1,7 +1,7 @@
 {
   "id": "schedule-audit-fix-pr-live",
   "mode": "live",
-  "description": "Production path: schedule/dispatch with E2E bait instructions → autodoc audit → issue → create-PR fix → docs PR against checked-in bait fixture.",
+  "description": "Production path: schedule/dispatch with e2e-autodoc-mode → autodoc audit → issue → create-PR fix → docs PR against checked-in bait markdown.",
   "workflow_id": "obs:autodoc",
   "trigger": {
     "dispatch_schedule_trigger": true,
