@@ -54,6 +54,52 @@ emit() {
   echo "$1|$2|$3|$4|$5"
 }
 
+is_sec002_run_interpolation() {
+  local workflow_file="$1"
+  local line_number="$2"
+
+  [ -f "$workflow_file" ] || return 1
+  [[ "$line_number" =~ ^[0-9]+$ ]] || return 1
+
+  awk -v target="$line_number" '
+    function indent_len(s) {
+      match(s, /^[ ]*/)
+      return RLENGTH
+    }
+
+    {
+      lines[NR] = $0
+      line_count = NR
+    }
+
+    END {
+      if (target < 1 || target > line_count) exit 1
+      target_line = lines[target]
+      target_indent = indent_len(target_line)
+
+      if (target_line !~ /\$\{\{[[:space:]]*secrets\./) exit 1
+      if (target_line ~ /^[[:space:]-]*run:[[:space:]].*\$\{\{[[:space:]]*secrets\./) exit 0
+
+      for (i = target - 1; i >= 1; i--) {
+        prior = lines[i]
+        if (prior ~ /^[[:space:]]*$/) continue
+        prior_indent = indent_len(prior)
+
+        if (prior ~ /^[[:space:]-]*run:[[:space:]]*[>|]?/) {
+          if (target_indent > prior_indent) exit 0
+          exit 1
+        }
+
+        if (prior_indent <= target_indent && prior ~ /^[[:space:]-]*[A-Za-z0-9_-]+:[[:space:]]*/) {
+          break
+        }
+      }
+
+      exit 1
+    }
+  ' "$workflow_file"
+}
+
 # Collect findings here, then dedupe by file|line (keep highest severity).
 FINDINGS_TMP="${TMPDIR:-/tmp}/security-scan-$$.txt"
 touch "$FINDINGS_TMP"
@@ -252,7 +298,18 @@ if command -v npm >/dev/null 2>&1; then
 fi
 
 # --- Dedupe: same file + line → keep highest severity; merge messages with " | " on tie ---
-awk -F'|' '
+while IFS='|' read -r file line rule sev msg; do
+  [ -n "$file" ] || continue
+  if [ "$rule" = "SEC-002" ]; then
+    case "$file" in
+      .github/workflows/*.lock.yml) continue ;;
+    esac
+    if ! is_sec002_run_interpolation "$REPO_ROOT/$file" "$line"; then
+      continue
+    fi
+  fi
+  emit "$file" "$line" "$rule" "$sev" "$msg"
+done <"$FINDINGS_TMP" | awk -F'|' '
 function rank(s) {
   if (s == "critical") return 5
   if (s == "high") return 4
@@ -285,7 +342,7 @@ END {
     print a[1] "|" a[2] "|" outrule[k] "|" outsev[k] "|" outmsg[k]
   }
 }
-' "$FINDINGS_TMP" | sort -t'|' -k1,1 -k2,2n | awk -F'|' -v cat="$SCAN_CATEGORY" '
+' | sort -t'|' -k1,1 -k2,2n | awk -F'|' -v cat="$SCAN_CATEGORY" '
 function rule_category(rule) {
   if (rule == "SEC-010" || rule == "SEC-011" || rule == "SEC-012") return "injection"
   if (rule == "SEC-001" || rule == "SEC-002" || rule == "SEC-003" ||
