@@ -237,3 +237,24 @@ def test_hardcoded_bots_match_allowed_pr_authors() -> None:
     assert trusted == allow, (
         f"trusted-users {trusted!r} != allowed_pr_authors {allow!r}"
     )
+
+
+def test_actions_commit_verification_contract_in_prompt() -> None:
+    """Prompt must require REST facts file and the #2097 decision table."""
+    source = (_root / ".github" / "workflows" / "gh-aw-dependency-review.md").read_text(
+        encoding="utf-8"
+    )
+    assert "actions-commit-verification.json" in source
+    assert "Collect Actions commit verification (REST)" in source
+    assert "verified: true" in source
+    assert "verified: false" in source
+    assert "missing_data" in source
+    assert "Do **not** call MCP `get_commit`" in source
+    assert "Do **not** use MCP `get_commit`" in source
+    assert "scripts/obs/collect_actions_commit_verification.py" in source
+    assert "COLLECTOR_REF:" in source
+    assert "COLLECTOR_SHA256:" in source
+    assert "RUNNER_TEMP}/oblt-aw-tools" in source
+    assert (
+        "if [[ -f scripts/obs/collect_actions_commit_verification.py ]]" not in source
+    )

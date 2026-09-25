@@ -20,6 +20,6 @@
   "merge_ready_label": "oblt-aw/ai/merge-ready",
   "dependency_collection_gate_marker": "<!-- obs-aw-automerge:dependency-collection-gate -->",
   "automerge_outcome_gate_marker": "<!-- obs-aw-automerge:outcome-gate -->",
-  "dependency_review_comment_markers": ["Labels Applied"],
+  "dependency_review_comment_markers": ["## Dependency Update Analysis"],
   "allowed_pr_author": "elastic-vault-github-plugin-prod[bot]"
 }
