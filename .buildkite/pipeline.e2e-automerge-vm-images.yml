@@ -6,8 +6,8 @@
 # Not used by production Buildkite; the E2E harness bumps these pins on a fixture PR.
 
 env:
-  IMAGE_UBUNTU: "platform-ingest-elastic-agent-ubuntu-1790266987"
-  IMAGE_UBUNTU_ARM: "platform-ingest-elastic-agent-ubuntu_arm-1790266987"
+  IMAGE_UBUNTU: "platform-ingest-elastic-agent-ubuntu-1790330968"
+  IMAGE_UBUNTU_ARM: "platform-ingest-elastic-agent-ubuntu_arm-1790330968"
 
 steps:
   - label: "e2e-automerge-vm-images noop"
