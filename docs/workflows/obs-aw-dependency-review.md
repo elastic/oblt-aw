@@ -43,6 +43,20 @@ Edit the GH-AW source [`.github/workflows/gh-aw-dependency-review.md`](../../.gi
 
 `notify-no-comment` runs when the lock succeeds with an empty `comment_id` and **upserts** a single comment on the **triggering PR** (marker `obs-aw-dependency-review:notify-no-comment`) with the latest run URL and retry guidance. Re-runs on the same PR update that comment instead of posting duplicates. Failure-issue suppression comes from `obs-defaults` (no `report-failure-as-issue` lock input).
 
+## Labeling and Actions commit verification
+
+Observability-owned labeling rules live in [`.github/workflows/gh-aw-dependency-review.md`](../../.github/workflows/gh-aw-dependency-review.md) (Steps 3a / 4). Summary of the Actions commit-verification contract ([#2097](https://github.com/elastic/oblt-aw/issues/2097)):
+
+| `actions-commit-verification.json` pin | Ecosystem commit check | `oblt-aw/ai/merge-ready` |
+|----------------------------------------|------------------------|--------------------------|
+| `verified: true` | Pass | Allowed when other Step 4 gates pass |
+| `verified: false` | Fail | Must **not** apply |
+| `verified: null` / missing pin / collector `error` | Unavailable | Call `missing_data` / `report_incomplete` — do **not** inflate risk to **moderate** solely for this, and do not soft-withhold the label while claiming low risk |
+
+A pre-agent runner step fetches `scripts/obs/collect_actions_commit_verification.py` from an immutable `elastic/oblt-aw` commit into `RUNNER_TEMP` (never from the PR checkout), verifies its SHA-256, then writes `actions-commit-verification.json` via GitHub REST (`GET /repos/{owner}/{repo}/commits/{sha}`). The agent must prefer that file over MCP `get_commit` (MCP omits `commit.verification` and caused false negatives).
+
+**Untestable production workflows** (only `push` / `release` / `schedule` / `workflow_dispatch`, with production impact) still block `oblt-aw/ai/merge-ready` under Step 4. That rule is unchanged by #2097.
+
 ## Failure mode (empty safe outputs)
 
 If the agent exits with text only and zero safe outputs, the lock may still report success with an empty `comment_id`. `notify-no-comment` then upserts a human-visible comment on the PR (run URL + retry guidance). Retry by pushing a new commit to the PR branch (or close/reopen) so `pull_request` re-runs dependency-review.

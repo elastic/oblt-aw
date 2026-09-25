@@ -773,7 +773,7 @@ def run_live_case(
     dr_markers = list(
         expectations.get("dependency_review_comment_markers")
         or cfg.get("dependency_review_comment_markers")
-        or ["Labels Applied"]
+        or ["## Dependency Update Analysis"]
     )
     allowed_author = str(cfg.get("allowed_pr_author") or ALLOWED_AUTHOR)
     timeout = int(cfg.get("poll_timeout_seconds") or 3600)
