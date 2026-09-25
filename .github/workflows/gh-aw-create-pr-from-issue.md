@@ -78,9 +78,19 @@ safe-outputs:
     # Top-level mapping shadows imported safe-output-create-pr.md; keep draft,
     # patch-format, and extra-commit token here so the compiled lock retains them
     # (no draft-prs lock input).
-    draft: true
+    draft: false
     patch-format: bundle
     github-token-for-extra-empty-commit: ${{ secrets.EXTRA_COMMIT_GITHUB_TOKEN }}
+    # Exclusive allowlist: every changed path must match (orthogonal to protected-files).
+    allowed-files:
+      - "*.md"
+      - "**/*.md"
+      - "*.adoc"
+      - "**/*.adoc"
+      - "*.asciidoc"
+      - "**/*.asciidoc"
+      - "*.rst"
+      - "**/*.rst"
     protected-files:
       # Compiler v0.88.7 schema uses underscore; hyphen form is docs-only alias in newer docs.
       policy: request_review
@@ -118,7 +128,7 @@ Your task is to implement the documentation improvements described in the issue.
   - Summary of files analyzed
   - List of issues found (with file paths and concise descriptions)
   - List of changes made (with rationale for each change)
-- Leave the pull request as a **draft** for human review. Do not mark it ready for review (safe-output creates drafts only; this workflow has no promotion step).
+- Open the pull request **ready for review** (not draft). Humans still review before merge; do not merge.
 
 ### Constraints
 

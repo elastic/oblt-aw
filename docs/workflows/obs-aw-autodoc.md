@@ -43,13 +43,24 @@ Edit the GH-AW sources [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/
 |-----------------------------------|--------------------------|
 | Model, failure-issue suppression, and GitHub `trusted-users` via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) | Audit: `additional-instructions` (from `aw-resolve-agentic-assets`: APM + `.oblt-aw.autodocignore` overlays; optional E2E mode injects fixed audit-only platform text when `e2e-autodoc-mode` is true) |
 | Lookback window (`1 day ago`), issue title prefix (`[oblt-aw][autodoc]`), and merged audit prompt in [`gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md) | Fix: `target-issue-number` (from `audit.outputs.created_issue_number`) and `additional-instructions` (APM + autodocignore only — no E2E platform text) |
-| Docs-only fix prompt, draft PRs, and top-level docs `protected-files` excludes in [`gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md) | Optional control-plane `e2e-trigger-obs-aw-schedule.yml` input `e2e-autodoc-mode` (false by default on `obs-aw-event-schedule`; live E2E only) |
+| Docs-only fix prompt, ready-for-review PRs, docs `allowed-files`, and top-level docs `protected-files` excludes in [`gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md) | Optional control-plane `e2e-trigger-obs-aw-schedule.yml` input `e2e-autodoc-mode` (false by default on `obs-aw-event-schedule`; live E2E only) |
 | Comment footer via [`messages-footer.md`](../../.github/workflows/gh-aw-fragments/messages-footer.md) | |
 | Bot actor hardcoded on each source (`github-actions[bot]`) | |
 
 **Audit prompt:** docs-patrol lookback/drift analysis plus Observability gap criteria, secret-docs rules, false-positive / out-of-scope guards, and mandatory `@elastic/observablt-ci` issue notification live in [`gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md). Live E2E dispatches control-plane-only [`e2e-trigger-obs-aw-schedule.yml`](../../.github/workflows/e2e-trigger-obs-aw-schedule.yml) with `e2e-autodoc-mode=true` so the wrapper passes fixed audit `platform-additional-instructions` (`E2E_AUTODOC_MODE=true`) that scope docs-patrol to [`docs/testing/fixtures/e2e-autodoc-bait.md`](../testing/fixtures/e2e-autodoc-bait.md). Client [`trigger-obs-aw-schedule.yml`](../../.github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-schedule.yml) has no E2E inputs.
 
 **Fix prompt:** PR title/body rules, docs-only constraints, secret-docs rules, markdown/Helm/AI-asset guards, and autodocignore semantics live in [`gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md). The wrapper does not pass fix `platform-additional-instructions`; resolve still supplies APM / autodocignore overlays via `additional-instructions`.
+
+**PR creation (fix):** the compiled create-PR lock opens PRs **ready for review** (`draft: false`). Reviewer request and `changelog:docs` labeling still happen in `finalize-pr`.
+
+**Allowed-files (fix):** exclusive allowlist on `create-pull-request` — every changed path must match one of these patterns (non-docs patches are refused before PR creation):
+
+- `*.md` / `**/*.md`
+- `*.adoc` / `**/*.adoc`
+- `*.asciidoc` / `**/*.asciidoc`
+- `*.rst` / `**/*.rst`
+
+This is orthogonal to `protected-files`: both checks run independently.
 
 **Protected-files excludes (fix):** the compiled create-PR lock keeps `request_review` for remaining protected paths, and **excludes** these common top-level docs from the protected set so autodoc can push PRs that update them instead of falling back to a review issue:
 

@@ -1,9 +1,9 @@
 """
 Integration checks for obs-aw-autodoc fix → gh-aw-create-pr-from-issue.
 
-Proves wrapper ↔ aw-resolve-agentic-assets ↔ lock input wiring and that the
-compiled lock excludes top-level docs from protected-files. Does not invoke a
-live model.
+Proves wrapper ↔ aw-resolve-agentic-assets ↔ lock input wiring, that the
+compiled lock excludes top-level docs from protected-files, opens ready-for-review
+PRs, and enforces a docs-only allowed-files allowlist. Does not invoke a live model.
 """
 
 from __future__ import annotations
@@ -31,6 +31,16 @@ _DOCS_EXCLUDES = (
     "CONTRIBUTING.md",
     "SECURITY.md",
     "CODE_OF_CONDUCT.md",
+)
+_ALLOWED_FILE_PATTERNS = (
+    "*.md",
+    "**/*.md",
+    "*.adoc",
+    "**/*.adoc",
+    "*.asciidoc",
+    "**/*.asciidoc",
+    "*.rst",
+    "**/*.rst",
 )
 _MINIMAL_LOCK_INPUTS = frozenset({"target-issue-number", "additional-instructions"})
 
@@ -155,17 +165,16 @@ class TestAutodocCreatePrWrapperLockWiring:
             )
 
 
-class TestCreatePrProtectedFilesExcludes:
-    def test_compiled_lock_excludes_top_level_docs(self) -> None:
+class TestCreatePrSafeOutputPolicy:
+    def test_compiled_lock_ready_for_review_docs_allowlist_and_excludes(self) -> None:
         assert LOCK_PATH.is_file(), f"missing compiled lock {LOCK_PATH}"
         assert SOURCE_PATH.is_file(), f"missing source {SOURCE_PATH}"
         cfg = _first_safe_outputs_config(LOCK_PATH.read_text(encoding="utf-8"))
         create_pr = cfg.get("create_pull_request") or {}
         assert isinstance(create_pr, dict)
-        assert create_pr.get("draft") is True, (
-            "create_pull_request.draft must be true in compiled lock "
-            f"(got {create_pr.get('draft')!r}; top-level source must not shadow "
-            "safe-output-create-pr.md)"
+        assert create_pr.get("draft") is False, (
+            "create_pull_request.draft must be false in compiled lock "
+            f"(got {create_pr.get('draft')!r}; autodoc opens PRs ready for review)"
         )
         patch_format = create_pr.get("patch_format") or create_pr.get("patch-format")
         assert patch_format == "bundle", (
@@ -182,6 +191,14 @@ class TestCreatePrProtectedFilesExcludes:
             "handler must map GH_AW_CI_TRIGGER_TOKEN from EXTRA_COMMIT_GITHUB_TOKEN "
             "(top-level create-pull-request shadows the fragment; field must be "
             "re-declared on the source mapping)"
+        )
+        allowed = create_pr.get("allowed_files") or create_pr.get("allowed-files") or []
+        assert isinstance(allowed, list), (
+            f"create_pull_request.allowed_files must be a list (got {type(allowed)!r})"
+        )
+        assert set(allowed) == set(_ALLOWED_FILE_PATTERNS), (
+            "allowed_files must match the docs-only exclusive allowlist "
+            f"(got {sorted(allowed)!r})"
         )
         policy = create_pr.get("protected_files_policy")
         assert policy in ("request_review", "request-review"), (
