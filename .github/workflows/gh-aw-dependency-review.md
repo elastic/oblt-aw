@@ -145,11 +145,11 @@ This workflow is read-only. You can read files, search code, run commands, and c
 
 ### Noop when not applicable (mandatory)
 
-- If the PR has NO dependency updates to review (e.g. no version bumps in manifest files, no changes to lockfiles that indicate dependency updates, or changes that do not match any supported ecosystem), you MUST call `noop` — do NOT call `add_comment` (no analysis comment from the agent).
+- If the PR has NO dependency updates to review (no version, pin, digest, or lockfile bumps in changed files), you MUST call `noop` — do NOT call `add_comment` (no analysis comment from the agent).
 - Use the format: {"noop": {"message": "No action needed: [brief explanation]"}}
-- Examples: "No action needed: no dependency version updates found in the PR diff" or "No action needed: PR changes do not match supported dependency ecosystems"
+- Example: "No action needed: no dependency version updates found in the PR diff"
+- Do **not** noop a PR that clearly bumps a version/pin/digest/lockfile solely because the bump type is unfamiliar or is not Actions/Go/npm. Analyze it (ecosystem **other** is fine) and apply Step 4.
 - Do not emit an analysis comment for no-op outcomes. The noop tool provides transparency; a separate control-plane job may still note an empty `comment_id` on the PR.
-- **Never noop CI / VM image pin bumps.** Changes to `IMAGE_*` / `platform-ingest-*` (or similar runner/container/snapshot image IDs) under `.buildkite/**`, `Dockerfile*`, `docker-compose*.yml`, or `testing/environments/snapshot.yml` are in-scope **CI / VM image** dependency updates. Analyze them and apply `oblt-aw/ai/merge-ready` when Step 4 passes — do not treat them as "unsupported ecosystem."
 
 ## Instructions
 
@@ -161,20 +161,26 @@ This workflow is read-only. You can read files, search code, run commands, and c
 ### Step 2: Identify and Classify Updated Dependencies
 
 Parse the diff to identify each dependency being updated. For each dependency, extract:
-- **Ecosystem**: GitHub Actions, Buildkite plugin, CI / VM image, Go module, npm package, Python (pip/Poetry/uv), Maven/Gradle (Java), or other
-- **Package name**: e.g. `actions/checkout`, `golang.org/x/net`, `express`, `requests`, `IMAGE_UBUNTU`
-- **Old version**: tag, SHA, or version before the update
-- **New version**: tag, SHA, or version after the update
+- **Ecosystem**: a short label for the bump kind (see path families below), or **other** when unclear
+- **Package name**: identifier being bumped (action, module, package, image/env pin name, etc.)
+- **Old version**: tag, SHA, digest, or pin before the update
+- **New version**: tag, SHA, digest, or pin after the update
 
-Classify each dependency by looking at the files changed:
-- `.github/workflows/*.yml` or `.github/workflows/*.yaml` → **GitHub Actions**
-- `.buildkite/**`, `Dockerfile`, `Dockerfile.*`, `docker-compose.yml`, `docker-compose.yaml`, or `testing/environments/snapshot.yml` when the diff only (or primarily) bumps runner/container/snapshot **image** IDs (`IMAGE_*`, `platform-ingest-*`, similar env pins) → **CI / VM image** (not Buildkite plugin)
-- `pipeline.yml` or `.buildkite/` files that bump **plugin** SHAs/tags (not image env pins) → **Buildkite plugin**
-- `go.mod`, `go.sum` → **Go module**
-- `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml` → **npm/Node**
-- `pyproject.toml`, `requirements*.txt`, `Pipfile*`, `poetry.lock`, `uv.lock` → **Python**
+Classify by **changed paths** and **what the diff bumps**. Prefer these path families (aligned with `config/obs/automerge-dependency-collections.json` globs — do **not** invent ecosystems that are not represented there):
+
+- `.github/workflows/**`, `.github/actions/**`, `**/action.yml`, `**/action.yaml` → **GitHub Actions**
+- `.pre-commit-config.yaml` → **pre-commit**
+- `go.mod`, `go.sum`, `**/go.mod`, `**/go.sum` (and related NOTICE / `beats` bumps when those land together) → **Go** (or Go + related manifests)
+- `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml` (and `**/` variants) → **npm/Node**
+- `pyproject.toml`, `requirements*.txt`, `Pipfile*`, `poetry.lock`, `uv.lock` (and `**/` variants) → **Python**
+- `**/*.tf`, `**/*.tfvars`, `**/.terraform.lock.hcl`, `**/terragrunt.hcl`, version pin files for Terraform/OpenTofu/Terragrunt → **Terraform**
+- `**/*.rego`, `**/.opa-version`, `**/opa.yaml`, `**/opa.yml` → **Open Policy Agent**
+- `.package-version`, `**/.package-version` → **package-version**
+- `.buildkite/**`, `**/Dockerfile`, `**/Dockerfile.*`, `**/docker-compose.yml`, `**/docker-compose.yaml`, `testing/environments/snapshot.yml` → **CI / container / snapshot image pins** when the diff bumps runner, container, or snapshot **image** identifiers or env pins. There is **no** separate “Buildkite plugin” dependency collection: do **not** map every `.buildkite/**` change to “Buildkite plugin.” If a `.buildkite/` diff bumps a plugin SHA/tag instead of an image pin, still treat it as an in-scope version bump; label the ecosystem **other** (or note “Buildkite plugin pin” as the bump type in the analysis) and continue — do **not** noop.
 - `pom.xml`, `build.gradle`, `build.gradle.kts`, `gradle.lockfile` → **Java/Kotlin (Maven/Gradle)**
-- Other manifest files → classify by ecosystem
+- Other version/pin/lockfile bumps → **other** (still in-scope; analyze them)
+
+Any clear version, pin, digest, or lockfile bump in the families above is a dependency update to review.
 
 ### Step 3: Analyze Each Dependency
 
@@ -238,22 +244,16 @@ Required additions for each dependency:
 2. If a workflow is **only** triggered by `push` (to main/default branch), `release`, `schedule`, or `workflow_dispatch`, it **cannot be validated by the PR itself**. Flag this as higher risk.
 3. If a workflow is triggered by `pull_request` or `pull_request_target`, it can be exercised in the PR context.
 
-#### 3e: Pin Format Check (Buildkite plugins)
+#### 3e: Pin Format Check (plugin / action SHA-or-tag pins)
 
-For Buildkite plugin updates:
+When the bump is a **plugin or Action** pin that uses a SHA or mutable tag (not an image/env pin):
 1. Check if the update moves from a SHA-pinned version to a mutable tag (higher risk).
 2. Check if the update moves from one mutable tag to another mutable tag (moderate risk).
 3. SHA-to-SHA or tag-to-SHA-pinned updates are preferred.
 
-#### 3f: CI / VM image pins
+Skip this section for pure CI/container/snapshot **image** identifier or env pin bumps.
 
-For **CI / VM image** updates (aligned with automerge collection `vm-images`):
-1. Confirm the diff is limited to image identifier / env pin bumps (for example `IMAGE_UBUNTU`, `IMAGE_UBUNTU_ARM`, `platform-ingest-elastic-agent-*`), not unrelated pipeline logic.
-2. Treat pure image-ID bumps as typically **low** risk when they only change the numeric/suffix pin and keep the same image family/name prefix.
-3. Skip Actions commit verification and Buildkite plugin pin-format rows in the analysis table; document old → new image IDs instead.
-4. Do **not** call `noop` for these PRs.
-
-#### 3g: Ecosystem-Specific Guidance
+#### 3f: Ecosystem-Specific Guidance
 
 Apply the following additional checks based on the dependency ecosystem:
 
@@ -286,8 +286,8 @@ First assign an overall risk level for the PR: **low**, **low-to-moderate**, **m
 Apply `oblt-aw/ai/merge-ready` when ALL of the following are true:
 - Overall risk is **low** OR **low-to-moderate** (including when changelogs mention CVEs, GHSAs, or security fixes—those entries do **not** disqualify the label in these two bands; they must still be documented in your analysis).
 - No breaking changes to APIs, inputs, or features used by this repository.
-- Ecosystem checks pass (Actions commit verification per Step 3a / `actions-commit-verification.json`, pin format acceptable for Buildkite plugins, CI / VM image pin family unchanged per Step 3f, etc.).
-- Workflows using the dependency are testable in PR context (pull_request or pull_request_target trigger), OR the dependency is dev-only / CI-only (e.g. pre-commit, linters, Buildkite VM image pins) with no production application impact.
+- Ecosystem checks pass (Actions commit verification per Step 3a / `actions-commit-verification.json`, pin format acceptable when Step 3e applies, etc.).
+- Workflows using the dependency are testable in PR context (pull_request or pull_request_target trigger), OR the dependency is dev-only / CI-only (e.g. pre-commit, linters, CI image pins) with no production application impact.
 
 Minor behavioral changes (e.g. ignore-pattern handling, formatting) that do not affect this repo's usage do NOT disqualify the label when risk is low or low-to-moderate.
 
@@ -305,16 +305,16 @@ Call `add_comment` on the PR with a structured analysis. Use the following forma
 >
 > ### [Dependency 1: package vOLD → vNEW]
 >
-> **Ecosystem**: [GitHub Actions / Go / npm / Python / Java / Buildkite plugin / CI / VM image / other]
+> **Ecosystem**: [GitHub Actions / Go / npm / Python / Java / Terraform / OPA / pre-commit / CI image pin / other]
 >
 > | Check | Result |
 > | --- | --- |
 > | Breaking changes | ✅ None found / ⚠️ Found (details below) |
 > | Testable in PR | ✅ Yes / ⚠️ No — workflow only runs on [events] |
 > | Commit verified | ✅ Yes / ⚠️ No / ⚠️ Unavailable *(GitHub Actions only; from `actions-commit-verification.json`)* |
-> | Pin format | ✅ SHA-pinned / ⚠️ Mutable tag *(GitHub Actions / Buildkite only)* |
+> | Pin format | ✅ SHA-pinned / ⚠️ Mutable tag *(GitHub Actions / plugin SHA-or-tag pins only)* |
 >
-> Only include rows relevant to the dependency ecosystem. For example, "Commit verified" and "Pin format" only apply to GitHub Actions and Buildkite.
+> Only include rows relevant to the dependency ecosystem. For example, "Commit verified" and "Pin format" only apply when Step 3a / 3e apply.
 >
 > <details>
 > <summary>Changelog highlights (vOLD → vNEW)</summary>
