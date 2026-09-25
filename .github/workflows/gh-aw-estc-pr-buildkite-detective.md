@@ -237,7 +237,14 @@ For each:
 
 ### Step 3: Respond
 
-Call `add_comment` on the PR using this structure:
+This workflow runs on GitHub **`status`** events. Call `add_comment` with:
+
+- **`item_number`**: the open PR number from `/tmp/gh-aw/buildkite-event.txt` (required; `target: "*"` cannot auto-target a status event).
+- **`body`**: the structured comment below.
+- Do **not** set the tool `target` argument to `pull_request` (invalid). Omit `target`, or use `status` only when intentionally updating the activation-status comment.
+- Do **not** call `noop` after a failed `add_comment`. If commenting fails after a real investigation, call `report_incomplete` with the error.
+
+Comment body structure:
 
 ```markdown
 ### TL;DR

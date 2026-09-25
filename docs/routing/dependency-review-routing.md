@@ -2,13 +2,13 @@
 
 ## Overview
 
-Client template: `trigger-obs-aw-dependency-review.yml` → `obs-aw-dependency-review.yml`
+Client template chain: `trigger-obs-aw-pull-request.yml` → `obs-aw-event-pull-request.yml` → `obs-aw-dependency-review.yml`
 
 Routed workflow source: [.github/workflows/obs-aw-dependency-review.yml](../../.github/workflows/obs-aw-dependency-review.yml)
 
 ## Usage
 
-Ingress routes to dependency review when all conditions are true:
+`obs-aw-event-pull-request.yml` routes to dependency review when all conditions are true:
 
 - `github.event_name == 'pull_request'`
 - `github.event.action` is one of `opened`, `synchronize`, `reopened`
@@ -30,4 +30,5 @@ The agentic lock lives in-repo as `gh-aw-dependency-review` (Observability-owned
 ## References
 
 - [docs/workflows/obs-aw-dependency-review.md](../workflows/obs-aw-dependency-review.md)
+- [docs/workflows/obs-aw-client-template.md](../workflows/obs-aw-client-template.md)
 - Live E2E: [docs/testing/dependency-review-e2e.md](../testing/dependency-review-e2e.md)
