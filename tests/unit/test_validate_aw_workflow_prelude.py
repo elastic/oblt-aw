@@ -20,6 +20,7 @@ def test_list_subject_workflows_includes_route_wrappers() -> None:
     assert "docs-aw-pr-ai-menu.yml" in names
     assert "aw-prelude.yml" not in names
     assert "docs-aw-event-issues.yml" not in names
+    assert "e2e-trigger-obs-aw-schedule.yml" not in names
     assert "trg-oblt-aw-automerge.yml" not in names
     assert "gh-aw-estc-pr-buildkite-detective.lock.yml" not in names
 
