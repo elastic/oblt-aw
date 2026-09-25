@@ -79,25 +79,29 @@ timeout-minutes: 60
 steps:
   # REST injection for Actions commit.verification (issue #2097). Runs on the
   # runner with GITHUB_TOKEN before the agent sandbox; MCP get_commit omits
-  # verification fields. Prefer the local scripts/obs copy (oblt-aw) else fetch
-  # the collector from elastic/oblt-aw@main so consumer checkouts still work.
+  # verification fields. Always fetch the collector from an immutable
+  # elastic/oblt-aw commit into RUNNER_TEMP (never execute the PR checkout
+  # copy). Bump COLLECTOR_REF + COLLECTOR_SHA256 together when the script changes.
   - name: Collect Actions commit verification (REST)
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
+      # Last commit that changed scripts/obs/collect_actions_commit_verification.py
+      COLLECTOR_REF: 29d42a0660f6afe9f5c1e687d6570287c29fbad3
+      COLLECTOR_SHA256: 718e6e1a70827f6161537ac48518c295abbcacf3ad5295ab7d2e814771005170
     run: |
       set -euo pipefail
       OUT="${GITHUB_WORKSPACE}/actions-commit-verification.json"
-      SCRIPT=""
-      if [[ -f scripts/obs/collect_actions_commit_verification.py ]]; then
-        SCRIPT="scripts/obs/collect_actions_commit_verification.py"
-      else
-        mkdir -p "${RUNNER_TEMP}/oblt-aw-tools"
-        SCRIPT="${RUNNER_TEMP}/oblt-aw-tools/collect_actions_commit_verification.py"
-        gh api "repos/elastic/oblt-aw/contents/scripts/obs/collect_actions_commit_verification.py?ref=main" \
-          --jq .content | base64 --decode > "${SCRIPT}"
+      mkdir -p "${RUNNER_TEMP}/oblt-aw-tools"
+      SCRIPT="${RUNNER_TEMP}/oblt-aw-tools/collect_actions_commit_verification.py"
+      gh api "repos/elastic/oblt-aw/contents/scripts/obs/collect_actions_commit_verification.py?ref=${COLLECTOR_REF}" \
+        --jq .content | base64 --decode > "${SCRIPT}"
+      actual="$(shasum -a 256 "${SCRIPT}" | awk '{print $1}')"
+      if [[ "${actual}" != "${COLLECTOR_SHA256}" ]]; then
+        echo "::error::collector integrity check failed (got ${actual}, expected ${COLLECTOR_SHA256})"
+        exit 1
       fi
       if [[ -z "${PR_NUMBER}" ]]; then
         echo "::warning::pull_request.number missing; writing empty Actions verification facts"

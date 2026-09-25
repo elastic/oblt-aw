@@ -252,3 +252,9 @@ def test_actions_commit_verification_contract_in_prompt() -> None:
     assert "Do **not** call MCP `get_commit`" in source
     assert "Do **not** use MCP `get_commit`" in source
     assert "scripts/obs/collect_actions_commit_verification.py" in source
+    assert "COLLECTOR_REF:" in source
+    assert "COLLECTOR_SHA256:" in source
+    assert "RUNNER_TEMP}/oblt-aw-tools" in source
+    assert (
+        "if [[ -f scripts/obs/collect_actions_commit_verification.py ]]" not in source
+    )

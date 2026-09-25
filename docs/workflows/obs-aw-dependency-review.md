@@ -53,7 +53,7 @@ Observability-owned labeling rules live in [`.github/workflows/gh-aw-dependency-
 | `verified: false` | Fail | Must **not** apply |
 | `verified: null` / missing pin / collector `error` | Unavailable | Call `missing_data` / `report_incomplete` — do **not** inflate risk to **moderate** solely for this, and do not soft-withhold the label while claiming low risk |
 
-A pre-agent runner step writes `actions-commit-verification.json` via GitHub REST (`GET /repos/{owner}/{repo}/commits/{sha}`). The agent must prefer that file over MCP `get_commit` (MCP omits `commit.verification` and caused false negatives).
+A pre-agent runner step fetches `scripts/obs/collect_actions_commit_verification.py` from an immutable `elastic/oblt-aw` commit into `RUNNER_TEMP` (never from the PR checkout), verifies its SHA-256, then writes `actions-commit-verification.json` via GitHub REST (`GET /repos/{owner}/{repo}/commits/{sha}`). The agent must prefer that file over MCP `get_commit` (MCP omits `commit.verification` and caused false negatives).
 
 **Untestable production workflows** (only `push` / `release` / `schedule` / `workflow_dispatch`, with production impact) still block `oblt-aw/ai/merge-ready` under Step 4. That rule is unchanged by #2097.
 
