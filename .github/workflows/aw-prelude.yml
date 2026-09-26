@@ -85,6 +85,7 @@ jobs:
       - name: Checkout oblt-aw (registry scripts + config)
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           repository: elastic/oblt-aw
           ref: main
           path: _oblt-aw
