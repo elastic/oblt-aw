@@ -51,7 +51,10 @@ jobs:
       # Lookback (1 day), title-prefix ([oblt-aw][autodoc]), model/bots/footer,
       # and failure-issue suppression are opinionated on the in-repo lock.
       additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
-    secrets: inherit
+    secrets:
+      GH_AW_DEFAULT_OTLP_HEADERS: ${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}
+      GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+      GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
 
   # Fix prompt lives in gh-aw-create-pr-from-issue.md; resolve still merges APM + autodocignore.
   resolve-apm-assets-fix:
@@ -81,7 +84,11 @@ jobs:
       # opinionated on the in-repo lock.
       target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
       additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
-    secrets: inherit
+    secrets:
+      EXTRA_COMMIT_GITHUB_TOKEN: ${{ secrets.EXTRA_COMMIT_GITHUB_TOKEN }}
+      GH_AW_DEFAULT_OTLP_HEADERS: ${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}
+      GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+      GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
 
   # Step 3: Finalize autodoc PR — assign reviewer and apply labels
   finalize-pr:
