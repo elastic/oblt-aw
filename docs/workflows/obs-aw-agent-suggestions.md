@@ -9,6 +9,7 @@ This reusable wrapper runs the upstream agent-suggestions workflow with reposito
 ## Prerequisites
 
 - Triggered via `workflow_call`.
+- Wrapper uses explicit secret allowlisting (no `secrets: inherit`): `GH_AW_GITHUB_TOKEN` and `GH_AW_GITHUB_MCP_SERVER_TOKEN`.
 
 ## Usage
 
