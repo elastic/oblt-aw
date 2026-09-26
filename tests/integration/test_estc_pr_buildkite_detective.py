@@ -121,6 +121,19 @@ class TestEstcWrapperLockWiring:
         assert "uses" in agent
         assert "steps" not in agent
 
+    def test_check_pr_uses_env_indirection_for_api_path(self) -> None:
+        wrapper = _load_yaml(WRAPPER_PATH)
+        check_pr = wrapper["jobs"]["check-pr"]
+        step = check_pr["steps"][0]
+        env = step.get("env") or {}
+        run = step.get("run") or ""
+
+        assert env.get("REPO_NAME") == "${{ github.repository }}"
+        assert env.get("EVENT_SHA") == "${{ github.event.sha }}"
+        assert "${{ github.repository }}" not in run
+        assert "${{ github.event.sha }}" not in run
+        assert "repos/${REPO_NAME}/commits/${EVENT_SHA}/pulls" in run
+
 
 class TestEstcResolveFixtures:
     """Resolve against frozen consumer fixtures (no live model / tokens)."""
