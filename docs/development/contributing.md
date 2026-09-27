@@ -104,6 +104,10 @@ Use pre-commit hook entrypoints for one-off tool runs so you use the pinned hook
 - **Python format**: `pre-commit run ruff-format --all-files`
 - **Python type-check**: `pre-commit run mypy --all-files`
 
+### GitHub Actions checkout hardening
+
+When adding or modifying GitHub Actions workflows, set `persist-credentials: false` on `actions/checkout` steps by default. This prevents checkout credentials from being persisted in the local git config unless a job explicitly requires persisted credentials for a follow-up git operation.
+
 ## Pre-commit Hooks
 
 The following hooks run on commit (and in CI via the pre-commit job):
