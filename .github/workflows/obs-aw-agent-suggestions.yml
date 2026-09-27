@@ -63,4 +63,6 @@ jobs:
       title-prefix: "[oblt-aw][agent-suggestions]"
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       report-failure-as-issue: false
-    secrets: inherit
+    secrets:
+      GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+      GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
