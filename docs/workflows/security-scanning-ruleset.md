@@ -217,6 +217,17 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Note**: Severity may be informational in internal repos with approved third parties; triage can apply `oblt-aw/triage/other` when accepted risk is documented.
 
+**Hardening requirement for `zizmor` `artipacked` findings**: For any job that checks out a repository and later uploads artifacts, set `with.persist-credentials: false` on the `actions/checkout` step and keep upload paths narrowly scoped (avoid workspace-root or `.git/**` uploads).
+
+**Example (compliant)**:
+
+```yaml
+- name: Checkout
+  uses: actions/checkout@v7
+  with:
+    persist-credentials: false
+```
+
 ---
 
 ### Rule SEC-032: Binary or Artifact Download Without Integrity Verification
