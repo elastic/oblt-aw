@@ -61,7 +61,7 @@
         {
           "id": "node-dependencies",
           "name": "Node dependencies",
-          "description": "Auto-merge for npm/yarn/pnpm manifest and lockfile updates.",
+          "description": "Auto-merge for npm/yarn/pnpm manifest, lockfile, and JS bundled dist updates.",
           "default_enabled": false
         },
         {
