@@ -205,7 +205,7 @@ Fetch changelog / release-note content with this **retry + fallback** chain (man
 
 **GitHub-hosted dependencies** (try in order; stop at the first source that yields usable notes):
 
-1. **GitHub MCP (primary)** — call `get_release_by_tag` for the new version tag (try with and without a leading `v` when the first call is empty/404). If that fails, call `list_releases` / `get_latest_release` and select the matching tag or the nearest newer release that covers the bump. On empty/error responses, **retry the same MCP call once** (max 2 attempts per tool call) before moving to the next step.
+1. **GitHub MCP (primary)** — call `get_release_by_tag` for the new version tag (try with and without a leading `v` when the first call is empty/404). If that fails, call `list_releases` / `get_latest_release` and select **only** an exact-equivalent tag for the target new version (e.g. `1.2.3` ↔ `v1.2.3`). Do **not** use a newer, older, or adjacent release as a notes substitute — that can attribute unrelated changes to the bump. If no exact-equivalent tag is found, continue to the next step. On empty/error responses, **retry the same MCP call once** (max 2 attempts per tool call) before moving to the next step.
 2. **`web-fetch` (fallback)** — fetch the release or compare URL from Dependabot/Renovate commit metadata (PR commit body, `git show HEAD`), e.g. `…/releases/tag/…` or `…/compare/vOLD…vNEW`. Do not invent URLs; only use links present in local metadata or returned by MCP.
 3. **Local metadata only (last resort)** — summarize what the Dependabot/Renovate commit message and local diff confirm (package, old→new versions, linked release/compare URLs). State clearly that detailed upstream release-note body was unavailable.
 

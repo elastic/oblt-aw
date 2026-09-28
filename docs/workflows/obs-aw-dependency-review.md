@@ -59,7 +59,7 @@ A pre-agent runner step fetches `scripts/obs/collect_actions_commit_verification
 
 ### Release notes fetch and merge-ready
 
-Step 3b in the lock prompt requires GitHub MCP release tools first (`get_release_by_tag` / `list_releases` / `get_latest_release`, one retry on empty/error), then `web-fetch` on release/compare URLs from Dependabot metadata, then local commit metadata only. Shell `curl` / `wget` / unauthenticated `gh` to GitHub HTTP endpoints are forbidden (Copilot CLI URL gates deny them under `--no-ask-user`).
+Step 3b in the lock prompt requires GitHub MCP release tools first (`get_release_by_tag` / `list_releases` / `get_latest_release`, one retry on empty/error). MCP list/latest selection is restricted to an **exact-equivalent** tag for the target new version (e.g. `1.2.3` ↔ `v1.2.3`); newer or adjacent releases must not be used as a notes substitute. Then `web-fetch` on release/compare URLs from Dependabot metadata, then local commit metadata only. Shell `curl` / `wget` / unauthenticated `gh` to GitHub HTTP endpoints are forbidden (Copilot CLI URL gates deny them under `--no-ask-user`).
 
 Missing upstream release-note body after that chain must be documented under Changelog highlights. It must **not** be reported as Breaking changes ⚠️, must **not** alone raise risk above **low-to-moderate**, and must **not** soft-withhold `oblt-aw/ai/merge-ready` when overall risk is **low** or **low-to-moderate** and the other Step 4 gates pass.
 
