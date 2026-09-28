@@ -15,9 +15,7 @@
     {
       "id": "pre-commit",
       "description": "pre-commit hook dependency updates",
-      "file-glob": [
-        ".pre-commit-config.yaml"
-      ]
+      "file-glob": [".pre-commit-config.yaml"]
     },
     {
       "id": "python-dependencies",
@@ -34,12 +32,7 @@
     {
       "id": "go-dependencies",
       "description": "Go module and sum updates",
-      "file-glob": [
-        "go.mod",
-        "go.sum",
-        "**/go.mod",
-        "**/go.sum"
-      ]
+      "file-glob": ["go.mod", "go.sum", "**/go.mod", "**/go.sum"]
     },
     {
       "id": "update-beats",
@@ -119,10 +112,7 @@
     {
       "id": "package-version",
       "description": "Package version bump automation (.package-version)",
-      "file-glob": [
-        ".package-version",
-        "**/.package-version"
-      ]
+      "file-glob": [".package-version", "**/.package-version"]
     }
   ]
 }
