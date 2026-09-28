@@ -251,6 +251,8 @@ jobs:
         uses: elastic/oblt-actions/check-dependent-jobs@v1
         with:
           jobs: ${{ toJSON(needs) }}
+          # e2e-all is skipped when no lock files change; that is success for this gate.
+          skipped-as-success: true
 
       - name: Fail if any job failed
         if: >-
