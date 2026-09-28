@@ -24,12 +24,12 @@ import sys
 from pathlib import Path
 
 from release_pointers import (
+    apply_rollback_pointer_updates,
     load_pointers,
     move_tag,
     plan_rollback,
-    push_tags,
+    push_rollback_tags,
     save_pointers,
-    set_pointer,
     utc_now_iso,
 )
 
@@ -42,6 +42,12 @@ def main(argv: list[str] | None = None) -> int:
         default=Path("config/release-pointers.json"),
     )
     parser.add_argument(
+        "--plan-output",
+        type=Path,
+        default=None,
+        help="Write {plan: ...} JSON for a later tag-push step",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Validate and print plan without writing tags or pointers",
@@ -49,13 +55,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--push",
         action="store_true",
-        help="Push moved tags to origin (skipped on dry-run)",
+        help=(
+            "Push moving tags to origin after local writes. Prefer committing "
+            "release-pointers.json first, then push tags in a separate step."
+        ),
     )
     args = parser.parse_args(argv)
 
     data = load_pointers(args.pointers_path)
     plan = plan_rollback(data)
-    print(json.dumps({"plan": plan}, indent=2, sort_keys=True))
+    payload = {"plan": plan}
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    if args.plan_output is not None:
+        args.plan_output.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
     if args.dry_run:
         print("Dry-run: no tags or pointers written")
         return 0
@@ -71,40 +87,16 @@ def main(argv: list[str] | None = None) -> int:
         plan["rollback_sha"],
         message=f"candidate after rollback to {plan['rollback_semver']}",
     )
-    # Keep previous-prod pointing at the displaced prod so a second rollback
-    # can undo the undo (swap).
-    data["tags"]["prod"] = plan["prod_tag"]
-    data["major"] = int(str(plan["prod_tag"]).removeprefix("v"))
-    set_pointer(
-        data,
-        "previous_prod",
-        sha=plan["displaced_prod_sha"],
-        semver=plan["displaced_prod_semver"] or plan["rollback_semver"],
-        updated_at=now,
-    )
-    set_pointer(
-        data,
-        "prod",
-        sha=plan["rollback_sha"],
-        semver=plan["rollback_semver"],
-        updated_at=now,
-    )
-    set_pointer(
-        data,
-        "candidate",
-        sha=plan["rollback_sha"],
-        semver=plan["rollback_semver"],
-        updated_at=now,
-    )
     move_tag(
         plan["previous_tag"],
         plan["displaced_prod_sha"],
         message=f"previous-prod after rollback (was {plan['displaced_prod_semver']})",
     )
+    apply_rollback_pointer_updates(data, plan, updated_at=now)
     save_pointers(data, args.pointers_path)
 
     if args.push:
-        push_tags([plan["prod_tag"], plan["candidate_tag"], plan["previous_tag"]])
+        push_rollback_tags(plan)
         print("Pushed rollback tags to origin")
 
     print(

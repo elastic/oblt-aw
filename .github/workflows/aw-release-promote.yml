@@ -82,19 +82,28 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Promote tags and update pointers
+      - name: Configure Git identity
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Promote tags and update pointers (local)
         id: promote
         env:
           RELEASE_SHA: ${{ github.sha }}
           RELEASE_TYPE: ${{ inputs.release-type }}
           DRY_RUN: ${{ inputs.dry-run }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
-          extra=()
+          git fetch origin "${DEFAULT_BRANCH}"
+          extra=(
+            --plan-output promote-plan.json
+            --expect-tip-of "origin/${DEFAULT_BRANCH}"
+          )
           if [ "${DRY_RUN}" = "true" ]; then
             extra+=(--dry-run)
-          else
-            extra+=(--push)
           fi
           python3 scripts/aw_release_promote.py \
             --sha "${RELEASE_SHA}" \
@@ -112,8 +121,23 @@ jobs:
             echo "No pointer file changes to commit"
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add config/release-pointers.json
           git commit -m "chore(release): promote ${RELEASE_TYPE} (${RELEASE_SHA:0:12})"
           git push origin HEAD:"${{ github.ref_name }}"
+
+      - name: Push release tags
+        if: ${{ inputs.dry-run != true }}
+        env:
+          PYTHONPATH: scripts
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          from release_pointers import push_promote_tags
+
+          plan = json.loads(Path("promote-plan.json").read_text(encoding="utf-8"))["plan"]
+          push_promote_tags(plan)
+          print("Pushed release tags to origin")
+          PY

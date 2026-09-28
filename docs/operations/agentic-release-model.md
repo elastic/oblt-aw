@@ -56,8 +56,9 @@ flowchart LR
 
 1. Dispatch `aw-release-promote.yml` **on the default branch** (`main`).
 2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty prod pointer) always creates `v0.0.0` from `config/release-pointers.json` `major`.
-3. Workflow calls `e2e-all` with `checkout-ref` set to `github.sha` (tip of `main` at promote start) so mid-run merges to `main` are not tested or tagged.
-4. On E2E success, compute next semver from `prod.semver`, create immutable `vX.Y.Z`, move `vX` / `candidate` / `previous-prod`, and commit `config/release-pointers.json`.
+3. Workflow calls `e2e-all` with `checkout-ref` set to `github.sha` (tip of `main` at promote start). Harness/oracle code is pinned to that SHA; live control-plane routes still exercise **default-branch tip** (relative self-triggers — intentional).
+4. Before mutating tags, re-fetch and require `origin/main == github.sha`. If `main` advanced during E2E, promote aborts (re-run on the new tip).
+5. On success: create immutable `vX.Y.Z` (no force-push), move `vX` / `candidate` / `previous-prod`, **commit and push** `config/release-pointers.json`, then push tags. Semver bumps from the **highest** pointer semver so rollback cannot rewind immutable numbering.
 
 Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-ref` defaults to `main`).
 
@@ -65,8 +66,10 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 
 | Item | Value |
 |------|-------|
-| Action | `aw-release-rollback.yml` (confirm=`rollback`) |
-| Effect | Move `vN` (+ `candidate`) to `previous-prod` SHA; swap pointers |
+| Action | `aw-release-rollback.yml` on default branch only (confirm=`rollback`) |
+| Effect | Retarget current `tags.prod` (`vN`) + `candidate` to `previous-prod` SHA; swap pointers |
+| Semver after rollback | `prod` shows the restored release; next promote bumps from max(pointer semvers) |
+| Cross-major | After a major promote, rollback moves the **new** major tag (`v1`, …), not the prior major |
 | Who | Maintainers with Actions `workflow_dispatch` on this repo |
 | Recovery target | **≤ 15 minutes** when git tags and `release-pointers.json` are healthy |
 | Optional blast-radius stop | Disable routes via Control Plane Dashboard ([aw-prelude](../workflows/aw-prelude.md)) |

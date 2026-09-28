@@ -30,7 +30,8 @@ from release_pointers import (
     load_pointers,
     move_tag,
     plan_promote,
-    push_tags,
+    push_promote_tags,
+    require_remote_tip,
     resolve_sha,
     save_pointers,
     utc_now_iso,
@@ -57,6 +58,17 @@ def main(argv: list[str] | None = None) -> int:
         default=Path("config/release-pointers.json"),
     )
     parser.add_argument(
+        "--plan-output",
+        type=Path,
+        default=None,
+        help="Write {plan: ...} JSON for a later tag-push step",
+    )
+    parser.add_argument(
+        "--expect-tip-of",
+        default="",
+        help="Fail unless this ref (e.g. origin/main) still resolves to --sha",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Validate and print plan without writing tags or pointers",
@@ -64,17 +76,28 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--push",
         action="store_true",
-        help="Push moved/created tags to origin (skipped on dry-run)",
+        help=(
+            "Push tags to origin after local writes. Prefer committing "
+            "release-pointers.json first, then push tags in a separate step."
+        ),
     )
     args = parser.parse_args(argv)
 
     sha = validate_full_sha(args.sha, label="--sha")
     resolve_sha(sha)
+    if args.expect_tip_of.strip():
+        require_remote_tip(sha, tip_ref=args.expect_tip_of.strip())
 
     data = load_pointers(args.pointers_path)
     plan = plan_promote(data, sha=sha, release_type=args.release_type)
+    payload = {"plan": plan}
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    if args.plan_output is not None:
+        args.plan_output.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
-    print(json.dumps({"plan": plan}, indent=2, sort_keys=True))
     if args.dry_run:
         print("Dry-run: no tags or pointers written")
         return 0
@@ -105,14 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     save_pointers(data, args.pointers_path)
 
     if args.push:
-        push_tags(
-            [
-                plan["semver"],
-                plan["prod_tag"],
-                plan["candidate_tag"],
-                plan["previous_tag"],
-            ]
-        )
+        push_promote_tags(plan)
         print("Pushed release tags to origin")
 
     print(f"Promoted {sha} as {plan['semver']} → {plan['prod_tag']}")
