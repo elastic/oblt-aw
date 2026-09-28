@@ -15,7 +15,9 @@
     {
       "id": "pre-commit",
       "description": "pre-commit hook dependency updates",
-      "file-glob": [".pre-commit-config.yaml"]
+      "file-glob": [
+        ".pre-commit-config.yaml"
+      ]
     },
     {
       "id": "python-dependencies",
@@ -32,7 +34,12 @@
     {
       "id": "go-dependencies",
       "description": "Go module and sum updates",
-      "file-glob": ["go.mod", "go.sum", "**/go.mod", "**/go.sum"]
+      "file-glob": [
+        "go.mod",
+        "go.sum",
+        "**/go.mod",
+        "**/go.sum"
+      ]
     },
     {
       "id": "update-beats",
@@ -51,18 +58,26 @@
     },
     {
       "id": "node-dependencies",
-      "description": "npm/yarn/pnpm manifest, lockfile, and bundled dist updates",
+      "description": "npm/yarn/pnpm manifest, lockfile, and JS bundled dist updates",
       "file-glob": [
         "package.json",
         "package-lock.json",
         "yarn.lock",
         "pnpm-lock.yaml",
-        "dist/**",
+        "dist/**/*.cjs",
+        "dist/**/*.js",
+        "dist/**/*.js.map",
+        "dist/**/*.mjs",
+        "dist/licenses.txt",
         "**/package.json",
         "**/package-lock.json",
         "**/yarn.lock",
         "**/pnpm-lock.yaml",
-        "**/dist/**"
+        "**/dist/**/*.cjs",
+        "**/dist/**/*.js",
+        "**/dist/**/*.js.map",
+        "**/dist/**/*.mjs",
+        "**/dist/licenses.txt"
       ]
     },
     {
@@ -104,7 +119,10 @@
     {
       "id": "package-version",
       "description": "Package version bump automation (.package-version)",
-      "file-glob": [".package-version", "**/.package-version"]
+      "file-glob": [
+        ".package-version",
+        "**/.package-version"
+      ]
     }
   ]
 }
