@@ -56,7 +56,7 @@ jobs:
       issues: write
       pull-requests: read
       copilot-requests: write
-    # Relative so client @v1 / control-plane tip pins inherit the release train.
+    # Relative so client @v0 / control-plane tip pins inherit the release train.
     uses: ./.github/workflows/gh-aw-docs-patrol.lock.yml
     with:
       # Lookback (1 day), title-prefix ([oblt-aw][autodoc]), model/bots/footer,
@@ -85,7 +85,7 @@ jobs:
       pull-requests: write
       copilot-requests: write
     if: inputs.shared-proceed == 'true' && needs.audit.outputs.created_issue_number != ''
-    # Relative so client @v1 / control-plane tip pins inherit the release train.
+    # Relative so client @v0 / control-plane tip pins inherit the release train.
     uses: ./.github/workflows/gh-aw-create-pr-from-issue.lock.yml
     with:
       # Draft PRs, model/bots/footer, failure-issue suppression, and docs-only

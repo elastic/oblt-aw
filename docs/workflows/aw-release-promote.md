@@ -12,7 +12,7 @@ Full model and runbook: [agentic-release-model](../operations/agentic-release-mo
 
 | Input | Required | Purpose |
 |-------|----------|---------|
-| `release-type` | yes | `patch`, `minor`, or `major` (first promote → `v1.0.0`) |
+| `release-type` | yes | `patch`, `minor`, or `major` (first promote → `v0.0.0`) |
 | `dry-run` | no | Run E2E and plan only |
 
 ## References

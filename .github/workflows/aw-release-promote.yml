@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       release-type:
-        description: Semver bump from current prod (ignored on first promote → v1.0.0)
+        description: Semver bump from current prod (ignored on first promote → v0.0.0)
         required: true
         type: choice
         options:

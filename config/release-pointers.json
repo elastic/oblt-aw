@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "major": 1,
+  "major": 0,
   "tags": {
-    "prod": "v1",
+    "prod": "v0",
     "candidate": "candidate",
     "previous_prod": "previous-prod"
   },
@@ -23,5 +23,5 @@
       "updated_at": ""
     }
   },
-  "notes": "Empty SHAs mean uninitialized. First promote on main creates v1.0.0 after embedded E2E."
+  "notes": "Empty SHAs mean uninitialized. First promote on main creates v0.0.0 after embedded E2E. Stay on v0 until the promote train is proven; graduate to v1 with a major bump + template redistribute."
 }

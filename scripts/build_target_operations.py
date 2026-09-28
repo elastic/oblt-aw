@@ -190,7 +190,7 @@ def main() -> int:
     config_dir = pathlib.Path("config")
     current_assignments = discover_repo_org_assignments(config_dir)
     # Control-plane entrypoints use relative uses (tip E2E). Distributed
-    # consumers pin @v1. Never overwrite this repo's triggers with templates.
+    # consumers pin @v0. Never overwrite this repo's triggers with templates.
     if self_repo and self_repo in current_assignments:
         del current_assignments[self_repo]
     token_policies = merge_repository_workflow_token_policies_from_org_trees(config_dir)

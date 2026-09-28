@@ -28,4 +28,4 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-    uses: elastic/oblt-aw/.github/workflows/docs-aw-event-issue-comment.yml@v1 # ratchet:exclude
+    uses: elastic/oblt-aw/.github/workflows/docs-aw-event-issue-comment.yml@v0 # ratchet:exclude

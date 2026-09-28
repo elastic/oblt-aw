@@ -248,7 +248,7 @@ class TestMain:
     def test_skips_control_plane_self_repository(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
-        """Distribute must not install @v1 templates onto the control-plane repo."""
+        """Distribute must not install @v0 templates onto the control-plane repo."""
         output_file = self._setup_env(
             monkeypatch,
             tmp_path,

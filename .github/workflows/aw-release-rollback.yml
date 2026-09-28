@@ -1,7 +1,7 @@
 ---
 name: AW release — rollback
 
-# Quick rollback: retarget moving major tag (v1) to previous-prod.
+# Quick rollback: retarget moving major tag (v0 today, later vN) to previous-prod.
 # Target recovery: under 15 minutes when tags/pointers are healthy.
 # Runbook: docs/operations/agentic-release-model.md
 on:

@@ -36,7 +36,7 @@ jobs:
       pull-requests: write
       copilot-requests: write
       id-token: write
-    # Relative so client @v1 / control-plane tip pins inherit the release train.
+    # Relative so client @v0 / control-plane tip pins inherit the release train.
     uses: ./.github/workflows/gh-aw-dependency-review.lock.yml
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}

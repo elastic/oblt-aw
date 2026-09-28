@@ -69,11 +69,26 @@ def normalize_release_type(value: str) -> ReleaseType:
     )
 
 
+def configured_major(data: dict[str, Any]) -> int:
+    """Return the configured production major from ``release-pointers.json``."""
+    major = data.get("major")
+    if not isinstance(major, int) or isinstance(major, bool) or major < 0:
+        raise ValueError(f"major must be a non-negative int, got {major!r}")
+    return major
+
+
+def bootstrap_semver(data: dict[str, Any]) -> str:
+    """First-promote floor: ``v{configured_major}.0.0`` (currently ``v0.0.0``)."""
+    return f"v{configured_major(data)}.0.0"
+
+
 def next_semver(current: str, release_type: ReleaseType) -> str:
-    """Bump ``current`` by ``release_type``. Empty current → ``v{major}.0.0`` floor."""
+    """Bump ``current`` by ``release_type``. Empty current is not allowed."""
     release_type = normalize_release_type(release_type)
     if not (current or "").strip():
-        return "v1.0.0"
+        raise ValueError(
+            "empty current semver; use bootstrap_semver(data) for first promote"
+        )
     match = SEMVER_RE.fullmatch(normalize_semver(current))
     if match is None:
         raise ValueError(f"internal error: semver not normalized: {current!r}")
@@ -93,6 +108,7 @@ def load_pointers(path: Path = DEFAULT_POINTERS_PATH) -> dict[str, Any]:
         raise TypeError(f"{path} must contain a JSON object")
     if data.get("schema_version") != 1:
         raise ValueError(f"unsupported schema_version: {data.get('schema_version')!r}")
+    configured_major(data)
     pointers = data.get("pointers")
     if not isinstance(pointers, dict):
         raise TypeError("pointers must be an object")
@@ -185,7 +201,8 @@ def plan_promote(
     """Compute tag/pointer updates for a production promote (no git side effects).
 
     Always promotes ``sha`` (expected: tip of default branch). First promote
-    (empty prod pointer) creates ``v1.0.0`` regardless of ``release_type``.
+    (empty prod pointer) creates ``v{major}.0.0`` from ``data["major"]``
+    regardless of ``release_type``.
     """
     sha = validate_full_sha(sha, label="sha")
     release_type = normalize_release_type(release_type)
@@ -193,7 +210,7 @@ def plan_promote(
     bootstrap = not bool(current_prod)
     current_semver = str(data["pointers"]["prod"].get("semver") or "")
     if bootstrap:
-        semver = "v1.0.0"
+        semver = bootstrap_semver(data)
     else:
         if not current_semver:
             raise ValueError("prod.semver is empty while prod.sha is set")
