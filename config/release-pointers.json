@@ -23,5 +23,5 @@
       "updated_at": ""
     }
   },
-  "notes": "Empty SHAs mean uninitialized. First promote with --bootstrap creates v1/candidate/previous-prod after gating E2E."
+  "notes": "Empty SHAs mean uninitialized. First promote on main creates v1.0.0 after embedded E2E."
 }

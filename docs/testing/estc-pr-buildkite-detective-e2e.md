@@ -45,7 +45,7 @@ Triggers:
 
 - `workflow_dispatch` (manual) and `workflow_call` (from `e2e-all.yml`). One run at a time via concurrency group `e2e-estc-pr-buildkite-detective`. Always runs case `status-failure-open-pr-live`.
 
-Not part of the default PR `required` job in [`ci.yml`](../../.github/workflows/ci.yml). Pass `candidate-ref` (full SHA matching the dispatch ref) for gating promote; empty is smoke-only ([agentic-release-model](../operations/agentic-release-model.md)).
+Not part of the default PR `required` job in [`ci.yml`](../../.github/workflows/ci.yml). Production promote embeds this leaf via [`aw-release-promote.yml`](../../.github/workflows/aw-release-promote.yml) ([agentic-release-model](../operations/agentic-release-model.md)).
 
 ### Local (live only)
 

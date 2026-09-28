@@ -1,4 +1,4 @@
-"""Unit tests for scripts/release_pointers.py and promote gate helpers."""
+"""Unit tests for scripts/release_pointers.py."""
 
 from __future__ import annotations
 
@@ -48,96 +48,62 @@ class TestNormalizeSemver:
             rp.normalize_semver("latest")
 
 
-class TestClassifyRunClass:
-    def test_gating_when_sha_matches(self) -> None:
-        assert rp.classify_run_class(candidate_ref=SHA_A, github_sha=SHA_A) == "gating"
+class TestNextSemver:
+    def test_empty_starts_at_v1(self) -> None:
+        assert rp.next_semver("", "patch") == "v1.0.0"
 
-    def test_smoke_when_empty_candidate(self) -> None:
-        assert rp.classify_run_class(candidate_ref="", github_sha=SHA_A) == "smoke"
+    def test_patch(self) -> None:
+        assert rp.next_semver("v1.2.3", "patch") == "v1.2.4"
 
-    def test_smoke_when_mismatch(self) -> None:
-        assert rp.classify_run_class(candidate_ref=SHA_A, github_sha=SHA_B) == "smoke"
+    def test_minor(self) -> None:
+        assert rp.next_semver("v1.2.3", "minor") == "v1.3.0"
 
+    def test_major(self) -> None:
+        assert rp.next_semver("v1.2.3", "major") == "v2.0.0"
 
-class TestEnrichSummary:
-    def test_eligible_when_gating_pass(self) -> None:
-        out = rp.enrich_summary(
-            {"pass": True, "skipped": False, "workflow_id": "obs:autodoc"},
-            candidate_ref=SHA_A,
-            github_sha=SHA_A,
-        )
-        assert out["run_class"] == "gating"
-        assert out["eligible_for_promote"] is True
-
-    def test_ineligible_when_smoke(self) -> None:
-        out = rp.enrich_summary(
-            {"pass": True, "workflow_id": "obs:autodoc"},
-            candidate_ref="",
-            github_sha=SHA_A,
-        )
-        assert out["run_class"] == "smoke"
-        assert out["eligible_for_promote"] is False
-
-
-class TestValidateE2EGate:
-    def _ok_summary(self, workflow_id: str) -> dict:
-        return rp.enrich_summary(
-            {
-                "pass": True,
-                "skipped": False,
-                "workflow_id": workflow_id,
-            },
-            candidate_ref=SHA_A,
-            github_sha=SHA_A,
-        )
-
-    def test_all_required_pass(self) -> None:
-        summaries = [self._ok_summary(wid) for wid in rp.REQUIRED_E2E_WORKFLOW_IDS]
-        rp.validate_e2e_gate_summaries(summaries, expected_candidate_sha=SHA_A)
-
-    def test_missing_workflow_blocks(self) -> None:
-        summaries = [self._ok_summary("obs:autodoc")]
-        with pytest.raises(ValueError, match="missing E2E summaries"):
-            rp.validate_e2e_gate_summaries(summaries, expected_candidate_sha=SHA_A)
-
-    def test_smoke_blocks(self) -> None:
-        summaries = [
-            rp.enrich_summary(
-                {"pass": True, "skipped": False, "workflow_id": wid},
-                candidate_ref="",
-                github_sha=SHA_A,
-            )
-            for wid in rp.REQUIRED_E2E_WORKFLOW_IDS
-        ]
-        with pytest.raises(ValueError, match="E2E gate failed"):
-            rp.validate_e2e_gate_summaries(summaries, expected_candidate_sha=SHA_A)
+    def test_rejects_unknown_type(self) -> None:
+        with pytest.raises(ValueError, match="release_type"):
+            rp.next_semver("v1.0.0", "rc")
 
 
 class TestPlanPromote:
-    def test_bootstrap_requires_empty_prod(self) -> None:
+    def test_first_promote_ignores_release_type(self) -> None:
         data = _minimal_pointers()
-        plan = rp.plan_promote(
-            data, candidate_sha=SHA_A, semver="v1.0.0", bootstrap=True
-        )
-        assert plan["previous_sha"] == SHA_A
+        plan = rp.plan_promote(data, sha=SHA_A, release_type="major")
+        assert plan["semver"] == "v1.0.0"
         assert plan["bootstrap"] is True
+        assert plan["previous_sha"] == SHA_A
+        assert plan["prod_tag"] == "v1"
 
-    def test_bootstrap_refused_when_prod_set(self) -> None:
+    def test_patch_bump(self) -> None:
         data = _minimal_pointers()
         rp.set_pointer(data, "prod", sha=SHA_B, semver="v1.0.0")
-        with pytest.raises(ValueError, match="refuse --bootstrap"):
-            rp.plan_promote(data, candidate_sha=SHA_A, semver="v1.0.1", bootstrap=True)
+        plan = rp.plan_promote(data, sha=SHA_A, release_type="patch")
+        assert plan["semver"] == "v1.0.1"
+        assert plan["bootstrap"] is False
+        assert plan["previous_sha"] == SHA_B
+        assert plan["previous_semver"] == "v1.0.0"
 
-    def test_non_bootstrap_requires_prod(self) -> None:
+    def test_major_updates_prod_tag(self) -> None:
         data = _minimal_pointers()
-        with pytest.raises(ValueError, match="use --bootstrap"):
-            rp.plan_promote(data, candidate_sha=SHA_A, semver="v1.0.0", bootstrap=False)
+        rp.set_pointer(data, "prod", sha=SHA_B, semver="v1.4.2")
+        plan = rp.plan_promote(data, sha=SHA_A, release_type="major")
+        assert plan["semver"] == "v2.0.0"
+        assert plan["prod_tag"] == "v2"
 
-    def test_major_mismatch(self) -> None:
+    def test_apply_pointer_updates(self) -> None:
         data = _minimal_pointers()
         rp.set_pointer(data, "prod", sha=SHA_B, semver="v1.0.0")
-        with pytest.raises(ValueError, match="does not match"):
-            rp.plan_promote(data, candidate_sha=SHA_A, semver="v2.0.0", bootstrap=False)
+        plan = rp.plan_promote(data, sha=SHA_A, release_type="minor")
+        rp.apply_promote_pointer_updates(
+            data, plan, updated_at="2026-01-01T00:00:00+00:00"
+        )
+        assert data["major"] == 1
+        assert data["tags"]["prod"] == "v1"
+        assert data["pointers"]["prod"]["sha"] == SHA_A
+        assert data["pointers"]["prod"]["semver"] == "v1.1.0"
+        assert data["pointers"]["previous_prod"]["sha"] == SHA_B
+        assert data["pointers"]["previous_prod"]["semver"] == "v1.0.0"
 
 
 class TestPlanRollback:
@@ -148,6 +114,7 @@ class TestPlanRollback:
         plan = rp.plan_rollback(data)
         assert plan["rollback_sha"] == SHA_B
         assert plan["displaced_prod_sha"] == SHA_A
+        assert plan["prod_tag"] == "v1"
 
     def test_equal_pointers_fail(self) -> None:
         data = _minimal_pointers()

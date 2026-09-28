@@ -10,19 +10,7 @@ name: E2E — Automerge VM images
 # workflows. Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
-    inputs:
-      candidate-ref:
-        description: Full SHA for gating E2E (empty = smoke / ineligible for promote)
-        required: false
-        type: string
-        default: ""
   workflow_call:
-    inputs:
-      candidate-ref:
-        description: Full SHA for gating E2E (empty = smoke / ineligible for promote)
-        required: false
-        type: string
-        default: ""
 
 permissions:
   contents: read
@@ -161,21 +149,6 @@ jobs:
           print(f"::error::E2E {case_id}: {first}")
           PY
 
-
-      - name: Stamp promote metadata on summary
-        if: always()
-        env:
-          CANDIDATE_REF: ${{ inputs.candidate-ref }}
-          WORKFLOW_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          SUMMARY="artifacts/e2e/automerge-vm-images/${CASE_ID}/summary.json"
-          if [ -f "${SUMMARY}" ]; then
-            python3 scripts/aw_release_stamp_summary.py \
-              --summary-path "${SUMMARY}" \
-              --candidate-ref "${CANDIDATE_REF}" \
-              --github-sha "${WORKFLOW_SHA}"
-          fi
 
       - name: Upload E2E artifacts
         if: always()

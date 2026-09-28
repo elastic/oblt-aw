@@ -26,21 +26,17 @@ import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 SEMVER_RE = re.compile(
     r"^v?(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$"
 )
 
-DEFAULT_POINTERS_PATH = Path("config/release-pointers.json")
+ReleaseType = Literal["major", "minor", "patch"]
+RELEASE_TYPES: tuple[ReleaseType, ...] = ("major", "minor", "patch")
 
-REQUIRED_E2E_WORKFLOW_IDS = (
-    "obs:autodoc",
-    "obs:automerge",
-    "obs:dependency-review",
-    "obs:estc-pr-buildkite-detective",
-)
+DEFAULT_POINTERS_PATH = Path("config/release-pointers.json")
 
 
 def utc_now_iso() -> str:
@@ -61,6 +57,34 @@ def normalize_semver(tag: str) -> str:
     if match is None:
         raise ValueError(f"semver must look like v1.2.3 or 1.2.3, got {tag!r}")
     return f"v{match.group('major')}.{match.group('minor')}.{match.group('patch')}"
+
+
+def normalize_release_type(value: str) -> ReleaseType:
+    cleaned = value.strip().lower()
+    for release_type in RELEASE_TYPES:
+        if cleaned == release_type:
+            return release_type
+    raise ValueError(
+        f"release_type must be one of {', '.join(RELEASE_TYPES)}, got {value!r}"
+    )
+
+
+def next_semver(current: str, release_type: ReleaseType) -> str:
+    """Bump ``current`` by ``release_type``. Empty current → ``v{major}.0.0`` floor."""
+    release_type = normalize_release_type(release_type)
+    if not (current or "").strip():
+        return "v1.0.0"
+    match = SEMVER_RE.fullmatch(normalize_semver(current))
+    if match is None:
+        raise ValueError(f"internal error: semver not normalized: {current!r}")
+    major = int(match.group("major"))
+    minor = int(match.group("minor"))
+    patch = int(match.group("patch"))
+    if release_type == "major":
+        return f"v{major + 1}.0.0"
+    if release_type == "minor":
+        return f"v{major}.{minor + 1}.0"
+    return f"v{major}.{minor}.{patch + 1}"
 
 
 def load_pointers(path: Path = DEFAULT_POINTERS_PATH) -> dict[str, Any]:
@@ -152,129 +176,87 @@ def push_tags(tags: list[str], *, remote: str = "origin") -> None:
     run_git(["push", remote, *tags, "--force"])
 
 
-def classify_run_class(*, candidate_ref: str, github_sha: str) -> str:
-    """Return ``gating`` when candidate_ref is a full SHA matching github_sha."""
-    candidate = (candidate_ref or "").strip().lower()
-    head = (github_sha or "").strip().lower()
-    if not candidate:
-        return "smoke"
-    if not FULL_SHA_RE.fullmatch(candidate):
-        return "smoke"
-    if not FULL_SHA_RE.fullmatch(head):
-        return "smoke"
-    if candidate != head:
-        return "smoke"
-    return "gating"
-
-
-def enrich_summary(
-    summary: dict[str, Any],
-    *,
-    candidate_ref: str,
-    github_sha: str,
-) -> dict[str, Any]:
-    """Stamp promote metadata onto an oracle summary object."""
-    out = dict(summary)
-    candidate = (candidate_ref or "").strip().lower()
-    head = (
-        validate_full_sha(github_sha, label="github_sha") if github_sha.strip() else ""
-    )
-    run_class = classify_run_class(candidate_ref=candidate, github_sha=head)
-    out["candidate_ref"] = candidate if FULL_SHA_RE.fullmatch(candidate) else ""
-    out["github_sha"] = head
-    out["run_class"] = run_class
-    out["eligible_for_promote"] = bool(
-        run_class == "gating"
-        and out.get("pass") is True
-        and out.get("skipped") is not True
-    )
-    return out
-
-
-def validate_e2e_gate_summaries(
-    summaries: list[dict[str, Any]],
-    *,
-    expected_candidate_sha: str,
-    required_workflow_ids: tuple[str, ...] = REQUIRED_E2E_WORKFLOW_IDS,
-) -> None:
-    """Fail closed unless every required workflow has a gating pass for the SHA."""
-    expected = validate_full_sha(expected_candidate_sha, label="expected_candidate_sha")
-    by_id: dict[str, dict[str, Any]] = {}
-    for item in summaries:
-        if not isinstance(item, dict):
-            raise TypeError("each summary must be a JSON object")
-        workflow_id = item.get("workflow_id")
-        if not isinstance(workflow_id, str) or not workflow_id.strip():
-            raise ValueError(f"summary missing workflow_id: {item!r}")
-        by_id[workflow_id.strip()] = item
-
-    missing = [wid for wid in required_workflow_ids if wid not in by_id]
-    if missing:
-        raise ValueError(f"missing E2E summaries for workflow ids: {missing}")
-
-    errors: list[str] = []
-    for wid in required_workflow_ids:
-        item = by_id[wid]
-        if item.get("run_class") != "gating":
-            errors.append(f"{wid}: run_class={item.get('run_class')!r} (need gating)")
-        if item.get("eligible_for_promote") is not True:
-            errors.append(f"{wid}: eligible_for_promote is not true")
-        if item.get("pass") is not True:
-            errors.append(f"{wid}: pass is not true")
-        if item.get("skipped") is True:
-            errors.append(f"{wid}: skipped=true blocks promote")
-        cand = str(item.get("candidate_ref") or "").lower()
-        if cand != expected:
-            errors.append(
-                f"{wid}: candidate_ref={cand!r} does not match expected {expected!r}"
-            )
-    if errors:
-        raise ValueError("E2E gate failed:\n- " + "\n- ".join(errors))
-
-
 def plan_promote(
     data: dict[str, Any],
     *,
-    candidate_sha: str,
-    semver: str,
-    bootstrap: bool,
+    sha: str,
+    release_type: str,
 ) -> dict[str, Any]:
-    """Compute tag/pointer updates for a production promote (no git side effects)."""
-    candidate_sha = validate_full_sha(candidate_sha, label="candidate_sha")
-    semver = normalize_semver(semver)
-    major = int(data.get("major", 1))
-    semver_match = SEMVER_RE.fullmatch(semver)
-    if semver_match is None:
-        raise ValueError(f"internal error: semver not normalized: {semver!r}")
-    parsed_major = int(semver_match.group("major"))
-    if parsed_major != major:
-        raise ValueError(
-            f"semver major {parsed_major} does not match release-pointers major {major}"
-        )
+    """Compute tag/pointer updates for a production promote (no git side effects).
 
-    prod_tag = str(data["tags"]["prod"])
+    Always promotes ``sha`` (expected: tip of default branch). First promote
+    (empty prod pointer) creates ``v1.0.0`` regardless of ``release_type``.
+    """
+    sha = validate_full_sha(sha, label="sha")
+    release_type = normalize_release_type(release_type)
+    current_prod = pointer_sha(data, "prod")
+    bootstrap = not bool(current_prod)
+    current_semver = str(data["pointers"]["prod"].get("semver") or "")
+    if bootstrap:
+        semver = "v1.0.0"
+    else:
+        if not current_semver:
+            raise ValueError("prod.semver is empty while prod.sha is set")
+        semver = next_semver(current_semver, release_type)
+
+    match = SEMVER_RE.fullmatch(semver)
+    if match is None:
+        raise ValueError(f"internal error: semver not normalized: {semver!r}")
+    new_major = int(match.group("major"))
+    prod_tag = f"v{new_major}"
     candidate_tag = str(data["tags"]["candidate"])
     previous_tag = str(data["tags"]["previous_prod"])
-    current_prod = pointer_sha(data, "prod")
+    previous_sha = current_prod if current_prod else sha
+    previous_semver = current_semver if current_semver else semver
 
-    if not bootstrap and not current_prod:
-        raise ValueError(
-            "prod pointer is empty; use --bootstrap for the first production promote"
-        )
-    if bootstrap and current_prod:
-        raise ValueError("prod pointer already set; refuse --bootstrap")
-
-    previous_sha = current_prod if current_prod else candidate_sha
     return {
-        "candidate_sha": candidate_sha,
-        "semver": semver,
-        "prod_tag": prod_tag,
-        "candidate_tag": candidate_tag,
-        "previous_tag": previous_tag,
-        "previous_sha": previous_sha,
         "bootstrap": bootstrap,
+        "candidate_tag": candidate_tag,
         "immutable_tag": semver,
+        "previous_semver": previous_semver,
+        "previous_sha": previous_sha,
+        "previous_tag": previous_tag,
+        "prod_tag": prod_tag,
+        "release_type": release_type,
+        "semver": semver,
+        "sha": sha,
     }
+
+
+def apply_promote_pointer_updates(
+    data: dict[str, Any],
+    plan: dict[str, Any],
+    *,
+    updated_at: str | None = None,
+) -> None:
+    """Mutate ``data`` pointers/tags/major to match a promote plan."""
+    now = updated_at or utc_now_iso()
+    match = SEMVER_RE.fullmatch(str(plan["semver"]))
+    if match is None:
+        raise ValueError(f"plan semver invalid: {plan['semver']!r}")
+    data["major"] = int(match.group("major"))
+    data["tags"]["prod"] = str(plan["prod_tag"])
+    set_pointer(
+        data,
+        "previous_prod",
+        sha=str(plan["previous_sha"]),
+        semver=str(plan["previous_semver"]),
+        updated_at=now,
+    )
+    set_pointer(
+        data,
+        "prod",
+        sha=str(plan["sha"]),
+        semver=str(plan["semver"]),
+        updated_at=now,
+    )
+    set_pointer(
+        data,
+        "candidate",
+        sha=str(plan["sha"]),
+        semver=str(plan["semver"]),
+        updated_at=now,
+    )
 
 
 def plan_rollback(data: dict[str, Any]) -> dict[str, Any]:
@@ -290,12 +272,16 @@ def plan_rollback(data: dict[str, Any]) -> dict[str, Any]:
     previous_semver = str(data["pointers"]["previous_prod"].get("semver") or "")
     if not previous_semver:
         raise ValueError("previous_prod.semver is empty; cannot rollback safely")
+    rollback_semver = normalize_semver(previous_semver)
+    match = SEMVER_RE.fullmatch(rollback_semver)
+    if match is None:
+        raise ValueError(f"internal error: semver not normalized: {rollback_semver!r}")
     return {
-        "prod_tag": str(data["tags"]["prod"]),
-        "previous_tag": str(data["tags"]["previous_prod"]),
         "candidate_tag": str(data["tags"]["candidate"]),
-        "rollback_sha": previous_sha,
-        "rollback_semver": normalize_semver(previous_semver),
-        "displaced_prod_sha": current_prod,
         "displaced_prod_semver": str(data["pointers"]["prod"].get("semver") or ""),
+        "displaced_prod_sha": current_prod,
+        "previous_tag": str(data["tags"]["previous_prod"]),
+        "prod_tag": f"v{int(match.group('major'))}",
+        "rollback_semver": rollback_semver,
+        "rollback_sha": previous_sha,
     }

@@ -73,6 +73,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     # Keep previous-prod pointing at the displaced prod so a second rollback
     # can undo the undo (swap).
+    data["tags"]["prod"] = plan["prod_tag"]
+    data["major"] = int(str(plan["prod_tag"]).removeprefix("v"))
     set_pointer(
         data,
         "previous_prod",

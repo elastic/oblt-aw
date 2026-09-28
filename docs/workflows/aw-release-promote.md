@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/aw-release-promote.yml](../../.github/workflows/aw-release-promote.yml)
 
-Promotes a candidate SHA to the moving major tag (`v1`) after **gating** E2E summaries pass. Updates `config/release-pointers.json` and pushes release tags.
+Promotes the tip of the default branch (`main`) to the moving major tag after embedded leaf E2E jobs pass. Computes the next semver from `release-type`, updates `config/release-pointers.json`, and pushes release tags.
 
 Full model and runbook: [agentic-release-model](../operations/agentic-release-model.md).
 
@@ -12,13 +12,10 @@ Full model and runbook: [agentic-release-model](../operations/agentic-release-mo
 
 | Input | Required | Purpose |
 |-------|----------|---------|
-| `candidate-sha` | yes | Full SHA to promote |
-| `semver` | yes | Immutable tag (e.g. `v1.0.0`) |
-| `e2e-run-id` | yes | Actions run that uploaded leaf `summary.json` artifacts |
-| `bootstrap` | no | First promote only |
-| `dry-run` | no | Plan only |
+| `release-type` | yes | `patch`, `minor`, or `major` (first promote → `v1.0.0`) |
+| `dry-run` | no | Run E2E and plan only |
 
 ## References
 
 - Rollback: [aw-release-rollback](aw-release-rollback.md)
-- E2E orchestrator: [.github/workflows/e2e-all.yml](../../.github/workflows/e2e-all.yml)
+- E2E smoke orchestrator: [.github/workflows/e2e-all.yml](../../.github/workflows/e2e-all.yml)

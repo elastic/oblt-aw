@@ -30,10 +30,9 @@ Promote control-plane changes safely with mandatory gating E2E, keep consumer tr
 ```mermaid
 flowchart LR
   Main[Merge to main]
-  E2E[Gating e2e-all on candidate SHA]
-  Promo[Promote: v1 + semver + pointers]
-  Main --> E2E -->|pass| Promo
-  Promo -->|rollback| Prev[Retarget v1 to previous-prod]
+  Promo[Promote on main: E2E then tag]
+  Main --> Promo
+  Promo -->|rollback| Prev[Retarget vN to previous-prod]
 ```
 
 ### Consumer churn
@@ -48,35 +47,34 @@ flowchart LR
 | Step | Mode |
 |------|------|
 | Merge to `main` | Automated CI (unit, functional, integration) |
-| Gating E2E (`e2e-all` with `candidate-ref`) | Manual dispatch (or future scheduled); **required** before promote |
-| Promote (`aw-release-promote.yml`) | Manual `workflow_dispatch` after E2E run id is known |
+| Promote (`aw-release-promote.yml`) | Manual `workflow_dispatch` on `main` with `release-type` (`patch` / `minor` / `major`); runs leaf E2E then tags tip |
 | Rollback (`aw-release-rollback.yml`) | Manual; confirm input must be `rollback` |
 | Major bump / model or security-sensitive changes | Human review before promote |
 
-## E2E promote contract
+## Promote contract
 
-1. Dispatch `e2e-all.yml` **on the candidate ref** with `candidate-ref=<full SHA>` (must equal `github.sha` of that run).
-2. Every leaf stamps `summary.json` with `run_class: gating`, `candidate_ref`, `eligible_for_promote`.
-3. Required workflow ids (all must pass): `obs:autodoc`, `obs:automerge`, `obs:dependency-review`, `obs:estc-pr-buildkite-detective`.
-4. Smoke runs (empty `candidate-ref` or floating tip mismatch) set `eligible_for_promote: false` and **block** promote.
-5. Promote downloads artifacts from the E2E run id and runs `scripts/aw_release_validate_e2e_gate.py`.
+1. Dispatch `aw-release-promote.yml` **on the default branch** (`main`).
+2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty prod pointer) always creates `v1.0.0`.
+3. Workflow runs the same leaf E2E suites as `e2e-all` against tip of `main` (`github.sha`).
+4. On E2E success, compute next semver from `prod.semver`, create immutable `vX.Y.Z`, move `vX` / `candidate` / `previous-prod`, and commit `config/release-pointers.json`.
+
+Standalone `e2e-all.yml` remains available for smoke; it is not required before promote.
 
 ## Quick rollback
 
 | Item | Value |
 |------|-------|
 | Action | `aw-release-rollback.yml` (confirm=`rollback`) |
-| Effect | Move `v1` (+ `candidate`) to `previous-prod` SHA; swap pointers |
+| Effect | Move `vN` (+ `candidate`) to `previous-prod` SHA; swap pointers |
 | Who | Maintainers with Actions `workflow_dispatch` on this repo |
 | Recovery target | **≤ 15 minutes** when git tags and `release-pointers.json` are healthy |
 | Optional blast-radius stop | Disable routes via Control Plane Dashboard ([aw-prelude](../workflows/aw-prelude.md)) |
 
-## First bootstrap (after this model lands)
+## First promote (after this model lands)
 
 1. Merge the release-model PR to `main`.
-2. Run gating `e2e-all` on that SHA with `candidate-ref` set.
-3. Run `aw-release-promote` with `bootstrap=true`, the same SHA, semver `v1.0.0`, and the E2E run id — **before** merging distribute PRs that switch consumers to `@v1`.
-4. Merge distribute PRs in consumer repos.
+2. Dispatch `aw-release-promote` on `main` with `release-type=patch` (first run → `v1.0.0`) — **before** merging distribute PRs that switch consumers to `@v1`.
+3. Merge distribute PRs in consumer repos.
 
 ## Scripts and workflows
 
@@ -86,11 +84,9 @@ flowchart LR
 | `scripts/release_pointers.py` | Library |
 | `scripts/aw_release_promote.py` | Promote CLI |
 | `scripts/aw_release_rollback.py` | Rollback CLI |
-| `scripts/aw_release_validate_e2e_gate.py` | Fail-closed E2E gate |
-| `scripts/aw_release_stamp_summary.py` | Stamp leaf summaries |
-| `.github/workflows/aw-release-promote.yml` | Promote entrypoint |
+| `.github/workflows/aw-release-promote.yml` | Promote entrypoint (embeds E2E) |
 | `.github/workflows/aw-release-rollback.yml` | Rollback entrypoint |
-| `.github/workflows/e2e-all.yml` | Parallel leaf E2E + `candidate-ref` |
+| `.github/workflows/e2e-all.yml` | Parallel leaf E2E (smoke) |
 
 ## References
 
