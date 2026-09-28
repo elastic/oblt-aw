@@ -21,7 +21,7 @@ There is **no** `schedule` trigger for automerge. The reusable workflow uses `gi
 ### `pull_request` events
 
 - `github.event.action` is one of `opened`, `synchronize`, `reopened`, `labeled`
-- Author is in the same allow list as dependency-review: `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`, `elastic-vault-github-plugin-prod[bot]`, `github-actions[bot]`
+- Author is in the same allow list as dependency-review: `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`, `elastic-renovate-prod[bot]`, `elastic-vault-github-plugin-prod[bot]`, `github-actions[bot]`
 - PR has label `oblt-aw/ai/merge-ready` at event time
 
 The event-scoped client template includes `labeled` in `pull_request` types (`trigger-obs-aw-pull-request.yml`).

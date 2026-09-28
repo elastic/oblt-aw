@@ -45,6 +45,10 @@ function basePr(overrides = {}) {
 test('normalizePrAuthorLogin maps GraphQL app/ to REST bot login', () => {
   assert.equal(normalizePrAuthorLogin('app/dependabot'), 'dependabot[bot]');
   assert.equal(
+    normalizePrAuthorLogin('app/elastic-renovate-prod'),
+    'elastic-renovate-prod[bot]'
+  );
+  assert.equal(
     normalizePrAuthorLogin('app/elastic-vault-github-plugin-prod'),
     'elastic-vault-github-plugin-prod[bot]'
   );
@@ -58,6 +62,8 @@ test('isAllowedPrAuthor uses allowed_pr_authors.json after normalize', () => {
   assert.equal(isAllowedPrAuthor('dependabot[bot]'), true);
   assert.equal(isAllowedPrAuthor('app/dependabot'), true);
   assert.equal(isAllowedPrAuthor('app/renovate'), true);
+  assert.equal(isAllowedPrAuthor('elastic-renovate-prod[bot]'), true);
+  assert.equal(isAllowedPrAuthor('app/elastic-renovate-prod'), true);
   assert.equal(isAllowedPrAuthor('app/other-bot'), false);
   assert.equal(isAllowedPrAuthor('human'), false);
 });
@@ -160,6 +166,24 @@ test('validateAutomergePr allows GraphQL app/dependabot via normalize', async ()
     github,
     context: { repo: { owner: 'elastic', repo: 'r' } },
     prNumber: 1115,
+    core,
+  });
+  assert.equal(r.ok, true);
+});
+
+test('validateAutomergePr allows elastic-renovate-prod[bot]', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr({ user: { login: 'elastic-renovate-prod[bot]' } }) }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 6,
     core,
   });
   assert.equal(r.ok, true);
