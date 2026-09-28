@@ -57,6 +57,12 @@ A pre-agent runner step fetches `scripts/obs/collect_actions_commit_verification
 
 **Untestable production workflows** (only `push` / `release` / `schedule` / `workflow_dispatch`, with production impact) still block `oblt-aw/ai/merge-ready` under Step 4. That rule is unchanged by #2097.
 
+### Release notes fetch and merge-ready
+
+Step 3b in the lock prompt requires GitHub MCP release tools first (`get_release_by_tag` / `list_releases` / `get_latest_release`, one retry on empty/error), then `web-fetch` on release/compare URLs from Dependabot metadata, then local commit metadata only. Shell `curl` / `wget` / unauthenticated `gh` to GitHub HTTP endpoints are forbidden (Copilot CLI URL gates deny them under `--no-ask-user`).
+
+Missing upstream release-note body after that chain must be documented under Changelog highlights. It must **not** be reported as Breaking changes ⚠️, must **not** alone raise risk above **low-to-moderate**, and must **not** soft-withhold `oblt-aw/ai/merge-ready` when overall risk is **low** or **low-to-moderate** and the other Step 4 gates pass.
+
 ## Failure mode (empty safe outputs)
 
 If the agent exits with text only and zero safe outputs, the lock may still report success with an empty `comment_id`. `notify-no-comment` then upserts a human-visible comment on the PR (run URL + retry guidance). Retry by pushing a new commit to the PR branch (or close/reopen) so `pull_request` re-runs dependency-review.
