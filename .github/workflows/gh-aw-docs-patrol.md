@@ -70,7 +70,7 @@ Detect documentation drift — code changes that require corresponding documenta
 
 Use a lookback window of `--since="1 day ago"` for all runs (scheduled and manual).
 
-1. Run `git log --since="1 day ago" --oneline --stat` to get a summary of recent commits. If there are no commits in the lookback window, report no findings and stop.
+1. Run `git log --since="1 day ago" --oneline --stat` to get a summary of recent commits. If there are no commits in the lookback window, report no findings and stop — **except** when `additional-instructions` contain `E2E_AUTODOC_MODE=true` (live E2E). In that mode, skip the lookback early-exit and follow the E2E bait rules under What to Skip.
 2. Discover documentation files dynamically — scan the repository for common doc locations: `README.md`, `CONTRIBUTING.md`, `DEVELOPING.md`, `docs/`, `documentation/`, and any `.md` files in the repository root. Do not assume a fixed directory structure.
 
 ### What to Look For — Commit drift
@@ -114,6 +114,9 @@ For each potentially impactful change or gap:
 - Changes where documentation was already updated in the same or a later commit
 - Changes where an open issue or PR already tracks the documentation update
 - Test-only changes
+- **Intentional E2E autodoc bait** — Path: `docs/testing/fixtures/e2e-autodoc-bait.md` (see `docs/testing/autodoc-e2e-bait.md`).
+  - **Normal runs** (no `E2E_AUTODOC_MODE=true` in `additional-instructions`): **skip** that path entirely; never file findings about it.
+  - **E2E mode** (`E2E_AUTODOC_MODE=true` in `additional-instructions`): evaluate **only** that path as an incomplete documentation page that must be updated. Ignore all other gaps and commit drift. File exactly one issue that cites that path and includes `E2E_AUTODOC_BAIT_MARKER` in the issue body.
 - Minor changes where the existing docs are still substantially correct (e.g., a new optional parameter with a sensible default)
 - Changes that only affect internal implementation details not referenced in any documentation
 - **Markdown tables** — A leading `-` (or similar punctuation) inside a table cell can be intentional (for example as a lightweight icon or status marker, not a broken nested list). Do not flag these as formatting defects unless you can show they break rendering or contradict repository conventions.

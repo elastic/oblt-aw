@@ -1,0 +1,33 @@
+name: E2E — Trigger Observability schedule routes
+
+# Control-plane only (not distributed via remote-workflow-template).
+# Live autodoc E2E dispatches this entry so production
+# trigger-obs-aw-schedule.yml stays free of E2E inputs.
+on:
+  workflow_dispatch:
+    inputs:
+      e2e-autodoc-mode:
+        description: >-
+          When true, obs:autodoc evaluates only the checked-in E2E bait
+          markdown (docs/testing/fixtures/e2e-autodoc-bait.md).
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  run-obs-aw-schedule:
+    name: Run schedule event orchestrator
+    permissions:
+      actions: read
+      contents: write
+      copilot-requests: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/obs-aw-event-schedule.yml
+    with:
+      # workflow_dispatch booleans arrive as strings in github.event.inputs.
+      e2e-autodoc-mode: ${{ github.event.inputs.e2e-autodoc-mode == 'true' }}

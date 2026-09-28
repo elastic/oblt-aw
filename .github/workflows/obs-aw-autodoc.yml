@@ -21,6 +21,13 @@ on:
       shared-token-policy:
         required: true
         type: string
+      e2e-autodoc-mode:
+        description: >-
+          When true, audit-only platform text forces docs-patrol to evaluate
+          only docs/testing/fixtures/e2e-autodoc-bait.md (false for normal runs).
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: read
 
@@ -28,6 +35,8 @@ jobs:
 
   # Step 1: Detect docs drift from recent code changes and create an issue with findings
   # Audit prompt lives in gh-aw-docs-patrol.md; resolve still merges APM + autodocignore.
+  # E2E mode injects fixed audit-only platform text (not free-form); fix resolve never
+  # receives it (create-PR must not be told to "file an issue").
   resolve-apm-assets-audit:
     if: inputs.shared-proceed == 'true'
     permissions:
@@ -36,6 +45,7 @@ jobs:
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       workflow-basename: obs-aw-autodoc.yml
+      platform-additional-instructions: ${{ inputs.e2e-autodoc-mode && 'E2E_AUTODOC_MODE=true. Evaluate ONLY `docs/testing/fixtures/e2e-autodoc-bait.md`. That file is an intentional incomplete documentation page that must be updated. Ignore all other documentation gaps and commit drift. Do not noop because the lookback window has no commits. File exactly one issue that cites that path and includes `E2E_AUTODOC_BAIT_MARKER` in the issue body.' || '' }}
 
   audit:
     if: inputs.shared-proceed == 'true'
