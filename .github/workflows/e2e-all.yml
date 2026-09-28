@@ -1,12 +1,13 @@
 ---
 name: E2E — All
 
-# Manual orchestrator: call every leaf e2e-*.yml via workflow_call in parallel.
+# Orchestrator: call every leaf e2e-*.yml via workflow_call in parallel.
 # Add a new job here when introducing a new leaf E2E workflow.
 # Not part of the default PR required gate in ci.yml.
-# Production promote embeds the same leaves in aw-release-promote.yml.
+# Called by aw-release-promote.yml; also dispatchable for smoke.
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/aw-release-promote.yml](../../.github/workflows/aw-release-promote.yml)
 
-Promotes the tip of the default branch (`main`) to the moving major tag after embedded leaf E2E jobs pass. Computes the next semver from `release-type`, updates `config/release-pointers.json`, and pushes release tags.
+Promotes the tip of the default branch (`main`) to the moving major tag after `e2e-all` passes. Computes the next semver from `release-type`, updates `config/release-pointers.json`, and pushes release tags.
 
 Full model and runbook: [agentic-release-model](../operations/agentic-release-model.md).
 
@@ -18,4 +18,4 @@ Full model and runbook: [agentic-release-model](../operations/agentic-release-mo
 ## References
 
 - Rollback: [aw-release-rollback](aw-release-rollback.md)
-- E2E smoke orchestrator: [.github/workflows/e2e-all.yml](../../.github/workflows/e2e-all.yml)
+- E2E orchestrator: [.github/workflows/e2e-all.yml](../../.github/workflows/e2e-all.yml)

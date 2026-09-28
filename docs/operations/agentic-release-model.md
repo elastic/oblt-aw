@@ -47,7 +47,7 @@ flowchart LR
 | Step | Mode |
 |------|------|
 | Merge to `main` | Automated CI (unit, functional, integration) |
-| Promote (`aw-release-promote.yml`) | Manual `workflow_dispatch` on `main` with `release-type` (`patch` / `minor` / `major`); runs leaf E2E then tags tip |
+| Promote (`aw-release-promote.yml`) | Manual `workflow_dispatch` on `main` with `release-type` (`patch` / `minor` / `major`); calls `e2e-all` then tags tip |
 | Rollback (`aw-release-rollback.yml`) | Manual; confirm input must be `rollback` |
 | Major bump / model or security-sensitive changes | Human review before promote |
 
@@ -55,10 +55,10 @@ flowchart LR
 
 1. Dispatch `aw-release-promote.yml` **on the default branch** (`main`).
 2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty prod pointer) always creates `v1.0.0`.
-3. Workflow runs the same leaf E2E suites as `e2e-all` against tip of `main` (`github.sha`).
+3. Workflow calls `e2e-all` against tip of `main` (`github.sha`).
 4. On E2E success, compute next semver from `prod.semver`, create immutable `vX.Y.Z`, move `vX` / `candidate` / `previous-prod`, and commit `config/release-pointers.json`.
 
-Standalone `e2e-all.yml` remains available for smoke; it is not required before promote.
+Standalone `e2e-all.yml` remains available for smoke without tagging.
 
 ## Quick rollback
 
@@ -84,9 +84,9 @@ Standalone `e2e-all.yml` remains available for smoke; it is not required before 
 | `scripts/release_pointers.py` | Library |
 | `scripts/aw_release_promote.py` | Promote CLI |
 | `scripts/aw_release_rollback.py` | Rollback CLI |
-| `.github/workflows/aw-release-promote.yml` | Promote entrypoint (embeds E2E) |
+| `.github/workflows/aw-release-promote.yml` | Promote entrypoint (calls `e2e-all`) |
 | `.github/workflows/aw-release-rollback.yml` | Rollback entrypoint |
-| `.github/workflows/e2e-all.yml` | Parallel leaf E2E (smoke) |
+| `.github/workflows/e2e-all.yml` | Parallel leaf E2E (promote + smoke) |
 
 ## References
 

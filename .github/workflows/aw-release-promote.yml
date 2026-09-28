@@ -1,7 +1,7 @@
 ---
 name: AW release — promote
 
-# Promote tip of main: run leaf E2E, bump semver, move vN + previous-prod tags.
+# Promote tip of main: run e2e-all, bump semver, move vN + previous-prod tags.
 # Runbook: docs/operations/agentic-release-model.md
 on:
   workflow_dispatch:
@@ -47,64 +47,23 @@ jobs:
           fi
           echo "Releasing tip of ${DEFAULT_BRANCH} @ ${{ github.sha }}"
 
-  e2e-automerge-vm-images:
-    name: Automerge vm-images
-    needs: guard
-    permissions:
-      contents: write
-      pull-requests: write
-      actions: read
-      issues: write
-      checks: read
-      id-token: write
-    uses: ./.github/workflows/e2e-automerge-vm-images.yml
-    secrets: inherit
-
-  e2e-dependency-review:
-    name: Dependency review
-    needs: guard
-    permissions:
-      contents: write
-      pull-requests: write
-      actions: read
-      issues: write
-      checks: read
-      id-token: write
-    uses: ./.github/workflows/e2e-dependency-review.yml
-    secrets: inherit
-
-  e2e-estc-pr-buildkite-detective:
-    name: ESTC PR Buildkite Detective
-    needs: guard
-    permissions:
-      contents: write
-      pull-requests: write
-      statuses: read
-      actions: read
-      issues: write
-      checks: read
-    uses: ./.github/workflows/e2e-estc-pr-buildkite-detective.yml
-    secrets: inherit
-
-  e2e-autodoc:
-    name: Autodoc audit
+  e2e-all:
+    name: E2E — All
     needs: guard
     permissions:
       actions: write
       checks: read
-      contents: read
+      contents: write
+      id-token: write
       issues: write
       pull-requests: write
-    uses: ./.github/workflows/e2e-autodoc.yml
+      statuses: read
+    uses: ./.github/workflows/e2e-all.yml
     secrets: inherit
 
   promote:
     name: Tag and update pointers
-    needs:
-      - e2e-autodoc
-      - e2e-automerge-vm-images
-      - e2e-dependency-review
-      - e2e-estc-pr-buildkite-detective
+    needs: e2e-all
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
