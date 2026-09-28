@@ -9,8 +9,10 @@
 Client templates are grouped by **GitHub event family** so co-triggered routes share one dashboard read and one allow-list load per workflow run. Each event-scoped client calls an orchestrator reusable (`obs-aw-event-*.yml`) that runs [aw-prelude.yml](aw-prelude.md) once, then fans out to per-route `obs-aw-*` workflows.
 
 ```yaml
-uses: elastic/oblt-aw/.github/workflows/obs-aw-event-pull-request.yml@v0
+uses: elastic/oblt-aw/.github/workflows/obs-aw-event-pull-request.yml@main
 ```
+
+After the first promote creates moving tag `v0`, switch templates to `@v0` (see [agentic-release-model](../operations/agentic-release-model.md)).
 
 Per-route dashboard gating uses the required `shared-proceed` input (and related shared allow-list fields) passed from [aw-prelude.yml](aw-prelude.md) via each `obs-aw-event-*` orchestrator.
 

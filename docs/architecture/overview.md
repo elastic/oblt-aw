@@ -38,7 +38,7 @@ on:
     types: [opened, synchronize, reopened, labeled]
 jobs:
   run-obs-aw-pull-request:
-    uses: elastic/oblt-aw/.github/workflows/obs-aw-automerge.yml@v0
+    uses: elastic/oblt-aw/.github/workflows/obs-aw-automerge.yml@main
 ```
 
 ## Control Plane and Consumer Interaction Diagram
@@ -74,7 +74,7 @@ flowchart TB
 
   DIST -->|PR: add or update client file| CLIENT
   SYNC -->|create or update issue| DASH
-  CLIENT -->|uses: …/obs-aw-event-*.yml@v0| GHA
+  CLIENT -->|uses: …/obs-aw-event-*.yml@main| GHA
   GHA -->|uses: locked upstream workflows| LOCK
 ```
 

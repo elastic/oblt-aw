@@ -11,18 +11,18 @@ Promote control-plane changes safely with mandatory gating E2E, keep consumer tr
 
 | Surface | Location | Pointer today |
 |---------|----------|---------------|
-| Distributed client triggers | `.github/remote-workflow-template/**/trigger-*-aw-*.yml` | `elastic/oblt-aw/.../obs-aw-event-*.yml@v0` (pre-stable moving major) |
+| Distributed client triggers | `.github/remote-workflow-template/**/trigger-*-aw-*.yml` | `elastic/oblt-aw/.../obs-aw-event-*.yml@main` until first promote creates `v0` / `v0.0.0`, then a follow-up PR switches templates to `@v0` |
 | Control-plane self triggers | `.github/workflows/trigger-obs-aw-*.yml` | Relative `./.github/workflows/obs-aw-event-*.yml` (always tip of default branch) |
 | Event orchestrators → routes | `obs-aw-event-*.yml` | Relative `./` (inherits caller pin) |
 | In-repo GH-AW locks | `obs-aw-autodoc.yml`, `obs-aw-dependency-review.yml`, `obs-aw-estc-pr-buildkite-detective.yml` | Relative `./gh-aw-*.lock.yml` (inherits caller pin) |
 | Upstream locks still in `ai-github-actions` | Other `obs-aw-*.yml` wrappers | `elastic/ai-github-actions/...@main` (until [#1876](https://github.com/elastic/oblt-aw/issues/1876)) |
 | Release metadata | `config/release-pointers.json` | `prod` / `candidate` / `previous_prod` SHAs + semver |
 
-**Why self triggers stay relative:** Live E2E on `elastic/oblt-aw` must exercise default-branch tip before promote. Distribute **skips** installing templates into the control-plane repository (`GITHUB_REPOSITORY`) so `@v0` consumer pins never overwrite relative self-triggers.
+**Why self triggers stay relative:** Live E2E on `elastic/oblt-aw` must exercise default-branch tip before promote. Distribute **skips** installing templates into the control-plane repository (`GITHUB_REPOSITORY`) so future `@v0` consumer pins never overwrite relative self-triggers.
 
 ## Target model (hybrid)
 
-- **Shared train (default):** one moving major tag `v0` for all distributed clients while the promote train is proven.
+- **Shared train (default):** one moving major tag `v0` for all distributed clients while the promote train is proven (templates pin `@v0` only after the tag exists).
 - **Immutable audit tags:** `v0.x.y` created on each promote (never moved).
 - **Moving ops tags:** `v0` (prod), `candidate`, `previous-prod`.
 - **Graduation:** when the process is fully automated and testable, promote `major` → `v1.0.0`, bump templates to `@v1`, and redistribute.
@@ -40,7 +40,7 @@ flowchart LR
 
 | Change type | Consumer action |
 |-------------|-----------------|
-| Patch / minor (compatible) | None — retarget `v0` after promote |
+| Patch / minor (compatible) | None — retarget `v0` after promote (once consumers pin `@v0`) |
 | Major / breaking (incl. graduate to `v1`) | Bump templates to `@v1` (or next major), redistribute |
 
 ## Automation vs human gates
@@ -73,9 +73,9 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 
 ## First promote (after this model lands)
 
-1. Merge the release-model PR to `main`.
-2. Dispatch `aw-release-promote` on `main` with `release-type=patch` (first run → `v0.0.0`) — **before** merging distribute PRs that switch consumers to `@v0`.
-3. Merge distribute PRs in consumer repos.
+1. Merge the release-model PR to `main` (templates still pin `@main`).
+2. Dispatch `aw-release-promote` on `main` with `release-type=patch` (first run → `v0` / `v0.0.0`).
+3. Open a follow-up PR that switches distributed client templates from `@main` → `@v0`, then redistribute to consumers.
 
 ## Scripts and workflows
 

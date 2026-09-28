@@ -17,4 +17,4 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-    uses: elastic/oblt-aw/.github/workflows/obs-aw-event-schedule.yml@v0 # ratchet:exclude
+    uses: elastic/oblt-aw/.github/workflows/obs-aw-event-schedule.yml@main # ratchet:exclude
