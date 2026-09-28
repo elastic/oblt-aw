@@ -55,10 +55,10 @@ flowchart LR
 
 1. Dispatch `aw-release-promote.yml` **on the default branch** (`main`).
 2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty prod pointer) always creates `v1.0.0`.
-3. Workflow calls `e2e-all` against tip of `main` (`github.sha`).
+3. Workflow calls `e2e-all` with `checkout-ref` set to `github.sha` (tip of `main` at promote start) so mid-run merges to `main` are not tested or tagged.
 4. On E2E success, compute next semver from `prod.semver`, create immutable `vX.Y.Z`, move `vX` / `candidate` / `previous-prod`, and commit `config/release-pointers.json`.
 
-Standalone `e2e-all.yml` remains available for smoke without tagging.
+Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-ref` defaults to `main`).
 
 ## Quick rollback
 

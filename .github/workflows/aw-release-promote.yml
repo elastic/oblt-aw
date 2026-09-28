@@ -59,6 +59,8 @@ jobs:
       pull-requests: write
       statuses: read
     uses: ./.github/workflows/e2e-all.yml
+    with:
+      checkout-ref: ${{ github.sha }}
     secrets: inherit
 
   promote:
@@ -73,6 +75,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v7

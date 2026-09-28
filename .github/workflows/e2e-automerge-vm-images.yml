@@ -10,7 +10,19 @@ name: E2E — Automerge VM images
 # workflows. Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
+    inputs:
+      checkout-ref:
+        description: Git ref or full SHA to checkout (default main tip)
+        required: false
+        type: string
+        default: main
   workflow_call:
+    inputs:
+      checkout-ref:
+        description: Git ref or full SHA to checkout (default main tip)
+        required: false
+        type: string
+        default: main
 
 permissions:
   contents: read
@@ -39,6 +51,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout-ref }}
 
       # Shared E2E Vault role in config/e2e.json (wildcard e2e-*.yml policy
       # requires an explicit token-policy input; do not reuse trigger-obs-aw-*).
