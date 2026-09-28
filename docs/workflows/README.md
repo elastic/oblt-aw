@@ -25,6 +25,8 @@ Route wrappers keep descriptive ids such as `resolve-apm-assets` and `automerge`
 
 - Shared prelude (dashboard + allow lists): [docs/workflows/aw-prelude.md](aw-prelude.md)
 - Shared dashboard audit (enable/disable comments): [docs/workflows/aw-dashboard-audit.md](aw-dashboard-audit.md)
+- Release promote: [docs/workflows/aw-release-promote.md](aw-release-promote.md)
+- Release rollback: [docs/workflows/aw-release-rollback.md](aw-release-rollback.md)
 - Dashboard reader (reusable workflow): [docs/workflows/get-enabled-workflows.md](get-enabled-workflows.md)
 - PR and issue allow-list loader (reusable workflow): [docs/workflows/load-allowed-authors.md](load-allowed-authors.md)
 - Observability client templates (`trigger-obs-aw-*.yml` under remote-workflow-template): [docs/workflows/obs-aw-client-template.md](obs-aw-client-template.md)

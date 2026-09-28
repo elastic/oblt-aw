@@ -26,13 +26,13 @@ Jobs:
 The job `audit` calls:
 
 ```yaml
-uses: elastic/oblt-aw/.github/workflows/gh-aw-docs-patrol.lock.yml@main
+uses: ./.github/workflows/gh-aw-docs-patrol.lock.yml
 ```
 
 The job `fix` calls:
 
 ```yaml
-uses: elastic/oblt-aw/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
+uses: ./.github/workflows/gh-aw-create-pr-from-issue.lock.yml
 ```
 
 Edit the GH-AW sources [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md) and [`.github/workflows/gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the locks).
@@ -87,8 +87,8 @@ Permissions:
 
 **Cutover:**
 
-- Wrapper `audit` uses `elastic/oblt-aw/.../gh-aw-docs-patrol.lock.yml@main`.
-- Wrapper `fix` uses `elastic/oblt-aw/.../gh-aw-create-pr-from-issue.lock.yml@main` with only `target-issue-number` and `additional-instructions`.
+- Wrapper `audit` uses relative `./.github/workflows/gh-aw-docs-patrol.lock.yml` (inherits caller pin / tip).
+- Wrapper `fix` uses relative `./.github/workflows/gh-aw-create-pr-from-issue.lock.yml` with only `target-issue-number` and `additional-instructions`.
 
 **Rollback (fix):** point the wrapper fix job back at the previous upstream lock:
 

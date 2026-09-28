@@ -56,7 +56,8 @@ jobs:
       issues: write
       pull-requests: read
       copilot-requests: write
-    uses: elastic/oblt-aw/.github/workflows/gh-aw-docs-patrol.lock.yml@main
+    # Relative so client @v1 / control-plane tip pins inherit the release train.
+    uses: ./.github/workflows/gh-aw-docs-patrol.lock.yml
     with:
       # Lookback (1 day), title-prefix ([oblt-aw][autodoc]), model/bots/footer,
       # and failure-issue suppression are opinionated on the in-repo lock.
@@ -84,7 +85,8 @@ jobs:
       pull-requests: write
       copilot-requests: write
     if: inputs.shared-proceed == 'true' && needs.audit.outputs.created_issue_number != ''
-    uses: elastic/oblt-aw/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main
+    # Relative so client @v1 / control-plane tip pins inherit the release train.
+    uses: ./.github/workflows/gh-aw-create-pr-from-issue.lock.yml
     with:
       # Draft PRs, model/bots/footer, failure-issue suppression, and docs-only
       # prompt (including top-level docs protected-files excludes) are

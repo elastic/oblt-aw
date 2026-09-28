@@ -1,0 +1,119 @@
+---
+name: AW release — promote
+
+# Promote a candidate SHA to the moving major tag (v1) after gating E2E.
+# Runbook: docs/operations/agentic-release-model.md
+on:
+  workflow_dispatch:
+    inputs:
+      candidate-sha:
+        description: Full 40-char SHA to promote (usually origin/main tip)
+        required: true
+        type: string
+      semver:
+        description: Immutable semver to create (e.g. v1.0.0)
+        required: true
+        type: string
+      e2e-run-id:
+        description: Actions run id of e2e-all (or leaf runs) that produced summary.json artifacts
+        required: true
+        type: string
+      bootstrap:
+        description: First promote only (empty prod pointer)
+        required: false
+        type: boolean
+        default: false
+      dry-run:
+        description: Validate and plan only (no tags, no pointer commit)
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aw-release-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Validate E2E gate and promote
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Download E2E summary artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          E2E_RUN_ID: ${{ inputs.e2e-run-id }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/e2e-gate
+          gh run download "${E2E_RUN_ID}" \
+            --repo "${{ github.repository }}" \
+            --dir artifacts/e2e-gate
+
+      - name: Validate gating E2E summaries
+        id: gate
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate-sha }}
+        run: |
+          set -euo pipefail
+          python3 scripts/aw_release_validate_e2e_gate.py \
+            --summaries-dir artifacts/e2e-gate \
+            --candidate-sha "${CANDIDATE_SHA}" \
+            --aggregate-out artifacts/e2e-gate/aggregate-summaries.json
+
+      - name: Promote tags and update pointers
+        id: promote
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate-sha }}
+          SEMVER: ${{ inputs.semver }}
+          BOOTSTRAP: ${{ inputs.bootstrap }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          set -euo pipefail
+          extra=()
+          if [ "${BOOTSTRAP}" = "true" ]; then
+            extra+=(--bootstrap)
+          fi
+          if [ "${DRY_RUN}" = "true" ]; then
+            extra+=(--dry-run)
+          else
+            extra+=(--push)
+          fi
+          python3 scripts/aw_release_promote.py \
+            --candidate-sha "${CANDIDATE_SHA}" \
+            --semver "${SEMVER}" \
+            --e2e-summaries artifacts/e2e-gate/aggregate-summaries.json \
+            "${extra[@]}"
+
+      - name: Commit release-pointers.json
+        if: ${{ inputs.dry-run != true }}
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate-sha }}
+          SEMVER: ${{ inputs.semver }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- config/release-pointers.json; then
+            echo "No pointer file changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add config/release-pointers.json
+          git commit -m "chore(release): promote ${SEMVER} (${CANDIDATE_SHA:0:12})"
+          git push origin HEAD:"${{ github.ref_name }}"

@@ -1,0 +1,80 @@
+---
+name: AW release — rollback
+
+# Quick rollback: retarget moving major tag (v1) to previous-prod.
+# Target recovery: under 15 minutes when tags/pointers are healthy.
+# Runbook: docs/operations/agentic-release-model.md
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Validate and plan only (no tags, no pointer commit)
+        required: false
+        type: boolean
+        default: false
+      confirm:
+        description: Type rollback to confirm
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aw-release-promote
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Rollback production pointer
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Confirm rollback intent
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          if [ "${CONFIRM}" != "rollback" ]; then
+            echo "::error::Set confirm input to exactly 'rollback'"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Rollback tags and update pointers
+        env:
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          set -euo pipefail
+          extra=()
+          if [ "${DRY_RUN}" = "true" ]; then
+            extra+=(--dry-run)
+          else
+            extra+=(--push)
+          fi
+          python3 scripts/aw_release_rollback.py "${extra[@]}"
+
+      - name: Commit release-pointers.json
+        if: ${{ inputs.dry-run != true }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- config/release-pointers.json; then
+            echo "No pointer file changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add config/release-pointers.json
+          git commit -m "chore(release): rollback production pointer to previous-prod"
+          git push origin HEAD:"${{ github.ref_name }}"

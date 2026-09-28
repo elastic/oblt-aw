@@ -206,7 +206,7 @@ Exact workflow file names for promote jobs are **Unknown** until #1878 implement
 - [x] Wire artifact upload + `outputs.pass`; document how #1878 promote reads pass/fail (`summary.json` / `oracle-report.json`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] ESTC E2E is manual-only on a long-lived fixture (no quarantine list for the single live case). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Update [obs-aw-estc-pr-buildkite-detective](../workflows/obs-aw-estc-pr-buildkite-detective.md) when the first E2E job lands. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
-- [ ] Pin gating runs to the candidate ref/digest (record in artifacts); treat floating `@main` runs as smoke-only; promote must reject smoke-only reports. ([#1878](https://github.com/elastic/oblt-aw/issues/1878) / [#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Pin gating runs to the candidate ref/digest (record in artifacts); treat floating `@main` runs as smoke-only; promote must reject smoke-only reports. ([#1878](https://github.com/elastic/oblt-aw/issues/1878) / [#1911](https://github.com/elastic/oblt-aw/issues/1911)) — see [agentic-release-model](../operations/agentic-release-model.md).
 
 ## Non-goals
 
@@ -231,7 +231,7 @@ Resolved by this design where noted; remaining items are for implementation issu
 | E2E revision pin | **Resolved policy:** gating runs pin candidate ref/digest; `@main` is smoke-only — **wiring for promote still open** ([#1878](https://github.com/elastic/oblt-aw/issues/1878)) |
 | Status-route entry | **Resolved:** Buildkite publishes failed `status` (+ Buildkite context/`target_url`); harness creates the intentional failure build; path-filtered PR / dispatch / `workflow_call` are outer-only |
 | How closely E2E must match production models/tools | **Resolved policy:** match production fragment defaults for the slice; document any intentional drift; prefer recorded Buildkite payloads when live access is costly or unstable |
-| Promote workflow wiring | **Unknown** — owned with [#1878](https://github.com/elastic/oblt-aw/issues/1878) |
+| Promote workflow wiring | **Resolved:** [agentic-release-model](../operations/agentic-release-model.md) (`aw-release-promote.yml` / `aw-release-rollback.yml`) |
 
 ## References
 

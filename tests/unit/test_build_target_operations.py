@@ -245,6 +245,31 @@ class TestMain:
             assert "remove_files" in t
             assert t["remove_files"] == []
 
+    def test_skips_control_plane_self_repository(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """Distribute must not install @v1 templates onto the control-plane repo."""
+        output_file = self._setup_env(
+            monkeypatch,
+            tmp_path,
+            changed_files_count=1,
+            repos=["elastic/oblt-aw", "elastic/foo"],
+        )
+        monkeypatch.setenv("GITHUB_REPOSITORY", "elastic/oblt-aw")
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        targets = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in content.splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        repos = {t["repository"] for t in targets}
+        assert repos == {"elastic/foo"}
+        assert "elastic/oblt-aw" not in repos
+
     def test_force_distribution(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:

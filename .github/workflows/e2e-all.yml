@@ -4,8 +4,16 @@ name: E2E — All
 # Manual orchestrator: call every leaf e2e-*.yml via workflow_call in parallel.
 # Add a new job here when introducing a new leaf E2E workflow.
 # Not part of the default PR required gate in ci.yml.
+# For production promote, dispatch on the candidate SHA with candidate-ref set
+# to that full SHA (gating). Empty candidate-ref = smoke (ineligible).
 on:
   workflow_dispatch:
+    inputs:
+      candidate-ref:
+        description: Full SHA for gating E2E (empty = smoke / ineligible for promote)
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -25,6 +33,8 @@ jobs:
       checks: read
       id-token: write
     uses: ./.github/workflows/e2e-automerge-vm-images.yml
+    with:
+      candidate-ref: ${{ inputs.candidate-ref }}
     secrets: inherit
 
   e2e-dependency-review:
@@ -37,6 +47,8 @@ jobs:
       checks: read
       id-token: write
     uses: ./.github/workflows/e2e-dependency-review.yml
+    with:
+      candidate-ref: ${{ inputs.candidate-ref }}
     secrets: inherit
 
   e2e-estc-pr-buildkite-detective:
@@ -49,6 +61,8 @@ jobs:
       issues: write
       checks: read
     uses: ./.github/workflows/e2e-estc-pr-buildkite-detective.yml
+    with:
+      candidate-ref: ${{ inputs.candidate-ref }}
     secrets: inherit
 
   e2e-autodoc:
@@ -60,4 +74,6 @@ jobs:
       issues: write
       pull-requests: write
     uses: ./.github/workflows/e2e-autodoc.yml
+    with:
+      candidate-ref: ${{ inputs.candidate-ref }}
     secrets: inherit

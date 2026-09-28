@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "major": 1,
+  "tags": {
+    "prod": "v1",
+    "candidate": "candidate",
+    "previous_prod": "previous-prod"
+  },
+  "pointers": {
+    "prod": {
+      "sha": "",
+      "semver": "",
+      "updated_at": ""
+    },
+    "candidate": {
+      "sha": "",
+      "semver": "",
+      "updated_at": ""
+    },
+    "previous_prod": {
+      "sha": "",
+      "semver": "",
+      "updated_at": ""
+    }
+  },
+  "notes": "Empty SHAs mean uninitialized. First promote with --bootstrap creates v1/candidate/previous-prod after gating E2E."
+}
