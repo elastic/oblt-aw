@@ -10,7 +10,7 @@ This workflow distributes or removes client files from each org’s subtree unde
 
 - Per-org [active-repositories.json](../../config/obs/active-repositories.json) files under `config/<org-key>/` list current target repositories (union used for distribution).
 - Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/trigger-obs-aw-*.yml` → `.github/workflows/trigger-obs-aw-*.yml`). Edit only under [remote-workflow-template](../../.github/remote-workflow-template/) (see [Client template doc](../workflows/obs-aw-client-template.md)).
-- Consumer templates stay on `@main` until the first promote creates `v0` / `v0.0.0`; a follow-up PR then pins `@v0` (see [agentic release model](agentic-release-model.md)). Distribute **skips** the control-plane repository itself (`GITHUB_REPOSITORY`) so relative self-triggers used for tip E2E are not overwritten.
+- Consumer templates pin the moving major tag `@v0` (see [agentic release model](agentic-release-model.md)). Distribute **skips** the control-plane repository itself (`GITHUB_REPOSITORY`) so relative self-triggers used for tip E2E are not overwritten.
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
 
 ## Usage
