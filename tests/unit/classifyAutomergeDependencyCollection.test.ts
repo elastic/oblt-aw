@@ -172,6 +172,52 @@ test('classifyChangedFiles allows dashboard-enabled open-policy-agent collection
   });
 });
 
+const NODE_DEPENDENCY_GLOBS = [
+  'package.json',
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  'dist/**',
+  '**/package.json',
+  '**/package-lock.json',
+  '**/yarn.lock',
+  '**/pnpm-lock.yaml',
+  '**/dist/**',
+];
+
+test('classifyChangedFiles allows node-dependencies with bundled dist rebuild', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'node-dependencies', 'file-glob': NODE_DEPENDENCY_GLOBS },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:node-dependencies'];
+  const outcome = classifyChangedFiles(
+    ['dist/index.js', 'package-lock.json', 'package.json'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'node-dependencies',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled node-dependencies with dist', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'node-dependencies', 'file-glob': NODE_DEPENDENCY_GLOBS },
+  ];
+  const outcome = classifyChangedFiles(
+    ['dist/index.js', 'package-lock.json', 'package.json'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: 'node-dependencies',
+  });
+});
+
 const UPDATE_BEATS_GLOBS = [
   'NOTICE.txt',
   'NOTICE-fips.txt',

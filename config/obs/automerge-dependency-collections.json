@@ -51,16 +51,18 @@
     },
     {
       "id": "node-dependencies",
-      "description": "npm/yarn/pnpm manifest and lockfile updates",
+      "description": "npm/yarn/pnpm manifest, lockfile, and bundled dist updates",
       "file-glob": [
         "package.json",
         "package-lock.json",
         "yarn.lock",
         "pnpm-lock.yaml",
+        "dist/**",
         "**/package.json",
         "**/package-lock.json",
         "**/yarn.lock",
-        "**/pnpm-lock.yaml"
+        "**/pnpm-lock.yaml",
+        "**/dist/**"
       ]
     },
     {
