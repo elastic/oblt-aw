@@ -31,6 +31,11 @@
       "ai-assets-token-policy": ""
     },
     {
+      "repository": "elastic/gh-action-webcal-retriever",
+      "workflow-token-policy": "token-policy-08cedaded699",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/gh-oblt",
       "workflow-token-policy": "token-policy-4534153510b1",
       "ai-assets-token-policy": ""
