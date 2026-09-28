@@ -47,6 +47,7 @@ on:
     - "renovate[bot]"
     - "Dependabot"
     - "Renovate"
+    - "elastic-renovate-prod[bot]"
     - "elastic-vault-github-plugin-prod[bot]"
     - "github-actions[bot]"
 concurrency:
@@ -66,7 +67,7 @@ permissions:
 tools:
   github:
     # Override obs-defaults trusted-users so bot authors in on.bots are trusted.
-    trusted-users: "dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-vault-github-plugin-prod[bot],github-actions[bot]"
+    trusted-users: "dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-renovate-prod[bot],elastic-vault-github-plugin-prod[bot],github-actions[bot]"
     toolsets: [repos, issues, pull_requests, search, actions]
   bash: true
   web-fetch:

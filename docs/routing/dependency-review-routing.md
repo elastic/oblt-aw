@@ -17,6 +17,7 @@ Routed workflow source: [.github/workflows/obs-aw-dependency-review.yml](../../.
   - `renovate[bot]`
   - `Dependabot`
   - `Renovate`
+  - `elastic-renovate-prod[bot]`
   - `elastic-vault-github-plugin-prod[bot]`
   - `github-actions[bot]`
 - Dashboard gate passes for registry id `dependency-review` (`enabled-workflows` contains `obs:dependency-review`).
