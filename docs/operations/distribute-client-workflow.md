@@ -37,7 +37,8 @@ Execution stages:
       {
         "repository": "elastic/oblt-aw",
         "workflow-token-policy": "",
-        "ai-assets-token-policy": ""
+        "ai-assets-token-policy": "",
+        "pr-actions-detective-workflows": ["CI"]
       },
       {
         "repository": "elastic/oblt-cli",
@@ -52,13 +53,15 @@ Validation and normalization rules:
 
 - `repositories` must resolve to a JSON list.
 - Every entry is an object with required `repository` (`owner/repo`), `workflow-token-policy` (string; use `""` when Vault auto policy / control-plane defaults apply for agentic workflow `create-token`), and `ai-assets-token-policy` (string; use `""` when `apm install` can use the job `GITHUB_TOKEN`).
+- Optional `pr-actions-detective-workflows` (list of non-empty strings): GitHub Actions workflow **`name:`** values to monitor for [PR Actions Detective](../workflows/obs-aw-pr-actions-detective.md). When non-empty, distribute installs `trigger-obs-aw-workflow-run.yml` and renders those names into `on.workflow_run.workflows`. When omitted or empty, that trigger is **not** installed (and a previously installed copy is removed). Do not edit the list in the consumer repo — redistribute from this field instead.
 - When `workflow-token-policy` is non-empty, consumer `create-token` steps (via `aw-prelude`) use that policy for that repository; when empty, consumer workflows keep Vault auto policy per trigger workflow ref. When `ai-assets-token-policy` is non-empty, [aw-resolve-agentic-assets.yml](../../.github/workflows/aw-resolve-agentic-assets.yml) mints an ephemeral token for APM private package clones. Control-plane `distribute-client-workflow` and `sync-control-plane-dashboard` always use their fixed workflow token policies (`token-policy-63405ab45244` and `token-policy-8b60ba56dd3f`).
 - Entries are normalized (trimmed), de-duplicated, and sorted before processing.
 - Invalid entries fail the step with: `Invalid repository entry: ... Expected object with 'repository'`.
 
 Examples:
 
-- Valid: `{"repository": "elastic/oblt-aw", "workflow-token-policy": "", "ai-assets-token-policy": ""}`
+- Valid: `{"repository": "elastic/oblt-aw", "workflow-token-policy": "", "ai-assets-token-policy": "", "pr-actions-detective-workflows": ["CI"]}`
+- Valid (no detective): `{"repository": "elastic/oblt-cli", "workflow-token-policy": "", "ai-assets-token-policy": ""}`
 - Invalid: `"elastic/oblt-aw"` (bare string), `"elastic"` (missing slash in `repository`), `123` (non-object), `{"repo":"elastic/oblt-aw"}` (wrong key)
 
 ## `build_target_operations.py` Contract
@@ -75,6 +78,7 @@ Behavior:
 - If `CHANGED_FILES_COUNT == 0`, `FORCE_DISTRIBUTION` is false, and `git diff --name-only` between `BASE_REF` and `HEAD` under `config/` and `.github/remote-workflow-template/` is empty, returns no targets. The git fallback covers template **renames** (the changed-files action only counts added, modified, and deleted paths).
 - Always generates `install` operations for repositories in the current union of per-org lists (see [scripts/build_target_operations.py](../../scripts/build_target_operations.py)).
 - Each `install` target includes `remove_files`: destination paths that existed in the template tree at `BASE_REF` for that repository’s org assignments but are absent from the current tree.
+- Each `install` target includes `pr-actions-detective-workflows` from `active-repositories.json`. When that list is empty, `trigger-obs-aw-workflow-run.yml` is omitted from `files` and added to `remove_files`. When non-empty, distribute copies the template then runs [scripts/render_pr_actions_detective_trigger.py](../../scripts/render_pr_actions_detective_trigger.py) to replace the workflows placeholder.
 - Generates `remove` operations for repositories present at `BASE_REF` but absent from current config.
 
 Workflow outputs written by the script:

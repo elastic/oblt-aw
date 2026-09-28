@@ -20,7 +20,9 @@ import subprocess
 import sys
 
 from common import (
+    PR_ACTIONS_DETECTIVE_TRIGGER_DST,
     discover_repo_org_assignments,
+    merge_repository_pr_actions_detective_workflows_from_org_trees,
     merge_repository_workflow_token_policies_from_org_trees,
     parse_repositories,
     write_outputs,
@@ -28,6 +30,26 @@ from common import (
 
 REMOTE_TEMPLATE_DIR = pathlib.Path(".github/remote-workflow-template")
 ZERO_SHA = "0000000000000000000000000000000000000000"
+
+
+def apply_pr_actions_detective_trigger_gate(
+    files: list[dict[str, str]],
+    remove_files: list[str],
+    workflows: list[str] | tuple[str, ...],
+) -> tuple[list[dict[str, str]], list[str]]:
+    """
+    Install ``trigger-obs-aw-workflow-run.yml`` only when the allowlist is non-empty.
+
+    When empty, omit the file from ``files`` and ensure it is listed in
+    ``remove_files`` so redistribute deletes a previously installed copy.
+    """
+    if workflows:
+        return files, remove_files
+    filtered = [
+        entry for entry in files if entry["dst"] != PR_ACTIONS_DETECTIVE_TRIGGER_DST
+    ]
+    removes = sorted(set(remove_files) | {PR_ACTIONS_DETECTIVE_TRIGGER_DST})
+    return filtered, removes
 
 
 def list_org_template_files(org_key: str) -> list[dict[str, str]]:
@@ -184,6 +206,9 @@ def main() -> int:
     config_dir = pathlib.Path("config")
     current_assignments = discover_repo_org_assignments(config_dir)
     token_policies = merge_repository_workflow_token_policies_from_org_trees(config_dir)
+    detective_workflows = (
+        merge_repository_pr_actions_detective_workflows_from_org_trees(config_dir)
+    )
 
     previous_assignments = read_previous_repo_org_assignments(base_ref)
 
@@ -220,6 +245,10 @@ def main() -> int:
         )
         current_dsts = dst_paths(files)
         remove_files = sorted(dst_paths(previous_files) - current_dsts)
+        allowlist = list(detective_workflows.get(repo, ()))
+        files, remove_files = apply_pr_actions_detective_trigger_gate(
+            files, remove_files, allowlist
+        )
         operations.append(
             {
                 "repository": repo,
@@ -227,6 +256,7 @@ def main() -> int:
                 "files": files,
                 "remove_files": remove_files,
                 "workflow-token-policy": token_policies.get(repo, ""),
+                "pr-actions-detective-workflows": allowlist,
             }
         )
 
@@ -239,6 +269,7 @@ def main() -> int:
                 "operation": "remove",
                 "files": files,
                 "workflow-token-policy": token_policies.get(repo, ""),
+                "pr-actions-detective-workflows": [],
             }
         )
 

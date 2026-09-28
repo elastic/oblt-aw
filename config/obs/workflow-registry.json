@@ -199,6 +199,15 @@
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-estc-pr-buildkite-detective.md",
       "inner_workflows": ["obs-aw-estc-pr-buildkite-detective.yml"]
+    },
+    {
+      "id": "pr-actions-detective",
+      "name": "PR Actions Detective",
+      "description": "Analyzes failed GitHub Actions workflow runs associated with a PR and posts diagnostic findings on the pull request.",
+      "maturity": "early-adoption",
+      "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-pr-actions-detective.md",
+      "inner_workflows": ["obs-aw-pr-actions-detective.yml"]
     }
   ]
 }

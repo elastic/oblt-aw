@@ -15,11 +15,13 @@ import validate_aw_workflow_prelude as validator
 def test_list_subject_workflows_includes_route_wrappers() -> None:
     names = {p.name for p in validator.list_subject_workflows()}
     assert "obs-aw-automerge.yml" in names
+    assert "obs-aw-pr-actions-detective.yml" in names
     assert "docs-aw-ai-menu.yml" in names
     assert "docs-aw-pr-ai-menu-collect.yml" in names
     assert "docs-aw-pr-ai-menu.yml" in names
     assert "aw-prelude.yml" not in names
     assert "docs-aw-event-issues.yml" not in names
+    assert "obs-aw-event-workflow-run.yml" not in names
     assert "trg-oblt-aw-automerge.yml" not in names
     assert "gh-aw-estc-pr-buildkite-detective.lock.yml" not in names
 

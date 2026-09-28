@@ -130,6 +130,22 @@ jobs:
             cp "$src" "$dst"
           done
 
+      - name: Render PR Actions Detective workflow allowlist
+        if: ${{ matrix.target.operation == 'install' }}
+        env:
+          WORKFLOWS_JSON: ${{ toJSON(matrix.target.pr-actions-detective-workflows) }}
+          TRIGGER_PATH: ${{ github.workspace }}/target/.github/workflows/trigger-obs-aw-workflow-run.yml
+          PYTHONPATH: ${{ github.workspace }}/source/scripts
+        run: |
+          set -euo pipefail
+          if [ ! -f "$TRIGGER_PATH" ]; then
+            echo "trigger-obs-aw-workflow-run.yml not installed (empty allowlist); skip render"
+            exit 0
+          fi
+          python3 "${GITHUB_WORKSPACE}/source/scripts/render_pr_actions_detective_trigger.py" \
+            --path "$TRIGGER_PATH" \
+            --workflows-json "$WORKFLOWS_JSON"
+
       - name: Remove obsolete client files from target repository
         if: ${{ matrix.target.operation == 'install' }}
         env:

@@ -141,6 +141,41 @@ class TestParseBool:
         assert bto.parse_bool("  true  ") is True
 
 
+class TestApplyPrActionsDetectiveTriggerGate:
+    def test_keeps_trigger_when_allowlist_non_empty(self) -> None:
+        files = [
+            {"src": "a", "dst": ".github/workflows/trigger-obs-aw-pull-request.yml"},
+            {
+                "src": "b",
+                "dst": ".github/workflows/trigger-obs-aw-workflow-run.yml",
+            },
+        ]
+        out_files, out_remove = bto.apply_pr_actions_detective_trigger_gate(
+            files, [], ["CI"]
+        )
+        assert out_files == files
+        assert out_remove == []
+
+    def test_omits_trigger_and_requests_removal_when_empty(self) -> None:
+        files = [
+            {"src": "a", "dst": ".github/workflows/trigger-obs-aw-pull-request.yml"},
+            {
+                "src": "b",
+                "dst": ".github/workflows/trigger-obs-aw-workflow-run.yml",
+            },
+        ]
+        out_files, out_remove = bto.apply_pr_actions_detective_trigger_gate(
+            files, ["legacy.yml"], ()
+        )
+        assert [f["dst"] for f in out_files] == [
+            ".github/workflows/trigger-obs-aw-pull-request.yml"
+        ]
+        assert out_remove == [
+            ".github/workflows/trigger-obs-aw-workflow-run.yml",
+            "legacy.yml",
+        ]
+
+
 # ── write_outputs ─────────────────────────────────────────────────────────────
 
 
@@ -176,7 +211,7 @@ class TestMain:
         changed_files_count: int = 1,
         force: str = "false",
         base_ref: str = "",
-        repos: list[str] | None = None,
+        repos: list[str] | list[object] | None = None,
     ) -> pathlib.Path:
         output_file = tmp_path / "github_output"
         output_file.touch()
@@ -206,6 +241,53 @@ class TestMain:
         tmpl.mkdir(parents=True, exist_ok=True)
         (tmpl / "trigger-obs-aw-pull-request.yml").write_text("name: client\n")
         return output_file
+
+    def test_install_includes_trigger_when_allowlist_configured(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        output_file = self._setup_env(
+            monkeypatch,
+            tmp_path,
+            changed_files_count=1,
+            repos=[
+                {
+                    "repository": "elastic/foo",
+                    "workflow-token-policy": "",
+                    "ai-assets-token-policy": "",
+                    "pr-actions-detective-workflows": ["CI", "Build"],
+                }
+            ],
+        )
+        tmpl = (
+            tmp_path
+            / ".github"
+            / "remote-workflow-template"
+            / "obs"
+            / ".github"
+            / "workflows"
+        )
+        (tmpl / "trigger-obs-aw-workflow-run.yml").write_text(
+            'workflows: ["__OBLT_AW_PR_ACTIONS_DETECTIVE_WORKFLOWS__"]\n'
+        )
+
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        targets = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in content.splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        install = next(t for t in targets if t["repository"] == "elastic/foo")
+        dsts = {f["dst"] for f in install["files"]}
+        assert ".github/workflows/trigger-obs-aw-workflow-run.yml" in dsts
+        assert install["pr-actions-detective-workflows"] == ["CI", "Build"]
+        assert (
+            ".github/workflows/trigger-obs-aw-workflow-run.yml"
+            not in install["remove_files"]
+        )
 
     def test_no_changes_skips_work(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
@@ -242,8 +324,13 @@ class TestMain:
             assert len(t["files"]) >= 1
             dsts = {f["dst"] for f in t["files"]}
             assert ".github/workflows/trigger-obs-aw-pull-request.yml" in dsts
+            assert ".github/workflows/trigger-obs-aw-workflow-run.yml" not in dsts
             assert "remove_files" in t
-            assert t["remove_files"] == []
+            # Empty allowlist: omit install and request removal of any prior copy.
+            assert t["remove_files"] == [
+                ".github/workflows/trigger-obs-aw-workflow-run.yml"
+            ]
+            assert t["pr-actions-detective-workflows"] == []
 
     def test_force_distribution(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
