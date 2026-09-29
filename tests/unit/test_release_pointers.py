@@ -79,6 +79,14 @@ class TestNextSemver:
             rp.next_semver("v0.0.0", "rc")
 
 
+class TestHighestPointerSemver:
+    def test_uses_max_across_pointers(self) -> None:
+        data = _minimal_pointers()
+        rp.set_pointer(data, "prod", sha=SHA_A, semver="v0.0.0")
+        rp.set_pointer(data, "previous_prod", sha=SHA_B, semver="v0.0.1")
+        assert rp.highest_pointer_semver(data) == "v0.0.1"
+
+
 class TestPlanPromote:
     def test_first_promote_ignores_release_type(self) -> None:
         data = _minimal_pointers()
@@ -103,6 +111,14 @@ class TestPlanPromote:
         plan = rp.plan_promote(data, sha=SHA_A, release_type="major")
         assert plan["semver"] == "v1.0.0"
         assert plan["prod_tag"] == "v1"
+
+    def test_promote_after_rollback_stays_monotonic(self) -> None:
+        data = _minimal_pointers()
+        # After rolling back v0.0.1 → v0.0.0, previous_prod keeps the displaced release.
+        rp.set_pointer(data, "prod", sha=SHA_B, semver="v0.0.0")
+        rp.set_pointer(data, "previous_prod", sha=SHA_A, semver="v0.0.1")
+        plan = rp.plan_promote(data, sha=SHA_A, release_type="patch")
+        assert plan["semver"] == "v0.0.2"
 
     def test_apply_pointer_updates(self) -> None:
         data = _minimal_pointers()
@@ -129,12 +145,76 @@ class TestPlanRollback:
         assert plan["displaced_prod_sha"] == SHA_A
         assert plan["prod_tag"] == "v0"
 
+    def test_retargets_current_major_after_major_promote(self) -> None:
+        data = _minimal_pointers()
+        data["tags"]["prod"] = "v1"
+        data["major"] = 1
+        rp.set_pointer(data, "prod", sha=SHA_A, semver="v1.0.0")
+        rp.set_pointer(data, "previous_prod", sha=SHA_B, semver="v0.4.2")
+        plan = rp.plan_rollback(data)
+        assert plan["prod_tag"] == "v1"
+        assert plan["rollback_semver"] == "v0.4.2"
+        assert plan["displaced_prod_semver"] == "v1.0.0"
+
+    def test_rejects_empty_prod_semver(self) -> None:
+        data = _minimal_pointers()
+        data["pointers"]["prod"] = {
+            "sha": SHA_A,
+            "semver": "",
+            "updated_at": "2026-01-01T00:00:00+00:00",
+        }
+        rp.set_pointer(data, "previous_prod", sha=SHA_B, semver="v0.0.0")
+        with pytest.raises(ValueError, match="prod.semver is empty"):
+            rp.plan_rollback(data)
+
     def test_equal_pointers_fail(self) -> None:
         data = _minimal_pointers()
         rp.set_pointer(data, "prod", sha=SHA_A, semver="v0.0.0")
         rp.set_pointer(data, "previous_prod", sha=SHA_A, semver="v0.0.0")
         with pytest.raises(ValueError, match="nothing to rollback"):
             rp.plan_rollback(data)
+
+    def test_apply_rollback_pointer_updates(self) -> None:
+        data = _minimal_pointers()
+        data["tags"]["prod"] = "v1"
+        data["major"] = 1
+        rp.set_pointer(data, "prod", sha=SHA_A, semver="v1.0.0")
+        rp.set_pointer(data, "previous_prod", sha=SHA_B, semver="v0.4.2")
+        plan = rp.plan_rollback(data)
+        rp.apply_rollback_pointer_updates(
+            data, plan, updated_at="2026-01-01T00:00:00+00:00"
+        )
+        assert data["tags"]["prod"] == "v1"
+        assert data["major"] == 1
+        assert data["pointers"]["prod"]["sha"] == SHA_B
+        assert data["pointers"]["prod"]["semver"] == "v0.4.2"
+        assert data["pointers"]["previous_prod"]["sha"] == SHA_A
+        assert data["pointers"]["previous_prod"]["semver"] == "v1.0.0"
+
+
+class TestPushTagHelpers:
+    def test_push_promote_tags_splits_force(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            calls.append(args)
+            return None
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        plan = {
+            "semver": "v0.0.1",
+            "prod_tag": "v0",
+            "candidate_tag": "candidate",
+            "previous_tag": "previous-prod",
+        }
+        rp.push_promote_tags(plan)
+        assert calls[0] == ["push", "origin", "v0.0.1"]
+        assert "--force" not in calls[0]
+        assert calls[1][:2] == ["push", "origin"]
+        assert "--force" in calls[1]
+        assert "v0.0.1" not in calls[1]
 
 
 class TestLoadSaveRoundTrip:

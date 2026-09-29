@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/aw-release-rollback.yml](../../.github/workflows/aw-release-rollback.yml)
 
-Quick rollback: retargets the current production major (`v0` today, later `vN`) to `previous-prod` and updates `config/release-pointers.json`. Confirm input must be exactly `rollback`.
+Quick rollback: must run on the default branch. Retargets the current production major (`tags.prod`, e.g. `v0` today, later `vN`) to `previous-prod` and updates `config/release-pointers.json`. Confirm input must be exactly `rollback`.
 
 Recovery target: ≤ 15 minutes when tags/pointers are healthy. Full runbook: [agentic-release-model](../operations/agentic-release-model.md).
 

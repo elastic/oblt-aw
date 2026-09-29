@@ -25,8 +25,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  guard:
+    name: Require default branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail unless dispatched on default branch
+        env:
+          REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          expected="refs/heads/${DEFAULT_BRANCH}"
+          if [ "${REF}" != "${expected}" ]; then
+            echo "::error::Rollback must run on ${expected} (got ${REF})"
+            exit 1
+          fi
+          echo "Rolling back production pointer on ${DEFAULT_BRANCH}"
+
   rollback:
     name: Rollback production pointer
+    needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -46,22 +65,27 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.14"
 
-      - name: Rollback tags and update pointers
+      - name: Configure Git identity
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Rollback tags and update pointers (local)
         env:
           DRY_RUN: ${{ inputs.dry-run }}
         run: |
           set -euo pipefail
-          extra=()
+          extra=(--plan-output rollback-plan.json)
           if [ "${DRY_RUN}" = "true" ]; then
             extra+=(--dry-run)
-          else
-            extra+=(--push)
           fi
           python3 scripts/aw_release_rollback.py "${extra[@]}"
 
@@ -73,8 +97,23 @@ jobs:
             echo "No pointer file changes to commit"
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add config/release-pointers.json
           git commit -m "chore(release): rollback production pointer to previous-prod"
           git push origin HEAD:"${{ github.ref_name }}"
+
+      - name: Push rollback tags
+        if: ${{ inputs.dry-run != true }}
+        env:
+          PYTHONPATH: scripts
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          from release_pointers import push_rollback_tags
+
+          plan = json.loads(Path("rollback-plan.json").read_text(encoding="utf-8"))["plan"]
+          push_rollback_tags(plan)
+          print("Pushed rollback tags to origin")
+          PY
