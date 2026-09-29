@@ -293,7 +293,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
-          ref: main
+          ref: ${{ github.workflow_sha }}
           path: _oblt-aw
           fetch-depth: 1
           token: ${{ github.token }}
@@ -357,11 +357,12 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHARED_TOKEN_POLICY: ${{ inputs.shared-token-policy }}
         run: |
           set -euo pipefail
           # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
           source _oblt-aw/scripts/obs/automerge_armed_lib.sh
-          automerge_upsert_armed_comment "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}" "${RUN_URL}"
+          automerge_upsert_armed_comment "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}" "${RUN_URL}" "${SHARED_TOKEN_POLICY}"
 
   # Success when merged now, not_ready (deferred), or armed for deferred merge.
   report-automerge-outcome:
@@ -385,7 +386,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
-          ref: main
+          ref: ${{ github.workflow_sha }}
           path: _oblt-aw
           fetch-depth: 1
           token: ${{ github.token }}
@@ -403,6 +404,7 @@ jobs:
           ARM_RESULT: ${{ needs.arm-for-deferred-merge.result }}
           ARMED: ${{ needs.arm-for-deferred-merge.outputs.armed }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHARED_TOKEN_POLICY: ${{ inputs.shared-token-policy }}
         run: |
           set -euo pipefail
           # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
@@ -441,7 +443,7 @@ jobs:
               echo "mergeResult=not_ready but arm-for-deferred-merge failed (non-retryable); failing."
               exit 1
             fi
-            automerge_upsert_armed_comment "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}" "${RUN_URL}"
+            automerge_upsert_armed_comment "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}" "${RUN_URL}" "${SHARED_TOKEN_POLICY}"
             echo "PR not ready (pending checks); commented and soft-succeeding for deferred retry."
             exit 0
           fi

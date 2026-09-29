@@ -82,18 +82,26 @@ automerge_find_bot_armed_comment_id_from_json() {
 }
 
 # Upsert a bot-owned armed comment bound to head_sha. Sets armed=true on GITHUB_OUTPUT when set.
+# Optional 5th arg: shared-token-policy (non-empty => Vault-app bypass wording).
 automerge_upsert_armed_comment() {
   local repo="${1:?}"
   local pr_number="${2:?}"
   local head_sha="${3:?}"
   local run_url="${4:-}"
+  local token_policy="${5:-}"
   local marker
   marker="$(automerge_armed_marker_line "${head_sha}")"
+  local retry_blurb
+  if [[ -n "${token_policy}" ]]; then
+    retry_blurb="This run stays successful. Deferred automerge on the frequent schedule (about every 15 minutes) will retry the squash-merge as the Vault app (CODEOWNERS bypass via classic \`pull_request_bypassers\`) once GitHub reports all required checks green."
+  else
+    retry_blurb="This run stays successful. Deferred automerge on the frequent schedule (about every 15 minutes) will retry the squash-merge with the workflow token. Configure a non-empty \`shared-token-policy\` when CODEOWNERS bypass via a Vault app is required."
+  fi
   local body
   body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
     "${marker}" \
     "Automerge did not merge yet because this pull request is **not ready** (required status checks are still pending)." \
-    "This run stays successful. Deferred automerge on the frequent schedule (about every 15 minutes) will retry the squash-merge as the Vault app (CODEOWNERS bypass via classic \`pull_request_bypassers\`) once GitHub reports all required checks green." \
+    "${retry_blurb}" \
     "Armed by workflow run: ${run_url} (head \`${head_sha}\`)")"
   local comments_json
   comments_json="$(automerge_list_issue_comments "${repo}" "${pr_number}")" || return 1
