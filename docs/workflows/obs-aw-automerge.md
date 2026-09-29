@@ -17,7 +17,7 @@ When required checks are still pending, the PR path **arms** the PR (comment mar
 
 `verify` rejects `github-actions[bot]` authors when `shared-token-policy` is empty. Automerge continues via job `needs` after `approve` (no workflow re-trigger required for the review). Consumer repos need “Allow GitHub Actions to create and approve pull requests” enabled for the `GITHUB_TOKEN` approve path.
 
-**Merge identity:** When `shared-token-policy` is non-empty, merge uses an ephemeral Vault-app token so squash-merge runs as that app (classic BP `pull_request_bypassers` can skip CODEOWNERS). When empty, merge uses `GITHUB_TOKEN`. `MERGE_REQUIRED_APPROVALS` is always `1`.
+**Merge identity:** When `shared-token-policy` is non-empty, merge uses an ephemeral Vault-app token so squash-merge runs as that app (classic BP `pull_request_bypassers` can skip CODEOWNERS on **direct REST merge** only). When empty, merge uses `GITHUB_TOKEN`. `MERGE_REQUIRED_APPROVALS` is always `1`.
 
 Required status checks are **not** queried in `verify`; branch protection and the deferred merge path handle gating before merge.
 

@@ -19,8 +19,8 @@ Routed workflow sources:
 **Merge strategy (CI-duration independent):**
 
 1. **PR path** tries a short squash-merge (pascalgn + one REST retry).
-2. If checks are still pending → upsert armed comment (`<!-- obs-aw-automerge:armed -->`). Outcome success = merged **or** armed.
-3. **Frequent schedule profile** (client cron every 30 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` apply.
+2. If checks are still pending → upsert armed comment (`<!-- obs-aw-automerge:armed -->`). Outcome success = merged, armed, or soft-succeed on `not_ready`.
+3. **Frequent schedule profile** (client cron every 30 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` apply (honored only on direct REST merge as that app — not by async `--auto` / merge-queue completion).
 
 Required checks are enforced by GitHub’s merge API on every attempt — this automation only chooses **when** to wake up. There is **no** Buildkite status-success route for automerge (status stays ESTC-failure only).
 
@@ -53,9 +53,19 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 | Branch origin | Upstream branch (head repo equals base repo — not a fork) |
 | Refs | Head ref ≠ base ref |
 
-**Collection gate** (`scripts/obs/checkAutomergeDependencyCollection.ts`): unchanged — path classification + dashboard `obs:automerge:<collection-id>` enablement.
+**Collection gate** (`scripts/obs/checkAutomergeDependencyCollection.ts`):
+
+| Requirement | Details |
+|---------------|---------|
+| Classification | Changed file paths on the PR are matched against [config/obs/automerge-dependency-collections.json](../../config/obs/automerge-dependency-collections.json) (`file-glob` per collection). No extra labels are required in consumer repositories. |
+| Enabled collections | Only collections enabled on the Control Plane Dashboard (`obs:automerge:<collection-id>` sub-feature checkboxes under Automerge) proceed to `approve` and `automerge`. The parent `obs:automerge` checkbox must also be enabled. |
+| Skipped PRs | When classification fails or the collection is not enabled on the dashboard, the job posts or updates a single PR comment (marker `obs-aw-automerge:dependency-collection-gate`) and downstream jobs do not run. |
+
+**`approve` job:** Nested `gh-aw-mention-in-pr` uses author-aware `github-token-policy` (Vault only for `github-actions[bot]` authors; otherwise `GITHUB_TOKEN`). For repos with “Require review from Code Owners”, add the Vault app to classic branch-protection `pull_request_bypassers` and merge as that app (see [obs-aw-automerge.md](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens)).
 
 **Deferred discover** (`scripts/obs/discover_armed_automerge_prs.sh`): requires armed marker from the PR path so approve has already run before the deferred merge.
+
+**Required checks:** Validated by GitHub’s merge API on every PR-path and deferred-merge attempt, not by `validateAutomergePr.ts`.
 
 ## Configuration
 
