@@ -184,6 +184,21 @@ jobs:
             echo 'FILES_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: Resolve PR labels for target repository
+        id: pr-labels
+        env:
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+          TARGET_REPOSITORY: ${{ matrix.target.repository }}
+        run: |
+          set -euo pipefail
+          # Always apply control-plane labels. Add backport-active-all only when the
+          # target repo already defines it (do not create the label).
+          labels='changelog:ci,oblt-aw/ai/merge-ready'
+          if gh api "repos/${TARGET_REPOSITORY}/labels/backport-active-all" --jq .name >/dev/null 2>&1; then
+            labels="backport-active-all,${labels}"
+          fi
+          echo "labels=${labels}" >> "$GITHUB_OUTPUT"
+
       - name: Create or update installation PR in target repository
         if: ${{ matrix.target.operation == 'install' }}
         id: cpr
@@ -194,7 +209,7 @@ jobs:
           token: ${{ steps.create-token.outputs.token }}
           path: target
           branch: oblt-aw/sync-client-workflow
-          labels: changelog:ci, oblt-aw/ai/merge-ready
+          labels: ${{ steps.pr-labels.outputs.labels }}
           commit-message: Sync agentic workflow files from elastic/oblt-aw
           title: Sync agentic workflow files from elastic/oblt-aw
           body: |
@@ -232,7 +247,7 @@ jobs:
           token: ${{ steps.create-token.outputs.token }}
           path: target
           branch: oblt-aw/remove-client-workflow
-          labels: changelog:ci, oblt-aw/ai/merge-ready
+          labels: ${{ steps.pr-labels.outputs.labels }}
           commit-message: Remove agentic workflow files managed by elastic/oblt-aw
           title: Remove agentic workflow files managed by elastic/oblt-aw
           body: |

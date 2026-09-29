@@ -27,6 +27,11 @@ Execution stages:
 2. `create-prs`
 3. `summarize`
 
+PR labels on install and remove PRs:
+
+- Always: `changelog:ci`, `oblt-aw/ai/merge-ready`
+- Also `backport-active-all` when that label already exists in the target repository (checked via the Labels API; the workflow does not create the label)
+
 ## Distribution configuration contract (per-org `active-repositories.json`)
 
 [scripts/build_target_operations.py](../../scripts/build_target_operations.py) expects this JSON shape:
