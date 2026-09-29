@@ -206,7 +206,7 @@ jobs:
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
         This PR already passed automerge validation in the workflow (GITHUB_TOKEN) for author, label, draft/fork/ref, and dependency collection `${{ needs.check-dependency-collection.outputs.collection-id }}` (file-path classification; no extra repo labels).
-        Do not call check-run or commit status APIs. Required checks are enforced by GitHub at merge time (PR path and schedule completer).
+        Do not call check-run or commit status APIs. Required checks are enforced by GitHub at merge time (PR path and deferred merge path).
 
         Author allow list (single source of truth — do not invent other names):
         - Canonical list (from config/obs/allowed_pr_authors.json): `${{ inputs.shared-allowed-pr-authors-csv }}`
@@ -268,13 +268,13 @@ jobs:
           MERGE_FORKS: "false"
           MERGE_DELETE_BRANCH: "true"
           MERGE_REQUIRED_APPROVALS: "1"
-          # Short retry only: long CI is completed by obs-aw-automerge-complete on schedule.
+          # Short retry only: long CI is handled by obs-aw-automerge-deferred on hourly schedule.
           MERGE_RETRIES: "3"
           MERGE_RETRY_SLEEP: "15000"
 
-  # When direct merge is not ready (pending checks / merge queue), arm for schedule complete.
+  # When direct merge is not ready (pending checks / merge queue), arm for deferred merge.
   # Completion is Vault REST on the dedicated automerge schedule (bypass actor).
-  arm-for-status-complete:
+  arm-for-deferred-merge:
     needs: [automerge]
     if: >-
       always() &&
@@ -313,7 +313,7 @@ jobs:
             exit 0
           fi
           echo "merged=false" >> "${GITHUB_OUTPUT}"
-          echo "REST merge still blocked (will arm for schedule complete): ${merge_out}"
+          echo "REST merge still blocked (will arm for deferred merge): ${merge_out}"
 
       - name: Checkout elastic/oblt-aw (arm helpers)
         if: steps.rest-retry.outputs.merged != 'true'
@@ -343,7 +343,7 @@ jobs:
         working-directory: _oblt-aw
         run: npm ci
 
-      - name: Upsert armed comment for schedule-complete merge
+      - name: Upsert armed comment for deferred merge
         id: arm
         if: steps.rest-retry.outputs.merged != 'true'
         uses: actions/github-script@v9
@@ -369,13 +369,13 @@ jobs:
             });
             core.setOutput('armed', ok ? 'true' : 'false');
 
-  # Success when merged now, or armed for schedule complete.
+  # Success when merged now, or armed for deferred merge.
   report-automerge-outcome:
     needs:
       - verify
       - check-dependency-collection
       - automerge
-      - arm-for-status-complete
+      - arm-for-deferred-merge
     if: >-
       always() &&
       needs.verify.outputs.proceed == 'true' &&
@@ -392,8 +392,8 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
-          ARM_RESULT: ${{ needs.arm-for-status-complete.result }}
-          ARMED: ${{ needs.arm-for-status-complete.outputs.armed }}
+          ARM_RESULT: ${{ needs.arm-for-deferred-merge.result }}
+          ARMED: ${{ needs.arm-for-deferred-merge.outputs.armed }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -410,7 +410,7 @@ jobs:
           fi
 
           if [ "${ARM_RESULT}" = "success" ] && [ "${ARMED}" = "true" ]; then
-            echo "PR armed for schedule-complete merge when required checks succeed."
+            echo "PR armed for deferred merge when required checks succeed."
             exit 0
           fi
 
@@ -427,7 +427,7 @@ jobs:
           body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
             "$MARKER" \
             "Automerge could not merge or arm this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
-            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge. When checks are still pending, the arm step should post \`obs-aw-automerge:armed\` and the schedule completer will merge later." \
+            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge. When checks are still pending, the arm step should post \`obs-aw-automerge:armed\` and the deferred merge path will merge later." \
             "Workflow run: ${RUN_URL}")"
           comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \

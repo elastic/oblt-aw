@@ -5,14 +5,14 @@
 Client template chains:
 
 - `trigger-obs-aw-pull-request.yml` → `obs-aw-event-pull-request.yml` → `obs-aw-automerge.yml` (validate, approve, try merge, **arm** if checks pending)
-- `trigger-obs-aw-schedule-hourly.yml` → `obs-aw-event-schedule.yml` (`schedule-profile: hourly`) → `obs-aw-automerge-complete.yml` (Vault REST merge for armed PRs)
+- `trigger-obs-aw-schedule-hourly.yml` → `obs-aw-event-schedule.yml` (`schedule-profile: hourly`) → `obs-aw-automerge-deferred.yml` (Vault REST merge for armed PRs)
 
 For the user-facing Automerge service catalogue, see [Automerge services](../guides/user/automerge-services.md).
 
 Routed workflow sources:
 
-- `.github/workflows/obs-aw-automerge.yml` — PR path (`verify`, `check-dependency-collection`, `approve`, `automerge`, `arm-for-status-complete`, `report-automerge-outcome`)
-- `.github/workflows/obs-aw-automerge-complete.yml` — hourly schedule profile (`discover`, matrix `complete`)
+- `.github/workflows/obs-aw-automerge.yml` — PR path (`verify`, `check-dependency-collection`, `approve`, `automerge`, `arm-for-deferred-merge`, `report-automerge-outcome`)
+- `.github/workflows/obs-aw-automerge-deferred.yml` — hourly schedule profile (`discover`, matrix `merge`)
 
 **Approve (PR path):** Nested `gh-aw-mention-in-pr` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]`. When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review. Author allow list is **only** [allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json).
 
@@ -34,7 +34,7 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 - Author is in the same allow list as dependency-review
 - PR has label `oblt-aw/ai/merge-ready` at event time
 
-### `schedule` / `workflow_dispatch` (complete)
+### `schedule` / `workflow_dispatch` (deferred merge)
 
 - Client cron `*/30 * * * *` or manual dispatch of `trigger-obs-aw-schedule-hourly.yml` (`schedule-profile: hourly`)
 - Open PRs with `oblt-aw/ai/merge-ready` **and** armed comment marker
@@ -42,7 +42,7 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 
 ## Mandatory requirements evaluated at runtime
 
-**`obs-aw-automerge.yml` / `obs-aw-automerge-complete.yml` — verify** (`scripts/obs/validateAutomergePr.ts`):
+**`obs-aw-automerge.yml` / `obs-aw-automerge-deferred.yml` — verify** (`scripts/obs/validateAutomergePr.ts`):
 
 | Requirement | Details |
 |---------------|---------|
@@ -59,12 +59,12 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 
 ## Configuration
 
-The routed workflows use `GITHUB_TOKEN` with the permissions listed in `obs-aw-automerge.md` and `obs-aw-automerge-complete.md`.
+The routed workflows use `GITHUB_TOKEN` with the permissions listed in `obs-aw-automerge.md` and `obs-aw-automerge-deferred.md`.
 
-Client `trigger-obs-aw-schedule-hourly.yml` needs `contents: write` on the entrypoint job (union includes automerge-complete merge).
+Client `trigger-obs-aw-schedule-hourly.yml` needs `contents: write` on the entrypoint job (union includes automerge-deferred merge).
 
 ## References
 
 - `docs/workflows/obs-aw-automerge.md`
-- `docs/workflows/obs-aw-automerge-complete.md`
+- `docs/workflows/obs-aw-automerge-deferred.md`
 - `docs/workflows/obs-aw-client-template.md`
