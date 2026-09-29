@@ -541,7 +541,7 @@ def run_live_case(
 ) -> dict[str, Any]:
     repo = str(cfg.get("consumer_repo") or "elastic/oblt-aw")
     workflow_file = str(
-        cfg.get("schedule_trigger_workflow_file") or "trigger-obs-aw-schedule.yml"
+        cfg.get("schedule_trigger_workflow_file") or "trigger-obs-aw-schedule-daily.yml"
     )
     title_prefix = str(cfg.get("issue_title_prefix") or DEFAULT_TITLE_PREFIX)
     fix_pr_title = str(cfg.get("fix_pr_title") or DEFAULT_FIX_PR_TITLE)

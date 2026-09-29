@@ -8,7 +8,7 @@ Live E2E only against **`elastic/oblt-aw`**:
 
 1. Enablement gate for `obs:autodoc` on the Control Plane Dashboard.
 2. Verify the **checked-in** E2E bait markdown at [`docs/testing/fixtures/e2e-autodoc-bait.md`](fixtures/e2e-autodoc-bait.md) on the default branch (see [autodoc-e2e-bait](autodoc-e2e-bait.md)). No Contents create/delete on `main`.
-3. Snapshot existing E2E schedule-trigger run IDs, then dispatch `e2e-trigger-obs-aw-schedule.yml` with `e2e-autodoc-mode=true` → prelude → `obs-aw-autodoc` audit (`gh-aw-docs-patrol`) in E2E mode (only the bait file). Production `trigger-obs-aw-schedule.yml` is not used (keeps the client template free of E2E inputs).
+3. Snapshot existing E2E schedule-trigger run IDs, then dispatch `e2e-trigger-obs-aw-schedule.yml` with `e2e-autodoc-mode=true` → prelude → `obs-aw-autodoc` audit (`gh-aw-docs-patrol`) in E2E mode (only the bait file). Production `trigger-obs-aw-schedule-daily.yml` is not used (keeps the client template free of E2E inputs).
 4. Wait for a **new** nested **audit** agent leaf job success (not a pre-existing concurrent run, and not fix/sibling agent jobs) and an open issue titled with `[oblt-aw][autodoc]` whose body cites the bait path and `E2E_AUTODOC_BAIT_MARKER`.
 5. For the fix-path case: wait for nested **fix** / create-PR agent success and an open PR that references that issue (title `docs: Documentation analysis and improvement`).
 6. Cleanup: close only that issue and close only PRs that reference it. The bait fixture remains on the default branch; record `bait_present` after cleanup (exact content match).

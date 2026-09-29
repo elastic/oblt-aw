@@ -268,12 +268,12 @@ jobs:
           MERGE_FORKS: "false"
           MERGE_DELETE_BRANCH: "true"
           MERGE_REQUIRED_APPROVALS: "1"
-          # Short retry only: long CI is handled by obs-aw-automerge-deferred on hourly schedule.
+          # Short retry only: long CI is handled by obs-aw-automerge-deferred on frequent schedule.
           MERGE_RETRIES: "3"
           MERGE_RETRY_SLEEP: "15000"
 
   # When direct merge is not ready (pending checks / merge queue), arm for deferred merge.
-  # Deferred path is Vault REST on the hourly schedule profile (bypass actor).
+  # Deferred path is Vault REST on the frequent schedule profile (bypass actor).
   arm-for-deferred-merge:
     needs: [automerge]
     if: >-
@@ -329,7 +329,7 @@ jobs:
           body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
             "$MARKER" \
             "Automerge is **armed** and waiting on required status checks." \
-            "Direct squash-merge was deferred (checks still pending). The hourly schedule profile retries merge as the Vault app (CODEOWNERS bypass via classic \`pull_request_bypassers\`) once GitHub reports all required checks green." \
+            "Direct squash-merge was deferred (checks still pending). The frequent schedule profile retries merge as the Vault app (CODEOWNERS bypass via classic \`pull_request_bypassers\`) once GitHub reports all required checks green." \
             "Armed by workflow run: ${RUN_URL}")"
           comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \

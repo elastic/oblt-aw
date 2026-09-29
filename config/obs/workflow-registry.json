@@ -22,7 +22,7 @@
     {
       "id": "automerge",
       "name": "Automerge",
-      "description": "Arms and completes squash-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready: PR path validates/approves and arms when checks are pending; the hourly schedule profile merges via Vault REST when required checks are green.",
+      "description": "Arms and completes squash-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready: PR path validates/approves and arms when checks are pending; the frequent schedule profile merges via Vault REST when required checks are green.",
       "maturity": "stable",
       "default_enabled": false,
       "docs": "docs/guides/user/automerge-services.md",

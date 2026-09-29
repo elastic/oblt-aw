@@ -1,7 +1,7 @@
 name: Automerge deferred (schedule)
 
-# Deferred merge for armed automerge PRs via Vault REST squash-merge on the hourly
-# schedule profile (trigger-obs-aw-schedule-hourly.yml → obs-aw-event-schedule).
+# Deferred merge for armed automerge PRs via Vault REST squash-merge on the frequent
+# schedule profile (trigger-obs-aw-schedule-frequent.yml → obs-aw-event-schedule).
 # Lists open armed merge-ready PRs only — does not listen to status, check_run,
 # or check_suite (those would multiply CI cost). GitHub's merge API still
 # enforces every required check (Actions + Buildkite).
@@ -186,7 +186,7 @@ jobs:
           # Soft success while required checks are still pending (or already merged).
           if printf '%s' "${merge_out}" | grep -qiE \
             'required status check|[[:space:]]pending[[:space:]]|not mergeable|already been merged|pull request is not open'; then
-            echo "Treating as pending_checks / already-merged; next hourly tick may merge."
+            echo "Treating as pending_checks / already-merged; next frequent schedule tick may merge."
             exit 0
           fi
           echo "Automerge deferred REST merge failed for PR #${PR_NUMBER}"

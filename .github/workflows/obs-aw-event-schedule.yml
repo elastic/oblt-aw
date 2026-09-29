@@ -1,14 +1,15 @@
 name: Observability Agentic Workflow — Schedule Event
 
 # Event-scoped orchestrator: one shared prelude chain for all schedule/workflow_dispatch routes.
-# Clients pass schedule-profile=daily (default) or hourly so cadence-specific routes share this file.
+# Clients pass schedule-profile=daily (default) or frequent so cadence-specific
+# routes share this file (separate client crons; GitHub does not expose which fired).
 on:
   workflow_call:
     inputs:
       schedule-profile:
         description: >-
           daily = autodoc/security/agent-suggestions/resource detector;
-          hourly = high-cadence routes (automerge-deferred today).
+          frequent = high-cadence routes (automerge-deferred today).
         required: false
         type: string
         default: daily
@@ -30,10 +31,10 @@ jobs:
     uses: ./.github/workflows/aw-prelude.yml
     with:
       control-plane-workflows: >-
-        ${{ inputs.schedule-profile == 'hourly'
+        ${{ inputs.schedule-profile == 'frequent'
             && '["obs-aw-automerge-deferred.yml"]'
             || '["obs-aw-agent-suggestions.yml","obs-aw-autodoc.yml","obs-aw-security-injection-detector.yml","obs-aw-security-supply-chain-detector.yml","obs-aw-security-secrets-detector.yml","obs-aw-security-least-privilege-detector.yml","obs-aw-resource-not-accessible-by-integration-detector.yml"]' }}
-      load-allowed-authors: ${{ inputs.schedule-profile == 'hourly' }}
+      load-allowed-authors: ${{ inputs.schedule-profile == 'frequent' }}
 
   agent-suggestions:
     needs: run-aw-prelude
@@ -185,7 +186,7 @@ jobs:
   automerge-deferred:
     needs: run-aw-prelude
     if: >-
-      inputs.schedule-profile == 'hourly' &&
+      inputs.schedule-profile == 'frequent' &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge-deferred.yml'] == 'true' &&
       contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
     permissions:

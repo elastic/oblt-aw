@@ -2,7 +2,7 @@
 
 ## Overview
 
-Client template chain: `trigger-obs-aw-schedule.yml` → `obs-aw-event-schedule.yml` → `obs-aw-autodoc.yml`
+Client template chain: `trigger-obs-aw-schedule-daily.yml` → `obs-aw-event-schedule.yml` → `obs-aw-autodoc.yml`
 
 Routed workflow source: `.github/workflows/obs-aw-autodoc.yml`
 

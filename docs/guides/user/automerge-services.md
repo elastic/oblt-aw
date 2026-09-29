@@ -9,7 +9,7 @@ Automerge has two layers:
 
 This lets a team say: “We trust Automerge for these update types, but not for the rest.”
 
-If a service is **enabled**, matching bot PRs can continue through the normal validation, approval, and merge flow (arm while required CI is pending; deferred merge on the hourly schedule profile). If a service is **disabled**, those PRs stay unmerged; use the Automerge link on the Control Plane Dashboard or the dependency-collection gate comment to review this catalogue and enable the right category if you want it.
+If a service is **enabled**, matching bot PRs can continue through the normal validation, approval, and merge flow (arm while required CI is pending; deferred merge on the frequent schedule profile). If a service is **disabled**, those PRs stay unmerged; use the Automerge link on the Control Plane Dashboard or the dependency-collection gate comment to review this catalogue and enable the right category if you want it.
 
 Technical details for eligibility, validation, approval, tokens, and merge behavior live in:
 
