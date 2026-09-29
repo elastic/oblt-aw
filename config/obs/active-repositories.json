@@ -1,6 +1,11 @@
 {
   "repositories": [
     {
+      "repository": "elastic/apm-server",
+      "workflow-token-policy": "token-policy-88538bb580ff",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/beats",
       "workflow-token-policy": "token-policy-536406560ab7",
       "ai-assets-token-policy": ""
