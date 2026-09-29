@@ -23,7 +23,7 @@ flowchart TB
     C_PR["trigger-obs-aw-pull-request.yml\non: pull_request"]
     C_ISS["trigger-obs-aw-issues.yml\non: issues, workflow_dispatch"]
     C_COM["trigger-obs-aw-issue-comment.yml\non: issue_comment"]
-    C_SCH["trigger-obs-aw-schedule.yml\ntrigger-obs-aw-status.yml"]
+    C_SCH["trigger-obs-aw-automerge-schedule.yml\ntrigger-obs-aw-schedule.yml\ntrigger-obs-aw-status.yml"]
     DASH["Issue: [oblt-aw] Control Plane Dashboard"]
     EVT --> C_PR
     EVT --> C_ISS
@@ -58,8 +58,9 @@ Full platform view (distribution, dashboard sync, before/after ingress): [archit
 | `trigger-obs-aw-pull-request.yml` | `pull_request` (opened, synchronize, reopened, labeled) | `obs-aw-event-pull-request.yml` → automerge, dependency-review |
 | `trigger-obs-aw-issues.yml` | `issues` (opened, labeled, edited), `workflow_dispatch` | `obs-aw-event-issues.yml` → dashboard-audit (edited + `oblt-aw/dashboard`), issue-triage, duplicate-issue-detector, security superseder/triage/fixer, resource triage/fixer |
 | `trigger-obs-aw-issue-comment.yml` | `issue_comment` created | `obs-aw-event-issue-comment.yml` → dashboard-audit-reason (`oblt-aw/dashboard`), issue-fixer, mention-in-issue |
+| `trigger-obs-aw-automerge-schedule.yml` | `schedule` (every 30 minutes), `workflow_dispatch` | `obs-aw-event-automerge-schedule.yml` → automerge-complete |
 | `trigger-obs-aw-schedule.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `obs-aw-event-schedule.yml` → agent-suggestions, autodoc, security category detectors, resource-not-accessible detector |
-| `trigger-obs-aw-status.yml` | `status` (Buildkite failure → ESTC; success → automerge-complete) | `obs-aw-event-status.yml` → estc-pr-buildkite-detective, automerge-complete |
+| `trigger-obs-aw-status.yml` | `status` (Buildkite failure → ESTC) | `obs-aw-event-status.yml` → estc-pr-buildkite-detective |
 
 Route-specific conditions (labels, `/ai` comment prefix, allow-listed PR authors, and so on) are enforced inside each `obs-aw-*` reusable workflow after prelude gating.
 
@@ -78,8 +79,9 @@ Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull
 | `trigger-obs-aw-pull-request.yml` | `run-obs-aw-pull-request` | `actions: read`, `contents: write`, `copilot-requests: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-issues.yml` | `run-obs-aw-issues` | `actions: read`, `contents: write`, `copilot-requests: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-issue-comment.yml` | `run-obs-aw-issue-comment` | `actions: read`, `contents: write`, `copilot-requests: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trigger-obs-aw-automerge-schedule.yml` | `run-obs-aw-automerge-schedule` | `actions: read`, `contents: write`, `id-token: write`, `pull-requests: write` |
 | `trigger-obs-aw-schedule.yml` | `run-obs-aw-schedule` | `actions: read`, `contents: write`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
-| `trigger-obs-aw-status.yml` | `run-obs-aw-status` | `actions: read`, `contents: write`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trigger-obs-aw-status.yml` | `run-obs-aw-status` | `actions: read`, `contents: read`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 
 ### Secrets
 
@@ -91,7 +93,7 @@ Consumer-facing names for onboarding come from each workflow doc’s **Prerequis
 
 ## Migration from `trigger-oblt-aw-*` client templates
 
-1. Merge distribution PRs that replace `trigger-oblt-aw-*.yml` with `trigger-obs-aw-*.yml` (same event-scoped set: pull-request, issues, issue-comment, schedule, status).
+1. Merge distribution PRs that replace `trigger-oblt-aw-*.yml` with `trigger-obs-aw-*.yml` (same event-scoped set: pull-request, issues, issue-comment, schedule, automerge-schedule, status).
 2. Distribution removes client paths that are no longer in the template tree (including retired `trigger-oblt-aw-*.yml`).
 3. Update Backstage `workflow_ref` / token policies to reference the new client workflow files (for example `trigger-obs-aw-pull-request.yml`).
 

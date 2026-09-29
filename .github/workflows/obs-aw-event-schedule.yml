@@ -64,6 +64,7 @@ jobs:
       shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
       e2e-autodoc-mode: ${{ inputs.e2e-autodoc-mode }}
+
   security-injection-detector:
     needs: run-aw-prelude
     if: >-

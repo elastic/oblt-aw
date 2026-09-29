@@ -15,8 +15,8 @@
 
 /**
  * Automerge "armed" marker helpers: when the PR path cannot squash-merge yet
- * (required checks pending), upsert a PR comment so the status-success path can
- * complete the merge via Vault REST later — independent of CI duration.
+ * (required checks pending), upsert a PR comment so the schedule completer can
+ * finish the merge via Vault REST later — independent of CI duration.
  */
 
 const MERGE_READY_LABEL = 'oblt-aw/ai/merge-ready';
@@ -28,9 +28,7 @@ function buildArmedCommentBody(runUrl) {
     '',
     'Automerge is **armed** and waiting on required status checks.',
     '',
-    'Direct squash-merge was deferred (checks still pending). When required CI reports success, a status-triggered merge will retry as the Vault app (CODEOWNERS bypass via classic `pull_request_bypassers`).',
-    '',
-    'This path does not rely on GitHub native `--auto` merge for completion.',
+    'Direct squash-merge was deferred (checks still pending). A dedicated schedule (every 30 minutes) retries merge as the Vault app (CODEOWNERS bypass via classic `pull_request_bypassers`) once GitHub reports all required checks green.',
   ];
   if (runUrl) {
     lines.push('', `Armed by workflow run: ${runUrl}`);
@@ -76,53 +74,40 @@ async function prHasArmedMarker({ github, owner, repo, prNumber }) {
 }
 
 /**
- * Find an open merge-ready PR for a commit SHA that was armed on the PR path.
- * Prefers PRs whose head SHA equals the status SHA.
+ * List open merge-ready PRs that carry the armed marker (schedule completer).
+ * Bounded to labeled open PRs only — not every check event.
  */
-async function findArmedMergeReadyPrForSha({ github, owner, repo, sha, core }) {
-  const commitSha = String(sha || '').trim();
-  if (!commitSha) {
-    core.info('Automerge complete: empty status SHA; skipping.');
-    return { prNumber: null, headSha: '' };
-  }
-
-  const { data: associated } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+async function listArmedMergeReadyPrs({ github, owner, repo, core }) {
+  const pulls = await github.paginate(github.rest.pulls.list, {
     owner,
     repo,
-    commit_sha: commitSha,
+    state: 'open',
+    per_page: 100,
   });
 
-  const candidates = (associated || []).filter((pr) => pr.state === 'open');
-  if (candidates.length === 0) {
-    core.info(`Automerge complete: no open PR associated with ${commitSha}`);
-    return { prNumber: null, headSha: '' };
-  }
-
-  // Prefer exact head SHA match, then other open associated PRs.
-  const ordered = [
-    ...candidates.filter((pr) => (pr.head?.sha || '') === commitSha),
-    ...candidates.filter((pr) => (pr.head?.sha || '') !== commitSha),
-  ];
-
-  for (const pr of ordered) {
+  const results = [];
+  for (const pr of pulls || []) {
     const prNumber = pr.number;
     const labelNames = (pr.labels || []).map((l) => l.name);
     if (!labelNames.includes(MERGE_READY_LABEL)) {
-      core.info(`PR #${prNumber}: skip (missing ${MERGE_READY_LABEL})`);
       continue;
     }
     const armed = await prHasArmedMarker({ github, owner, repo, prNumber });
     if (!armed) {
-      core.info(`PR #${prNumber}: skip (not armed)`);
+      core.info(`PR #${prNumber}: schedule skip (not armed)`);
       continue;
     }
-    const headSha = pr.head?.sha || commitSha;
-    core.info(`PR #${prNumber}: selected for status-complete merge (head ${headSha})`);
-    return { prNumber, headSha };
+    const headSha = pr.head?.sha || '';
+    if (!headSha) {
+      core.info(`PR #${prNumber}: schedule skip (empty head SHA)`);
+      continue;
+    }
+    core.info(`PR #${prNumber}: schedule candidate (head ${headSha})`);
+    results.push({ pr_number: String(prNumber), head_sha: headSha });
   }
 
-  core.info(`Automerge complete: no armed merge-ready open PR for ${commitSha}`);
-  return { prNumber: null, headSha: '' };
+  core.info(`Automerge complete: ${results.length} armed merge-ready PR(s) for schedule`);
+  return results;
 }
 
 module.exports.MERGE_READY_LABEL = MERGE_READY_LABEL;
@@ -131,7 +116,7 @@ module.exports.buildArmedCommentBody = buildArmedCommentBody;
 module.exports.findArmedComment = findArmedComment;
 module.exports.upsertArmedComment = upsertArmedComment;
 module.exports.prHasArmedMarker = prHasArmedMarker;
-module.exports.findArmedMergeReadyPrForSha = findArmedMergeReadyPrForSha;
+module.exports.listArmedMergeReadyPrs = listArmedMergeReadyPrs;
 
 module.exports.runUpsertArmed = async function runUpsertArmed({
   github,
@@ -150,13 +135,17 @@ module.exports.runUpsertArmed = async function runUpsertArmed({
   return { ok: true };
 };
 
-module.exports.runFindForStatus = async function runFindForStatus({
+/**
+ * Discover armed merge-ready candidates for the schedule completer.
+ * @returns {{ candidates: Array<{ pr_number: string, head_sha: string }> }}
+ */
+module.exports.runDiscoverCandidates = async function runDiscoverCandidates({
   github,
   context,
-  sha,
   core,
 }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
-  return findArmedMergeReadyPrForSha({ github, owner, repo, sha, core });
+  const candidates = await listArmedMergeReadyPrs({ github, owner, repo, core });
+  return { candidates };
 };

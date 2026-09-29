@@ -1,8 +1,10 @@
-name: Automerge complete (status success)
+name: Automerge complete (schedule)
 
-# Completes an armed automerge when a Buildkite (or other) commit status turns
-# success. Uses Vault REST squash-merge so classic pull_request_bypassers apply.
-# CI duration does not matter: this runs when the status event fires.
+# Completes armed automerge PRs via Vault REST squash-merge on the dedicated
+# every-30-minutes schedule (trigger-obs-aw-automerge-schedule.yml).
+# Lists open armed merge-ready PRs only — does not listen to status, check_run,
+# or check_suite (those would multiply CI cost). GitHub's merge API still
+# enforces every required check (Actions + Buildkite).
 on:
   workflow_call:
     inputs:
@@ -41,11 +43,11 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      pr-number: ${{ steps.find.outputs.pr-number }}
-      head-sha: ${{ steps.find.outputs.head-sha }}
+      candidates: ${{ steps.find.outputs.candidates }}
+      has-candidates: ${{ steps.find.outputs.has-candidates }}
     steps:
-      - name: Checkout elastic/oblt-aw (status discover helpers)
-        uses: actions/checkout@v7.0.1
+      - name: Checkout elastic/oblt-aw (discover helpers)
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -69,11 +71,9 @@ jobs:
         working-directory: _oblt-aw
         run: npm ci
 
-      - name: Find armed merge-ready PR for status SHA
+      - name: Find armed merge-ready candidate(s)
         id: find
         uses: actions/github-script@v9
-        env:
-          STATUS_SHA: ${{ github.event.sha }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -82,31 +82,42 @@ jobs:
             const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
             const rq = createRequire(path.join(root, 'package.json'));
             rq('tsx/cjs/api').register();
-            const { runFindForStatus } = rq('./scripts/obs/automergeArmed.ts');
-            const { prNumber, headSha } = await runFindForStatus({
+            const { runDiscoverCandidates } = rq('./scripts/obs/automergeArmed.ts');
+            const { candidates } = await runDiscoverCandidates({
               github,
               context,
-              sha: process.env.STATUS_SHA || '',
               core,
             });
-            core.setOutput('pr-number', prNumber != null ? String(prNumber) : '');
-            core.setOutput('head-sha', headSha || '');
+            const list = Array.isArray(candidates) ? candidates : [];
+            core.setOutput('candidates', JSON.stringify(list));
+            core.setOutput('has-candidates', list.length > 0 ? 'true' : 'false');
 
-  verify:
+  complete:
     needs: discover
     if: >-
       inputs.shared-proceed == 'true' &&
-      needs.discover.outputs.pr-number != ''
+      needs.discover.outputs.has-candidates == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       actions: read
-      contents: read
-      pull-requests: read
-    outputs:
-      proceed: ${{ steps.validate.outputs.proceed }}
+      contents: write
+      pull-requests: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.discover.outputs.candidates) }}
     steps:
-      - name: Checkout elastic/oblt-aw (automerge verify only)
-        uses: actions/checkout@v7.0.1
+      - name: Create ephemeral GitHub token (configured policy)
+        id: create-token-explicit
+        if: ${{ inputs.shared-token-policy != '' }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ inputs.shared-token-policy }}
+
+      - name: Checkout elastic/oblt-aw (complete helpers)
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -115,6 +126,11 @@ jobs:
           token: ${{ github.token }}
           sparse-checkout: |
             config/obs/allowed_pr_authors.json
+            config/obs/automerge-dependency-collections.json
+            scripts/obs/checkAutomergeDependencyCollection.ts
+            scripts/obs/classifyAutomergeDependencyCollection.ts
+            scripts/obs/lib/matchPathGlob.ts
+            scripts/obs/mergeAutomergePrRest.ts
             scripts/obs/validateAutomergePr.ts
             package.json
             package-lock.json
@@ -131,77 +147,12 @@ jobs:
         working-directory: _oblt-aw
         run: npm ci
 
-      - name: Validate pull request for automerge
-        id: validate
+      - name: Validate pull request and dependency collection
+        id: gates
         uses: actions/github-script@v9
         env:
-          PR_NUMBER: ${{ needs.discover.outputs.pr-number }}
+          PR_NUMBER: ${{ matrix.pr_number }}
           SHARED_TOKEN_POLICY: ${{ inputs.shared-token-policy }}
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const path = require('node:path');
-            const { createRequire } = require('node:module');
-            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
-            const rq = createRequire(path.join(root, 'package.json'));
-            rq('tsx/cjs/api').register();
-            const { run } = rq('./scripts/obs/validateAutomergePr.ts');
-            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            const { ok } = await run({
-              github,
-              context,
-              prNumber,
-              core,
-              sharedTokenPolicy: process.env.SHARED_TOKEN_POLICY || '',
-            });
-            core.setOutput('proceed', ok ? 'true' : 'false');
-
-  check-dependency-collection:
-    needs: [discover, verify]
-    if: >-
-      inputs.shared-proceed == 'true' &&
-      needs.discover.outputs.pr-number != '' &&
-      needs.verify.outputs.proceed == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    outputs:
-      allowed: ${{ steps.check-collection.outputs.allowed }}
-    steps:
-      - name: Checkout elastic/oblt-aw (dependency collection gate only)
-        uses: actions/checkout@v7.0.1
-        with:
-          repository: elastic/oblt-aw
-          ref: main
-          path: _oblt-aw
-          fetch-depth: 1
-          token: ${{ github.token }}
-          sparse-checkout: |
-            config/obs/automerge-dependency-collections.json
-            scripts/obs/checkAutomergeDependencyCollection.ts
-            scripts/obs/classifyAutomergeDependencyCollection.ts
-            scripts/obs/lib/matchPathGlob.ts
-            package.json
-            package-lock.json
-          sparse-checkout-cone-mode: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: _oblt-aw/package-lock.json
-
-      - name: Install npm dependencies
-        working-directory: _oblt-aw
-        run: npm ci
-
-      - name: Check dependency collection for automerge
-        id: check-collection
-        uses: actions/github-script@v9
-        env:
-          PR_NUMBER: ${{ needs.discover.outputs.pr-number }}
           ENABLED_WORKFLOWS_JSON: ${{ inputs.shared-enabled-workflows }}
         with:
           github-token: ${{ github.token }}
@@ -211,70 +162,44 @@ jobs:
             const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
             const rq = createRequire(path.join(root, 'package.json'));
             rq('tsx/cjs/api').register();
-            const { run } = rq('./scripts/obs/checkAutomergeDependencyCollection.ts');
+
             const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            const { allowed, collectionId } = await run({
+            const { run: validate } = rq('./scripts/obs/validateAutomergePr.ts');
+            const { ok } = await validate({
+              github,
+              context,
+              prNumber,
+              core,
+              sharedTokenPolicy: process.env.SHARED_TOKEN_POLICY || '',
+            });
+            if (!ok) {
+              core.info(`PR #${prNumber}: verify gate failed; skipping merge.`);
+              core.setOutput('proceed', 'false');
+              return;
+            }
+
+            const { run: checkCollection } = rq('./scripts/obs/checkAutomergeDependencyCollection.ts');
+            const { allowed } = await checkCollection({
               github,
               context,
               prNumber,
               core,
               enabledWorkflowsJson: process.env.ENABLED_WORKFLOWS_JSON || '[]',
             });
-            core.setOutput('allowed', allowed ? 'true' : 'false');
-            core.setOutput('collection-id', collectionId || '');
-
-  merge:
-    needs: [discover, verify, check-dependency-collection]
-    if: >-
-      inputs.shared-proceed == 'true' &&
-      needs.discover.outputs.pr-number != '' &&
-      needs.verify.outputs.proceed == 'true' &&
-      needs.check-dependency-collection.outputs.allowed == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      pull-requests: write
-      id-token: write
-    steps:
-      - name: Create ephemeral GitHub token (configured policy)
-        id: create-token-explicit
-        if: ${{ inputs.shared-token-policy != '' }}
-        uses: elastic/oblt-actions/github/create-token@v1
-        with:
-          token-policy: ${{ inputs.shared-token-policy }}
-
-      - name: Checkout elastic/oblt-aw (REST merge helper)
-        uses: actions/checkout@v7.0.1
-        with:
-          repository: elastic/oblt-aw
-          ref: main
-          path: _oblt-aw
-          fetch-depth: 1
-          token: ${{ github.token }}
-          sparse-checkout: |
-            scripts/obs/mergeAutomergePrRest.ts
-            package.json
-            package-lock.json
-          sparse-checkout-cone-mode: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: _oblt-aw/package-lock.json
-
-      - name: Install npm dependencies
-        working-directory: _oblt-aw
-        run: npm ci
+            if (!allowed) {
+              core.info(`PR #${prNumber}: collection gate denied; skipping merge.`);
+              core.setOutput('proceed', 'false');
+              return;
+            }
+            core.setOutput('proceed', 'true');
 
       - name: Squash-merge armed PR via REST (Vault when policy set)
         id: merge
+        if: steps.gates.outputs.proceed == 'true'
         uses: actions/github-script@v9
         env:
-          PR_NUMBER: ${{ needs.discover.outputs.pr-number }}
-          HEAD_SHA: ${{ needs.discover.outputs.head-sha }}
+          PR_NUMBER: ${{ matrix.pr_number }}
+          HEAD_SHA: ${{ matrix.head_sha }}
         with:
           github-token: ${{ steps.create-token-explicit.outputs.token || github.token }}
           script: |
@@ -298,5 +223,5 @@ jobs:
               return;
             }
             core.setFailed(
-              `Automerge status-complete REST merge failed (${result}): ${message || 'unknown'}`
+              `Automerge complete REST merge failed (${result}): ${message || 'unknown'}`
             );

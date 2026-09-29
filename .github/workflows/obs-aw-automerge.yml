@@ -44,7 +44,7 @@ jobs:
       proceed: ${{ steps.validate.outputs.proceed }}
     steps:
       - name: Checkout elastic/oblt-aw (automerge verify only)
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -108,7 +108,7 @@ jobs:
       collection-id: ${{ steps.check-collection.outputs.collection-id }}
     steps:
       - name: Checkout elastic/oblt-aw (dependency collection gate only)
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -206,7 +206,7 @@ jobs:
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
         This PR already passed automerge validation in the workflow (GITHUB_TOKEN) for author, label, draft/fork/ref, and dependency collection `${{ needs.check-dependency-collection.outputs.collection-id }}` (file-path classification; no extra repo labels).
-        Do not call check-run or commit status APIs. Required checks are enforced by GitHub when auto-merge is enabled.
+        Do not call check-run or commit status APIs. Required checks are enforced by GitHub at merge time (PR path and schedule completer).
 
         Author allow list (single source of truth — do not invent other names):
         - Canonical list (from config/obs/allowed_pr_authors.json): `${{ inputs.shared-allowed-pr-authors-csv }}`
@@ -268,13 +268,12 @@ jobs:
           MERGE_FORKS: "false"
           MERGE_DELETE_BRANCH: "true"
           MERGE_REQUIRED_APPROVALS: "1"
-          # Short retry only: long CI is completed by obs-aw-automerge-complete on status success.
+          # Short retry only: long CI is completed by obs-aw-automerge-complete on schedule.
           MERGE_RETRIES: "3"
           MERGE_RETRY_SLEEP: "15000"
 
-  # When direct merge is not ready (pending checks / merge queue), arm for status-complete.
-  # Do not treat GitHub native --auto as success: async --auto ignores Vault bypassers.
-  # Soft --auto is optional noise reduction only; completion is Vault REST on status success.
+  # When direct merge is not ready (pending checks / merge queue), arm for schedule complete.
+  # Completion is Vault REST on the dedicated automerge schedule (bypass actor).
   arm-for-status-complete:
     needs: [automerge]
     if: >-
@@ -314,11 +313,11 @@ jobs:
             exit 0
           fi
           echo "merged=false" >> "${GITHUB_OUTPUT}"
-          echo "REST merge still blocked (will arm for status-complete): ${merge_out}"
+          echo "REST merge still blocked (will arm for schedule complete): ${merge_out}"
 
       - name: Checkout elastic/oblt-aw (arm helpers)
         if: steps.rest-retry.outputs.merged != 'true'
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
           ref: main
@@ -344,7 +343,7 @@ jobs:
         working-directory: _oblt-aw
         run: npm ci
 
-      - name: Upsert armed comment for status-complete merge
+      - name: Upsert armed comment for schedule-complete merge
         id: arm
         if: steps.rest-retry.outputs.merged != 'true'
         uses: actions/github-script@v9
@@ -370,19 +369,7 @@ jobs:
             });
             core.setOutput('armed', ok ? 'true' : 'false');
 
-      - name: Soft-enable native auto-merge (non-authoritative)
-        if: steps.rest-retry.outputs.merged != 'true'
-        env:
-          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          # Best-effort only. Outcome success requires armed marker or merge; status-complete owns Vault merge.
-          gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash || \
-            echo "Native --auto not enabled (ignored; status-complete path remains authoritative)."
-
-  # Success when merged now, or armed for status-complete. Native --auto alone is not enough.
+  # Success when merged now, or armed for schedule complete.
   report-automerge-outcome:
     needs:
       - verify
@@ -423,7 +410,7 @@ jobs:
           fi
 
           if [ "${ARM_RESULT}" = "success" ] && [ "${ARMED}" = "true" ]; then
-            echo "PR armed for status-complete merge when required checks succeed."
+            echo "PR armed for schedule-complete merge when required checks succeed."
             exit 0
           fi
 
@@ -440,7 +427,7 @@ jobs:
           body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
             "$MARKER" \
             "Automerge could not merge or arm this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
-            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge. When checks are still pending, the arm step should post \`obs-aw-automerge:armed\` and status-complete will merge later." \
+            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge. When checks are still pending, the arm step should post \`obs-aw-automerge:armed\` and the schedule completer will merge later." \
             "Workflow run: ${RUN_URL}")"
           comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \

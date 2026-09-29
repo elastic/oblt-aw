@@ -21,7 +21,8 @@ const {
   ARMED_COMMENT_MARKER,
   MERGE_READY_LABEL,
   buildArmedCommentBody,
-  findArmedMergeReadyPrForSha,
+  listArmedMergeReadyPrs,
+  runDiscoverCandidates,
   upsertArmedComment,
 } = require('../../scripts/obs/automergeArmed.ts');
 
@@ -91,19 +92,66 @@ test('upsertArmedComment creates then updates', async () => {
   assert.ok(comments[0].body.includes('https://example.test/2'));
 });
 
-test('findArmedMergeReadyPrForSha selects open merge-ready armed PR', async () => {
+test('listArmedMergeReadyPrs returns only armed merge-ready opens', async () => {
   const { core } = makeCore();
-  const sha = 'abc123';
   const github = {
     rest: {
-      repos: {
-        listPullRequestsAssociatedWithCommit: async () => ({
+      pulls: {
+        list: async () => ({
           data: [
             {
-              number: 7,
-              state: 'open',
+              number: 1,
               labels: [{ name: MERGE_READY_LABEL }],
-              head: { sha },
+              head: { sha: 'aaa' },
+            },
+            {
+              number: 2,
+              labels: [{ name: MERGE_READY_LABEL }],
+              head: { sha: 'bbb' },
+            },
+            {
+              number: 3,
+              labels: [{ name: 'other' }],
+              head: { sha: 'ccc' },
+            },
+          ],
+        }),
+      },
+      issues: {
+        listComments: async ({ issue_number }) => {
+          if (issue_number === 1) {
+            return { data: [{ id: 1, body: `${ARMED_COMMENT_MARKER}\narmed` }] };
+          }
+          return { data: [{ id: 2, body: 'not armed' }] };
+        },
+      },
+    },
+  };
+  github.paginate = async (fn, opts) => {
+    const res = await fn(opts);
+    return res.data;
+  };
+
+  const found = await listArmedMergeReadyPrs({
+    github,
+    owner: 'elastic',
+    repo: 'r',
+    core,
+  });
+  assert.deepEqual(found, [{ pr_number: '1', head_sha: 'aaa' }]);
+});
+
+test('runDiscoverCandidates lists armed merge-ready PRs', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        list: async () => ({
+          data: [
+            {
+              number: 9,
+              labels: [{ name: MERGE_READY_LABEL }],
+              head: { sha: 'sched' },
             },
           ],
         }),
@@ -120,49 +168,10 @@ test('findArmedMergeReadyPrForSha selects open merge-ready armed PR', async () =
     return res.data;
   };
 
-  const found = await findArmedMergeReadyPrForSha({
+  const { candidates } = await runDiscoverCandidates({
     github,
-    owner: 'elastic',
-    repo: 'r',
-    sha,
+    context: { repo: { owner: 'elastic', repo: 'r' }, eventName: 'schedule' },
     core,
   });
-  assert.equal(found.prNumber, 7);
-  assert.equal(found.headSha, sha);
-});
-
-test('findArmedMergeReadyPrForSha skips when not armed', async () => {
-  const { core } = makeCore();
-  const github = {
-    rest: {
-      repos: {
-        listPullRequestsAssociatedWithCommit: async () => ({
-          data: [
-            {
-              number: 8,
-              state: 'open',
-              labels: [{ name: MERGE_READY_LABEL }],
-              head: { sha: 'deadbeef' },
-            },
-          ],
-        }),
-      },
-      issues: {
-        listComments: async () => ({ data: [{ id: 1, body: 'unrelated' }] }),
-      },
-    },
-  };
-  github.paginate = async (fn, opts) => {
-    const res = await fn(opts);
-    return res.data;
-  };
-
-  const found = await findArmedMergeReadyPrForSha({
-    github,
-    owner: 'elastic',
-    repo: 'r',
-    sha: 'deadbeef',
-    core,
-  });
-  assert.equal(found.prNumber, null);
+  assert.deepEqual(candidates, [{ pr_number: '9', head_sha: 'sched' }]);
 });
