@@ -6,7 +6,7 @@ Source file: [.github/workflows/obs-aw-automerge.yml](../../.github/workflows/ob
 
 This reusable `workflow_call` workflow handles a **single** pull request using `github.event.pull_request` from the caller (typically a client `pull_request` workflow). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes, then attempts squash-merge via **pascalgn/automerge-action**.
 
-When required checks are still pending, the PR path **arms** the PR (comment marker `<!-- obs-aw-automerge:armed -->`) and exits successfully. Deferred merge is **not** tied to CI duration: [obs-aw-automerge-deferred.yml](obs-aw-automerge-deferred.md) merges via Vault REST on the frequent schedule profile (`trigger-obs-aw-schedule-frequent.yml`).
+When required checks are still pending, the PR path **arms** the PR (comment marker `<!-- obs-aw-automerge:armed -->`) and exits successfully — `not_ready` never fails the workflow. Deferred merge is **not** tied to CI duration: [obs-aw-automerge-deferred.yml](obs-aw-automerge-deferred.md) merges via Vault REST on the frequent schedule profile (`trigger-obs-aw-schedule-frequent.yml`).
 
 **Approve identity (author-aware):** GitHub rejects self-APPROVE, so the approver must differ from the PR author.
 
@@ -39,7 +39,7 @@ Jobs:
 - `approve`: invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` when `verify` and `check-dependency-collection` pass (Copilot must not call check-run APIs for gating; branch protection / deferred merge path handle required checks at merge time). The prompt injects `shared-allowed-pr-authors-csv` from [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) (same file as `verify` / ingress — no hardcoded author list) plus the webhook login, and instructs normalizing GraphQL `app/<slug>` → `<slug>[bot]` before comparing. Sets `github-token-policy` to `shared-token-policy` only when the PR author is `github-actions[bot]`; otherwise omits / empty so the review is submitted as `github-actions[bot]` (`GITHUB_TOKEN`).
 - `automerge`: when `shared-token-policy` is non-empty, mints an ephemeral Vault-app token (`create-token`) and runs **pascalgn/automerge-action** with that token; when empty, uses `GITHUB_TOKEN`. Short retries only (`MERGE_RETRIES: 3`); long CI is handled by the deferred merge path.
 - `arm-for-deferred-merge`: runs when `automerge` outputs `merge_failed` or `not_ready`; one REST merge retry, then upserts the armed comment (`gh`) so the deferred merge path can finish later.
-- `report-automerge-outcome`: succeeds when the PR was merged **or** armed for the deferred merge path; otherwise upserts a failure comment (marker `obs-aw-automerge:outcome-gate`) and fails the workflow.
+- `report-automerge-outcome`: succeeds when the PR was merged, when `mergeResult` is `not_ready` (upserts the armed/deferred comment if needed and stays green), or when already armed; otherwise upserts a failure comment (marker `obs-aw-automerge:outcome-gate`) and fails only for permanent blockers.
 
 ## Configuration
 
@@ -53,7 +53,7 @@ Jobs:
 | `approve` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write` (GH-AW mention-in-pr; OIDC mint when `github-token-policy` is set for `github-actions[bot]` authors) |
 | `automerge` | `contents: write`, `pull-requests: write`, `id-token: write` (OIDC mint when policy set; merge via automerge action) |
 | `arm-for-deferred-merge` | `contents: write`, `pull-requests: write`, `id-token: write` (REST retry, armed comment) |
-| `report-automerge-outcome` | `pull-requests: write` (upsert failure comment on the PR) |
+| `report-automerge-outcome` | `pull-requests: write` (upsert armed or failure comment on the PR) |
 
 ### CODEOWNERS and ephemeral tokens
 

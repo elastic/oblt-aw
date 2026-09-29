@@ -328,8 +328,8 @@ jobs:
           MARKER='<!-- obs-aw-automerge:armed -->'
           body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
             "$MARKER" \
-            "Automerge is **armed** and waiting on required status checks." \
-            "Direct squash-merge was deferred (checks still pending). The frequent schedule profile retries merge as the Vault app (CODEOWNERS bypass via classic \`pull_request_bypassers\`) once GitHub reports all required checks green." \
+            "Automerge did not merge yet because this pull request is **not ready** (required status checks are still pending)." \
+            "This run stays successful. Deferred automerge on the frequent schedule (about every 30 minutes) will retry the squash-merge as the Vault app (CODEOWNERS bypass via classic \`pull_request_bypassers\`) once GitHub reports all required checks green." \
             "Armed by workflow run: ${RUN_URL}")"
           comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
@@ -341,7 +341,7 @@ jobs:
           fi
           echo "armed=true" >> "${GITHUB_OUTPUT}"
 
-  # Success when merged now, or armed for deferred merge.
+  # Success when merged now, not_ready (deferred), or armed for deferred merge.
   report-automerge-outcome:
     needs:
       - verify
@@ -358,7 +358,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - name: Fail and comment when pull request remains unmerged and not armed
+      - name: Report outcome (soft-succeed when not ready; fail only on permanent blockers)
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -369,6 +369,26 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+
+          upsert_armed_comment() {
+            local marker='<!-- obs-aw-automerge:armed -->'
+            local body
+            body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
+              "$marker" \
+              "Automerge did not merge yet because this pull request is **not ready** (required status checks are still pending)." \
+              "This run stays successful. Deferred automerge on the frequent schedule (about every 30 minutes) will retry the squash-merge as the Vault app (CODEOWNERS bypass via classic \`pull_request_bypassers\`) once GitHub reports all required checks green." \
+              "Armed by workflow run: ${RUN_URL}")"
+            local comment_id
+            comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+              | jq --arg marker "$marker" -r '.[] | select(.body | contains($marker)) | .id' \
+              | head -n 1)"
+            if [ -n "$comment_id" ]; then
+              gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+            else
+              gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+            fi
+          }
+
           if [ "${MERGE_RESULT}" = "merged" ]; then
             echo "PR merged by automerge action."
             exit 0
@@ -395,11 +415,18 @@ jobs:
             fi
           fi
 
+          # not_ready must never fail the AW: ensure the deferred comment exists, then succeed.
+          if [ "${MERGE_RESULT}" = "not_ready" ]; then
+            upsert_armed_comment
+            echo "PR not ready (pending checks); commented and soft-succeeding for deferred retry."
+            exit 0
+          fi
+
           MARKER='<!-- obs-aw-automerge:outcome-gate -->'
           body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
             "$MARKER" \
             "Automerge could not merge or arm this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
-            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge. When checks are still pending, the arm step should post \`obs-aw-automerge:armed\` and the deferred merge path will merge later." \
+            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge." \
             "Workflow run: ${RUN_URL}")"
           comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
