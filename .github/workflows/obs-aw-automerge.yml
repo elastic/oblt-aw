@@ -316,7 +316,8 @@ jobs:
           echo "REST merge error: ${merge_out}"
           gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash
 
-  # Do not report workflow success when the PR is still open and auto-merge was not enabled.
+  # Fail when the PR remains unmerged. Native auto-merge alone is not success if reviews
+  # still block (async --auto / merge-queue completion does not honor classic BP bypassers).
   report-automerge-outcome:
     needs:
       - verify
@@ -343,36 +344,52 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+
+          fail_with_comment() {
+            local detail="$1"
+            MARKER='<!-- obs-aw-automerge:outcome-gate -->'
+            body="$(printf '%s\n\n%s\n\n%s\n\n%s\n\n%s' \
+              "$MARKER" \
+              "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`, fallback=\`${FALLBACK_RESULT:-n/a}\`)." \
+              "${detail}" \
+              "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS; classic BP bypass is honored only on direct REST merge as that app, not by async \`--auto\` / merge-queue completion), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge." \
+              "Workflow run: ${RUN_URL}")"
+            comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+              | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+              | head -n 1)"
+            if [ -n "$comment_id" ]; then
+              gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+            else
+              gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+            fi
+            echo "Automerge pipeline finished without merging PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, fallback=${FALLBACK_RESULT})."
+            exit 1
+          }
+
           if [ "${MERGE_RESULT}" = "merged" ]; then
             echo "PR merged by automerge action."
             exit 0
           fi
-          if [ "${FALLBACK_RESULT}" = "success" ]; then
-            echo "Merge fallback succeeded (direct merge or native auto-merge)."
-            exit 0
-          fi
 
-          pr_json="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state,autoMergeRequest)"
+          pr_json="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state,autoMergeRequest,mergeStateStatus,reviewDecision)"
           pr_state="$(printf '%s' "$pr_json" | jq -r .state)"
           auto_merge="$(printf '%s' "$pr_json" | jq -r 'if .autoMergeRequest == null then "false" else "true" end')"
-          if [ "$pr_state" = "MERGED" ] || [ "$auto_merge" = "true" ]; then
-            echo "PR is merged or has auto-merge enabled; treating as success."
+          merge_state="$(printf '%s' "$pr_json" | jq -r '.mergeStateStatus // "UNKNOWN"')"
+          review_decision="$(printf '%s' "$pr_json" | jq -r '.reviewDecision // ""')"
+
+          if [ "$pr_state" = "MERGED" ]; then
+            echo "PR is merged."
             exit 0
           fi
 
-          MARKER='<!-- obs-aw-automerge:outcome-gate -->'
-          body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
-            "$MARKER" \
-            "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
-            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge." \
-            "Workflow run: ${RUN_URL}")"
-          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
-            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
-            | head -n 1)"
-          if [ -n "$comment_id" ]; then
-            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
-          else
-            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          # Native auto-merge is only OK when reviews are satisfied; waiting on checks /
+          # merge queue is fine. REVIEW_REQUIRED / CHANGES_REQUESTED will not clear via CI.
+          if [ "$auto_merge" = "true" ]; then
+            if [ "$review_decision" = "REVIEW_REQUIRED" ] || [ "$review_decision" = "CHANGES_REQUESTED" ]; then
+              fail_with_comment "Native auto-merge is enabled but reviews still block merge (\`reviewDecision: ${review_decision}\`, \`mergeStateStatus: ${merge_state}\`). Async auto-merge / merge-queue completion does not honor classic BP \`pull_request_bypassers\`; a direct Vault-app REST merge (with the app listed as a bypasser) is required, or a human CODEOWNERS / required approval."
+            fi
+            echo "Native auto-merge enabled; reviews satisfied (reviewDecision=${review_decision:-none}, mergeStateStatus=${merge_state})."
+            exit 0
           fi
-          echo "Automerge pipeline finished without merging PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, fallback=${FALLBACK_RESULT})."
-          exit 1
+
+          fail_with_comment "PR remains open without native auto-merge (mergeStateStatus=${merge_state}, reviewDecision=${review_decision:-none})."
