@@ -7,7 +7,7 @@ name: E2E — Autodoc audit + fix
 # evaluates only that file, waits for audit + issue and create-pr-from-issue
 # fix + PR, then closes the issue/PR (bait fixture stays on the default branch).
 # Not part of the default PR required gate in ci.yml.
-# Production trigger-obs-aw-schedule-daily.yml (generated client template) stays E2E-free.
+# Production trigger-obs-aw-schedule-daily.yml (client template) stays E2E-free.
 on:
   workflow_dispatch:
   workflow_call:
