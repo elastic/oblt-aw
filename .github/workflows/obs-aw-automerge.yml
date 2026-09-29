@@ -273,7 +273,7 @@ jobs:
           MERGE_RETRY_SLEEP: "15000"
 
   # When direct merge is not ready (pending checks / merge queue), arm for deferred merge.
-  # Completion is Vault REST on the dedicated automerge schedule (bypass actor).
+  # Deferred path is Vault REST on the hourly schedule profile (bypass actor).
   arm-for-deferred-merge:
     needs: [automerge]
     if: >-
@@ -315,59 +315,31 @@ jobs:
           echo "merged=false" >> "${GITHUB_OUTPUT}"
           echo "REST merge still blocked (will arm for deferred merge): ${merge_out}"
 
-      - name: Checkout elastic/oblt-aw (arm helpers)
-        if: steps.rest-retry.outputs.merged != 'true'
-        uses: actions/checkout@v7
-        with:
-          repository: elastic/oblt-aw
-          ref: main
-          path: _oblt-aw
-          fetch-depth: 1
-          token: ${{ github.token }}
-          sparse-checkout: |
-            scripts/obs/automergeArmed.ts
-            package.json
-            package-lock.json
-          sparse-checkout-cone-mode: false
-
-      - name: Setup Node.js
-        if: steps.rest-retry.outputs.merged != 'true'
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: _oblt-aw/package-lock.json
-
-      - name: Install npm dependencies
-        if: steps.rest-retry.outputs.merged != 'true'
-        working-directory: _oblt-aw
-        run: npm ci
-
       - name: Upsert armed comment for deferred merge
         id: arm
         if: steps.rest-retry.outputs.merged != 'true'
-        uses: actions/github-script@v9
         env:
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const path = require('node:path');
-            const { createRequire } = require('node:module');
-            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
-            const rq = createRequire(path.join(root, 'package.json'));
-            rq('tsx/cjs/api').register();
-            const { runUpsertArmed } = rq('./scripts/obs/automergeArmed.ts');
-            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            const { ok } = await runUpsertArmed({
-              github,
-              context,
-              prNumber,
-              core,
-              runUrl: process.env.RUN_URL || '',
-            });
-            core.setOutput('armed', ok ? 'true' : 'false');
+        run: |
+          set -euo pipefail
+          MARKER='<!-- obs-aw-automerge:armed -->'
+          body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
+            "$MARKER" \
+            "Automerge is **armed** and waiting on required status checks." \
+            "Direct squash-merge was deferred (checks still pending). The hourly schedule profile retries merge as the Vault app (CODEOWNERS bypass via classic \`pull_request_bypassers\`) once GitHub reports all required checks green." \
+            "Armed by workflow run: ${RUN_URL}")"
+          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+            | head -n 1)"
+          if [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          fi
+          echo "armed=true" >> "${GITHUB_OUTPUT}"
 
   # Success when merged now, or armed for deferred merge.
   report-automerge-outcome:

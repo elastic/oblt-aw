@@ -46,7 +46,7 @@ jobs:
       candidates: ${{ steps.find.outputs.candidates }}
       has-candidates: ${{ steps.find.outputs.has-candidates }}
     steps:
-      - name: Checkout elastic/oblt-aw (discover helpers)
+      - name: Checkout elastic/oblt-aw (discover helper)
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
@@ -55,42 +55,17 @@ jobs:
           fetch-depth: 1
           token: ${{ github.token }}
           sparse-checkout: |
-            scripts/obs/automergeArmed.ts
-            package.json
-            package-lock.json
+            scripts/obs/discover_armed_automerge_prs.sh
           sparse-checkout-cone-mode: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: _oblt-aw/package-lock.json
-
-      - name: Install npm dependencies
-        working-directory: _oblt-aw
-        run: npm ci
 
       - name: Find armed merge-ready candidate(s)
         id: find
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const path = require('node:path');
-            const { createRequire } = require('node:module');
-            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
-            const rq = createRequire(path.join(root, 'package.json'));
-            rq('tsx/cjs/api').register();
-            const { runDiscoverCandidates } = rq('./scripts/obs/automergeArmed.ts');
-            const { candidates } = await runDiscoverCandidates({
-              github,
-              context,
-              core,
-            });
-            const list = Array.isArray(candidates) ? candidates : [];
-            core.setOutput('candidates', JSON.stringify(list));
-            core.setOutput('has-candidates', list.length > 0 ? 'true' : 'false');
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          bash _oblt-aw/scripts/obs/discover_armed_automerge_prs.sh
 
   merge:
     needs: discover
@@ -116,7 +91,7 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
-      - name: Checkout elastic/oblt-aw (deferred merge helpers)
+      - name: Checkout elastic/oblt-aw (gate helpers)
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
@@ -130,7 +105,6 @@ jobs:
             scripts/obs/checkAutomergeDependencyCollection.ts
             scripts/obs/classifyAutomergeDependencyCollection.ts
             scripts/obs/lib/matchPathGlob.ts
-            scripts/obs/mergeAutomergePrRest.ts
             scripts/obs/validateAutomergePr.ts
             package.json
             package-lock.json
@@ -194,34 +168,26 @@ jobs:
             core.setOutput('proceed', 'true');
 
       - name: Squash-merge armed PR via REST (Vault when policy set)
-        id: merge
         if: steps.gates.outputs.proceed == 'true'
-        uses: actions/github-script@v9
         env:
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || github.token }}
           PR_NUMBER: ${{ matrix.pr_number }}
           HEAD_SHA: ${{ matrix.head_sha }}
-        with:
-          github-token: ${{ steps.create-token-explicit.outputs.token || github.token }}
-          script: |
-            const path = require('node:path');
-            const { createRequire } = require('node:module');
-            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
-            const rq = createRequire(path.join(root, 'package.json'));
-            rq('tsx/cjs/api').register();
-            const { run } = rq('./scripts/obs/mergeAutomergePrRest.ts');
-            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            const { result, message } = await run({
-              github,
-              context,
-              prNumber,
-              headSha: process.env.HEAD_SHA || '',
-              core,
-            });
-            core.setOutput('result', result);
-            core.setOutput('message', message || '');
-            if (result === 'merged' || result === 'pending_checks') {
-              return;
-            }
-            core.setFailed(
-              `Automerge deferred REST merge failed (${result}): ${message || 'unknown'}`
-            );
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
+            -f merge_method=squash \
+            -f sha="${HEAD_SHA}" 2>&1)"; then
+            echo "PR #${PR_NUMBER}: merged via REST squash (sha ${HEAD_SHA})"
+            exit 0
+          fi
+          echo "PR #${PR_NUMBER}: REST merge blocked: ${merge_out}"
+          # Soft success while required checks are still pending (or already merged).
+          if printf '%s' "${merge_out}" | grep -qiE \
+            'required status check|[[:space:]]pending[[:space:]]|not mergeable|already been merged|pull request is not open'; then
+            echo "Treating as pending_checks / already-merged; next hourly tick may merge."
+            exit 0
+          fi
+          echo "Automerge deferred REST merge failed for PR #${PR_NUMBER}"
+          exit 1

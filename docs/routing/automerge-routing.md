@@ -55,7 +55,7 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 
 **Collection gate** (`scripts/obs/checkAutomergeDependencyCollection.ts`): unchanged — path classification + dashboard `obs:automerge:<collection-id>` enablement.
 
-**Schedule discover** (`scripts/obs/automergeArmed.ts`): requires armed marker from the PR path so approve has already run before completion.
+**Deferred discover** (`scripts/obs/discover_armed_automerge_prs.sh`): requires armed marker from the PR path so approve has already run before the deferred merge.
 
 ## Configuration
 

@@ -18,8 +18,8 @@ Deferred merge path for [obs-aw-automerge.yml](obs-aw-automerge.md). Finds open 
 
 Jobs:
 
-- `discover`: list open armed merge-ready PRs (`scripts/obs/automergeArmed.ts`). No-op when none match.
-- `merge` (matrix per candidate): `validateAutomergePr.ts`, collection gate, then Vault (or `GITHUB_TOKEN`) REST squash-merge pinned to head SHA (`scripts/obs/mergeAutomergePrRest.ts`). `pending_checks` exits success (the next hourly tick may merge later); other failures fail that matrix cell.
+- `discover`: list open armed merge-ready PRs (`scripts/obs/discover_armed_automerge_prs.sh`). No-op when none match.
+- `merge` (matrix per candidate): `validateAutomergePr.ts`, collection gate, then Vault (or `GITHUB_TOKEN`) REST squash-merge via `gh api` pinned to head SHA. Pending-check / already-merged responses exit success (the next hourly tick may merge later); other failures fail that matrix cell.
 
 ## Configuration
 
