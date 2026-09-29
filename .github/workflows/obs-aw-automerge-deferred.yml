@@ -55,6 +55,7 @@ jobs:
           fetch-depth: 1
           token: ${{ github.token }}
           sparse-checkout: |
+            scripts/obs/automerge_armed_lib.sh
             scripts/obs/discover_armed_automerge_prs.sh
           sparse-checkout-cone-mode: false
 
@@ -102,6 +103,7 @@ jobs:
           sparse-checkout: |
             config/obs/allowed_pr_authors.json
             config/obs/automerge-dependency-collections.json
+            scripts/obs/automerge_armed_lib.sh
             scripts/obs/checkAutomergeDependencyCollection.ts
             scripts/obs/classifyAutomergeDependencyCollection.ts
             scripts/obs/lib/matchPathGlob.ts
@@ -176,6 +178,8 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
+          source _oblt-aw/scripts/obs/automerge_armed_lib.sh
           if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
             -f merge_method=squash \
             -f sha="${HEAD_SHA}" 2>&1)"; then
@@ -183,11 +187,22 @@ jobs:
             exit 0
           fi
           echo "PR #${PR_NUMBER}: REST merge blocked: ${merge_out}"
-          # Soft success while required checks are still pending (or already merged).
-          if printf '%s' "${merge_out}" | grep -qiE \
-            'required status check|[[:space:]]pending[[:space:]]|not mergeable|already been merged|pull request is not open'; then
-            echo "Treating as pending_checks / already-merged; next frequent schedule tick may merge."
+          if automerge_merge_error_is_already_merged_message "${merge_out}"; then
+            echo "Treating as already-merged."
             exit 0
           fi
-          echo "Automerge deferred REST merge failed for PR #${PR_NUMBER}"
+          if printf '%s' "${merge_out}" | grep -qiE 'pull request is not open'; then
+            pr_state="$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json state -q .state)"
+            if [[ "${pr_state}" == "MERGED" ]]; then
+              echo "PR is MERGED (not open); treating as success."
+              exit 0
+            fi
+            echo "PR is not open and not MERGED (state=${pr_state}); failing."
+            exit 1
+          fi
+          if automerge_merge_error_is_pending_checks "${merge_out}"; then
+            echo "Treating as pending_checks; next frequent schedule tick may merge."
+            exit 0
+          fi
+          echo "Automerge deferred REST merge failed for PR #${PR_NUMBER} (permanent or unexpected)."
           exit 1

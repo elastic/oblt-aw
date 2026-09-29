@@ -14,26 +14,32 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# List open merge-ready PRs that carry the automerge armed comment marker.
+# List open merge-ready PRs with a bot-authored armed marker for the current head SHA.
 # Writes GitHub Actions outputs: candidates (JSON array), has-candidates (true|false).
 set -euo pipefail
 
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
-MARKER='<!-- obs-aw-automerge:armed -->'
 LABEL='oblt-aw/ai/merge-ready'
 OUT="${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=automerge_armed_lib.sh
+# shellcheck disable=SC1091 # sourced via SCRIPT_DIR; file lives next to this script
+source "${SCRIPT_DIR}/automerge_armed_lib.sh"
 
 candidates='[]'
 while IFS=$'\t' read -r pr_number head_sha; do
   [[ -n "${pr_number}" && -n "${head_sha}" ]] || continue
-  if comment_id="$(gh api "repos/${REPO}/issues/${pr_number}/comments" --paginate \
-    | jq --arg m "${MARKER}" -r '.[] | select((.body // "") | contains($m)) | .id' \
-    | head -n 1)" && [[ -n "${comment_id}" ]]; then
+  comments_json="$(automerge_list_issue_comments "${REPO}" "${pr_number}")" || {
+    echo "Failed to list comments for PR #${pr_number}; aborting discover." >&2
+    exit 1
+  }
+  if automerge_comments_armed_for_sha "${comments_json}" "${head_sha}"; then
     candidates="$(jq -c --arg n "${pr_number}" --arg s "${head_sha}" \
       '. + [{pr_number: $n, head_sha: $s}]' <<<"${candidates}")"
     echo "PR #${pr_number}: deferred candidate (head ${head_sha})"
   else
-    echo "PR #${pr_number}: deferred skip (not armed)"
+    echo "PR #${pr_number}: deferred skip (not armed for head ${head_sha})"
   fi
 done < <(
   gh pr list --repo "${REPO}" --state open --label "${LABEL}" --limit 100 \

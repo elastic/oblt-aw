@@ -19,8 +19,8 @@ Routed workflow sources:
 **Merge strategy (CI-duration independent):**
 
 1. **PR path** tries a short squash-merge (pascalgn + one REST retry).
-2. If checks are still pending → upsert armed comment (`<!-- obs-aw-automerge:armed -->`). Outcome success = merged, armed, or soft-succeed on `not_ready`.
-3. **Frequent schedule profile** (client cron every 30 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` apply (honored only on direct REST merge as that app — not by async `--auto` / merge-queue completion).
+2. If checks are still pending → upsert bot-authored armed comment (`<!-- obs-aw-automerge:armed sha=<head> -->`). Outcome success = merged, armed, or soft-succeed on `not_ready`.
+3. **Frequent schedule profile** (client cron every 15 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` apply (honored only on direct REST merge as that app — not by async `--auto` / merge-queue completion).
 
 Required checks are enforced by GitHub’s merge API on every attempt — this automation only chooses **when** to wake up. There is **no** Buildkite status-success route for automerge (status stays ESTC-failure only).
 
@@ -37,7 +37,7 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 ### `schedule` / `workflow_dispatch` (deferred merge)
 
 - Client cron or manual dispatch of `trigger-obs-aw-schedule-frequent.yml` (`schedule-profile: frequent`)
-- Open PRs with `oblt-aw/ai/merge-ready` **and** armed comment marker
+- Open PRs with `oblt-aw/ai/merge-ready` **and** a `github-actions[bot]` armed marker whose SHA matches the current head
 - No-op when none are armed (discover exits without matrix work)
 
 ## Mandatory requirements evaluated at runtime

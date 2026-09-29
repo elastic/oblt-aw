@@ -4,9 +4,9 @@
 
 Source file: [.github/workflows/obs-aw-automerge-deferred.yml](../../.github/workflows/obs-aw-automerge-deferred.yml)
 
-Deferred merge path for [obs-aw-automerge.yml](obs-aw-automerge.md). Finds open PRs that already have `oblt-aw/ai/merge-ready` and the armed comment marker (`<!-- obs-aw-automerge:armed -->`), re-checks author/collection gates, and squash-merges via the REST API as the Vault app when `shared-token-policy` is set.
+Deferred merge path for [obs-aw-automerge.yml](obs-aw-automerge.md). Finds open PRs that already have `oblt-aw/ai/merge-ready` and a **bot-authored** armed comment marker bound to the current head SHA (`<!-- obs-aw-automerge:armed sha=<40-hex> -->`), re-checks author/collection gates, and squash-merges via the REST API as the Vault app when `shared-token-policy` is set.
 
-**Single wake-up:** the frequent schedule client `trigger-obs-aw-schedule-frequent.yml` (`schedule-profile: frequent` on `obs-aw-event-schedule.yml`; cron every 30 minutes + `workflow_dispatch`). It does **not** listen to Buildkite `status` success, `check_run`, or `check_suite` (those multiply CI cost). GitHub’s merge API still enforces **all** required checks on each attempt.
+**Single wake-up:** the frequent schedule client `trigger-obs-aw-schedule-frequent.yml` (`schedule-profile: frequent` on `obs-aw-event-schedule.yml`; cron every 15 minutes + `workflow_dispatch`). It does **not** listen to Buildkite `status` success, `check_run`, or `check_suite` (those multiply CI cost). GitHub’s merge API still enforces **all** required checks on each attempt.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ Deferred merge path for [obs-aw-automerge.yml](obs-aw-automerge.md). Finds open 
 Jobs:
 
 - `discover`: list open armed merge-ready PRs (`scripts/obs/discover_armed_automerge_prs.sh`). No-op when none match.
-- `merge` (matrix per candidate): `validateAutomergePr.ts`, collection gate, then Vault (or `GITHUB_TOKEN`) REST squash-merge via `gh api` pinned to head SHA. Pending-check / already-merged responses exit success (the next frequent schedule tick may merge later); other failures fail that matrix cell.
+- `merge` (matrix per candidate): `validateAutomergePr.ts`, collection gate, then Vault (or `GITHUB_TOKEN`) REST squash-merge via `gh api` pinned to head SHA. Soft-succeed only for explicit pending-check or already-merged responses; generic `not mergeable` and other failures fail that matrix cell.
 
 ## Configuration
 

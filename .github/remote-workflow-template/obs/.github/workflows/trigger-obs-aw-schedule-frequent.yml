@@ -1,10 +1,10 @@
 name: Observability Agentic Workflow — Schedule (frequent)
 
-# High-cadence schedule lane (every 30 minutes). Shares obs-aw-event-schedule.yml
+# High-cadence schedule lane (every 15 minutes). Shares obs-aw-event-schedule.yml
 # with schedule-profile=frequent so daily autodoc/security stay off this cron.
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:

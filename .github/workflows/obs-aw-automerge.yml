@@ -289,6 +289,18 @@ jobs:
     outputs:
       armed: ${{ steps.arm.outputs.armed }}
     steps:
+      - name: Checkout elastic/oblt-aw (armed marker helpers)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/obs/automerge_armed_lib.sh
+          sparse-checkout-cone-mode: false
+
       - name: Create ephemeral GitHub token (configured policy)
         id: create-token-explicit
         if: ${{ inputs.shared-token-policy != '' }}
@@ -305,6 +317,8 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
+          source _oblt-aw/scripts/obs/automerge_armed_lib.sh
           if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
             -f merge_method=squash \
             -f sha="${HEAD_SHA}" 2>&1)"; then
@@ -312,8 +326,27 @@ jobs:
             echo "merged=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
-          echo "merged=false" >> "${GITHUB_OUTPUT}"
-          echo "REST merge still blocked (will arm for deferred merge): ${merge_out}"
+          echo "REST merge error: ${merge_out}"
+          if automerge_merge_error_is_already_merged_message "${merge_out}"; then
+            echo "merged=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if printf '%s' "${merge_out}" | grep -qiE 'pull request is not open'; then
+            pr_state="$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json state -q .state)"
+            if [[ "${pr_state}" == "MERGED" ]]; then
+              echo "merged=true" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+            echo "PR not open and not MERGED (state=${pr_state}); failing."
+            exit 1
+          fi
+          if automerge_merge_error_is_pending_checks "${merge_out}"; then
+            echo "merged=false" >> "${GITHUB_OUTPUT}"
+            echo "REST merge blocked by pending checks (will arm for deferred merge)."
+            exit 0
+          fi
+          echo "REST merge failed with a non-retryable error; not arming."
+          exit 1
 
       - name: Upsert armed comment for deferred merge
         id: arm
@@ -322,24 +355,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          MARKER='<!-- obs-aw-automerge:armed -->'
-          body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
-            "$MARKER" \
-            "Automerge did not merge yet because this pull request is **not ready** (required status checks are still pending)." \
-            "This run stays successful. Deferred automerge on the frequent schedule (about every 30 minutes) will retry the squash-merge as the Vault app (CODEOWNERS bypass via classic \`pull_request_bypassers\`) once GitHub reports all required checks green." \
-            "Armed by workflow run: ${RUN_URL}")"
-          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
-            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
-            | head -n 1)"
-          if [ -n "$comment_id" ]; then
-            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
-          else
-            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
-          fi
-          echo "armed=true" >> "${GITHUB_OUTPUT}"
+          # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
+          source _oblt-aw/scripts/obs/automerge_armed_lib.sh
+          automerge_upsert_armed_comment "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}" "${RUN_URL}"
 
   # Success when merged now, not_ready (deferred), or armed for deferred merge.
   report-automerge-outcome:
@@ -356,38 +378,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      contents: read
       pull-requests: write
     steps:
+      - name: Checkout elastic/oblt-aw (armed marker helpers)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/obs/automerge_armed_lib.sh
+          sparse-checkout-cone-mode: false
+
       - name: Report outcome (soft-succeed when not ready; fail only on permanent blockers)
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
           ARM_RESULT: ${{ needs.arm-for-deferred-merge.result }}
           ARMED: ${{ needs.arm-for-deferred-merge.outputs.armed }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-
-          upsert_armed_comment() {
-            local marker='<!-- obs-aw-automerge:armed -->'
-            local body
-            body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
-              "$marker" \
-              "Automerge did not merge yet because this pull request is **not ready** (required status checks are still pending)." \
-              "This run stays successful. Deferred automerge on the frequent schedule (about every 30 minutes) will retry the squash-merge as the Vault app (CODEOWNERS bypass via classic \`pull_request_bypassers\`) once GitHub reports all required checks green." \
-              "Armed by workflow run: ${RUN_URL}")"
-            local comment_id
-            comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
-              | jq --arg marker "$marker" -r '.[] | select(.body | contains($marker)) | .id' \
-              | head -n 1)"
-            if [ -n "$comment_id" ]; then
-              gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
-            else
-              gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
-            fi
-          }
+          # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
+          source _oblt-aw/scripts/obs/automerge_armed_lib.sh
 
           if [ "${MERGE_RESULT}" = "merged" ]; then
             echo "PR merged by automerge action."
@@ -415,9 +434,14 @@ jobs:
             fi
           fi
 
-          # not_ready must never fail the AW: ensure the deferred comment exists, then succeed.
+          # not_ready soft-succeeds only when arming succeeded or we can still upsert
+          # after a successful arm path. Never hide a permanent REST/arm failure.
           if [ "${MERGE_RESULT}" = "not_ready" ]; then
-            upsert_armed_comment
+            if [ "${ARM_RESULT}" = "failure" ]; then
+              echo "mergeResult=not_ready but arm-for-deferred-merge failed (non-retryable); failing."
+              exit 1
+            fi
+            automerge_upsert_armed_comment "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}" "${RUN_URL}"
             echo "PR not ready (pending checks); commented and soft-succeeding for deferred retry."
             exit 0
           fi
