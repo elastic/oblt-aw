@@ -15,7 +15,7 @@
 
 /**
  * Squash-merge a PR via the REST merge API (Vault-app token when used from
- * automerge jobs). Classifies pending required checks so the schedule completer can
+ * automerge jobs). Classifies pending required checks so the deferred merge path can
  * no-op cleanly until CI is green.
  */
 

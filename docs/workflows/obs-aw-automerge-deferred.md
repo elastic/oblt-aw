@@ -1,10 +1,10 @@
-# Workflow: `obs-aw-automerge-complete.yml`
+# Workflow: `obs-aw-automerge-deferred.yml`
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-automerge-complete.yml](../../.github/workflows/obs-aw-automerge-complete.yml)
+Source file: [.github/workflows/obs-aw-automerge-deferred.yml](../../.github/workflows/obs-aw-automerge-deferred.yml)
 
-Schedule completer for [obs-aw-automerge.yml](obs-aw-automerge.md). Finds open PRs that already have `oblt-aw/ai/merge-ready` and the armed comment marker (`<!-- obs-aw-automerge:armed -->`), re-checks author/collection gates, and squash-merges via the REST API as the Vault app when `shared-token-policy` is set.
+Deferred merge path for [obs-aw-automerge.yml](obs-aw-automerge.md). Finds open PRs that already have `oblt-aw/ai/merge-ready` and the armed comment marker (`<!-- obs-aw-automerge:armed -->`), re-checks author/collection gates, and squash-merges via the REST API as the Vault app when `shared-token-policy` is set.
 
 **Single wake-up:** the hourly schedule client `trigger-obs-aw-schedule-hourly.yml` (`schedule-profile: hourly` on `obs-aw-event-schedule.yml`; cron every 30 minutes + `workflow_dispatch`). It does **not** listen to Buildkite `status` success, `check_run`, or `check_suite` (those multiply CI cost). GitHub’s merge API still enforces **all** required checks on each attempt.
 
@@ -19,7 +19,7 @@ Schedule completer for [obs-aw-automerge.yml](obs-aw-automerge.md). Finds open P
 Jobs:
 
 - `discover`: list open armed merge-ready PRs (`scripts/obs/automergeArmed.ts`). No-op when none match.
-- `complete` (matrix per candidate): `validateAutomergePr.ts`, collection gate, then Vault (or `GITHUB_TOKEN`) REST squash-merge pinned to head SHA (`scripts/obs/mergeAutomergePrRest.ts`). `pending_checks` exits success (the next schedule tick may complete later); other failures fail that matrix cell.
+- `merge` (matrix per candidate): `validateAutomergePr.ts`, collection gate, then Vault (or `GITHUB_TOKEN`) REST squash-merge pinned to head SHA (`scripts/obs/mergeAutomergePrRest.ts`). `pending_checks` exits success (the next hourly tick may merge later); other failures fail that matrix cell.
 
 ## Configuration
 
@@ -27,7 +27,7 @@ Jobs:
 |-----|-------------|
 | Workflow (default) | `contents: read` |
 | `discover` | `contents: read`, `pull-requests: read` |
-| `complete` | `actions: read`, `contents: write`, `pull-requests: write`, `id-token: write` |
+| `merge` | `actions: read`, `contents: write`, `pull-requests: write`, `id-token: write` |
 
 ## References
 

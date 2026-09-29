@@ -1,6 +1,6 @@
-name: Automerge complete (schedule)
+name: Automerge deferred (schedule)
 
-# Completes armed automerge PRs via Vault REST squash-merge on the hourly
+# Deferred merge for armed automerge PRs via Vault REST squash-merge on the hourly
 # schedule profile (trigger-obs-aw-schedule-hourly.yml → obs-aw-event-schedule).
 # Lists open armed merge-ready PRs only — does not listen to status, check_run,
 # or check_suite (those would multiply CI cost). GitHub's merge API still
@@ -92,7 +92,7 @@ jobs:
             core.setOutput('candidates', JSON.stringify(list));
             core.setOutput('has-candidates', list.length > 0 ? 'true' : 'false');
 
-  complete:
+  merge:
     needs: discover
     if: >-
       inputs.shared-proceed == 'true' &&
@@ -116,7 +116,7 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
-      - name: Checkout elastic/oblt-aw (complete helpers)
+      - name: Checkout elastic/oblt-aw (deferred merge helpers)
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
@@ -223,5 +223,5 @@ jobs:
               return;
             }
             core.setFailed(
-              `Automerge complete REST merge failed (${result}): ${message || 'unknown'}`
+              `Automerge deferred REST merge failed (${result}): ${message || 'unknown'}`
             );

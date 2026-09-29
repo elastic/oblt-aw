@@ -704,9 +704,9 @@ def wait_for_merged_or_auto_merge(
     timeout_seconds: int,
     interval_seconds: int,
 ) -> dict[str, Any]:
-    """Wait until the PR is merged (schedule-complete REST).
+    """Wait until the PR is merged (deferred-merge REST).
 
-    Armed-for-schedule-complete is not a terminal success: keep polling until
+    Armed-for-deferred-merge is not a terminal success: keep polling until
     merge, matching oracle ``pr_merged_or_auto_merge`` (auto-merge is no longer
     enabled by the PR path; merge via schedule REST is the expected completion).
     """

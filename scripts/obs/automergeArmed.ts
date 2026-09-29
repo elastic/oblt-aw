@@ -15,7 +15,7 @@
 
 /**
  * Automerge "armed" marker helpers: when the PR path cannot squash-merge yet
- * (required checks pending), upsert a PR comment so the schedule completer can
+ * (required checks pending), upsert a PR comment so the deferred merge path can
  * finish the merge via Vault REST later — independent of CI duration.
  */
 
@@ -28,7 +28,7 @@ function buildArmedCommentBody(runUrl) {
     '',
     'Automerge is **armed** and waiting on required status checks.',
     '',
-    'Direct squash-merge was deferred (checks still pending). A dedicated schedule (every 30 minutes) retries merge as the Vault app (CODEOWNERS bypass via classic `pull_request_bypassers`) once GitHub reports all required checks green.',
+    'Direct squash-merge was deferred (checks still pending). The hourly schedule profile retries merge as the Vault app (CODEOWNERS bypass via classic `pull_request_bypassers`) once GitHub reports all required checks green.',
   ];
   if (runUrl) {
     lines.push('', `Armed by workflow run: ${runUrl}`);
@@ -74,7 +74,7 @@ async function prHasArmedMarker({ github, owner, repo, prNumber }) {
 }
 
 /**
- * List open merge-ready PRs that carry the armed marker (schedule completer).
+ * List open merge-ready PRs that carry the armed marker (deferred merge path).
  * Bounded to labeled open PRs only — not every check event.
  */
 async function listArmedMergeReadyPrs({ github, owner, repo, core }) {
@@ -94,19 +94,19 @@ async function listArmedMergeReadyPrs({ github, owner, repo, core }) {
     }
     const armed = await prHasArmedMarker({ github, owner, repo, prNumber });
     if (!armed) {
-      core.info(`PR #${prNumber}: schedule skip (not armed)`);
+      core.info(`PR #${prNumber}: deferred skip (not armed)`);
       continue;
     }
     const headSha = pr.head?.sha || '';
     if (!headSha) {
-      core.info(`PR #${prNumber}: schedule skip (empty head SHA)`);
+      core.info(`PR #${prNumber}: deferred skip (empty head SHA)`);
       continue;
     }
-    core.info(`PR #${prNumber}: schedule candidate (head ${headSha})`);
+    core.info(`PR #${prNumber}: deferred candidate (head ${headSha})`);
     results.push({ pr_number: String(prNumber), head_sha: headSha });
   }
 
-  core.info(`Automerge complete: ${results.length} armed merge-ready PR(s) for schedule`);
+  core.info(`Automerge deferred: ${results.length} armed merge-ready PR(s) for schedule`);
   return results;
 }
 
@@ -136,7 +136,7 @@ module.exports.runUpsertArmed = async function runUpsertArmed({
 };
 
 /**
- * Discover armed merge-ready candidates for the schedule completer.
+ * Discover armed merge-ready candidates for the deferred merge path.
  * @returns {{ candidates: Array<{ pr_number: string, head_sha: string }> }}
  */
 module.exports.runDiscoverCandidates = async function runDiscoverCandidates({

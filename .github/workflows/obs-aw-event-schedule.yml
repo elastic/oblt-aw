@@ -8,7 +8,7 @@ on:
       schedule-profile:
         description: >-
           daily = autodoc/security/agent-suggestions/resource detector;
-          hourly = high-cadence routes (automerge-complete today).
+          hourly = high-cadence routes (automerge-deferred today).
         required: false
         type: string
         default: daily
@@ -31,7 +31,7 @@ jobs:
     with:
       control-plane-workflows: >-
         ${{ inputs.schedule-profile == 'hourly'
-            && '["obs-aw-automerge-complete.yml"]'
+            && '["obs-aw-automerge-deferred.yml"]'
             || '["obs-aw-agent-suggestions.yml","obs-aw-autodoc.yml","obs-aw-security-injection-detector.yml","obs-aw-security-supply-chain-detector.yml","obs-aw-security-secrets-detector.yml","obs-aw-security-least-privilege-detector.yml","obs-aw-resource-not-accessible-by-integration-detector.yml"]' }}
       load-allowed-authors: ${{ inputs.schedule-profile == 'hourly' }}
 
@@ -182,20 +182,20 @@ jobs:
       shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
 
-  automerge-complete:
+  automerge-deferred:
     needs: run-aw-prelude
     if: >-
       inputs.schedule-profile == 'hourly' &&
-      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge-complete.yml'] == 'true' &&
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge-deferred.yml'] == 'true' &&
       contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
     permissions:
       actions: read
       contents: write
       id-token: write
       pull-requests: write
-    uses: ./.github/workflows/obs-aw-automerge-complete.yml
+    uses: ./.github/workflows/obs-aw-automerge-deferred.yml
     with:
-      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge-complete.yml'] }}
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge-deferred.yml'] }}
       shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
       shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
       shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
