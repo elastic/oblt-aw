@@ -704,6 +704,12 @@ def wait_for_merged_or_auto_merge(
     timeout_seconds: int,
     interval_seconds: int,
 ) -> dict[str, Any]:
+    """Wait until the PR is merged or native auto-merge is enabled.
+
+    Armed-for-status-complete is not a terminal success: keep polling until
+    merge (status-complete REST) or auto-merge, matching oracle
+    ``pr_merged_or_auto_merge``.
+    """
     deadline = time.time() + timeout_seconds
     last: dict[str, Any] = {}
     while time.time() < deadline:

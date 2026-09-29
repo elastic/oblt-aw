@@ -59,7 +59,7 @@ Full platform view (distribution, dashboard sync, before/after ingress): [archit
 | `trigger-obs-aw-issues.yml` | `issues` (opened, labeled, edited), `workflow_dispatch` | `obs-aw-event-issues.yml` → dashboard-audit (edited + `oblt-aw/dashboard`), issue-triage, duplicate-issue-detector, security superseder/triage/fixer, resource triage/fixer |
 | `trigger-obs-aw-issue-comment.yml` | `issue_comment` created | `obs-aw-event-issue-comment.yml` → dashboard-audit-reason (`oblt-aw/dashboard`), issue-fixer, mention-in-issue |
 | `trigger-obs-aw-schedule.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `obs-aw-event-schedule.yml` → agent-suggestions, autodoc, security category detectors, resource-not-accessible detector |
-| `trigger-obs-aw-status.yml` | `status` (Buildkite failure only, job `if`) | `obs-aw-event-status.yml` → estc-pr-buildkite-detective |
+| `trigger-obs-aw-status.yml` | `status` (Buildkite failure → ESTC; success → automerge-complete) | `obs-aw-event-status.yml` → estc-pr-buildkite-detective, automerge-complete |
 
 Route-specific conditions (labels, `/ai` comment prefix, allow-listed PR authors, and so on) are enforced inside each `obs-aw-*` reusable workflow after prelude gating.
 
@@ -79,7 +79,7 @@ Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull
 | `trigger-obs-aw-issues.yml` | `run-obs-aw-issues` | `actions: read`, `contents: write`, `copilot-requests: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-issue-comment.yml` | `run-obs-aw-issue-comment` | `actions: read`, `contents: write`, `copilot-requests: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-schedule.yml` | `run-obs-aw-schedule` | `actions: read`, `contents: write`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
-| `trigger-obs-aw-status.yml` | `run-obs-aw-status` | `actions: read`, `contents: read`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trigger-obs-aw-status.yml` | `run-obs-aw-status` | `actions: read`, `contents: write`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 
 ### Secrets
 

@@ -1,6 +1,8 @@
 name: Observability Agentic Workflow — Status Event
 
 # Event-scoped orchestrator for status-triggered routes.
+# - failure + buildkite → ESTC PR Buildkite Detective
+# - success + buildkite → automerge-complete (armed merge-ready PRs)
 on:
   workflow_call:
     secrets:
@@ -17,8 +19,9 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      control-plane-workflows: '["obs-aw-estc-pr-buildkite-detective.yml"]'
-      load-allowed-authors: false
+      control-plane-workflows: >-
+        ["obs-aw-automerge-complete.yml","obs-aw-estc-pr-buildkite-detective.yml"]
+      load-allowed-authors: true
 
   estc-pr-buildkite-detective:
     needs: run-aw-prelude
@@ -39,3 +42,24 @@ jobs:
       shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-estc-pr-buildkite-detective.yml'] }}
     secrets:
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}
+
+  automerge-complete:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge-complete.yml'] == 'true' &&
+      github.event_name == 'status' &&
+      github.event.state == 'success' &&
+      contains(github.event.context, 'buildkite')
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: write
+    uses: ./.github/workflows/obs-aw-automerge-complete.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge-complete.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+      shared-enabled-workflows: ${{ needs.run-aw-prelude.outputs.enabled-workflows }}

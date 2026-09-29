@@ -9,11 +9,11 @@ permissions:
 jobs:
   run-obs-aw-status:
     if: >-
-      github.event.state == 'failure' &&
-      contains(github.event.context, 'buildkite')
+      contains(github.event.context, 'buildkite') &&
+      (github.event.state == 'failure' || github.event.state == 'success')
     permissions:
       actions: read
-      contents: read
+      contents: write
       copilot-requests: write
       id-token: write
       issues: write

@@ -268,14 +268,14 @@ jobs:
           MERGE_FORKS: "false"
           MERGE_DELETE_BRANCH: "true"
           MERGE_REQUIRED_APPROVALS: "1"
-          MERGE_RETRIES: "10"
-          MERGE_RETRY_SLEEP: "20000"
+          # Short retry only: long CI is completed by obs-aw-automerge-complete on status success.
+          MERGE_RETRIES: "3"
+          MERGE_RETRY_SLEEP: "15000"
 
-  # When REST merge still fails (for example merge queue), retry direct merge with the same
-  # token identity, then fall back to native "merge when ready". Do not pass --delete-branch:
-  # gh rejects it when merge queue is enabled. Async --auto often ignores bypass actors.
-  # Do not retry on pascalgn `skipped` (missing label/approvals); that would hide review gates.
-  enable-merge-when-ready:
+  # When direct merge is not ready (pending checks / merge queue), arm for status-complete.
+  # Do not treat GitHub native --auto as success: async --auto ignores Vault bypassers.
+  # Soft --auto is optional noise reduction only; completion is Vault REST on status success.
+  arm-for-status-complete:
     needs: [automerge]
     if: >-
       always() &&
@@ -287,6 +287,8 @@ jobs:
       contents: write
       pull-requests: write
       id-token: write
+    outputs:
+      armed: ${{ steps.arm.outputs.armed }}
     steps:
       - name: Create ephemeral GitHub token (configured policy)
         id: create-token-explicit
@@ -295,34 +297,98 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
-      - name: Merge or enable merge when ready
+      - name: Retry direct REST merge once
+        id: rest-retry
         env:
           GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
-          # Pin merge to the head SHA evaluated in this run; 409 if the PR was updated mid-run.
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          # Direct REST merge honors classic BP pull_request_bypassers when using a Vault-app token.
-          # Capture API errors for logs; failure is expected when falling back to --auto.
           if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
             -f merge_method=squash \
             -f sha="${HEAD_SHA}" 2>&1)"; then
             echo "Merged via REST API."
+            echo "merged=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
-          echo "Direct merge failed; enabling native auto-merge as fallback."
-          echo "REST merge error: ${merge_out}"
-          gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash
+          echo "merged=false" >> "${GITHUB_OUTPUT}"
+          echo "REST merge still blocked (will arm for status-complete): ${merge_out}"
 
-  # Do not report workflow success when the PR is still open and auto-merge was not enabled.
+      - name: Checkout elastic/oblt-aw (arm helpers)
+        if: steps.rest-retry.outputs.merged != 'true'
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/obs/automergeArmed.ts
+            package.json
+            package-lock.json
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node.js
+        if: steps.rest-retry.outputs.merged != 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: _oblt-aw/package-lock.json
+
+      - name: Install npm dependencies
+        if: steps.rest-retry.outputs.merged != 'true'
+        working-directory: _oblt-aw
+        run: npm ci
+
+      - name: Upsert armed comment for status-complete merge
+        id: arm
+        if: steps.rest-retry.outputs.merged != 'true'
+        uses: actions/github-script@v9
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const path = require('node:path');
+            const { createRequire } = require('node:module');
+            const root = path.join(process.env.GITHUB_WORKSPACE, '_oblt-aw');
+            const rq = createRequire(path.join(root, 'package.json'));
+            rq('tsx/cjs/api').register();
+            const { runUpsertArmed } = rq('./scripts/obs/automergeArmed.ts');
+            const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
+            const { ok } = await runUpsertArmed({
+              github,
+              context,
+              prNumber,
+              core,
+              runUrl: process.env.RUN_URL || '',
+            });
+            core.setOutput('armed', ok ? 'true' : 'false');
+
+      - name: Soft-enable native auto-merge (non-authoritative)
+        if: steps.rest-retry.outputs.merged != 'true'
+        env:
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Best-effort only. Outcome success requires armed marker or merge; status-complete owns Vault merge.
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash || \
+            echo "Native --auto not enabled (ignored; status-complete path remains authoritative)."
+
+  # Success when merged now, or armed for status-complete. Native --auto alone is not enough.
   report-automerge-outcome:
     needs:
       - verify
       - check-dependency-collection
       - automerge
-      - enable-merge-when-ready
+      - arm-for-status-complete
     if: >-
       always() &&
       needs.verify.outputs.proceed == 'true' &&
@@ -333,13 +399,14 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - name: Fail and comment when pull request remains unmerged
+      - name: Fail and comment when pull request remains unmerged and not armed
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
-          FALLBACK_RESULT: ${{ needs.enable-merge-when-ready.result }}
+          ARM_RESULT: ${{ needs.arm-for-status-complete.result }}
+          ARMED: ${{ needs.arm-for-status-complete.outputs.armed }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -347,24 +414,33 @@ jobs:
             echo "PR merged by automerge action."
             exit 0
           fi
-          if [ "${FALLBACK_RESULT}" = "success" ]; then
-            echo "Merge fallback succeeded (direct merge or native auto-merge)."
+
+          pr_json="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state)"
+          pr_state="$(printf '%s' "$pr_json" | jq -r .state)"
+          if [ "$pr_state" = "MERGED" ]; then
+            echo "PR is merged; treating as success."
             exit 0
           fi
 
-          pr_json="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state,autoMergeRequest)"
-          pr_state="$(printf '%s' "$pr_json" | jq -r .state)"
-          auto_merge="$(printf '%s' "$pr_json" | jq -r 'if .autoMergeRequest == null then "false" else "true" end')"
-          if [ "$pr_state" = "MERGED" ] || [ "$auto_merge" = "true" ]; then
-            echo "PR is merged or has auto-merge enabled; treating as success."
+          if [ "${ARM_RESULT}" = "success" ] && [ "${ARMED}" = "true" ]; then
+            echo "PR armed for status-complete merge when required checks succeed."
             exit 0
+          fi
+
+          # Arm job may have merged via REST retry without setting armed=true.
+          if [ "${ARM_RESULT}" = "success" ] && [ "${ARMED}" != "true" ]; then
+            pr_json2="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state)"
+            if [ "$(printf '%s' "$pr_json2" | jq -r .state)" = "MERGED" ]; then
+              echo "PR merged during arm REST retry."
+              exit 0
+            fi
           fi
 
           MARKER='<!-- obs-aw-automerge:outcome-gate -->'
           body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
             "$MARKER" \
-            "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
-            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge." \
+            "Automerge could not merge or arm this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
+            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge. When checks are still pending, the arm step should post \`obs-aw-automerge:armed\` and status-complete will merge later." \
             "Workflow run: ${RUN_URL}")"
           comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
@@ -374,5 +450,5 @@ jobs:
           else
             gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
           fi
-          echo "Automerge pipeline finished without merging PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, fallback=${FALLBACK_RESULT})."
+          echo "Automerge pipeline finished without merging or arming PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, arm=${ARM_RESULT}, armed=${ARMED})."
           exit 1
