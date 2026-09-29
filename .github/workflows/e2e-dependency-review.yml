@@ -11,6 +11,9 @@ name: E2E — Dependency review
 on:
   workflow_dispatch:
   workflow_call:
+    secrets:
+      GITHUB_TOKEN:
+        required: false
 
 permissions:
   contents: read
