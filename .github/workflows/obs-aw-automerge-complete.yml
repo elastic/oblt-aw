@@ -1,7 +1,7 @@
 name: Automerge complete (schedule)
 
-# Completes armed automerge PRs via Vault REST squash-merge on the dedicated
-# every-30-minutes schedule (trigger-obs-aw-automerge-schedule.yml).
+# Completes armed automerge PRs via Vault REST squash-merge on the hourly
+# schedule profile (trigger-obs-aw-schedule-hourly.yml → obs-aw-event-schedule).
 # Lists open armed merge-ready PRs only — does not listen to status, check_run,
 # or check_suite (those would multiply CI cost). GitHub's merge API still
 # enforces every required check (Actions + Buildkite).

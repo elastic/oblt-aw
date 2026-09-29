@@ -6,7 +6,7 @@ Source file: [.github/workflows/obs-aw-automerge.yml](../../.github/workflows/ob
 
 This reusable `workflow_call` workflow handles a **single** pull request using `github.event.pull_request` from the caller (typically a client `pull_request` workflow). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes, then attempts squash-merge via **pascalgn/automerge-action**.
 
-When required checks are still pending, the PR path **arms** the PR (comment marker `<!-- obs-aw-automerge:armed -->`) and exits successfully. Completion is **not** tied to CI duration: [obs-aw-automerge-complete.yml](obs-aw-automerge-complete.md) merges via Vault REST on a dedicated every-30-minutes schedule.
+When required checks are still pending, the PR path **arms** the PR (comment marker `<!-- obs-aw-automerge:armed -->`) and exits successfully. Completion is **not** tied to CI duration: [obs-aw-automerge-complete.yml](obs-aw-automerge-complete.md) merges via Vault REST on the hourly schedule profile (`trigger-obs-aw-schedule-hourly.yml`).
 
 **Approve identity (author-aware):** GitHub rejects self-APPROVE, so the approver must differ from the PR author.
 

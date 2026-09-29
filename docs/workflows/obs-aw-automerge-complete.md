@@ -6,11 +6,11 @@ Source file: [.github/workflows/obs-aw-automerge-complete.yml](../../.github/wor
 
 Schedule completer for [obs-aw-automerge.yml](obs-aw-automerge.md). Finds open PRs that already have `oblt-aw/ai/merge-ready` and the armed comment marker (`<!-- obs-aw-automerge:armed -->`), re-checks author/collection gates, and squash-merges via the REST API as the Vault app when `shared-token-policy` is set.
 
-**Single wake-up:** the dedicated client `trigger-obs-aw-automerge-schedule.yml` (every 30 minutes + `workflow_dispatch`). It does **not** listen to Buildkite `status` success, `check_run`, or `check_suite` (those multiply CI cost). GitHub’s merge API still enforces **all** required checks on each attempt.
+**Single wake-up:** the hourly schedule client `trigger-obs-aw-schedule-hourly.yml` (`schedule-profile: hourly` on `obs-aw-event-schedule.yml`; cron every 30 minutes + `workflow_dispatch`). It does **not** listen to Buildkite `status` success, `check_run`, or `check_suite` (those multiply CI cost). GitHub’s merge API still enforces **all** required checks on each attempt.
 
 ## Prerequisites
 
-- Client `trigger-obs-aw-automerge-schedule.yml` must be installed (distribution).
+- Client `trigger-obs-aw-schedule-hourly.yml` must be installed (distribution).
 - Prelude allows registry id `obs:automerge` (same dashboard gate as the PR automerge path).
 - The PR was previously armed by `obs-aw-automerge.yml` after approve.
 

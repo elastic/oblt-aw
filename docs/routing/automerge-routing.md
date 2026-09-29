@@ -5,14 +5,14 @@
 Client template chains:
 
 - `trigger-obs-aw-pull-request.yml` → `obs-aw-event-pull-request.yml` → `obs-aw-automerge.yml` (validate, approve, try merge, **arm** if checks pending)
-- `trigger-obs-aw-automerge-schedule.yml` → `obs-aw-event-automerge-schedule.yml` → `obs-aw-automerge-complete.yml` (every 30 minutes: Vault REST merge for armed PRs)
+- `trigger-obs-aw-schedule-hourly.yml` → `obs-aw-event-schedule.yml` (`schedule-profile: hourly`) → `obs-aw-automerge-complete.yml` (Vault REST merge for armed PRs)
 
 For the user-facing Automerge service catalogue, see [Automerge services](../guides/user/automerge-services.md).
 
 Routed workflow sources:
 
 - `.github/workflows/obs-aw-automerge.yml` — PR path (`verify`, `check-dependency-collection`, `approve`, `automerge`, `arm-for-status-complete`, `report-automerge-outcome`)
-- `.github/workflows/obs-aw-automerge-complete.yml` — schedule path (`discover`, matrix `complete`)
+- `.github/workflows/obs-aw-automerge-complete.yml` — hourly schedule profile (`discover`, matrix `complete`)
 
 **Approve (PR path):** Nested `gh-aw-mention-in-pr` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]`. When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review. Author allow list is **only** [allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json).
 
@@ -20,7 +20,7 @@ Routed workflow sources:
 
 1. **PR path** tries a short squash-merge (pascalgn + one REST retry).
 2. If checks are still pending → upsert armed comment (`<!-- obs-aw-automerge:armed -->`). Outcome success = merged **or** armed.
-3. **Schedule path** (dedicated 30‑minute cron) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` apply.
+3. **Hourly schedule profile** (client cron every 30 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` apply.
 
 Required checks are enforced by GitHub’s merge API on every attempt — this automation only chooses **when** to wake up. There is **no** Buildkite status-success route for automerge (status stays ESTC-failure only).
 
@@ -36,7 +36,7 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 
 ### `schedule` / `workflow_dispatch` (complete)
 
-- Client cron `*/30 * * * *` or manual dispatch of `trigger-obs-aw-automerge-schedule.yml`
+- Client cron `*/30 * * * *` or manual dispatch of `trigger-obs-aw-schedule-hourly.yml` (`schedule-profile: hourly`)
 - Open PRs with `oblt-aw/ai/merge-ready` **and** armed comment marker
 - No-op when none are armed (discover exits without matrix work)
 
@@ -61,7 +61,7 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 
 The routed workflows use `GITHUB_TOKEN` with the permissions listed in `obs-aw-automerge.md` and `obs-aw-automerge-complete.md`.
 
-Client `trigger-obs-aw-automerge-schedule.yml` needs `contents: write` on the entrypoint job (union includes automerge-complete merge).
+Client `trigger-obs-aw-schedule-hourly.yml` needs `contents: write` on the entrypoint job (union includes automerge-complete merge).
 
 ## References
 

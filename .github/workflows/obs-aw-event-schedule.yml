@@ -1,9 +1,17 @@
 name: Observability Agentic Workflow — Schedule Event
 
 # Event-scoped orchestrator: one shared prelude chain for all schedule/workflow_dispatch routes.
+# Clients pass schedule-profile=daily (default) or hourly so cadence-specific routes share this file.
 on:
   workflow_call:
     inputs:
+      schedule-profile:
+        description: >-
+          daily = autodoc/security/agent-suggestions/resource detector;
+          hourly = high-cadence routes (automerge-complete today).
+        required: false
+        type: string
+        default: daily
       e2e-autodoc-mode:
         description: >-
           When true, obs:autodoc evaluates only the checked-in E2E bait
@@ -22,12 +30,15 @@ jobs:
     uses: ./.github/workflows/aw-prelude.yml
     with:
       control-plane-workflows: >-
-        ["obs-aw-agent-suggestions.yml","obs-aw-autodoc.yml","obs-aw-security-injection-detector.yml","obs-aw-security-supply-chain-detector.yml","obs-aw-security-secrets-detector.yml","obs-aw-security-least-privilege-detector.yml","obs-aw-resource-not-accessible-by-integration-detector.yml"]
-      load-allowed-authors: false
+        ${{ inputs.schedule-profile == 'hourly'
+            && '["obs-aw-automerge-complete.yml"]'
+            || '["obs-aw-agent-suggestions.yml","obs-aw-autodoc.yml","obs-aw-security-injection-detector.yml","obs-aw-security-supply-chain-detector.yml","obs-aw-security-secrets-detector.yml","obs-aw-security-least-privilege-detector.yml","obs-aw-resource-not-accessible-by-integration-detector.yml"]' }}
+      load-allowed-authors: ${{ inputs.schedule-profile == 'hourly' }}
 
   agent-suggestions:
     needs: run-aw-prelude
     if: >-
+      inputs.schedule-profile == 'daily' &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-agent-suggestions.yml'] == 'true'
     permissions:
       actions: read
@@ -47,6 +58,7 @@ jobs:
   autodoc:
     needs: run-aw-prelude
     if: >-
+      inputs.schedule-profile == 'daily' &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-autodoc.yml'] == 'true'
     permissions:
       actions: read
@@ -68,6 +80,7 @@ jobs:
   security-injection-detector:
     needs: run-aw-prelude
     if: >-
+      inputs.schedule-profile == 'daily' &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-injection-detector.yml'] == 'true' &&
       contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
     permissions:
@@ -88,6 +101,7 @@ jobs:
   security-supply-chain-detector:
     needs: run-aw-prelude
     if: >-
+      inputs.schedule-profile == 'daily' &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-supply-chain-detector.yml'] == 'true' &&
       contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
     permissions:
@@ -108,6 +122,7 @@ jobs:
   security-secrets-detector:
     needs: run-aw-prelude
     if: >-
+      inputs.schedule-profile == 'daily' &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-secrets-detector.yml'] == 'true' &&
       contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
     permissions:
@@ -128,6 +143,7 @@ jobs:
   security-least-privilege-detector:
     needs: run-aw-prelude
     if: >-
+      inputs.schedule-profile == 'daily' &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-security-least-privilege-detector.yml'] == 'true' &&
       contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
     permissions:
@@ -148,6 +164,7 @@ jobs:
   resource-not-accessible-detector:
     needs: run-aw-prelude
     if: >-
+      inputs.schedule-profile == 'daily' &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-resource-not-accessible-by-integration-detector.yml'] == 'true' &&
       github.event_name == 'schedule'
     permissions:
@@ -164,3 +181,24 @@ jobs:
       shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
       shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+
+  automerge-complete:
+    needs: run-aw-prelude
+    if: >-
+      inputs.schedule-profile == 'hourly' &&
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge-complete.yml'] == 'true' &&
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      pull-requests: write
+    uses: ./.github/workflows/obs-aw-automerge-complete.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge-complete.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+      shared-enabled-workflows: ${{ needs.run-aw-prelude.outputs.enabled-workflows }}

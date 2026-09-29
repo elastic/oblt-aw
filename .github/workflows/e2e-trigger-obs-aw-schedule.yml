@@ -29,5 +29,6 @@ jobs:
       pull-requests: write
     uses: ./.github/workflows/obs-aw-event-schedule.yml
     with:
+      schedule-profile: daily
       # workflow_dispatch booleans arrive as strings in github.event.inputs.
       e2e-autodoc-mode: ${{ github.event.inputs.e2e-autodoc-mode == 'true' }}
