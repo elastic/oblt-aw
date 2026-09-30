@@ -37,7 +37,7 @@ env:
 jobs:
   e2e:
     name: Automerge vm-images E2E
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
       contents: write

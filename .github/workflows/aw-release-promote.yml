@@ -67,7 +67,7 @@ jobs:
   promote:
     name: Tag and update pointers
     needs: e2e-all
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: write
