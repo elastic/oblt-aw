@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/aw-release-promote.yml](../../.github/workflows/aw-release-promote.yml)
 
-Promotes the tip of the default branch (`main`) after `e2e-all` passes. Pins E2E harness checkout to `github.sha` at promote start; aborts if `main` advanced before tagging. Commits `config/release-pointers.json` before pushing tags (immutable semver without force; moving tags with force).
+Promotes a SHA on the default branch (`main`) after `e2e-all` passes. Pins E2E harness checkout to the promote SHA (dispatch tip, or optional `promote-sha`). If `main` advanced during E2E, tagging still proceeds for the gated SHA; the pointers commit is rebased onto current `main`. Creates a GitHub Release with auto-generated notes for the immutable semver tag.
 
 Full model and runbook: [agentic-release-model](../operations/agentic-release-model.md).
 
@@ -13,6 +13,7 @@ Full model and runbook: [agentic-release-model](../operations/agentic-release-mo
 | Input | Required | Purpose |
 |-------|----------|---------|
 | `release-type` | yes | `patch`, `minor`, or `major` (first promote → `v0.0.0`) |
+| `promote-sha` | no | Full SHA to promote (default = tip at dispatch; must be on default-branch history) |
 | `dry-run` | no | Run E2E and plan only |
 
 ## References

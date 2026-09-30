@@ -14,7 +14,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Promote tip of main to the production major tag after E2E jobs succeed."""
+"""Promote a default-branch SHA to the production major tag after E2E succeeds."""
 
 from __future__ import annotations
 
@@ -26,12 +26,14 @@ from pathlib import Path
 from release_pointers import (
     RELEASE_TYPES,
     apply_promote_pointer_updates,
+    create_github_release,
     create_immutable_semver_tag,
     load_pointers,
     load_release_plan,
     move_tag,
     plan_promote,
     push_promote_tags,
+    require_ancestor_of,
     require_remote_tip,
     resolve_sha,
     save_pointers,
@@ -45,7 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--sha",
         default=None,
-        help="Full 40-char SHA to promote (tip of default branch)",
+        help="Full 40-char SHA to promote (must be on default-branch history)",
     )
     parser.add_argument(
         "--release-type",
@@ -74,9 +76,26 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--create-release-from-plan",
+        type=Path,
+        default=None,
+        help=(
+            "Create a GitHub Release with auto-generated notes from a prior "
+            "--plan-output JSON and exit"
+        ),
+    )
+    parser.add_argument(
         "--expect-tip-of",
         default="",
-        help="Fail unless this ref (e.g. origin/main) still resolves to --sha",
+        help="Strict CAS: fail unless this ref still resolves to --sha",
+    )
+    parser.add_argument(
+        "--require-ancestor-of",
+        default="",
+        help=(
+            "Fail unless --sha is this ref or an ancestor of it "
+            "(e.g. origin/main); allows main to advance during E2E"
+        ),
     )
     parser.add_argument(
         "--dry-run",
@@ -99,13 +118,29 @@ def main(argv: list[str] | None = None) -> int:
         print("Pushed release tags to origin")
         return 0
 
+    if args.create_release_from_plan is not None:
+        plan = load_release_plan(args.create_release_from_plan)
+        create_github_release(
+            semver=str(plan["semver"]),
+            sha=str(plan["sha"]),
+            previous_semver=str(plan.get("previous_semver") or ""),
+            bootstrap=bool(plan.get("bootstrap")),
+        )
+        print(f"Created GitHub Release {plan['semver']} with generated notes")
+        return 0
+
     if args.sha is None or args.release_type is None:
-        parser.error("--sha and --release-type are required unless --push-from-plan")
+        parser.error(
+            "--sha and --release-type are required unless "
+            "--push-from-plan or --create-release-from-plan"
+        )
 
     sha = validate_full_sha(args.sha, label="--sha")
     resolve_sha(sha)
     if args.expect_tip_of.strip():
         require_remote_tip(sha, tip_ref=args.expect_tip_of.strip())
+    if args.require_ancestor_of.strip():
+        require_ancestor_of(sha, tip_ref=args.require_ancestor_of.strip())
 
     data = load_pointers(args.pointers_path)
     plan = plan_promote(data, sha=sha, release_type=args.release_type)
