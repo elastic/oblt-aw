@@ -148,6 +148,15 @@ def save_pointers(data: dict[str, Any], path: Path = DEFAULT_POINTERS_PATH) -> N
     )
 
 
+def load_release_plan(path: Path) -> dict[str, Any]:
+    """Load a ``{plan: ...}`` JSON artifact written by promote/rollback CLIs."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    plan = payload.get("plan")
+    if not isinstance(plan, dict):
+        raise TypeError(f"{path}: expected object with 'plan' object")
+    return plan
+
+
 def pointer_sha(data: dict[str, Any], name: str) -> str:
     entry = data["pointers"][name]
     sha = entry.get("sha") or ""

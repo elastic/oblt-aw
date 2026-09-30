@@ -26,6 +26,7 @@ from pathlib import Path
 from release_pointers import (
     apply_rollback_pointer_updates,
     load_pointers,
+    load_release_plan,
     move_tag,
     plan_rollback,
     push_rollback_tags,
@@ -48,6 +49,15 @@ def main(argv: list[str] | None = None) -> int:
         help="Write {plan: ...} JSON for a later tag-push step",
     )
     parser.add_argument(
+        "--push-from-plan",
+        type=Path,
+        default=None,
+        help=(
+            "Push tags from a prior --plan-output JSON and exit "
+            "(no pointer or local tag writes)"
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Validate and print plan without writing tags or pointers",
@@ -57,10 +67,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=(
             "Push moving tags to origin after local writes. Prefer committing "
-            "release-pointers.json first, then push tags in a separate step."
+            "release-pointers.json first, then --push-from-plan."
         ),
     )
     args = parser.parse_args(argv)
+
+    if args.push_from_plan is not None:
+        plan = load_release_plan(args.push_from_plan)
+        push_rollback_tags(plan)
+        print("Pushed rollback tags to origin")
+        return 0
 
     data = load_pointers(args.pointers_path)
     plan = plan_rollback(data)

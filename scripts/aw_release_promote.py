@@ -28,6 +28,7 @@ from release_pointers import (
     apply_promote_pointer_updates,
     create_immutable_semver_tag,
     load_pointers,
+    load_release_plan,
     move_tag,
     plan_promote,
     push_promote_tags,
@@ -43,12 +44,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--sha",
-        required=True,
+        default=None,
         help="Full 40-char SHA to promote (tip of default branch)",
     )
     parser.add_argument(
         "--release-type",
-        required=True,
+        default=None,
         choices=RELEASE_TYPES,
         help="Semver bump relative to current prod (ignored on first promote)",
     )
@@ -62,6 +63,15 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=None,
         help="Write {plan: ...} JSON for a later tag-push step",
+    )
+    parser.add_argument(
+        "--push-from-plan",
+        type=Path,
+        default=None,
+        help=(
+            "Push tags from a prior --plan-output JSON and exit "
+            "(no pointer or local tag writes)"
+        ),
     )
     parser.add_argument(
         "--expect-tip-of",
@@ -78,10 +88,19 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=(
             "Push tags to origin after local writes. Prefer committing "
-            "release-pointers.json first, then push tags in a separate step."
+            "release-pointers.json first, then --push-from-plan."
         ),
     )
     args = parser.parse_args(argv)
+
+    if args.push_from_plan is not None:
+        plan = load_release_plan(args.push_from_plan)
+        push_promote_tags(plan)
+        print("Pushed release tags to origin")
+        return 0
+
+    if args.sha is None or args.release_type is None:
+        parser.error("--sha and --release-type are required unless --push-from-plan")
 
     sha = validate_full_sha(args.sha, label="--sha")
     resolve_sha(sha)

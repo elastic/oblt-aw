@@ -104,13 +104,4 @@ jobs:
           PYTHONPATH: scripts
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          from release_pointers import push_rollback_tags
-
-          plan = json.loads(Path("rollback-plan.json").read_text(encoding="utf-8"))["plan"]
-          push_rollback_tags(plan)
-          print("Pushed rollback tags to origin")
-          PY
+          python3 scripts/aw_release_rollback.py --push-from-plan rollback-plan.json

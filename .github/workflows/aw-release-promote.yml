@@ -128,13 +128,4 @@ jobs:
           PYTHONPATH: scripts
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          from release_pointers import push_promote_tags
-
-          plan = json.loads(Path("promote-plan.json").read_text(encoding="utf-8"))["plan"]
-          push_promote_tags(plan)
-          print("Pushed release tags to origin")
-          PY
+          python3 scripts/aw_release_promote.py --push-from-plan promote-plan.json
