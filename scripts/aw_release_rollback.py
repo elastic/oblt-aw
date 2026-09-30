@@ -14,7 +14,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Rollback production major tag to previous-prod (quick recovery)."""
+"""Rollback current major tag to previous (quick recovery)."""
 
 from __future__ import annotations
 
@@ -94,19 +94,19 @@ def main(argv: list[str] | None = None) -> int:
 
     now = utc_now_iso()
     move_tag(
-        plan["prod_tag"],
+        plan["current_tag"],
         plan["rollback_sha"],
         message=f"rollback to {plan['rollback_semver']}",
     )
     move_tag(
-        plan["candidate_tag"],
+        plan["next_tag"],
         plan["rollback_sha"],
-        message=f"candidate after rollback to {plan['rollback_semver']}",
+        message=f"next after rollback to {plan['rollback_semver']}",
     )
     move_tag(
         plan["previous_tag"],
-        plan["displaced_prod_sha"],
-        message=f"previous-prod after rollback (was {plan['displaced_prod_semver']})",
+        plan["displaced_current_sha"],
+        message=(f"previous after rollback (was {plan['displaced_current_semver']})"),
     )
     apply_rollback_pointer_updates(data, plan, updated_at=now)
     save_pointers(data, args.pointers_path)
@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Pushed rollback tags to origin")
 
     print(
-        f"Rolled back {plan['prod_tag']} → {plan['rollback_sha']} "
+        f"Rolled back {plan['current_tag']} → {plan['rollback_sha']} "
         f"({plan['rollback_semver']})"
     )
     return 0

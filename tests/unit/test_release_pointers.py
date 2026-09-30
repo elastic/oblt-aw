@@ -18,14 +18,14 @@ def _minimal_pointers(**overrides: object) -> dict:
         "schema_version": 1,
         "major": 0,
         "tags": {
-            "prod": "v0",
-            "candidate": "candidate",
-            "previous_prod": "previous-prod",
+            "current": "v0",
+            "next": "next",
+            "previous": "previous",
         },
         "pointers": {
-            "prod": {"sha": "", "semver": "", "updated_at": ""},
-            "candidate": {"sha": "", "semver": "", "updated_at": ""},
-            "previous_prod": {"sha": "", "semver": "", "updated_at": ""},
+            "current": {"sha": "", "semver": "", "updated_at": ""},
+            "next": {"sha": "", "semver": "", "updated_at": ""},
+            "previous": {"sha": "", "semver": "", "updated_at": ""},
         },
     }
     data.update(overrides)
@@ -82,8 +82,8 @@ class TestNextSemver:
 class TestHighestPointerSemver:
     def test_uses_max_across_pointers(self) -> None:
         data = _minimal_pointers()
-        rp.set_pointer(data, "prod", sha=SHA_A, semver="v0.0.0")
-        rp.set_pointer(data, "previous_prod", sha=SHA_B, semver="v0.0.1")
+        rp.set_pointer(data, "current", sha=SHA_A, semver="v0.0.0")
+        rp.set_pointer(data, "previous", sha=SHA_B, semver="v0.0.1")
         assert rp.highest_pointer_semver(data) == "v0.0.1"
 
 
@@ -94,102 +94,102 @@ class TestPlanPromote:
         assert plan["semver"] == "v0.0.0"
         assert plan["bootstrap"] is True
         assert plan["previous_sha"] == SHA_A
-        assert plan["prod_tag"] == "v0"
+        assert plan["current_tag"] == "v0"
 
     def test_patch_bump(self) -> None:
         data = _minimal_pointers()
-        rp.set_pointer(data, "prod", sha=SHA_B, semver="v0.0.0")
+        rp.set_pointer(data, "current", sha=SHA_B, semver="v0.0.0")
         plan = rp.plan_promote(data, sha=SHA_A, release_type="patch")
         assert plan["semver"] == "v0.0.1"
         assert plan["bootstrap"] is False
         assert plan["previous_sha"] == SHA_B
         assert plan["previous_semver"] == "v0.0.0"
 
-    def test_major_updates_prod_tag(self) -> None:
+    def test_major_updates_current_tag(self) -> None:
         data = _minimal_pointers()
-        rp.set_pointer(data, "prod", sha=SHA_B, semver="v0.4.2")
+        rp.set_pointer(data, "current", sha=SHA_B, semver="v0.4.2")
         plan = rp.plan_promote(data, sha=SHA_A, release_type="major")
         assert plan["semver"] == "v1.0.0"
-        assert plan["prod_tag"] == "v1"
+        assert plan["current_tag"] == "v1"
 
     def test_promote_after_rollback_stays_monotonic(self) -> None:
         data = _minimal_pointers()
-        # After rolling back v0.0.1 → v0.0.0, previous_prod keeps the displaced release.
-        rp.set_pointer(data, "prod", sha=SHA_B, semver="v0.0.0")
-        rp.set_pointer(data, "previous_prod", sha=SHA_A, semver="v0.0.1")
+        # After rolling back v0.0.1 → v0.0.0, previous keeps the displaced release.
+        rp.set_pointer(data, "current", sha=SHA_B, semver="v0.0.0")
+        rp.set_pointer(data, "previous", sha=SHA_A, semver="v0.0.1")
         plan = rp.plan_promote(data, sha=SHA_A, release_type="patch")
         assert plan["semver"] == "v0.0.2"
 
     def test_apply_pointer_updates(self) -> None:
         data = _minimal_pointers()
-        rp.set_pointer(data, "prod", sha=SHA_B, semver="v0.0.0")
+        rp.set_pointer(data, "current", sha=SHA_B, semver="v0.0.0")
         plan = rp.plan_promote(data, sha=SHA_A, release_type="minor")
         rp.apply_promote_pointer_updates(
             data, plan, updated_at="2026-01-01T00:00:00+00:00"
         )
         assert data["major"] == 0
-        assert data["tags"]["prod"] == "v0"
-        assert data["pointers"]["prod"]["sha"] == SHA_A
-        assert data["pointers"]["prod"]["semver"] == "v0.1.0"
-        assert data["pointers"]["previous_prod"]["sha"] == SHA_B
-        assert data["pointers"]["previous_prod"]["semver"] == "v0.0.0"
+        assert data["tags"]["current"] == "v0"
+        assert data["pointers"]["current"]["sha"] == SHA_A
+        assert data["pointers"]["current"]["semver"] == "v0.1.0"
+        assert data["pointers"]["previous"]["sha"] == SHA_B
+        assert data["pointers"]["previous"]["semver"] == "v0.0.0"
 
 
 class TestPlanRollback:
     def test_happy_path(self) -> None:
         data = _minimal_pointers()
-        rp.set_pointer(data, "prod", sha=SHA_A, semver="v0.0.1")
-        rp.set_pointer(data, "previous_prod", sha=SHA_B, semver="v0.0.0")
+        rp.set_pointer(data, "current", sha=SHA_A, semver="v0.0.1")
+        rp.set_pointer(data, "previous", sha=SHA_B, semver="v0.0.0")
         plan = rp.plan_rollback(data)
         assert plan["rollback_sha"] == SHA_B
-        assert plan["displaced_prod_sha"] == SHA_A
-        assert plan["prod_tag"] == "v0"
+        assert plan["displaced_current_sha"] == SHA_A
+        assert plan["current_tag"] == "v0"
 
     def test_retargets_current_major_after_major_promote(self) -> None:
         data = _minimal_pointers()
-        data["tags"]["prod"] = "v1"
+        data["tags"]["current"] = "v1"
         data["major"] = 1
-        rp.set_pointer(data, "prod", sha=SHA_A, semver="v1.0.0")
-        rp.set_pointer(data, "previous_prod", sha=SHA_B, semver="v0.4.2")
+        rp.set_pointer(data, "current", sha=SHA_A, semver="v1.0.0")
+        rp.set_pointer(data, "previous", sha=SHA_B, semver="v0.4.2")
         plan = rp.plan_rollback(data)
-        assert plan["prod_tag"] == "v1"
+        assert plan["current_tag"] == "v1"
         assert plan["rollback_semver"] == "v0.4.2"
-        assert plan["displaced_prod_semver"] == "v1.0.0"
+        assert plan["displaced_current_semver"] == "v1.0.0"
 
-    def test_rejects_empty_prod_semver(self) -> None:
+    def test_rejects_empty_current_semver(self) -> None:
         data = _minimal_pointers()
-        data["pointers"]["prod"] = {
+        data["pointers"]["current"] = {
             "sha": SHA_A,
             "semver": "",
             "updated_at": "2026-01-01T00:00:00+00:00",
         }
-        rp.set_pointer(data, "previous_prod", sha=SHA_B, semver="v0.0.0")
-        with pytest.raises(ValueError, match="prod.semver is empty"):
+        rp.set_pointer(data, "previous", sha=SHA_B, semver="v0.0.0")
+        with pytest.raises(ValueError, match="current.semver is empty"):
             rp.plan_rollback(data)
 
     def test_equal_pointers_fail(self) -> None:
         data = _minimal_pointers()
-        rp.set_pointer(data, "prod", sha=SHA_A, semver="v0.0.0")
-        rp.set_pointer(data, "previous_prod", sha=SHA_A, semver="v0.0.0")
+        rp.set_pointer(data, "current", sha=SHA_A, semver="v0.0.0")
+        rp.set_pointer(data, "previous", sha=SHA_A, semver="v0.0.0")
         with pytest.raises(ValueError, match="nothing to rollback"):
             rp.plan_rollback(data)
 
     def test_apply_rollback_pointer_updates(self) -> None:
         data = _minimal_pointers()
-        data["tags"]["prod"] = "v1"
+        data["tags"]["current"] = "v1"
         data["major"] = 1
-        rp.set_pointer(data, "prod", sha=SHA_A, semver="v1.0.0")
-        rp.set_pointer(data, "previous_prod", sha=SHA_B, semver="v0.4.2")
+        rp.set_pointer(data, "current", sha=SHA_A, semver="v1.0.0")
+        rp.set_pointer(data, "previous", sha=SHA_B, semver="v0.4.2")
         plan = rp.plan_rollback(data)
         rp.apply_rollback_pointer_updates(
             data, plan, updated_at="2026-01-01T00:00:00+00:00"
         )
-        assert data["tags"]["prod"] == "v1"
+        assert data["tags"]["current"] == "v1"
         assert data["major"] == 1
-        assert data["pointers"]["prod"]["sha"] == SHA_B
-        assert data["pointers"]["prod"]["semver"] == "v0.4.2"
-        assert data["pointers"]["previous_prod"]["sha"] == SHA_A
-        assert data["pointers"]["previous_prod"]["semver"] == "v1.0.0"
+        assert data["pointers"]["current"]["sha"] == SHA_B
+        assert data["pointers"]["current"]["semver"] == "v0.4.2"
+        assert data["pointers"]["previous"]["sha"] == SHA_A
+        assert data["pointers"]["previous"]["semver"] == "v1.0.0"
 
 
 class TestPushTagHelpers:
@@ -205,9 +205,9 @@ class TestPushTagHelpers:
         monkeypatch.setattr(rp, "run_git", fake_run_git)
         plan = {
             "semver": "v0.0.1",
-            "prod_tag": "v0",
-            "candidate_tag": "candidate",
-            "previous_tag": "previous-prod",
+            "current_tag": "v0",
+            "next_tag": "next",
+            "previous_tag": "previous",
         }
         rp.push_promote_tags(plan)
         assert calls[0] == ["push", "origin", "v0.0.1"]
@@ -221,8 +221,8 @@ class TestLoadSaveRoundTrip:
     def test_round_trip(self, tmp_path: pathlib.Path) -> None:
         path = tmp_path / "release-pointers.json"
         data = _minimal_pointers()
-        rp.set_pointer(data, "prod", sha=SHA_A, semver="v0.0.0")
+        rp.set_pointer(data, "current", sha=SHA_A, semver="v0.0.0")
         rp.save_pointers(data, path)
         loaded = rp.load_pointers(path)
-        assert loaded["pointers"]["prod"]["sha"] == SHA_A
+        assert loaded["pointers"]["current"]["sha"] == SHA_A
         assert json.loads(path.read_text(encoding="utf-8"))["major"] == 0

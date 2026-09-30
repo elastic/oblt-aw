@@ -1,7 +1,7 @@
 ---
 name: AW release — promote
 
-# Promote tip of main: run e2e-all, bump semver, move vN + previous-prod tags.
+# Promote tip of main: run e2e-all, bump semver, move vN + previous tags.
 # Runbook: docs/operations/agentic-release-model.md
 on:
   workflow_dispatch:

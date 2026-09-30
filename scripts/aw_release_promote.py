@@ -130,17 +130,17 @@ def main(argv: list[str] | None = None) -> int:
     move_tag(
         plan["previous_tag"],
         plan["previous_sha"],
-        message=f"previous-prod before {plan['semver']}",
+        message=f"previous before {plan['semver']}",
     )
     move_tag(
-        plan["prod_tag"],
+        plan["current_tag"],
         sha,
-        message=f"prod {plan['semver']}",
+        message=f"current {plan['semver']}",
     )
     move_tag(
-        plan["candidate_tag"],
+        plan["next_tag"],
         sha,
-        message=f"candidate {plan['semver']}",
+        message=f"next {plan['semver']}",
     )
 
     apply_promote_pointer_updates(data, plan, updated_at=now)
@@ -150,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         push_promote_tags(plan)
         print("Pushed release tags to origin")
 
-    print(f"Promoted {sha} as {plan['semver']} → {plan['prod_tag']}")
+    print(f"Promoted {sha} as {plan['semver']} → {plan['current_tag']}")
     return 0
 
 

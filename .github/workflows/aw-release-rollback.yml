@@ -1,7 +1,7 @@
 ---
 name: AW release — rollback
 
-# Quick rollback: retarget moving major tag (v0 today, later vN) to previous-prod.
+# Quick rollback: retarget moving major tag (v0 today, later vN) to previous.
 # Target recovery: under 15 minutes when tags/pointers are healthy.
 # Runbook: docs/operations/agentic-release-model.md
 on:
@@ -41,10 +41,10 @@ jobs:
             echo "::error::Rollback must run on ${expected} (got ${REF})"
             exit 1
           fi
-          echo "Rolling back production pointer on ${DEFAULT_BRANCH}"
+          echo "Rolling back current pointer on ${DEFAULT_BRANCH}"
 
   rollback:
-    name: Rollback production pointer
+    name: Rollback current pointer
     needs: guard
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -95,7 +95,7 @@ jobs:
             exit 0
           fi
           git add config/release-pointers.json
-          git commit -m "chore(release): rollback production pointer to previous-prod"
+          git commit -m "chore(release): rollback current pointer to previous"
           git push origin HEAD:"${{ github.ref_name }}"
 
       - name: Push rollback tags

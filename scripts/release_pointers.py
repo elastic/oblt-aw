@@ -110,12 +110,12 @@ def next_semver(current: str, release_type: ReleaseType) -> str:
 
 
 def highest_pointer_semver(data: dict[str, Any]) -> str:
-    """Highest non-empty semver among prod / candidate / previous_prod.
+    """Highest non-empty semver among current / next / previous.
 
     Used as the promote bump base so rollback cannot rewind immutable numbering.
     """
     versions: list[str] = []
-    for key in ("candidate", "previous_prod", "prod"):
+    for key in ("current", "next", "previous"):
         raw = str(data["pointers"][key].get("semver") or "").strip()
         if raw:
             versions.append(normalize_semver(raw))
@@ -134,7 +134,7 @@ def load_pointers(path: Path = DEFAULT_POINTERS_PATH) -> dict[str, Any]:
     pointers = data.get("pointers")
     if not isinstance(pointers, dict):
         raise TypeError("pointers must be an object")
-    for key in ("prod", "candidate", "previous_prod"):
+    for key in ("current", "next", "previous"):
         entry = pointers.get(key)
         if not isinstance(entry, dict):
             raise TypeError(f"pointers.{key} must be an object")
@@ -236,7 +236,7 @@ def push_immutable_tags(tags: list[str], *, remote: str = "origin") -> None:
 
 
 def push_moving_tags(tags: list[str], *, remote: str = "origin") -> None:
-    """Force-push moving ops tags (``vN``, ``candidate``, ``previous-prod``)."""
+    """Force-push moving ops tags (``vN``, ``next``, ``previous``)."""
     if not tags:
         return
     run_git(["push", remote, *tags, "--force"])
@@ -247,8 +247,8 @@ def push_promote_tags(plan: dict[str, Any], *, remote: str = "origin") -> None:
     push_immutable_tags([str(plan["semver"])], remote=remote)
     push_moving_tags(
         [
-            str(plan["prod_tag"]),
-            str(plan["candidate_tag"]),
+            str(plan["current_tag"]),
+            str(plan["next_tag"]),
             str(plan["previous_tag"]),
         ],
         remote=remote,
@@ -259,8 +259,8 @@ def push_rollback_tags(plan: dict[str, Any], *, remote: str = "origin") -> None:
     """Force-update moving tags after rollback (no immutable tags created)."""
     push_moving_tags(
         [
-            str(plan["prod_tag"]),
-            str(plan["candidate_tag"]),
+            str(plan["current_tag"]),
+            str(plan["next_tag"]),
             str(plan["previous_tag"]),
         ],
         remote=remote,
@@ -276,19 +276,19 @@ def plan_promote(
     """Compute tag/pointer updates for a production promote (no git side effects).
 
     Always promotes ``sha`` (expected: tip of default branch). First promote
-    (empty prod pointer) creates ``v{major}.0.0`` from ``data["major"]``
+    (empty current pointer) creates ``v{major}.0.0`` from ``data["major"]``
     regardless of ``release_type``.
     """
     sha = validate_full_sha(sha, label="sha")
     release_type = normalize_release_type(release_type)
-    current_prod = pointer_sha(data, "prod")
-    bootstrap = not bool(current_prod)
-    current_semver = str(data["pointers"]["prod"].get("semver") or "")
+    current_sha = pointer_sha(data, "current")
+    bootstrap = not bool(current_sha)
+    current_semver = str(data["pointers"]["current"].get("semver") or "")
     if bootstrap:
         semver = bootstrap_semver(data)
     else:
         if not current_semver:
-            raise ValueError("prod.semver is empty while prod.sha is set")
+            raise ValueError("current.semver is empty while current.sha is set")
         # Bump from the highest pointer semver so a rollback cannot rewind
         # immutable tag numbering (v0.0.1 → rollback → next patch must be v0.0.2).
         semver = next_semver(highest_pointer_semver(data), release_type)
@@ -297,20 +297,20 @@ def plan_promote(
     if match is None:
         raise ValueError(f"internal error: semver not normalized: {semver!r}")
     new_major = int(match.group("major"))
-    prod_tag = f"v{new_major}"
-    candidate_tag = str(data["tags"]["candidate"])
-    previous_tag = str(data["tags"]["previous_prod"])
-    previous_sha = current_prod if current_prod else sha
+    current_tag = f"v{new_major}"
+    next_tag = str(data["tags"]["next"])
+    previous_tag = str(data["tags"]["previous"])
+    previous_sha = current_sha if current_sha else sha
     previous_semver = current_semver if current_semver else semver
 
     return {
         "bootstrap": bootstrap,
-        "candidate_tag": candidate_tag,
+        "current_tag": current_tag,
         "immutable_tag": semver,
+        "next_tag": next_tag,
         "previous_semver": previous_semver,
         "previous_sha": previous_sha,
         "previous_tag": previous_tag,
-        "prod_tag": prod_tag,
         "release_type": release_type,
         "semver": semver,
         "sha": sha,
@@ -329,24 +329,24 @@ def apply_promote_pointer_updates(
     if match is None:
         raise ValueError(f"plan semver invalid: {plan['semver']!r}")
     data["major"] = int(match.group("major"))
-    data["tags"]["prod"] = str(plan["prod_tag"])
+    data["tags"]["current"] = str(plan["current_tag"])
     set_pointer(
         data,
-        "previous_prod",
+        "previous",
         sha=str(plan["previous_sha"]),
         semver=str(plan["previous_semver"]),
         updated_at=now,
     )
     set_pointer(
         data,
-        "prod",
+        "current",
         sha=str(plan["sha"]),
         semver=str(plan["semver"]),
         updated_at=now,
     )
     set_pointer(
         data,
-        "candidate",
+        "next",
         sha=str(plan["sha"]),
         semver=str(plan["semver"]),
         updated_at=now,
@@ -354,39 +354,39 @@ def apply_promote_pointer_updates(
 
 
 def plan_rollback(data: dict[str, Any]) -> dict[str, Any]:
-    """Compute tag/pointer updates for rollback to previous-prod.
+    """Compute tag/pointer updates for rollback to previous.
 
-    Retargets the **current** production major tag (``tags.prod``, e.g. ``v1``),
-    not the major derived from ``previous_prod.semver``. After a major promote,
+    Retargets the **current** production major tag (``tags.current``, e.g. ``v1``),
+    not the major derived from ``previous.semver``. After a major promote,
     consumers pin the new major; rollback must move that tag.
     """
-    previous_sha = pointer_sha(data, "previous_prod")
-    current_prod = pointer_sha(data, "prod")
+    previous_sha = pointer_sha(data, "previous")
+    current_sha = pointer_sha(data, "current")
     if not previous_sha:
-        raise ValueError("previous_prod pointer is empty; cannot rollback")
-    if not current_prod:
-        raise ValueError("prod pointer is empty; cannot rollback")
-    if previous_sha == current_prod:
-        raise ValueError("previous_prod equals prod; nothing to rollback")
-    previous_semver = str(data["pointers"]["previous_prod"].get("semver") or "")
+        raise ValueError("previous pointer is empty; cannot rollback")
+    if not current_sha:
+        raise ValueError("current pointer is empty; cannot rollback")
+    if previous_sha == current_sha:
+        raise ValueError("previous equals current; nothing to rollback")
+    previous_semver = str(data["pointers"]["previous"].get("semver") or "")
     if not previous_semver:
-        raise ValueError("previous_prod.semver is empty; cannot rollback safely")
-    displaced_prod_semver = str(data["pointers"]["prod"].get("semver") or "")
-    if not displaced_prod_semver:
-        raise ValueError("prod.semver is empty; cannot rollback safely")
+        raise ValueError("previous.semver is empty; cannot rollback safely")
+    displaced_current_semver = str(data["pointers"]["current"].get("semver") or "")
+    if not displaced_current_semver:
+        raise ValueError("current.semver is empty; cannot rollback safely")
     rollback_semver = normalize_semver(previous_semver)
-    displaced_prod_semver = normalize_semver(displaced_prod_semver)
-    prod_tag = str(data["tags"].get("prod") or "").strip()
-    if not re.fullmatch(r"v(?:0|[1-9]\d*)", prod_tag):
+    displaced_current_semver = normalize_semver(displaced_current_semver)
+    current_tag = str(data["tags"].get("current") or "").strip()
+    if not re.fullmatch(r"v(?:0|[1-9]\d*)", current_tag):
         raise ValueError(
-            f"tags.prod must be a moving major like v0 or v1, got {prod_tag!r}"
+            f"tags.current must be a moving major like v0 or v1, got {current_tag!r}"
         )
     return {
-        "candidate_tag": str(data["tags"]["candidate"]),
-        "displaced_prod_semver": displaced_prod_semver,
-        "displaced_prod_sha": current_prod,
-        "previous_tag": str(data["tags"]["previous_prod"]),
-        "prod_tag": prod_tag,
+        "current_tag": current_tag,
+        "displaced_current_semver": displaced_current_semver,
+        "displaced_current_sha": current_sha,
+        "next_tag": str(data["tags"]["next"]),
+        "previous_tag": str(data["tags"]["previous"]),
         "rollback_semver": rollback_semver,
         "rollback_sha": previous_sha,
     }
@@ -400,28 +400,28 @@ def apply_rollback_pointer_updates(
 ) -> None:
     """Mutate ``data`` pointers/tags/major to match a rollback plan."""
     now = updated_at or utc_now_iso()
-    prod_tag = str(plan["prod_tag"])
-    data["tags"]["prod"] = prod_tag
-    data["major"] = int(prod_tag.removeprefix("v"))
-    # Keep previous-prod pointing at the displaced prod so a second rollback
+    current_tag = str(plan["current_tag"])
+    data["tags"]["current"] = current_tag
+    data["major"] = int(current_tag.removeprefix("v"))
+    # Keep previous pointing at the displaced current so a second rollback
     # can undo the undo (swap).
     set_pointer(
         data,
-        "previous_prod",
-        sha=str(plan["displaced_prod_sha"]),
-        semver=str(plan["displaced_prod_semver"]),
+        "previous",
+        sha=str(plan["displaced_current_sha"]),
+        semver=str(plan["displaced_current_semver"]),
         updated_at=now,
     )
     set_pointer(
         data,
-        "prod",
+        "current",
         sha=str(plan["rollback_sha"]),
         semver=str(plan["rollback_semver"]),
         updated_at=now,
     )
     set_pointer(
         data,
-        "candidate",
+        "next",
         sha=str(plan["rollback_sha"]),
         semver=str(plan["rollback_semver"]),
         updated_at=now,

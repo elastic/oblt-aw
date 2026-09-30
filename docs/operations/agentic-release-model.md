@@ -16,7 +16,7 @@ Promote control-plane changes safely with mandatory gating E2E, keep consumer tr
 | Event orchestrators → routes | `obs-aw-event-*.yml` | Relative `./` (inherits caller pin) |
 | In-repo GH-AW locks | `obs-aw-autodoc.yml`, `obs-aw-dependency-review.yml`, `obs-aw-estc-pr-buildkite-detective.yml` | Relative `./gh-aw-*.lock.yml` (inherits caller pin) |
 | Upstream locks still in `ai-github-actions` | Other `obs-aw-*.yml` wrappers | `elastic/ai-github-actions/...@main` (until [#1876](https://github.com/elastic/oblt-aw/issues/1876)) |
-| Release metadata | `config/release-pointers.json` | `prod` / `candidate` / `previous_prod` SHAs + semver |
+| Release metadata | `config/release-pointers.json` | `current` / `next` / `previous` SHAs + semver |
 
 **Why self triggers stay relative:** Live E2E on `elastic/oblt-aw` must exercise default-branch tip before promote. Distribute **skips** installing templates into the control-plane repository (`GITHUB_REPOSITORY`) so future `@v0` consumer pins never overwrite relative self-triggers.
 
@@ -24,7 +24,7 @@ Promote control-plane changes safely with mandatory gating E2E, keep consumer tr
 
 - **Shared train (default):** one moving major tag `v0` for all distributed clients while the promote train is proven (templates pin `@v0` only after the tag exists).
 - **Immutable audit tags:** `v0.x.y` created on each promote (never moved).
-- **Moving ops tags:** `v0` (prod), `candidate`, `previous-prod`.
+- **Moving ops tags:** `v0` (current), `next`, `previous`.
 - **Graduation:** when the process is fully automated and testable, promote `major` → `v1.0.0`, bump templates to `@v1`, and redistribute.
 - **Opt-in fine grain:** per-workflow pointers only when a route must promote independently (not implemented in the first slice; extend `release-pointers.json` when needed).
 
@@ -33,7 +33,7 @@ flowchart LR
   Main[Merge to main]
   Promo[Promote on main: E2E then tag]
   Main --> Promo
-  Promo -->|rollback| Prev[Retarget vN to previous-prod]
+  Promo -->|rollback| Prev[Retarget vN to previous]
 ```
 
 ### Consumer churn
@@ -55,10 +55,10 @@ flowchart LR
 ## Promote contract
 
 1. Dispatch `aw-release-promote.yml` **on the default branch** (`main`).
-2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty prod pointer) always creates `v0.0.0` from `config/release-pointers.json` `major`.
+2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty current pointer) always creates `v0.0.0` from `config/release-pointers.json` `major`.
 3. Workflow calls `e2e-all` with `checkout-ref` set to `github.sha` (tip of `main` at promote start). Harness/oracle code is pinned to that SHA; live control-plane routes still exercise **default-branch tip** (relative self-triggers — intentional).
 4. Before mutating tags, re-fetch and require `origin/main == github.sha`. If `main` advanced during E2E, promote aborts (re-run on the new tip).
-5. On success: create immutable `vX.Y.Z` (no force-push), move `vX` / `candidate` / `previous-prod`, **commit and push** `config/release-pointers.json`, then push tags. Semver bumps from the **highest** pointer semver so rollback cannot rewind immutable numbering.
+5. On success: create immutable `vX.Y.Z` (no force-push), move `vX` / `next` / `previous`, **commit and push** `config/release-pointers.json`, then push tags. Semver bumps from the **highest** pointer semver so rollback cannot rewind immutable numbering.
 
 Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-ref` defaults to `main`).
 
@@ -67,8 +67,8 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 | Item | Value |
 |------|-------|
 | Action | `aw-release-rollback.yml` on default branch only (confirm=`rollback`) |
-| Effect | Retarget current `tags.prod` (`vN`) + `candidate` to `previous-prod` SHA; swap pointers |
-| Semver after rollback | `prod` shows the restored release; next promote bumps from max(pointer semvers) |
+| Effect | Retarget current `tags.current` (`vN`) + `next` to `previous` SHA; swap pointers |
+| Semver after rollback | `current` shows the restored release; next promote bumps from max(pointer semvers) |
 | Cross-major | After a major promote, rollback moves the **new** major tag (`v1`, …), not the prior major |
 | Who | Maintainers with Actions `workflow_dispatch` on this repo |
 | Recovery target | **≤ 15 minutes** when git tags and `release-pointers.json` are healthy |

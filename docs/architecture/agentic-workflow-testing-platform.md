@@ -140,11 +140,11 @@ flowchart LR
   Build[Build or package change]
   L1[Unit plus functional]
   L2[Integration]
-  Cand[Candidate pointer or label]
+  Cand[Next pointer or label]
   L3[E2E tier gating]
-  Prod[Production pointer or label]
+  Prod[Current pointer or label]
   Build --> L1 --> L2 --> Cand
-  Cand -->|candidate gates plus E2E| L3
+  Cand -->|next gates plus E2E| L3
   L3 -->|pass| Prod
   Prod -->|rollback| Prev[Previous known-good pointer]
 ```
@@ -152,8 +152,8 @@ flowchart LR
 | Gate | Required layers | Typical trigger | On failure |
 |------|-----------------|-----------------|------------|
 | **Merge to `main`** | Unit + functional (current `ci.yml` required job) | Every PR | Block merge |
-| **Candidate promote** | Merge gates + integration suite for touched workflows | Release automation / manual promote ([#1878](https://github.com/elastic/oblt-aw/issues/1878)) | Block candidate pointer update |
-| **Production promote** | Candidate gates + **gating** E2E for every in-scope workflow (see coverage rules below) | Promote train | Block production pointer; keep previous known-good |
+| **Next promote** | Merge gates + integration suite for touched workflows | Release automation / manual promote ([#1878](https://github.com/elastic/oblt-aw/issues/1878)) | Block next pointer update |
+| **Current promote** | Next gates + **gating** E2E for every in-scope workflow (see coverage rules below) | Promote train | Block current pointer; keep previous known-good |
 | **Rollback** | N/A (operational) | On-call / release owner | Point back to previous known-good; re-run smoke E2E optional |
 
 **E2E coverage rules:**

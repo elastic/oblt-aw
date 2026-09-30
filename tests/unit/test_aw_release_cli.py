@@ -19,9 +19,9 @@ def test_promote_push_from_plan(
 ) -> None:
     plan = {
         "semver": "v0.0.1",
-        "prod_tag": "v0",
-        "candidate_tag": "candidate",
-        "previous_tag": "previous-prod",
+        "current_tag": "v0",
+        "next_tag": "next",
+        "previous_tag": "previous",
     }
     plan_path = tmp_path / "promote-plan.json"
     plan_path.write_text(
@@ -43,9 +43,9 @@ def test_rollback_push_from_plan(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     plan = {
-        "prod_tag": "v0",
-        "candidate_tag": "candidate",
-        "previous_tag": "previous-prod",
+        "current_tag": "v0",
+        "next_tag": "next",
+        "previous_tag": "previous",
     }
     plan_path = tmp_path / "rollback-plan.json"
     plan_path.write_text(
