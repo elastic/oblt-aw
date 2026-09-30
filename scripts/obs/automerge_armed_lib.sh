@@ -69,19 +69,27 @@ automerge_comments_armed_for_sha() {
   [[ -n "${match}" ]]
 }
 
-# Find the first workflow-authored armed comment id (any head SHA). Empty if none.
+# Find the workflow-authored armed comment id for this exact head SHA. Empty if none.
+# Never returns a marker for a different SHA (avoids stale concurrent arms clobbering the current head).
 automerge_find_bot_armed_comment_id_from_json() {
   local comments_json="${1:?}"
+  local head_sha="${2:?}"
   printf '%s' "${comments_json}" | jq -r \
     --arg bot "${AUTOMERGE_ARMED_BOT}" \
+    --arg sha "${head_sha}" \
     '[.[]
       | select(.user.login == $bot)
-      | select((.body // "") | test("<!-- obs-aw-automerge:armed sha=[0-9a-f]{40} -->"))
+      | select(
+          ((.body // "")
+            | capture("<!-- obs-aw-automerge:armed sha=(?<s>[0-9a-f]{40}) -->")? // empty
+          ).s == $sha
+        )
       | .id
      ] | first // empty'
 }
 
 # Upsert a bot-owned armed comment bound to head_sha. Sets armed=true on GITHUB_OUTPUT when set.
+# Updates only a marker for this SHA; creates a new comment when none exists (leaves other SHAs alone).
 # Optional 5th arg: shared-token-policy (non-empty => Vault-app bypass wording).
 automerge_upsert_armed_comment() {
   local repo="${1:?}"
@@ -106,7 +114,7 @@ automerge_upsert_armed_comment() {
   local comments_json
   comments_json="$(automerge_list_issue_comments "${repo}" "${pr_number}")" || return 1
   local comment_id
-  comment_id="$(automerge_find_bot_armed_comment_id_from_json "${comments_json}")"
+  comment_id="$(automerge_find_bot_armed_comment_id_from_json "${comments_json}" "${head_sha}")"
   if [[ -n "${comment_id}" ]]; then
     gh api --method PATCH "repos/${repo}/issues/comments/${comment_id}" -f body="${body}" >/dev/null
   else

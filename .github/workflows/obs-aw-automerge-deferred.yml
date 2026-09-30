@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
-          ref: ${{ github.workflow_sha }}
+          ref: main
           path: _oblt-aw
           fetch-depth: 1
           token: ${{ github.token }}
@@ -96,7 +96,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
-          ref: ${{ github.workflow_sha }}
+          ref: main
           path: _oblt-aw
           fetch-depth: 1
           token: ${{ github.token }}
