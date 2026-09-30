@@ -348,11 +348,10 @@ jobs:
           fail_with_comment() {
             local detail="$1"
             MARKER='<!-- obs-aw-automerge:outcome-gate -->'
-            body="$(printf '%s\n\n%s\n\n%s\n\n%s\n\n%s' \
+            body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
               "$MARKER" \
-              "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`, fallback=\`${FALLBACK_RESULT:-n/a}\`)." \
+              "Automerge could not complete for this pull request." \
               "${detail}" \
-              "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS; classic BP bypass is honored only on direct REST merge as that app, not by async \`--auto\` / merge-queue completion), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge." \
               "Workflow run: ${RUN_URL}")"
             comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
               | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
@@ -386,10 +385,10 @@ jobs:
           # merge queue is fine. REVIEW_REQUIRED / CHANGES_REQUESTED will not clear via CI.
           if [ "$auto_merge" = "true" ]; then
             if [ "$review_decision" = "REVIEW_REQUIRED" ] || [ "$review_decision" = "CHANGES_REQUESTED" ]; then
-              fail_with_comment "Native auto-merge is enabled but reviews still block merge (\`reviewDecision: ${review_decision}\`, \`mergeStateStatus: ${merge_state}\`). Async auto-merge / merge-queue completion does not honor classic BP \`pull_request_bypassers\`; a direct Vault-app REST merge (with the app listed as a bypasser) is required, or a human CODEOWNERS / required approval."
+              fail_with_comment "It is waiting on an approving review from a maintainer. Ask someone with write access to approve this pull request, or merge it manually."
             fi
             echo "Native auto-merge enabled; reviews satisfied (reviewDecision=${review_decision:-none}, mergeStateStatus=${merge_state})."
             exit 0
           fi
 
-          fail_with_comment "PR remains open without native auto-merge (mergeStateStatus=${merge_state}, reviewDecision=${review_decision:-none})."
+          fail_with_comment "A repository rule or required check is still blocking the merge. Check the linked workflow run for details, or ask a maintainer to merge this pull request manually."
