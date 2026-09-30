@@ -12,6 +12,7 @@ This workflow creates PRs across target repositories to install, update, or remo
   - `config/**/active-repositories.json` (per-org repo lists; example [config/obs/active-repositories.json](../../config/obs/active-repositories.json))
   - [.github/remote-workflow-template/](../../.github/remote-workflow-template/) (per-org subtrees such as `obs/`, `docs/`)
 - Or manually triggered with `workflow_dispatch`.
+- The minted token must be a GitHub App bot token with contents and pull-request write access in each target repository. Both PR actions use built-in bot commit signing (`sign-commits: true`), not GPG secrets. A created or updated PR fails its matrix leg unless the action reports its commits as verified; skipped operations are unaffected.
 
 ## Usage
 
