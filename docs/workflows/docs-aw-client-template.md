@@ -59,13 +59,13 @@ Job-level permissions on the client entrypoint job (for example `run-docs-aw-pul
 
 1. Merge distribution PRs that replace `trigger-docs-aw-ai-menu.yml`, `trigger-docs-aw-pr-ai-menu-collect.yml`, and `trigger-docs-aw-pr-ai-menu.yml` with the four event-scoped clients above.
 2. Distribution removes client paths that are no longer in the template tree.
-3. Update Backstage `workflow_ref` / token policies to reference the new client workflow files.
+3. Update Backstage `workflow_ref` / token policies to `elastic/<repo>/.github/workflows/trigger-docs-aw-*.yml@*` (ref wildcard required for backport branches).
 
 ## Migration from monolithic `docs-aw.yml`
 
 1. Merge distribution PRs that add event-scoped `trigger-docs-aw-*.yml` files.
 2. Delete `.github/workflows/docs-aw.yml` in the consumer repository. Remove legacy per-route client files if present; distribution drops paths that are no longer in the template tree.
-3. Update Backstage `workflow_ref` / token policies to reference each installed **`trigger-docs-aw-*.yml`** client workflow file.
+3. Update Backstage `workflow_ref` / token policies to `elastic/<repo>/.github/workflows/trigger-docs-aw-*.yml@*`.
 
 ## References
 

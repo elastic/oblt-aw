@@ -97,13 +97,13 @@ Consumer-facing names for onboarding come from each workflow doc’s **Prerequis
 
 1. Merge distribution PRs that replace `trigger-oblt-aw-*.yml` with `trigger-obs-aw-*.yml` (same event-scoped set: pull-request, issues, issue-comment, schedule-daily, schedule-frequent, status).
 2. Distribution removes client paths that are no longer in the template tree (including retired `trigger-oblt-aw-*.yml`).
-3. Update Backstage `workflow_ref` / token policies to reference the new client workflow files (for example `trigger-obs-aw-pull-request.yml`).
+3. Update Backstage `workflow_ref` / token policies to `elastic/<repo>/.github/workflows/trigger-obs-aw-*.yml@*` (ref wildcard required for backport branches).
 
 ## Migration from monolithic entrypoint
 
 1. Merge distribution PRs that add event-scoped `trigger-obs-aw-*.yml` files.
 2. Delete `.github/workflows/oblt-aw.yml` and stop calling `oblt-aw-ingress` in the consumer repository. Remove any legacy per-workflow client files named `oblt-aw-*.yml`, `trigger-oblt-aw-*.yml`, or `trg-oblt-aw-*.yml`; distribution drops paths that are no longer in the template tree.
-3. Update Backstage `workflow_ref` / token policies to reference each installed **`trigger-obs-aw-*.yml`** client workflow file.
+3. Update Backstage `workflow_ref` / token policies to `elastic/<repo>/.github/workflows/trigger-obs-aw-*.yml@*`.
 
 ## References
 

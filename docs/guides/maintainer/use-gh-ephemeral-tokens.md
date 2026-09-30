@@ -26,7 +26,7 @@ Details: [distribute-client-workflow — distribution configuration contract](..
 
 Every newly registered consumer repository needs a Backstage **TokenPolicy** in `elastic/catalog-info` **before** merging the `oblt-aw` registration to `main`:
 
-- `bound_claims.workflow_ref` must match each client workflow that calls `create-token` (for example `elastic/<repo>/.github/workflows/trigger-obs-aw-automerge.yml@refs/heads/main`).
+- `bound_claims.workflow_ref` must match the client trigger glob with a ref wildcard (for example `elastic/<repo>/.github/workflows/trigger-obs-aw-*.yml@*`). Do not pin `@refs/heads/main` only: distribute may label install PRs with `backport-active-all`, and OIDC claims include the ref that ran.
 - `additional_permissions` is the union of permissions required by workflows in the org registry.
 
 Full procedure and YAML template: [Registering resources](../../onboarding/registering-a-repository.md).
@@ -54,7 +54,7 @@ Automerge splits identities by PR author so approve never self-APPROVEs: `approv
 
 ## Troubleshooting OIDC / create-token failures
 
-- Match `workflow_ref` exactly to the invoking client workflow file.
+- Match `workflow_ref` to the client trigger glob with `@*` (for example `trigger-obs-aw-*.yml@*`); filename wildcards need an explicit `token-policy` / `workflow-token-policy` input.
 - Confirm `id-token: write` on the client `run-obs-aw-<event>` job.
 - Confirm catalog policy merged **before** `oblt-aw` registration merged to `main`.
 
