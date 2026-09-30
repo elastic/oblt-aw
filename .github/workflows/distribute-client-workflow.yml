@@ -208,6 +208,7 @@ jobs:
         with:
           token: ${{ steps.create-token.outputs.token }}
           path: target
+          sign-commits: true
           branch: oblt-aw/sync-client-workflow
           labels: ${{ steps.pr-labels.outputs.labels }}
           commit-message: Sync agentic workflow files from elastic/oblt-aw
@@ -246,6 +247,7 @@ jobs:
         with:
           token: ${{ steps.create-token.outputs.token }}
           path: target
+          sign-commits: true
           branch: oblt-aw/remove-client-workflow
           labels: ${{ steps.pr-labels.outputs.labels }}
           commit-message: Remove agentic workflow files managed by elastic/oblt-aw
@@ -258,6 +260,19 @@ jobs:
 
             ---
             Created by [workflow run](${{ env.JOB_URL }})
+
+      - name: Verify PR commit signatures
+        env:
+          TARGET_REPOSITORY: ${{ matrix.target.repository }}
+          OPERATION: ${{ matrix.target.operation == 'install' && steps.cpr.outputs.pull-request-operation || steps.cpr-remove.outputs.pull-request-operation }}
+          COMMITS_VERIFIED: ${{ matrix.target.operation == 'install' && steps.cpr.outputs.pull-request-commits-verified || steps.cpr-remove.outputs.pull-request-commits-verified }}
+        run: |
+          if [[ "$OPERATION" == "created" || "$OPERATION" == "updated" ]]; then
+            if [[ "$COMMITS_VERIFIED" != "true" ]]; then
+              echo "PR commits were not verified for $TARGET_REPOSITORY." >&2
+              exit 1
+            fi
+          fi
 
       - name: Record PR result
         if: always()
