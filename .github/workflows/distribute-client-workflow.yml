@@ -262,16 +262,14 @@ jobs:
             Created by [workflow run](${{ env.JOB_URL }})
 
       - name: Verify PR commit signatures
+        if: ${{ (matrix.target.operation == 'install' && (steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated')) || (matrix.target.operation == 'remove' && (steps.cpr-remove.outputs.pull-request-operation == 'created' || steps.cpr-remove.outputs.pull-request-operation == 'updated')) }}
         env:
           TARGET_REPOSITORY: ${{ matrix.target.repository }}
-          OPERATION: ${{ matrix.target.operation == 'install' && steps.cpr.outputs.pull-request-operation || steps.cpr-remove.outputs.pull-request-operation }}
           COMMITS_VERIFIED: ${{ matrix.target.operation == 'install' && steps.cpr.outputs.pull-request-commits-verified || steps.cpr-remove.outputs.pull-request-commits-verified }}
         run: |
-          if [[ "$OPERATION" == "created" || "$OPERATION" == "updated" ]]; then
-            if [[ "$COMMITS_VERIFIED" != "true" ]]; then
-              echo "PR commits were not verified for $TARGET_REPOSITORY." >&2
-              exit 1
-            fi
+          if [[ "$COMMITS_VERIFIED" != "true" ]]; then
+            echo "PR commits were not verified for $TARGET_REPOSITORY." >&2
+            exit 1
           fi
 
       - name: Record PR result
