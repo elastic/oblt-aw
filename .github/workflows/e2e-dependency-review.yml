@@ -37,7 +37,7 @@ env:
 jobs:
   e2e:
     name: Dependency review E2E
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 90
     permissions:
       contents: write

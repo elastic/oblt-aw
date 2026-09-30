@@ -46,7 +46,7 @@ jobs:
   rollback:
     name: Rollback current pointer
     needs: guard
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 15
     permissions:
       contents: write
