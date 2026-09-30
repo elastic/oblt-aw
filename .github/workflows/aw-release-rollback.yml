@@ -73,10 +73,7 @@ jobs:
           python-version: "3.14"
 
       - name: Configure Git identity
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        uses: elastic/oblt-actions/git/setup@v1
 
       - name: Rollback tags and update pointers (local)
         env:
