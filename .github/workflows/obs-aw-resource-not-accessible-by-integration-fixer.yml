@@ -128,11 +128,9 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "Resource-not-accessible fixer finished without opening a pull request."
+            echo "The resource-not-accessible fixer finished without opening a pull request."
             echo
-            echo "- Workflow run: ${RUN_URL}"
-            echo "- If the agent intentionally called \`noop\` / \`report_incomplete\`, treat that as the completion signal."
-            echo "- If you expected a PR, check the run artifacts for empty safe outputs."
+            echo "If you expected a PR, remove the \`oblt-aw/ai/fix-ready\` label and add it again (keep the triage label)."
             echo
-            echo "To retry after a false bailout: remove and re-apply \`oblt-aw/ai/fix-ready\` (keep \`oblt-aw/triage/res-not-accessible-by-integration\`)."
+            echo "Workflow run: ${RUN_URL}"
           } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -

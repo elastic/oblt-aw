@@ -136,12 +136,11 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "Autodoc created this issue, but the follow-up PR stage failed."
+            echo "Autodoc created this issue, but could not open a follow-up pull request."
             echo
-            echo "- Workflow run: ${RUN_URL}"
-            echo "- Common cause: transient Copilot API errors such as \`CAPIError: 502 \"Proxy error\"\`"
+            echo "Comment \`/ai implement\` on this issue to retry (you need write access), or wait for the next autodoc run."
             echo
-            echo "**Recovery:** as an OWNER, MEMBER, or COLLABORATOR, comment \`/ai implement\` on this issue to retry PR creation via issue-fixer. You can also wait for the next successful autodoc schedule after the API recovers."
+            echo "Workflow run: ${RUN_URL}"
           } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
       - name: Apply autodoc fix-failed label if it exists
         env:
@@ -175,11 +174,9 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "Autodoc fix finished without opening a pull request."
+            echo "Autodoc finished without opening a pull request."
             echo
-            echo "- Workflow run: ${RUN_URL}"
-            echo "- If the agent intentionally called \`noop\` / \`report_incomplete\`, treat that as the completion signal."
-            echo "- If you expected a PR, check the run artifacts for empty safe outputs."
+            echo "If you expected a PR, comment \`/ai implement\` on this issue to retry (you need write access)."
             echo
-            echo "**Recovery:** as an OWNER, MEMBER, or COLLABORATOR, comment \`/ai implement\` on this issue to retry PR creation via issue-fixer."
+            echo "Workflow run: ${RUN_URL}"
           } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
