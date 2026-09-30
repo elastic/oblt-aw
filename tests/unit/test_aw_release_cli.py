@@ -39,6 +39,50 @@ def test_promote_push_from_plan(
     assert seen == [plan]
 
 
+def test_promote_create_release_from_plan(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan = {
+        "bootstrap": False,
+        "previous_semver": "v0.0.0",
+        "semver": "v0.0.1",
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    }
+    plan_path = tmp_path / "promote-plan.json"
+    plan_path.write_text(
+        json.dumps({"plan": plan}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    seen: list[dict[str, object]] = []
+
+    def fake_create(
+        *,
+        semver: str,
+        sha: str,
+        previous_semver: str = "",
+        bootstrap: bool = False,
+    ) -> None:
+        seen.append(
+            {
+                "bootstrap": bootstrap,
+                "previous_semver": previous_semver,
+                "semver": semver,
+                "sha": sha,
+            }
+        )
+
+    monkeypatch.setattr(promote_cli, "create_github_release", fake_create)
+    assert promote_cli.main(["--create-release-from-plan", str(plan_path)]) == 0
+    assert seen == [
+        {
+            "bootstrap": False,
+            "previous_semver": "v0.0.0",
+            "semver": "v0.0.1",
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        }
+    ]
+
+
 def test_rollback_push_from_plan(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

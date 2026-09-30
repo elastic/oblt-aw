@@ -1,7 +1,8 @@
 ---
 name: AW release — promote
 
-# Promote tip of main: run e2e-all, bump semver, move vN + previous tags.
+# Promote tip of main at dispatch: run e2e-all, bump semver, move vN + previous tags,
+# commit pointers, and create a GitHub Release with auto-generated notes.
 # Runbook: docs/operations/agentic-release-model.md
 on:
   workflow_dispatch:
@@ -16,7 +17,7 @@ on:
           - patch
         default: patch
       dry-run:
-        description: Run E2E and plan only (no tags, no pointer commit)
+        description: Run E2E and plan only (no tags, no pointer commit, no GitHub Release)
         required: false
         type: boolean
         default: false
@@ -97,7 +98,7 @@ jobs:
           git fetch origin "${DEFAULT_BRANCH}"
           extra=(
             --plan-output promote-plan.json
-            --expect-tip-of "origin/${DEFAULT_BRANCH}"
+            --require-ancestor-of "origin/${DEFAULT_BRANCH}"
           )
           if [ "${DRY_RUN}" = "true" ]; then
             extra+=(--dry-run)
@@ -112,6 +113,7 @@ jobs:
         env:
           RELEASE_SHA: ${{ github.sha }}
           RELEASE_TYPE: ${{ inputs.release-type }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
           if git diff --quiet -- config/release-pointers.json; then
@@ -120,7 +122,11 @@ jobs:
           fi
           git add config/release-pointers.json
           git commit -m "chore(release): promote ${RELEASE_TYPE} (${RELEASE_SHA:0:12})"
-          git push origin HEAD:"${{ github.ref_name }}"
+          git fetch origin "${DEFAULT_BRANCH}"
+          # Rebase onto current tip so push stays fast-forward when main advanced
+          # during E2E while we still release the gated SHA.
+          git rebase "origin/${DEFAULT_BRANCH}"
+          git push origin "HEAD:refs/heads/${DEFAULT_BRANCH}"
 
       - name: Push release tags
         if: ${{ inputs.dry-run != true }}
@@ -129,3 +135,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/aw_release_promote.py --push-from-plan promote-plan.json
+
+      - name: Create GitHub Release with generated notes
+        if: ${{ inputs.dry-run != true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: scripts
+        run: |
+          set -euo pipefail
+          python3 scripts/aw_release_promote.py --create-release-from-plan promote-plan.json

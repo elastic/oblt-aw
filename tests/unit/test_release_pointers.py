@@ -284,6 +284,114 @@ class TestPushTagHelpers:
         assert calls[0] == ["push", "origin", "v0.0.1"]
 
 
+class TestRequireAncestorOf:
+    def test_accepts_when_sha_is_tip(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def fake_resolve(ref: str) -> str:
+            if ref == "origin/main":
+                return SHA_A
+            raise AssertionError(ref)
+
+        monkeypatch.setattr(rp, "resolve_sha", fake_resolve)
+        rp.require_ancestor_of(SHA_A, tip_ref="origin/main")
+
+    def test_accepts_when_sha_is_ancestor(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fake_resolve(ref: str) -> str:
+            if ref == "origin/main":
+                return SHA_B
+            raise AssertionError(ref)
+
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            del check
+            assert args[:3] == ["merge-base", "--is-ancestor", SHA_A]
+            return type("R", (), {"returncode": 0})()
+
+        monkeypatch.setattr(rp, "resolve_sha", fake_resolve)
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        rp.require_ancestor_of(SHA_A, tip_ref="origin/main")
+
+    def test_rejects_when_not_ancestor(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def fake_resolve(ref: str) -> str:
+            if ref == "origin/main":
+                return SHA_B
+            raise AssertionError(ref)
+
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            del check, args
+            return type("R", (), {"returncode": 1})()
+
+        monkeypatch.setattr(rp, "resolve_sha", fake_resolve)
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        with pytest.raises(ValueError, match="not an ancestor"):
+            rp.require_ancestor_of(SHA_A, tip_ref="origin/main")
+
+
+class TestCreateGithubRelease:
+    def test_bootstrap_omits_notes_start_tag(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen: list[list[str]] = []
+
+        def fake_run(
+            cmd: list[str],
+            *,
+            check: bool = False,
+            capture_output: bool = False,
+            text: bool = False,
+        ) -> object:
+            del check, capture_output, text
+            seen.append(cmd)
+            return type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        monkeypatch.setattr(rp.subprocess, "run", fake_run)
+        rp.create_github_release(
+            semver="v0.0.0",
+            sha=SHA_A,
+            previous_semver="v0.0.0",
+            bootstrap=True,
+        )
+        assert seen == [
+            [
+                "gh",
+                "release",
+                "create",
+                "v0.0.0",
+                "--generate-notes",
+                "--title",
+                "v0.0.0",
+                "--target",
+                SHA_A,
+            ]
+        ]
+
+    def test_includes_notes_start_tag_when_previous_exists(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen: list[list[str]] = []
+
+        def fake_run(
+            cmd: list[str],
+            *,
+            check: bool = False,
+            capture_output: bool = False,
+            text: bool = False,
+        ) -> object:
+            del check, capture_output, text
+            seen.append(cmd)
+            return type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        monkeypatch.setattr(rp.subprocess, "run", fake_run)
+        rp.create_github_release(
+            semver="v0.0.1",
+            sha=SHA_B,
+            previous_semver="v0.0.0",
+            bootstrap=False,
+        )
+        assert "--notes-start-tag" in seen[0]
+        assert "v0.0.0" in seen[0]
+
+
 class TestLoadSaveRoundTrip:
     def test_round_trip(self, tmp_path: pathlib.Path) -> None:
         path = tmp_path / "release-pointers.json"

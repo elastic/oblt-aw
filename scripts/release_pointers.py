@@ -276,7 +276,7 @@ def resolve_sha(ref: str) -> str:
 
 
 def require_remote_tip(sha: str, *, tip_ref: str) -> None:
-    """Fail unless ``tip_ref`` currently resolves to ``sha`` (CAS before mutate)."""
+    """Fail unless ``tip_ref`` currently resolves to ``sha`` (strict tip CAS)."""
     sha = validate_full_sha(sha, label="sha")
     tip = resolve_sha(tip_ref)
     if tip != sha:
@@ -284,6 +284,61 @@ def require_remote_tip(sha: str, *, tip_ref: str) -> None:
             f"ref {tip_ref!r} is {tip}, expected promote SHA {sha}; "
             "default branch advanced during the gate — abort and re-run promote"
         )
+
+
+def require_ancestor_of(sha: str, *, tip_ref: str) -> None:
+    """Fail unless ``sha`` is ``tip_ref`` or an ancestor of it.
+
+    Allows promoting the E2E-gated SHA after default branch advanced during
+    the gate, while still refusing commits not on that branch history.
+    """
+    sha = validate_full_sha(sha, label="sha")
+    tip = resolve_sha(tip_ref)
+    if tip == sha:
+        return
+    result = run_git(["merge-base", "--is-ancestor", sha, tip], check=False)
+    if result.returncode != 0:
+        raise ValueError(
+            f"promote SHA {sha} is not an ancestor of {tip_ref!r} ({tip}); "
+            "refusing to promote a commit not on the default branch history"
+        )
+
+
+def create_github_release(
+    *,
+    semver: str,
+    sha: str,
+    previous_semver: str = "",
+    bootstrap: bool = False,
+) -> None:
+    """Create a GitHub Release for an existing immutable semver tag.
+
+    Uses ``gh release create --generate-notes``. When ``previous_semver`` is set
+    and this is not a bootstrap promote, pass ``--notes-start-tag`` so notes
+    cover the range since the prior production release.
+    """
+    semver = normalize_semver(semver)
+    sha = validate_full_sha(sha, label="sha")
+    cmd = [
+        "gh",
+        "release",
+        "create",
+        semver,
+        "--generate-notes",
+        "--title",
+        semver,
+        "--target",
+        sha,
+    ]
+    previous = (previous_semver or "").strip()
+    if previous and not bootstrap:
+        previous = normalize_semver(previous)
+        if previous != semver:
+            cmd.extend(["--notes-start-tag", previous])
+    result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(f"gh release create {semver} failed: {detail}")
 
 
 def tag_points_at(tag: str, sha: str) -> bool:
@@ -370,7 +425,7 @@ def plan_promote(
 ) -> dict[str, Any]:
     """Compute tag/pointer updates for a production promote (no git side effects).
 
-    Always promotes ``sha`` (expected: tip of default branch). First promote
+    Always promotes ``sha`` (must be on default-branch history). First promote
     (empty current pointer) creates ``v{major}.0.0`` from ``data["major"]``
     regardless of ``release_type``.
     """
