@@ -36,7 +36,8 @@ jobs:
       pull-requests: write
       copilot-requests: write
       id-token: write
-    uses: elastic/oblt-aw/.github/workflows/gh-aw-dependency-review.lock.yml@main
+    # Relative so client @v0 / control-plane tip pins inherit the release train.
+    uses: ./.github/workflows/gh-aw-dependency-review.lock.yml
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.

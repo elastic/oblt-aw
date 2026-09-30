@@ -25,7 +25,7 @@ Ingress routes here when:
 The job `estc-pr-buildkite-detective` calls:
 
 ```yaml
-uses: elastic/oblt-aw/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@main
+uses: ./.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml
 ```
 
 Edit the GH-AW source [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`](../../.github/workflows/gh-aw-estc-pr-buildkite-detective.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the lock).
@@ -69,7 +69,7 @@ Migration note for consumers: if you previously configured the consumer-facing s
 
 ## Cutover and rollback
 
-**Cutover (this pilot):** the wrapper `uses` `elastic/oblt-aw/.../gh-aw-estc-pr-buildkite-detective.lock.yml@main` instead of `elastic/ai-github-actions/...@main`. Consumer secret mapping and event routing are unchanged.
+**Cutover (this pilot):** the wrapper `uses` relative `./.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml` (inherits caller pin) instead of `elastic/ai-github-actions/...@main`. Consumer secret mapping and event routing are unchanged.
 
 **Rollback:** point the wrapper job back at the previous upstream lock:
 

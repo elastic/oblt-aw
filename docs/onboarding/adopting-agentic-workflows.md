@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Adopting** a new workflow means: it is **defined in the remote control plane** (`elastic/oblt-aw` — reusable `obs-aw-*` workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trigger-obs-aw-<workflow-id>.yml`** client template that calls `elastic/oblt-aw/.github/workflows/obs-aw-<name>.yml@main`.
+**Adopting** a new workflow means: it is **defined in the remote control plane** (`elastic/oblt-aw` — reusable `obs-aw-*` workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trigger-obs-aw-<workflow-id>.yml`** client template that calls `elastic/oblt-aw/.github/workflows/obs-aw-event-*.yml@main` today; after first promote, pin `@v0` (see [agentic-release-model](../operations/agentic-release-model.md)).
 
 You **cannot** meaningfully “enable” a workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](../../config/obs/workflow-registry.json), the **client template and `obs-aw-*` wrapper** exist, and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane Dashboard. A workflow runs only when its checkbox is checked on that dashboard (or after sync creates the dashboard and you enable it).
 

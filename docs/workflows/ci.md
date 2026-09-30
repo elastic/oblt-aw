@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
 
-This workflow runs quality checks and tests on every pull request (any base branch). It enforces pre-commit checks (including Actionlint), Python unit and integration tests (`tests/unit`, `tests/integration`; not live `tests/e2e/`), and TypeScript tests via `npm test`.
+This workflow runs quality checks and tests on every pull request (any base branch). It enforces pre-commit checks (including Actionlint), Python unit and integration tests (`tests/unit`, `tests/integration`; not live `tests/e2e/`), TypeScript tests via `npm test`, and gh-aw lock drift (`make compile-aw-check`). Live E2E is **not** a PR gate — it runs on promote (`aw-release-promote` → `e2e-all`) and via manual `e2e-all` / leaf dispatch.
 
 ## Triggers
 
@@ -12,13 +12,15 @@ This workflow runs quality checks and tests on every pull request (any base bran
 
 ## Jobs
 
-| Job               | Purpose                                                                 |
-|-------------------|-------------------------------------------------------------------------|
-| `pre-commit`      | Runs all pre-commit hooks (YAML, shell, GitHub Actions lint, Python lint/format, mypy) |
-| `python-tests`    | Runs pytest on `tests/unit` and `tests/integration` (not `tests/e2e`) and validates every `*-aw-*` workflow calls `aw-prelude.yml` |
-| `typescript-tests`| Runs `npm test` (tsx) on `tests/unit/*.test.ts`                         |
-| `scorecard`       | OpenSSF Scorecard security analysis; uploads SARIF to GitHub Security   |
-| `required`        | Gate job; fails if any of the above jobs fail                           |
+| Job | Purpose |
+|-----|---------|
+| `ci-gate` | Skips work jobs for same-repo E2E fixture PRs (`e2e:*` on `e2e/*`) |
+| `gh-aw-drift` | Runs `make compile-aw-check` (recompile locks; fail on drift) |
+| `pre-commit` | Runs all pre-commit hooks (YAML, shell, GitHub Actions lint, Python lint/format, mypy) |
+| `python-tests` | Runs pytest on `tests/unit` and `tests/integration` (not `tests/e2e`) and validates every `*-aw-*` workflow calls `aw-prelude.yml` |
+| `required` | Gate job; fails if any required job failed |
+| `scorecard` | OpenSSF Scorecard security analysis; uploads SARIF to GitHub Security |
+| `typescript-tests` | Runs `npm test` (tsx) on `tests/unit/*.test.ts` |
 
 ## Pre-commit Hooks
 
@@ -50,6 +52,11 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 - npm cache enabled via `actions/setup-node`
 - Note: CI currently runs TypeScript tests only; dedicated TypeScript lint/format/type-check jobs are not part of this workflow.
 
+## gh-aw drift
+
+- `gh-aw-drift` always runs on non-fixture PRs (`make compile-aw-check`).
+- Live lock provenance is gated at promote time via [`e2e-all.yml`](../../.github/workflows/e2e-all.yml) from [`aw-release-promote.yml`](../../.github/workflows/aw-release-promote.yml) — see [agentic-release-model](../operations/agentic-release-model.md).
+
 ## Scorecard
 
 - Runs OpenSSF Scorecard with SARIF output
@@ -58,7 +65,7 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 
 ## Permissions
 
-- All jobs: `contents: read` (minimal)
+- Most jobs: `contents: read` (minimal)
 - Scorecard: `security-events: write`, `id-token: write`
 
 ## References
@@ -66,3 +73,5 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 - Pre-commit config: [.pre-commit-config.yaml](../../.pre-commit-config.yaml)
 - Local development: [docs/development/contributing.md](../development/contributing.md)
 - Testing platform design (unit through E2E, release gates): [docs/architecture/agentic-workflow-testing-platform.md](../architecture/agentic-workflow-testing-platform.md)
+- Agentic release model (promote/rollback): [docs/operations/agentic-release-model.md](../operations/agentic-release-model.md)
+- E2E orchestrator: [.github/workflows/e2e-all.yml](../../.github/workflows/e2e-all.yml)
