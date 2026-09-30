@@ -84,13 +84,14 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 
 | Path | Role |
 |------|------|
-| `config/release-pointers.json` | Source of truth for SHAs / semver |
-| `scripts/release_pointers.py` | Library |
-| `scripts/aw_release_promote.py` | Promote CLI |
-| `scripts/aw_release_rollback.py` | Rollback CLI |
 | `.github/workflows/aw-release-promote.yml` | Promote entrypoint (calls `e2e-all`) |
 | `.github/workflows/aw-release-rollback.yml` | Rollback entrypoint |
 | `.github/workflows/e2e-all.yml` | Parallel leaf E2E (promote + smoke) |
+| `config/release-pointers.json` | Source of truth for SHAs / semver |
+| `config/release.json` | Static release-train settings (promote Vault token policy) |
+| `scripts/aw_release_promote.py` | Promote CLI |
+| `scripts/aw_release_rollback.py` | Rollback CLI |
+| `scripts/release_pointers.py` | Library |
 
 ## References
 

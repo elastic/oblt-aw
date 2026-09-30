@@ -2,44 +2,58 @@
 
 ## Overview
 
-Client template chain: `trigger-obs-aw-pull-request.yml` → `obs-aw-event-pull-request.yml` → `obs-aw-automerge.yml`
+Client template chains:
+
+- `trigger-obs-aw-pull-request.yml` → `obs-aw-event-pull-request.yml` → `obs-aw-automerge.yml` (validate, approve, try merge, **arm** if checks pending)
+- `trigger-obs-aw-schedule-frequent.yml` → `obs-aw-event-schedule.yml` (`schedule-profile: frequent`) → `obs-aw-automerge-deferred.yml` (Vault REST merge for armed PRs)
 
 For the user-facing Automerge service catalogue, see [Automerge services](../guides/user/automerge-services.md).
 
-Routed workflow source: `.github/workflows/obs-aw-automerge.yml` (`verify`, `check-dependency-collection`, `approve`, `automerge`, conditional `enable-merge-when-ready`, and `report-automerge-outcome` on the PR).
+Routed workflow sources:
 
-**Approve:** Nested `gh-aw-mention-in-pr` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]` (Vault, Dependabot, Renovate, and other allowed authors). When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review (`verify` requires a non-empty policy in that case). Author allow list is **only** [allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json) (prelude CSV into the approve prompt). Matching normalizes GraphQL `app/<slug>` → `<slug>[bot]` (gh ≥ 2.50); do not maintain a second alias list. Automerge continues via job `needs` (no re-trigger needed for the review). Classic `pull_request_bypassers` alone do not bypass org rulesets.
+- `.github/workflows/obs-aw-automerge.yml` — PR path (`verify`, `check-dependency-collection`, `approve`, `automerge`, `arm-for-deferred-merge`, `report-automerge-outcome`)
+- `.github/workflows/obs-aw-automerge-deferred.yml` — frequent schedule profile (`discover`, matrix `merge`)
 
-**Merge:** Uses **pascalgn/automerge-action** with an ephemeral Vault-app token when `shared-token-policy` is set, otherwise `GITHUB_TOKEN`. `MERGE_REQUIRED_APPROVALS` is `1`. When that step reports `merge_failed` or `not_ready`, the workflow retries a direct REST merge with the same token identity, then enables native GitHub auto-merge as a fallback. `mergeResult: skipped` does not trigger the fallback (missing label/approvals must not get a bypass-capable merge). Classic BP `pull_request_bypassers` are honored only on direct REST merge as the Vault app — not by async `--auto` / merge-queue completion. If the PR remains unmerged, or auto-merge is enabled while `reviewDecision` is still `REVIEW_REQUIRED` / `CHANGES_REQUESTED`, the workflow fails and upserts a PR comment.
+**Approve (PR path):** Nested `gh-aw-mention-in-pr` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]`. When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review. Author allow list is **only** [allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json).
+
+**Merge strategy (CI-duration independent):**
+
+1. **PR path** tries a short squash-merge (pascalgn + one REST retry).
+2. If checks are still pending → upsert bot-authored armed comment (`<!-- obs-aw-automerge:armed sha=<head> -->`). Outcome success = merged, armed, or soft-succeed on `not_ready`.
+3. **Frequent schedule profile** (client cron every 15 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` apply (honored only on direct REST merge as that app — not by async `--auto` / merge-queue completion).
+
+Required checks are enforced by GitHub’s merge API on every attempt — this automation only chooses **when** to wake up. There is **no** Buildkite status-success route for automerge (status stays ESTC-failure only).
 
 ## Usage
 
-`obs-aw-automerge.yml` runs when prelude allows registry id `obs:automerge` (see `docs/workflows/aw-prelude.md`) and all of the following hold:
-
-There is **no** `schedule` trigger for automerge. The reusable workflow uses `github.event.pull_request` from the caller (no PR discovery).
+Both workflows require prelude to allow registry id `obs:automerge` (see `docs/workflows/aw-prelude.md`).
 
 ### `pull_request` events
 
 - `github.event.action` is one of `opened`, `synchronize`, `reopened`, `labeled`
-- Author is in the same allow list as dependency-review: `dependabot[bot]`, `renovate[bot]`, `Dependabot`, `Renovate`, `elastic-renovate-prod[bot]`, `elastic-vault-github-plugin-prod[bot]`, `github-actions[bot]`
+- Author is in the same allow list as dependency-review
 - PR has label `oblt-aw/ai/merge-ready` at event time
 
-The event-scoped client template includes `labeled` in `pull_request` types (`trigger-obs-aw-pull-request.yml`).
+### `schedule` / `workflow_dispatch` (deferred merge)
+
+- Client cron or manual dispatch of `trigger-obs-aw-schedule-frequent.yml` (`schedule-profile: frequent`)
+- Open PRs with `oblt-aw/ai/merge-ready` **and** a `github-actions[bot]` armed marker whose SHA matches the current head
+- No-op when none are armed (discover exits without matrix work)
 
 ## Mandatory requirements evaluated at runtime
 
-**`obs-aw-automerge.yml` — `verify` job** (`scripts/obs/validateAutomergePr.ts`):
+**`obs-aw-automerge.yml` / `obs-aw-automerge-deferred.yml` — verify** (`scripts/obs/validateAutomergePr.ts`):
 
 | Requirement | Details |
 |---------------|---------|
 | Author | Same allow list as dependency-review ([allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json)); GraphQL `app/<slug>` is normalized to `<slug>[bot]` before matching |
-| Token policy | Non-empty `shared-token-policy` required when author is `github-actions[bot]` (approve must use Vault, not self-APPROVE) |
+| Token policy | Non-empty `shared-token-policy` required when author is `github-actions[bot]` |
 | Label | `oblt-aw/ai/merge-ready` must be present on the PR |
 | PR state | Not a draft |
 | Branch origin | Upstream branch (head repo equals base repo — not a fork) |
 | Refs | Head ref ≠ base ref |
 
-**`obs-aw-automerge.yml` — `check-dependency-collection` job** (`scripts/obs/checkAutomergeDependencyCollection.ts`):
+**Collection gate** (`scripts/obs/checkAutomergeDependencyCollection.ts`):
 
 | Requirement | Details |
 |---------------|---------|
@@ -49,23 +63,18 @@ The event-scoped client template includes `labeled` in `pull_request` types (`tr
 
 **`approve` job:** Nested `gh-aw-mention-in-pr` uses author-aware `github-token-policy` (Vault only for `github-actions[bot]` authors; otherwise `GITHUB_TOKEN`). For repos with “Require review from Code Owners”, add the Vault app to classic branch-protection `pull_request_bypassers` and merge as that app (see [obs-aw-automerge.md](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens)).
 
-**`automerge` job** (after `approve` succeeds): When `shared-token-policy` is non-empty, mints a Vault-app token and runs **[pascalgn/automerge-action](https://github.com/pascalgn/automerge-action)** with it; when empty, uses `GITHUB_TOKEN`. The action enforces `MERGE_LABELS` (`oblt-aw/ai/merge-ready`), `MERGE_REQUIRED_APPROVALS` (`1`), fork/branch settings, and merges with **squash** when GitHub reports the PR as ready (required checks and reviews per branch protection, rulesets, and action config). Author and label gates are enforced in `verify` (`validateAutomergePr.ts`, same allow list as dependency-review).
+**Deferred discover** (`scripts/obs/discover_armed_automerge_prs.sh`): requires armed marker from the PR path so approve has already run before the deferred merge.
 
-**Required checks:** Validated by GitHub branch protection and the automerge action’s merge readiness logic, not by `validateAutomergePr.ts`.
-
-## Merge strategy
-
-Primary path: squash merge via **pascalgn/automerge-action** (Vault app when `shared-token-policy` is set, otherwise `GITHUB_TOKEN`) when the PR satisfies labels, approvals, and checks.
-
-Fallback path: when `automerge` returns `merge_failed` or `not_ready` (for example with required merge queue), `enable-merge-when-ready` uses the same token choice, retries `PUT .../pulls/{n}/merge`, then runs `gh pr merge --auto --squash` to enqueue native GitHub auto-merge.
-
-Outcome gate: `report-automerge-outcome` fails the workflow and upserts a single PR comment (marker `obs-aw-automerge:outcome-gate`) when the PR is still open without auto-merge, or when auto-merge is enabled but reviews still block (`reviewDecision` is `REVIEW_REQUIRED` or `CHANGES_REQUESTED`). Waiting on required checks or the merge queue after reviews are satisfied counts as success.
+**Required checks:** Validated by GitHub’s merge API on every PR-path and deferred-merge attempt, not by `validateAutomergePr.ts`.
 
 ## Configuration
 
-The routed workflow uses `GITHUB_TOKEN` with the permissions listed in `obs-aw-automerge.md`.
+The routed workflows use `GITHUB_TOKEN` with the permissions listed in `obs-aw-automerge.md` and `obs-aw-automerge-deferred.md`.
+
+Client `trigger-obs-aw-schedule-frequent.yml` needs `contents: write` on the entrypoint job (union includes automerge-deferred merge).
 
 ## References
 
 - `docs/workflows/obs-aw-automerge.md`
+- `docs/workflows/obs-aw-automerge-deferred.md`
 - `docs/workflows/obs-aw-client-template.md`

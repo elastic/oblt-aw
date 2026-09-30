@@ -9,6 +9,21 @@ alwaysApply: true
 
 **Where to change consumer entrypoints:** [`.github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-*.yml`](.github/remote-workflow-template/obs/.github/workflows/) only. Distribution installs that tree into target repositories.
 
+## In-repo `trigger-*` dogfood (hard stop)
+
+`.github/workflows/trigger-obs-aw-*.yml` in this repository are **control-plane dogfood only**. They are **not** the consumer template source.
+
+**Do not** edit them when:
+
+- Adding or renaming schedule lanes (`daily` / `frequent` / …)
+- Passing `schedule-profile` (orchestrator default is already `daily`)
+- Wiring deferred automerge, status, or other consumer-facing routes
+- “Aligning” dogfood with template renames, comments, or redundant `with:` blocks
+
+**Do** change only [`.github/remote-workflow-template/`](.github/remote-workflow-template/) (and control-plane reusables under `.github/workflows/obs-aw-*.yml` / `docs-aw-*.yml` when the route itself changes).
+
+Exception: edit an in-repo `trigger-*` only when the user **explicitly** asks to change control-plane dogfood behavior for this repository.
+
 **Control-plane reusables** live under `.github/workflows/obs-aw-*.yml` and `.github/workflows/docs-aw-*.yml` (shared prelude: `aw-prelude.yml`). **Do not** edit consumer copies under target repos from this repository except via distribution.
 
 **Docs:** [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md), [CONTRIBUTING.md](CONTRIBUTING.md).

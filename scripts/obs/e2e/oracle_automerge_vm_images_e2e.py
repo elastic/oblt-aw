@@ -17,8 +17,8 @@
 """Structured oracle for obs:automerge:vm-images live E2E outcomes.
 
 Asserts dashboard gates, dependency-review/automerge job execution, merge-ready
-label, approving review, and merged/auto-merge — never free-text golden equality
-of agent prose.
+label, approving review, and actual merge — never free-text golden equality of
+agent prose. Native auto-merge is not a success substitute.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ _LIVE_REQUIRED_EXPECTATION_KEYS = (
     "no_dependency_collection_gate",
     "approve_review_present",
     "automerge_job_executed",
-    "pr_merged_or_auto_merge",
+    "pr_merged",
 )
 
 _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
@@ -416,23 +416,17 @@ def _evaluate_live(
             _check(checks, "automerge_job_executed", False, str(exc))
 
         try:
-            expected = _as_bool(expectations["pr_merged_or_auto_merge"])
+            expected = _as_bool(expectations["pr_merged"])
             merged = _as_bool(merge.get("merged")) if "merged" in merge else False
-            auto = (
-                _as_bool(merge.get("auto_merge_enabled"))
-                if "auto_merge_enabled" in merge
-                else False
-            )
-            actual = merged or auto
+            # Fail closed: auto_merge_enabled must not satisfy pr_merged.
             _check(
                 checks,
-                "pr_merged_or_auto_merge",
-                actual == expected,
-                f"expected={expected} merged={merged} auto_merge_enabled={auto} "
-                f"merge={merge!r}",
+                "pr_merged",
+                merged == expected,
+                f"expected={expected} merged={merged} merge={merge!r}",
             )
         except TypeError as exc:
-            _check(checks, "pr_merged_or_auto_merge", False, str(exc))
+            _check(checks, "pr_merged", False, str(exc))
 
     overall = all(item["pass"] for item in checks)
     return {
