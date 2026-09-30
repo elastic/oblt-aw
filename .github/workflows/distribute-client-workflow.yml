@@ -89,7 +89,7 @@ jobs:
     needs: prepare-targets
     if: ${{ needs.prepare-targets.outputs.has_targets == 'true' }}
     runs-on: ubuntu-slim
-    timeout-minutes: 30
+    timeout-minutes: 15
     permissions:
       id-token: write
       contents: read
