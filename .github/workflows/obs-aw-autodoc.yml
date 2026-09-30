@@ -99,7 +99,7 @@ jobs:
   finalize-pr:
     needs: fix
     if: inputs.shared-proceed == 'true' && needs.fix.outputs.created_pr_number != ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       pull-requests: write
     steps:
@@ -126,7 +126,7 @@ jobs:
       needs.audit.result == 'success' &&
       needs.audit.outputs.created_issue_number != '' &&
       needs.fix.result == 'failure'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       issues: write
     steps:
@@ -164,7 +164,7 @@ jobs:
       needs.audit.outputs.created_issue_number != '' &&
       needs.fix.result == 'success' &&
       needs.fix.outputs.created_pr_number == ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       issues: write
     steps:
