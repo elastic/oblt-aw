@@ -697,13 +697,19 @@ def wait_for_approving_review(
     return None
 
 
-def wait_for_merged_or_auto_merge(
+def wait_for_merged(
     repo: str,
     pr_number: int,
     *,
     timeout_seconds: int,
     interval_seconds: int,
 ) -> dict[str, Any]:
+    """Wait until the PR is actually merged (PR-path or deferred REST).
+
+    Armed-for-deferred-merge and native ``autoMergeRequest`` are not terminal
+    success: keep polling until ``MERGED`` / ``mergedAt``, matching oracle
+    ``pr_merged``.
+    """
     deadline = time.time() + timeout_seconds
     last: dict[str, Any] = {}
     while time.time() < deadline:
@@ -715,30 +721,19 @@ def wait_for_merged_or_auto_merge(
                 "--repo",
                 repo,
                 "--json",
-                "state,mergedAt,autoMergeRequest,mergeStateStatus",
+                "state,mergedAt,mergeStateStatus",
             ]
         )
         last = cast(dict[str, Any], pr or {})
         if (last.get("state") or "").upper() == "MERGED" or last.get("mergedAt"):
             return {
                 "merged": True,
-                "auto_merge_enabled": False,
                 "merged_at": last.get("mergedAt"),
                 "merge_state_status": last.get("mergeStateStatus"),
-            }
-        auto = last.get("autoMergeRequest")
-        if isinstance(auto, dict) and auto:
-            return {
-                "merged": False,
-                "auto_merge_enabled": True,
-                "merged_at": None,
-                "merge_state_status": last.get("mergeStateStatus"),
-                "auto_merge_request": auto,
             }
         time.sleep(interval_seconds)
     return {
         "merged": False,
-        "auto_merge_enabled": False,
         "merged_at": None,
         "merge_state_status": last.get("mergeStateStatus"),
         "timed_out": True,
@@ -983,10 +978,13 @@ def run_live_case(
             timeout_seconds=min(600, timeout),
             interval_seconds=interval,
         )
-        merge_state = wait_for_merged_or_auto_merge(
+        # Cover long required checks plus at least one frequent-schedule tick
+        # (*/15 cron ≈ 900s) so deferred REST can complete after arming.
+        merge_wait = max(timeout, 900)
+        merge_state = wait_for_merged(
             repo,
             int(pr_info["number"]),
-            timeout_seconds=min(900, timeout),
+            timeout_seconds=merge_wait,
             interval_seconds=interval,
         )
         outcome_gate = find_comment_with_marker(

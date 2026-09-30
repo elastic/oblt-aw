@@ -2,7 +2,7 @@ name: E2E — Trigger Observability schedule routes
 
 # Control-plane only (not distributed via remote-workflow-template).
 # Live autodoc E2E dispatches this entry so production
-# trigger-obs-aw-schedule.yml stays free of E2E inputs.
+# trigger-obs-aw-schedule-daily.yml (client template) stays free of E2E inputs.
 on:
   workflow_dispatch:
     inputs:
@@ -29,5 +29,6 @@ jobs:
       pull-requests: write
     uses: ./.github/workflows/obs-aw-event-schedule.yml
     with:
+      schedule-profile: daily
       # workflow_dispatch booleans arrive as strings in github.event.inputs.
       e2e-autodoc-mode: ${{ github.event.inputs.e2e-autodoc-mode == 'true' }}
