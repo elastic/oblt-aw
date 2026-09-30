@@ -11,8 +11,7 @@ This workflow distributes or removes client files from each org’s subtree unde
 - Per-org [active-repositories.json](../../config/obs/active-repositories.json) files under `config/<org-key>/` list current target repositories (union used for distribution).
 - Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/trigger-obs-aw-*.yml` → `.github/workflows/trigger-obs-aw-*.yml`). Edit only under [remote-workflow-template](../../.github/remote-workflow-template/) (see [Client template doc](../workflows/obs-aw-client-template.md)).
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
-- Repository secrets for commit signing are configured in `elastic/oblt-aw`: `OBLT_AW_GPG_PRIVATE_KEY` (ASCII-armored private key) and `OBLT_AW_GPG_PASSPHRASE` (matching passphrase). These secrets are only available to the `create-prs` job and are consumed by the Git signing setup before the `create-pull-request` steps run.
-- The signing key must map to a GitHub-verified identity that matches the repository’s branch protection / verified commits policy. The key is imported into the runner’s GPG home and the repo is configured with `commit.gpgsign=true` before any PR action commits are created.
+- The minted token must be a GitHub App bot token with permission to write contents and pull requests in each target repository; `create-pull-request` uses this token to create GitHub-verified bot commits.
 
 ## Usage
 
@@ -92,11 +91,11 @@ Workflow outputs written by the script:
 - `remove_count`: count of removal operations
 - `total_count`: total operations (`install_count + remove_count`)
 
-## Commit signing and secret handling
+## Commit signing
 
-The `create-prs` job configures an ephemeral GPG key for the runner before either `peter-evans/create-pull-request` step runs. The workflow imports the repo secret-provided private key, resolves the key’s UID to a Git identity, and enables `commit.gpgsign` in the local Git config. This ensures both install/update PRs and cleanup PRs are created with signed commits, which allows consumer repos that require verified commit signatures to merge as expected.
+Both the install/update and removal `peter-evans/create-pull-request` steps use `sign-commits: true` with the minted GitHub App token. The action creates commits signed by the app bot; no GPG private key or signing secrets are required.
 
-The signing secrets are injected into the job as environment variables only for the duration of that job, are not written to `$GITHUB_STEP_SUMMARY`, and are not echoed in the shell output. The secret material is consumed only by the `gpg --import` command and then discarded with the runner environment at the end of the job.
+When the action creates or updates a PR, the matrix leg fails unless its `pull-request-commits-verified` output is `true`. Skipped operations do not require verification. Validate the resulting commit is marked **Verified** in a protected consumer repository before relying on this for its signature policy.
 
 ## PR Result Artifact and Summary Contract
 

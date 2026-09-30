@@ -116,45 +116,6 @@ jobs:
           token: ${{ steps.create-token.outputs.token }}
           path: target
 
-      - name: Configure Git commit signing
-        shell: bash
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.OBLT_AW_GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.OBLT_AW_GPG_PASSPHRASE }}
-        run: |
-          set -euo pipefail
-
-          if [[ -z "${GPG_PRIVATE_KEY:-}" || -z "${GPG_PASSPHRASE:-}" ]]; then
-            echo "Missing OBLT_AW_GPG_PRIVATE_KEY or OBLT_AW_GPG_PASSPHRASE repository secret for signed distribution PR commits." >&2
-            exit 1
-          fi
-
-          mkdir -p "${HOME}/.gnupg"
-          chmod 700 "${HOME}/.gnupg"
-
-          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --import
-
-          key_id="$(gpg --batch --list-secret-keys --with-colons 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}')"
-          if [[ -z "$key_id" ]]; then
-            echo "Unable to resolve the imported GPG signing key fingerprint." >&2
-            exit 1
-          fi
-
-          uid_record="$(gpg --batch --list-secret-keys --with-colons "$key_id" 2>/dev/null | awk -F: '$1 == "uid" {print $10; exit}')"
-          user_name="$(printf '%s\n' "$uid_record" | sed 's/ *<.*>//; s/^ *//; s/ *$//')"
-          user_email="$(printf '%s\n' "$uid_record" | awk -F'[<>]' '{print $2; exit}')"
-          if [[ -z "$user_name" || -z "$user_email" ]]; then
-            echo "Unable to resolve the signing identity from the imported GPG key." >&2
-            exit 1
-          fi
-
-          git config --global user.name "$user_name"
-          git config --global user.email "$user_email"
-          git config --global user.signingkey "$key_id"
-          git config --global commit.gpgsign true
-          git config --global gpg.format openpgp
-          git config --global gpg.program gpg
-
       - name: Sync client files into target repository
         if: ${{ matrix.target.operation == 'install' }}
         env:
@@ -247,6 +208,7 @@ jobs:
         with:
           token: ${{ steps.create-token.outputs.token }}
           path: target
+          sign-commits: true
           branch: oblt-aw/sync-client-workflow
           labels: ${{ steps.pr-labels.outputs.labels }}
           commit-message: Sync agentic workflow files from elastic/oblt-aw
@@ -285,6 +247,7 @@ jobs:
         with:
           token: ${{ steps.create-token.outputs.token }}
           path: target
+          sign-commits: true
           branch: oblt-aw/remove-client-workflow
           labels: ${{ steps.pr-labels.outputs.labels }}
           commit-message: Remove agentic workflow files managed by elastic/oblt-aw
@@ -297,6 +260,19 @@ jobs:
 
             ---
             Created by [workflow run](${{ env.JOB_URL }})
+
+      - name: Verify PR commit signatures
+        env:
+          TARGET_REPOSITORY: ${{ matrix.target.repository }}
+          OPERATION: ${{ matrix.target.operation == 'install' && steps.cpr.outputs.pull-request-operation || steps.cpr-remove.outputs.pull-request-operation }}
+          COMMITS_VERIFIED: ${{ matrix.target.operation == 'install' && steps.cpr.outputs.pull-request-commits-verified || steps.cpr-remove.outputs.pull-request-commits-verified }}
+        run: |
+          if [[ "$OPERATION" == "created" || "$OPERATION" == "updated" ]]; then
+            if [[ "$COMMITS_VERIFIED" != "true" ]]; then
+              echo "PR commits were not verified for $TARGET_REPOSITORY." >&2
+              exit 1
+            fi
+          fi
 
       - name: Record PR result
         if: always()

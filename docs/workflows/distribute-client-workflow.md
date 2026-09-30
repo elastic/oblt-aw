@@ -12,10 +12,7 @@ This workflow creates PRs across target repositories to install, update, or remo
   - `config/**/active-repositories.json` (per-org repo lists; example [config/obs/active-repositories.json](../../config/obs/active-repositories.json))
   - [.github/remote-workflow-template/](../../.github/remote-workflow-template/) (per-org subtrees such as `obs/`, `docs/`)
 - Or manually triggered with `workflow_dispatch`.
-- Repository secrets in `elastic/oblt-aw` for commit signing:
-  - `OBLT_AW_GPG_PRIVATE_KEY` — the ASCII-armored private key used for signing
-  - `OBLT_AW_GPG_PASSPHRASE` — the matching key passphrase
-- The signing key must belong to a GitHub-verified identity (for example, a bot or user account recognized by GitHub as verified). The workflow imports the key into a per-run GPG home, sets `git config user.name` / `user.email`, and enables `commit.gpgsign` before the PR commits are created so the resulting PRs carry verified signatures.
+- The minted token must be a GitHub App bot token with contents and pull-request write access in each target repository. Both PR actions use built-in bot commit signing (`sign-commits: true`), not GPG secrets. A created or updated PR fails its matrix leg unless the action reports its commits as verified; skipped operations are unaffected.
 
 ## Usage
 
