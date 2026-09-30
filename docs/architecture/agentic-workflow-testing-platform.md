@@ -170,7 +170,7 @@ flowchart LR
 - Oracle report (which checks ran, which passed)
 - Quarantine list (owner + expiry for any skipped cases)
 
-**Cost control:** E2E is tiered — path-filtered on ESTC-related PRs (smoke against tip); **promote** calls `e2e-all` on `aw-release-promote`; sampling only on smoke/health runs. Expand the leaf list only in `e2e-all.yml`.
+**Cost control:** E2E is tiered — **promote** calls `e2e-all` on `aw-release-promote` (mandatory live gate); sampling only on standalone smoke/health runs (`e2e-all` / leaf `workflow_dispatch`). PR CI does not run live E2E. Expand the leaf list only in `e2e-all.yml`.
 
 Promote workflow: [agentic-release-model](../operations/agentic-release-model.md) (`aw-release-promote.yml`).
 

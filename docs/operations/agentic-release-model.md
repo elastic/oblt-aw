@@ -60,7 +60,7 @@ flowchart LR
 4. Before mutating tags, re-fetch and require `origin/main == github.sha`. If `main` advanced during E2E, promote aborts (re-run on the new tip).
 5. On success: create immutable `vX.Y.Z` (no force-push), move `vX` / `next` / `previous`, **commit and push** `config/release-pointers.json`, then push tags. Semver bumps from the **highest** pointer semver so rollback cannot rewind immutable numbering.
 
-Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-ref` defaults to `main`). Manual `workflow_dispatch` must run from the default branch; `checkout-ref` may only be that tip or a full SHA on its history (CI/promote `workflow_call` may pin any SHA).
+Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-ref` defaults to `main`). Manual `workflow_dispatch` must run from the default branch; `checkout-ref` may only be that tip or a full SHA on its history. Promote `workflow_call` pins `github.sha`. PR CI does not call live E2E.
 
 ## Quick rollback
 

@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
 
-This workflow runs quality checks and tests on every pull request (any base branch). It enforces pre-commit checks (including Actionlint), Python unit and integration tests (`tests/unit`, `tests/integration`; not live `tests/e2e/`), TypeScript tests via `npm test`, gh-aw lock drift (`make compile-aw-check`), and — when `.github/workflows/*.lock.yml` files change on a same-repo PR — live `e2e-all` after the drift check passes.
+This workflow runs quality checks and tests on every pull request (any base branch). It enforces pre-commit checks (including Actionlint), Python unit and integration tests (`tests/unit`, `tests/integration`; not live `tests/e2e/`), TypeScript tests via `npm test`, and gh-aw lock drift (`make compile-aw-check`). Live E2E is **not** a PR gate — it runs on promote (`aw-release-promote` → `e2e-all`) and via manual `e2e-all` / leaf dispatch.
 
 ## Triggers
 
@@ -15,12 +15,10 @@ This workflow runs quality checks and tests on every pull request (any base bran
 | Job | Purpose |
 |-----|---------|
 | `ci-gate` | Skips work jobs for same-repo E2E fixture PRs (`e2e:*` on `e2e/*`) |
-| `e2e-all` | Calls [`e2e-all.yml`](../../.github/workflows/e2e-all.yml) when lock files changed (after `gh-aw-drift`; same-repo PRs only) |
 | `gh-aw-drift` | Runs `make compile-aw-check` (recompile locks; fail on drift) |
-| `lock-paths` | Detects changes under `.github/workflows/*.lock.yml` |
 | `pre-commit` | Runs all pre-commit hooks (YAML, shell, GitHub Actions lint, Python lint/format, mypy) |
 | `python-tests` | Runs pytest on `tests/unit` and `tests/integration` (not `tests/e2e`) and validates every `*-aw-*` workflow calls `aw-prelude.yml` |
-| `required` | Gate job; fails if any required job failed (`e2e-all` skipped when no lock changes is OK; other skips fail closed) |
+| `required` | Gate job; fails if any required job failed |
 | `scorecard` | OpenSSF Scorecard security analysis; uploads SARIF to GitHub Security |
 | `typescript-tests` | Runs `npm test` (tsx) on `tests/unit/*.test.ts` |
 
@@ -54,11 +52,10 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 - npm cache enabled via `actions/setup-node`
 - Note: CI currently runs TypeScript tests only; dedicated TypeScript lint/format/type-check jobs are not part of this workflow.
 
-## gh-aw drift and lock-gated E2E
+## gh-aw drift
 
 - `gh-aw-drift` always runs on non-fixture PRs (`make compile-aw-check`).
-- `lock-paths` uses [elastic/oblt-actions/github/changed-files@v1](https://github.com/elastic/oblt-actions/blob/v1/github/changed-files) with filter `.github/workflows/*.lock.yml`.
-- When locks changed and the PR is same-repo, `e2e-all` runs with `checkout-ref` set to the PR head SHA (after drift succeeds). Fork PRs skip live E2E (no secrets).
+- Live lock provenance is gated at promote time via [`e2e-all.yml`](../../.github/workflows/e2e-all.yml) from [`aw-release-promote.yml`](../../.github/workflows/aw-release-promote.yml) — see [agentic-release-model](../operations/agentic-release-model.md).
 
 ## Scorecard
 
@@ -70,7 +67,6 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 
 - Most jobs: `contents: read` (minimal)
 - Scorecard: `security-events: write`, `id-token: write`
-- `e2e-all`: union of leaf E2E permissions + `secrets: inherit`
 
 ## References
 

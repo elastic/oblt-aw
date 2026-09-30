@@ -3,8 +3,8 @@ name: E2E — All
 
 # Orchestrator: call every leaf e2e-*.yml via workflow_call in parallel.
 # Add a new job here when introducing a new leaf E2E workflow.
-# Not part of the default PR required gate in ci.yml.
-# Called by aw-release-promote.yml (pinned SHA); also dispatchable for smoke.
+# Not a PR CI gate — called by aw-release-promote.yml (pinned SHA);
+# also dispatchable for smoke.
 # Manual dispatch must run from the default branch; checkout-ref may only be
 # that branch tip or a full SHA on its history (see aw_e2e_validate_checkout_ref.py).
 on:
