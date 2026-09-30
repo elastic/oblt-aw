@@ -48,19 +48,19 @@ flowchart LR
 | Step | Mode |
 |------|------|
 | Merge to `main` | Automated CI (unit, functional, integration) |
-| Promote (`aw-release-promote.yml`) | Manual `workflow_dispatch` on `main` with `release-type` (`patch` / `minor` / `major`); optional `promote-sha`; calls `e2e-all` then tags the gated SHA and creates a GitHub Release |
+| Promote (`aw-release-promote.yml`) | Manual `workflow_dispatch` on `main` with `release-type` (`patch` / `minor` / `major`); calls `e2e-all` then tags the gated SHA and creates a GitHub Release |
 | Rollback (`aw-release-rollback.yml`) | Manual; confirm input must be `rollback` |
 | Major bump / model or security-sensitive changes | Human review before promote |
 
 ## Promote contract
 
 1. Dispatch `aw-release-promote.yml` **on the default branch** (`main`).
-2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty current pointer) always creates `v0.0.0` from `config/release-pointers.json` `major`. Optional `promote-sha` selects a full SHA on default-branch history (default: tip at dispatch).
-3. Workflow calls `e2e-all` with `checkout-ref` set to the promote SHA. Harness/oracle code is pinned to that SHA; live control-plane routes still exercise **default-branch tip** (relative self-triggers — intentional).
+2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty current pointer) always creates `v0.0.0` from `config/release-pointers.json` `major`.
+3. Workflow calls `e2e-all` with `checkout-ref` set to `github.sha` (tip of `main` at promote start). Harness/oracle code is pinned to that SHA; live control-plane routes still exercise **default-branch tip** (relative self-triggers — intentional).
 4. Before mutating tags, re-fetch and require the promote SHA is an **ancestor of** `origin/main` (or still the tip). If `main` advanced during E2E, promote **continues** and tags the gated SHA.
 5. On success: create immutable `vX.Y.Z` (no force-push), move `vX` / `next` / `previous`, **commit and push** `config/release-pointers.json` (rebased onto current `main` when needed), push tags, then create a **GitHub Release** for `vX.Y.Z` with auto-generated notes (range from the prior immutable semver when present). Semver bumps from the **highest** pointer semver so rollback cannot rewind immutable numbering.
 
-Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-ref` defaults to `main`). Manual `workflow_dispatch` must run from the default branch; `checkout-ref` may only be that tip or a full SHA on its history. Promote pins the resolved promote SHA. PR CI does not call live E2E.
+Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-ref` defaults to `main`). Manual `workflow_dispatch` must run from the default branch; `checkout-ref` may only be that tip or a full SHA on its history. Promote pins `github.sha` at dispatch. PR CI does not call live E2E.
 
 ## Quick rollback
 

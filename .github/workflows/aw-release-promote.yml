@@ -1,7 +1,7 @@
 ---
 name: AW release — promote
 
-# Promote a default-branch SHA: run e2e-all, bump semver, move vN + previous tags,
+# Promote tip of main at dispatch: run e2e-all, bump semver, move vN + previous tags,
 # commit pointers, and create a GitHub Release with auto-generated notes.
 # Runbook: docs/operations/agentic-release-model.md
 on:
@@ -16,11 +16,6 @@ on:
           - minor
           - patch
         default: patch
-      promote-sha:
-        description: Optional full SHA to promote (must be on default-branch history; default = tip at dispatch)
-        required: false
-        type: string
-        default: ""
       dry-run:
         description: Run E2E and plan only (no tags, no pointer commit, no GitHub Release)
         required: false
@@ -39,8 +34,6 @@ jobs:
     name: Require default branch
     runs-on: ubuntu-slim
     timeout-minutes: 5
-    outputs:
-      release-sha: ${{ steps.resolve.outputs.release-sha }}
     steps:
       - name: Fail unless dispatched on default branch
         env:
@@ -53,26 +46,7 @@ jobs:
             echo "::error::Promote must run on ${expected} (got ${REF})"
             exit 1
           fi
-
-      - name: Resolve promote SHA
-        id: resolve
-        env:
-          PROMOTE_SHA: ${{ inputs.promote-sha }}
-          DISPATCH_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          if [ -n "${PROMOTE_SHA}" ]; then
-            release_sha="${PROMOTE_SHA}"
-          else
-            release_sha="${DISPATCH_SHA}"
-          fi
-          release_sha="$(printf '%s' "${release_sha}" | tr '[:upper:]' '[:lower:]')"
-          if ! [[ "${release_sha}" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::promote-sha must be a 40-char hex SHA (got ${release_sha})"
-            exit 1
-          fi
-          echo "release-sha=${release_sha}" >> "${GITHUB_OUTPUT}"
-          echo "Releasing ${{ github.event.repository.default_branch }} history @ ${release_sha}"
+          echo "Releasing tip of ${DEFAULT_BRANCH} @ ${{ github.sha }}"
 
   e2e-all:
     name: E2E — All
@@ -87,14 +61,12 @@ jobs:
       statuses: read
     uses: ./.github/workflows/e2e-all.yml
     with:
-      checkout-ref: ${{ needs.guard.outputs.release-sha }}
+      checkout-ref: ${{ github.sha }}
     secrets: inherit
 
   promote:
     name: Tag and update pointers
-    needs:
-      - guard
-      - e2e-all
+    needs: e2e-all
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -104,7 +76,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: ${{ needs.guard.outputs.release-sha }}
+          ref: ${{ github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -117,7 +89,7 @@ jobs:
       - name: Promote tags and update pointers (local)
         id: promote
         env:
-          RELEASE_SHA: ${{ needs.guard.outputs.release-sha }}
+          RELEASE_SHA: ${{ github.sha }}
           RELEASE_TYPE: ${{ inputs.release-type }}
           DRY_RUN: ${{ inputs.dry-run }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -139,7 +111,7 @@ jobs:
       - name: Commit release-pointers.json
         if: ${{ inputs.dry-run != true }}
         env:
-          RELEASE_SHA: ${{ needs.guard.outputs.release-sha }}
+          RELEASE_SHA: ${{ github.sha }}
           RELEASE_TYPE: ${{ inputs.release-type }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
