@@ -84,13 +84,26 @@ def bootstrap_semver(data: dict[str, Any]) -> str:
     return f"v{configured_major(data)}.0.0"
 
 
+def pointer_string_field(entry: dict[str, Any], field: str, *, label: str) -> str:
+    """Return a pointer ``sha``/``semver`` string; reject non-string types.
+
+    Only the empty string (after strip) counts as empty. ``null``, ``false``,
+    ``0``, and other JSON scalars must not be coerced into the empty-string
+    bootstrap state.
+    """
+    value = entry.get(field)
+    if not isinstance(value, str):
+        raise TypeError(f"{label} must be a string, got {value!r}")
+    return value.strip()
+
+
 def assert_pointers_empty_for_bootstrap(data: dict[str, Any]) -> None:
     """Refuse bootstrap when any pointer still carries sha/semver residue."""
     residues: list[str] = []
     for key in POINTER_KEYS:
         entry = data["pointers"][key]
         for field in ("sha", "semver"):
-            value = str(entry.get(field) or "").strip()
+            value = pointer_string_field(entry, field, label=f"pointers.{key}.{field}")
             if value:
                 residues.append(f"pointers.{key}.{field}={value!r}")
     if residues:
@@ -185,7 +198,9 @@ def highest_pointer_semver(data: dict[str, Any]) -> str:
     """
     versions: list[str] = []
     for key in ("current", "next", "previous"):
-        raw = str(data["pointers"][key].get("semver") or "").strip()
+        raw = pointer_string_field(
+            data["pointers"][key], "semver", label=f"pointers.{key}.semver"
+        )
         if raw:
             versions.append(normalize_semver(raw))
     if not versions:
@@ -228,10 +243,7 @@ def load_release_plan(path: Path) -> dict[str, Any]:
 
 def pointer_sha(data: dict[str, Any], name: str) -> str:
     entry = data["pointers"][name]
-    sha = entry.get("sha") or ""
-    if not isinstance(sha, str):
-        raise TypeError(f"pointers.{name}.sha must be a string")
-    return sha.strip().lower()
+    return pointer_string_field(entry, "sha", label=f"pointers.{name}.sha").lower()
 
 
 def set_pointer(
@@ -324,7 +336,9 @@ def push_moving_tags(tags: list[str], *, remote: str = "origin") -> None:
 def push_promote_tags(plan: dict[str, Any], *, remote: str = "origin") -> None:
     """Publish immutable semver first, then force-update moving tags."""
     validate_plan_moving_tags(plan)
-    push_immutable_tags([str(plan["semver"])], remote=remote)
+    # Always publish the canonical vMAJOR.MINOR.PATCH form (plans may carry
+    # unprefixed input that normalize_semver accepts).
+    push_immutable_tags([normalize_semver(str(plan["semver"]))], remote=remote)
     push_moving_tags(
         [
             str(plan["current_tag"]),
@@ -364,7 +378,9 @@ def plan_promote(
     release_type = normalize_release_type(release_type)
     current_sha = pointer_sha(data, "current")
     bootstrap = not bool(current_sha)
-    current_semver = str(data["pointers"]["current"].get("semver") or "")
+    current_semver = pointer_string_field(
+        data["pointers"]["current"], "semver", label="pointers.current.semver"
+    )
     if bootstrap:
         assert_pointers_empty_for_bootstrap(data)
         semver = bootstrap_semver(data)
@@ -452,10 +468,18 @@ def plan_rollback(data: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("current pointer is empty; cannot rollback")
     if previous_sha == current_sha:
         raise ValueError("previous equals current; nothing to rollback")
-    previous_semver = str(data["pointers"]["previous"].get("semver") or "")
+    previous_semver = pointer_string_field(
+        data["pointers"]["previous"],
+        "semver",
+        label="pointers.previous.semver",
+    )
     if not previous_semver:
         raise ValueError("previous.semver is empty; cannot rollback safely")
-    displaced_current_semver = str(data["pointers"]["current"].get("semver") or "")
+    displaced_current_semver = pointer_string_field(
+        data["pointers"]["current"],
+        "semver",
+        label="pointers.current.semver",
+    )
     if not displaced_current_semver:
         raise ValueError("current.semver is empty; cannot rollback safely")
     rollback_semver = normalize_semver(previous_semver)

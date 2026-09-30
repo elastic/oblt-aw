@@ -116,6 +116,28 @@ class TestPlanPromote:
         with pytest.raises(ValueError, match="partial pointer state"):
             rp.plan_promote(data, sha=SHA_A, release_type="patch")
 
+    def test_bootstrap_rejects_non_string_pointer_fields(self) -> None:
+        data = _minimal_pointers()
+        data["pointers"]["current"] = {
+            "sha": 0,
+            "semver": "",
+            "updated_at": "",
+        }
+        with pytest.raises(TypeError, match="pointers.current.sha must be a string"):
+            rp.plan_promote(data, sha=SHA_A, release_type="patch")
+
+    def test_bootstrap_rejects_null_semver(self) -> None:
+        data = _minimal_pointers()
+        data["pointers"]["previous"] = {
+            "sha": "",
+            "semver": None,
+            "updated_at": "",
+        }
+        with pytest.raises(
+            TypeError, match="pointers.previous.semver must be a string"
+        ):
+            rp.plan_promote(data, sha=SHA_A, release_type="patch")
+
     def test_rejects_semver_shaped_next_tag(self) -> None:
         data = _minimal_pointers()
         data["tags"]["next"] = "v0.0.99"
@@ -241,6 +263,25 @@ class TestPushTagHelpers:
         assert calls[1][:2] == ["push", "origin"]
         assert "--force" in calls[1]
         assert "v0.0.1" not in calls[1]
+
+    def test_push_promote_tags_normalizes_unprefixed_semver(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            calls.append(args)
+            return None
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        plan = {
+            "semver": "0.0.1",
+            "current_tag": "v0",
+            "next_tag": "next",
+            "previous_tag": "previous",
+        }
+        rp.push_promote_tags(plan)
+        assert calls[0] == ["push", "origin", "v0.0.1"]
 
 
 class TestLoadSaveRoundTrip:
