@@ -64,6 +64,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -89,6 +91,9 @@ jobs:
       - name: Validate obs-aw-* callers set report-failure-as-issue false
         run: python scripts/validate_aw_workflow_report_failure_as_issue.py
 
+      - name: Validate checkout persist-credentials hardening
+        run: python scripts/validate_aw_workflow_checkout_persist_credentials.py
+
       - name: Validate reusable-workflow caller permissions
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -105,6 +110,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Recompile gh-aw workflows and fail on generated drift
         run: make compile-aw-check
@@ -120,6 +127,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v7

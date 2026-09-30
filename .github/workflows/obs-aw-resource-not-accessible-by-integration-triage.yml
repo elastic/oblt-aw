@@ -114,6 +114,7 @@ jobs:
           ```yaml
           - uses: actions/checkout@v6
             with:
+              persist-credentials: false
               token: <enhanced-token-from-secret>
           ```
 

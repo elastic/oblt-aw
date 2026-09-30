@@ -56,6 +56,12 @@ repos:
         pass_filenames: false
         # Repo-wide scan; run even when no staged files match hook filters
         always_run: true
+      - id: validate-workflow-checkout-persist-credentials
+        name: Validate workflow checkout persist-credentials
+        entry: python3 scripts/validate_aw_workflow_checkout_persist_credentials.py
+        language: system
+        pass_filenames: false
+        files: ^\.github/workflows/.*\.ya?ml$
 
   # ── General file hygiene ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
