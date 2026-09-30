@@ -6,7 +6,7 @@ This document defines the ruleset used by the oblt-aw security detector to ident
 
 **Scope**: Workflow YAML (`.github/workflows/**`), shell scripts, dependency manifests when present, and patterns aligned with [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758).
 
-**Detector:** The current detector implementation in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) emits findings for **SEC-002**, **SEC-010–SEC-012**, **SEC-020–SEC-022**, **SEC-030–SEC-033**, **SEC-035**, **SEC-040**, **SEC-042**, and **SEC-043**. Other rule IDs in this document remain part of the ruleset definition and can be implemented in future detector updates. [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) illustrates token exposure patterns covered by SEC-001–SEC-003.
+**Detector:** The current detector implementation in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) emits findings for **SEC-002–SEC-003**, **SEC-010–SEC-012**, **SEC-020–SEC-022**, **SEC-030–SEC-033**, **SEC-035**, **SEC-040**, **SEC-042**, and **SEC-043**. Other rule IDs in this document remain part of the ruleset definition and can be implemented in future detector updates. [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) illustrates token exposure patterns covered by SEC-001–SEC-003.
 
 ---
 
@@ -40,8 +40,8 @@ The table below documents how each rule ID is currently represented in the detec
 | Rule ID | Implemented in detector | Primary implementation path |
 |---------|-------------------------|-----------------------------|
 | SEC-001 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
-| SEC-002 | Yes | `actionlint` secret message mapping and `zizmor` `secrets-outside-env` mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
-| SEC-003 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
+| SEC-002 | Yes | Custom `run:` interpolation scan and `actionlint` secret message mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
+| SEC-003 | Yes | `zizmor` `secrets-outside-env` mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-010 | Yes | `actionlint` expression mapping, `zizmor` template/github-env mappings, and `semgrep` injection mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-011 | Yes | `shellcheck` and `actionlint` shellcheck mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-012 | Yes | `zizmor` default and targeted mappings plus `semgrep` non-injection workflow mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |

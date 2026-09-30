@@ -103,6 +103,48 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v actionlint >/dev/null 2>&
   ' >>"$FINDINGS_TMP" 2>/dev/null || true
 fi
 
+# --- SEC-002: `${{ secrets.* }}` inside run command text ---
+if [ -d "$REPO_ROOT/.github/workflows" ]; then
+  (
+    cd "$REPO_ROOT" || exit 0
+    find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) -print 2>/dev/null
+  ) | while IFS= read -r f; do
+      [ -f "$REPO_ROOT/$f" ] || continue
+      awk -v file="$f" '
+      function indent_len(s,   i, c, ch) {
+        c = 0
+        for (i = 1; i <= length(s); i++) {
+          ch = substr(s, i, 1)
+          if (ch == " ") c++
+          else if (ch == "\t") c += 2
+          else break
+        }
+        return c
+      }
+      {
+        line = $0
+        ind = indent_len(line)
+
+        if (in_run && line !~ /^[[:space:]]*$/ && ind <= run_indent) in_run = 0
+
+        if (in_run && line ~ /\$\{\{[[:space:]]*secrets\./) {
+          print file "|" NR "|SEC-002|high|run command interpolates `${{ secrets.* }}` directly; pass via env and reference shell vars."
+        }
+
+        if (line ~ /^[[:space:]]*(-[[:space:]]*)?run:[[:space:]]*[|>][[:space:]]*$/) {
+          in_run = 1
+          run_indent = ind
+          next
+        }
+
+        if (line ~ /^[[:space:]]*(-[[:space:]]*)?run:[[:space:]]*[^|>].*\$\{\{[[:space:]]*secrets\./) {
+          print file "|" NR "|SEC-002|high|run command interpolates `${{ secrets.* }}` directly; pass via env and reference shell vars."
+        }
+      }
+      ' "$REPO_ROOT/$f" >>"$FINDINGS_TMP" || true
+    done
+fi
+
 # --- zizmor: GitHub Actions security audits (offline; pin / permissions / injection / secrets, etc.) ---
 if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; then
   zizmor_args=(--offline --format=json-v1 --collect=workflows)
@@ -134,7 +176,7 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
         "ref-confusion": "SEC-030",
         "ref-version-mismatch": "SEC-030",
         "impostor-commit": "SEC-030",
-        "secrets-outside-env": "SEC-002",
+        "secrets-outside-env": "SEC-003",
         "unredacted-secrets": "SEC-021",
         "hardcoded-container-credentials": "SEC-020",
         "overprovisioned-secrets": "SEC-022",
