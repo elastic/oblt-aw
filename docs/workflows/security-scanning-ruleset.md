@@ -215,6 +215,11 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Description**: Actions from namespaces outside `actions/` and `github/` (or an org allowlist) require explicit review; detector flags for visibility.
 
+**Detector mapping note**: SEC-031 also includes zizmor `artipacked` findings. In this
+repository, those are treated as credential persistence risk around checkout/artifact
+handoff and should be remediated by setting `with.persist-credentials: false` on
+`actions/checkout` steps unless an explicit, documented exception is required.
+
 **Note**: Severity may be informational in internal repos with approved third parties; triage can apply `oblt-aw/triage/other` when accepted risk is documented.
 
 ---
