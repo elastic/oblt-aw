@@ -3,8 +3,8 @@ name: E2E — Dependency review
 
 # Manual production E2E for obs:dependency-review against elastic/oblt-aw.
 # Creates an ephemeral Actions pin-bump PR as the Vault app (OIDC create-token
-# using workflow-token-policy from config/e2e.json, bound to e2e-*.yml via
-# token-policy-6cd7ac55e207), then asserts dependency-review → analysis
+# using workflow-token-policy from config/e2e.json or config/release.json),
+# then asserts dependency-review → analysis
 # comment → merge-ready. Does not wait for automerge. Vault authorship avoids
 # the github-actions[bot] "Approve and run" gate on pull_request workflows.
 # Not part of the default PR required gate in ci.yml.
@@ -70,17 +70,28 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
 
-      # Shared E2E Vault role in config/e2e.json (wildcard e2e-*.yml policy
-      # requires an explicit token-policy input; do not reuse trigger-obs-aw-*).
+      # Vault role from config/e2e.json (direct e2e-*.yml dispatch) or
+      # config/release.json (nested under aw-release-promote.yml). Wildcard
+      # policies require an explicit token-policy input; do not reuse
+      # trigger-obs-aw-*.
       - name: Resolve E2E Vault token policy
         id: token-policy
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
           set -euo pipefail
-          POLICY="$(jq -r '."workflow-token-policy" // empty' config/e2e.json)"
+          promote_prefix="elastic/oblt-aw/.github/workflows/aw-release-promote.yml@"
+          if [[ "${WORKFLOW_REF}" == "${promote_prefix}"* ]]; then
+            config_path="config/release.json"
+          else
+            config_path="config/e2e.json"
+          fi
+          POLICY="$(jq -r '."workflow-token-policy" // empty' "${config_path}")"
           if [[ -z "${POLICY}" ]]; then
-            echo "::error::Missing non-empty workflow-token-policy in config/e2e.json"
+            echo "::error::Missing non-empty workflow-token-policy in ${config_path}"
             exit 1
           fi
+          echo "Resolved ${config_path} workflow-token-policy=${POLICY} (workflow_ref=${WORKFLOW_REF})"
           echo "token-policy=${POLICY}" >> "${GITHUB_OUTPUT}"
 
       - name: Create ephemeral GitHub token (Vault app)

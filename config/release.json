@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "workflow-token-policy": "token-policy-bd2501d7d475",
+  "workflow-token-policy-doc": "docs/operations/agentic-release-model.md"
+}
