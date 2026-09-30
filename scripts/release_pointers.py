@@ -29,9 +29,11 @@ from pathlib import Path
 from typing import Any, Literal
 
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+MOVING_MAJOR_TAG_RE = re.compile(r"^v(?:0|[1-9]\d*)$")
 SEMVER_RE = re.compile(
     r"^v?(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$"
 )
+POINTER_KEYS: tuple[str, ...] = ("current", "next", "previous")
 
 ReleaseType = Literal["major", "minor", "patch"]
 RELEASE_TYPES: tuple[ReleaseType, ...] = ("major", "minor", "patch")
@@ -80,6 +82,73 @@ def configured_major(data: dict[str, Any]) -> int:
 def bootstrap_semver(data: dict[str, Any]) -> str:
     """First-promote floor: ``v{configured_major}.0.0`` (currently ``v0.0.0``)."""
     return f"v{configured_major(data)}.0.0"
+
+
+def assert_pointers_empty_for_bootstrap(data: dict[str, Any]) -> None:
+    """Refuse bootstrap when any pointer still carries sha/semver residue."""
+    residues: list[str] = []
+    for key in POINTER_KEYS:
+        entry = data["pointers"][key]
+        for field in ("sha", "semver"):
+            value = str(entry.get(field) or "").strip()
+            if value:
+                residues.append(f"pointers.{key}.{field}={value!r}")
+    if residues:
+        raise ValueError(
+            "partial pointer state; refuse bootstrap until all sha/semver "
+            f"are empty: {', '.join(residues)}"
+        )
+
+
+def validate_moving_tag_name(tag: str, *, role: str) -> str:
+    """Validate a moving ops tag name before force-push.
+
+    ``current`` must be ``vN``. ``next`` / ``previous`` must be non-empty and
+    must not look like an immutable semver or a moving major (``vN``).
+    """
+    cleaned = tag.strip()
+    if not cleaned:
+        raise ValueError(f"tags.{role} is empty")
+    if role == "current":
+        if not MOVING_MAJOR_TAG_RE.fullmatch(cleaned):
+            raise ValueError(
+                f"tags.current must be a moving major like v0 or v1, got {cleaned!r}"
+            )
+        return cleaned
+    if role not in ("next", "previous"):
+        raise ValueError(f"unknown moving tag role: {role!r}")
+    if SEMVER_RE.fullmatch(cleaned):
+        raise ValueError(
+            f"tags.{role} must not be semver-shaped (immutable tags are never "
+            f"force-pushed), got {cleaned!r}"
+        )
+    if MOVING_MAJOR_TAG_RE.fullmatch(cleaned):
+        raise ValueError(
+            f"tags.{role} must not be a moving major like vN (reserved for "
+            f"tags.current), got {cleaned!r}"
+        )
+    return cleaned
+
+
+def validate_plan_moving_tags(plan: dict[str, Any]) -> None:
+    """Validate moving tag names on a promote/rollback plan before mutation."""
+    current = validate_moving_tag_name(str(plan["current_tag"]), role="current")
+    next_tag = validate_moving_tag_name(str(plan["next_tag"]), role="next")
+    previous = validate_moving_tag_name(str(plan["previous_tag"]), role="previous")
+    immutable = str(plan.get("semver") or plan.get("immutable_tag") or "").strip()
+    if immutable:
+        for role, name in (("next", next_tag), ("previous", previous)):
+            if name == immutable or name == normalize_semver(immutable):
+                raise ValueError(
+                    f"tags.{role} {name!r} collides with immutable semver {immutable!r}"
+                )
+    if current in {next_tag, previous}:
+        raise ValueError(
+            f"moving tag collision: current={current!r} next={next_tag!r} "
+            f"previous={previous!r}"
+        )
+    if next_tag == previous:
+        raise ValueError(f"tags.next and tags.previous must differ, got {next_tag!r}")
 
 
 def semver_tuple(semver: str) -> tuple[int, int, int]:
@@ -239,11 +308,22 @@ def push_moving_tags(tags: list[str], *, remote: str = "origin") -> None:
     """Force-push moving ops tags (``vN``, ``next``, ``previous``)."""
     if not tags:
         return
-    run_git(["push", remote, *tags, "--force"])
+    if len(tags) != 3:
+        raise ValueError(
+            "push_moving_tags expects [current, next, previous], "
+            f"got {len(tags)} tag(s)"
+        )
+    validated = [
+        validate_moving_tag_name(tags[0], role="current"),
+        validate_moving_tag_name(tags[1], role="next"),
+        validate_moving_tag_name(tags[2], role="previous"),
+    ]
+    run_git(["push", remote, *validated, "--force"])
 
 
 def push_promote_tags(plan: dict[str, Any], *, remote: str = "origin") -> None:
     """Publish immutable semver first, then force-update moving tags."""
+    validate_plan_moving_tags(plan)
     push_immutable_tags([str(plan["semver"])], remote=remote)
     push_moving_tags(
         [
@@ -257,6 +337,7 @@ def push_promote_tags(plan: dict[str, Any], *, remote: str = "origin") -> None:
 
 def push_rollback_tags(plan: dict[str, Any], *, remote: str = "origin") -> None:
     """Force-update moving tags after rollback (no immutable tags created)."""
+    validate_plan_moving_tags(plan)
     push_moving_tags(
         [
             str(plan["current_tag"]),
@@ -285,6 +366,7 @@ def plan_promote(
     bootstrap = not bool(current_sha)
     current_semver = str(data["pointers"]["current"].get("semver") or "")
     if bootstrap:
+        assert_pointers_empty_for_bootstrap(data)
         semver = bootstrap_semver(data)
     else:
         if not current_semver:
@@ -303,7 +385,7 @@ def plan_promote(
     previous_sha = current_sha if current_sha else sha
     previous_semver = current_semver if current_semver else semver
 
-    return {
+    plan = {
         "bootstrap": bootstrap,
         "current_tag": current_tag,
         "immutable_tag": semver,
@@ -315,6 +397,8 @@ def plan_promote(
         "semver": semver,
         "sha": sha,
     }
+    validate_plan_moving_tags(plan)
+    return plan
 
 
 def apply_promote_pointer_updates(
@@ -377,19 +461,19 @@ def plan_rollback(data: dict[str, Any]) -> dict[str, Any]:
     rollback_semver = normalize_semver(previous_semver)
     displaced_current_semver = normalize_semver(displaced_current_semver)
     current_tag = str(data["tags"].get("current") or "").strip()
-    if not re.fullmatch(r"v(?:0|[1-9]\d*)", current_tag):
-        raise ValueError(
-            f"tags.current must be a moving major like v0 or v1, got {current_tag!r}"
-        )
-    return {
+    next_tag = str(data["tags"]["next"])
+    previous_tag = str(data["tags"]["previous"])
+    plan = {
         "current_tag": current_tag,
         "displaced_current_semver": displaced_current_semver,
         "displaced_current_sha": current_sha,
-        "next_tag": str(data["tags"]["next"]),
-        "previous_tag": str(data["tags"]["previous"]),
+        "next_tag": next_tag,
+        "previous_tag": previous_tag,
         "rollback_semver": rollback_semver,
         "rollback_sha": previous_sha,
     }
+    validate_plan_moving_tags(plan)
+    return plan
 
 
 def apply_rollback_pointer_updates(

@@ -20,7 +20,7 @@ This workflow runs quality checks and tests on every pull request (any base bran
 | `lock-paths` | Detects changes under `.github/workflows/*.lock.yml` |
 | `pre-commit` | Runs all pre-commit hooks (YAML, shell, GitHub Actions lint, Python lint/format, mypy) |
 | `python-tests` | Runs pytest on `tests/unit` and `tests/integration` (not `tests/e2e`) and validates every `*-aw-*` workflow calls `aw-prelude.yml` |
-| `required` | Gate job; fails if any required job failed (`e2e-all` skipped when no lock changes is OK) |
+| `required` | Gate job; fails if any required job failed (`e2e-all` skipped when no lock changes is OK; other skips fail closed) |
 | `scorecard` | OpenSSF Scorecard security analysis; uploads SARIF to GitHub Security |
 | `typescript-tests` | Runs `npm test` (tsx) on `tests/unit/*.test.ts` |
 

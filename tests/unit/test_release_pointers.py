@@ -96,6 +96,32 @@ class TestPlanPromote:
         assert plan["previous_sha"] == SHA_A
         assert plan["current_tag"] == "v0"
 
+    def test_bootstrap_rejects_partial_pointer_state(self) -> None:
+        data = _minimal_pointers()
+        data["pointers"]["current"] = {
+            "sha": "",
+            "semver": "v0.0.0",
+            "updated_at": "2026-01-01T00:00:00+00:00",
+        }
+        with pytest.raises(ValueError, match="partial pointer state"):
+            rp.plan_promote(data, sha=SHA_A, release_type="patch")
+
+    def test_bootstrap_rejects_sibling_pointer_residue(self) -> None:
+        data = _minimal_pointers()
+        data["pointers"]["next"] = {
+            "sha": SHA_B,
+            "semver": "",
+            "updated_at": "",
+        }
+        with pytest.raises(ValueError, match="partial pointer state"):
+            rp.plan_promote(data, sha=SHA_A, release_type="patch")
+
+    def test_rejects_semver_shaped_next_tag(self) -> None:
+        data = _minimal_pointers()
+        data["tags"]["next"] = "v0.0.99"
+        with pytest.raises(ValueError, match="semver-shaped"):
+            rp.plan_promote(data, sha=SHA_A, release_type="patch")
+
     def test_patch_bump(self) -> None:
         data = _minimal_pointers()
         rp.set_pointer(data, "current", sha=SHA_B, semver="v0.0.0")

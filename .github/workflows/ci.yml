@@ -248,23 +248,32 @@ jobs:
       - name: Check dependent jobs
         if: needs.ci-gate.outputs.skip != 'true'
         id: check
-        uses: elastic/oblt-actions/check-dependent-jobs@v1
-        with:
-          jobs: ${{ toJSON(needs) }}
-          # e2e-all is skipped when no lock files change; that is success for this gate.
-          skipped-as-success: true
-
-      - name: Fail if any job failed
-        if: >-
-          needs.ci-gate.outputs.skip != 'true' &&
-          steps.check.outputs.status == 'failure'
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
           set -euo pipefail
-          echo "One or more required jobs failed."
-          exit 1
+          python3 <<'PY'
+          import json
+          import os
+          import sys
+
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          # Only e2e-all may be skipped (no lock-file changes). Other skips fail closed.
+          allowed_skip = {"e2e-all"}
+          failures: list[str] = []
+          for name, job in sorted(needs.items()):
+              result = job.get("result")
+              if result == "success":
+                  continue
+              if result == "skipped" and name in allowed_skip:
+                  continue
+              failures.append(f"{name}={result}")
+          if failures:
+              print("Required jobs not successful:", ", ".join(failures))
+              sys.exit(1)
+          print("All required jobs passed (e2e-all skip allowed when no lock changes).")
+          PY
 
       - name: All checks passed
-        if: >-
-          needs.ci-gate.outputs.skip != 'true' &&
-          steps.check.outputs.status == 'success'
+        if: needs.ci-gate.outputs.skip != 'true'
         run: echo "All checks passed."
