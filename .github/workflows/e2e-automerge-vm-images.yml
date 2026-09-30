@@ -11,6 +11,9 @@ name: E2E — Automerge VM images
 on:
   workflow_dispatch:
   workflow_call:
+    secrets:
+      GITHUB_TOKEN:
+        required: false
 
 permissions:
   contents: read
