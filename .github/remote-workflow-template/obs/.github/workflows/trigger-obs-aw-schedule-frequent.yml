@@ -18,6 +18,6 @@ jobs:
       id-token: write
       issues: read
       pull-requests: write
-    uses: elastic/oblt-aw/.github/workflows/obs-aw-event-schedule.yml@main # ratchet:exclude
+    uses: elastic/oblt-aw/.github/workflows/obs-aw-event-schedule.yml@v0 # ratchet:exclude
     with:
       schedule-profile: frequent
