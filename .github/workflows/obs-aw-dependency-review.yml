@@ -36,7 +36,8 @@ jobs:
       pull-requests: write
       copilot-requests: write
       id-token: write
-    uses: elastic/oblt-aw/.github/workflows/gh-aw-dependency-review.lock.yml@main
+    # Relative so client @v0 / control-plane tip pins inherit the release train.
+    uses: ./.github/workflows/gh-aw-dependency-review.lock.yml
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.
@@ -64,13 +65,11 @@ jobs:
         run: |
           set -euo pipefail
           MARKER='<!-- obs-aw-dependency-review:notify-no-comment -->'
-          body="$(printf '%s\n\n%s\n\n%s\n%s\n%s\n\n%s' \
+          body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
             "$MARKER" \
             'Dependency review finished without posting an analysis comment.' \
-            "- Workflow run: ${RUN_URL}" \
-            "- If the agent intentionally called \`noop\` (no dependency updates to review), treat that as the completion signal." \
-            '- If you expected an analysis, check the run artifacts for empty safe outputs.' \
-            "To retry after a false bailout: push a new commit to the PR branch (or close/reopen) so \`pull_request\` re-runs dependency-review.")"
+            'If you expected a review, push a new commit to this pull request (or close and reopen it) to try again.' \
+            "Workflow run: ${RUN_URL}")"
           comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
             | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
             | head -n 1)"

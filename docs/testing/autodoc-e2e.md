@@ -32,7 +32,7 @@ The GitHub Actions workflow runs **`schedule-audit-fix-pr-live`** (full path). T
 4. **Collateral** — dispatching the schedule trigger may also run other dashboard-enabled schedule routes (agent-suggestions, security detectors). The harness polls only for autodoc audit / fix agent leaf jobs.
 5. **Duration** — the fix path runs a second Copilot stage; budget up to ~3 hours.
 
-Control-plane lock/wrapper still resolve via `@main` on the live schedule path (smoke); candidate-ref pinning is a separate follow-up.
+Control-plane lock/wrapper still resolve via relative `uses` on the live schedule path when E2E runs from tip (see [agentic-release-model](../operations/agentic-release-model.md)).
 
 ## How to run
 

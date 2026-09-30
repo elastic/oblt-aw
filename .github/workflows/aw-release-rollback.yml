@@ -1,0 +1,107 @@
+---
+name: AW release — rollback
+
+# Quick rollback: retarget moving major tag (v0 today, later vN) to previous.
+# Target recovery: under 15 minutes when tags/pointers are healthy.
+# Runbook: docs/operations/agentic-release-model.md
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Validate and plan only (no tags, no pointer commit)
+        required: false
+        type: boolean
+        default: false
+      confirm:
+        description: Type rollback to confirm
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aw-release-promote
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Require default branch
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Fail unless dispatched on default branch
+        env:
+          REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          expected="refs/heads/${DEFAULT_BRANCH}"
+          if [ "${REF}" != "${expected}" ]; then
+            echo "::error::Rollback must run on ${expected} (got ${REF})"
+            exit 1
+          fi
+          echo "Rolling back current pointer on ${DEFAULT_BRANCH}"
+
+  rollback:
+    name: Rollback current pointer
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Confirm rollback intent
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          if [ "${CONFIRM}" != "rollback" ]; then
+            echo "::error::Set confirm input to exactly 'rollback'"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Configure Git identity
+        uses: elastic/oblt-actions/git/setup@v1
+
+      - name: Rollback tags and update pointers (local)
+        env:
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          set -euo pipefail
+          extra=(--plan-output rollback-plan.json)
+          if [ "${DRY_RUN}" = "true" ]; then
+            extra+=(--dry-run)
+          fi
+          python3 scripts/aw_release_rollback.py "${extra[@]}"
+
+      - name: Commit release-pointers.json
+        if: ${{ inputs.dry-run != true }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- config/release-pointers.json; then
+            echo "No pointer file changes to commit"
+            exit 0
+          fi
+          git add config/release-pointers.json
+          git commit -m "chore(release): rollback current pointer to previous"
+          git push origin HEAD:"${{ github.ref_name }}"
+
+      - name: Push rollback tags
+        if: ${{ inputs.dry-run != true }}
+        env:
+          PYTHONPATH: scripts
+        run: |
+          set -euo pipefail
+          python3 scripts/aw_release_rollback.py --push-from-plan rollback-plan.json

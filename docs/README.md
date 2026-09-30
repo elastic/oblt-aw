@@ -27,6 +27,7 @@ Use this index as the starting point and then navigate by topic.
 - Workflow catalog: [docs/workflows/README.md](workflows/README.md)
 - Routing guide: [docs/routing/README.md](routing/README.md)
 - Distribution operations: [docs/operations/distribute-client-workflow.md](operations/distribute-client-workflow.md)
+- Agentic release model (promote / rollback / `@v0` train): [docs/operations/agentic-release-model.md](operations/agentic-release-model.md)
 - Control Plane Dashboard (user instructions): [docs/operations/control-plane-dashboard.md](operations/control-plane-dashboard.md)
 - Contributing and local setup: [docs/development/contributing.md](development/contributing.md)
 - Onboard a repository (developers): [docs/guides/user/onboard-a-repository.md](guides/user/onboard-a-repository.md)

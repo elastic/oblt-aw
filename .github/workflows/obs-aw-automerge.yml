@@ -410,6 +410,26 @@ jobs:
           # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
           source _oblt-aw/scripts/obs/automerge_armed_lib.sh
 
+          fail_with_comment() {
+            local detail="$1"
+            MARKER='<!-- obs-aw-automerge:outcome-gate -->'
+            body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
+              "$MARKER" \
+              "Automerge could not complete for this pull request." \
+              "${detail}" \
+              "Workflow run: ${RUN_URL}")"
+            comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+              | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+              | head -n 1)"
+            if [ -n "$comment_id" ]; then
+              gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+            else
+              gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+            fi
+            echo "Automerge pipeline finished without merging or arming PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, arm=${ARM_RESULT}, armed=${ARMED})."
+            exit 1
+          }
+
           if [ "${MERGE_RESULT}" = "merged" ]; then
             echo "PR merged by automerge action."
             exit 0
@@ -448,19 +468,4 @@ jobs:
             exit 0
           fi
 
-          MARKER='<!-- obs-aw-automerge:outcome-gate -->'
-          body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
-            "$MARKER" \
-            "Automerge could not merge or arm this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
-            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS; classic BP bypass is honored only on direct REST merge as that app), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge." \
-            "Workflow run: ${RUN_URL}")"
-          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
-            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
-            | head -n 1)"
-          if [ -n "$comment_id" ]; then
-            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
-          else
-            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
-          fi
-          echo "Automerge pipeline finished without merging or arming PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, arm=${ARM_RESULT}, armed=${ARMED})."
-          exit 1
+          fail_with_comment "A repository rule or required check is still blocking the merge. Check the linked workflow run for details, or ask a maintainer to merge this pull request manually."

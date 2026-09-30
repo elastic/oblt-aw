@@ -27,7 +27,7 @@ Ingress routes here when:
 The job `dependency-review` calls:
 
 ```yaml
-uses: elastic/oblt-aw/.github/workflows/gh-aw-dependency-review.lock.yml@main
+uses: ./.github/workflows/gh-aw-dependency-review.lock.yml
 ```
 
 Edit the GH-AW source [`.github/workflows/gh-aw-dependency-review.md`](../../.github/workflows/gh-aw-dependency-review.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the lock). Compile also runs `scripts/wire_ephemeral_token.py` so minted `create-token` outputs win over `GITHUB_TOKEN` when `github-token-policy` is set.
@@ -91,7 +91,7 @@ The lock hardcodes the add-labels allowlist to `oblt-aw/ai/merge-ready` in the m
 
 ## Cutover and rollback
 
-**Cutover:** the wrapper `uses` `elastic/oblt-aw/.../gh-aw-dependency-review.lock.yml@main` instead of `elastic/ai-github-actions/...@main`. Event routing and dashboard id are unchanged.
+**Cutover:** the wrapper `uses` relative `./.github/workflows/gh-aw-dependency-review.lock.yml` (inherits caller pin) instead of `elastic/ai-github-actions/...@main`. Event routing and dashboard id are unchanged.
 
 **Rollback:** point the wrapper job back at the previous upstream lock:
 

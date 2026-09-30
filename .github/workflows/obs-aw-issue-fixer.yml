@@ -137,12 +137,9 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "Issue fixer finished without opening a pull request."
+            echo "The issue fixer finished without opening a pull request."
             echo
-            echo "- Workflow run: ${RUN_URL}"
-            echo "- Trigger: \`/ai implement\`"
-            echo "- If the agent intentionally called \`noop\` / \`report_incomplete\`, treat that as the completion signal."
-            echo "- If you expected a PR, check the run artifacts for empty safe outputs."
+            echo "If you expected a PR, comment \`/ai implement\` again on this issue (you need write access to the repository)."
             echo
-            echo "To retry: comment \`/ai implement\` again as an OWNER, MEMBER, or COLLABORATOR."
+            echo "Workflow run: ${RUN_URL}"
           } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
