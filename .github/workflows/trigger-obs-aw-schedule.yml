@@ -1,8 +1,5 @@
 name: Observability Agentic Workflow — Schedule
 
-# Control-plane dogfood for the daily schedule lane (not distributed).
-# Distributed clients: trigger-obs-aw-schedule-daily.yml / …-frequent.yml
-# under .github/remote-workflow-template/obs/.github/workflows/.
 on:
   schedule:
     - cron: "0 6 * * *"
@@ -21,5 +18,3 @@ jobs:
       issues: write
       pull-requests: write
     uses: elastic/oblt-aw/.github/workflows/obs-aw-event-schedule.yml@main # ratchet:exclude
-    with:
-      schedule-profile: daily
