@@ -1,17 +1,30 @@
-# E2E autodoc bait (intentional incomplete page)
+# E2E autodoc bait fixture
 
 <!-- E2E_AUTODOC_BAIT_MARKER -->
 
-This page is the **live E2E fixture** for `obs:autodoc`.
+This page is the **checked-in live E2E fixture** for `obs:autodoc`.
 
-## Status
+## Harness purpose
 
-Incomplete on purpose. Do **not** treat this as finished product documentation.
+The live harness needs a stable, default-branch markdown target that docs-patrol can
+evaluate without creating or deleting repository content at runtime. This fixture
+provides that deterministic target and is correlated by path plus
+`E2E_AUTODOC_BAIT_MARKER`.
 
-## Missing content (intentional)
+## Mode and trigger behavior
 
-- [ ] Purpose of the live autodoc E2E harness
-- [ ] How control-plane `e2e-trigger-obs-aw-schedule.yml` / `e2e-autodoc-mode` enables evaluation of this file
-- [ ] Cleanup expectations (issue/PR closed; this fixture stays on the default branch)
+Normal schedule/manual autodoc runs skip this path.
 
-See [autodoc-e2e-bait](../autodoc-e2e-bait.md).
+Live E2E dispatches control-plane `e2e-trigger-obs-aw-schedule.yml` with
+`e2e-autodoc-mode=true`. That signal is forwarded into `obs-aw-autodoc`, which
+injects fixed audit-only platform instructions containing `E2E_AUTODOC_MODE=true`.
+In that mode, docs-patrol evaluates **only** this file and opens one issue that
+cites this fixture path and `E2E_AUTODOC_BAIT_MARKER`.
+
+## Cleanup expectations
+
+After the live run, cleanup closes the issue opened for this fixture and closes any
+fix PRs that reference that issue. The fixture file itself remains on the default
+branch (no runtime mutation of checked-in docs).
+
+See [autodoc-e2e-bait](../autodoc-e2e-bait.md) and [autodoc-e2e](../autodoc-e2e.md).
