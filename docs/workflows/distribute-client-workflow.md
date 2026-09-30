@@ -12,6 +12,7 @@ This workflow creates PRs across target repositories to install, update, or remo
   - `config/**/active-repositories.json` (per-org repo lists; example [config/obs/active-repositories.json](../../config/obs/active-repositories.json))
   - [.github/remote-workflow-template/](../../.github/remote-workflow-template/) (per-org subtrees such as `obs/`, `docs/`)
 - Or manually triggered with `workflow_dispatch`.
+- The minted token must be a GitHub App bot token with contents and pull-request write access in each target repository. Both PR actions use built-in bot commit signing (`sign-commits: true`), not GPG secrets. A created or updated PR fails its matrix leg unless the action reports its commits as verified; skipped operations are unaffected.
 
 ## Usage
 
@@ -29,6 +30,7 @@ Core behavior:
 - deletes each path in `remove_files` when templates drop paths since `BASE_REF`
 - removes all managed `dst` paths when a repository leaves the config (`operation: remove`)
 - opens or updates PRs using `peter-evans/create-pull-request`
+- labels those PRs with `changelog:ci` and `oblt-aw/ai/merge-ready`, and with `backport-active-all` when the target repository already defines that label
 - emits consolidated summary via [scripts/summarize_pr_results.sh](../../scripts/summarize_pr_results.sh)
 
 ### Input and output contracts

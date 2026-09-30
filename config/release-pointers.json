@@ -2,26 +2,26 @@
   "schema_version": 1,
   "major": 0,
   "tags": {
-    "prod": "v0",
-    "candidate": "candidate",
-    "previous_prod": "previous-prod"
+    "current": "v0",
+    "next": "next",
+    "previous": "previous"
   },
   "pointers": {
-    "prod": {
+    "current": {
       "sha": "",
       "semver": "",
       "updated_at": ""
     },
-    "candidate": {
+    "next": {
       "sha": "",
       "semver": "",
       "updated_at": ""
     },
-    "previous_prod": {
+    "previous": {
       "sha": "",
       "semver": "",
       "updated_at": ""
     }
   },
-  "notes": "Empty SHAs mean uninitialized. First promote on main creates v0.0.0 after embedded E2E. Stay on v0 until the promote train is proven; graduate to v1 with a major bump + template redistribute."
+  "notes": "Empty SHAs mean uninitialized. First promote on main creates v0.0.0 after embedded E2E. Stay on v0 until the promote train is proven; graduate to v1 with a major bump + template redistribute. Pointer names follow Unified Release semantics: current / next / previous."
 }

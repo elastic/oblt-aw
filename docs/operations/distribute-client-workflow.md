@@ -12,6 +12,7 @@ This workflow distributes or removes client files from each org’s subtree unde
 - Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/trigger-obs-aw-*.yml` → `.github/workflows/trigger-obs-aw-*.yml`). Edit only under [remote-workflow-template](../../.github/remote-workflow-template/) (see [Client template doc](../workflows/obs-aw-client-template.md)).
 - Consumer templates pin the moving major tag `@v0` (see [agentic release model](agentic-release-model.md)). Distribute **skips** the control-plane repository itself (`GITHUB_REPOSITORY`) so relative self-triggers used for tip E2E are not overwritten.
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
+- The minted token must be a GitHub App bot token with permission to write contents and pull requests in each target repository; `create-pull-request` uses this token to create GitHub-verified bot commits.
 
 ## Usage
 
@@ -27,6 +28,11 @@ Execution stages:
 1. `prepare-targets`
 2. `create-prs`
 3. `summarize`
+
+PR labels on install and remove PRs:
+
+- Always: `changelog:ci`, `oblt-aw/ai/merge-ready`
+- Also `backport-active-all` when that label already exists in the target repository (checked via the Labels API; the workflow does not create the label)
 
 ## Distribution configuration contract (per-org `active-repositories.json`)
 
@@ -85,6 +91,12 @@ Workflow outputs written by the script:
 - `install_count`: count of install/update operations
 - `remove_count`: count of removal operations
 - `total_count`: total operations (`install_count + remove_count`)
+
+## Commit signing
+
+Both the install/update and removal `peter-evans/create-pull-request` steps use `sign-commits: true` with the minted GitHub App token. The action creates commits signed by the app bot; no GPG private key or signing secrets are required.
+
+When the action creates or updates a PR, the matrix leg fails unless its `pull-request-commits-verified` output is `true`. Skipped operations do not require verification. Validate the resulting commit is marked **Verified** in a protected consumer repository before relying on this for its signature policy.
 
 ## PR Result Artifact and Summary Contract
 

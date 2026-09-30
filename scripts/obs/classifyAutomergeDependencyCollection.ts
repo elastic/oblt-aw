@@ -169,27 +169,33 @@ function buildGateCommentBody(outcome, changedFiles, enabledCollectionIds) {
       : '';
 
   let reason = '';
+  let nextStep =
+    `To allow automerge for this kind of update, enable the matching collection under Automerge on the Control Plane Dashboard (the \`oblt-aw/dashboard\` issue). See [Automerge services](${AUTOMERGE_SERVICES_GUIDE_URL}) for what each collection covers.`;
   if (outcome.status === 'disabled') {
-    reason = `This pull request was classified as **\`${outcome.collectionId}\`**, but that dependency collection is not enabled on the Control Plane Dashboard for this repository.`;
+    reason = `Automerge skipped this pull request because the **\`${outcome.collectionId}\`** collection is not enabled for this repository.`;
   } else if (outcome.status === 'unclassified') {
     reason =
-      'This pull request could not be matched to any configured dependency collection from its changed files.';
+      'Automerge skipped this pull request because the changed files do not match any configured dependency collection.';
+    nextStep =
+      'If this update should be automerged, ask a maintainer to add or adjust a collection, or merge the pull request manually.';
   } else if (outcome.status === 'ambiguous') {
-    reason = `This pull request matched multiple dependency collections: ${outcome.collectionIds.map((id) => `\`${id}\``).join(', ')}. Automerge requires an unambiguous classification.`;
+    reason = `Automerge skipped this pull request because the changed files matched more than one collection: ${outcome.collectionIds.map((id) => `\`${id}\``).join(', ')}.`;
+    nextStep =
+      'Narrow the change to a single dependency type, or ask a maintainer to merge the pull request manually.';
   }
 
   return [
     GATE_COMMENT_MARKER,
     '',
-    '### Automerge skipped (dependency collection)',
+    '### Automerge skipped',
     '',
     reason,
     '',
-    `**Collections enabled for automerge on this repository:** ${enabledList}`,
+    nextStep,
     '',
-    `Enable or disable collections under the Automerge workflow on the Control Plane Dashboard (\`oblt-aw/dashboard\` issue). See [Automerge services](${AUTOMERGE_SERVICES_GUIDE_URL}) for what each collection covers. Dependency-review may still have applied \`oblt-aw/ai/merge-ready\` for risk review. Only enabled collections proceed to Copilot approval and merge via this workflow.`,
+    `Collections currently enabled for automerge: ${enabledList}`,
     '',
-    '**Changed files considered for classification:**',
+    'Changed files considered:',
     fileLines || '- _(none)_',
     fileSuffix,
   ].join('\n');
