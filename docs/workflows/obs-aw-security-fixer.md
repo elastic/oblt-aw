@@ -18,6 +18,7 @@ This reusable workflow executes issue-based fixes for security vulnerabilities. 
 The job `security-issue-fixer` calls:
 
 - [elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml)
+- Wrapper secret forwarding is explicitly allowlisted (no `secrets: inherit`): `EXTRA_COMMIT_GITHUB_TOKEN`, `GH_AW_GITHUB_TOKEN`, and `GH_AW_GITHUB_MCP_SERVER_TOKEN`.
 
 Configured instructions require:
 

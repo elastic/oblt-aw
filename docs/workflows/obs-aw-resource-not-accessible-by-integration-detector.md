@@ -11,7 +11,7 @@ When the agent creates an issue for findings, its instructions require adding th
 ## Prerequisites
 
 - Triggered via `workflow_call`.
-- Nested lock uses optional `GH_AW_GITHUB_TOKEN` / MCP secrets only (same pattern as other `ai-github-actions` agentic locks). Copilot runs with `github.token`; no repository `COPILOT_GITHUB_TOKEN` secret is required.
+- Nested lock uses explicit optional `GH_AW_GITHUB_TOKEN` / `GH_AW_GITHUB_MCP_SERVER_TOKEN` forwarding (no `secrets: inherit`). Copilot runs with `github.token`; no repository `COPILOT_GITHUB_TOKEN` secret is required.
 
 ## Usage
 

@@ -18,6 +18,7 @@ Jobs:
 
 - `audit`: calls the Observability-owned `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Safe-output issue bodies neutralize `@mentions`; triage uses the baked `[oblt-aw][autodoc]` title prefix and concrete source paths.
 - `fix`: calls the Observability-owned `gh-aw-create-pr-from-issue.lock.yml` only when `audit` created an issue.
+- Both lock calls use explicit secret allowlists (no `secrets: inherit`) matching each lock's `workflow_call.secrets` contract.
 - Failure meta-issue suppression for both stages is baked into the in-repo locks via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) (no `report-failure-as-issue` lock input). Intentional findings from `create_issue` (audit) are unchanged.
 - `finalize-pr`: requests a review from `@elastic/observablt-ci` and applies the `changelog:docs` label to the created PR if that label exists in the repository.
 - `notify-fix-failure`: when `fix` fails after an audit issue was created, comments recovery guidance on that issue (including `/ai implement`) and applies `oblt-aw/autodoc/fix-failed` when that label exists in the repository.

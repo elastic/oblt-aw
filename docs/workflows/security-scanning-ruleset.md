@@ -154,6 +154,8 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Note**: Overlaps with SEC-041; SEC-022 emphasizes **secret** exposure surface, SEC-041 emphasizes **permissions** syntax.
 
+**Remediation**: Avoid `secrets: inherit` on reusable workflow calls. Prefer removing `secrets:` entirely when a callee needs none, or pass an explicit minimal allowlist that matches the callee `workflow_call.secrets` contract.
+
 ---
 
 ## 2. Injection Vulnerabilities
