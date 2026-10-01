@@ -71,6 +71,8 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      id-token: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -108,25 +110,77 @@ jobs:
             --release-type "${RELEASE_TYPE}" \
             "${extra[@]}"
 
-      - name: Commit release-pointers.json
+      # Org "[org] Require a PR" blocks direct pushes to main. Land pointers via a
+      # Vault-authored PR, approve as GITHUB_TOKEN, then squash-merge as Vault.
+      - name: Resolve release Vault token policy
+        id: token-policy
+        if: ${{ inputs.dry-run != true }}
+        run: |
+          set -euo pipefail
+          POLICY="$(jq -r '."workflow-token-policy" // empty' config/release.json)"
+          if [[ -z "${POLICY}" ]]; then
+            echo "::error::Missing non-empty workflow-token-policy in config/release.json"
+            exit 1
+          fi
+          echo "token-policy=${POLICY}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create ephemeral GitHub token (Vault app)
+        id: create-token
+        if: ${{ inputs.dry-run != true }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ steps.token-policy.outputs.token-policy }}
+
+      - name: Prepare release-pointers on default-branch tip
+        id: prepare-pointers
         if: ${{ inputs.dry-run != true }}
         env:
-          RELEASE_SHA: ${{ github.sha }}
-          RELEASE_TYPE: ${{ inputs.release-type }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
           if git diff --quiet -- config/release-pointers.json; then
-            echo "No pointer file changes to commit"
+            echo "No pointer file changes to land"
+            echo "has_changes=false" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
-          git add config/release-pointers.json
-          git commit -m "chore(release): promote ${RELEASE_TYPE} (${RELEASE_SHA:0:12})"
+          cp config/release-pointers.json "${RUNNER_TEMP}/release-pointers.json"
           git fetch origin "${DEFAULT_BRANCH}"
-          # Rebase onto current tip so push stays fast-forward when main advanced
-          # during E2E while we still release the gated SHA.
-          git rebase "origin/${DEFAULT_BRANCH}"
-          git push origin "HEAD:refs/heads/${DEFAULT_BRANCH}"
+          # Keep local tags from the promote step; only move the working tree.
+          git checkout -B "release/pointers-${RUN_ID}" "origin/${DEFAULT_BRANCH}"
+          cp "${RUNNER_TEMP}/release-pointers.json" config/release-pointers.json
+          echo "has_changes=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Open release-pointers pull request
+        id: pointers-pr
+        if: ${{ inputs.dry-run != true && steps.prepare-pointers.outputs.has_changes == 'true' }}
+        env:
+          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        with:
+          token: ${{ steps.create-token.outputs.token }}
+          sign-commits: true
+          branch: release/pointers-${{ github.run_id }}
+          base: ${{ github.event.repository.default_branch }}
+          add-paths: config/release-pointers.json
+          commit-message: "chore(release): promote ${{ inputs.release-type }} (${{ github.sha }})"
+          title: "chore(release): promote ${{ inputs.release-type }} (${{ github.sha }})"
+          body: |
+            Land `config/release-pointers.json` after gated promote of `${{ github.sha }}`
+            (`release-type=${{ inputs.release-type }}`).
+
+            Direct pushes to the default branch are blocked by the org Require-a-PR ruleset.
+
+            Created by [workflow run](${{ env.JOB_URL }}).
+
+      - name: Approve and merge release-pointers pull request
+        if: ${{ inputs.dry-run != true && steps.pointers-pr.outputs.pull-request-number != '' }}
+        env:
+          APPROVE_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pointers-pr.outputs.pull-request-number }}
+        run: bash scripts/aw_release_merge_pointers_pr.sh
 
       - name: Push release tags
         if: ${{ inputs.dry-run != true }}
