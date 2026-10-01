@@ -21,6 +21,10 @@ on:
         required: false
         type: string
         default: main
+    secrets:
+      BUILDKITE_TOKEN:
+        description: Buildkite API token for live ESTC E2E.
+        required: true
 
 permissions:
   contents: read
