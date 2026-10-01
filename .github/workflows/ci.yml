@@ -138,7 +138,7 @@ jobs:
     name: OpenSSF Scorecard
     needs: ci-gate
     if: needs.ci-gate.outputs.skip != 'true'
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       actions: read
