@@ -396,6 +396,63 @@ test('classifyChangedFiles allows dashboard-enabled package-version collection',
   });
 });
 
+test('classifyChangedFiles allows dashboard-enabled apm-cli collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'apm-cli',
+      'file-glob': [
+        '.apm.version',
+        '**/.apm.version',
+        '.apm-cli-pin/requirements.txt',
+      ],
+    },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:apm-cli'];
+  const outcome = classifyChangedFiles(
+    ['.apm.version', '.apm-cli-pin/requirements.txt'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'apm-cli',
+  });
+
+  const versionOnly = classifyChangedFiles(
+    ['.apm.version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(versionOnly, {
+    status: 'allowed',
+    collectionId: 'apm-cli',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled apm-cli collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    {
+      id: 'apm-cli',
+      'file-glob': [
+        '.apm.version',
+        '**/.apm.version',
+        '.apm-cli-pin/requirements.txt',
+      ],
+    },
+  ];
+  const outcome = classifyChangedFiles(
+    ['.apm.version', '.apm-cli-pin/requirements.txt'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: 'apm-cli',
+  });
+});
+
 test('classifyChangedFiles allows dashboard-enabled root package-version collection', () => {
   const collections = [
     ...COLLECTIONS,
