@@ -78,7 +78,7 @@
     {
       "repository": "elastic/oblt-cli",
       "workflow-token-policy": "token-policy-d7a3e6348fbd",
-      "ai-assets-token-policy": ""
+      "ai-assets-token-policy": "token-policy-1996e31ceab2"
     },
     {
       "repository": "elastic/oblt-cli-buildkite-plugin",
@@ -88,7 +88,7 @@
     {
       "repository": "elastic/oblt-framework",
       "workflow-token-policy": "token-policy-61df782fbc7e",
-      "ai-assets-token-policy": ""
+      "ai-assets-token-policy": "token-policy-1996e31ceab2"
     },
     {
       "repository": "elastic/oblt-google-auth-buildkite-plugin",
@@ -103,7 +103,7 @@
     {
       "repository": "elastic/oblt-robot",
       "workflow-token-policy": "token-policy-25bd64508dc4",
-      "ai-assets-token-policy": ""
+      "ai-assets-token-policy": "token-policy-1996e31ceab2"
     },
     {
       "repository": "elastic/obs-execution",
