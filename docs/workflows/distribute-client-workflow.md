@@ -30,7 +30,7 @@ Core behavior:
 - deletes each path in `remove_files` when templates drop paths since `BASE_REF`
 - removes all managed `dst` paths when a repository leaves the config (`operation: remove`)
 - opens or updates PRs using `peter-evans/create-pull-request`
-- labels those PRs with `changelog:ci` and `oblt-aw/ai/merge-ready`, and with `backport-active-all` when the target repository already defines that label (consumer TokenPolicies must use `trigger-*-aw-*.yml@*` so OIDC works on backported branches)
+- labels those PRs with `oblt-aw/ai/merge-ready`, and with `backport-active-all` / `changelog:ci` / `skip-changelog` when the target repository already defines those labels (consumer TokenPolicies must use `trigger-*-aw-*.yml@*` so OIDC works on backported branches; `skip-changelog` unblocks fragment gates that ignore `changelog:ci`)
 - emits consolidated summary via [scripts/summarize_pr_results.sh](../../scripts/summarize_pr_results.sh)
 
 ### Input and output contracts

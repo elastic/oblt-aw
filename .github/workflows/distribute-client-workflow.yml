@@ -191,9 +191,16 @@ jobs:
           TARGET_REPOSITORY: ${{ matrix.target.repository }}
         run: |
           set -euo pipefail
-          # Always apply control-plane labels. Add backport-active-all only when the
-          # target repo already defines it (do not create the label).
-          labels='changelog:ci,oblt-aw/ai/merge-ready'
+          # Always apply control-plane labels. Add optional labels only when the
+          # target repo already defines them (do not create labels).
+          # Optional prepend order: alphabetical (backport-active-all, skip-changelog).
+          labels='oblt-aw/ai/merge-ready'
+          if gh api "repos/${TARGET_REPOSITORY}/labels/changelog:ci" --jq .name >/dev/null 2>&1; then
+            labels="changelog:ci,${labels}"
+          fi
+          if gh api "repos/${TARGET_REPOSITORY}/labels/skip-changelog" --jq .name >/dev/null 2>&1; then
+            labels="skip-changelog,${labels}"
+          fi
           if gh api "repos/${TARGET_REPOSITORY}/labels/backport-active-all" --jq .name >/dev/null 2>&1; then
             labels="backport-active-all,${labels}"
           fi
