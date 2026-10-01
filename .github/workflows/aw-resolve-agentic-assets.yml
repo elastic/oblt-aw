@@ -152,13 +152,20 @@ jobs:
           token-policy: ${{ steps.ai-assets-token-policy.outputs.ai-assets-token-policy }}
 
       - name: Install agent packages from apm.yml
+        id: install-apm-packages
         if: >-
           inputs.install-apm-packages &&
           steps.detect.outputs.present == 'true'
+        continue-on-error: true
         uses: microsoft/apm-action@d723bb64ed70c135bbaf87d126b721dd2dae0439 # v1.10.0
         with:
           apm-version: "0.20.0"
           github-token: ${{ steps.create-apm-token.outputs.token || github.token }}
+
+      - name: Warn when APM package install failed
+        if: steps.install-apm-packages.outcome == 'failure'
+        run: |
+          echo "::warning::APM package install failed (apm.yml skills/plugins may be incomplete). Continuing with agentic asset resolution."
 
       - name: Resolve agentic assets
         id: resolve
