@@ -20,7 +20,7 @@ Routed workflow sources:
 
 1. **PR path** tries a short squash-merge (pascalgn + one REST retry).
 2. If checks are still pending → upsert bot-authored armed comment (`<!-- obs-aw-automerge:armed sha=<head> -->`). Outcome success = merged, armed, or soft-succeed on `not_ready`.
-3. **Frequent schedule profile** (client cron every 15 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` apply (honored only on direct REST merge as that app — not by async `--auto` / merge-queue completion).
+3. **Frequent schedule profile** (client cron every 15 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` and (when configured) ruleset Integration `bypass_actors` apply (honored only on direct REST merge as that app — not by async `--auto` / merge-queue completion).
 
 Required checks are enforced by GitHub’s merge API on every attempt — this automation only chooses **when** to wake up. There is **no** Buildkite status-success route for automerge (status stays ESTC-failure only).
 

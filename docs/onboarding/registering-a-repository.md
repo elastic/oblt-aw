@@ -6,7 +6,7 @@ This guide onboards:
 
 1. **GitHub repository** — Listed in `elastic/oblt-aw` under `config/<org-key>/active-repositories.json` so [distribute-client-workflow](../operations/distribute-client-workflow.md) can install the client template and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) can maintain the Control Plane Dashboard issue.
 2. **GitHub token policy (Backstage Resource) in `elastic/catalog-info`** — **Always** created for each newly registered consumer repository. It backs [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) for installed `trigger-obs-aw-*.yml` client workflows where `GITHUB_TOKEN` is insufficient ([obs-aw-security-detector](../workflows/obs-aw-security-detector.md), automerge, nested GH-AW lock jobs such as issue-triage / dependency-review / issue-fixer, and others).
-3. **Classic branch-protection `pull_request_bypassers` in `elastic/observability-github-settings`** — **Always** add [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) for each newly registered consumer repository so automerge can merge as the Vault app under CODEOWNERS (Apps cannot be CODEOWNERS). Automerge approves with an identity that is not the PR author (`GITHUB_TOKEN` / `github-actions[bot]` for Vault/Dependabot/Renovate; Vault for `github-actions[bot]`-authored PRs), then merges as Vault when `workflow-token-policy` is set. See [step 8](#steps).
+3. **Vault app bypassers in `elastic/observability-github-settings`** — **Always** add [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) for each newly registered consumer repository: classic BP `pull_request_bypassers` (CODEOWNERS), and—when the default branch uses a ruleset with `merge_queue`—a ruleset `bypass_actors` Integration entry so automerge’s direct REST merge is not blocked by “Changes must be made through the merge queue”. Automerge approves with an identity that is not the PR author (`GITHUB_TOKEN` / `github-actions[bot]` for Vault/Dependabot/Renovate; Vault for `github-actions[bot]`-authored PRs), then merges as Vault when `workflow-token-policy` is set. See [step 8](#steps).
 
 **Developer path:** prefer the issue form in [Onboard a repository](../guides/user/onboard-a-repository.md) (label `oblt-aw/onboard/repository`, agent [`gh-aw-onboard-repository`](../workflows/gh-aw-onboard-repository.md)). This page is the technical contract those automations must follow—including [Pull request inventory](#pull-request-inventory-separate-concerns) and [Automation contract](#automation-contract-gh-aw-onboard-repository).
 
@@ -18,7 +18,7 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 
 ## Prerequisites
 
-- Permission to open pull requests to **`elastic/oblt-aw`**, **`elastic/catalog-info`**, **`elastic/observability-github-settings`** (branch protection / `pull_request_bypassers`), and (for secrets) **`elastic/observability-github-secrets`** as required by your team’s process.
+- Permission to open pull requests to **`elastic/oblt-aw`**, **`elastic/catalog-info`**, **`elastic/observability-github-settings`** (branch protection / `pull_request_bypassers` / merge-queue ruleset bypass), and (for secrets) **`elastic/observability-github-secrets`** as required by your team’s process.
 - Layout and approval rules inside **`elastic/catalog-info`** and **`elastic/observability-github-settings`** are **Unknown** in this repository—follow those repos’ maintainers.
 - Target repository is **not** already listed in `config/<org-key>/active-repositories.json` for the chosen org key. If it is, stop (do not open duplicate registration PRs).
 
@@ -30,7 +30,7 @@ Open **one pull request per concern** (do not combine catalog, registration, set
 |------:|------------|--------------|-----------|
 | 1 | `elastic/catalog-info` | Backstage TokenPolicy Resource for the consumer’s client `workflow_ref` (`trigger-*-aw-*.yml@*`). Derive `token-policy-<12-char sha256(workflow ref base)>` per step **2**. | **Always** |
 | 2 | `elastic/oblt-aw` | Add `{ "repository": "elastic/<repo>", "workflow-token-policy": "<catalog metadata.name>", "ai-assets-token-policy": "" }` to `config/<org-key>/active-repositories.json`. Keep JSON sorted and styled like neighboring entries. | **Always** |
-| 3 | `elastic/observability-github-settings` | Add [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) to classic BP `pull_request_bypassers` for the default branch under `branch-protections/<repo>/`. **Add** to existing lists; do not remove other bypassers. | **Always** |
+| 3 | `elastic/observability-github-settings` | Add [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) to classic BP `pull_request_bypassers` for the default branch under `branch-protections/<repo>/`. When that stack also has a ruleset with `merge_queue`, add the same app as an Integration `bypass_actors` entry on that ruleset. **Add** to existing lists; do not remove other bypassers. | **Always** for classic BP; merge-queue ruleset bypass when `merge_queue` is present |
 | 4 | `elastic/observability-github-secrets` | Provision consumer secrets discovered from org workflow docs (see [Consumer secrets discovery](#consumer-secrets-discovery)). | **When discovery returns a non-empty set**; otherwise skip and record “none” |
 
 **Merge order (humans):** merge **catalog-info** before the **`elastic/oblt-aw`** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed workflows in production. Auto-merge of these registration PRs is **out of scope**.
@@ -115,7 +115,9 @@ Manual maintainers may still use draft PRs for early review; the agent path does
 
 7. **Configure Action secrets through `elastic/observability-github-secrets`** — Do **not** rely only on per-repository **Settings → Secrets** in GitHub unless your process explicitly allows it. Discover required consumer secret names via [Consumer secrets discovery](#consumer-secrets-discovery), resolve shared modules in the secrets checkout, and provision through **[`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets)**. If discovery returns none, **skip** this PR and record “none” (see [inventory](#pull-request-inventory-separate-concerns)).
 
-8. **Add the Vault app as a classic branch-protection `pull_request_bypassers` in `elastic/observability-github-settings` (mandatory)** — For every newly registered consumer repository, open a PR in **[`elastic/observability-github-settings`](https://github.com/elastic/observability-github-settings)** so classic branch protection for the default branch lists [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) in `required_pull_request_reviews.pull_request_bypassers`. GitHub Apps cannot be CODEOWNERS; automerge mints an ephemeral Vault-app token and merges as that app when `workflow-token-policy` / `shared-token-policy` is non-empty. Without this bypasser, CODEOWNERS blocks Dependabot/Renovate, Vault-authored, and other bot dependency merges after they receive an author-aware approve (usually `github-actions[bot]`; Vault when the PR author is `github-actions[bot]`). A non-empty `workflow-token-policy` is required for `github-actions[bot]`-authored automerge PRs. Configuration lives under **`branch-protections/<repo>/`** in that repository (for example `branch-protections/<repo>/main.tf`); follow that repo’s contribution and apply process. Typical HCL shape (grounded in existing consumer branch-protection modules; adjust to match the file already used for **`elastic/<repo>`**):
+8. **Add the Vault app as bypassers in `elastic/observability-github-settings` (mandatory)** — For every newly registered consumer repository, open a PR in **[`elastic/observability-github-settings`](https://github.com/elastic/observability-github-settings)** under **`branch-protections/<repo>/`** (for example `branch-protections/<repo>/main.tf`); follow that repo’s contribution and apply process.
+
+   **8a. Classic branch-protection `pull_request_bypassers` (always)** — List [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) in `required_pull_request_reviews.pull_request_bypassers`. GitHub Apps cannot be CODEOWNERS; automerge mints an ephemeral Vault-app token and merges as that app when `workflow-token-policy` / `shared-token-policy` is non-empty. Without this bypasser, CODEOWNERS blocks Dependabot/Renovate, Vault-authored, and other bot dependency merges after they receive an author-aware approve (usually `github-actions[bot]`; Vault when the PR author is `github-actions[bot]`). A non-empty `workflow-token-policy` is required for `github-actions[bot]`-authored automerge PRs. Typical HCL shape (grounded in existing consumer branch-protection modules; adjust to match the file already used for **`elastic/<repo>`**):
 
    ```hcl
    required_pull_request_reviews {
@@ -129,7 +131,23 @@ Manual maintainers may still use draft PRs for early review; the agent path does
    }
    ```
 
-   If the repository already has other `pull_request_bypassers`, **add** the Vault app to the list—do not replace existing entries. Merge and apply the settings change before relying on [obs-aw-automerge](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens) in production. Detail: [CODEOWNERS and ephemeral tokens](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens).
+   If the repository already has other `pull_request_bypassers`, **add** the Vault app to the list—do not replace existing entries.
+
+   **8b. Ruleset `merge_queue` Integration bypass (when present)** — If `branch-protections/<repo>/` defines a `github_repository_ruleset` with a `merge_queue` rule, also add the Vault app as an Integration `bypass_actors` entry on **that** ruleset. Classic `pull_request_bypassers` do **not** skip ruleset merge-queue enforcement; without this bypasser, automerge’s direct REST merge fails with “Changes must be made through the merge queue”. Pattern (same as `branch-protections/observability-github-settings/main.tf`):
+
+   ```hcl
+   # Allow elastic-vault-github-plugin-prod app to bypass rules (merge queue + PR rules).
+   # Required for oblt-aw automerge REST merge as the Vault app.
+   bypass_actors {
+     actor_id    = tonumber(data.github_app.elastic-vault-github-plugin-prod.id)
+     actor_type  = "Integration"
+     bypass_mode = "always"
+   }
+   ```
+
+   **Add** this block alongside any existing team/role bypass actors—do not remove them. Skip **8b** when the stack has no `merge_queue` ruleset.
+
+   Merge and apply the settings change before relying on [obs-aw-automerge](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens) in production. Detail: [CODEOWNERS and ephemeral tokens](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens).
 
 9. **Humans — Opt workflows in or out from the Control Plane Dashboard** — **Humans** complete this step in the GitHub web UI by checking or unchecking task-list checkboxes on the dashboard issue (GitHub saves on click). Workflow enablement is **not** configured in `active-repositories.json`; it is controlled only through the **Control Plane Dashboard** issue in **`elastic/<repo>`** (task-list checkboxes and `<!-- oblt-aw:<org-key>:<workflow-id> -->` markers). Read [Dashboard gating](adopting-agentic-workflows.md#dashboard-gating-reference) and complete [steps 1–2 in *Adopting a new remote agentic workflow*](adopting-agentic-workflows.md#consumer-repositories): confirm rows exist after sync, then check or uncheck workflows to match policy; wait for a **client** run for changes to apply ([obs-aw-client-template](../workflows/obs-aw-client-template.md)).
 
@@ -201,7 +219,8 @@ Draft placeholder for `additional_permissions` (not valid YAML until substituted
 - **No install PR in the target repository** — See [distribute-client-workflow](../operations/distribute-client-workflow.md): path filters, matrix outputs, and `workflow_dispatch` / `force`.
 - **No dashboard issue** — Confirm **`elastic/<repo>`** is in the union of per-org `active-repositories.json` files and that [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) completed on **`main`**.
 - **Ephemeral token / OIDC failures** — Confirm `bound_claims.workflow_ref` is the client trigger glob with `@*` (for example `trigger-obs-aw-*.yml@*`) and that `workflow-token-policy` matches the catalog role name; confirm **`id-token: write`** on that client’s `run-obs-aw-<event>` job ([obs-aw-client-template](../workflows/obs-aw-client-template.md)); confirm the catalog policy merged **before** merging **`elastic/oblt-aw`** registration to **`main`**. If minting fails only on release/backport branches, the catalog claim is likely still pinned to `@refs/heads/main`.
-- **Automerge blocked by CODEOWNERS or required reviews** — Confirm step **8**: [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) is in classic BP `pull_request_bypassers` for the default branch in **`elastic/observability-github-settings`**, `workflow-token-policy` is non-empty so merge uses the Vault app token, and the settings change was applied. See [obs-aw-automerge — CODEOWNERS and ephemeral tokens](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens).
+- **Automerge blocked by CODEOWNERS or required reviews** — Confirm step **8a**: [elastic-vault-github-plugin-prod](https://github.com/apps/elastic-vault-github-plugin-prod) is in classic BP `pull_request_bypassers` for the default branch in **`elastic/observability-github-settings`**, `workflow-token-policy` is non-empty so merge uses the Vault app token, and the settings change was applied. See [obs-aw-automerge — CODEOWNERS and ephemeral tokens](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens).
+- **Automerge blocked by merge queue (“Changes must be made through the merge queue”)** — Confirm step **8b**: the default-branch ruleset that includes `merge_queue` lists the Vault app as an Integration `bypass_actors` entry in **`elastic/observability-github-settings`**, and the settings change was applied. Classic `pull_request_bypassers` alone do not skip ruleset merge-queue enforcement.
 
 ## References
 

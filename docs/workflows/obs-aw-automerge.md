@@ -17,7 +17,7 @@ When required checks are still pending, the PR path **arms** the PR (bot-authore
 
 `verify` rejects `github-actions[bot]` authors when `shared-token-policy` is empty. Automerge continues via job `needs` after `approve` (no workflow re-trigger required for the review). Consumer repos need “Allow GitHub Actions to create and approve pull requests” enabled for the `GITHUB_TOKEN` approve path.
 
-**Merge identity:** When `shared-token-policy` is non-empty, merge uses an ephemeral Vault-app token so squash-merge runs as that app (classic BP `pull_request_bypassers` can skip CODEOWNERS on **direct REST merge** only). When empty, merge uses `GITHUB_TOKEN`. `MERGE_REQUIRED_APPROVALS` is always `1`.
+**Merge identity:** When `shared-token-policy` is non-empty, merge uses an ephemeral Vault-app token so squash-merge runs as that app (classic BP `pull_request_bypassers` can skip CODEOWNERS on **direct REST merge** only; a ruleset `merge_queue` also needs the Vault app as an Integration `bypass_actors` entry—see below). When empty, merge uses `GITHUB_TOKEN`. `MERGE_REQUIRED_APPROVALS` is always `1`.
 
 Required status checks are **not** queried in `verify`; branch protection and the deferred merge path handle gating before merge.
 
@@ -64,7 +64,7 @@ Token use differs by job:
 1. **`approve`:** Author-aware — empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]` for Vault, Dependabot, Renovate, and other non–`github-actions` authors; pass `shared-token-policy` when the author is `github-actions[bot]` so Vault submits the review (avoids self-APPROVE). Repos must allow GitHub Actions to approve pull requests for the `GITHUB_TOKEN` path.
 2. **`automerge` / arm / deferred merge path:** When `shared-token-policy` is non-empty, mint a Vault-app token and call the REST merge API as that app. Empty policy uses `GITHUB_TOKEN` (no CODEOWNERS bypass). `MERGE_REQUIRED_APPROVALS` is always `1` on the pascalgn step.
 
-**Consumer requirement (mandatory for newly registered repos):** Keep human/team entries in `CODEOWNERS` when that gate applies, set a non-empty `workflow-token-policy` / `shared-token-policy`, and **always** add the Vault app to classic branch-protection `pull_request_bypassers` in [elastic/observability-github-settings](https://github.com/elastic/observability-github-settings) as part of [repository onboarding](../onboarding/registering-a-repository.md) so a Vault-app merge can bypass CODEOWNERS. Org rulesets that require reviews are satisfied by the author-aware approve step above. Example Terraform:
+**Consumer requirement (mandatory for newly registered repos):** Keep human/team entries in `CODEOWNERS` when that gate applies, set a non-empty `workflow-token-policy` / `shared-token-policy`, and **always** add the Vault app to classic branch-protection `pull_request_bypassers` in [elastic/observability-github-settings](https://github.com/elastic/observability-github-settings) as part of [repository onboarding](../onboarding/registering-a-repository.md) so a Vault-app merge can bypass CODEOWNERS. When the default branch is protected by a ruleset with `merge_queue`, also add the Vault app as an Integration `bypass_actors` entry on that ruleset—classic `pull_request_bypassers` do not skip merge-queue enforcement. Org rulesets that require reviews are satisfied by the author-aware approve step above. Example Terraform (classic BP):
 
 ```hcl
 required_pull_request_reviews {
@@ -73,6 +73,16 @@ required_pull_request_reviews {
   ]
   require_code_owner_reviews      = true
   required_approving_review_count = 1
+}
+```
+
+Example Terraform (ruleset with `merge_queue`):
+
+```hcl
+bypass_actors {
+  actor_id    = tonumber(data.github_app.elastic-vault-github-plugin-prod.id)
+  actor_type  = "Integration"
+  bypass_mode = "always"
 }
 ```
 

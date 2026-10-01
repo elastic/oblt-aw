@@ -14,7 +14,7 @@ Short **user stories** (onboard a repository, enable a workflow, opt in/out) liv
 
 - **[Adopting a new remote agentic workflow](adopting-agentic-workflows.md)** — How to ship a new routed workflow on the `oblt-aw` control plane (reusable workflows, ingress, registry, docs, client template) and how consumer repositories verify and enable it via the dashboard.
 
-- **[Registering resources](registering-a-repository.md)** — Technical procedure (for maintainers and agents): list a repository for the fleet (`active-repositories.json`), align Backstage token policy in `elastic/catalog-info`, add the Vault app to classic BP `pull_request_bypassers` in `elastic/observability-github-settings`, and complete post-merge verification (distribution, secrets, dashboard).
+- **[Registering resources](registering-a-repository.md)** — Technical procedure (for maintainers and agents): list a repository for the fleet (`active-repositories.json`), align Backstage token policy in `elastic/catalog-info`, add the Vault app to classic BP `pull_request_bypassers` (and merge-queue ruleset `bypass_actors` when that ruleset exists) in `elastic/observability-github-settings`, and complete post-merge verification (distribution, secrets, dashboard).
 
 ## References
 
