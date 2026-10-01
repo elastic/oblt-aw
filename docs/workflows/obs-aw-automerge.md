@@ -54,7 +54,7 @@ Jobs:
 | `approve` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write` (GH-AW mention-in-pr; OIDC mint when `github-token-policy` is set for `github-actions[bot]` authors) |
 | `automerge` | `contents: write`, `pull-requests: write`, `id-token: write` (OIDC mint when policy set; merge via automerge action) |
 | `rest-merge` | `contents: write`, `pull-requests: write`, `id-token: write` (OIDC mint when policy set; REST squash-merge) |
-| `arm-for-deferred-merge` | `pull-requests: write` (armed comment only) |
+| `arm-for-deferred-merge` | `contents: read`, `pull-requests: write` (helper checkout and armed comment) |
 | `report-automerge-outcome` | `pull-requests: write` (upsert armed or failure comment on the PR) |
 
 ### CODEOWNERS and ephemeral tokens
