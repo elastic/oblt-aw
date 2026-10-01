@@ -32,6 +32,12 @@
       ],
       "sub_features": [
         {
+          "id": "apm-cli",
+          "name": "APM CLI version",
+          "description": "Auto-merge for APM CLI pin updates (.apm.version / .apm-cli-pin).",
+          "default_enabled": false
+        },
+        {
           "id": "github-actions",
           "name": "GitHub Actions bumps",
           "description": "Auto-merge for GitHub Actions and composite action version bumps.",

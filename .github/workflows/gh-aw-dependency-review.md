@@ -170,6 +170,7 @@ Parse the diff to identify each dependency being updated. For each dependency, e
 
 Classify by **changed paths** and **what the diff bumps**. Prefer these path families (aligned with `config/obs/automerge-dependency-collections.json` globs — do **not** invent ecosystems that are not represented there):
 
+- `.apm.version`, `**/.apm.version`, `.apm-cli-pin/requirements.txt` → **APM CLI**
 - `.github/workflows/**`, `.github/actions/**`, `**/action.yml`, `**/action.yaml` → **GitHub Actions**
 - `.pre-commit-config.yaml` → **pre-commit**
 - `go.mod`, `go.sum`, `**/go.mod`, `**/go.sum` (and related NOTICE / `beats` bumps when those land together) → **Go** (or Go + related manifests)

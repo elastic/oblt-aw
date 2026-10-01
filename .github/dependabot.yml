@@ -1,6 +1,21 @@
 version: 2
 
 updates:
+  # microsoft/apm CLI pin (PyPI package name apm-cli). Dependabot cannot update a bare
+  # .apm.version file, so the pin lives in .apm-cli-pin/requirements.txt and
+  # aw-sync-apm-version.yml copies the version into root .apm.version.
+  - package-ecosystem: "pip"
+    directory: "/.apm-cli-pin"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "22:00"
+    open-pull-requests-limit: 1
+    labels:
+      - "changelog:dependencies"
+    allow:
+      - dependency-name: "apm-cli"
+
   - package-ecosystem: "github-actions"
     # "/" alone covers .github/workflows; do not add "/.github/workflows/*"
     # (that duplicate scan opens a second PR for every Actions bump).
