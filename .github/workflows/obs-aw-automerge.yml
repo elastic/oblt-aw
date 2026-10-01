@@ -272,9 +272,9 @@ jobs:
           MERGE_RETRIES: "3"
           MERGE_RETRY_SLEEP: "15000"
 
-  # When direct merge is not ready (pending checks / merge queue), arm for deferred merge.
-  # Deferred path is Vault REST on the frequent schedule profile (bypass actor).
-  arm-for-deferred-merge:
+  # When pascalgn did not merge, one Vault REST squash-merge (bypass actor when policy set).
+  # Pending checks → soft-succeed so arm-for-deferred-merge can mark the PR; other errors fail.
+  rest-merge:
     needs: [automerge]
     if: >-
       always() &&
@@ -287,9 +287,9 @@ jobs:
       pull-requests: write
       id-token: write
     outputs:
-      armed: ${{ steps.arm.outputs.armed }}
+      merged: ${{ steps.merge.outputs.merged }}
     steps:
-      - name: Checkout elastic/oblt-aw (armed marker helpers)
+      - name: Checkout elastic/oblt-aw (REST error helpers)
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
@@ -308,8 +308,8 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
-      - name: Retry direct REST merge once
-        id: rest-retry
+      - name: Squash-merge via REST once
+        id: merge
         env:
           GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -345,12 +345,38 @@ jobs:
             echo "REST merge blocked by pending checks (will arm for deferred merge)."
             exit 0
           fi
-          echo "REST merge failed with a non-retryable error; not arming."
+          echo "REST merge failed with a non-retryable error."
           exit 1
+
+  # After rest-merge soft-succeeds on pending checks, upsert the SHA-bound armed comment.
+  arm-for-deferred-merge:
+    needs: [rest-merge]
+    if: >-
+      always() &&
+      needs.rest-merge.result == 'success' &&
+      needs.rest-merge.outputs.merged != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      armed: ${{ steps.arm.outputs.armed }}
+    steps:
+      - name: Checkout elastic/oblt-aw (armed marker helpers)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/obs/automerge_armed_lib.sh
+          sparse-checkout-cone-mode: false
 
       - name: Upsert armed comment for deferred merge
         id: arm
-        if: steps.rest-retry.outputs.merged != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -370,6 +396,7 @@ jobs:
       - verify
       - check-dependency-collection
       - automerge
+      - rest-merge
       - arm-for-deferred-merge
     if: >-
       always() &&
@@ -401,6 +428,8 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
+          REST_RESULT: ${{ needs.rest-merge.result }}
+          REST_MERGED: ${{ needs.rest-merge.outputs.merged }}
           ARM_RESULT: ${{ needs.arm-for-deferred-merge.result }}
           ARMED: ${{ needs.arm-for-deferred-merge.outputs.armed }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -426,7 +455,7 @@ jobs:
             else
               gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
             fi
-            echo "Automerge pipeline finished without merging or arming PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, arm=${ARM_RESULT}, armed=${ARMED})."
+            echo "Automerge pipeline finished without merging or arming PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, rest=${REST_RESULT}, merged=${REST_MERGED}, arm=${ARM_RESULT}, armed=${ARMED})."
             exit 1
           }
 
@@ -442,25 +471,26 @@ jobs:
             exit 0
           fi
 
+          if [ "${REST_RESULT}" = "success" ] && [ "${REST_MERGED}" = "true" ]; then
+            echo "PR merged by rest-merge."
+            exit 0
+          fi
+
           if [ "${ARM_RESULT}" = "success" ] && [ "${ARMED}" = "true" ]; then
             echo "PR armed for deferred merge when required checks succeed."
             exit 0
           fi
 
-          # Arm job may have merged via REST retry without setting armed=true.
-          if [ "${ARM_RESULT}" = "success" ] && [ "${ARMED}" != "true" ]; then
-            pr_json2="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state)"
-            if [ "$(printf '%s' "$pr_json2" | jq -r .state)" = "MERGED" ]; then
-              echo "PR merged during arm REST retry."
-              exit 0
-            fi
+          # Permanent REST failure (CODEOWNERS, rules, etc.) — do not soft-succeed.
+          if [ "${REST_RESULT}" = "failure" ]; then
+            fail_with_comment "REST merge failed with a non-retryable repository rule or required-check blocker (for example CODEOWNERS without Vault bypass). Check the linked workflow run for details, or ask a maintainer to merge this pull request manually."
           fi
 
           # not_ready soft-succeeds only when arming succeeded or we can still upsert
-          # after a successful arm path. Never hide a permanent REST/arm failure.
+          # after a successful rest-merge pending path. Never hide a permanent REST/arm failure.
           if [ "${MERGE_RESULT}" = "not_ready" ]; then
             if [ "${ARM_RESULT}" = "failure" ]; then
-              echo "mergeResult=not_ready but arm-for-deferred-merge failed (non-retryable); failing."
+              echo "mergeResult=not_ready but arm-for-deferred-merge failed; failing."
               exit 1
             fi
             automerge_upsert_armed_comment "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}" "${RUN_URL}" "${SHARED_TOKEN_POLICY}"

@@ -4,22 +4,22 @@
 
 Client template chains:
 
-- `trigger-obs-aw-pull-request.yml` → `obs-aw-event-pull-request.yml` → `obs-aw-automerge.yml` (validate, approve, try merge, **arm** if checks pending)
+- `trigger-obs-aw-pull-request.yml` → `obs-aw-event-pull-request.yml` → `obs-aw-automerge.yml` (validate, approve, try merge, REST retry, **arm** if checks pending)
 - `trigger-obs-aw-schedule-frequent.yml` → `obs-aw-event-schedule.yml` (`schedule-profile: frequent`) → `obs-aw-automerge-deferred.yml` (Vault REST merge for armed PRs)
 
 For the user-facing Automerge service catalogue, see [Automerge services](../guides/user/automerge-services.md).
 
 Routed workflow sources:
 
-- `.github/workflows/obs-aw-automerge.yml` — PR path (`verify`, `check-dependency-collection`, `approve`, `automerge`, `arm-for-deferred-merge`, `report-automerge-outcome`)
+- `.github/workflows/obs-aw-automerge.yml` — PR path (`verify`, `check-dependency-collection`, `approve`, `automerge`, `rest-merge`, `arm-for-deferred-merge`, `report-automerge-outcome`)
 - `.github/workflows/obs-aw-automerge-deferred.yml` — frequent schedule profile (`discover`, matrix `merge`)
 
 **Approve (PR path):** Nested `gh-aw-mention-in-pr` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]`. When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review. Author allow list is **only** [allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json).
 
 **Merge strategy (CI-duration independent):**
 
-1. **PR path** tries a short squash-merge (pascalgn + one REST retry).
-2. If checks are still pending → upsert bot-authored armed comment (`<!-- obs-aw-automerge:armed sha=<head> -->`). Outcome success = merged, armed, or soft-succeed on `not_ready`.
+1. **PR path** tries a short squash-merge (`automerge` / pascalgn), then one Vault REST attempt (`rest-merge`).
+2. If checks are still pending → `arm-for-deferred-merge` upserts the bot-authored armed comment (`<!-- obs-aw-automerge:armed sha=<head> -->`). Outcome success = merged, armed, or soft-succeed on `not_ready`.
 3. **Frequent schedule profile** (client cron every 15 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` and (when configured) ruleset Integration `bypass_actors` apply (honored only on direct REST merge as that app — not by async `--auto` / merge-queue completion).
 
 Required checks are enforced by GitHub’s merge API on every attempt — this automation only chooses **when** to wake up. There is **no** Buildkite status-success route for automerge (status stays ESTC-failure only).
