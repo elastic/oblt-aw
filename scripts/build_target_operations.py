@@ -162,17 +162,11 @@ def should_run_distribution(
     return has_relevant_git_changes(base_ref)
 
 
-def control_plane_repository() -> str:
-    """Source repo that owns templates; never install client pins onto itself."""
-    return os.getenv("GITHUB_REPOSITORY", "").strip()
-
-
 def main() -> int:
     changed_files_count = int(os.getenv("CHANGED_FILES_COUNT", "0"))
     force_distribution = parse_bool(os.getenv("FORCE_DISTRIBUTION", "false"))
     base_ref = os.getenv("BASE_REF", "").strip()
     git_relevant = has_relevant_git_changes(base_ref)
-    self_repo = control_plane_repository()
 
     if not should_run_distribution(changed_files_count, force_distribution, base_ref):
         write_outputs(
@@ -188,16 +182,12 @@ def main() -> int:
         return 0
 
     config_dir = pathlib.Path("config")
+    # Include the control-plane repo when listed in active-repositories.json
+    # (pilot / early-detection consumer of the same client templates).
     current_assignments = discover_repo_org_assignments(config_dir)
-    # Control-plane entrypoints use relative uses (tip E2E). Distributed
-    # consumers pin @v0. Never overwrite this repo's triggers with templates.
-    if self_repo and self_repo in current_assignments:
-        del current_assignments[self_repo]
     token_policies = merge_repository_workflow_token_policies_from_org_trees(config_dir)
 
     previous_assignments = read_previous_repo_org_assignments(base_ref)
-    if self_repo and self_repo in previous_assignments:
-        del previous_assignments[self_repo]
 
     current_files_by_org: dict[str, list[dict[str, str]]] = {}
     previous_files_by_org: dict[str, list[dict[str, str]]] = {}

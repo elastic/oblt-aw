@@ -11,14 +11,16 @@ Promote control-plane changes safely with mandatory gating E2E, keep consumer tr
 
 | Surface | Location | Pointer today |
 |---------|----------|---------------|
-| Distributed client triggers | `.github/remote-workflow-template/**/trigger-*-aw-*.yml` | `elastic/oblt-aw/.../obs-aw-event-*.yml@main` until first promote creates `v0` / `v0.0.0`, then a follow-up PR switches templates to `@v0` |
-| Control-plane self triggers | `.github/workflows/trigger-obs-aw-*.yml` | Relative `./.github/workflows/obs-aw-event-*.yml` (always tip of default branch) |
+| Distributed client triggers | `.github/remote-workflow-template/**/trigger-*-aw-*.yml` | `elastic/oblt-aw/.../obs-aw-event-*.yml@main` until first promote creates `v0` / `v0.0.0`, then a follow-up PR switches the shared train to `@v0` |
+| Installed client triggers (incl. control plane) | `.github/workflows/trigger-*-aw-*.yml` in each active repo | Same files distribute installs from the remote templates; `elastic/oblt-aw` is a pilot target |
+| Pilot / guinea-pig pins | Selected active repos (at least `elastic/oblt-aw`) | Stay on `@main` for early failure detection after the shared train moves to `@v0` (pin policy TBD when `@v0` lands) |
+| E2E-only schedule entry | `.github/workflows/e2e-trigger-obs-aw-schedule.yml` | Relative `./` (control-plane only; not distributed) |
 | Event orchestrators → routes | `obs-aw-event-*.yml` | Relative `./` (inherits caller pin) |
 | In-repo GH-AW locks | `obs-aw-autodoc.yml`, `obs-aw-dependency-review.yml`, `obs-aw-estc-pr-buildkite-detective.yml` | Relative `./gh-aw-*.lock.yml` (inherits caller pin) |
 | Upstream locks still in `ai-github-actions` | Other `obs-aw-*.yml` wrappers | `elastic/ai-github-actions/...@main` (until [#1876](https://github.com/elastic/oblt-aw/issues/1876)) |
 | Release metadata | `config/release-pointers.json` | `current` / `next` / `previous` SHAs + semver |
 
-**Why self triggers stay relative:** Live E2E on `elastic/oblt-aw` must exercise default-branch tip before promote. Distribute **skips** installing templates into the control-plane repository (`GITHUB_REPOSITORY`) so future `@v0` consumer pins never overwrite relative self-triggers.
+**Why pilots stay on `@main`:** After promote, most consumers pin `@v0`. Pilot repositories (including `elastic/oblt-aw`) keep consuming tip of `main` so live schedules, PR routes, and E2E that poll real client triggers catch control-plane regressions before the shared train promotes.
 
 ## Target model (hybrid)
 
@@ -56,7 +58,7 @@ flowchart LR
 
 1. Dispatch `aw-release-promote.yml` **on the default branch** (`main`).
 2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty current pointer) always creates `v0.0.0` from `config/release-pointers.json` `major`.
-3. Workflow calls `e2e-all` with `checkout-ref` set to `github.sha` (tip of `main` at promote start). Harness/oracle code is pinned to that SHA; live control-plane routes still exercise **default-branch tip** (relative self-triggers — intentional).
+3. Workflow calls `e2e-all` with `checkout-ref` set to `github.sha` (tip of `main` at promote start). Harness/oracle code is pinned to that SHA; live routes on pilot repos (including `elastic/oblt-aw`) exercise **default-branch tip** via `@main` client pins (and relative `e2e-trigger-*` where used).
 4. Before mutating tags, re-fetch and require the promote SHA is an **ancestor of** `origin/main` (or still the tip). If `main` advanced during E2E, promote **continues** and tags the gated SHA.
 5. On success: create immutable `vX.Y.Z` (no force-push), move `vX` / `next` / `previous`, **commit and push** `config/release-pointers.json` (rebased onto current `main` when needed), push tags, then create a **GitHub Release** for `vX.Y.Z` with auto-generated notes (range from the prior immutable semver when present). Semver bumps from the **highest** pointer semver so rollback cannot rewind immutable numbering.
 
@@ -78,7 +80,7 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 
 1. Merge the release-model PR to `main` (templates still pin `@main`).
 2. Dispatch `aw-release-promote` on `main` with `release-type=patch` (first run → `v0` / `v0.0.0`).
-3. Open a follow-up PR that switches distributed client templates from `@main` → `@v0`, then redistribute to consumers.
+3. Open a follow-up PR that switches the shared-train client templates from `@main` → `@v0`, then redistribute. Keep pilot / guinea-pig repos (including `elastic/oblt-aw`) on `@main` for early detection.
 
 ## Scripts and workflows
 
