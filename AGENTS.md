@@ -8,9 +8,9 @@
 
 ## Client entrypoint changes
 
-Use **[`.github/remote-workflow-template/`](.github/remote-workflow-template/)** as the source for distributed client workflows (per org subtree, for example `obs/.github/workflows/trigger-obs-aw-<workflow-id>.yml`, `docs/.github/workflows/trigger-docs-aw-*.yml`). See [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md), [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
+Use **[`.github/remote-workflow-template/`](.github/remote-workflow-template/)** as the source for distributed client workflows (per org subtree, for example `obs/.github/workflows/trigger-obs-aw-<workflow-id>.yml`, `docs/.github/workflows/trigger-docs-aw-*.yml`). Distribute installs those files into active repositories, including this control-plane repo when listed in `active-repositories.json` (pilot / `@main` early detection). See [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md), [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Do not reintroduce a monolithic `oblt-aw.yml` or `oblt-aw-ingress.yml`.
+Do not hand-edit installed `.github/workflows/trigger-*-aw-*.yml` copies; do not reintroduce a monolithic `oblt-aw.yml` or `oblt-aw-ingress.yml`.
 
 ## Fail-closed E2E harness / oracle changes
 

@@ -245,10 +245,10 @@ class TestMain:
             assert "remove_files" in t
             assert t["remove_files"] == []
 
-    def test_skips_control_plane_self_repository(
+    def test_includes_control_plane_self_repository(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
-        """Distribute must not install @v0 templates onto the control-plane repo."""
+        """Control-plane repo is a pilot consumer when listed in active-repositories."""
         output_file = self._setup_env(
             monkeypatch,
             tmp_path,
@@ -267,8 +267,7 @@ class TestMain:
             )
         )
         repos = {t["repository"] for t in targets}
-        assert repos == {"elastic/foo"}
-        assert "elastic/oblt-aw" not in repos
+        assert repos == {"elastic/foo", "elastic/oblt-aw"}
 
     def test_force_distribution(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path

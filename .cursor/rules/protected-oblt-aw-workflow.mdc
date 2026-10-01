@@ -7,22 +7,24 @@ alwaysApply: true
 
 **Do not** add a monolithic `.github/workflows/oblt-aw.yml` entrypoint (removed).
 
-**Where to change consumer entrypoints:** [`.github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-*.yml`](.github/remote-workflow-template/obs/.github/workflows/) only. Distribution installs that tree into target repositories.
+**Where to change consumer entrypoints:** [`.github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-*.yml`](.github/remote-workflow-template/obs/.github/workflows/) only. Distribution installs that tree into target repositories, including the control-plane repo when listed in `active-repositories.json` (pilot / early detection on `@main`).
 
-## In-repo `trigger-*` dogfood (hard stop)
+## In-repo `trigger-*` copies (hard stop)
 
-`.github/workflows/trigger-obs-aw-*.yml` in this repository are **control-plane dogfood only**. They are **not** the consumer template source.
+`.github/workflows/trigger-obs-aw-*.yml` in this repository are **distributed installs** of the remote templates (same files consumers get). They are **not** a second source of truth.
 
-**Do not** edit them when:
+**Do not** hand-edit them when:
 
 - Adding or renaming schedule lanes (`daily` / `frequent` / …)
 - Passing `schedule-profile` (orchestrator default is already `daily`)
 - Wiring deferred automerge, status, or other consumer-facing routes
-- “Aligning” dogfood with template renames, comments, or redundant `with:` blocks
+- “Aligning” local copies with template renames, comments, or redundant `with:` blocks
 
-**Do** change only [`.github/remote-workflow-template/`](.github/remote-workflow-template/) (and control-plane reusables under `.github/workflows/obs-aw-*.yml` / `docs-aw-*.yml` when the route itself changes).
+**Do** change only [`.github/remote-workflow-template/`](.github/remote-workflow-template/) (and control-plane reusables under `.github/workflows/obs-aw-*.yml` / `docs-aw-*.yml` when the route itself changes). After merge, distribute syncs consumer and pilot repos (including `elastic/oblt-aw`).
 
-Exception: edit an in-repo `trigger-*` only when the user **explicitly** asks to change control-plane dogfood behavior for this repository.
+Exception: edit an in-repo `trigger-*` only when the user **explicitly** asks for a one-off local override that will not come from distribute.
+
+Control-plane-only E2E entrypoints such as `e2e-trigger-obs-aw-schedule.yml` are **not** distributed; keep them relative and out of `remote-workflow-template/`.
 
 **Control-plane reusables** live under `.github/workflows/obs-aw-*.yml` and `.github/workflows/docs-aw-*.yml` (shared prelude: `aw-prelude.yml`). **Do not** edit consumer copies under target repos from this repository except via distribution.
 
