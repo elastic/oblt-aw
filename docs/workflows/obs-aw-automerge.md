@@ -38,8 +38,9 @@ Jobs:
 - `check-dependency-collection`: shallow sparse checkout of `elastic/oblt-aw` (collection config, gate scripts, and `package.json` / lockfile only), then classifies the PR by changed file paths against [config/obs/automerge-dependency-collections.json](../../config/obs/automerge-dependency-collections.json); skips `approve`/`automerge` when the collection is not enabled on the Control Plane Dashboard (`obs:automerge:<collection-id>` sub-features) and posts a PR comment explaining why (no extra labels in target repos). Prelude passes `shared-enabled-workflows` into this job.
 - `approve`: invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` when `verify` and `check-dependency-collection` pass (Copilot must not call check-run APIs for gating; branch protection / deferred merge path handle required checks at merge time). The prompt injects `shared-allowed-pr-authors-csv` from [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) (same file as `verify` / ingress — no hardcoded author list) plus the webhook login, and instructs normalizing GraphQL `app/<slug>` → `<slug>[bot]` before comparing. Sets `github-token-policy` to `shared-token-policy` only when the PR author is `github-actions[bot]`; otherwise omits / empty so the review is submitted as `github-actions[bot]` (`GITHUB_TOKEN`).
 - `automerge`: when `shared-token-policy` is non-empty, mints an ephemeral Vault-app token (`create-token`) and runs **pascalgn/automerge-action** with that token; when empty, uses `GITHUB_TOKEN`. Short retries only (`MERGE_RETRIES: 3`); long CI is handled by the deferred merge path.
-- `arm-for-deferred-merge`: runs when `automerge` outputs `merge_failed` or `not_ready`; one REST merge retry that **arms only on pending-check errors** (other failures fail the job), then upserts the SHA-bound armed comment (`gh`) so the deferred merge path can finish later.
-- `report-automerge-outcome`: succeeds when the PR was merged, when already armed, or when `mergeResult` is `not_ready` **and** arming succeeded (upserts the armed comment if needed); fails when arm/REST hit a non-retryable error or other permanent blockers (marker `obs-aw-automerge:outcome-gate`).
+- `rest-merge`: runs when `automerge` outputs `merge_failed` or `not_ready`; one Vault REST squash-merge. Soft-succeeds with `merged=false` on pending-check errors; fails on other errors (for example CODEOWNERS without bypass).
+- `arm-for-deferred-merge`: runs when `rest-merge` succeeded without merging; upserts the SHA-bound armed comment (`gh`) so the deferred merge path can finish later.
+- `report-automerge-outcome`: succeeds when the PR was merged (pascalgn or `rest-merge`), when already armed, or when `mergeResult` is `not_ready` **and** arming succeeded (upserts the armed comment if needed); fails when `rest-merge` or arm hit a non-retryable error or other permanent blockers (marker `obs-aw-automerge:outcome-gate`).
 
 ## Configuration
 
@@ -52,7 +53,8 @@ Jobs:
 | `check-dependency-collection` | `contents: read`, `pull-requests: write` (list PR files, post or remove gate comment) |
 | `approve` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write` (GH-AW mention-in-pr; OIDC mint when `github-token-policy` is set for `github-actions[bot]` authors) |
 | `automerge` | `contents: write`, `pull-requests: write`, `id-token: write` (OIDC mint when policy set; merge via automerge action) |
-| `arm-for-deferred-merge` | `contents: write`, `pull-requests: write`, `id-token: write` (REST retry, armed comment) |
+| `rest-merge` | `contents: write`, `pull-requests: write`, `id-token: write` (OIDC mint when policy set; REST squash-merge) |
+| `arm-for-deferred-merge` | `pull-requests: write` (armed comment only) |
 | `report-automerge-outcome` | `pull-requests: write` (upsert armed or failure comment on the PR) |
 
 ### CODEOWNERS and ephemeral tokens
@@ -62,7 +64,7 @@ GitHub CODEOWNERS accepts **users and teams only**—not GitHub Apps. Listing `@
 Token use differs by job:
 
 1. **`approve`:** Author-aware — empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]` for Vault, Dependabot, Renovate, and other non–`github-actions` authors; pass `shared-token-policy` when the author is `github-actions[bot]` so Vault submits the review (avoids self-APPROVE). Repos must allow GitHub Actions to approve pull requests for the `GITHUB_TOKEN` path.
-2. **`automerge` / arm / deferred merge path:** When `shared-token-policy` is non-empty, mint a Vault-app token and call the REST merge API as that app. Empty policy uses `GITHUB_TOKEN` (no CODEOWNERS bypass). `MERGE_REQUIRED_APPROVALS` is always `1` on the pascalgn step.
+2. **`automerge` / `rest-merge` / deferred merge path:** When `shared-token-policy` is non-empty, mint a Vault-app token and call the REST merge API as that app. Empty policy uses `GITHUB_TOKEN` (no CODEOWNERS bypass). `MERGE_REQUIRED_APPROVALS` is always `1` on the pascalgn step.
 
 **Consumer requirement (mandatory for newly registered repos):** Keep human/team entries in `CODEOWNERS` when that gate applies, set a non-empty `workflow-token-policy` / `shared-token-policy`, and **always** add the Vault app to classic branch-protection `pull_request_bypassers` in [elastic/observability-github-settings](https://github.com/elastic/observability-github-settings) as part of [repository onboarding](../onboarding/registering-a-repository.md) so a Vault-app merge can bypass CODEOWNERS. When the default branch is protected by a ruleset with `merge_queue`, also add the Vault app as an Integration `bypass_actors` entry on that ruleset—classic `pull_request_bypassers` do not skip merge-queue enforcement. Org rulesets that require reviews are satisfied by the author-aware approve step above. Example Terraform (classic BP):
 
