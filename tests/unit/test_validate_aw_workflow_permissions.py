@@ -233,3 +233,117 @@ def test_validate_workflow_maps_elastic_oblt_aw_ref_to_local_file(
 
     resolver = WorkflowPermissionResolver(workflows)
     assert validator.validate_workflow_file(trigger, resolver) == []
+
+
+def test_list_workflow_files_includes_remote_workflow_templates(
+    tmp_path: pathlib.Path,
+) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    control_plane = workflows / "obs-aw-event-schedule.yml"
+    control_plane.write_text("name: cp\n", encoding="utf-8")
+
+    remote = (
+        tmp_path
+        / ".github"
+        / "remote-workflow-template"
+        / "obs"
+        / ".github"
+        / "workflows"
+    )
+    remote.mkdir(parents=True)
+    client = remote / "trigger-obs-aw-schedule-frequent.yml"
+    client.write_text("name: client\n", encoding="utf-8")
+
+    listed = validator.list_workflow_files(
+        workflows_dir=workflows,
+        remote_template_dir=tmp_path / ".github" / "remote-workflow-template",
+    )
+    assert control_plane in listed
+    assert client in listed
+
+
+def test_validate_remote_frequent_caller_rejects_narrow_permissions(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Regression: GitHub startup_failure when frequent caller omits daily union."""
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+
+    _write_workflow(
+        workflows / "obs-aw-event-schedule.yml",
+        {
+            "name": "Schedule Event",
+            "on": {"workflow_call": None},
+            "permissions": {"contents": "read"},
+            "jobs": {
+                "autodoc": {
+                    "permissions": {
+                        "actions": "read",
+                        "contents": "write",
+                        "copilot-requests": "write",
+                        "id-token": "write",
+                        "issues": "write",
+                        "pull-requests": "write",
+                    },
+                    "runs-on": "ubuntu-latest",
+                    "steps": [{"run": "echo daily"}],
+                },
+                "automerge-deferred": {
+                    "permissions": {
+                        "actions": "read",
+                        "contents": "write",
+                        "id-token": "write",
+                        "pull-requests": "write",
+                    },
+                    "runs-on": "ubuntu-latest",
+                    "steps": [{"run": "echo frequent"}],
+                },
+            },
+        },
+    )
+
+    remote = (
+        tmp_path
+        / ".github"
+        / "remote-workflow-template"
+        / "obs"
+        / ".github"
+        / "workflows"
+    )
+    remote.mkdir(parents=True)
+    frequent = remote / "trigger-obs-aw-schedule-frequent.yml"
+    _write_workflow(
+        frequent,
+        {
+            "name": "Schedule frequent",
+            "on": {"schedule": [{"cron": "*/15 * * * *"}]},
+            "permissions": {"contents": "read"},
+            "jobs": {
+                "run-obs-aw-schedule-frequent": {
+                    "permissions": {
+                        "actions": "read",
+                        "contents": "write",
+                        "id-token": "write",
+                        "issues": "read",
+                        "pull-requests": "write",
+                    },
+                    "uses": (
+                        "elastic/oblt-aw/.github/workflows/"
+                        "obs-aw-event-schedule.yml@main"
+                    ),
+                }
+            },
+        },
+    )
+
+    resolver = WorkflowPermissionResolver(workflows)
+    errors = validator.validate_workflow_file(frequent, resolver)
+    assert any("copilot-requests" in err for err in errors)
+    assert any("issues" in err and "write" in err for err in errors)
+
+    listed = validator.list_workflow_files(
+        workflows_dir=workflows,
+        remote_template_dir=tmp_path / ".github" / "remote-workflow-template",
+    )
+    assert frequent in listed

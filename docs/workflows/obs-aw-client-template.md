@@ -74,7 +74,7 @@ Top-level permissions on every client template:
 
 Control-plane `obs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
 
-Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull-request`) must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below).
+Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull-request`) must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below). GitHub validates that ceiling against **every** declared callee job, including jobs skipped by `if:` (for example daily-only routes when `schedule-profile` is `frequent`). CI enforces this via `scripts/validate_aw_workflow_permissions.py`, which scans this template tree.
 
 | Client template | Entrypoint job id | Job permissions (union of callee jobs) |
 |-----------------|-------------------|----------------------------------------|
@@ -82,7 +82,7 @@ Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull
 | `trigger-obs-aw-issues.yml` | `run-obs-aw-issues` | `actions: read`, `contents: write`, `copilot-requests: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-issue-comment.yml` | `run-obs-aw-issue-comment` | `actions: read`, `contents: write`, `copilot-requests: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-schedule-daily.yml` | `run-obs-aw-schedule-daily` | `actions: read`, `contents: write`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
-| `trigger-obs-aw-schedule-frequent.yml` | `run-obs-aw-schedule-frequent` | `actions: read`, `contents: write`, `id-token: write`, `issues: read`, `pull-requests: write` |
+| `trigger-obs-aw-schedule-frequent.yml` | `run-obs-aw-schedule-frequent` | `actions: read`, `contents: write`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-status.yml` | `run-obs-aw-status` | `actions: read`, `contents: read`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 
 ### Secrets
