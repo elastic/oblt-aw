@@ -88,7 +88,7 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 | `.github/workflows/aw-release-rollback.yml` | Rollback entrypoint |
 | `.github/workflows/e2e-all.yml` | Parallel leaf E2E (promote + smoke) |
 | `config/release-pointers.json` | Source of truth for SHAs / semver |
-| `config/release.json` | Static release-train settings (`workflow-token-policy` for Vault) |
+| `config/release.json` | Static release-train settings (`workflow-token-policy` / `rollback-workflow-token-policy`) |
 | `scripts/aw_release_merge_pointers_pr.sh` | Approve + squash-merge the pointers PR |
 | `scripts/aw_release_promote.py` | Promote CLI |
 | `scripts/aw_release_rollback.py` | Rollback CLI |
@@ -96,10 +96,12 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 
 ### Vault token policy (pointers PR)
 
-Promote and rollback mint `token-policy-bd2501d7d475` from [`config/release.json`](../../config/release.json) via OIDC (`elastic/oblt-actions/github/create-token`). The Backstage policy in `elastic/catalog-info` must allow the entrypoint that is minting:
+Promote and rollback mint distinct Vault roles from [`config/release.json`](../../config/release.json) via OIDC (`elastic/oblt-actions/github/create-token`):
 
-- Promote: `elastic/oblt-aw/.github/workflows/aw-release-promote.yml@*` (already bound)
-- Rollback: widen `bound_claims.workflow_ref` to `elastic/oblt-aw/.github/workflows/aw-release-*.yml@*` (or add a sibling policy for `aw-release-rollback.yml`) before relying on rollback’s pointers PR path
+| Entrypoint | Config key | Role (`catalog-info`) | `bound_claims.workflow_ref` |
+|------------|------------|------------------------|-----------------------------|
+| `aw-release-promote.yml` | `workflow-token-policy` | `token-policy-bd2501d7d475` | `…/aw-release-promote.yml@*` |
+| `aw-release-rollback.yml` | `rollback-workflow-token-policy` | `token-policy-0052d19cd01e` | `…/aw-release-rollback.yml@*` |
 
 ## References
 

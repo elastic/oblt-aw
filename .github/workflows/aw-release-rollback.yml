@@ -94,9 +94,9 @@ jobs:
         if: ${{ inputs.dry-run != true }}
         run: |
           set -euo pipefail
-          POLICY="$(jq -r '."workflow-token-policy" // empty' config/release.json)"
+          POLICY="$(jq -r '."rollback-workflow-token-policy" // empty' config/release.json)"
           if [[ -z "${POLICY}" ]]; then
-            echo "::error::Missing non-empty workflow-token-policy in config/release.json"
+            echo "::error::Missing non-empty rollback-workflow-token-policy in config/release.json"
             exit 1
           fi
           echo "token-policy=${POLICY}" >> "${GITHUB_OUTPUT}"
