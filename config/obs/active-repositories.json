@@ -82,7 +82,7 @@
     },
     {
       "repository": "elastic/oblt-cli-buildkite-plugin",
-      "workflow-token-policy": "token-policy-ebea9d1bc665",
+      "workflow-token-policy": "token-policy-eb1bcd5ae064",
       "ai-assets-token-policy": ""
     },
     {
