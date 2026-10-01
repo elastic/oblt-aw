@@ -56,7 +56,7 @@ CI steps beyond pytest:
 
 - `python scripts/validate_aw_workflow_prelude.py`
 - `python scripts/validate_aw_workflow_resolve_agentic_assets.py`
-- `python scripts/validate_aw_workflow_permissions.py`
+- `python scripts/validate_aw_workflow_permissions.py` (control-plane `.github/workflows/` **and** `.github/remote-workflow-template/` client triggers)
 - Pre-commit (yamllint, actionlint, ruff, mypy on `scripts/`, and related hooks)
 
 **Assert:** static/contract properties of workflow graphs and permissions. Still no live agent.

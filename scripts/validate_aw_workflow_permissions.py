@@ -20,6 +20,11 @@ Validate reusable-workflow caller job permissions against callee requirements.
 For every job that calls a reusable workflow, the caller job must grant at least
 the maximum permission scope required by any job in the callee workflow, including
 nested reusable workflows (for example gh-aw-* lock files in elastic/ai-github-actions).
+
+Scans both in-repo control-plane workflows under ``.github/workflows/`` and
+distributed client templates under ``.github/remote-workflow-template/``.
+GitHub rejects caller permission ceilings that omit any declared callee job
+(even jobs skipped by ``if:``), so client templates must match the full union.
 """
 
 from __future__ import annotations
@@ -29,7 +34,6 @@ import sys
 from typing import Any
 
 import yaml  # type: ignore[import-untyped]
-
 from workflow_permissions import (
     WorkflowPermissionResolver,
     effective_job_permissions,
@@ -39,12 +43,22 @@ from workflow_permissions import (
 )
 
 WORKFLOWS_DIR = pathlib.Path(".github/workflows")
+REMOTE_TEMPLATE_DIR = pathlib.Path(".github/remote-workflow-template")
 
 
-def list_workflow_files() -> list[pathlib.Path]:
-    if not WORKFLOWS_DIR.is_dir():
-        raise FileNotFoundError(f"Missing directory: {WORKFLOWS_DIR}")
-    return sorted(WORKFLOWS_DIR.glob("*.yml")) + sorted(WORKFLOWS_DIR.glob("*.yaml"))
+def list_workflow_files(
+    workflows_dir: pathlib.Path = WORKFLOWS_DIR,
+    remote_template_dir: pathlib.Path = REMOTE_TEMPLATE_DIR,
+) -> list[pathlib.Path]:
+    """List control-plane and remote client-template workflow files."""
+    if not workflows_dir.is_dir():
+        raise FileNotFoundError(f"Missing directory: {workflows_dir}")
+
+    files = sorted(workflows_dir.glob("*.yml")) + sorted(workflows_dir.glob("*.yaml"))
+    if remote_template_dir.is_dir():
+        files.extend(sorted(remote_template_dir.rglob("*.yml")))
+        files.extend(sorted(remote_template_dir.rglob("*.yaml")))
+    return files
 
 
 def validate_workflow_file(
