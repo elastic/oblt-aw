@@ -32,13 +32,13 @@ Specialized workflows:
 Consumer repositories install per-workflow client templates (example):
 
 ```yaml
-# .github/workflows/trigger-obs-aw-automerge.yml
+# .github/workflows/trigger-obs-aw-pull-request.yml
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled]
 jobs:
   run-obs-aw-pull-request:
-    uses: elastic/oblt-aw/.github/workflows/obs-aw-automerge.yml@main
+    uses: elastic/oblt-aw/.github/workflows/obs-aw-event-pull-request.yml@main
 ```
 
 ## Control Plane and Consumer Interaction Diagram
@@ -98,11 +98,13 @@ flowchart TB
   subgraph After["After: split-trigger"]
     A_EVT["Same consumer event"]
     A_EVT --> A_MATCH{"Which client on: matches?"}
-    A_MATCH -->|pull_request| A_PR["trigger-obs-aw-automerge.yml\ntrigger-obs-aw-dependency-review.yml\n…"]
-    A_MATCH -->|issues| A_ISS["trigger-obs-aw-issue-triage.yml\n…"]
+    A_MATCH -->|pull_request| A_PR["trigger-obs-aw-pull-request.yml"]
+    A_MATCH -->|issues| A_ISS["trigger-obs-aw-issues.yml"]
+    A_MATCH -->|issue_comment| A_COM["trigger-obs-aw-issue-comment.yml"]
     A_MATCH -->|no match| A_NONE["Other client workflows\nnot scheduled — no skipped check"]
-    A_PR --> A_REU["Matching obs-aw-* reusable"]
+    A_PR --> A_REU["Matching obs-aw-event-* orchestrator"]
     A_ISS --> A_REU
+    A_COM --> A_REU
   end
 ```
 
