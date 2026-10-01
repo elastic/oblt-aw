@@ -58,7 +58,7 @@ flowchart LR
 2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty current pointer) always creates `v0.0.0` from `config/release-pointers.json` `major`.
 3. Workflow calls `e2e-all` with `checkout-ref` set to `github.sha` (tip of `main` at promote start). Harness/oracle code is pinned to that SHA; live control-plane routes still exercise **default-branch tip** (relative self-triggers — intentional).
 4. Before mutating tags, re-fetch and require the promote SHA is an **ancestor of** `origin/main` (or still the tip). If `main` advanced during E2E, promote **continues** and tags the gated SHA.
-5. On success: create immutable `vX.Y.Z` (no force-push), move `vX` / `next` / `previous`, **land** `config/release-pointers.json` via a Vault-authored PR (org Require-a-PR blocks direct pushes to `main`; approve as `GITHUB_TOKEN`, squash-merge as Vault), push tags, then create a **GitHub Release** for `vX.Y.Z` with auto-generated notes (range from the prior immutable semver when present). Semver bumps from the **highest** pointer semver so rollback cannot rewind immutable numbering.
+5. On success: create immutable `vX.Y.Z` (no force-push), move `vX` / `next` / `previous`, **land** `config/release-pointers.json` via a Vault-authored PR (org Require-a-PR blocks direct pushes to `main`; approve as `GITHUB_TOKEN`, squash-merge as Vault), push tags, then create a **GitHub Release** for `vX.Y.Z` with auto-generated notes (range from the prior immutable semver when present). Semver bumps from the **highest** pointer semver so rollback cannot rewind immutable numbering. Before opening the pointers PR, fail closed if tip’s `release-pointers.json` differs from the plan-base SHA (re-dispatch on current tip; do not overwrite a newer promote/rollback landing).
 
 Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-ref` defaults to `main`). Manual `workflow_dispatch` must run from the default branch; `checkout-ref` may only be that tip or a full SHA on its history. Promote pins `github.sha` at dispatch. PR CI does not call live E2E.
 
@@ -90,6 +90,7 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 | `config/release-pointers.json` | Source of truth for SHAs / semver |
 | `config/release.json` | Static release-train settings (`workflow-token-policy` / `rollback-workflow-token-policy`) |
 | `scripts/aw_release_merge_pointers_pr.sh` | Approve + squash-merge the pointers PR |
+| `scripts/aw_release_prepare_pointers_branch.sh` | Tip vs plan-base compare + branch prep for the pointers PR |
 | `scripts/aw_release_promote.py` | Promote CLI |
 | `scripts/aw_release_rollback.py` | Rollback CLI |
 | `scripts/release_pointers.py` | Library |

@@ -135,21 +135,11 @@ jobs:
         id: prepare-pointers
         if: ${{ inputs.dry-run != true }}
         env:
+          BRANCH_PREFIX: release/pointers
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          PLAN_BASE_SHA: ${{ github.sha }}
           RUN_ID: ${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- config/release-pointers.json; then
-            echo "No pointer file changes to land"
-            echo "has_changes=false" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-          cp config/release-pointers.json "${RUNNER_TEMP}/release-pointers.json"
-          git fetch origin "${DEFAULT_BRANCH}"
-          # Keep local tags from the promote step; only move the working tree.
-          git checkout -B "release/pointers-${RUN_ID}" "origin/${DEFAULT_BRANCH}"
-          cp "${RUNNER_TEMP}/release-pointers.json" config/release-pointers.json
-          echo "has_changes=true" >> "${GITHUB_OUTPUT}"
+        run: bash scripts/aw_release_prepare_pointers_branch.sh
 
       - name: Open release-pointers pull request
         id: pointers-pr
