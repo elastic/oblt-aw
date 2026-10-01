@@ -50,6 +50,7 @@ on:
     - "elastic-renovate-prod[bot]"
     - "elastic-vault-github-plugin-prod[bot]"
     - "github-actions[bot]"
+    - "mergify[bot]"
 concurrency:
   group: ${{ github.workflow }}-dependency-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -67,7 +68,7 @@ permissions:
 tools:
   github:
     # Override obs-defaults trusted-users so bot authors in on.bots are trusted.
-    trusted-users: "dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-renovate-prod[bot],elastic-vault-github-plugin-prod[bot],github-actions[bot]"
+    trusted-users: "dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-renovate-prod[bot],elastic-vault-github-plugin-prod[bot],github-actions[bot],mergify[bot]"
     toolsets: [repos, issues, pull_requests, search, actions]
   bash: true
   web-fetch:
