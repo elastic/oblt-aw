@@ -31,7 +31,7 @@ Execution stages:
 
 PR labels on install and remove PRs:
 
-- Always: `changelog:ci`, `oblt-aw/ai/merge-ready`
+- Always: `oblt-aw/ai/merge-ready`
 - Also when the label already exists in the target repository (Labels API check; the workflow does not create labels):
   - `backport-active-all`
   - `skip-changelog` (needed where consumer fragment/changelog gates do not treat `changelog:ci` as a skip, for example beats `fragments`)
