@@ -3,6 +3,15 @@
   "policy": "deny-unclassified",
   "collections": [
     {
+      "id": "apm-cli",
+      "description": "APM CLI version pin updates (.apm.version / .apm-cli-pin)",
+      "file-glob": [
+        ".apm.version",
+        "**/.apm.version",
+        ".apm-cli-pin/requirements.txt"
+      ]
+    },
+    {
       "id": "github-actions",
       "description": "GitHub Actions and composite action version bumps",
       "file-glob": [

@@ -1,0 +1,3 @@
+# Dependabot tracks microsoft/apm (PyPI: apm-cli). Keep in sync with root .apm.version
+# via .github/workflows/aw-sync-apm-version.yml.
+apm-cli==0.20.0

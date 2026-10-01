@@ -21,6 +21,7 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 
 | Service | What it covers | Representative files | Why enable it | Enabled vs disabled |
 |---------|----------------|----------------------|---------------|---------------------|
+| APM CLI version | APM CLI pin updates for agent package install | `.apm.version`, `**/.apm.version`, `.apm-cli-pin/requirements.txt` | Keep the control-plane APM CLI pin current when Dependabot bumps `apm-cli` | Enabled: matching pin PRs may merge. Disabled: they remain open. |
 | GitHub Actions bumps | Version updates for GitHub Actions and composite actions | `.github/workflows/**`, `.github/actions/**`, `**/action.yml`, `**/action.yaml` | Keep CI actions current without hand-merging routine bumps | Enabled: qualifying bumps can merge. Disabled: those PRs stop at the dashboard gate. |
 | pre-commit hook updates | Dependency updates for pre-commit hooks | `.pre-commit-config.yaml` | Keep local and CI hook versions moving with low review overhead | Enabled: hook bump PRs may merge. Disabled: they stay queued. |
 | Python dependencies | Python package and lockfile updates | `**/pyproject.toml`, `**/requirements.txt`, `**/requirements-*.txt`, `**/poetry.lock`, `**/Pipfile`, `**/Pipfile.lock` | Useful when Python bumps are routine and low risk for your repo | Enabled: matching Python update PRs may merge. Disabled: they require manual attention. |
