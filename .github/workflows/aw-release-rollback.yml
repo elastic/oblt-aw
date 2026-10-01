@@ -50,6 +50,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      id-token: write
+      pull-requests: write
     steps:
       - name: Confirm rollback intent
         env:
@@ -86,17 +88,65 @@ jobs:
           fi
           python3 scripts/aw_release_rollback.py "${extra[@]}"
 
-      - name: Commit release-pointers.json
+      # Org "[org] Require a PR" blocks direct pushes to main. Same land path as promote.
+      - name: Resolve release Vault token policy
+        id: token-policy
         if: ${{ inputs.dry-run != true }}
         run: |
           set -euo pipefail
-          if git diff --quiet -- config/release-pointers.json; then
-            echo "No pointer file changes to commit"
-            exit 0
+          POLICY="$(jq -r '."rollback-workflow-token-policy" // empty' config/release.json)"
+          if [[ -z "${POLICY}" ]]; then
+            echo "::error::Missing non-empty rollback-workflow-token-policy in config/release.json"
+            exit 1
           fi
-          git add config/release-pointers.json
-          git commit -m "chore(release): rollback current pointer to previous"
-          git push origin HEAD:"${{ github.ref_name }}"
+          echo "token-policy=${POLICY}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create ephemeral GitHub token (Vault app)
+        id: create-token
+        if: ${{ inputs.dry-run != true }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ steps.token-policy.outputs.token-policy }}
+
+      - name: Prepare release-pointers on default-branch tip
+        id: prepare-pointers
+        if: ${{ inputs.dry-run != true }}
+        env:
+          BRANCH_PREFIX: release/rollback-pointers
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          PLAN_BASE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: bash scripts/aw_release_prepare_pointers_branch.sh
+
+      - name: Open release-pointers pull request
+        id: pointers-pr
+        if: ${{ inputs.dry-run != true && steps.prepare-pointers.outputs.has_changes == 'true' }}
+        env:
+          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        with:
+          token: ${{ steps.create-token.outputs.token }}
+          sign-commits: true
+          branch: release/rollback-pointers-${{ github.run_id }}
+          base: ${{ github.event.repository.default_branch }}
+          add-paths: config/release-pointers.json
+          commit-message: "chore(release): rollback current pointer to previous"
+          title: "chore(release): rollback current pointer to previous"
+          body: |
+            Land `config/release-pointers.json` after rollback of the current production pointer.
+
+            Direct pushes to the default branch are blocked by the org Require-a-PR ruleset.
+
+            Created by [workflow run](${{ env.JOB_URL }}).
+
+      - name: Approve and merge release-pointers pull request
+        if: ${{ inputs.dry-run != true && steps.pointers-pr.outputs.pull-request-number != '' }}
+        env:
+          APPROVE_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pointers-pr.outputs.pull-request-number }}
+        run: bash scripts/aw_release_merge_pointers_pr.sh
 
       - name: Push rollback tags
         if: ${{ inputs.dry-run != true }}
