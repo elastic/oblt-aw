@@ -34,6 +34,7 @@ PR labels on install and remove PRs:
 - Always: `oblt-aw/ai/merge-ready`
 - Also when the label already exists in the target repository (Labels API check; the workflow does not create labels):
   - `backport-active-all`
+  - `changelog:ci`
   - `skip-changelog` (needed where consumer fragment/changelog gates do not treat `changelog:ci` as a skip, for example beats `fragments`)
 - Consumer catalog TokenPolicies must bind `trigger-*-aw-*.yml@*` (not `@refs/heads/main` only) so OIDC minting still works after client workflows land on release/backport branches — see [Registering resources](../onboarding/registering-a-repository.md).
 
