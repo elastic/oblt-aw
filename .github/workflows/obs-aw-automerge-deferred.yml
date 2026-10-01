@@ -73,7 +73,7 @@ jobs:
     if: >-
       inputs.shared-proceed == 'true' &&
       needs.discover.outputs.has-candidates == 'true'
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       actions: read

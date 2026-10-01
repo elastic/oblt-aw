@@ -44,7 +44,7 @@ jobs:
     name: Pre-commit
     needs: ci-gate
     if: needs.ci-gate.outputs.skip != 'true'
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
@@ -58,7 +58,7 @@ jobs:
     name: Python tests
     needs: ci-gate
     if: needs.ci-gate.outputs.skip != 'true'
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
@@ -114,7 +114,7 @@ jobs:
     name: TypeScript tests
     needs: ci-gate
     if: needs.ci-gate.outputs.skip != 'true'
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read

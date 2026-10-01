@@ -35,7 +35,7 @@ jobs:
   # Single PR from github.event.pull_request. PR fields only (pull_request trigger).
   verify:
     if: inputs.shared-proceed == 'true'
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
@@ -99,7 +99,7 @@ jobs:
   check-dependency-collection:
     needs: verify
     if: inputs.shared-proceed == 'true' && needs.verify.outputs.proceed == 'true'
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
@@ -240,7 +240,7 @@ jobs:
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true' &&
       needs.approve.result == 'success'
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: write
