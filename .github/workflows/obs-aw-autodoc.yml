@@ -95,14 +95,38 @@ jobs:
       additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
     secrets: inherit
 
-  # Step 3: Finalize autodoc PR — assign reviewer and apply labels
+  # Step 3: Finalize autodoc PR — link audit issue for close-on-merge, assign reviewer, labels
   finalize-pr:
-    needs: fix
+    needs: [audit, fix]
     if: inputs.shared-proceed == 'true' && needs.fix.outputs.created_pr_number != ''
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
+      # create-pull-request safe-output neutralizes agent Closes/Fixes keywords, and
+      # workflow_call has no issue-event trigger for auto-close-issue. Inject a real
+      # Fixes line here so GitHub closes the audit issue when the PR merges.
+      - name: Ensure Fixes keyword closes audit issue on merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.fix.outputs.created_pr_number }}
+          ISSUE_NUMBER: ${{ needs.audit.outputs.created_issue_number }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ISSUE_NUMBER}" ]; then
+            echo "No audit issue number; skipping Fixes keyword"
+            exit 0
+          fi
+          body="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json body -q .body)"
+          if printf '%s\n' "$body" | grep -qiE "(fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)[[:space:]]+#${ISSUE_NUMBER}\\b"; then
+            echo "Closing keyword for #${ISSUE_NUMBER} already present"
+            exit 0
+          fi
+          {
+            printf 'Fixes #%s\n\n' "$ISSUE_NUMBER"
+            printf '%s\n' "$body"
+          } > "${RUNNER_TEMP}/autodoc-pr-body.md"
+          gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "${RUNNER_TEMP}/autodoc-pr-body.md"
       - name: Request review from elastic/observablt-ci
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
