@@ -72,7 +72,7 @@ jobs:
       always() &&
       needs.read-oblt-aw-dashboard.result == 'success' &&
       (needs.load-oblt-aw-bot-allow-lists.result == 'success' || needs.load-oblt-aw-bot-allow-lists.result == 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 2
     outputs:
       proceed-by-workflow: ${{ steps.gates.outputs.proceed-by-workflow }}
