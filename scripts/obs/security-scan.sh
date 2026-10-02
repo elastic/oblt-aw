@@ -86,7 +86,7 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v actionlint >/dev/null 2>&
       .kind == "credentials" or
       .kind == "shellcheck" or
       (.kind == "expression" and (
-        (.message | test("untrusted|secret|password|credential|inject"; "i"))
+        (.message | test("untrusted|password|credential|inject"; "i"))
       ))
     ) |
     .filepath as $fp |
@@ -94,7 +94,6 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v actionlint >/dev/null 2>&
     .kind as $k |
     (if $k == "credentials" then "SEC-020"
      elif $k == "shellcheck" then "SEC-011"
-     elif (.message | test("secret"; "i")) then "SEC-002"
      else "SEC-010" end) as $rule |
     (if $k == "credentials" then "high"
      elif $k == "shellcheck" then "medium"
@@ -180,13 +179,63 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
       (.concrete.location.start_point.row // 0) as $row0 |
       (($row0 + 1) | tostring) as $line |
       ($finding.ident) as $id |
+      if $id == "secrets-outside-env" then empty else
       ($finding.determinations.severity // "Medium" | ascii_downcase) as $zs |
       (sev_map[$zs] // "medium") as $sev |
       (sec_for($id)) as $rule |
       (if $rule == "SEC-030" then "medium" else $sev end) as $sev2 |
       "\($rel3)|\($line)|\($rule)|\($sev2)|zizmor [\($id)]: \($finding.desc | gsub("\\|"; " ")) (\($finding.url))"
+      end
     end
   ' >>"$FINDINGS_TMP" 2>/dev/null || true
+fi
+
+# --- SEC-002: workflow command strings must not interpolate secrets (source workflows only) ---
+if [ -d "$REPO_ROOT/.github/workflows" ]; then
+  (
+    cd "$REPO_ROOT" || exit 0
+    find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) \
+      ! -name '*.lock.yml' ! -name '*.lock.yaml' -print 2>/dev/null
+  ) | while IFS= read -r f; do
+      fp="$REPO_ROOT/${f#./}"
+      [ -f "$fp" ] || continue
+      awk '
+      function indent_level(line, pos) {
+        pos = match(line, /[^ ]/)
+        return (pos == 0 ? length(line) : pos - 1)
+      }
+      {
+        if (match($0, /^[[:space:]]*(-[[:space:]]*)?run:[[:space:]]+/)) {
+          rest = substr($0, RLENGTH + 1)
+          if (rest !~ /^[>|][[:space:]]*$/ && index(rest, "${{ secrets.") > 0) {
+            print NR
+          }
+        }
+
+        if (match($0, /^[[:space:]]*(-[[:space:]]*)?run:[[:space:]]*[>|][[:space:]]*$/)) {
+          in_block = 1
+          run_indent = indent_level($0)
+          next
+        }
+
+        if (!in_block) next
+
+        if ($0 == "") next
+
+        if (indent_level($0) <= run_indent) {
+          in_block = 0
+          next
+        }
+
+        if (index($0, "${{ secrets.") > 0) {
+          print NR
+        }
+      }
+      ' "$fp" | while IFS= read -r ln; do
+          emit "${f#./}" "${ln}" "SEC-002" "high" \
+            "secrets context appears in a run command string; move the secret to env: and reference an environment variable in run."
+        done
+    done
 fi
 
 # --- semgrep: community GitHub Actions rules (complements zizmor/actionlint) ---
