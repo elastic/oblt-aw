@@ -19,7 +19,7 @@ Jobs:
 - `audit`: calls the Observability-owned `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Safe-output issue bodies neutralize `@mentions`; triage uses the baked `[oblt-aw][autodoc]` title prefix and concrete source paths.
 - `fix`: calls the Observability-owned `gh-aw-create-pr-from-issue.lock.yml` only when `audit` created an issue.
 - Failure meta-issue suppression for both stages is baked into the in-repo locks via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) (no `report-failure-as-issue` lock input). Intentional findings from `create_issue` (audit) are unchanged.
-- `finalize-pr`: requests a review from `@elastic/observablt-ci` and applies the `changelog:docs` label to the created PR if that label exists in the repository.
+- `finalize-pr`: ensures the PR body includes `Fixes #<audit-issue>` so merge closes the audit issue (safe-output may neutralize agent-written closing keywords; this step injects a real one), requests a review from `@elastic/observablt-ci`, and applies the `changelog:docs` label if that label exists in the repository.
 - `notify-fix-failure`: when `fix` fails after an audit issue was created, comments recovery guidance on that issue (including `/ai implement`) and applies `oblt-aw/autodoc/fix-failed` when that label exists in the repository.
 - `notify-no-pr`: when `fix` succeeds with an empty `created_pr_number`, comments recovery guidance on the audit issue (same pattern as issue/security/RNAI fixers).
 
@@ -51,7 +51,7 @@ Edit the GH-AW sources [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/
 
 **Fix prompt:** PR title/body rules, docs-only constraints, secret-docs rules, markdown/Helm/AI-asset guards, and autodocignore semantics live in [`gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md). The wrapper does not pass fix `platform-additional-instructions`; resolve still supplies APM / autodocignore overlays via `additional-instructions`.
 
-**PR creation (fix):** the compiled create-PR lock opens PRs **ready for review** (`draft: false`). Reviewer request and `changelog:docs` labeling still happen in `finalize-pr`.
+**PR creation (fix):** the compiled create-PR lock opens PRs **ready for review** (`draft: false`). `finalize-pr` then ensures `Fixes #<audit-issue>` is on the PR body (close-on-merge), requests review, and applies `changelog:docs` when present.
 
 **Allowed-files (fix):** exclusive allowlist on `create-pull-request` — every changed path must match one of these patterns (non-docs patches are refused before PR creation):
 
