@@ -173,7 +173,7 @@ jobs:
       - gh-aw-drift
       - typescript-tests
       - scorecard
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 1
     permissions:
       contents: read
