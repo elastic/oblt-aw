@@ -40,7 +40,7 @@ The table below documents how each rule ID is currently represented in the detec
 | Rule ID | Implemented in detector | Primary implementation path |
 |---------|-------------------------|-----------------------------|
 | SEC-001 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
-| SEC-002 | Yes | `actionlint` secret message mapping and `zizmor` `secrets-outside-env` mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
+| SEC-002 | Yes | `actionlint` secret message mapping plus bounded `zizmor` `secrets-outside-env` handling (generated `*.lock.yml` excluded; authored workflows kept only when finding line is in `run:` context) in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-003 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-010 | Yes | `actionlint` expression mapping, `zizmor` template/github-env mappings, and `semgrep` injection mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-011 | Yes | `shellcheck` and `actionlint` shellcheck mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
@@ -111,6 +111,8 @@ The table below documents how each rule ID is currently represented in the detec
 **Description**: `${{ secrets.* }}` must not appear inside `run:` command strings. Use `env:` and environment variables.
 
 **Pattern**: `run:` block containing `${{ secrets.` in the command text.
+
+**Detector implementation note**: SEC-002 output from `zizmor` `secrets-outside-env` is filtered to actionable cases: generated `.github/workflows/*.lock.yml` files are excluded, and for authored workflows only findings in `run:` context are retained. This keeps SEC-002 focused on command-string interpolation risk instead of routine env/action-input token wiring.
 
 ---
 

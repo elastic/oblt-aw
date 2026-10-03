@@ -56,8 +56,10 @@ emit() {
 
 # Collect findings here, then dedupe by file|line (keep highest severity).
 FINDINGS_TMP="${TMPDIR:-/tmp}/security-scan-$$.txt"
+FILTERED_FINDINGS_TMP="${TMPDIR:-/tmp}/security-scan-filtered-$$.txt"
 touch "$FINDINGS_TMP"
-cleanup() { rm -f "$FINDINGS_TMP"; }
+touch "$FILTERED_FINDINGS_TMP"
+cleanup() { rm -f "$FINDINGS_TMP" "$FILTERED_FINDINGS_TMP"; }
 trap cleanup EXIT
 
 # --- SEC-011: standalone shell scripts (shellcheck) ---
@@ -251,6 +253,42 @@ if command -v npm >/dev/null 2>&1; then
     done
 fi
 
+# --- SEC-002 boundary filter: keep actionable command-string interpolation only ---
+is_generated_lock_workflow() {
+  case "$1" in
+    .github/workflows/*.lock.yml) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+line_is_in_run_context() {
+  local file_path="$1"
+  local line_number="$2"
+  [ -f "$file_path" ] || return 1
+  awk -v target="$line_number" '
+    NR > target { exit }
+    /^[[:space:]]*run:[[:space:]]*($|[|>].*)/ { ctx="run"; next }
+    /^[[:space:]]*env:[[:space:]]*($|#.*$)/ { ctx="env"; next }
+    END { exit(ctx == "run" ? 0 : 1) }
+  ' "$file_path"
+}
+
+while IFS='|' read -r file line rule sev msg; do
+  if [ "$rule" = "SEC-002" ] && [[ "$msg" == zizmor\ \[secrets-outside-env\]:* ]]; then
+    # Compiled lock workflows are framework-generated and routinely use secrets in
+    # action inputs/env wiring; these are not authored command-string exposures.
+    if is_generated_lock_workflow "$file"; then
+      continue
+    fi
+    # For authored workflows, retain only findings tied to run: context.
+    if [[ "$line" =~ ^[0-9]+$ ]] && line_is_in_run_context "$REPO_ROOT/$file" "$line"; then
+      echo "$file|$line|$rule|$sev|$msg" >>"$FILTERED_FINDINGS_TMP"
+    fi
+    continue
+  fi
+  echo "$file|$line|$rule|$sev|$msg" >>"$FILTERED_FINDINGS_TMP"
+done <"$FINDINGS_TMP"
+
 # --- Dedupe: same file + line → keep highest severity; merge messages with " | " on tie ---
 awk -F'|' '
 function rank(s) {
@@ -285,7 +323,7 @@ END {
     print a[1] "|" a[2] "|" outrule[k] "|" outsev[k] "|" outmsg[k]
   }
 }
-' "$FINDINGS_TMP" | sort -t'|' -k1,1 -k2,2n | awk -F'|' -v cat="$SCAN_CATEGORY" '
+' "$FILTERED_FINDINGS_TMP" | sort -t'|' -k1,1 -k2,2n | awk -F'|' -v cat="$SCAN_CATEGORY" '
 function rule_category(rule) {
   if (rule == "SEC-010" || rule == "SEC-011" || rule == "SEC-012") return "injection"
   if (rule == "SEC-001" || rule == "SEC-002" || rule == "SEC-003" ||
