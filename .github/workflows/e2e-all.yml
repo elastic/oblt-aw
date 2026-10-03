@@ -22,6 +22,10 @@ on:
         required: false
         type: string
         default: main
+    secrets:
+      BUILDKITE_TOKEN:
+        description: Token for Buildkite API access used by ESTC detective E2E.
+        required: false
 
 permissions:
   contents: read
@@ -71,7 +75,6 @@ jobs:
     uses: ./.github/workflows/e2e-automerge-vm-images.yml
     with:
       checkout-ref: ${{ inputs.checkout-ref }}
-    secrets: inherit
 
   e2e-dependency-review:
     name: Dependency review
@@ -91,7 +94,6 @@ jobs:
     uses: ./.github/workflows/e2e-dependency-review.yml
     with:
       checkout-ref: ${{ inputs.checkout-ref }}
-    secrets: inherit
 
   e2e-estc-pr-buildkite-detective:
     name: ESTC PR Buildkite Detective
@@ -111,7 +113,8 @@ jobs:
     uses: ./.github/workflows/e2e-estc-pr-buildkite-detective.yml
     with:
       checkout-ref: ${{ inputs.checkout-ref }}
-    secrets: inherit
+    secrets:
+      BUILDKITE_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
 
   e2e-autodoc:
     name: Autodoc audit
@@ -130,4 +133,3 @@ jobs:
     uses: ./.github/workflows/e2e-autodoc.yml
     with:
       checkout-ref: ${{ inputs.checkout-ref }}
-    secrets: inherit
