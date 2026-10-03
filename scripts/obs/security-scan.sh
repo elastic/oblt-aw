@@ -184,6 +184,10 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
       (sev_map[$zs] // "medium") as $sev |
       (sec_for($id)) as $rule |
       (if $rule == "SEC-030" then "medium" else $sev end) as $sev2 |
+      select(
+        ($id != "template-injection") or
+        ($rel3 | test("^\\.github/workflows/.*\\.lock\\.yml$") | not)
+      ) |
       "\($rel3)|\($line)|\($rule)|\($sev2)|zizmor [\($id)]: \($finding.desc | gsub("\\|"; " ")) (\($finding.url))"
     end
   ' >>"$FINDINGS_TMP" 2>/dev/null || true
