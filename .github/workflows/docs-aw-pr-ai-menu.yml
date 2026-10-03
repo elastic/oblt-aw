@@ -76,6 +76,7 @@ jobs:
           ref: main
           path: oblt-aw-scripts
           fetch-depth: 1
+          persist-credentials: false
           sparse-checkout: |
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
@@ -115,6 +116,7 @@ jobs:
           ref: main
           path: oblt-aw-scripts
           fetch-depth: 1
+          persist-credentials: false
           sparse-checkout: |
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
@@ -150,6 +152,7 @@ jobs:
           ref: main
           path: oblt-aw-scripts
           fetch-depth: 1
+          persist-credentials: false
           sparse-checkout: |
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
@@ -215,6 +218,7 @@ jobs:
           ref: main
           path: oblt-aw-scripts
           fetch-depth: 1
+          persist-credentials: false
           sparse-checkout: |
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
