@@ -101,7 +101,6 @@ jobs:
       github-token-policy: ${{ inputs.shared-token-policy }}
       # Source-issue visibility is owned by notify-no-pr; do not open meta-issues.
       report-failure-as-issue: false
-    secrets: inherit
 
   request-reviewers:
     needs: security-issue-fixer
