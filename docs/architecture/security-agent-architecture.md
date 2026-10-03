@@ -57,7 +57,7 @@ The security detector must scan **code** (shell scripts, workflow YAML, and depe
 
 ### Implementation
 
-The detector targets the full ruleset in [docs/workflows/security-scanning-ruleset.md](../workflows/security-scanning-ruleset.md). The current implementation emits SEC-002, SEC-010–SEC-012, SEC-020–SEC-022, SEC-030–SEC-033, SEC-035, SEC-040, SEC-042, and SEC-043; the ruleset table tracks not-yet-emitted IDs. [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) is a reference for token exposure patterns addressed by SEC-001–SEC-003.
+The detector targets the full ruleset in [docs/workflows/security-scanning-ruleset.md](../workflows/security-scanning-ruleset.md). The current implementation emits SEC-002–SEC-003, SEC-010–SEC-012, SEC-020–SEC-022, SEC-030–SEC-033, SEC-035, SEC-040, SEC-042, and SEC-043; the ruleset table tracks not-yet-emitted IDs. [oblt-actions#500](https://github.com/elastic/oblt-actions/issues/500) is a reference for token exposure patterns addressed by SEC-001–SEC-003.
 
 ## Integration Points with elastic/ai-github-actions
 
