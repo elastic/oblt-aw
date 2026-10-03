@@ -62,7 +62,8 @@ jobs:
     uses: ./.github/workflows/e2e-all.yml
     with:
       checkout-ref: ${{ github.sha }}
-    secrets: inherit
+    secrets:
+      BUILDKITE_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
 
   promote:
     name: Tag and update pointers
