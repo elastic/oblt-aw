@@ -169,6 +169,8 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Remediation guidance**: Pass values through environment variables with strict quoting, use intermediate scripts with validation, or restrict to trusted event types.
 
+**Detector policy for generated lock workflows**: `scripts/obs/security-scan.sh` suppresses zizmor `template-injection` findings on generated `.github/workflows/*.lock.yml` files. These findings are repetitive byproducts of generated MCP config interpolation and are remediated at source templates/workflow code instead of lock artifacts.
+
 ---
 
 ### Rule SEC-011: Command Injection in Shell Scripts
