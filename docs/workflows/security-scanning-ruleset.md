@@ -112,6 +112,8 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Pattern**: `run:` block containing `${{ secrets.` in the command text.
 
+**Detector implementation note**: SEC-002 output from `zizmor` `secrets-outside-env` excludes compiler-generated `gh-aw-*.lock.yml` files. Those lock files contain framework-managed token wiring for action inputs; policy enforcement for SEC-002 is applied to source `gh-aw-*.md` workflow definitions where command strings are authored.
+
 ---
 
 ### Rule SEC-003: Env Indirection Requirement
