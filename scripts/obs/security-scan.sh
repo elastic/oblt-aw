@@ -134,7 +134,7 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
         "ref-confusion": "SEC-030",
         "ref-version-mismatch": "SEC-030",
         "impostor-commit": "SEC-030",
-        "secrets-outside-env": "SEC-002",
+        "secrets-outside-env": "SEC-022",
         "unredacted-secrets": "SEC-021",
         "hardcoded-container-credentials": "SEC-020",
         "overprovisioned-secrets": "SEC-022",
@@ -187,6 +187,54 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
       "\($rel3)|\($line)|\($rule)|\($sev2)|zizmor [\($id)]: \($finding.desc | gsub("\\|"; " ")) (\($finding.url))"
     end
   ' >>"$FINDINGS_TMP" 2>/dev/null || true
+fi
+
+# --- SEC-002: `${{ secrets.* }}` interpolated inside workflow `run:` command text ---
+if [ -d "$REPO_ROOT/.github/workflows" ]; then
+  (
+    cd "$REPO_ROOT" || exit 0
+    find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) ! -name '*.lock.yml' -print 2>/dev/null
+  ) | while IFS= read -r f; do
+    [ -f "$REPO_ROOT/${f#./}" ] || continue
+    awk -v file="${f#./}" '
+      function emit(line, message) {
+        printf "%s|%d|SEC-002|high|%s\n", file, line, message
+      }
+
+      {
+        raw = $0
+        line = NR
+        match(raw, /^[ ]*/)
+        indent = RLENGTH
+        trimmed = substr(raw, indent + 1)
+
+        if (in_run_block == 1) {
+          if (indent <= run_indent) {
+            in_run_block = 0
+          } else {
+            if (raw ~ /\$\{\{[[:space:]]*secrets\./) {
+              emit(line, "${{ secrets.* }} appears in a run: command block; use env indirection.")
+            }
+            next
+          }
+        }
+
+        if (trimmed ~ /^(-[[:space:]]*)?run:[[:space:]]*/) {
+          if (raw ~ /\$\{\{[[:space:]]*secrets\./) {
+            emit(line, "${{ secrets.* }} appears in a run: command string; use env indirection.")
+          }
+
+          run_pos = index(trimmed, "run:")
+          run_rhs = substr(trimmed, run_pos + 4)
+          sub(/^[[:space:]]*/, "", run_rhs)
+          if (run_rhs ~ /^(\||>)/) {
+            in_run_block = 1
+            run_indent = indent
+          }
+        }
+      }
+    ' "$REPO_ROOT/${f#./}" >>"$FINDINGS_TMP" || true
+  done
 fi
 
 # --- semgrep: community GitHub Actions rules (complements zizmor/actionlint) ---
