@@ -58,6 +58,7 @@ jobs:
             package-lock.json
           sparse-checkout-cone-mode: false
 
+          persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -124,6 +125,7 @@ jobs:
             package-lock.json
           sparse-checkout-cone-mode: false
 
+          persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -301,6 +303,7 @@ jobs:
             scripts/obs/automerge_armed_lib.sh
           sparse-checkout-cone-mode: false
 
+          persist-credentials: false
       - name: Create ephemeral GitHub token (configured policy)
         id: create-token-explicit
         if: ${{ inputs.shared-token-policy != '' }}
@@ -375,6 +378,7 @@ jobs:
             scripts/obs/automerge_armed_lib.sh
           sparse-checkout-cone-mode: false
 
+          persist-credentials: false
       - name: Upsert armed comment for deferred merge
         id: arm
         env:
@@ -421,6 +425,7 @@ jobs:
             scripts/obs/automerge_armed_lib.sh
           sparse-checkout-cone-mode: false
 
+          persist-credentials: false
       - name: Report outcome (soft-succeed when not ready; fail only on permanent blockers)
         env:
           GH_TOKEN: ${{ github.token }}
