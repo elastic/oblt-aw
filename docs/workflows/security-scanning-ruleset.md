@@ -169,6 +169,8 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Remediation guidance**: Pass values through environment variables with strict quoting, use intermediate scripts with validation, or restrict to trusted event types.
 
+**Detector note**: [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) suppresses `zizmor` `template-injection` findings for generated workflow lockfiles matching `^\.github/workflows/.*\.lock\.yml$`. SEC-010 findings remain enabled for authored workflow sources.
+
 ---
 
 ### Rule SEC-011: Command Injection in Shell Scripts
@@ -312,6 +314,7 @@ The table below documents how each rule ID is currently represented in the detec
 
 - **Implementation:** Map each rule ID to a check in the detector scripts or job matrix. Complementary ingress workflows (for example `obs-aw-dependency-review`) may supplement dependency findings where SEC-033–SEC-035 reference PR-time review.
 - **False positives**: Expression-injection rules (SEC-010) may need triage tuning; during early rollout, triage may temporarily down-rank individual findings to Medium until confidence improves, while SEC-010 remains defined as High severity.
+- **Generated lockfiles:** `template-injection` findings in generated `.github/workflows/*.lock.yml` files are filtered in the detector to reduce duplicate SEC-010 noise; equivalent findings in authored workflow files remain reportable.
 - **Dependency overlap**: For PR-time dependency review, prefer enabling `obs-aw-dependency-review` in ingress; SEC-033 remains for scheduled full-repo audits without a PR.
 
 ---

@@ -88,6 +88,8 @@ jobs:
 
       - name: Commit release-pointers.json
         if: ${{ inputs.dry-run != true }}
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           if git diff --quiet -- config/release-pointers.json; then
@@ -96,7 +98,7 @@ jobs:
           fi
           git add config/release-pointers.json
           git commit -m "chore(release): rollback current pointer to previous"
-          git push origin HEAD:"${{ github.ref_name }}"
+          git push origin HEAD:"${REF_NAME}"
 
       - name: Push rollback tags
         if: ${{ inputs.dry-run != true }}
