@@ -1,27 +1,27 @@
 {
-  "schema_version": 1,
   "major": 0,
+  "notes": "Empty SHAs mean uninitialized. First promote on main creates v0.0.0 after embedded E2E. Stay on v0 until the promote train is proven; graduate to v1 with a major bump + template redistribute. Pointer names follow Unified Release semantics: current / next / previous.",
+  "pointers": {
+    "current": {
+      "semver": "v0.0.0",
+      "sha": "6b4d70790d41083ed1c1bf6f1c6ff06011e02022",
+      "updated_at": "2026-10-05T17:08:38+00:00"
+    },
+    "next": {
+      "semver": "v0.0.0",
+      "sha": "6b4d70790d41083ed1c1bf6f1c6ff06011e02022",
+      "updated_at": "2026-10-05T17:08:38+00:00"
+    },
+    "previous": {
+      "semver": "v0.0.0",
+      "sha": "6b4d70790d41083ed1c1bf6f1c6ff06011e02022",
+      "updated_at": "2026-10-05T17:08:38+00:00"
+    }
+  },
+  "schema_version": 1,
   "tags": {
     "current": "v0",
     "next": "next",
     "previous": "previous"
-  },
-  "pointers": {
-    "current": {
-      "sha": "",
-      "semver": "",
-      "updated_at": ""
-    },
-    "next": {
-      "sha": "",
-      "semver": "",
-      "updated_at": ""
-    },
-    "previous": {
-      "sha": "",
-      "semver": "",
-      "updated_at": ""
-    }
-  },
-  "notes": "Empty SHAs mean uninitialized. First promote on main creates v0.0.0 after embedded E2E. Stay on v0 until the promote train is proven; graduate to v1 with a major bump + template redistribute. Pointer names follow Unified Release semantics: current / next / previous."
+  }
 }
