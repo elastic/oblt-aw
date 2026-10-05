@@ -32,6 +32,9 @@ from pathlib import Path
 from typing import Any
 
 WORKFLOW_ID = "obs:estc-pr-buildkite-detective"
+CANONICAL_ESTC_CONCLUSION_JOB_SUFFIX = (
+    " / estc-pr-buildkite-detective / estc-pr-buildkite-detective / conclusion"
+)
 
 
 def _load_json(path: Path) -> Any:
@@ -408,11 +411,19 @@ def _evaluate_live(
         try:
             expected = _as_bool(expectations["status_job_executed"])
             actual = _as_bool(status_trigger.get("job_executed"))
+            matched_job = str(status_trigger.get("matched_job_name") or "")
+            leaf_ok = (not expected) or matched_job.lower().endswith(
+                CANONICAL_ESTC_CONCLUSION_JOB_SUFFIX.lower()
+            )
             _check(
                 checks,
                 "status_job_executed",
-                actual == expected,
-                f"expected={expected} actual={actual} run={status_trigger.get('url')}",
+                actual == expected and leaf_ok,
+                (
+                    f"expected={expected} actual={actual} "
+                    f"run={status_trigger.get('url')} "
+                    f"matched_job_name={matched_job!r}"
+                ),
             )
             if expected is False and run_seen is True:
                 # Named-job conclusion only — never the overall run conclusion.
@@ -431,8 +442,11 @@ def _evaluate_live(
                 _check(
                     checks,
                     "status_job_success",
-                    job_conclusion == "success",
-                    f"job_conclusion={job_conclusion!r}",
+                    job_conclusion == "success" and leaf_ok,
+                    (
+                        f"job_conclusion={job_conclusion!r} "
+                        f"matched_job_name={matched_job!r}"
+                    ),
                 )
         except TypeError as exc:
             _check(checks, "status_job_executed", False, str(exc))

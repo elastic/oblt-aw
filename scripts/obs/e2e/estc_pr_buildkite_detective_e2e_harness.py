@@ -1103,7 +1103,9 @@ def wait_for_new_run(
 
     Skipped status-route jobs (typical for Buildkite ``pending`` statuses that
     still fire ``on: status``) are ignored so the harness does not bind to them
-    before the failure-triggered run completes.
+    before the failure-triggered run completes. Nested jobs whose names only
+    *contain* ``run-obs-aw-status`` (prelude children) are not the gate; bind
+    the ESTC conclusion leaf or the parent ``run-obs-aw-status`` job.
 
     Returns ``None`` if no matching completed run with a successful status-route
     job appears before the deadline (in-progress matches are not treated as seen).
@@ -1145,20 +1147,71 @@ def wait_for_new_run(
     return None
 
 
+# Nested reusable display name for the ESTC lock terminal leaf on the
+# status-trigger caller run (see trigger-obs-aw-status.yml).
+ESTC_DETECTIVE_CONCLUSION_LEAF_SUFFIX = (
+    " / estc-pr-buildkite-detective / estc-pr-buildkite-detective / conclusion"
+)
+_STATUS_ROUTE_PARENT_NAMES = frozenset(
+    {
+        "run-obs-aw-status",
+        "run obs-aw-status",
+    }
+)
+
+
+def _is_status_route_job_name(name: str) -> bool:
+    """True for the status-trigger parent job or the ESTC conclusion leaf.
+
+    Nested prelude/wrapper children contain ``run-obs-aw-status`` as a prefix
+    (for example a skipped ``… / run-aw-prelude / load-oblt-aw-bot-allow-lists``).
+    Those must not authorize the waiter.
+    """
+    lowered = name.lower()
+    if lowered in _STATUS_ROUTE_PARENT_NAMES:
+        return True
+    return lowered.endswith(ESTC_DETECTIVE_CONCLUSION_LEAF_SUFFIX)
+
+
+def status_job_match(
+    run_detail: dict[str, Any] | None,
+) -> tuple[str, str] | None:
+    """Return ``(job_name, conclusion)`` for the status-route job.
+
+    Prefer a non-skipped parent or ESTC conclusion leaf. If every match is
+    skipped, return that skipped job so negative cases can assert
+    ``job_conclusion=skipped``. Do not use the overall run conclusion.
+    """
+    if not run_detail:
+        return None
+    skipped_match: tuple[str, str] | None = None
+    for job in run_detail.get("jobs") or []:
+        raw_name = str(job.get("name") or "")
+        if not _is_status_route_job_name(raw_name):
+            continue
+        conclusion = (job.get("conclusion") or "").lower()
+        if conclusion in ("", "skipped"):
+            if skipped_match is None:
+                skipped_match = (raw_name, conclusion or "skipped")
+            continue
+        return (raw_name, conclusion)
+    return skipped_match
+
+
+def status_job_matched_name(run_detail: dict[str, Any] | None) -> str | None:
+    """Display name of the status-route job that authorized the gate."""
+    match = status_job_match(run_detail)
+    return match[0] if match else None
+
+
 def status_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
-    """Return the obs-aw-status job conclusion when that named job is present.
+    """Return the obs-aw-status parent or ESTC conclusion-leaf conclusion.
 
     Fail closed: do not treat the overall run conclusion as a substitute when the
     status job is absent (rename, empty jobs list, or unrelated successful jobs).
     """
-    if not run_detail:
-        return None
-    for job in run_detail.get("jobs") or []:
-        name = (job.get("name") or "").lower()
-        if "run-obs-aw-status" in name or name.endswith("obs-aw-status"):
-            conclusion = (job.get("conclusion") or "").lower()
-            return conclusion or None
-    return None
+    match = status_job_match(run_detail)
+    return match[1] if match else None
 
 
 def status_job_executed(run_detail: dict[str, Any] | None) -> bool:
@@ -1739,6 +1792,7 @@ def run_live_case(
 
         job_executed = status_job_executed(run_detail)
         job_conclusion = status_job_conclusion(run_detail)
+        matched_job_name = status_job_matched_name(run_detail)
         invoked = agent_job_invoked(repo, run_detail, since=since)
         comment = None
         if expectations.get("expect_agent_comment"):
@@ -1830,6 +1884,7 @@ def run_live_case(
             "run_seen": True,
             "job_executed": job_executed,
             "job_conclusion": job_conclusion,
+            "matched_job_name": matched_job_name,
             "run_id": run_detail.get("databaseId"),
             "conclusion": run_detail.get("conclusion"),
             "url": run_detail.get("url"),
