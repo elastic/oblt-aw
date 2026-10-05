@@ -14,8 +14,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Prepare a branch from default-branch tip that lands a planned
-# config/release-pointers.json without silently overwriting newer tip state.
+# Put planned config/release-pointers.json on the default-branch tip without
+# silently overwriting newer tip state.
+#
+# Stay on the default branch (uncommitted pointer edits only). Checking out the
+# intended PR branch name makes peter-evans/create-pull-request treat that name
+# as the working base and `git reset --hard origin/<pr-branch>`, which does not
+# exist until the action pushes (git exit 128).
 #
 # Fail closed when tip's pointer file differs from the plan-base SHA (the
 # revision the promote/rollback plan was computed from). Re-dispatch on
@@ -88,7 +93,7 @@ aw_release_prepare_pointers_branch() {
   local pointers_path="${5:-${POINTERS_PATH}}"
   local github_output="${6:-${GITHUB_OUTPUT:-}}"
   local runner_temp="${7:-${RUNNER_TEMP:-}}"
-  local planned tip_ref branch
+  local planned tip_ref intended_branch
 
   if [[ -z "${github_output}" || -z "${runner_temp}" ]]; then
     echo "GITHUB_OUTPUT and RUNNER_TEMP are required" >&2
@@ -112,11 +117,12 @@ aw_release_prepare_pointers_branch() {
     "${pointers_path}"
 
   # Keep local tags from promote/rollback; only move the working tree.
-  branch="${branch_prefix}-${run_id}"
-  git checkout -B "${branch}" "${tip_ref}"
+  # Do not checkout branch_prefix-run_id: create-pull-request owns that ref.
+  intended_branch="${branch_prefix}-${run_id}"
+  git checkout -B "${default_branch}" "${tip_ref}"
   cp "${planned}" "${pointers_path}"
   echo "has_changes=true" >>"${github_output}"
-  echo "Prepared branch ${branch} from ${tip_ref}"
+  echo "Prepared ${pointers_path} on ${default_branch} from ${tip_ref} for ${intended_branch}"
 }
 
 # When sourced (unit tests), skip main.
