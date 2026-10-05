@@ -240,6 +240,134 @@ class TestPlanRollback:
         assert data["pointers"]["previous"]["semver"] == "v1.0.0"
 
 
+def _git_result(stdout: str = "", returncode: int = 0) -> object:
+    return type("R", (), {"returncode": returncode, "stdout": stdout, "stderr": ""})()
+
+
+class TestRemoteTagCommitSha:
+    def test_prefers_peeled_commit(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            del check
+            assert args[:2] == ["ls-remote", "origin"]
+            return _git_result(
+                f"{SHA_B}\trefs/tags/v0.0.0\n{SHA_A}\trefs/tags/v0.0.0^{{}}\n"
+            )
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        assert rp.remote_tag_commit_sha("v0.0.0") == SHA_A
+
+    def test_uses_direct_sha_for_lightweight_tag(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            del check, args
+            return _git_result(f"{SHA_A}\trefs/tags/v0.0.0\n")
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        assert rp.remote_tag_commit_sha("v0.0.0") == SHA_A
+
+    def test_missing_tag_is_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(rp, "run_git", lambda *a, **k: _git_result("", 0))
+        assert rp.remote_tag_commit_sha("v0.0.0") is None
+
+
+class TestCreateImmutableSemverTag:
+    def test_creates_when_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            del check
+            calls.append(args)
+            if args[:2] == ["tag", "-l"]:
+                return _git_result("")
+            if args[0] == "ls-remote":
+                return _git_result("")
+            return _git_result("")
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        assert (
+            rp.create_immutable_semver_tag("v0.0.0", SHA_A, message="oblt-aw") is True
+        )
+        assert ["tag", "-a", "v0.0.0", SHA_A, "-m", "oblt-aw"] in calls
+
+    def test_skips_when_local_tag_points_at_planned_sha(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            del check
+            calls.append(args)
+            if args[:2] == ["tag", "-l"]:
+                return _git_result("v0.0.0\n")
+            if args[0] == "rev-parse":
+                return _git_result(f"{SHA_A}\n")
+            raise AssertionError(args)
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        assert (
+            rp.create_immutable_semver_tag("v0.0.0", SHA_A, message="oblt-aw") is False
+        )
+        assert not any(args[:2] == ["tag", "-a"] for args in calls)
+
+    def test_fails_when_local_tag_points_elsewhere(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            del check
+            if args[:2] == ["tag", "-l"]:
+                return _git_result("v0.0.0\n")
+            if args[0] == "rev-parse":
+                return _git_result(f"{SHA_B}\n")
+            raise AssertionError(args)
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        with pytest.raises(ValueError, match="already exists at"):
+            rp.create_immutable_semver_tag("v0.0.0", SHA_A, message="oblt-aw")
+
+    def test_fetches_when_origin_tag_points_at_planned_sha(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            del check
+            calls.append(args)
+            if args[:2] == ["tag", "-l"]:
+                return _git_result("")
+            if args[0] == "ls-remote":
+                return _git_result(f"{SHA_A}\trefs/tags/v0.0.0\n")
+            if args[0] == "fetch":
+                return _git_result("")
+            raise AssertionError(args)
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        assert (
+            rp.create_immutable_semver_tag("v0.0.0", SHA_A, message="oblt-aw") is False
+        )
+        assert [
+            "fetch",
+            "origin",
+            "refs/tags/v0.0.0:refs/tags/v0.0.0",
+        ] in calls
+        assert not any(args[:2] == ["tag", "-a"] for args in calls)
+
+    def test_fails_when_origin_tag_points_elsewhere(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            del check
+            if args[:2] == ["tag", "-l"]:
+                return _git_result("")
+            if args[0] == "ls-remote":
+                return _git_result(f"{SHA_B}\trefs/tags/v0.0.0\n")
+            raise AssertionError(args)
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        with pytest.raises(ValueError, match="already exists on origin"):
+            rp.create_immutable_semver_tag("v0.0.0", SHA_A, message="oblt-aw")
+
+
 class TestPushTagHelpers:
     def test_push_promote_tags_splits_force(
         self, monkeypatch: pytest.MonkeyPatch
@@ -248,7 +376,11 @@ class TestPushTagHelpers:
 
         def fake_run_git(args: list[str], *, check: bool = True) -> object:
             calls.append(args)
-            return None
+            if args[0] == "rev-parse":
+                return _git_result(f"{SHA_A}\n")
+            if args[0] == "ls-remote":
+                return _git_result("")
+            return _git_result("")
 
         monkeypatch.setattr(rp, "run_git", fake_run_git)
         plan = {
@@ -258,11 +390,12 @@ class TestPushTagHelpers:
             "previous_tag": "previous",
         }
         rp.push_promote_tags(plan)
-        assert calls[0] == ["push", "origin", "v0.0.1"]
-        assert "--force" not in calls[0]
-        assert calls[1][:2] == ["push", "origin"]
-        assert "--force" in calls[1]
-        assert "v0.0.1" not in calls[1]
+        immutable = ["push", "origin", "v0.0.1"]
+        assert immutable in calls
+        assert "--force" not in immutable
+        moving = [c for c in calls if c[:2] == ["push", "origin"] and "--force" in c]
+        assert moving
+        assert "v0.0.1" not in moving[0]
 
     def test_push_promote_tags_normalizes_unprefixed_semver(
         self, monkeypatch: pytest.MonkeyPatch
@@ -271,7 +404,11 @@ class TestPushTagHelpers:
 
         def fake_run_git(args: list[str], *, check: bool = True) -> object:
             calls.append(args)
-            return None
+            if args[0] == "rev-parse":
+                return _git_result(f"{SHA_A}\n")
+            if args[0] == "ls-remote":
+                return _git_result("")
+            return _git_result("")
 
         monkeypatch.setattr(rp, "run_git", fake_run_git)
         plan = {
@@ -281,7 +418,38 @@ class TestPushTagHelpers:
             "previous_tag": "previous",
         }
         rp.push_promote_tags(plan)
-        assert calls[0] == ["push", "origin", "v0.0.1"]
+        assert ["push", "origin", "v0.0.1"] in calls
+
+    def test_skips_immutable_push_when_origin_already_at_local_sha(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            calls.append(args)
+            if args[0] == "rev-parse":
+                return _git_result(f"{SHA_A}\n")
+            if args[0] == "ls-remote":
+                return _git_result(f"{SHA_A}\trefs/tags/v0.0.1\n")
+            return _git_result("")
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        rp.push_immutable_tags(["v0.0.1"])
+        assert not any(args[:2] == ["push", "origin"] for args in calls)
+
+    def test_fails_immutable_push_when_origin_sha_differs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            if args[0] == "rev-parse":
+                return _git_result(f"{SHA_A}\n")
+            if args[0] == "ls-remote":
+                return _git_result(f"{SHA_B}\trefs/tags/v0.0.1\n")
+            raise AssertionError(args)
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        with pytest.raises(ValueError, match="already exists on origin"):
+            rp.push_immutable_tags(["v0.0.1"])
 
 
 class TestRequireAncestorOf:

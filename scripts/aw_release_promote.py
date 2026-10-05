@@ -157,11 +157,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     now = utc_now_iso()
-    create_immutable_semver_tag(
+    created = create_immutable_semver_tag(
         plan["semver"],
         sha,
         message=f"oblt-aw release {plan['semver']}",
     )
+    if not created:
+        print(f"immutable tag {plan['semver']} already points at {sha}; skip create")
     move_tag(
         plan["previous_tag"],
         plan["previous_sha"],

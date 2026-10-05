@@ -111,3 +111,62 @@ def test_promote_requires_sha_without_push_from_plan() -> None:
     with pytest.raises(SystemExit) as exc:
         promote_cli.main(["--release-type", "patch"])
     assert exc.value.code == 2
+
+
+def test_promote_skips_immutable_create_when_tag_already_at_sha(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    sha = "a" * 40
+    pointers = {
+        "schema_version": 1,
+        "major": 0,
+        "tags": {"current": "v0", "next": "next", "previous": "previous"},
+        "pointers": {
+            "current": {"sha": "", "semver": "", "updated_at": ""},
+            "next": {"sha": "", "semver": "", "updated_at": ""},
+            "previous": {"sha": "", "semver": "", "updated_at": ""},
+        },
+    }
+    pointers_path = tmp_path / "release-pointers.json"
+    pointers_path.write_text(json.dumps(pointers) + "\n", encoding="utf-8")
+    moved: list[str] = []
+
+    monkeypatch.setattr(promote_cli, "resolve_sha", lambda ref: sha)
+    monkeypatch.setattr(
+        promote_cli, "require_ancestor_of", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(
+        promote_cli,
+        "create_immutable_semver_tag",
+        lambda *args, **kwargs: False,
+    )
+    monkeypatch.setattr(
+        promote_cli,
+        "move_tag",
+        lambda tag, target, *, message: moved.append(tag),
+    )
+    monkeypatch.setattr(promote_cli, "utc_now_iso", lambda: "2026-01-01T00:00:00+00:00")
+
+    assert (
+        promote_cli.main(
+            [
+                "--sha",
+                sha,
+                "--release-type",
+                "patch",
+                "--pointers-path",
+                str(pointers_path),
+                "--require-ancestor-of",
+                "origin/main",
+            ]
+        )
+        == 0
+    )
+    out = capsys.readouterr().out
+    assert "already points at" in out
+    assert moved == ["previous", "v0", "next"]
+    saved = json.loads(pointers_path.read_text(encoding="utf-8"))
+    assert saved["pointers"]["current"]["sha"] == sha
+    assert saved["pointers"]["current"]["semver"] == "v0.0.0"
