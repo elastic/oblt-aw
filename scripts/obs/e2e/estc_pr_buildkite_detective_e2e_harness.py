@@ -1105,7 +1105,7 @@ def wait_for_new_run(
     still fire ``on: status``) are ignored so the harness does not bind to them
     before the failure-triggered run completes. Nested jobs whose names only
     *contain* ``run-obs-aw-status`` (prelude children) are not the gate; bind
-    the ESTC conclusion leaf or the parent ``run-obs-aw-status`` job.
+    only when the ESTC conclusion leaf succeeded.
 
     Returns ``None`` if no matching completed run with a successful status-route
     job appears before the deadline (in-progress matches are not treated as seen).
@@ -1160,17 +1160,14 @@ _STATUS_ROUTE_PARENT_NAMES = frozenset(
 )
 
 
-def _is_status_route_job_name(name: str) -> bool:
-    """True for the status-trigger parent job or the ESTC conclusion leaf.
+def _is_status_route_parent_name(name: str) -> bool:
+    """True for the top-level ``run-obs-aw-status`` caller job only."""
+    return name.lower() in _STATUS_ROUTE_PARENT_NAMES
 
-    Nested prelude/wrapper children contain ``run-obs-aw-status`` as a prefix
-    (for example a skipped ``… / run-aw-prelude / load-oblt-aw-bot-allow-lists``).
-    Those must not authorize the waiter.
-    """
-    lowered = name.lower()
-    if lowered in _STATUS_ROUTE_PARENT_NAMES:
-        return True
-    return lowered.endswith(ESTC_DETECTIVE_CONCLUSION_LEAF_SUFFIX)
+
+def _is_estc_conclusion_leaf_name(name: str) -> bool:
+    """True for the nested ESTC lock ``conclusion`` leaf on the caller run."""
+    return name.lower().endswith(ESTC_DETECTIVE_CONCLUSION_LEAF_SUFFIX)
 
 
 def status_job_match(
@@ -1178,23 +1175,30 @@ def status_job_match(
 ) -> tuple[str, str] | None:
     """Return ``(job_name, conclusion)`` for the status-route job.
 
-    Prefer a non-skipped parent or ESTC conclusion leaf. If every match is
-    skipped, return that skipped job so negative cases can assert
-    ``job_conclusion=skipped``. Do not use the overall run conclusion.
+    Positive evidence requires the ESTC conclusion leaf (oracle lockstep). Parent
+    ``run-obs-aw-status`` matches are kept only for an explicit ``skipped``
+    conclusion so negative cases can assert ``job_conclusion=skipped``. Empty or
+    missing conclusions are unknown and never coerced to skipped. Nested prelude
+    children that only contain ``run-obs-aw-status`` as a prefix are ignored.
     """
     if not run_detail:
         return None
     skipped_match: tuple[str, str] | None = None
     for job in run_detail.get("jobs") or []:
         raw_name = str(job.get("name") or "")
-        if not _is_status_route_job_name(raw_name):
+        is_leaf = _is_estc_conclusion_leaf_name(raw_name)
+        is_parent = _is_status_route_parent_name(raw_name)
+        if not is_leaf and not is_parent:
             continue
         conclusion = (job.get("conclusion") or "").lower()
-        if conclusion in ("", "skipped"):
-            if skipped_match is None:
-                skipped_match = (raw_name, conclusion or "skipped")
+        if conclusion == "":
             continue
-        return (raw_name, conclusion)
+        if conclusion == "skipped":
+            if skipped_match is None:
+                skipped_match = (raw_name, "skipped")
+            continue
+        if is_leaf:
+            return (raw_name, conclusion)
     return skipped_match
 
 
@@ -1205,17 +1209,18 @@ def status_job_matched_name(run_detail: dict[str, Any] | None) -> str | None:
 
 
 def status_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
-    """Return the obs-aw-status parent or ESTC conclusion-leaf conclusion.
+    """Return the ESTC conclusion-leaf conclusion, or parent skip when leaf absent.
 
     Fail closed: do not treat the overall run conclusion as a substitute when the
     status job is absent (rename, empty jobs list, or unrelated successful jobs).
+    Parent success alone never authorizes the gate.
     """
     match = status_job_match(run_detail)
     return match[1] if match else None
 
 
 def status_job_executed(run_detail: dict[str, Any] | None) -> bool:
-    """True only when the status route job completed with success."""
+    """True only when the ESTC conclusion leaf completed with success."""
     return status_job_conclusion(run_detail) == "success"
 
 

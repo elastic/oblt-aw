@@ -508,6 +508,7 @@ class TestHarnessLive:
         assert (
             harness.status_job_executed({"conclusion": "success", "jobs": []}) is False
         )
+        # Parent success alone must not authorize (oracle requires conclusion leaf).
         assert (
             harness.status_job_conclusion(
                 {
@@ -520,7 +521,21 @@ class TestHarnessLive:
                     ],
                 }
             )
-            == "success"
+            is None
+        )
+        assert (
+            harness.status_job_executed(
+                {
+                    "conclusion": "success",
+                    "jobs": [
+                        {
+                            "name": "run-obs-aw-status",
+                            "conclusion": "success",
+                        }
+                    ],
+                }
+            )
+            is False
         )
         assert (
             harness.status_job_conclusion(
@@ -536,6 +551,53 @@ class TestHarnessLive:
             )
             == "skipped"
         )
+
+    def test_status_job_conclusion_ignores_empty_conclusion(
+        self,
+    ) -> None:
+        """Empty/missing conclusions are unknown — never coerced to skipped."""
+        assert (
+            harness.status_job_conclusion(
+                {
+                    "conclusion": "success",
+                    "jobs": [
+                        {
+                            "name": "run-obs-aw-status",
+                            "conclusion": "",
+                        }
+                    ],
+                }
+            )
+            is None
+        )
+        assert (
+            harness.status_job_conclusion(
+                {
+                    "conclusion": "success",
+                    "jobs": [
+                        {
+                            "name": ESTC_CONCLUSION_JOB,
+                            "conclusion": None,
+                        }
+                    ],
+                }
+            )
+            is None
+        )
+        assert harness.status_job_match(
+            {
+                "jobs": [
+                    {
+                        "name": "run-obs-aw-status",
+                        "conclusion": "",
+                    },
+                    {
+                        "name": ESTC_CONCLUSION_JOB,
+                        "conclusion": "skipped",
+                    },
+                ],
+            }
+        ) == (ESTC_CONCLUSION_JOB, "skipped")
 
     def test_status_job_conclusion_ignores_skipped_prelude_prefix(
         self,
@@ -566,6 +628,27 @@ class TestHarnessLive:
         assert harness.status_job_conclusion(run) == "success"
         assert harness.status_job_executed(run) is True
         assert harness.status_job_matched_name(run) == ESTC_CONCLUSION_JOB
+
+    def test_status_job_conclusion_prefers_leaf_over_earlier_parent_success(
+        self,
+    ) -> None:
+        """Parent listed before leaf must not win positive evidence."""
+        run = {
+            "conclusion": "success",
+            "jobs": [
+                {
+                    "name": "run-obs-aw-status",
+                    "conclusion": "success",
+                },
+                {
+                    "name": ESTC_CONCLUSION_JOB,
+                    "conclusion": "success",
+                },
+            ],
+        }
+        assert harness.status_job_conclusion(run) == "success"
+        assert harness.status_job_matched_name(run) == ESTC_CONCLUSION_JOB
+        assert harness.status_job_executed(run) is True
 
     def test_wait_for_new_run_skips_success_run_with_only_skipped_prelude(
         self, monkeypatch: pytest.MonkeyPatch
