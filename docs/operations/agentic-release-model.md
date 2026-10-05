@@ -37,6 +37,7 @@ Initial development list (everyone else in the obs/docs active lists is producti
 - **Shared train (default):** one moving major tag `v0` for production `pin-class` installs while the promote train is proven. Template source stays `@main`; distribute rewrites production installs to `tags.current`.
 - **Immutable audit tags:** `v0.x.y` created on each promote (never moved).
 - **Moving ops tags:** `v0` (current), `next`, `previous`.
+- **Lightweight tags only:** promote and rollback create lightweight git tags (not annotated). Consumers call nested relative reusable workflows (`uses: ./.github/workflows/...`); GitHub Actions cannot resolve those through an annotated tag pin such as `@v0`.
 - **Graduation:** when the process is fully automated and testable, promote `major` → `v1.0.0`, bump templates to `@v1`, and redistribute.
 - **Opt-in fine grain:** per-workflow pointers only when a route must promote independently (not implemented in the first slice; extend `release-pointers.json` when needed).
 

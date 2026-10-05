@@ -327,6 +327,22 @@ class TestRequireRemoteCurrentAllowsInFlight:
             )
 
 
+class TestMoveTag:
+    def test_creates_lightweight_force_tag(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run_git(args: list[str], *, check: bool = True) -> object:
+            del check
+            calls.append(args)
+            return _git_result("")
+
+        monkeypatch.setattr(rp, "run_git", fake_run_git)
+        rp.move_tag("v0", SHA_A, message="current v0.0.0")
+        assert calls == [["tag", "-f", "v0", SHA_A]]
+
+
 class TestCreateImmutableSemverTag:
     def test_creates_when_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         calls: list[list[str]] = []
@@ -344,7 +360,8 @@ class TestCreateImmutableSemverTag:
         assert (
             rp.create_immutable_semver_tag("v0.0.0", SHA_A, message="oblt-aw") is True
         )
-        assert ["tag", "-a", "v0.0.0", SHA_A, "-m", "oblt-aw"] in calls
+        assert ["tag", "v0.0.0", SHA_A] in calls
+        assert not any("-a" in args for args in calls)
 
     def test_skips_when_local_tag_points_at_planned_sha(
         self, monkeypatch: pytest.MonkeyPatch
@@ -364,7 +381,8 @@ class TestCreateImmutableSemverTag:
         assert (
             rp.create_immutable_semver_tag("v0.0.0", SHA_A, message="oblt-aw") is False
         )
-        assert not any(args[:2] == ["tag", "-a"] for args in calls)
+        assert not any(args[:2] == ["tag", "v0.0.0"] for args in calls)
+        assert not any("-a" in args for args in calls)
 
     def test_fails_when_local_tag_points_elsewhere(
         self, monkeypatch: pytest.MonkeyPatch
@@ -406,7 +424,8 @@ class TestCreateImmutableSemverTag:
             "origin",
             "refs/tags/v0.0.0:refs/tags/v0.0.0",
         ] in calls
-        assert not any(args[:2] == ["tag", "-a"] for args in calls)
+        assert not any(args[:2] == ["tag", "v0.0.0"] for args in calls)
+        assert not any("-a" in args for args in calls)
 
     def test_fails_when_origin_tag_points_elsewhere(
         self, monkeypatch: pytest.MonkeyPatch
