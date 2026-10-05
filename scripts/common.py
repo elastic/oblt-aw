@@ -118,13 +118,47 @@ def _reject_non_development_control_plane(repo: str, pin_class: str) -> None:
         )
 
 
-def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
+def _repository_name_from_entry(item: object) -> str:
+    """Return ``owner/repo`` from a string or object entry (no pin-class check)."""
     if isinstance(item, str):
         repo = item.strip()
         if "/" not in repo:
             raise SystemExit(
                 f"Invalid repository entry: {item!r}. Expected 'owner/repo'"
             )
+        return repo
+    if isinstance(item, dict):
+        raw_repo = item.get("repository")
+        if not isinstance(raw_repo, str) or "/" not in raw_repo.strip():
+            raise SystemExit(
+                f"Invalid repository entry: {item!r}. "
+                "Object entries require string 'repository' in 'owner/repo' form"
+            )
+        return raw_repo.strip()
+    raise SystemExit(
+        f"Invalid repository entry: {item!r}. "
+        "Expected 'owner/repo' string or object with 'repository'"
+    )
+
+
+def _load_repositories_list(content: str) -> list[object]:
+    data = json.loads(content) if content else {"repositories": []}
+    if isinstance(data, dict):
+        repositories = data.get("repositories", [])
+    elif isinstance(data, list):
+        repositories = data
+    else:
+        raise SystemExit(
+            "active-repositories.json must be a list or object with 'repositories'"
+        )
+    if not isinstance(repositories, list):
+        raise SystemExit("`repositories` must be a list")
+    return repositories
+
+
+def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
+    repo = _repository_name_from_entry(item)
+    if isinstance(item, str):
         if repo == CONTROL_PLANE_REPOSITORY:
             raise SystemExit(
                 f"{CONTROL_PLANE_REPOSITORY} requires an object entry with "
@@ -136,27 +170,20 @@ def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
             ai_assets_token_policy="",
             pin_class=PIN_CLASS_PRODUCTION,
         )
-    if isinstance(item, dict):
-        raw_repo = item.get("repository")
-        if not isinstance(raw_repo, str) or "/" not in raw_repo.strip():
-            raise SystemExit(
-                f"Invalid repository entry: {item!r}. "
-                "Object entries require string 'repository' in 'owner/repo' form"
-            )
-        repo = raw_repo.strip()
-        return ActiveRepositoryEntry(
-            repository=repo,
-            workflow_token_policy=_optional_policy_string(
-                item, "workflow-token-policy", repo
-            ),
-            ai_assets_token_policy=_optional_policy_string(
-                item, "ai-assets-token-policy", repo
-            ),
-            pin_class=_parse_pin_class(item, repo),
+    if not isinstance(item, dict):
+        raise SystemExit(
+            f"Invalid repository entry: {item!r}. "
+            "Expected 'owner/repo' string or object with 'repository'"
         )
-    raise SystemExit(
-        f"Invalid repository entry: {item!r}. "
-        "Expected 'owner/repo' string or object with 'repository'"
+    return ActiveRepositoryEntry(
+        repository=repo,
+        workflow_token_policy=_optional_policy_string(
+            item, "workflow-token-policy", repo
+        ),
+        ai_assets_token_policy=_optional_policy_string(
+            item, "ai-assets-token-policy", repo
+        ),
+        pin_class=_parse_pin_class(item, repo),
     )
 
 
@@ -170,17 +197,7 @@ def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]
     - List: same object entry shapes at the top level (legacy migration)
     - String entries in ``repositories`` (legacy migration only; prefer objects in config files)
     """
-    data = json.loads(content) if content else {"repositories": []}
-    if isinstance(data, dict):
-        repositories = data.get("repositories", [])
-    elif isinstance(data, list):
-        repositories = data
-    else:
-        raise SystemExit(
-            "active-repositories.json must be a list or object with 'repositories'"
-        )
-    if not isinstance(repositories, list):
-        raise SystemExit("`repositories` must be a list")
+    repositories = _load_repositories_list(content)
     entries = [_parse_repository_entry(item) for item in repositories]
     by_repo: dict[str, ActiveRepositoryEntry] = {}
     for entry in entries:
@@ -209,8 +226,21 @@ def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]
 
 
 def parse_repositories(content: str) -> list[str]:
-    """Parse active-repositories.json content into a list of owner/repo strings."""
+    """Parse current active-repositories.json into owner/repo strings (strict pin-class)."""
     return [entry.repository for entry in parse_active_repository_entries(content)]
+
+
+def parse_historical_repository_names(content: str) -> list[str]:
+    """
+    Extract owner/repo names from a prior ``active-repositories.json``.
+
+    Used only for BASE_REF / removal detection. Objects without ``pin-class``
+    (pre-migration) are accepted. Current-config validation stays strict.
+    """
+    names: set[str] = set()
+    for item in _load_repositories_list(content):
+        names.add(_repository_name_from_entry(item))
+    return sorted(names)
 
 
 def _merge_repository_policy_field_from_org_trees(

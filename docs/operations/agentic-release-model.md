@@ -12,7 +12,7 @@ Promote control-plane changes safely with mandatory gating E2E, keep consumer tr
 | Surface | Location | Pointer today |
 |---------|----------|---------------|
 | Distributed client triggers | `.github/remote-workflow-template/**/trigger-*-aw-*.yml` | Source tree pins `@main`; distribute substitutes the install pin from `pin-class` |
-| Installed client triggers (incl. control plane) | `.github/workflows/trigger-*-aw-*.yml` in each active repo | `development` → `@main`; `production` → `tags.current` (`@v0`) once `pointers.current.sha` is set |
+| Installed client triggers (incl. control plane) | `.github/workflows/trigger-*-aw-*.yml` in each active repo | `development` → `@main`; `production` → `tags.current` (`@v0`) once `pointers.current.sha` is set **and** that tag exists on origin |
 | Development pins | `pin-class: development` in `config/*/active-repositories.json` | Always `@main`. `elastic/oblt-aw` must be development (live E2E consumer) |
 | E2E-only schedule entry | `.github/workflows/e2e-trigger-obs-aw-schedule.yml` | Relative `./` (control-plane only; not distributed) |
 | Event orchestrators → routes | `obs-aw-event-*.yml` | Relative `./` (inherits caller pin) |
@@ -70,7 +70,7 @@ flowchart LR
 2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty current pointer) always creates `v0.0.0` from `config/release-pointers.json` `major`.
 3. Workflow calls `e2e-all` with `checkout-ref` set to `github.sha` (tip of `main` at promote start). Harness/oracle code is pinned to that SHA; live routes on pilot repos (including `elastic/oblt-aw`) exercise **default-branch tip** via `@main` client pins (and relative `e2e-trigger-*` where used).
 4. Before mutating tags, re-fetch and require the promote SHA is an **ancestor of** `origin/main` (or still the tip). If `main` advanced during E2E, promote **continues** and tags the gated SHA.
-5. On success: create immutable `vX.Y.Z` (no force-push), move `vX` / `next` / `previous`, **land** `config/release-pointers.json` via a Vault-authored PR (org Require-a-PR blocks direct pushes to `main`; approve as `GITHUB_TOKEN`, squash-merge as Vault), push tags, then create a **GitHub Release** for `vX.Y.Z` with auto-generated notes (range from the prior immutable semver when present). Semver bumps from the **highest** pointer semver so rollback cannot rewind immutable numbering. Before opening the pointers PR, fail closed if tip’s `release-pointers.json` differs from the plan-base SHA (re-dispatch on current tip; do not overwrite a newer promote/rollback landing).
+5. On success: create immutable `vX.Y.Z` (no force-push), move `vX` / `next` / `previous`, **push tags**, then **land** `config/release-pointers.json` via a Vault-authored PR (org Require-a-PR blocks direct pushes to `main`; approve as `GITHUB_TOKEN`, squash-merge as Vault), then create a **GitHub Release** for `vX.Y.Z` with auto-generated notes (range from the prior immutable semver when present). Tags go out before the pointers merge so distribute (path filter includes `config/release-pointers.json`) never writes production `uses: @vN` for a tag that is not on origin. Semver bumps from the **highest** pointer semver so rollback cannot rewind immutable numbering. Before opening the pointers PR, fail closed if tip’s `release-pointers.json` differs from the plan-base SHA (re-dispatch on current tip; do not overwrite a newer promote/rollback landing).
 
 Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-ref` defaults to `main`). Manual `workflow_dispatch` must run from the default branch; `checkout-ref` may only be that tip or a full SHA on its history. Promote pins `github.sha` at dispatch. PR CI does not call live E2E.
 
@@ -90,8 +90,8 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 
 1. Merge the release-model PR to `main` (template source still pins `@main`).
 2. Dispatch `aw-release-promote` on `main` with `release-type=patch` (first run → `v0` / `v0.0.0`).
-3. Merge the follow-up that classifies active repos (`pin-class`) and teaches distribute to substitute production pins. Development installs stay `@main`. Production installs stay `@main` until `pointers.current.sha` is set, then retarget `tags.current`.
-4. After the pointers file lands on `main`, distribute runs again (path filter includes `config/release-pointers.json`) and production consumers pick up `@v0`.
+3. Merge the follow-up that classifies active repos (`pin-class`) and teaches distribute to substitute production pins. Development installs stay `@main`. Production installs stay `@main` until `pointers.current.sha` is set and `tags.current` exists on origin.
+4. After the pointers file lands on `main`, distribute runs again (path filter includes `config/release-pointers.json`) and production consumers pick up `@v0` only if that tag is already published.
 
 ## Scripts and workflows
 

@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -41,8 +42,28 @@ CONTROL_PLANE_USES_RE = re.compile(
 )
 
 
+def published_moving_tag_exists(tag: str) -> bool:
+    """True when ``refs/tags/<tag>`` exists locally or on ``origin``."""
+    for args in (
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/tags/{tag}"],
+        ["git", "ls-remote", "--exit-code", "origin", f"refs/tags/{tag}"],
+    ):
+        try:
+            completed = subprocess.run(
+                args,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            continue
+        if completed.returncode == 0:
+            return True
+    return False
+
+
 def production_pin_ref(pointers: dict[str, Any]) -> str:
-    """Return ``tags.current`` when the current pointer SHA exists, else ``main``."""
+    """Return ``tags.current`` when the current SHA is set and the tag is published."""
     tags = pointers.get("tags")
     if not isinstance(tags, dict):
         raise SystemExit("release-pointers.json tags must be an object")
@@ -56,6 +77,11 @@ def production_pin_ref(pointers: dict[str, Any]) -> str:
         raise SystemExit(str(exc)) from exc
     if not sha:
         return DEVELOPMENT_PIN_REF
+    if not published_moving_tag_exists(tag):
+        raise SystemExit(
+            f"production pin {tag!r} is not published; refuse retarget until "
+            "tags.current exists on origin"
+        )
     return tag
 
 

@@ -62,7 +62,10 @@ class TestResolveControlPlanePin:
             cwp.resolve_control_plane_pin(PIN_CLASS_PRODUCTION, _pointers()) == "main"
         )
 
-    def test_production_uses_tags_current_when_sha_set(self) -> None:
+    def test_production_uses_tags_current_when_sha_set(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cwp, "published_moving_tag_exists", lambda tag: True)
         sha = "b" * 40
         assert (
             cwp.resolve_control_plane_pin(
@@ -70,6 +73,15 @@ class TestResolveControlPlanePin:
             )
             == "v0"
         )
+
+    def test_production_fails_when_sha_set_and_tag_unpublished(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cwp, "published_moving_tag_exists", lambda tag: False)
+        with pytest.raises(SystemExit, match="not published"):
+            cwp.resolve_control_plane_pin(
+                PIN_CLASS_PRODUCTION, _pointers(sha="c" * 40, tag="v0")
+            )
 
     def test_unknown_pin_class_fails(self) -> None:
         with pytest.raises(SystemExit, match="Unknown pin-class"):

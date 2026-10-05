@@ -101,6 +101,26 @@ class TestPinClass:
         with pytest.raises(SystemExit, match="pin-class"):
             common.parse_active_repository_entries(content)
 
+    def test_historical_names_accept_objects_without_pin_class(self) -> None:
+        content = json.dumps(
+            {
+                "repositories": [
+                    {
+                        "repository": "elastic/foo",
+                        "workflow-token-policy": "token-policy-legacy",
+                        "ai-assets-token-policy": "",
+                    },
+                    "elastic/bar",
+                ]
+            }
+        )
+        assert common.parse_historical_repository_names(content) == [
+            "elastic/bar",
+            "elastic/foo",
+        ]
+        with pytest.raises(SystemExit, match="pin-class"):
+            common.parse_repositories(content)
+
     def test_oblt_aw_production_fails(self) -> None:
         content = json.dumps(
             {

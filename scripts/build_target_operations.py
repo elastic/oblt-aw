@@ -24,7 +24,7 @@ from common import (
     discover_repo_org_assignments,
     merge_repository_pin_classes_from_org_trees,
     merge_repository_workflow_token_policies_from_org_trees,
-    parse_repositories,
+    parse_historical_repository_names,
     write_outputs,
 )
 
@@ -83,7 +83,11 @@ def list_org_template_files_at_ref(org_key: str, ref: str) -> list[dict[str, str
 
 
 def read_previous_repo_org_assignments(base_ref: str) -> dict[str, list[str]]:
-    """Repo→sorted-org-keys mapping at ``base_ref``, recovered from git history."""
+    """Repo→sorted-org-keys mapping at ``base_ref``, recovered from git history.
+
+    Historical files may lack ``pin-class``; names are extracted without
+    current-config validation.
+    """
     if not base_ref or base_ref == ZERO_SHA:
         return {}
     assignments: dict[str, set[str]] = {}
@@ -114,7 +118,7 @@ def read_previous_repo_org_assignments(base_ref: str) -> dict[str, list[str]]:
             ).stdout
         except subprocess.CalledProcessError:
             continue
-        for repo in parse_repositories(content):
+        for repo in parse_historical_repository_names(content):
             assignments.setdefault(repo, set()).add(org_key)
     return {repo: sorted(orgs) for repo, orgs in assignments.items()}
 

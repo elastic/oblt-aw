@@ -19,6 +19,19 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
 
 import build_target_operations as bto
+import client_workflow_pin as cwp
+from common import parse_historical_repository_names, parse_repositories
+
+UNINITIALIZED_RELEASE_POINTERS = {
+    "schema_version": 1,
+    "major": 0,
+    "tags": {"current": "v0", "next": "next", "previous": "previous"},
+    "pointers": {
+        "current": {"sha": "", "semver": "", "updated_at": ""},
+        "next": {"sha": "", "semver": "", "updated_at": ""},
+        "previous": {"sha": "", "semver": "", "updated_at": ""},
+    },
+}
 
 # ── parse_repositories ────────────────────────────────────────────────────────
 
@@ -26,56 +39,65 @@ import build_target_operations as bto
 class TestParseRepositories:
     def test_list_of_strings(self) -> None:
         content = json.dumps(["elastic/foo", "elastic/bar"])
-        result = bto.parse_repositories(content)
+        result = parse_repositories(content)
         assert result == ["elastic/bar", "elastic/foo"]  # sorted
 
     def test_object_with_repositories_key(self) -> None:
         content = json.dumps({"repositories": ["elastic/zoo", "elastic/abc"]})
-        result = bto.parse_repositories(content)
+        result = parse_repositories(content)
         assert result == ["elastic/abc", "elastic/zoo"]
 
     def test_deduplication(self) -> None:
         content = json.dumps(["elastic/dup", "elastic/dup", "elastic/other"])
-        result = bto.parse_repositories(content)
+        result = parse_repositories(content)
         assert result == ["elastic/dup", "elastic/other"]
 
     def test_whitespace_trimmed(self) -> None:
         content = json.dumps(["  elastic/trimmed  "])
-        result = bto.parse_repositories(content)
+        result = parse_repositories(content)
         assert result == ["elastic/trimmed"]
 
     def test_empty_repositories_key(self) -> None:
         content = json.dumps({"repositories": []})
-        result = bto.parse_repositories(content)
+        result = parse_repositories(content)
         assert result == []
 
     def test_empty_list(self) -> None:
-        result = bto.parse_repositories(json.dumps([]))
+        result = parse_repositories(json.dumps([]))
         assert result == []
 
     def test_empty_string_returns_empty(self) -> None:
-        result = bto.parse_repositories("")
+        result = parse_repositories("")
         assert result == []
 
     def test_invalid_entry_raises(self) -> None:
         content = json.dumps(["not-a-valid-repo"])
         with pytest.raises(SystemExit, match="Invalid repository entry"):
-            bto.parse_repositories(content)
+            parse_repositories(content)
 
     def test_non_string_entry_raises(self) -> None:
         content = json.dumps([123])
         with pytest.raises(SystemExit, match="Invalid repository entry"):
-            bto.parse_repositories(content)
+            parse_repositories(content)
 
     def test_invalid_top_level_type_raises(self) -> None:
         content = json.dumps("a string, not a list or dict")
         with pytest.raises(SystemExit):
-            bto.parse_repositories(content)
+            parse_repositories(content)
 
     def test_repositories_not_a_list_raises(self) -> None:
         content = json.dumps({"repositories": "elastic/foo"})
         with pytest.raises(SystemExit, match="`repositories` must be a list"):
-            bto.parse_repositories(content)
+            parse_repositories(content)
+
+    def test_object_without_pin_class_raises(self) -> None:
+        content = json.dumps({"repositories": [{"repository": "elastic/foo"}]})
+        with pytest.raises(SystemExit, match="pin-class"):
+            parse_repositories(content)
+
+    def test_historical_names_accept_objects_without_pin_class(self) -> None:
+        content = json.dumps({"repositories": [{"repository": "elastic/foo"}]})
+        assert parse_historical_repository_names(content) == ["elastic/foo"]
 
 
 # ── parse_bool ────────────────────────────────────────────────────────────────
@@ -210,11 +232,8 @@ class TestMain:
         (tmp_path / "config" / "obs" / "active-repositories.json").write_text(
             json.dumps(config)
         )
-        repo_root = pathlib.Path(__file__).resolve().parents[2]
         (tmp_path / "config" / "release-pointers.json").write_text(
-            repo_root.joinpath("config", "release-pointers.json").read_text(
-                encoding="utf-8"
-            ),
+            json.dumps(UNINITIALIZED_RELEASE_POINTERS),
             encoding="utf-8",
         )
         tmpl = (
@@ -305,6 +324,7 @@ class TestMain:
     def test_production_pin_uses_moving_tag_when_current_sha_set(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
     ) -> None:
+        monkeypatch.setattr(cwp, "published_moving_tag_exists", lambda tag: True)
         output_file = self._setup_env(
             monkeypatch,
             tmp_path,
