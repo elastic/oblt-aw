@@ -51,6 +51,9 @@ jobs:
   e2e-all:
     name: E2E — All
     needs: guard
+    # Defense in depth: GitHub cannot restrict the workflow_dispatch branch
+    # picker; guard fails closed and this skips E2E off the default branch.
+    if: ${{ github.ref_name == github.event.repository.default_branch }}
     permissions:
       actions: write
       checks: read
@@ -67,6 +70,7 @@ jobs:
   promote:
     name: Tag and update pointers
     needs: e2e-all
+    if: ${{ github.ref_name == github.event.repository.default_branch }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

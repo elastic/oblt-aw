@@ -46,6 +46,9 @@ jobs:
   rollback:
     name: Rollback current pointer
     needs: guard
+    # Defense in depth: GitHub cannot restrict the workflow_dispatch branch
+    # picker; guard fails closed and this skips rollback off the default branch.
+    if: ${{ github.ref_name == github.event.repository.default_branch }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
