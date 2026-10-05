@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/aw-release-promote.yml](../../.github/workflows/aw-release-promote.yml)
 
-Promotes the tip of the default branch (`main`) after `e2e-all` passes. Pins E2E harness checkout to `github.sha` at promote start. If `main` advanced during E2E, tagging still proceeds for the gated SHA. Lands `config/release-pointers.json` via a Vault-authored PR (org rules block direct pushes to `main`), failing closed if tip’s pointer file moved since the plan-base SHA or if the PR head moves after `create-pull-request`, then pushes tags and creates a GitHub Release with auto-generated notes for the immutable semver tag.
+Promotes the tip of the default branch (`main`) after `e2e-all` passes. Pins E2E harness checkout to `github.sha` at promote start. If `main` advanced during E2E, tagging still proceeds for the gated SHA. Lands `config/release-pointers.json` via a Vault-authored PR (org rules block direct pushes to `main`). Prepare leaves uncommitted pointer edits on the default-branch tip so `create-pull-request` can own `release/pointers-<run_id>`; the job fails closed if tip’s pointer file moved since the plan-base SHA or if the PR head moves after `create-pull-request`. Then pushes tags and creates a GitHub Release with auto-generated notes for the immutable semver tag.
 
 Full model and runbook: [agentic-release-model](../operations/agentic-release-model.md).
 

@@ -118,6 +118,54 @@ def test_require_pointers_base_matches_tip_rejects_presence_mismatch(
     assert "presence differs" in result.stdout + result.stderr
 
 
+def test_prepare_stays_on_default_branch_not_pr_branch(
+    tmp_path: pathlib.Path,
+) -> None:
+    origin = tmp_path / "origin.git"
+    origin.mkdir()
+    _git(origin, "init", "--bare")
+
+    repo = tmp_path / "work"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "test")
+    (repo / "config").mkdir()
+    (repo / POINTERS).write_text('{"version":1,"current":"aaa"}\n', encoding="utf-8")
+    _git(repo, "add", POINTERS)
+    _git(repo, "commit", "-m", "base pointers")
+    _git(repo, "branch", "-M", "main")
+    _git(repo, "remote", "add", "origin", str(origin))
+    _git(repo, "push", "-u", "origin", "main")
+    plan_base = _git(repo, "rev-parse", "HEAD")
+
+    planned = '{"version":1,"current":"promoted"}\n'
+    (repo / POINTERS).write_text(planned, encoding="utf-8")
+
+    github_output = tmp_path / "github_output"
+    runner_temp = tmp_path / "runner_temp"
+    runner_temp.mkdir()
+
+    result = _call(
+        "aw_release_prepare_pointers_branch",
+        "main",
+        plan_base,
+        "release/pointers",
+        "37283431427",
+        POINTERS,
+        str(github_output),
+        str(runner_temp),
+        cwd=repo,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert _git(repo, "symbolic-ref", "--short", "HEAD") == "main"
+    local_branches = _git(repo, "branch", "--list")
+    assert "release/pointers-37283431427" not in local_branches
+    assert (repo / POINTERS).read_text(encoding="utf-8") == planned
+    assert "has_changes=true" in github_output.read_text(encoding="utf-8")
+    assert "for release/pointers-37283431427" in result.stdout
+
+
 def test_require_pointers_base_matches_tip_ok_when_both_absent(
     tmp_path: pathlib.Path,
 ) -> None:
