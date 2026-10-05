@@ -10,7 +10,7 @@ This workflow distributes or removes client files from each org’s subtree unde
 
 - Per-org [active-repositories.json](../../config/obs/active-repositories.json) files under `config/<org-key>/` list current target repositories (union used for distribution).
 - Per-org templates under [.github/remote-workflow-template/<org-key>/](../../.github/remote-workflow-template/) are the **only** sources for files installed into consumer repositories (for example `obs/.github/workflows/trigger-obs-aw-*.yml` → `.github/workflows/trigger-obs-aw-*.yml`). Edit only under [remote-workflow-template](../../.github/remote-workflow-template/) (see [Client template doc](../workflows/obs-aw-client-template.md)).
-- Most consumer templates stay on `@main` until the first promote creates `v0` / `v0.0.0`; a follow-up PR then pins `@v0` for the shared train (see [agentic release model](agentic-release-model.md)). Distribute **includes** the control-plane repository when it is listed in `active-repositories.json` (pilot / early-detection consumer of the same client templates). Pilot repos (including `elastic/oblt-aw`) are intended to keep pinning `@main` after the shared train moves to `@v0`.
+- Template source under [remote-workflow-template](../../.github/remote-workflow-template/) pins `@main`. At install time, distribute substitutes `uses: elastic/oblt-aw/...@<pin>` from each repo’s `pin-class` (see [agentic release model](agentic-release-model.md)). `development` always gets `@main`. `production` gets `tags.current` from [release-pointers.json](../../config/release-pointers.json) once `pointers.current.sha` is set; until then production also stays `@main` so missing tags are not distributed. Distribute **includes** the control-plane repository when it is listed (must be `pin-class: development`).
 - Token policy configured for [elastic/oblt-actions/github/create-token@v1](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
 - The minted token must be a GitHub App bot token with permission to write contents and pull requests in each target repository; `create-pull-request` uses this token to create GitHub-verified bot commits.
 
@@ -20,6 +20,7 @@ Triggers:
 
 - `push` to `main` when either of these paths change:
   - `config/**/active-repositories.json` (per-org repo lists)
+  - `config/release-pointers.json` (production pin retarget after promote)
   - [.github/remote-workflow-template/](../../.github/remote-workflow-template/)
 - `workflow_dispatch` with optional `force` boolean input.
 
@@ -47,11 +48,13 @@ PR labels on install and remove PRs:
     "repositories": [
       {
         "repository": "elastic/oblt-aw",
+        "pin-class": "development",
         "workflow-token-policy": "",
         "ai-assets-token-policy": ""
       },
       {
         "repository": "elastic/oblt-cli",
+        "pin-class": "production",
         "workflow-token-policy": "token-policy-abc123def456",
         "ai-assets-token-policy": ""
       }
@@ -62,15 +65,17 @@ PR labels on install and remove PRs:
 Validation and normalization rules:
 
 - `repositories` must resolve to a JSON list.
-- Every entry is an object with required `repository` (`owner/repo`), `workflow-token-policy` (string; use `""` when Vault auto policy / control-plane defaults apply for agentic workflow `create-token`), and `ai-assets-token-policy` (string; use `""` when `apm install` can use the job `GITHUB_TOKEN`).
+- Every entry is an object with required `repository` (`owner/repo`), `pin-class` (`development` or `production`), `workflow-token-policy` (string; use `""` when Vault auto policy / control-plane defaults apply for agentic workflow `create-token`), and `ai-assets-token-policy` (string; use `""` when `apm install` can use the job `GITHUB_TOKEN`).
+- `pin-class: development` installs keep `uses: elastic/oblt-aw/...@main`. `pin-class: production` installs use `tags.current` from [release-pointers.json](../../config/release-pointers.json) once `pointers.current.sha` is set; until then they stay `@main`.
+- `elastic/oblt-aw` must be `pin-class: development`. Parser/CI fail if it is missing, `production`, or any other value.
 - When `workflow-token-policy` is non-empty, consumer `create-token` steps (via `aw-prelude`) use that policy for that repository; when empty, consumer workflows keep Vault auto policy per trigger workflow ref. When `ai-assets-token-policy` is non-empty, [aw-resolve-agentic-assets.yml](../../.github/workflows/aw-resolve-agentic-assets.yml) mints an ephemeral token for APM private package clones. Control-plane `distribute-client-workflow` and `sync-control-plane-dashboard` always use their fixed workflow token policies (`token-policy-63405ab45244` and `token-policy-8b60ba56dd3f`).
 - Entries are normalized (trimmed), de-duplicated, and sorted before processing.
 - Invalid entries fail the step with: `Invalid repository entry: ... Expected object with 'repository'`.
 
 Examples:
 
-- Valid: `{"repository": "elastic/oblt-aw", "workflow-token-policy": "", "ai-assets-token-policy": ""}`
-- Invalid: `"elastic/oblt-aw"` (bare string), `"elastic"` (missing slash in `repository`), `123` (non-object), `{"repo":"elastic/oblt-aw"}` (wrong key)
+- Valid: `{"repository": "elastic/oblt-aw", "pin-class": "development", "workflow-token-policy": "", "ai-assets-token-policy": ""}`
+- Invalid: `"elastic/oblt-aw"` (bare string), `"elastic"` (missing slash in `repository`), `123` (non-object), `{"repo":"elastic/oblt-aw"}` (wrong key), `{"repository":"elastic/oblt-aw","pin-class":"production"}` (`elastic/oblt-aw` must be development)
 
 ## `build_target_operations.py` Contract
 
@@ -85,12 +90,12 @@ Behavior:
 
 - If `CHANGED_FILES_COUNT == 0`, `FORCE_DISTRIBUTION` is false, and `git diff --name-only` between `BASE_REF` and `HEAD` under `config/` and `.github/remote-workflow-template/` is empty, returns no targets. The git fallback covers template **renames** (the changed-files action only counts added, modified, and deleted paths).
 - Always generates `install` operations for repositories in the current union of per-org lists (see [scripts/build_target_operations.py](../../scripts/build_target_operations.py)).
-- Each `install` target includes `remove_files`: destination paths that existed in the template tree at `BASE_REF` for that repository’s org assignments but are absent from the current tree.
+- Each `install` target includes `remove_files`, `pin-class`, and `control-plane-pin` (the git ref substituted into `uses: elastic/oblt-aw/...@<pin>`).
 - Generates `remove` operations for repositories present at `BASE_REF` but absent from current config.
 
 Workflow outputs written by the script:
 
-- `targets`: JSON array of objects like `{"repository":"owner/repo","operation":"install|remove"}`
+- `targets`: JSON array of objects like `{"repository":"owner/repo","operation":"install|remove","pin-class":"development|production","control-plane-pin":"main|v0"}`
 - `has_targets`: `true` when at least one operation exists; otherwise `false`
 - `install_count`: count of install/update operations
 - `remove_count`: count of removal operations

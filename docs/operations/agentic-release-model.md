@@ -11,20 +11,30 @@ Promote control-plane changes safely with mandatory gating E2E, keep consumer tr
 
 | Surface | Location | Pointer today |
 |---------|----------|---------------|
-| Distributed client triggers | `.github/remote-workflow-template/**/trigger-*-aw-*.yml` | `elastic/oblt-aw/.../obs-aw-event-*.yml@main` until first promote creates `v0` / `v0.0.0`, then a follow-up PR switches the shared train to `@v0` |
-| Installed client triggers (incl. control plane) | `.github/workflows/trigger-*-aw-*.yml` in each active repo | Same files distribute installs from the remote templates; `elastic/oblt-aw` is a pilot target |
-| Pilot / guinea-pig pins | Selected active repos (at least `elastic/oblt-aw`) | Stay on `@main` for early failure detection after the shared train moves to `@v0` (pin policy TBD when `@v0` lands) |
+| Distributed client triggers | `.github/remote-workflow-template/**/trigger-*-aw-*.yml` | Source tree pins `@main`; distribute substitutes the install pin from `pin-class` |
+| Installed client triggers (incl. control plane) | `.github/workflows/trigger-*-aw-*.yml` in each active repo | `development` → `@main`; `production` → `tags.current` (`@v0`) once `pointers.current.sha` is set |
+| Development pins | `pin-class: development` in `config/*/active-repositories.json` | Always `@main`. `elastic/oblt-aw` must be development (live E2E consumer) |
 | E2E-only schedule entry | `.github/workflows/e2e-trigger-obs-aw-schedule.yml` | Relative `./` (control-plane only; not distributed) |
 | Event orchestrators → routes | `obs-aw-event-*.yml` | Relative `./` (inherits caller pin) |
 | In-repo GH-AW locks | `obs-aw-autodoc.yml`, `obs-aw-dependency-review.yml`, `obs-aw-estc-pr-buildkite-detective.yml` | Relative `./gh-aw-*.lock.yml` (inherits caller pin) |
 | Upstream locks still in `ai-github-actions` | Other `obs-aw-*.yml` wrappers | `elastic/ai-github-actions/...@main` (until [#1876](https://github.com/elastic/oblt-aw/issues/1876)) |
 | Release metadata | `config/release-pointers.json` | `current` / `next` / `previous` SHAs + semver |
 
-**Why pilots stay on `@main`:** After promote, most consumers pin `@v0`. Pilot repositories (including `elastic/oblt-aw`) keep consuming tip of `main` so live schedules, PR routes, and E2E that poll real client triggers catch control-plane regressions before the shared train promotes.
+**Why development stays on `@main`:** After promote, production consumers pin the moving major (`@v0`). Development repositories (including `elastic/oblt-aw`) keep consuming tip of `main` so live schedules, PR routes, and E2E that poll real client triggers catch control-plane regressions before the shared train promotes. Parser/CI reject any `pin-class` for `elastic/oblt-aw` other than `development`.
+
+Initial development list (everyone else in the obs/docs active lists is production):
+
+- `elastic/oblt-actions`
+- `elastic/oblt-aw`
+- `elastic/oblt-infra`
+- `elastic/observability-github-secrets`
+- `elastic/observability-github-settings`
+- `elastic/observability-robots`
+- `elastic/observability-robots-playground-public`
 
 ## Target model (hybrid)
 
-- **Shared train (default):** one moving major tag `v0` for all distributed clients while the promote train is proven (templates pin `@v0` only after the tag exists).
+- **Shared train (default):** one moving major tag `v0` for production `pin-class` installs while the promote train is proven. Template source stays `@main`; distribute rewrites production installs to `tags.current`.
 - **Immutable audit tags:** `v0.x.y` created on each promote (never moved).
 - **Moving ops tags:** `v0` (current), `next`, `previous`.
 - **Graduation:** when the process is fully automated and testable, promote `major` → `v1.0.0`, bump templates to `@v1`, and redistribute.
@@ -42,7 +52,7 @@ flowchart LR
 
 | Change type | Consumer action |
 |-------------|-----------------|
-| Patch / minor (compatible) | None — retarget `v0` after promote (once consumers pin `@v0`) |
+| Patch / minor (compatible) | None for production — retarget `v0` after promote. Development stays on `@main`. |
 | Major / breaking (incl. graduate to `v1`) | Bump templates to `@v1` (or next major), redistribute |
 
 ## Automation vs human gates
@@ -78,9 +88,10 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 
 ## First promote (after this model lands)
 
-1. Merge the release-model PR to `main` (templates still pin `@main`).
+1. Merge the release-model PR to `main` (template source still pins `@main`).
 2. Dispatch `aw-release-promote` on `main` with `release-type=patch` (first run → `v0` / `v0.0.0`).
-3. Open a follow-up PR that switches the shared-train client templates from `@main` → `@v0`, then redistribute. Keep pilot / guinea-pig repos (including `elastic/oblt-aw`) on `@main` for early detection.
+3. Merge the follow-up that classifies active repos (`pin-class`) and teaches distribute to substitute production pins. Development installs stay `@main`. Production installs stay `@main` until `pointers.current.sha` is set, then retarget `tags.current`.
+4. After the pointers file lands on `main`, distribute runs again (path filter includes `config/release-pointers.json`) and production consumers pick up `@v0`.
 
 ## Scripts and workflows
 

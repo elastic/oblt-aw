@@ -177,6 +177,7 @@ class TestMain:
         force: str = "false",
         base_ref: str = "",
         repos: list[str] | None = None,
+        pin_classes: dict[str, str] | None = None,
     ) -> pathlib.Path:
         output_file = tmp_path / "github_output"
         output_file.touch()
@@ -186,7 +187,21 @@ class TestMain:
         monkeypatch.setenv("BASE_REF", base_ref)
         monkeypatch.chdir(tmp_path)
 
-        config = {"repositories": repos or ["elastic/foo", "elastic/bar"]}
+        names = repos or ["elastic/foo", "elastic/bar"]
+        if pin_classes is None:
+            config: dict[str, object] = {"repositories": names}
+        else:
+            config = {
+                "repositories": [
+                    {
+                        "repository": name,
+                        "pin-class": pin_classes[name],
+                        "workflow-token-policy": "",
+                        "ai-assets-token-policy": "",
+                    }
+                    for name in names
+                ]
+            }
         (tmp_path / "config").mkdir(exist_ok=True)
         (tmp_path / "config" / "obs").mkdir(exist_ok=True)
         (tmp_path / "config" / "obs" / "workflow-registry.json").write_text(
@@ -194,6 +209,13 @@ class TestMain:
         )
         (tmp_path / "config" / "obs" / "active-repositories.json").write_text(
             json.dumps(config)
+        )
+        repo_root = pathlib.Path(__file__).resolve().parents[2]
+        (tmp_path / "config" / "release-pointers.json").write_text(
+            repo_root.joinpath("config", "release-pointers.json").read_text(
+                encoding="utf-8"
+            ),
+            encoding="utf-8",
         )
         tmpl = (
             tmp_path
@@ -244,6 +266,8 @@ class TestMain:
             assert ".github/workflows/trigger-obs-aw-pull-request.yml" in dsts
             assert "remove_files" in t
             assert t["remove_files"] == []
+            assert t["pin-class"] == "production"
+            assert t["control-plane-pin"] == "main"
 
     def test_includes_control_plane_self_repository(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
@@ -254,6 +278,10 @@ class TestMain:
             tmp_path,
             changed_files_count=1,
             repos=["elastic/oblt-aw", "elastic/foo"],
+            pin_classes={
+                "elastic/foo": "production",
+                "elastic/oblt-aw": "development",
+            },
         )
         monkeypatch.setenv("GITHUB_REPOSITORY", "elastic/oblt-aw")
         rc = bto.main()
@@ -268,6 +296,46 @@ class TestMain:
         )
         repos = {t["repository"] for t in targets}
         assert repos == {"elastic/foo", "elastic/oblt-aw"}
+        pins = {
+            t["repository"]: (t["pin-class"], t["control-plane-pin"]) for t in targets
+        }
+        assert pins["elastic/oblt-aw"] == ("development", "main")
+        assert pins["elastic/foo"] == ("production", "main")
+
+    def test_production_pin_uses_moving_tag_when_current_sha_set(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        output_file = self._setup_env(
+            monkeypatch,
+            tmp_path,
+            changed_files_count=1,
+            repos=["elastic/foo", "elastic/oblt-aw"],
+            pin_classes={
+                "elastic/foo": "production",
+                "elastic/oblt-aw": "development",
+            },
+        )
+        pointers = json.loads(
+            (tmp_path / "config" / "release-pointers.json").read_text(encoding="utf-8")
+        )
+        pointers["pointers"]["current"]["sha"] = "a" * 40
+        pointers["pointers"]["current"]["semver"] = "v0.0.0"
+        (tmp_path / "config" / "release-pointers.json").write_text(
+            json.dumps(pointers), encoding="utf-8"
+        )
+        rc = bto.main()
+        assert rc == 0
+        content = output_file.read_text()
+        targets = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in content.splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        pins = {t["repository"]: t["control-plane-pin"] for t in targets}
+        assert pins["elastic/foo"] == "v0"
+        assert pins["elastic/oblt-aw"] == "main"
 
     def test_force_distribution(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path

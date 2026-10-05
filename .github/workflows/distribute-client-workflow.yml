@@ -6,9 +6,12 @@ on:
       - main
     paths:
       - config/**/active-repositories.json
+      - config/release-pointers.json
       - .github/remote-workflow-template/**
       - .github/workflows/distribute-client-workflow.yml
       - scripts/build_target_operations.py
+      - scripts/client_workflow_pin.py
+      - scripts/common.py
   workflow_dispatch:
     inputs:
       force:
@@ -48,7 +51,7 @@ jobs:
         with:
           base-ref: ${{ github.event.before }}
           ref: ${{ github.sha }}
-          filter: '["config/**/active-repositories.json",".github/remote-workflow-template/**"]'
+          filter: '["config/**/active-repositories.json","config/release-pointers.json",".github/remote-workflow-template/**"]'
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -120,6 +123,8 @@ jobs:
         if: ${{ matrix.target.operation == 'install' }}
         env:
           FILES_JSON: ${{ toJSON(matrix.target.files) }}
+          CONTROL_PLANE_PIN: ${{ matrix.target.control-plane-pin }}
+          TARGET_ROOT: ${{ github.workspace }}/target
         run: |
           set -euo pipefail
 
@@ -129,6 +134,8 @@ jobs:
             mkdir -p "$(dirname "$dst")"
             cp "$src" "$dst"
           done
+
+          python3 "$GITHUB_WORKSPACE/source/scripts/client_workflow_pin.py"
 
       - name: Remove obsolete client files from target repository
         if: ${{ matrix.target.operation == 'install' }}

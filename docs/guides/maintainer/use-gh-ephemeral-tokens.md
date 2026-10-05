@@ -17,8 +17,9 @@ Per-repository entries in `config/<org-key>/active-repositories.json` include:
 
 | Field | Purpose |
 |-------|---------|
-| `workflow-token-policy` | Explicit Backstage policy name for agentic workflow `create-token` steps (exposed as `shared-token-policy` via [aw-prelude](../../workflows/aw-prelude.md)). Use `""` when Vault auto policy applies per trigger workflow ref. |
 | `ai-assets-token-policy` | Policy for private APM package clones during [aw-resolve-agentic-assets](../../workflows/aw-resolve-agentic-assets.md). Use `""` when the job `GITHUB_TOKEN` is sufficient. |
+| `pin-class` | `development` installs pin client `uses:` at `@main`; `production` installs pin at `tags.current` after the first promote. `elastic/oblt-aw` must be `development`. |
+| `workflow-token-policy` | Explicit Backstage policy name for agentic workflow `create-token` steps (exposed as `shared-token-policy` via [aw-prelude](../../workflows/aw-prelude.md)). Use `""` when Vault auto policy applies per trigger workflow ref. |
 
 Details: [distribute-client-workflow — distribution configuration contract](../../operations/distribute-client-workflow.md#distribution-configuration-contract-per-org-active-repositoriesjson).
 

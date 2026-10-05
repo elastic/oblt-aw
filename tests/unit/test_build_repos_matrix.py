@@ -87,6 +87,7 @@ class TestParseRepositories:
                     "elastic/foo",
                     {
                         "repository": "elastic/bar",
+                        "pin-class": "production",
                         "workflow-token-policy": "token-policy-abc123",
                         "ai-assets-token-policy": "token-policy-ai-456",
                     },
@@ -95,11 +96,16 @@ class TestParseRepositories:
         )
         entries = parse_active_repository_entries(content)
         assert [
-            (e.repository, e.workflow_token_policy, e.ai_assets_token_policy)
+            (
+                e.repository,
+                e.workflow_token_policy,
+                e.ai_assets_token_policy,
+                e.pin_class,
+            )
             for e in entries
         ] == [
-            ("elastic/bar", "token-policy-abc123", "token-policy-ai-456"),
-            ("elastic/foo", "", ""),
+            ("elastic/bar", "token-policy-abc123", "token-policy-ai-456", "production"),
+            ("elastic/foo", "", "", "production"),
         ]
 
     def test_duplicate_repo_conflicting_policy_raises(self) -> None:
@@ -108,10 +114,12 @@ class TestParseRepositories:
                 "repositories": [
                     {
                         "repository": "elastic/foo",
+                        "pin-class": "production",
                         "workflow-token-policy": "token-policy-a",
                     },
                     {
                         "repository": "elastic/foo",
+                        "pin-class": "production",
                         "workflow-token-policy": "token-policy-b",
                     },
                 ]
@@ -249,6 +257,7 @@ class TestMain:
                     "repositories": [
                         {
                             "repository": "elastic/foo",
+                            "pin-class": "production",
                             "workflow-token-policy": "token-policy-custom",
                             "ai-assets-token-policy": "",
                         }

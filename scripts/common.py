@@ -40,6 +40,13 @@ LEGACY_DEFAULT_ORG_KEY = "obs"
 # Subdirectories of ``config/`` that are never org roots (JSON Schema, etc.).
 RESERVED_CONFIG_DIR_NAMES: frozenset[str] = frozenset({"schema"})
 
+CONTROL_PLANE_REPOSITORY = "elastic/oblt-aw"
+PIN_CLASS_DEVELOPMENT = "development"
+PIN_CLASS_PRODUCTION = "production"
+ALLOWED_PIN_CLASSES: frozenset[str] = frozenset(
+    {PIN_CLASS_DEVELOPMENT, PIN_CLASS_PRODUCTION}
+)
+
 
 def write_outputs(values: dict[str, str]) -> None:
     """Write key=value pairs to GITHUB_OUTPUT."""
@@ -48,8 +55,7 @@ def write_outputs(values: dict[str, str]) -> None:
         raise SystemExit("GITHUB_OUTPUT is not set")
 
     with open(github_output, "a", encoding="utf-8") as output_file:
-        for key, value in values.items():
-            output_file.write(f"{key}={value}\n")
+        output_file.writelines(f"{key}={value}\n" for key, value in values.items())
 
 
 def append_multiline_github_output(name: str, value: str) -> None:
@@ -73,6 +79,7 @@ class ActiveRepositoryEntry:
     repository: str
     workflow_token_policy: str
     ai_assets_token_policy: str
+    pin_class: str
 
 
 def _optional_policy_string(item: dict[str, object], key: str, repo: str) -> str:
@@ -86,6 +93,31 @@ def _optional_policy_string(item: dict[str, object], key: str, repo: str) -> str
     return value.strip()
 
 
+def _parse_pin_class(item: dict[str, object], repo: str) -> str:
+    raw = item.get("pin-class")
+    if not isinstance(raw, str) or not raw.strip():
+        raise SystemExit(
+            f"Invalid pin-class for {repo!r}: object entries require "
+            f"'pin-class' of {' or '.join(sorted(ALLOWED_PIN_CLASSES))}"
+        )
+    pin_class = raw.strip()
+    if pin_class not in ALLOWED_PIN_CLASSES:
+        raise SystemExit(
+            f"Invalid pin-class for {repo!r}: {pin_class!r}. "
+            f"Expected {' or '.join(sorted(ALLOWED_PIN_CLASSES))}"
+        )
+    _reject_non_development_control_plane(repo, pin_class)
+    return pin_class
+
+
+def _reject_non_development_control_plane(repo: str, pin_class: str) -> None:
+    if repo == CONTROL_PLANE_REPOSITORY and pin_class != PIN_CLASS_DEVELOPMENT:
+        raise SystemExit(
+            f"{CONTROL_PLANE_REPOSITORY} must use pin-class "
+            f"{PIN_CLASS_DEVELOPMENT!r}, got {pin_class!r}"
+        )
+
+
 def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
     if isinstance(item, str):
         repo = item.strip()
@@ -93,10 +125,16 @@ def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
             raise SystemExit(
                 f"Invalid repository entry: {item!r}. Expected 'owner/repo'"
             )
+        if repo == CONTROL_PLANE_REPOSITORY:
+            raise SystemExit(
+                f"{CONTROL_PLANE_REPOSITORY} requires an object entry with "
+                f"pin-class {PIN_CLASS_DEVELOPMENT!r}"
+            )
         return ActiveRepositoryEntry(
             repository=repo,
             workflow_token_policy="",
             ai_assets_token_policy="",
+            pin_class=PIN_CLASS_PRODUCTION,
         )
     if isinstance(item, dict):
         raw_repo = item.get("repository")
@@ -114,6 +152,7 @@ def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
             ai_assets_token_policy=_optional_policy_string(
                 item, "ai-assets-token-policy", repo
             ),
+            pin_class=_parse_pin_class(item, repo),
         )
     raise SystemExit(
         f"Invalid repository entry: {item!r}. "
@@ -127,7 +166,7 @@ def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]
 
     Supports:
 
-    - Object: ``{"repositories": [{"repository": "owner/repo", "workflow-token-policy": "", "ai-assets-token-policy": ""}, ...]}``
+    - Object: ``{"repositories": [{"repository": "owner/repo", "pin-class": "production", "workflow-token-policy": "", "ai-assets-token-policy": ""}, ...]}``
     - List: same object entry shapes at the top level (legacy migration)
     - String entries in ``repositories`` (legacy migration only; prefer objects in config files)
     """
@@ -158,6 +197,11 @@ def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]
                     f"Duplicate repository {entry.repository!r} with conflicting "
                     f"ai-assets-token-policy values: {previous.ai_assets_token_policy!r} vs "
                     f"{entry.ai_assets_token_policy!r}"
+                )
+            if previous.pin_class != entry.pin_class:
+                raise SystemExit(
+                    f"Duplicate repository {entry.repository!r} with conflicting "
+                    f"pin-class values: {previous.pin_class!r} vs {entry.pin_class!r}"
                 )
             continue
         by_repo[entry.repository] = entry
@@ -224,6 +268,35 @@ def merge_repository_ai_assets_token_policies_from_org_trees(
 def merge_repository_token_policies_from_org_trees(config_dir: Path) -> dict[str, str]:
     """Backward-compatible alias for workflow token policies."""
     return merge_repository_workflow_token_policies_from_org_trees(config_dir)
+
+
+def merge_repository_pin_classes_from_org_trees(config_dir: Path) -> dict[str, str]:
+    """Map repository to pin-class from org ``active-repositories.json`` files."""
+    classes: dict[str, str] = {}
+    for org_dir in discover_org_config_dirs(config_dir):
+        path = org_dir / "active-repositories.json"
+        for entry in parse_active_repository_entries(path.read_text(encoding="utf-8")):
+            previous = classes.get(entry.repository)
+            if previous is not None and previous != entry.pin_class:
+                raise SystemExit(
+                    f"Conflicting pin-class for {entry.repository!r} across org "
+                    f"config: {previous!r} vs {entry.pin_class!r} "
+                    f"(org {org_dir.name!r})"
+                )
+            classes[entry.repository] = entry.pin_class
+    return classes
+
+
+def validate_committed_control_plane_pin_class(config_dir: Path) -> None:
+    """Fail closed unless ``elastic/oblt-aw`` is listed as development."""
+    classes = merge_repository_pin_classes_from_org_trees(config_dir)
+    pin_class = classes.get(CONTROL_PLANE_REPOSITORY)
+    if pin_class is None:
+        raise SystemExit(
+            f"{CONTROL_PLANE_REPOSITORY} must be listed with pin-class "
+            f"{PIN_CLASS_DEVELOPMENT!r}"
+        )
+    _reject_non_development_control_plane(CONTROL_PLANE_REPOSITORY, pin_class)
 
 
 def lookup_repository_workflow_token_policy(config_dir: Path, repository: str) -> str:

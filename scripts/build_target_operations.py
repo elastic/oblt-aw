@@ -19,8 +19,10 @@ import pathlib
 import subprocess
 import sys
 
+from client_workflow_pin import load_release_pointers, resolve_control_plane_pin
 from common import (
     discover_repo_org_assignments,
+    merge_repository_pin_classes_from_org_trees,
     merge_repository_workflow_token_policies_from_org_trees,
     parse_repositories,
     write_outputs,
@@ -186,6 +188,8 @@ def main() -> int:
     # (pilot / early-detection consumer of the same client templates).
     current_assignments = discover_repo_org_assignments(config_dir)
     token_policies = merge_repository_workflow_token_policies_from_org_trees(config_dir)
+    pin_classes = merge_repository_pin_classes_from_org_trees(config_dir)
+    pointers = load_release_pointers()
 
     previous_assignments = read_previous_repo_org_assignments(base_ref)
 
@@ -222,6 +226,7 @@ def main() -> int:
         )
         current_dsts = dst_paths(files)
         remove_files = sorted(dst_paths(previous_files) - current_dsts)
+        pin_class = pin_classes[repo]
         operations.append(
             {
                 "repository": repo,
@@ -229,18 +234,25 @@ def main() -> int:
                 "files": files,
                 "remove_files": remove_files,
                 "workflow-token-policy": token_policies.get(repo, ""),
+                "pin-class": pin_class,
+                "control-plane-pin": resolve_control_plane_pin(pin_class, pointers),
             }
         )
 
     removed_repositories = sorted(set(previous_assignments) - set(current_assignments))
     for repo in removed_repositories:
         files = files_for_orgs(previous_assignments[repo], at_base_ref=True)
+        pin_class = pin_classes.get(repo, "")
         operations.append(
             {
                 "repository": repo,
                 "operation": "remove",
                 "files": files,
                 "workflow-token-policy": token_policies.get(repo, ""),
+                "pin-class": pin_class,
+                "control-plane-pin": (
+                    resolve_control_plane_pin(pin_class, pointers) if pin_class else ""
+                ),
             }
         )
 
