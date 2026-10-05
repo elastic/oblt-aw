@@ -89,7 +89,7 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 | `.github/workflows/e2e-all.yml` | Parallel leaf E2E (promote + smoke) |
 | `config/release-pointers.json` | Source of truth for SHAs / semver |
 | `config/release.json` | Static release-train settings (`workflow-token-policy` / `rollback-workflow-token-policy`) |
-| `scripts/aw_release_merge_pointers_pr.sh` | Approve + squash-merge the pointers PR |
+| `scripts/aw_release_merge_pointers_pr.sh` | Approve + squash-merge the pointers PR (pinned to create-pull-request head SHA) |
 | `scripts/aw_release_prepare_pointers_branch.sh` | Tip vs plan-base compare + branch prep for the pointers PR |
 | `scripts/aw_release_promote.py` | Promote CLI |
 | `scripts/aw_release_rollback.py` | Rollback CLI |

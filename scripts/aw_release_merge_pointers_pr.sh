@@ -19,6 +19,7 @@
 #
 # Required env:
 #   APPROVE_TOKEN       Token for a different actor than the PR author (usually GITHUB_TOKEN)
+#   EXPECTED_HEAD_SHA   Full commit SHA produced by create-pull-request for this run
 #   GH_TOKEN            Vault app token (merge + PR reads)
 #   GITHUB_REPOSITORY   owner/repo
 #   PR_NUMBER           Pull request number
@@ -41,6 +42,34 @@ aw_release_merge_error_is_retryable() {
   # Copilot / review / base-branch freshness often clears on a short poll.
   printf '%s' "${msg}" | grep -qiE \
     'review|approv|copilot|not mergeable|head branch|base branch was modified|required status'
+}
+
+# Fail unless live PR head matches the SHA this release run created.
+# Args: expected_sha actual_sha [pr_number]
+aw_release_require_expected_head_sha() {
+  local expected="${1:?}"
+  local actual="${2:?}"
+  local pr_number="${3:-}"
+  local label=""
+
+  if [[ ! "${expected}" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "EXPECTED_HEAD_SHA must be a full 40-char commit SHA (got: ${expected})" >&2
+    return 1
+  fi
+  if [[ ! "${actual}" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "Could not resolve head SHA${pr_number:+ for PR #${pr_number}}" >&2
+    return 1
+  fi
+  if [[ "${actual}" != "${expected}" ]]; then
+    if [[ -n "${pr_number}" ]]; then
+      label=" for PR #${pr_number}"
+    fi
+    echo "::error::PR head${label} moved after create-pull-request."
+    echo "::error::Expected ${expected}; live head is ${actual}."
+    echo "::error::Refuse to merge a mutable head; re-dispatch the release workflow."
+    return 1
+  fi
+  return 0
 }
 
 aw_release_approve_pr() {
@@ -87,9 +116,15 @@ aw_release_wait_and_merge_pr() {
   local repo="${1:?}"
   local pr_number="${2:?}"
   local approve_token="${3:?}"
-  local timeout_seconds="${4:-300}"
-  local poll_seconds="${5:-5}"
+  local expected_head_sha="${4:?}"
+  local timeout_seconds="${5:-300}"
+  local poll_seconds="${6:-5}"
   local deadline commit_title head_sha merge_out pr_state
+
+  if [[ ! "${expected_head_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "EXPECTED_HEAD_SHA must be a full 40-char commit SHA (got: ${expected_head_sha})" >&2
+    return 1
+  fi
 
   aw_release_approve_pr "${repo}" "${pr_number}" "${approve_token}"
 
@@ -100,33 +135,50 @@ aw_release_wait_and_merge_pr() {
 
   while ((SECONDS < deadline)); do
     pr_state="$(
-      gh pr view "${pr_number}" --repo "${repo}" --json state,mergedAt \
-        --jq '{state,mergedAt}'
+      gh pr view "${pr_number}" --repo "${repo}" --json state,mergedAt,headRefOid \
+        --jq '{state,mergedAt,headRefOid}'
     )"
+    head_sha="$(printf '%s' "${pr_state}" | jq -r .headRefOid)"
+    aw_release_require_expected_head_sha \
+      "${expected_head_sha}" \
+      "${head_sha}" \
+      "${pr_number}"
+
     if [[ "$(printf '%s' "${pr_state}" | jq -r .state)" == "MERGED" ]] ||
       [[ "$(printf '%s' "${pr_state}" | jq -r .mergedAt)" != "null" ]]; then
-      echo "PR #${pr_number} already merged"
+      echo "PR #${pr_number} already merged at expected head ${expected_head_sha:0:12}"
       return 0
     fi
 
-    head_sha="$(
-      gh pr view "${pr_number}" --repo "${repo}" --json headRefOid --jq .headRefOid
-    )"
-    if [[ ! "${head_sha}" =~ ^[0-9a-f]{40}$ ]]; then
-      echo "Could not resolve head SHA for PR #${pr_number}" >&2
-      return 1
-    fi
-
     if merge_out="$(
-      aw_release_squash_merge_pr "${repo}" "${pr_number}" "${head_sha}" "${commit_title}" 2>&1
+      aw_release_squash_merge_pr \
+        "${repo}" \
+        "${pr_number}" \
+        "${expected_head_sha}" \
+        "${commit_title}" 2>&1
     )"; then
       printf '%s\n' "${merge_out}"
       return 0
     fi
 
     if automerge_merge_error_is_already_merged_message "${merge_out}"; then
-      echo "PR #${pr_number} already merged"
+      # Re-check head before accepting a concurrent merge.
+      head_sha="$(
+        gh pr view "${pr_number}" --repo "${repo}" --json headRefOid --jq .headRefOid
+      )"
+      aw_release_require_expected_head_sha \
+        "${expected_head_sha}" \
+        "${head_sha}" \
+        "${pr_number}"
+      echo "PR #${pr_number} already merged at expected head ${expected_head_sha:0:12}"
       return 0
+    fi
+
+    # Head moved between view and merge (GitHub 409) — fail closed, do not refresh.
+    if printf '%s' "${merge_out}" | grep -qiE \
+      'head sha did not match|expected head sha|pull request head sha'; then
+      echo "Merge failed for PR #${pr_number} (expected head pin): ${merge_out}" >&2
+      return 1
     fi
 
     if aw_release_merge_error_is_retryable "${merge_out}"; then
@@ -149,6 +201,7 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
 fi
 
 : "${APPROVE_TOKEN:?APPROVE_TOKEN is required}"
+: "${EXPECTED_HEAD_SHA:?EXPECTED_HEAD_SHA is required}"
 : "${GH_TOKEN:?GH_TOKEN is required}"
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 : "${PR_NUMBER:?PR_NUMBER is required}"
@@ -157,5 +210,6 @@ aw_release_wait_and_merge_pr \
   "${GITHUB_REPOSITORY}" \
   "${PR_NUMBER}" \
   "${APPROVE_TOKEN}" \
+  "${EXPECTED_HEAD_SHA}" \
   "${MERGE_TIMEOUT_SECONDS:-300}" \
   "${MERGE_POLL_SECONDS:-5}"

@@ -167,6 +167,7 @@ jobs:
         if: ${{ inputs.dry-run != true && steps.pointers-pr.outputs.pull-request-number != '' }}
         env:
           APPROVE_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD_SHA: ${{ steps.pointers-pr.outputs.pull-request-head-sha }}
           GH_TOKEN: ${{ steps.create-token.outputs.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ steps.pointers-pr.outputs.pull-request-number }}

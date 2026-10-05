@@ -14,6 +14,9 @@ SCRIPT = (
     / "aw_release_merge_pointers_pr.sh"
 )
 
+EXPECTED = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+OTHER = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
 
 def _bash(function_call: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -56,4 +59,32 @@ def test_merge_error_is_retryable_matches(message: str) -> None:
 )
 def test_merge_error_is_retryable_rejects(message: str) -> None:
     result = _call("aw_release_merge_error_is_retryable", message)
+    assert result.returncode == 1, result.stdout + result.stderr
+
+
+def test_require_expected_head_sha_accepts_match() -> None:
+    result = _call("aw_release_require_expected_head_sha", EXPECTED, EXPECTED, "42")
+    assert result.returncode == 0, result.stderr + result.stdout
+
+
+def test_require_expected_head_sha_rejects_divergence() -> None:
+    result = _call("aw_release_require_expected_head_sha", EXPECTED, OTHER, "42")
+    assert result.returncode == 1
+    combined = result.stderr + result.stdout
+    assert EXPECTED in combined
+    assert OTHER in combined
+    assert "moved after create-pull-request" in combined
+
+
+@pytest.mark.parametrize(
+    "expected,actual",
+    [
+        ("short", EXPECTED),
+        (EXPECTED, "not-a-sha"),
+        ("", EXPECTED),
+        (EXPECTED, ""),
+    ],
+)
+def test_require_expected_head_sha_rejects_invalid(expected: str, actual: str) -> None:
+    result = _call("aw_release_require_expected_head_sha", expected, actual, "7")
     assert result.returncode == 1, result.stdout + result.stderr
