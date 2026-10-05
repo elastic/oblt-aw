@@ -42,7 +42,7 @@ The table below documents how each rule ID is currently represented in the detec
 | SEC-001 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-002 | Yes | `actionlint` secret message mapping and `zizmor` `secrets-outside-env` mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-003 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
-| SEC-010 | Yes | `actionlint` expression mapping, `zizmor` template/github-env mappings, and `semgrep` injection mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
+| SEC-010 | Yes | `actionlint` expression mapping, `zizmor` template/github-env mappings, and `semgrep` injection mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh). Detector output suppresses `template-injection` findings from generated `.github/workflows/*.lock.yml` files so source workflows remain the canonical remediation target. |
 | SEC-011 | Yes | `shellcheck` and `actionlint` shellcheck mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-012 | Yes | `zizmor` default and targeted mappings plus `semgrep` non-injection workflow mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-020 | Yes | `actionlint` credentials mapping and `zizmor` hardcoded credentials mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
@@ -168,6 +168,9 @@ The table below documents how each rule ID is currently represented in the detec
 **Pattern**: `${{ github.event.issue.title }}`, `github.event.comment.body`, `github.event.pull_request.title` embedded directly in shell strings used with `run:`.
 
 **Remediation guidance**: Pass values through environment variables with strict quoting, use intermediate scripts with validation, or restrict to trusted event types.
+
+> [!NOTE]
+> To reduce duplicate triage noise, the detector suppresses SEC-010 `template-injection` findings from generated `.github/workflows/*.lock.yml` files. Equivalent findings in source workflows remain reported and are the required fix surface.
 
 ---
 
