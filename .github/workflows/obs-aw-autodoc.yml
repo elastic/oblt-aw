@@ -62,7 +62,6 @@ jobs:
       # Lookback (1 day), title-prefix ([oblt-aw][autodoc]), model/bots/footer,
       # and failure-issue suppression are opinionated on the in-repo lock.
       additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
-    secrets: inherit
 
   # Fix prompt lives in gh-aw-create-pr-from-issue.md; resolve still merges APM + autodocignore.
   resolve-apm-assets-fix:
@@ -93,7 +92,6 @@ jobs:
       # opinionated on the in-repo lock.
       target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
       additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
-    secrets: inherit
 
   # Step 3: Finalize autodoc PR — link audit issue for close-on-merge, assign reviewer, labels
   finalize-pr:
