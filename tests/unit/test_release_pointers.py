@@ -34,6 +34,7 @@ def _minimal_pointers(**overrides: object) -> dict:
 
 SHA_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 SHA_B = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+SHA_C = "cccccccccccccccccccccccccccccccccccccccc"
 
 
 class TestNormalizeSemver:
@@ -248,7 +249,12 @@ class TestRemoteTagCommitSha:
     def test_prefers_peeled_commit(self, monkeypatch: pytest.MonkeyPatch) -> None:
         def fake_run_git(args: list[str], *, check: bool = True) -> object:
             del check
-            assert args[:2] == ["ls-remote", "origin"]
+            assert args == [
+                "ls-remote",
+                "origin",
+                "refs/tags/v0.0.0",
+                "refs/tags/v0.0.0^{}",
+            ]
             return _git_result(
                 f"{SHA_B}\trefs/tags/v0.0.0\n{SHA_A}\trefs/tags/v0.0.0^{{}}\n"
             )
@@ -260,7 +266,8 @@ class TestRemoteTagCommitSha:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         def fake_run_git(args: list[str], *, check: bool = True) -> object:
-            del check, args
+            del check
+            assert args[-2:] == ["refs/tags/v0.0.0", "refs/tags/v0.0.0^{}"]
             return _git_result(f"{SHA_A}\trefs/tags/v0.0.0\n")
 
         monkeypatch.setattr(rp, "run_git", fake_run_git)
@@ -269,6 +276,55 @@ class TestRemoteTagCommitSha:
     def test_missing_tag_is_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(rp, "run_git", lambda *a, **k: _git_result("", 0))
         assert rp.remote_tag_commit_sha("v0.0.0") is None
+
+
+class TestRequireRemoteCurrentAllowsInFlight:
+    def _with_current(self) -> dict:
+        data = _minimal_pointers()
+        rp.set_pointer(data, "current", sha=SHA_A, semver="v0.0.0")
+        return data
+
+    def test_skips_when_pointers_current_empty(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(rp, "remote_tag_commit_sha", lambda *a, **k: SHA_B)
+        rp.require_remote_current_allows_in_flight(
+            _minimal_pointers(), in_flight_sha=SHA_A
+        )
+
+    def test_allows_when_remote_matches_pointers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(rp, "remote_tag_commit_sha", lambda *a, **k: SHA_A)
+        rp.require_remote_current_allows_in_flight(
+            self._with_current(), in_flight_sha=SHA_B
+        )
+
+    def test_allows_retry_when_remote_already_at_in_flight_sha(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(rp, "remote_tag_commit_sha", lambda *a, **k: SHA_B)
+        rp.require_remote_current_allows_in_flight(
+            self._with_current(), in_flight_sha=SHA_B
+        )
+
+    def test_refuses_when_remote_matches_neither(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(rp, "remote_tag_commit_sha", lambda *a, **k: SHA_B)
+        with pytest.raises(ValueError, match="refuse until they agree"):
+            rp.require_remote_current_allows_in_flight(
+                self._with_current(), in_flight_sha=SHA_C
+            )
+
+    def test_refuses_when_pointer_set_but_tag_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(rp, "remote_tag_commit_sha", lambda *a, **k: None)
+        with pytest.raises(ValueError, match="is not on origin"):
+            rp.require_remote_current_allows_in_flight(
+                self._with_current(), in_flight_sha=SHA_B
+            )
 
 
 class TestCreateImmutableSemverTag:

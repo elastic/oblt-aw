@@ -349,11 +349,16 @@ def tag_points_at(tag: str, sha: str) -> bool:
 
 
 def remote_tag_commit_sha(tag: str, *, remote: str = "origin") -> str | None:
-    """Peeled commit SHA of ``refs/tags/<tag>`` on ``remote``, or None."""
-    result = run_git(["ls-remote", remote, f"refs/tags/{tag}"], check=False)
+    """Peeled commit SHA of ``refs/tags/<tag>`` on ``remote``, or None.
+
+    Query the tag and ``^{}`` together. An exact ``refs/tags/<tag>`` pattern
+    does not match the peeled ref, so annotated tags would otherwise return
+    the tag-object SHA instead of the commit.
+    """
+    prefix = f"refs/tags/{tag}"
+    result = run_git(["ls-remote", remote, prefix, f"{prefix}^{{}}"], check=False)
     if result.returncode != 0 or not result.stdout.strip():
         return None
-    prefix = f"refs/tags/{tag}"
     peeled: str | None = None
     direct: str | None = None
     for line in result.stdout.splitlines():
@@ -370,6 +375,38 @@ def remote_tag_commit_sha(tag: str, *, remote: str = "origin") -> str | None:
     if chosen is None:
         return None
     return validate_full_sha(chosen, label=tag)
+
+
+def require_remote_current_allows_in_flight(
+    data: dict[str, Any], *, in_flight_sha: str, remote: str = "origin"
+) -> None:
+    """Refuse a new promote/rollback when origin's moving tag disagrees.
+
+    After tags-before-pointers, a failed pointers merge leaves ``tags.current``
+    on origin at the in-flight SHA while ``main`` still has the old pointers.
+    Retrying that same SHA is allowed. Any other mismatch is refused so a later
+    promote cannot treat stale ``pointers.current`` as ``previous``.
+    """
+    pointer_current = pointer_sha(data, "current")
+    if not pointer_current:
+        return
+    in_flight_sha = validate_full_sha(in_flight_sha, label="in_flight_sha")
+    current_tag = validate_moving_tag_name(
+        str(data["tags"].get("current") or ""), role="current"
+    )
+    remote_current = remote_tag_commit_sha(current_tag, remote=remote)
+    if remote_current is None:
+        raise ValueError(
+            f"pointers.current is {pointer_current} but {current_tag} is not "
+            f"on {remote}; land tags or fix pointers before another release"
+        )
+    if remote_current in {pointer_current, in_flight_sha}:
+        return
+    raise ValueError(
+        f"remote {current_tag} is {remote_current}, pointers.current is "
+        f"{pointer_current}; refuse until they agree or retry the in-flight "
+        f"plan at {in_flight_sha}"
+    )
 
 
 def move_tag(tag: str, sha: str, *, message: str) -> None:

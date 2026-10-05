@@ -51,7 +51,7 @@ jobs:
         with:
           base-ref: ${{ github.event.before }}
           ref: ${{ github.sha }}
-          filter: '["config/**/active-repositories.json","config/release-pointers.json",".github/remote-workflow-template/**"]'
+          filter: '["config/**/active-repositories.json","config/release-pointers.json",".github/remote-workflow-template/**","scripts/build_target_operations.py","scripts/client_workflow_pin.py","scripts/common.py"]'
 
       - name: Setup Python
         uses: actions/setup-python@v7

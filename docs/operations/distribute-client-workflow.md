@@ -88,7 +88,7 @@ Inputs (environment variables):
 
 Behavior:
 
-- If `CHANGED_FILES_COUNT == 0`, `FORCE_DISTRIBUTION` is false, and `git diff --name-only` between `BASE_REF` and `HEAD` under `config/` and `.github/remote-workflow-template/` is empty, returns no targets. The git fallback covers template **renames** (the changed-files action only counts added, modified, and deleted paths).
+- If `CHANGED_FILES_COUNT == 0`, `FORCE_DISTRIBUTION` is false, and `git diff --name-only` between `BASE_REF` and `HEAD` under `config/`, `.github/remote-workflow-template/`, `scripts/build_target_operations.py`, `scripts/client_workflow_pin.py`, and `scripts/common.py` is empty, returns no targets. The git fallback covers template **renames** (the changed-files action only counts added, modified, and deleted paths) and pin-rewrite script edits.
 - Always generates `install` operations for repositories in the current union of per-org lists (see [scripts/build_target_operations.py](../../scripts/build_target_operations.py)).
 - Each `install` target includes `remove_files`, `pin-class`, and `control-plane-pin` (the git ref substituted into `uses: elastic/oblt-aw/...@<pin>`).
 - Generates `remove` operations for repositories present at `BASE_REF` but absent from current config.

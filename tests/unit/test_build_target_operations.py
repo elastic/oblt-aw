@@ -109,6 +109,8 @@ class TestHasRelevantGitChanges:
             cmd: list[str], **kwargs: object
         ) -> subprocess.CompletedProcess[str]:
             assert cmd[:4] == ["git", "diff", "--name-only", "base-sha"]
+            assert "scripts/client_workflow_pin.py" in cmd
+            assert "scripts/common.py" in cmd
             return subprocess.CompletedProcess(
                 cmd, 0, ".github/remote-workflow-template/obs/x.yml\n"
             )

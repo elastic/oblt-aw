@@ -30,6 +30,15 @@ from common import (
 
 REMOTE_TEMPLATE_DIR = pathlib.Path(".github/remote-workflow-template")
 ZERO_SHA = "0000000000000000000000000000000000000000"
+# Keep in lockstep with distribute-client-workflow.yml on.push.paths (except the
+# workflow file itself) and the changed-files filter.
+RELEVANT_DIFF_PATHS = (
+    "config",
+    REMOTE_TEMPLATE_DIR.as_posix(),
+    "scripts/build_target_operations.py",
+    "scripts/client_workflow_pin.py",
+    "scripts/common.py",
+)
 
 
 def list_org_template_files(org_key: str) -> list[dict[str, str]]:
@@ -129,11 +138,12 @@ def parse_bool(value: str) -> bool:
 
 def has_relevant_git_changes(base_ref: str) -> bool:
     """
-    True when ``config/`` or the remote template tree differ between ``base_ref`` and HEAD.
+    True when relevant distribute inputs differ between ``base_ref`` and HEAD.
 
     Used as a fallback when the changed-files action reports count 0 (for example git
     renames under ``.github/remote-workflow-template/`` are not counted as added,
-    modified, or deleted).
+    modified, or deleted). Includes pin-rewrite scripts so source-only updates
+    still produce installation PRs.
     """
     if not base_ref or base_ref == ZERO_SHA:
         return False
@@ -146,8 +156,7 @@ def has_relevant_git_changes(base_ref: str) -> bool:
                 base_ref,
                 "HEAD",
                 "--",
-                "config",
-                REMOTE_TEMPLATE_DIR.as_posix(),
+                *RELEVANT_DIFF_PATHS,
             ],
             check=True,
             capture_output=True,
