@@ -410,20 +410,31 @@ def require_remote_current_allows_in_flight(
 
 
 def move_tag(tag: str, sha: str, *, message: str) -> None:
-    """Create or force-update an annotated tag at ``sha`` (local only)."""
+    """Create or force-update a lightweight tag at ``sha`` (local only).
+
+    Lightweight (not annotated): GitHub Actions fails nested relative
+    ``uses: ./.github/workflows/...`` when the outer reusable workflow is
+    pinned to an annotated tag. ``message`` is accepted for caller
+    compatibility and ignored.
+    """
+    del message
     sha = validate_full_sha(sha)
-    run_git(["tag", "-f", "-a", tag, sha, "-m", message])
+    run_git(["tag", "-f", tag, sha])
 
 
 def create_immutable_semver_tag(
     semver: str, sha: str, *, message: str, remote: str = "origin"
 ) -> bool:
-    """Create an immutable annotated semver tag.
+    """Create an immutable lightweight semver tag.
+
+    Lightweight (not annotated): same nested reusable-workflow constraint as
+    ``move_tag``. ``message`` is accepted for caller compatibility and ignored.
 
     Returns True when the tag is created. Returns False when it already
     points at ``sha`` (local or ``remote``) so a promote retry can resume
     pointer landing. Fails closed when the tag exists at a different SHA.
     """
+    del message
     semver = normalize_semver(semver)
     sha = validate_full_sha(sha)
     existing = run_git(["tag", "-l", semver], check=False)
@@ -443,7 +454,7 @@ def create_immutable_semver_tag(
             f"immutable tag {semver} already exists on {remote} at "
             f"{remote_sha}, refuse {sha}"
         )
-    run_git(["tag", "-a", semver, sha, "-m", message])
+    run_git(["tag", semver, sha])
     return True
 
 
