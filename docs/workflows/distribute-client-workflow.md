@@ -10,7 +10,9 @@ This workflow creates PRs across target repositories to install, update, or remo
 
 - Triggered by changes to:
   - `config/**/active-repositories.json` (per-org repo lists; example [config/obs/active-repositories.json](../../config/obs/active-repositories.json))
+  - `config/release-pointers.json` (production pin retarget after promote)
   - [.github/remote-workflow-template/](../../.github/remote-workflow-template/) (per-org subtrees such as `obs/`, `docs/`)
+  - `scripts/build_target_operations.py`, `scripts/client_workflow_pin.py`, `scripts/common.py` (target matrix and pin rewrite)
 - Or manually triggered with `workflow_dispatch`.
 - The minted token must be a GitHub App bot token with contents and pull-request write access in each target repository. Both PR actions use built-in bot commit signing (`sign-commits: true`), not GPG secrets. A created or updated PR fails its matrix leg unless the action reports its commits as verified; skipped operations are unaffected.
 
@@ -27,6 +29,7 @@ Core behavior:
 - computes target operations via [scripts/build_target_operations.py](../../scripts/build_target_operations.py)
 - clones each target repository
 - installs or updates each `dst` from the per-target `files: [{src, dst}, ...]` list
+- rewrites `uses: elastic/oblt-aw/...@<pin>` from `control-plane-pin` (`pin-class`)
 - deletes each path in `remove_files` when templates drop paths since `BASE_REF`
 - removes all managed `dst` paths when a repository leaves the config (`operation: remove`)
 - opens or updates PRs using `peter-evans/create-pull-request`
@@ -35,9 +38,9 @@ Core behavior:
 
 ### Input and output contracts
 
-- Target config input is an object with `repositories: [{ "repository": "owner/repo", "workflow-token-policy": "", "ai-assets-token-policy": "" }, ...]`
+- Target config input is an object with `repositories: [{ "repository": "owner/repo", "pin-class": "production", "workflow-token-policy": "", "ai-assets-token-policy": "" }, ...]`
 - The target builder step exposes:
-  - `targets` (JSON matrix entries with `repository`, `operation`, `files`, and for install ops `remove_files`)
+  - `targets` (JSON matrix entries with `repository`, `operation`, `files`, `pin-class`, `control-plane-pin`, and for install ops `remove_files`)
   - `has_targets` (`true`/`false`)
   - `install_count`, `remove_count`, `total_count`
 - Removal operations are computed by comparing current config against the version at `BASE_REF`.

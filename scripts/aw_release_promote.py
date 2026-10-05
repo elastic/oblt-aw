@@ -34,6 +34,7 @@ from release_pointers import (
     plan_promote,
     push_promote_tags,
     require_ancestor_of,
+    require_remote_current_allows_in_flight,
     require_remote_tip,
     resolve_sha,
     save_pointers,
@@ -144,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
 
     data = load_pointers(args.pointers_path)
     plan = plan_promote(data, sha=sha, release_type=args.release_type)
+    require_remote_current_allows_in_flight(data, in_flight_sha=plan["sha"])
     payload = {"plan": plan}
     print(json.dumps(payload, indent=2, sort_keys=True))
     if args.plan_output is not None:
@@ -157,11 +159,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     now = utc_now_iso()
-    create_immutable_semver_tag(
+    created = create_immutable_semver_tag(
         plan["semver"],
         sha,
         message=f"oblt-aw release {plan['semver']}",
     )
+    if not created:
+        print(f"immutable tag {plan['semver']} already points at {sha}; skip create")
     move_tag(
         plan["previous_tag"],
         plan["previous_sha"],

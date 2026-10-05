@@ -163,6 +163,16 @@ jobs:
 
             Created by [workflow run](${{ env.JOB_URL }}).
 
+      # Publish tags before merging pointers so distribute (triggered by the
+      # pointers push) never writes production uses: @vN for a missing tag.
+      - name: Push release tags
+        if: ${{ inputs.dry-run != true }}
+        env:
+          PYTHONPATH: scripts
+        run: |
+          set -euo pipefail
+          python3 scripts/aw_release_promote.py --push-from-plan promote-plan.json
+
       - name: Approve and merge release-pointers pull request
         if: ${{ inputs.dry-run != true && steps.pointers-pr.outputs.pull-request-number != '' }}
         env:
@@ -172,14 +182,6 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ steps.pointers-pr.outputs.pull-request-number }}
         run: bash scripts/aw_release_merge_pointers_pr.sh
-
-      - name: Push release tags
-        if: ${{ inputs.dry-run != true }}
-        env:
-          PYTHONPATH: scripts
-        run: |
-          set -euo pipefail
-          python3 scripts/aw_release_promote.py --push-from-plan promote-plan.json
 
       - name: Create GitHub Release with generated notes
         if: ${{ inputs.dry-run != true }}

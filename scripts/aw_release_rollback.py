@@ -30,6 +30,7 @@ from release_pointers import (
     move_tag,
     plan_rollback,
     push_rollback_tags,
+    require_remote_current_allows_in_flight,
     save_pointers,
     utc_now_iso,
 )
@@ -80,6 +81,9 @@ def main(argv: list[str] | None = None) -> int:
 
     data = load_pointers(args.pointers_path)
     plan = plan_rollback(data)
+    require_remote_current_allows_in_flight(
+        data, in_flight_sha=str(plan["rollback_sha"])
+    )
     payload = {"plan": plan}
     print(json.dumps(payload, indent=2, sort_keys=True))
     if args.plan_output is not None:

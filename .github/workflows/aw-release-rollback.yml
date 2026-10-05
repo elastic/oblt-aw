@@ -139,6 +139,15 @@ jobs:
 
             Created by [workflow run](${{ env.JOB_URL }}).
 
+      # Publish tags before merging pointers so distribute never pins a missing tag.
+      - name: Push rollback tags
+        if: ${{ inputs.dry-run != true }}
+        env:
+          PYTHONPATH: scripts
+        run: |
+          set -euo pipefail
+          python3 scripts/aw_release_rollback.py --push-from-plan rollback-plan.json
+
       - name: Approve and merge release-pointers pull request
         if: ${{ inputs.dry-run != true && steps.pointers-pr.outputs.pull-request-number != '' }}
         env:
@@ -148,11 +157,3 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ steps.pointers-pr.outputs.pull-request-number }}
         run: bash scripts/aw_release_merge_pointers_pr.sh
-
-      - name: Push rollback tags
-        if: ${{ inputs.dry-run != true }}
-        env:
-          PYTHONPATH: scripts
-        run: |
-          set -euo pipefail
-          python3 scripts/aw_release_rollback.py --push-from-plan rollback-plan.json

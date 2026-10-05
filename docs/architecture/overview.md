@@ -74,7 +74,7 @@ flowchart TB
 
   DIST -->|PR: add or update client file| CLIENT
   SYNC -->|create or update issue| DASH
-  CLIENT -->|uses: …/obs-aw-event-*.yml@main| GHA
+  CLIENT -->|uses: …/obs-aw-event-*.yml@main or @vN| GHA
   GHA -->|uses: locked upstream workflows| LOCK
 ```
 

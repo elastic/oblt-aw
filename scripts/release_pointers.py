@@ -348,27 +348,129 @@ def tag_points_at(tag: str, sha: str) -> bool:
         return False
 
 
+def remote_tag_commit_sha(tag: str, *, remote: str = "origin") -> str | None:
+    """Peeled commit SHA of ``refs/tags/<tag>`` on ``remote``, or None.
+
+    Query the tag and ``^{}`` together. An exact ``refs/tags/<tag>`` pattern
+    does not match the peeled ref, so annotated tags would otherwise return
+    the tag-object SHA instead of the commit.
+    """
+    prefix = f"refs/tags/{tag}"
+    result = run_git(["ls-remote", remote, prefix, f"{prefix}^{{}}"], check=False)
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    peeled: str | None = None
+    direct: str | None = None
+    for line in result.stdout.splitlines():
+        sha, sep, name = line.partition("\t")
+        if not sep:
+            continue
+        name = name.strip()
+        sha = sha.strip().lower()
+        if name == f"{prefix}^{{}}":
+            peeled = sha
+        elif name == prefix:
+            direct = sha
+    chosen = peeled or direct
+    if chosen is None:
+        return None
+    return validate_full_sha(chosen, label=tag)
+
+
+def require_remote_current_allows_in_flight(
+    data: dict[str, Any], *, in_flight_sha: str, remote: str = "origin"
+) -> None:
+    """Refuse a new promote/rollback when origin's moving tag disagrees.
+
+    After tags-before-pointers, a failed pointers merge leaves ``tags.current``
+    on origin at the in-flight SHA while ``main`` still has the old pointers.
+    Retrying that same SHA is allowed. Any other mismatch is refused so a later
+    promote cannot treat stale ``pointers.current`` as ``previous``.
+    """
+    pointer_current = pointer_sha(data, "current")
+    if not pointer_current:
+        return
+    in_flight_sha = validate_full_sha(in_flight_sha, label="in_flight_sha")
+    current_tag = validate_moving_tag_name(
+        str(data["tags"].get("current") or ""), role="current"
+    )
+    remote_current = remote_tag_commit_sha(current_tag, remote=remote)
+    if remote_current is None:
+        raise ValueError(
+            f"pointers.current is {pointer_current} but {current_tag} is not "
+            f"on {remote}; land tags or fix pointers before another release"
+        )
+    if remote_current in {pointer_current, in_flight_sha}:
+        return
+    raise ValueError(
+        f"remote {current_tag} is {remote_current}, pointers.current is "
+        f"{pointer_current}; refuse until they agree or retry the in-flight "
+        f"plan at {in_flight_sha}"
+    )
+
+
 def move_tag(tag: str, sha: str, *, message: str) -> None:
     """Create or force-update an annotated tag at ``sha`` (local only)."""
     sha = validate_full_sha(sha)
     run_git(["tag", "-f", "-a", tag, sha, "-m", message])
 
 
-def create_immutable_semver_tag(semver: str, sha: str, *, message: str) -> None:
-    """Create an immutable annotated semver tag; fail if it already exists."""
+def create_immutable_semver_tag(
+    semver: str, sha: str, *, message: str, remote: str = "origin"
+) -> bool:
+    """Create an immutable annotated semver tag.
+
+    Returns True when the tag is created. Returns False when it already
+    points at ``sha`` (local or ``remote``) so a promote retry can resume
+    pointer landing. Fails closed when the tag exists at a different SHA.
+    """
     semver = normalize_semver(semver)
     sha = validate_full_sha(sha)
     existing = run_git(["tag", "-l", semver], check=False)
     if existing.stdout.strip():
-        raise ValueError(f"immutable tag {semver} already exists")
+        existing_sha = resolve_sha(semver)
+        if existing_sha == sha:
+            return False
+        raise ValueError(
+            f"immutable tag {semver} already exists at {existing_sha}, refuse {sha}"
+        )
+    remote_sha = remote_tag_commit_sha(semver, remote=remote)
+    if remote_sha is not None:
+        if remote_sha == sha:
+            run_git(["fetch", remote, f"refs/tags/{semver}:refs/tags/{semver}"])
+            return False
+        raise ValueError(
+            f"immutable tag {semver} already exists on {remote} at "
+            f"{remote_sha}, refuse {sha}"
+        )
     run_git(["tag", "-a", semver, sha, "-m", message])
+    return True
 
 
 def push_immutable_tags(tags: list[str], *, remote: str = "origin") -> None:
-    """Push immutable semver tags without ``--force``."""
+    """Push immutable semver tags without ``--force``.
+
+    Skip a tag that already exists on ``remote`` at the local peeled SHA so
+    GitHub's reject-existing-tag does not block a promote retry.
+    """
     if not tags:
         return
-    run_git(["push", remote, *tags])
+    pending: list[str] = []
+    for raw in tags:
+        tag = normalize_semver(raw)
+        local_sha = resolve_sha(tag)
+        remote_sha = remote_tag_commit_sha(tag, remote=remote)
+        if remote_sha is None:
+            pending.append(tag)
+            continue
+        if remote_sha == local_sha:
+            continue
+        raise ValueError(
+            f"immutable tag {tag} already exists on {remote} at "
+            f"{remote_sha}, local is {local_sha}"
+        )
+    if pending:
+        run_git(["push", remote, *pending])
 
 
 def push_moving_tags(tags: list[str], *, remote: str = "origin") -> None:
