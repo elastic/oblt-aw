@@ -67,7 +67,7 @@ flowchart LR
 
 ## Promote contract
 
-1. Dispatch `aw-release-promote.yml` **on the default branch** (`main`).
+1. Dispatch `aw-release-promote.yml` **on the default branch** (`main`). GitHub’s “Use workflow from” picker cannot be limited in YAML; the guard job fails closed off the default branch, and `e2e-all` / `promote` also skip via `if: github.ref_name == default_branch` (same pattern on rollback).
 2. Choose `release-type`: `patch`, `minor`, or `major`. First promote (empty current pointer) always creates `v0.0.0` from `config/release-pointers.json` `major`.
 3. Workflow calls `e2e-all` with `checkout-ref` set to `github.sha` (tip of `main` at promote start). Harness/oracle code is pinned to that SHA; live routes on pilot repos (including `elastic/oblt-aw`) exercise **default-branch tip** via `@main` client pins (and relative `e2e-trigger-*` where used).
 4. Before mutating tags, re-fetch and require the promote SHA is an **ancestor of** `origin/main` (or still the tip). If `main` advanced during E2E, promote **continues** and tags the gated SHA.
