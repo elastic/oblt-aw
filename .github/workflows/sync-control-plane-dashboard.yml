@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   prepare-repos:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     outputs:
       repos: ${{ steps.matrix.outputs.repos }}
@@ -60,7 +60,7 @@ jobs:
   sync-dashboard:
     needs: prepare-repos
     if: ${{ needs.prepare-repos.outputs.has_repos == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     strategy:
       fail-fast: false
