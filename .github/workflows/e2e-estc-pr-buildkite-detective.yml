@@ -21,6 +21,9 @@ on:
         required: false
         type: string
         default: main
+    secrets:
+      BUILDKITE_TOKEN:
+        required: true
 
 permissions:
   contents: read
