@@ -152,6 +152,8 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Description**: A job or step has access to repository secrets or `GITHUB_TOKEN` write scopes when the job only needs read-only operations; or secrets declared at workflow level when only one job requires them (broader blast radius).
 
+**SEC-022 hardening policy**: Avoid `secrets: inherit` at reusable-workflow callsites. Pass only explicitly required named secrets under `secrets:` (or omit `secrets:` entirely when only `github.token`/`secrets.GITHUB_TOKEN` is needed).
+
 **Note**: Overlaps with SEC-041; SEC-022 emphasizes **secret** exposure surface, SEC-041 emphasizes **permissions** syntax.
 
 ---
