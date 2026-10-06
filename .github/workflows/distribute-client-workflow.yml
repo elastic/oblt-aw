@@ -44,6 +44,7 @@ jobs:
         with:
           fetch-depth: 0
 
+          persist-credentials: false
       - name: Detect relevant file changes
         id: changed-files
         if: ${{ github.event_name == 'push' }}
@@ -106,6 +107,7 @@ jobs:
         with:
           path: source
 
+          persist-credentials: false
       - name: Create ephemeral GitHub token
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
@@ -119,6 +121,7 @@ jobs:
           token: ${{ steps.create-token.outputs.token }}
           path: target
 
+          persist-credentials: false
       - name: Sync client files into target repository
         if: ${{ matrix.target.operation == 'install' }}
         env:
@@ -323,6 +326,8 @@ jobs:
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Download all PR result artifacts
         uses: actions/download-artifact@v8
