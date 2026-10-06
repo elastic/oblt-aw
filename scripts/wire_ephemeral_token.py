@@ -27,6 +27,7 @@ workflow_call input. The script is idempotent.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -54,6 +55,8 @@ REPLACEMENTS: tuple[tuple[str, str], ...] = (
 )
 
 ID_TOKEN_LINE = "      id-token: write"
+STEP_PREFIX = "      - "
+_EXPR_RE = re.compile(r"\$\{\{\s*(.*?)\s*\}\}")
 
 
 def _job_blocks(text: str) -> list[tuple[int, int]]:
@@ -96,6 +99,83 @@ def _rewrite_line(line: str) -> str:
     return line
 
 
+def _extract_expression(line: str) -> str | None:
+    """Return the inner `${{ ... }}` expression from one YAML line."""
+    match = _EXPR_RE.search(line)
+    if match is None:
+        return None
+    return match.group(1).strip()
+
+
+def _rewrite_step_token_input(lines: list[str], start: int, end: int) -> None:
+    """Use env indirection for secrets-based with.github-token expressions."""
+    with_token_idx: int | None = None
+    with_token_expr: str | None = None
+
+    for i in range(start, end):
+        line = lines[i]
+        if line.strip().startswith("github-token:"):
+            with_token_idx = i
+            with_token_expr = _extract_expression(line)
+
+    if with_token_idx is None or with_token_expr is None:
+        return
+    if with_token_expr == "env.GH_TOKEN":
+        return
+    if "secrets." not in with_token_expr:
+        return
+
+    with_indent = lines[with_token_idx].split("github-token:")[0]
+    step_prop_indent = with_indent[:-2]
+    env_line = f"{step_prop_indent}env:\n"
+    gh_token_line = f"{step_prop_indent}  GH_TOKEN: ${{{{ {with_token_expr} }}}}\n"
+
+    env_start: int | None = None
+    for i in range(start, end):
+        if lines[i] == env_line:
+            env_start = i
+            break
+
+    if env_start is not None:
+        env_end = env_start + 1
+        while env_end < end:
+            line = lines[env_end]
+            if not line.startswith(f"{step_prop_indent}  "):
+                break
+            env_end += 1
+
+        gh_idx: int | None = None
+        for i in range(env_start + 1, env_end):
+            if lines[i].strip().startswith("GH_TOKEN:"):
+                gh_idx = i
+                break
+
+        if gh_idx is not None:
+            lines[gh_idx] = gh_token_line
+        else:
+            lines.insert(env_end, gh_token_line)
+            if env_end <= with_token_idx:
+                with_token_idx += 1
+    else:
+        lines.insert(with_token_idx, gh_token_line)
+        lines.insert(with_token_idx, env_line)
+        with_token_idx += 2
+
+    lines[with_token_idx] = f"{with_indent}github-token: ${{{{ env.GH_TOKEN }}}}\n"
+
+
+def _rewrite_job_steps_with_env_indirection(
+    lines: list[str], start: int, end: int
+) -> None:
+    """Apply github-token env-indirection for one job block in-place."""
+    step_starts = [i for i in range(start, end) if lines[i].startswith(STEP_PREFIX)]
+    if not step_starts:
+        return
+    for idx, step_start in enumerate(step_starts):
+        step_end = step_starts[idx + 1] if idx + 1 < len(step_starts) else end
+        _rewrite_step_token_input(lines, step_start, step_end)
+
+
 def wire_token_expressions(text: str) -> str:
     """Prefer minted step outputs only inside jobs that mint create-token.
 
@@ -118,7 +198,10 @@ def wire_token_expressions(text: str) -> str:
     for i, line in enumerate(lines):
         in_minting = any(start <= i < end for start, end in minting)
         rewritten.append(_rewrite_line(line) if in_minting else line)
-    return "".join(rewritten)
+    rewritten_lines = "".join(rewritten).splitlines(keepends=True)
+    for start, end in minting:
+        _rewrite_job_steps_with_env_indirection(rewritten_lines, start, end)
+    return "".join(rewritten_lines)
 
 
 def ensure_id_token_write(text: str) -> str:
@@ -168,9 +251,9 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parent.parent
     workflows = repo_root / ".github" / "workflows"
     changed = 0
-    for lock_file in sorted(workflows.glob("gh-aw-*.lock.yml")):
+    for lock_file in sorted(workflows.rglob("*.lock.yml")):
         if process_lock_file(lock_file):
-            print(f"  wired {lock_file.name}")
+            print(f"  wired {lock_file.relative_to(workflows)}")
             changed += 1
     print(f"Wired ephemeral token outputs in {changed} lock file(s)")
     return 0

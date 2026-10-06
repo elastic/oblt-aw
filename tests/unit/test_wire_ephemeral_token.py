@@ -44,6 +44,8 @@ jobs:
         with:
           token-policy: token-policy-995e89faa204
       - name: Process Safe Outputs
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   detection:
@@ -60,15 +62,17 @@ def test_wire_token_expressions_is_idempotent() -> None:
     once = wire.wire_token_expressions(SAMPLE_LOCK)
     twice = wire.wire_token_expressions(once)
     assert once == twice
-    assert "steps.create-token.outputs.token" in once
+    assert "github-token: ${{ env.GH_TOKEN }}" in once
 
 
 def test_wire_token_expressions_only_on_minting_jobs() -> None:
     updated = wire.wire_token_expressions(SAMPLE_LOCK)
     safe_block, detection_block = updated.split("  detection:")
     assert (
-        "steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN" in safe_block
+        "GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+        in safe_block
     )
+    assert "github-token: ${{ env.GH_TOKEN }}" in safe_block
     assert "steps.create-token.outputs.token" not in detection_block
     assert (
         "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
@@ -90,8 +94,10 @@ def test_process_lock_file_wires_create_token_step(tmp_path: Path) -> None:
     text = lock.read_text(encoding="utf-8")
     safe_block, detection_block = text.split("  detection:")
     assert (
-        "steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN" in safe_block
+        "GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+        in safe_block
     )
+    assert "github-token: ${{ env.GH_TOKEN }}" in safe_block
     assert "id-token: write" in safe_block
     assert "steps.create-token.outputs.token" not in detection_block
     assert "id-token: write" not in detection_block
@@ -110,14 +116,17 @@ jobs:
       - id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
       - name: MCP
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 """
     updated = wire.wire_token_expressions(lock)
     assert (
-        "steps.create-token.outputs.token || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN"
+        "GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
         in updated
     )
+    assert "github-token: ${{ env.GH_TOKEN }}" in updated
     # Idempotent on both short and long variants.
     assert wire.wire_token_expressions(updated) == updated
 
@@ -134,14 +143,17 @@ jobs:
       - id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
       - name: Process
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
 """
     updated = wire.wire_token_expressions(lock)
     assert (
-        "github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN }}"
+        "GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN }}"
         in updated
     )
+    assert "github-token: ${{ env.GH_TOKEN }}" in updated
     assert wire.wire_token_expressions(updated) == updated
 
 
