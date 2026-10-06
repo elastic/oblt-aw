@@ -21,6 +21,10 @@ on:
         required: false
         type: string
         default: main
+    secrets:
+      BUILDKITE_TOKEN:
+        description: Buildkite API token required for live ESTC detective E2E.
+        required: false
 
 permissions:
   contents: read
