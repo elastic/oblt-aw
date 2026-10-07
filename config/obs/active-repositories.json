@@ -88,7 +88,11 @@
       "repository": "elastic/oblt-aw",
       "pin-class": "development",
       "workflow-token-policy": "token-policy-26fea8cad514",
-      "ai-assets-token-policy": ""
+      "ai-assets-token-policy": "",
+      "pr-actions-detective-workflows": [
+        "CI",
+        "E2E — intentional Actions failure (pr-actions-detective)"
+      ]
     },
     {
       "repository": "elastic/oblt-cli",

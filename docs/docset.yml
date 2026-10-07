@@ -73,6 +73,7 @@ toc:
       - hidden: ./obs-aw-issue-fixer.md
       - hidden: ./obs-aw-issue-triage.md
       - hidden: ./obs-aw-mention-in-issue.md
+      - hidden: ./obs-aw-pr-actions-detective.md
       - hidden: ./obs-aw-resource-not-accessible-by-integration-detector.md
       - hidden: ./obs-aw-resource-not-accessible-by-integration-fixer.md
       - hidden: ./obs-aw-resource-not-accessible-by-integration-triage.md
@@ -124,3 +125,4 @@ toc:
       - hidden: ./automerge-vm-images-e2e.md
       - hidden: ./dependency-review-e2e.md
       - hidden: ./estc-pr-buildkite-detective-e2e.md
+      - hidden: ./pr-actions-detective-e2e.md

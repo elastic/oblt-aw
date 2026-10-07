@@ -47,6 +47,7 @@ Shared control-plane jobs use **kebab-case, action-oriented** ids with domain co
 - [Mention in Issue](obs-aw-mention-in-issue.md)
 - [Observability client templates](obs-aw-client-template.md)
 - [Onboard repository (in-repo only)](gh-aw-onboard-repository.md)
+- [PR Actions Detective](obs-aw-pr-actions-detective.md)
 - [PR Buildkite Detective](obs-aw-estc-pr-buildkite-detective.md)
 - [Release promote](aw-release-promote.md)
 - [Release rollback](aw-release-rollback.md)

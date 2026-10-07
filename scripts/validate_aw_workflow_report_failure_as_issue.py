@@ -35,10 +35,11 @@ LOCKS_WITHOUT_REPORT_FAILURE_INPUT: frozenset[str] = frozenset(
         # No report-failure-as-issue workflow_call input (findings via create_issue).
         "gh-aw-log-searching-agent.lock.yml",
         # In-repo locks: failure reporting baked via obs-defaults; no caller input.
-        "gh-aw-estc-pr-buildkite-detective.lock.yml",
+        "gh-aw-create-pr-from-issue.lock.yml",
         "gh-aw-dependency-review.lock.yml",
         "gh-aw-docs-patrol.lock.yml",
-        "gh-aw-create-pr-from-issue.lock.yml",
+        "gh-aw-estc-pr-buildkite-detective.lock.yml",
+        "gh-aw-pr-actions-detective.lock.yml",
     }
 )
 

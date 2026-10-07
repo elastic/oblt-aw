@@ -5,6 +5,7 @@ name: Observability Agentic Workflow — Pull Request Event
 # - ESTC: skip automerge + dependency-review (status-path fixture must not burn credits).
 # - dependency-review: skip automerge only (fixture must still run DR; merge-ready must
 #   not arm automerge:github-actions on the Actions pin-bump PR).
+# - PR Actions Detective: skip automerge + dependency-review for the workflow_run fixture.
 on:
   workflow_call:
 permissions:
@@ -25,9 +26,16 @@ jobs:
     needs: run-aw-prelude
     if: >-
       !(
-        contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
-        github.event.pull_request.head.repo.full_name == github.repository
+        (
+          contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+          github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        ) ||
+        (
+          contains(github.event.pull_request.labels.*.name, 'e2e:pr-actions-detective') &&
+          github.event.pull_request.head.ref == 'e2e/pr-actions-detective' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        )
       ) &&
       !(
         contains(github.event.pull_request.labels.*.name, 'e2e:dependency-review') &&
@@ -60,9 +68,16 @@ jobs:
     needs: run-aw-prelude
     if: >-
       !(
-        contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
-        github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
-        github.event.pull_request.head.repo.full_name == github.repository
+        (
+          contains(github.event.pull_request.labels.*.name, 'e2e:estc-pr-buildkite-detective') &&
+          github.event.pull_request.head.ref == 'e2e/estc-pr-buildkite-detective' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        ) ||
+        (
+          contains(github.event.pull_request.labels.*.name, 'e2e:pr-actions-detective') &&
+          github.event.pull_request.head.ref == 'e2e/pr-actions-detective' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        )
       ) &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-dependency-review.yml'] == 'true' &&
       github.event_name == 'pull_request' &&
