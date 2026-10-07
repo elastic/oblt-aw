@@ -111,13 +111,14 @@ Assist with failed GitHub Actions checks for pull requests in ${{ github.reposit
 
 ### Step 3: Respond
 
-If you are posting a comment, call `add_comment` on the PR using this structure:
+This workflow runs on GitHub **`workflow_run`** events. Call `add_comment` with:
 
-1. **TL;DR (required, first line)** — 1-2 sentences stating what failed and the immediate action.
-2. **Remediation (expanded, not collapsed)** — concrete fix steps and immediate next action.
-3. **All other sections inside a collapsed details block** using `<details><summary>...</summary> ... </details>`. Put root cause evidence, failing logs context, tests run, and follow-up details inside this block.
+- **`item_number`**: the open PR number from `github.event.workflow_run.pull_requests` (required; `target: "*"` cannot auto-target a workflow_run event).
+- **`body`**: the structured comment below.
+- Do **not** set the tool `target` argument to `pull_request` (invalid). Omit `target`, or use `status` only when intentionally updating the activation-status comment.
+- Do **not** call `noop` after a failed `add_comment`. If commenting fails after a real investigation, call `report_incomplete` with the error.
 
-Use this exact shape:
+Comment body structure:
 
 ```markdown
 ### TL;DR

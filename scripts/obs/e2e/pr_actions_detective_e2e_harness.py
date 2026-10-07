@@ -258,7 +258,9 @@ def load_e2e_config(path: Path) -> dict[str, Any]:
 
 
 def dashboard_enables_workflow(repo: str, workflow_id: str) -> bool:
-    from get_enabled_workflows import parse_enabled_ids_from_body
+    from get_enabled_workflows import (  # type: ignore[import-not-found,unused-ignore]
+        parse_enabled_ids_from_body,
+    )
 
     issues = gh_json(
         [
@@ -1005,6 +1007,20 @@ def wait_for_new_run(
     return None
 
 
+def _text_mentions_run_id(text: str, run_id: int) -> bool:
+    """True when ``text`` references ``run_id`` with numeric boundaries.
+
+    Rejects substring false positives such as ``fail_run_id=42`` matching
+    ``/actions/runs/142``.
+    """
+    if not text:
+        return False
+    rid = int(run_id)
+    if re.search(rf"/runs/{rid}(?:/|$|\?|#)", text):
+        return True
+    return re.search(rf"(?<!\d){rid}(?!\d)", text) is not None
+
+
 def _run_correlates_to_fail_run(
     run: dict[str, Any],
     *,
@@ -1014,10 +1030,11 @@ def _run_correlates_to_fail_run(
     """Return True when a run positively binds to the intentional fail run."""
     if fail_head_sha and str(run.get("headSha") or "") == fail_head_sha:
         return True
-    needle = str(fail_run_id)
     title = str(run.get("displayTitle") or "")
     url = str(run.get("url") or "")
-    if needle in title or needle in url:
+    if _text_mentions_run_id(title, fail_run_id) or _text_mentions_run_id(
+        url, fail_run_id
+    ):
         return True
     title_l = title.lower()
     if "e2e-pr-actions-detective-fail" in title_l:
@@ -1086,9 +1103,9 @@ def _job_names_indicate_agent(run_detail: dict[str, Any] | None) -> bool:
         conclusion = (job.get("conclusion") or "").lower()
         if conclusion in ("", "skipped"):
             continue
-        if name == "agent" or name.endswith(" / agent") or "/ agent" in name:
-            return True
-        if "gh-aw-pr-actions-detective" in name:
+        # Exact agent leaf only — never treat detection/conclusion/safe_outputs
+        # (or other namespaced siblings) as proof the agent ran.
+        if name == "agent" or name.endswith(" / agent"):
             return True
     return False
 
@@ -1134,8 +1151,8 @@ def agent_job_invoked(
 
     Nested ``workflow_call`` jobs may appear on the caller run; otherwise scan
     recent lock runs — but only when they bind to the intentional fail run
-    (matching ``headSha`` and/or fail run id in title/URL). A bare time window
-    never authorizes ``agent_invoked``.
+    (matching ``headSha`` and/or an exact fail run id in title/URL). A bare
+    time window never authorizes ``agent_invoked``.
     """
     if _job_names_indicate_agent(run_detail):
         return True

@@ -125,6 +125,46 @@ class TestHarnessHelpers:
                 ]
             }
         )
+        # Sibling lock jobs must not substitute for the agent leaf.
+        for sibling in (
+            "gh-aw-pr-actions-detective / detection",
+            "gh-aw-pr-actions-detective / conclusion",
+            "gh-aw-pr-actions-detective / safe_outputs",
+            "activation / gh-aw-pr-actions-detective",
+        ):
+            assert not harness._job_names_indicate_agent(
+                {"jobs": [{"name": sibling, "conclusion": "success"}]}
+            )
+
+    def test_run_correlates_rejects_substring_run_id(self) -> None:
+        # fail_run_id=42 must not match /runs/142 or title digits embedding 42.
+        assert not harness._run_correlates_to_fail_run(
+            {
+                "headSha": "other",
+                "displayTitle": "CI run 142",
+                "url": "https://example.test/actions/runs/142",
+            },
+            fail_run_id=42,
+            fail_head_sha="expected-sha",
+        )
+        assert harness._run_correlates_to_fail_run(
+            {
+                "headSha": "other",
+                "displayTitle": "triggered by run 42",
+                "url": "https://example.test/actions/runs/99",
+            },
+            fail_run_id=42,
+            fail_head_sha="expected-sha",
+        )
+        assert harness._run_correlates_to_fail_run(
+            {
+                "headSha": "other",
+                "displayTitle": "unrelated title",
+                "url": "https://example.test/actions/runs/42/jobs/1",
+            },
+            fail_run_id=42,
+            fail_head_sha="expected-sha",
+        )
 
     def test_workflow_run_job_executed_requires_named_job(self) -> None:
         assert not harness.workflow_run_job_executed(
