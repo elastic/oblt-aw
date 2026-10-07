@@ -45,10 +45,10 @@ Related: [Security triage](obs-aw-security-triage.md), [Security fixer](obs-aw-s
 
 ## Docs organization
 
-| Workflow | What it does | Docs |
-|----------|--------------|------|
-| Docs Issue AI Menu | Issue AI menu for the Docs org | [docs-aw-ai-menu](docs-aw-ai-menu.md) |
-| Docs PR AI Menu | PR AI menu for the Docs org | [docs-aw-pr-ai-menu](docs-aw-pr-ai-menu.md) |
+| Workflow | Maturity | What it does | Docs |
+|----------|----------|--------------|------|
+| Docs Issue AI Menu | experimental | Issue AI menu for the Docs org | [docs-aw-ai-menu](docs-aw-ai-menu.md) |
+| Docs PR AI Menu | experimental | PR AI menu for the Docs org | [docs-aw-pr-ai-menu](docs-aw-pr-ai-menu.md) |
 
 ## Filename index
 

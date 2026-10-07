@@ -21,7 +21,7 @@ How publish works: [development/codex-publish.md](development/codex-publish.md).
 
 - `admin-guide/` — maintain the control plane
 - `architecture/`, `operations/`, `routing/`, `onboarding/`, `development/`, `testing/` — reference sources (surfaced via Knowledge base)
-- `knowledge-base/` — architecture/reference hubs and Frequent Asked Problems
+- `knowledge-base/` — architecture/reference hubs and Frequently Asked Problems
 - `troubleshooting/` — failed runs and secrets
 - `user-guide/` — developer enablement stories
 - `workflows/` — outcome catalog + per-workflow docs

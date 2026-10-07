@@ -1,10 +1,10 @@
 ---
-navigation_title: Frequent Asked Problems
+navigation_title: Frequently Asked Problems
 description: Recurring oblt-aw failures and how we solve them — short answers with links to full guides.
 applies_to: {}
 ---
 
-# Frequent Asked Problems
+# Frequently Asked Problems
 
 Short answers for problems the team has already diagnosed. Each page links to the full procedure in Troubleshooting, the User guide, or the Admin guide.
 

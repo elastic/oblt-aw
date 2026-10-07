@@ -25,4 +25,4 @@ Full path: [Get started](get-started.md).
 | [User guide](user-guide/index.md) | Developers and repo owners (onboard, enable, Automerge, catalog) |
 | [Admin guide](admin-guide/index.md) | Maintainers who change the control plane |
 | [Troubleshooting](troubleshooting/index.md) | Failed runs and secrets |
-| [Knowledge base](knowledge-base/index.md) | Architecture, reference, and Frequent Asked Problems |
+| [Knowledge base](knowledge-base/index.md) | Architecture, reference, and Frequently Asked Problems |

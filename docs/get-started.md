@@ -39,5 +39,5 @@ More in the [User guide](user-guide/index.md).
 ## Where to get help
 
 - Failed run: [Troubleshooting](troubleshooting/index.md)
-- Recurring issues: [Frequent Asked Problems](knowledge-base/frequent-asked-problems/index.md)
+- Recurring issues: [Frequently Asked Problems](knowledge-base/frequent-asked-problems/index.md)
 - Slack: `#observability-robots` (operators and maintainers)

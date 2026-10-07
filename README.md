@@ -55,7 +55,7 @@ Executable workflows live under [.github/workflows/](.github/workflows/); their 
 
 ## Documentation
 
-**Portal (Elastic Internal Docs / Codex):** [https://codex.elastic.dev/r/oblt-aw/](https://codex.elastic.dev/r/oblt-aw/) — story-first guides for onboarding, enablement, and operations. Source Markdown lives under `docs/` (see [docs/index.md](docs/index.md)).
+**Portal (Elastic Internal Docs / Codex, planned):** [https://codex.elastic.dev/r/oblt-aw/](https://codex.elastic.dev/r/oblt-aw/) — story-first guides for onboarding, enablement, and operations. Live after docs-infra registration and token policies; until then use the in-repo index ([docs/index.md](docs/index.md)).
 
 - Get started: [docs/get-started.md](docs/get-started.md)
 - User guide: [docs/user-guide/index.md](docs/user-guide/index.md)
