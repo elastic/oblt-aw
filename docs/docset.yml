@@ -1,0 +1,113 @@
+---
+icon: sparkles
+
+registry: internal
+
+exclude:
+  - "**/README.md"
+  - examples/**
+  - testing/fixtures/**
+
+toc:
+  - file: index.md
+  - file: get-started.md
+  - folder: guides
+    children:
+      - file: index.md
+      - folder: user
+        children:
+          - file: onboard-a-repository.md
+          - file: start-from-scratch.md
+          - file: enable-a-new-workflow.md
+          - file: opt-in-opt-out.md
+          - file: automerge-services.md
+      - folder: operator
+        children:
+          - file: troubleshoot-an-error.md
+          - file: configure-a-github-secret.md
+      - folder: maintainer
+        children:
+          - file: add-a-new-agentic-workflow.md
+          - file: change-maturity-level.md
+          - file: use-gh-ephemeral-tokens.md
+  - folder: workflows
+    children:
+      - file: by-outcome.md
+      - file: index.md
+      - hidden: ./aw-dashboard-audit.md
+      - hidden: ./aw-prelude.md
+      - hidden: ./aw-release-promote.md
+      - hidden: ./aw-release-rollback.md
+      - hidden: ./aw-resolve-agentic-assets.md
+      - hidden: ./ci.md
+      - hidden: ./compiler-upgrade.md
+      - hidden: ./distribute-client-workflow.md
+      - hidden: ./docs-aw-ai-menu.md
+      - hidden: ./docs-aw-client-template.md
+      - hidden: ./docs-aw-pr-ai-menu.md
+      - hidden: ./get-enabled-workflows.md
+      - hidden: ./gh-aw-onboard-repository.md
+      - hidden: ./load-allowed-authors.md
+      - hidden: ./obs-aw-agent-suggestions.md
+      - hidden: ./obs-aw-autodoc.md
+      - hidden: ./obs-aw-automerge-deferred.md
+      - hidden: ./obs-aw-automerge.md
+      - hidden: ./obs-aw-client-template.md
+      - hidden: ./obs-aw-compiler-upgrade.md
+      - hidden: ./obs-aw-dependency-review.md
+      - hidden: ./obs-aw-duplicate-issue-detector.md
+      - hidden: ./obs-aw-estc-pr-buildkite-detective.md
+      - hidden: ./obs-aw-issue-fixer.md
+      - hidden: ./obs-aw-issue-triage.md
+      - hidden: ./obs-aw-mention-in-issue.md
+      - hidden: ./obs-aw-resource-not-accessible-by-integration-detector.md
+      - hidden: ./obs-aw-resource-not-accessible-by-integration-fixer.md
+      - hidden: ./obs-aw-resource-not-accessible-by-integration-triage.md
+      - hidden: ./obs-aw-security-detector.md
+      - hidden: ./obs-aw-security-fixer.md
+      - hidden: ./obs-aw-security-issue-superseder.md
+      - hidden: ./obs-aw-security-triage.md
+      - hidden: ./security-scanning-ruleset.md
+      - hidden: ./sync-control-plane-dashboard.md
+  - folder: architecture
+    children:
+      - file: overview.md
+      - hidden: ./agentic-workflow-testing-platform.md
+      - hidden: ./apm-agentic-assets.md
+      - hidden: ./instruction-fragments.md
+      - hidden: ./multi-org-agentic-workflows.md
+      - hidden: ./security-agent-architecture.md
+  - folder: operations
+    children:
+      - file: control-plane-dashboard.md
+      - file: distribute-client-workflow.md
+      - file: workflow-maturity.md
+      - hidden: ./agentic-release-model.md
+      - hidden: ./control-plane-dashboard-format.md
+  - folder: routing
+    children:
+      - file: index.md
+      - hidden: ./agent-suggestions-routing.md
+      - hidden: ./autodoc-routing.md
+      - hidden: ./automerge-routing.md
+      - hidden: ./dependency-review-routing.md
+      - hidden: ./issue-fixer-routing.md
+      - hidden: ./resource-not-accessible-by-integration-routing.md
+      - hidden: ./security-routing.md
+  - folder: onboarding
+    children:
+      - file: index.md
+      - hidden: ./adopting-agentic-workflows.md
+      - hidden: ./registering-a-repository.md
+  - folder: development
+    children:
+      - file: contributing.md
+      - file: codex-publish.md
+  - folder: testing
+    children:
+      - file: index.md
+      - hidden: ./autodoc-e2e-bait.md
+      - hidden: ./autodoc-e2e.md
+      - hidden: ./automerge-vm-images-e2e.md
+      - hidden: ./dependency-review-e2e.md
+      - hidden: ./estc-pr-buildkite-detective-e2e.md

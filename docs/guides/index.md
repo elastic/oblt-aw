@@ -1,14 +1,18 @@
+---
+navigation_title: Guides by role
+description: User, operator, and maintainer stories for OBLT Agentic Workflows.
+applies_to: {}
+---
+
 # Guides by role
 
-Canonical Codex / docs-builder entry: [index.md](index.md).
-
-Pick your audience:
+These guides answer **who you are** and **what you want to do**. Each page is a short procedure with links to the authoritative docs — not a second copy of workflow behavior or routing rules.
 
 | Audience | When you are… | Stories |
 |----------|---------------|---------|
-| **User** | A developer or repo owner using agentic workflows in your repository | [User stories](user/) |
-| **Operator** | Responsible for the service (for example, answering in `#observability-robots`) | [Operator stories](operator/) |
-| **Maintainer** | Contributing to `elastic/oblt-aw` or `elastic/ai-github-actions` | [Maintainer stories](maintainer/) |
+| **User** | A developer or repo owner using agentic workflows in your repository | [User stories](#user-stories) |
+| **Operator** | Responsible for the service (for example, answering in `#observability-robots`) | [Operator stories](#operator-stories) |
+| **Maintainer** | Contributing to `elastic/oblt-aw` or `elastic/ai-github-actions` | [Maintainer stories](#maintainer-stories) |
 
 ## User stories
 
@@ -28,9 +32,3 @@ Pick your audience:
 - [Add a new agentic workflow](maintainer/add-a-new-agentic-workflow.md) — Ship a new routed workflow on the control plane.
 - [Change maturity level](maintainer/change-maturity-level.md) — Update `workflow-registry.json` and dashboard sync behavior.
 - [Use GitHub ephemeral tokens](maintainer/use-gh-ephemeral-tokens.md) — `create-token`, OIDC, and token policy fields.
-
-## References
-
-- [Documentation portal home](../index.md)
-- [Onboarding (long-form guides)](../onboarding/index.md)
-- [Contributing to oblt-aw](../development/contributing.md)

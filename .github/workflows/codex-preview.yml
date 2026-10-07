@@ -1,0 +1,29 @@
+---
+name: elastic-codex
+
+# Builds and publishes Elastic Internal Docs (Codex) previews for docs/** changes.
+# File name must remain codex-preview.yml (Vault OIDC bound_claims.workflow_ref).
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+  pull_request:
+    paths:
+      - "docs/**"
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    permissions:
+      contents: read
+      deployments: write
+      id-token: write
+      pull-requests: write
+    uses: elastic/docs-actions/.github/workflows/codex-preview.yml@e1608f9d7c62bc4c59ab21fc691809351b1a31aa # ratchet:elastic/docs-actions/.github/workflows/codex-preview.yml@v1
+    with:
+      path-pattern: "docs/**"

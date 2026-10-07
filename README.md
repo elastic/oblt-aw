@@ -55,16 +55,14 @@ Executable workflows live under [.github/workflows/](.github/workflows/); their 
 
 ## Documentation
 
-Primary repository documentation lives under `docs/`.
+**Portal (Elastic Internal Docs / Codex):** [https://codex.elastic.dev/r/oblt-aw/](https://codex.elastic.dev/r/oblt-aw/) — story-first guides for onboarding, enablement, and the workflow catalog. Source Markdown lives under `docs/` (see [docs/index.md](docs/index.md)).
 
-- Docs home: [docs/README.md](docs/README.md)
-- Architecture and design: [docs/architecture/overview.md](docs/architecture/overview.md)
-- Workflow-specific docs: [docs/workflows/README.md](docs/workflows/README.md)
-- Routing docs: [docs/routing/README.md](docs/routing/README.md)
-- Distribution and rollout operations: [docs/operations/distribute-client-workflow.md](docs/operations/distribute-client-workflow.md)
-- Onboarding: [docs/onboarding/README.md](docs/onboarding/README.md)
-- Guides by role: [docs/guides/README.md](docs/guides/README.md)
-- Contributing and local setup: [docs/development/contributing.md](docs/development/contributing.md)
+- Get started: [docs/get-started.md](docs/get-started.md)
+- Guides by role: [docs/guides/index.md](docs/guides/index.md)
+- Workflow catalog by outcome: [docs/workflows/by-outcome.md](docs/workflows/by-outcome.md)
+- Architecture: [docs/architecture/overview.md](docs/architecture/overview.md)
+- Contributing: [docs/development/contributing.md](docs/development/contributing.md)
+- How docs publish to Codex: [docs/development/codex-publish.md](docs/development/codex-publish.md)
 
 ## Development
 
