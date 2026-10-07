@@ -150,9 +150,14 @@ The table below documents how each rule ID is currently represented in the detec
 **Severity**: Medium
 **Maps to**: Secret management — improper token scoping (workflow design).
 
-**Description**: A job or step has access to repository secrets or `GITHUB_TOKEN` write scopes when the job only needs read-only operations; or secrets declared at workflow level when only one job requires them (broader blast radius).
+**Description**: A job or step has access to repository secrets or `GITHUB_TOKEN` write scopes when the job only needs read-only operations; or secrets declared at workflow level when only one job requires them (broader blast radius). This also includes reusable-workflow calls that use `secrets: inherit` without a minimal explicit secret contract.
 
 **Note**: Overlaps with SEC-041; SEC-022 emphasizes **secret** exposure surface, SEC-041 emphasizes **permissions** syntax.
+
+**Remediation guidance**:
+- Avoid blanket `secrets: inherit` on `uses:` callsites.
+- Define `on.workflow_call.secrets` in the called reusable workflow for only the secrets actually required.
+- At callsites, pass explicit secret mappings (for example `secrets: { MY_TOKEN: ${{ secrets.MY_TOKEN }} }`) only to jobs that need them.
 
 ---
 
