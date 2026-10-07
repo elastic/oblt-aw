@@ -327,7 +327,7 @@ class TestMain:
         install = next(t for t in targets if t["repository"] == "elastic/foo")
         dsts = {f["dst"] for f in install["files"]}
         assert ".github/workflows/trigger-obs-aw-workflow-run.yml" in dsts
-        assert install["pr-actions-detective-workflows"] == ["CI", "Build"]
+        assert install["pr-actions-detective-workflows"] == ["Build", "CI"]
         assert (
             ".github/workflows/trigger-obs-aw-workflow-run.yml"
             not in install["remove_files"]
