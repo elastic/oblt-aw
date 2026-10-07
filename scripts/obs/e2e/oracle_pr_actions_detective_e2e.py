@@ -25,6 +25,11 @@ from pathlib import Path
 from typing import Any
 
 WORKFLOW_ID = "obs:pr-actions-detective"
+CANONICAL_FIXTURE_BRANCH = "e2e/pr-actions-detective"
+CANONICAL_FIXTURE_LABEL = "e2e:pr-actions-detective"
+# Exact leaf or namespaced display name ending in this suffix.
+CANONICAL_WORKFLOW_RUN_JOB_SUFFIX = " / run-obs-aw-workflow-run"
+CANONICAL_WORKFLOW_RUN_JOB_EXACT = "run-obs-aw-workflow-run"
 
 
 def _load_json(path: Path) -> Any:
@@ -386,6 +391,36 @@ def _evaluate_live(
 
     _check(checks, "layer_e2e", layer == "e2e", f"layer={layer!r}")
 
+    raw_fixture = outcome.get("fixture")
+    fixture: dict[str, Any] = raw_fixture if isinstance(raw_fixture, dict) else {}
+    require_open_pr = False
+    try:
+        require_open_pr = _as_bool(trigger.get("require_open_pr"))
+    except TypeError:
+        require_open_pr = False
+    if require_open_pr and not outcome.get("blocked"):
+        pr_number = outcome.get("pr_number")
+        fixture_pr = fixture.get("pr_number")
+        branch = str(fixture.get("branch") or "")
+        pr_head = str(outcome.get("pr_head_branch") or "")
+        label = str(fixture.get("label") or "")
+        pr_ok = isinstance(pr_number, int) and pr_number > 0 and fixture_pr == pr_number
+        branch_ok = (
+            branch == CANONICAL_FIXTURE_BRANCH
+            and pr_head == CANONICAL_FIXTURE_BRANCH
+            and pr_head == branch
+        )
+        label_ok = label == CANONICAL_FIXTURE_LABEL
+        _check(
+            checks,
+            "fixture_identity",
+            pr_ok and branch_ok and label_ok,
+            (
+                f"pr_number={pr_number!r} fixture_pr={fixture_pr!r} "
+                f"branch={branch!r} pr_head_branch={pr_head!r} label={label!r}"
+            ),
+        )
+
     if "dashboard_enabled" in expectations:
         try:
             expected = _as_bool(expectations["dashboard_enabled"])
@@ -460,24 +495,36 @@ def _evaluate_live(
         try:
             expected = _as_bool(expectations["workflow_run_job_executed"])
             actual = _as_bool(workflow_run_trigger.get("job_executed"))
+            job_conclusion = str(
+                workflow_run_trigger.get("job_conclusion") or ""
+            ).lower()
+            matched_job = str(workflow_run_trigger.get("matched_job_name") or "")
+            matched_l = matched_job.lower()
+            leaf_ok = (not expected) or (
+                matched_l == CANONICAL_WORKFLOW_RUN_JOB_EXACT
+                or matched_l.endswith(CANONICAL_WORKFLOW_RUN_JOB_SUFFIX.lower())
+            )
+            named_ok = actual is True and job_conclusion == "success"
             _check(
                 checks,
                 "workflow_run_job_executed",
-                actual == expected,
+                (named_ok == expected) and leaf_ok,
                 (
-                    f"expected={expected} actual={actual} "
+                    f"expected={expected} job_executed={actual} "
+                    f"job_conclusion={job_conclusion!r} "
+                    f"matched_job_name={matched_job!r} "
                     f"run={workflow_run_trigger.get('url')}"
                 ),
             )
             if expected is True and run_seen is True:
-                job_conclusion = str(
-                    workflow_run_trigger.get("job_conclusion") or ""
-                ).lower()
                 _check(
                     checks,
                     "workflow_run_job_success",
-                    job_conclusion == "success",
-                    f"job_conclusion={job_conclusion!r}",
+                    job_conclusion == "success" and leaf_ok,
+                    (
+                        f"job_conclusion={job_conclusion!r} "
+                        f"matched_job_name={matched_job!r}"
+                    ),
                 )
         except TypeError as exc:
             _check(checks, "workflow_run_job_executed", False, str(exc))

@@ -49,6 +49,13 @@ def _synthetic_live_outcome(
         "layer": "e2e",
         "mode": "live",
         "agent_invoked": agent_invoked,
+        "pr_number": 42,
+        "pr_head_branch": harness.FIXTURE_BRANCH,
+        "fixture": {
+            "branch": harness.FIXTURE_BRANCH,
+            "label": harness.FIXTURE_LABEL,
+            "pr_number": 42,
+        },
         "path_gates": {"dashboard_enabled": True},
         "fail_workflow": {
             "source": "created",
@@ -61,6 +68,7 @@ def _synthetic_live_outcome(
             "run_seen": True,
             "job_executed": True,
             "job_conclusion": "success",
+            "matched_job_name": "run-obs-aw-workflow-run",
             "url": "https://example.test/run",
         },
         "agent_comment": {"id": 1} if agent_invoked else None,
@@ -135,6 +143,27 @@ class TestHarnessHelpers:
                 ]
             }
         )
+        assert harness.workflow_run_matched_job_name(
+            {
+                "jobs": [
+                    {
+                        "name": "Observability Agentic Workflow — Workflow Run / "
+                        "run-obs-aw-workflow-run",
+                        "conclusion": "success",
+                    }
+                ]
+            }
+        ) == ("Observability Agentic Workflow — Workflow Run / run-obs-aw-workflow-run")
+        assert not harness.workflow_run_job_executed(
+            {
+                "jobs": [
+                    {
+                        "name": "run-obs-aw-workflow-run-helper",
+                        "conclusion": "success",
+                    }
+                ]
+            }
+        )
         assert not harness.workflow_run_job_executed(
             {
                 "jobs": [
@@ -145,6 +174,139 @@ class TestHarnessHelpers:
                 ]
             }
         )
+
+    def test_wait_for_new_run_rejects_time_only_uncorrelated(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = harness._utc_now().replace(microsecond=0)
+        created = since.isoformat().replace("+00:00", "Z")
+        monkeypatch.setattr(
+            harness,
+            "list_workflow_runs",
+            lambda *_a, **_k: [
+                {
+                    "databaseId": 7,
+                    "createdAt": created,
+                    "event": "workflow_run",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "displayTitle": "unrelated CI failure",
+                    "url": "https://example.test/runs/7",
+                    "headSha": "other",
+                }
+            ],
+        )
+        monkeypatch.setattr(
+            harness,
+            "gh_json",
+            lambda *_a, **_k: {
+                "databaseId": 7,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": created,
+                "event": "workflow_run",
+                "displayTitle": "unrelated CI failure",
+                "url": "https://example.test/runs/7",
+                "headSha": "other",
+                "jobs": [
+                    {
+                        "name": "run-obs-aw-workflow-run",
+                        "conclusion": "success",
+                    }
+                ],
+            },
+        )
+        result = harness.wait_for_new_run(
+            "elastic/oblt-aw",
+            "trigger-obs-aw-workflow-run.yml",
+            since=since,
+            timeout_seconds=1,
+            interval_seconds=1,
+            fail_run_id=42,
+            fail_head_sha="expected-sha",
+        )
+        assert result is None
+
+    def test_wait_for_new_run_accepts_head_sha_correlation(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = harness._utc_now().replace(microsecond=0)
+        created = since.isoformat().replace("+00:00", "Z")
+        monkeypatch.setattr(
+            harness,
+            "list_workflow_runs",
+            lambda *_a, **_k: [
+                {
+                    "databaseId": 8,
+                    "createdAt": created,
+                    "event": "workflow_run",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "displayTitle": "default tip",
+                    "url": "https://example.test/runs/8",
+                    "headSha": "expected-sha",
+                }
+            ],
+        )
+        monkeypatch.setattr(
+            harness,
+            "gh_json",
+            lambda *_a, **_k: {
+                "databaseId": 8,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": created,
+                "event": "workflow_run",
+                "displayTitle": "default tip",
+                "url": "https://example.test/runs/8",
+                "headSha": "expected-sha",
+                "jobs": [
+                    {
+                        "name": "run-obs-aw-workflow-run",
+                        "conclusion": "success",
+                    }
+                ],
+            },
+        )
+        result = harness.wait_for_new_run(
+            "elastic/oblt-aw",
+            "trigger-obs-aw-workflow-run.yml",
+            since=since,
+            timeout_seconds=5,
+            interval_seconds=1,
+            fail_run_id=42,
+            fail_head_sha="expected-sha",
+        )
+        assert result is not None
+        assert result["databaseId"] == 8
+
+    def test_seed_fixture_marker_refuses_differing_remote(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _fake_run(cmd: list[str], **_k: object) -> object:
+            class _Proc:
+                returncode = 0
+                stdout = json.dumps(
+                    {
+                        "sha": "abc",
+                        "content": "bm90LW1hdGNoCg==",  # "not-match\n" b64
+                    }
+                )
+                stderr = ""
+
+            assert "contents/" in " ".join(cmd)
+            return _Proc()
+
+        monkeypatch.setattr(harness.subprocess, "run", _fake_run)
+
+        def _put_must_not_run(*_a: object, **_k: object) -> None:
+            raise AssertionError("put_branch_file must not overwrite differing remote")
+
+        monkeypatch.setattr(harness, "put_branch_file", _put_must_not_run)
+        with pytest.raises(RuntimeError, match="refusing to overwrite"):
+            harness.seed_fixture_marker(
+                "elastic/oblt-aw", branch="e2e/pr-actions-detective"
+            )
 
     def test_find_agent_comment_requires_bot_author(
         self, monkeypatch: pytest.MonkeyPatch
@@ -389,6 +551,40 @@ class TestOracleFailClosed:
         assert "agent_comment_present" in check_ids
         assert "fail_log_marker_verified" in check_ids
         assert "workflow_run_job_executed" in check_ids
+        assert "fixture_identity" in check_ids
+
+    def test_oracle_rejects_missing_fixture_identity(self) -> None:
+        outcome = _synthetic_live_outcome()
+        del outcome["pr_number"]
+        del outcome["pr_head_branch"]
+        outcome["fixture"] = {}
+        report = _evaluate(outcome)
+        assert report["pass"] is False
+        assert any(
+            c["id"] == "fixture_identity" and not c["pass"] for c in report["checks"]
+        )
+
+    def test_oracle_rejects_wrong_matched_job_name(self) -> None:
+        outcome = _synthetic_live_outcome()
+        outcome["workflow_run_trigger"]["matched_job_name"] = (
+            "run-obs-aw-workflow-run-helper"
+        )
+        report = _evaluate(outcome)
+        assert report["pass"] is False
+        assert any(
+            c["id"] == "workflow_run_job_executed" and not c["pass"]
+            for c in report["checks"]
+        )
+
+    def test_oracle_rejects_missing_matched_job_name(self) -> None:
+        outcome = _synthetic_live_outcome()
+        outcome["workflow_run_trigger"]["matched_job_name"] = ""
+        report = _evaluate(outcome)
+        assert report["pass"] is False
+        assert any(
+            c["id"] == "workflow_run_job_executed" and not c["pass"]
+            for c in report["checks"]
+        )
 
     def test_missing_expectations_fail_closed(self) -> None:
         report = oracle.evaluate_outcome(

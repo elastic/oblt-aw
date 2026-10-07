@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
         isinstance(name, str) and name.strip() for name in workflows
     ):
         raise SystemExit("--workflows-json must be a JSON array of non-empty strings")
-    names = [name.strip() for name in workflows]
+    names = sorted({name.strip() for name in workflows})
 
     path: Path = args.path
     if not path.is_file():

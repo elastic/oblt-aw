@@ -69,3 +69,22 @@ class TestMain:
         )
         assert rc == 0
         assert path.read_text(encoding="utf-8") == 'workflows: ["Internal: CI"]\n'
+
+    def test_main_canonicalizes_order_and_duplicates(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        path = tmp_path / "trigger.yml"
+        path.write_text(
+            'workflows: ["__OBLT_AW_PR_ACTIONS_DETECTIVE_WORKFLOWS__"]\n',
+            encoding="utf-8",
+        )
+        rc = render.main(
+            [
+                "--path",
+                str(path),
+                "--workflows-json",
+                json.dumps([" CI ", "Build", "CI"]),
+            ]
+        )
+        assert rc == 0
+        assert path.read_text(encoding="utf-8") == 'workflows: ["Build", "CI"]\n'

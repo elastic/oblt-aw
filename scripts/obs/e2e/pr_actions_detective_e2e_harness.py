@@ -57,6 +57,9 @@ DEFAULT_FIXTURE_BODY = (
 FIXTURE_BRANCH = "e2e/pr-actions-detective"
 FIXTURE_LABEL = "e2e:pr-actions-detective"
 DEFAULT_FAIL_LOG_MARKER = "OBLT_AW_E2E_PR_ACTIONS_INTENTIONAL_FAILURE"
+# Caller trigger leaf job id (exact) and nested reusable display suffix.
+WORKFLOW_RUN_ROUTE_JOB_EXACT = ("run-obs-aw-workflow-run",)
+WORKFLOW_RUN_ROUTE_JOB_SUFFIXES = (" / run-obs-aw-workflow-run",)
 
 
 def _load_json(path: Path) -> Any:
@@ -207,6 +210,46 @@ def put_branch_file(
     return commit_sha_from_contents_put(gh_json(put_args))
 
 
+def seed_fixture_marker(repo: str, *, branch: str) -> None:
+    """Create the long-lived fixture marker when missing; refuse content drift.
+
+    Matches ``sync_fail_workflow_to_fixture_branch``: no-op when remote already
+    matches ``MARKER_BODY``; raise when a different file is present.
+    """
+    encoded = base64.b64encode(MARKER_BODY.encode("utf-8")).decode("ascii")
+    existing = subprocess.run(
+        ["gh", "api", f"repos/{repo}/contents/{MARKER_PATH}?ref={branch}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if existing.returncode == 0:
+        payload = json.loads(existing.stdout)
+        remote_b64 = str(payload.get("content") or "").replace("\n", "")
+        if remote_b64 == encoded:
+            log_info(f"{MARKER_PATH} already current on {repo}@{branch}.")
+            return
+        raise RuntimeError(
+            f"Fixture marker {MARKER_PATH} already exists on {repo}@{branch} "
+            "with different content; refusing to overwrite. Update the fixture "
+            "via a normal PR (or align the checked-in marker) before "
+            "re-running live E2E."
+        )
+    err = (existing.stderr or existing.stdout or "").lower()
+    if existing.returncode != 0 and "404" not in err and "not found" not in err:
+        raise RuntimeError(
+            f"Failed to read fixture marker {MARKER_PATH} on {repo}@{branch}: "
+            f"{(existing.stderr or existing.stdout or '').strip() or f'exit {existing.returncode}'}"
+        )
+    put_branch_file(
+        repo,
+        branch=branch,
+        path=MARKER_PATH,
+        content=MARKER_BODY,
+        message="chore(e2e): keep PR Actions Detective fixture PR marker",
+    )
+
+
 def load_e2e_config(path: Path) -> dict[str, Any]:
     data = _load_json(path)
     if not isinstance(data, dict):
@@ -215,9 +258,7 @@ def load_e2e_config(path: Path) -> dict[str, Any]:
 
 
 def dashboard_enables_workflow(repo: str, workflow_id: str) -> bool:
-    from get_enabled_workflows import (  # type: ignore[import-not-found]
-        parse_enabled_ids_from_body,
-    )
+    from get_enabled_workflows import parse_enabled_ids_from_body
 
     issues = gh_json(
         [
@@ -459,30 +500,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
             ]
         )
 
-    encoded = base64.b64encode(MARKER_BODY.encode("utf-8")).decode("ascii")
-    existing_file = subprocess.run(
-        ["gh", "api", f"repos/{repo}/contents/{MARKER_PATH}?ref={branch}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    put_args = [
-        "api",
-        "--method",
-        "PUT",
-        f"repos/{repo}/contents/{MARKER_PATH}",
-        "-f",
-        "message=chore(e2e): keep PR Actions Detective fixture PR marker",
-        "-f",
-        f"content={encoded}",
-        "-f",
-        f"branch={branch}",
-    ]
-    if existing_file.returncode == 0:
-        sha = json.loads(existing_file.stdout).get("sha")
-        if sha:
-            put_args.extend(["-f", f"sha={sha}"])
-    gh_json(put_args)
+    seed_fixture_marker(repo, branch=branch)
 
     create = subprocess.run(
         [
@@ -917,6 +935,7 @@ def wait_for_new_run(
     event: str | None = "workflow_run",
     not_before: datetime | None = None,
     fail_run_id: int | None = None,
+    fail_head_sha: str | None = None,
 ) -> dict[str, Any] | None:
     """Wait for a workflow_run-triggered caller run whose named job succeeded.
 
@@ -925,16 +944,18 @@ def wait_for_new_run(
 
     ``not_before`` (typically the intentional fail run's ``createdAt``) raises
     the time floor above harness ``since`` so older caller runs cannot match.
-    When ``fail_run_id`` is set, prefer runs whose display title/URL mention
-    that id or the fail workflow basename; otherwise accept the first eligible
-    successful named-job run after the floor (concurrency serializes the live
-    harness; the fail wait is already bound to ``head_sha``).
+
+    Fail closed: require ``fail_run_id`` and a positive correlation to that
+    intentional failure (title/URL/basename or matching ``headSha``). Never
+    accept a time-floor-only candidate.
     """
     excluded = set(exclude_run_ids or ())
     floor = not_before if not_before is not None else since
     deadline = time.time() + timeout_seconds
-    preferred: dict[str, Any] | None = None
     while time.time() < deadline:
+        if fail_run_id is None:
+            time.sleep(interval_seconds)
+            continue
         candidates: list[dict[str, Any]] = []
         for run in list_workflow_runs(repo, workflow_file):
             run_id = int(run["databaseId"])
@@ -966,52 +987,91 @@ def wait_for_new_run(
                 candidates.append(cast(dict[str, Any], detail))
                 break
         if candidates:
-            if fail_run_id is not None:
-                correlated = [
-                    c
-                    for c in candidates
-                    if _run_correlates_to_fail_run(c, fail_run_id=fail_run_id)
-                ]
-                if correlated:
-                    return correlated[0]
-            # No positive title/URL signal (common for workflow_run children
-            # whose displayTitle is the default-branch tip message). Accept the
-            # earliest eligible successful caller after the fail floor.
-            candidates.sort(key=lambda c: _parse_gh_time(str(c.get("createdAt") or "")))
-            preferred = candidates[0]
-            return preferred
+            correlated = [
+                c
+                for c in candidates
+                if _run_correlates_to_fail_run(
+                    c, fail_run_id=fail_run_id, fail_head_sha=fail_head_sha
+                )
+            ]
+            if correlated:
+                correlated.sort(
+                    key=lambda c: _parse_gh_time(str(c.get("createdAt") or ""))
+                )
+                return correlated[0]
+            # Eligible named-job successes without positive correlation: keep
+            # waiting rather than green on an unrelated allowlisted failure.
         time.sleep(interval_seconds)
     return None
 
 
-def _run_correlates_to_fail_run(run: dict[str, Any], *, fail_run_id: int) -> bool:
-    """Return True when a run's title/URL positively mentions the fail run.
-
-    Used to *prefer* a caller/lock match. Absence of a signal must not alone
-    authorize a gate; callers combine this with head-SHA / time-floor checks.
-    """
+def _run_correlates_to_fail_run(
+    run: dict[str, Any],
+    *,
+    fail_run_id: int,
+    fail_head_sha: str | None = None,
+) -> bool:
+    """Return True when a run positively binds to the intentional fail run."""
+    if fail_head_sha and str(run.get("headSha") or "") == fail_head_sha:
+        return True
     needle = str(fail_run_id)
     title = str(run.get("displayTitle") or "")
     url = str(run.get("url") or "")
     if needle in title or needle in url:
         return True
-    return "e2e-pr-actions-detective-fail" in title.lower()
+    title_l = title.lower()
+    if "e2e-pr-actions-detective-fail" in title_l:
+        return True
+    return (
+        "intentional actions failure" in title_l and "pr-actions-detective" in title_l
+    )
+
+
+def _job_match_by_exact_or_suffix(
+    run_detail: dict[str, Any] | None,
+    *,
+    exact_names: tuple[str, ...] = (),
+    endswith_suffixes: tuple[str, ...] = (),
+) -> tuple[str, str] | None:
+    """Return ``(job_name, conclusion)`` for the first non-skipped match."""
+    if not run_detail:
+        return None
+    exact = {n.lower() for n in exact_names}
+    suffixes = tuple(s.lower() for s in endswith_suffixes)
+    for job in run_detail.get("jobs") or []:
+        raw_name = str(job.get("name") or "")
+        name = raw_name.lower()
+        conclusion = (job.get("conclusion") or "").lower()
+        if conclusion in ("", "skipped"):
+            continue
+        if name in exact or any(name.endswith(suffix) for suffix in suffixes):
+            return (raw_name, conclusion)
+    return None
+
+
+def workflow_run_matched_job_name(run_detail: dict[str, Any] | None) -> str | None:
+    """Return the matched workflow-run route leaf job name, if any."""
+    match = _job_match_by_exact_or_suffix(
+        run_detail,
+        exact_names=WORKFLOW_RUN_ROUTE_JOB_EXACT,
+        endswith_suffixes=WORKFLOW_RUN_ROUTE_JOB_SUFFIXES,
+    )
+    return match[0] if match else None
 
 
 def workflow_run_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
     """Return the named workflow-run route job conclusion when present.
 
     Fail closed: do not treat overall run conclusion as a substitute.
-    Prefer leaf suffixes that match ``run-obs-aw-workflow-run``.
+    Match only the exact leaf ``run-obs-aw-workflow-run`` (or a namespaced
+    name ending in `` / run-obs-aw-workflow-run``).
     """
-    if not run_detail:
-        return None
-    for job in run_detail.get("jobs") or []:
-        name = (job.get("name") or "").lower()
-        if "run-obs-aw-workflow-run" in name or name.endswith("obs-aw-workflow-run"):
-            conclusion = (job.get("conclusion") or "").lower()
-            return conclusion or None
-    return None
+    match = _job_match_by_exact_or_suffix(
+        run_detail,
+        exact_names=WORKFLOW_RUN_ROUTE_JOB_EXACT,
+        endswith_suffixes=WORKFLOW_RUN_ROUTE_JOB_SUFFIXES,
+    )
+    return match[1] if match else None
 
 
 def workflow_run_job_executed(run_detail: dict[str, Any] | None) -> bool:
@@ -1055,12 +1115,10 @@ def _lock_run_bound_to_fail(
     fail_head_sha: str | None,
 ) -> bool:
     """Require a positive binding from a lock run to the intentional fail."""
-    head = str(run.get("headSha") or "")
-    if fail_head_sha and head == fail_head_sha:
-        return True
-    return bool(
-        fail_run_id is not None
-        and _run_correlates_to_fail_run(run, fail_run_id=int(fail_run_id))
+    if fail_run_id is None:
+        return False
+    return _run_correlates_to_fail_run(
+        run, fail_run_id=int(fail_run_id), fail_head_sha=fail_head_sha
     )
 
 
@@ -1138,6 +1196,7 @@ def run_live_case(
     comment: dict[str, Any] | None = None
     job_executed = False
     job_conclusion: str | None = None
+    matched_job_name: str | None = None
     run_detail: dict[str, Any] | None = None
 
     def _blocked(reason: str, **extra: Any) -> dict[str, Any]:
@@ -1316,6 +1375,7 @@ def run_live_case(
             event="workflow_run",
             not_before=fail_created,
             fail_run_id=fail_run_id,
+            fail_head_sha=fail_head_sha,
         )
         if run_detail is None:
             raise TimeoutError(
@@ -1326,6 +1386,7 @@ def run_live_case(
 
         job_executed = workflow_run_job_executed(run_detail)
         job_conclusion = workflow_run_job_conclusion(run_detail)
+        matched_job_name = workflow_run_matched_job_name(run_detail)
         invoked = agent_job_invoked(
             repo,
             run_detail,
@@ -1425,6 +1486,7 @@ def run_live_case(
             "run_seen": True,
             "job_executed": job_executed,
             "job_conclusion": job_conclusion,
+            "matched_job_name": matched_job_name,
             "run_id": (run_detail or {}).get("databaseId"),
             "conclusion": (run_detail or {}).get("conclusion"),
             "url": (run_detail or {}).get("url"),

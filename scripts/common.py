@@ -106,7 +106,11 @@ def _optional_policy_string(item: dict[str, object], key: str, repo: str) -> str
 def _optional_string_list(
     item: dict[str, object], key: str, repo: str
 ) -> tuple[str, ...]:
-    """Parse an optional list of non-empty strings (default empty)."""
+    """Parse an optional list of non-empty strings (default empty).
+
+    Values are trimmed, de-duplicated, and sorted so equal allowlists compare
+    equal regardless of input order or duplicate entries.
+    """
     if key not in item or item[key] is None:
         return ()
     value = item[key]
@@ -122,7 +126,7 @@ def _optional_string_list(
                 f"Invalid {key} for {repo!r}: entry {index} must be a non-empty string"
             )
         names.append(element.strip())
-    return tuple(names)
+    return tuple(sorted(set(names)))
 
 
 def _parse_pin_class(item: dict[str, object], repo: str) -> str:

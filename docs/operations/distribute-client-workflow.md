@@ -51,7 +51,10 @@ PR labels on install and remove PRs:
         "pin-class": "development",
         "workflow-token-policy": "",
         "ai-assets-token-policy": "",
-        "pr-actions-detective-workflows": ["CI"]
+        "pr-actions-detective-workflows": [
+          "CI",
+          "E2E — intentional Actions failure (pr-actions-detective)"
+        ]
       },
       {
         "repository": "elastic/oblt-cli",
@@ -76,7 +79,7 @@ Validation and normalization rules:
 
 Examples:
 
-- Valid: `{"repository": "elastic/oblt-aw", "pin-class": "development", "workflow-token-policy": "", "ai-assets-token-policy": "", "pr-actions-detective-workflows": ["CI"]}`
+- Valid: `{"repository": "elastic/oblt-aw", "pin-class": "development", "workflow-token-policy": "", "ai-assets-token-policy": "", "pr-actions-detective-workflows": ["CI", "E2E — intentional Actions failure (pr-actions-detective)"]}`
 - Valid (no detective): `{"repository": "elastic/oblt-cli", "pin-class": "production", "workflow-token-policy": "", "ai-assets-token-policy": ""}`
 - Invalid: `"elastic/oblt-aw"` (bare string), `"elastic"` (missing slash in `repository`), `123` (non-object), `{"repo":"elastic/oblt-aw"}` (wrong key), `{"repository":"elastic/oblt-aw","pin-class":"production"}` (`elastic/oblt-aw` must be development)
 

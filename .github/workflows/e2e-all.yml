@@ -134,6 +134,12 @@ jobs:
 
   e2e-pr-actions-detective:
     name: PR Actions Detective
+    needs: [assert-trusted-dispatch]
+    if: >-
+      always() &&
+      !cancelled() &&
+      (needs.assert-trusted-dispatch.result == 'success' ||
+       needs.assert-trusted-dispatch.result == 'skipped')
     permissions:
       contents: write
       pull-requests: write
@@ -142,4 +148,6 @@ jobs:
       checks: read
       id-token: write
     uses: ./.github/workflows/e2e-pr-actions-detective.yml
+    with:
+      checkout-ref: ${{ inputs.checkout-ref }}
     secrets: inherit
