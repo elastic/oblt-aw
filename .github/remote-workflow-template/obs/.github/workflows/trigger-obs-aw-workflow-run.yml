@@ -1,0 +1,25 @@
+name: Observability Agentic Workflow — Workflow Run
+
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers] -- trusted split-workflow handoff; gated on failure + associated PRs below and dashboard-disabled-by-default
+    # Populated at distribute from active-repositories.json pr-actions-detective-workflows.
+    # Placeholder must remain until render_pr_actions_detective_trigger.py runs.
+    workflows: ["__OBLT_AW_PR_ACTIONS_DETECTIVE_WORKFLOWS__"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  run-obs-aw-workflow-run:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      toJSON(github.event.workflow_run.pull_requests) != '[]'
+    permissions:
+      actions: read
+      contents: read
+      copilot-requests: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    uses: elastic/oblt-aw/.github/workflows/obs-aw-event-workflow-run.yml@main # ratchet:exclude

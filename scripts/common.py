@@ -72,6 +72,15 @@ def append_multiline_github_output(name: str, value: str) -> None:
         output_file.write(f"{delimiter}\n")
 
 
+# Client path installed from the obs remote template; gated by per-repo allowlist.
+PR_ACTIONS_DETECTIVE_TRIGGER_DST = ".github/workflows/trigger-obs-aw-workflow-run.yml"
+
+# Replaced at distribute time with a JSON string array of workflow ``name:`` values.
+PR_ACTIONS_DETECTIVE_WORKFLOWS_PLACEHOLDER = (
+    '["__OBLT_AW_PR_ACTIONS_DETECTIVE_WORKFLOWS__"]'
+)
+
+
 @dataclass(frozen=True)
 class ActiveRepositoryEntry:
     """One repository row from active-repositories.json."""
@@ -80,6 +89,7 @@ class ActiveRepositoryEntry:
     workflow_token_policy: str
     ai_assets_token_policy: str
     pin_class: str
+    pr_actions_detective_workflows: tuple[str, ...]
 
 
 def _optional_policy_string(item: dict[str, object], key: str, repo: str) -> str:
@@ -91,6 +101,32 @@ def _optional_policy_string(item: dict[str, object], key: str, repo: str) -> str
             f"Invalid {key} for {repo!r}: expected string, got {type(value).__name__}"
         )
     return value.strip()
+
+
+def _optional_string_list(
+    item: dict[str, object], key: str, repo: str
+) -> tuple[str, ...]:
+    """Parse an optional list of non-empty strings (default empty).
+
+    Values are trimmed, de-duplicated, and sorted so equal allowlists compare
+    equal regardless of input order or duplicate entries.
+    """
+    if key not in item or item[key] is None:
+        return ()
+    value = item[key]
+    if not isinstance(value, list):
+        raise SystemExit(
+            f"Invalid {key} for {repo!r}: expected list of strings, "
+            f"got {type(value).__name__}"
+        )
+    names: list[str] = []
+    for index, element in enumerate(value):
+        if not isinstance(element, str) or not element.strip():
+            raise SystemExit(
+                f"Invalid {key} for {repo!r}: entry {index} must be a non-empty string"
+            )
+        names.append(element.strip())
+    return tuple(sorted(set(names)))
 
 
 def _parse_pin_class(item: dict[str, object], repo: str) -> str:
@@ -169,6 +205,7 @@ def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
             workflow_token_policy="",
             ai_assets_token_policy="",
             pin_class=PIN_CLASS_PRODUCTION,
+            pr_actions_detective_workflows=(),
         )
     if not isinstance(item, dict):
         raise SystemExit(
@@ -184,6 +221,9 @@ def _parse_repository_entry(item: object) -> ActiveRepositoryEntry:
             item, "ai-assets-token-policy", repo
         ),
         pin_class=_parse_pin_class(item, repo),
+        pr_actions_detective_workflows=_optional_string_list(
+            item, "pr-actions-detective-workflows", repo
+        ),
     )
 
 
@@ -193,7 +233,7 @@ def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]
 
     Supports:
 
-    - Object: ``{"repositories": [{"repository": "owner/repo", "pin-class": "production", "workflow-token-policy": "", "ai-assets-token-policy": ""}, ...]}``
+    - Object: ``{"repositories": [{"repository": "owner/repo", "pin-class": "production", "workflow-token-policy": "", "ai-assets-token-policy": "", "pr-actions-detective-workflows": []}, ...]}``
     - List: same object entry shapes at the top level (legacy migration)
     - String entries in ``repositories`` (legacy migration only; prefer objects in config files)
     """
@@ -219,6 +259,16 @@ def parse_active_repository_entries(content: str) -> list[ActiveRepositoryEntry]
                 raise SystemExit(
                     f"Duplicate repository {entry.repository!r} with conflicting "
                     f"pin-class values: {previous.pin_class!r} vs {entry.pin_class!r}"
+                )
+            if (
+                previous.pr_actions_detective_workflows
+                != entry.pr_actions_detective_workflows
+            ):
+                raise SystemExit(
+                    f"Duplicate repository {entry.repository!r} with conflicting "
+                    f"pr-actions-detective-workflows values: "
+                    f"{list(previous.pr_actions_detective_workflows)!r} vs "
+                    f"{list(entry.pr_actions_detective_workflows)!r}"
                 )
             continue
         by_repo[entry.repository] = entry
@@ -293,6 +343,34 @@ def merge_repository_ai_assets_token_policies_from_org_trees(
         field_name="ai-assets-token-policy",
         policy_attr="ai_assets_token_policy",
     )
+
+
+def merge_repository_pr_actions_detective_workflows_from_org_trees(
+    config_dir: Path,
+) -> dict[str, tuple[str, ...]]:
+    """
+    Map repository to a non-empty ``pr-actions-detective-workflows`` allowlist.
+
+    When the same repository appears in multiple org trees with different non-empty
+    lists, exits with an error. Empty lists are ignored (same as empty token policies).
+    """
+    allowlists: dict[str, tuple[str, ...]] = {}
+    for org_dir in discover_org_config_dirs(config_dir):
+        path = org_dir / "active-repositories.json"
+        for entry in parse_active_repository_entries(path.read_text(encoding="utf-8")):
+            value = entry.pr_actions_detective_workflows
+            if not value:
+                continue
+            previous = allowlists.get(entry.repository)
+            if previous is not None and previous != value:
+                raise SystemExit(
+                    f"Conflicting pr-actions-detective-workflows for "
+                    f"{entry.repository!r} across org config: "
+                    f"{list(previous)!r} vs {list(value)!r} "
+                    f"(org {org_dir.name!r})"
+                )
+            allowlists[entry.repository] = value
+    return allowlists
 
 
 def merge_repository_token_policies_from_org_trees(config_dir: Path) -> dict[str, str]:

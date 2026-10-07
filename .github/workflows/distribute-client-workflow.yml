@@ -137,6 +137,26 @@ jobs:
 
           python3 "$GITHUB_WORKSPACE/source/scripts/client_workflow_pin.py"
 
+      - name: Render PR Actions Detective workflow allowlist
+        if: ${{ matrix.target.operation == 'install' }}
+        env:
+          WORKFLOWS_JSON: ${{ toJSON(matrix.target.pr-actions-detective-workflows) }}
+          TRIGGER_PATH: ${{ github.workspace }}/target/.github/workflows/trigger-obs-aw-workflow-run.yml
+          PYTHONPATH: ${{ github.workspace }}/source/scripts
+        run: |
+          set -euo pipefail
+          if [ "$(jq 'length' <<< "$WORKFLOWS_JSON")" -eq 0 ]; then
+            echo "empty pr-actions-detective-workflows; skip render (removal handles stale file)"
+            exit 0
+          fi
+          if [ ! -f "$TRIGGER_PATH" ]; then
+            echo "::error::trigger-obs-aw-workflow-run.yml missing while pr-actions-detective-workflows is non-empty; refuse silent skip"
+            exit 1
+          fi
+          python3 "${GITHUB_WORKSPACE}/source/scripts/render_pr_actions_detective_trigger.py" \
+            --path "$TRIGGER_PATH" \
+            --workflows-json "$WORKFLOWS_JSON"
+
       - name: Remove obsolete client files from target repository
         if: ${{ matrix.target.operation == 'install' }}
         env:

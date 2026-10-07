@@ -37,6 +37,8 @@ Route wrappers keep descriptive ids such as `resolve-apm-assets` and `automerge`
 - Autodoc workflow: [docs/workflows/obs-aw-autodoc.md](obs-aw-autodoc.md)
 - Automerge workflow: [docs/workflows/obs-aw-automerge.md](obs-aw-automerge.md)
 - Dependency review workflow: [docs/workflows/obs-aw-dependency-review.md](obs-aw-dependency-review.md)
+- PR Actions Detective workflow: [docs/workflows/obs-aw-pr-actions-detective.md](obs-aw-pr-actions-detective.md)
+- PR Buildkite Detective workflow: [docs/workflows/obs-aw-estc-pr-buildkite-detective.md](obs-aw-estc-pr-buildkite-detective.md)
 - Compiler upgrade workflow: [docs/workflows/compiler-upgrade.md](compiler-upgrade.md)
 - Onboard repository (in-repo only, not consumer catalog): [docs/workflows/gh-aw-onboard-repository.md](gh-aw-onboard-repository.md)
 - Duplicate Issue Detector workflow: [docs/workflows/obs-aw-duplicate-issue-detector.md](obs-aw-duplicate-issue-detector.md)

@@ -50,7 +50,11 @@ PR labels on install and remove PRs:
         "repository": "elastic/oblt-aw",
         "pin-class": "development",
         "workflow-token-policy": "",
-        "ai-assets-token-policy": ""
+        "ai-assets-token-policy": "",
+        "pr-actions-detective-workflows": [
+          "CI",
+          "E2E — intentional Actions failure (pr-actions-detective)"
+        ]
       },
       {
         "repository": "elastic/oblt-cli",
@@ -68,13 +72,15 @@ Validation and normalization rules:
 - Every entry is an object with required `repository` (`owner/repo`), `pin-class` (`development` or `production`), `workflow-token-policy` (string; use `""` when Vault auto policy / control-plane defaults apply for agentic workflow `create-token`), and `ai-assets-token-policy` (string; use `""` when `apm install` can use the job `GITHUB_TOKEN`).
 - `pin-class: development` installs keep `uses: elastic/oblt-aw/...@main`. `pin-class: production` installs use `tags.current` from [release-pointers.json](../../config/release-pointers.json) once `pointers.current.sha` is set and that tag is published; until then they stay `@main`. Previous-commit repo lists (BASE_REF) may omit `pin-class`; current files must include it.
 - `elastic/oblt-aw` must be `pin-class: development`. Parser/CI fail if it is missing, `production`, or any other value.
+- Optional `pr-actions-detective-workflows` (list of non-empty strings): GitHub Actions workflow **`name:`** values to monitor for [PR Actions Detective](../workflows/obs-aw-pr-actions-detective.md). When non-empty, distribute installs `trigger-obs-aw-workflow-run.yml` and renders those names into `on.workflow_run.workflows`. When omitted or empty, that trigger is **not** installed (and a previously installed copy is removed). Do not edit the list in the consumer repo — redistribute from this field instead.
 - When `workflow-token-policy` is non-empty, consumer `create-token` steps (via `aw-prelude`) use that policy for that repository; when empty, consumer workflows keep Vault auto policy per trigger workflow ref. When `ai-assets-token-policy` is non-empty, [aw-resolve-agentic-assets.yml](../../.github/workflows/aw-resolve-agentic-assets.yml) mints an ephemeral token for APM private package clones. Control-plane `distribute-client-workflow` and `sync-control-plane-dashboard` always use their fixed workflow token policies (`token-policy-63405ab45244` and `token-policy-8b60ba56dd3f`).
 - Entries are normalized (trimmed), de-duplicated, and sorted before processing.
 - Invalid entries fail the step with: `Invalid repository entry: ... Expected object with 'repository'`.
 
 Examples:
 
-- Valid: `{"repository": "elastic/oblt-aw", "pin-class": "development", "workflow-token-policy": "", "ai-assets-token-policy": ""}`
+- Valid: `{"repository": "elastic/oblt-aw", "pin-class": "development", "workflow-token-policy": "", "ai-assets-token-policy": "", "pr-actions-detective-workflows": ["CI", "E2E — intentional Actions failure (pr-actions-detective)"]}`
+- Valid (no detective): `{"repository": "elastic/oblt-cli", "pin-class": "production", "workflow-token-policy": "", "ai-assets-token-policy": ""}`
 - Invalid: `"elastic/oblt-aw"` (bare string), `"elastic"` (missing slash in `repository`), `123` (non-object), `{"repo":"elastic/oblt-aw"}` (wrong key), `{"repository":"elastic/oblt-aw","pin-class":"production"}` (`elastic/oblt-aw` must be development)
 
 ## `build_target_operations.py` Contract
@@ -91,6 +97,7 @@ Behavior:
 - If `CHANGED_FILES_COUNT == 0`, `FORCE_DISTRIBUTION` is false, and `git diff --name-only` between `BASE_REF` and `HEAD` under `config/`, `.github/remote-workflow-template/`, `scripts/build_target_operations.py`, `scripts/client_workflow_pin.py`, and `scripts/common.py` is empty, returns no targets. The git fallback covers template **renames** (the changed-files action only counts added, modified, and deleted paths) and pin-rewrite script edits.
 - Always generates `install` operations for repositories in the current union of per-org lists (see [scripts/build_target_operations.py](../../scripts/build_target_operations.py)).
 - Each `install` target includes `remove_files`, `pin-class`, and `control-plane-pin` (the git ref substituted into `uses: elastic/oblt-aw/...@<pin>`).
+- Each `install` target includes `pr-actions-detective-workflows` from `active-repositories.json`. When that list is empty, `trigger-obs-aw-workflow-run.yml` is omitted from `files` and added to `remove_files`. When non-empty, distribute copies the template then runs [scripts/render_pr_actions_detective_trigger.py](../../scripts/render_pr_actions_detective_trigger.py) to replace the workflows placeholder.
 - Generates `remove` operations for repositories present at `BASE_REF` but absent from current config.
 
 Workflow outputs written by the script:

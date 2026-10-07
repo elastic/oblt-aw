@@ -21,8 +21,10 @@ import sys
 
 from client_workflow_pin import load_release_pointers, resolve_control_plane_pin
 from common import (
+    PR_ACTIONS_DETECTIVE_TRIGGER_DST,
     discover_repo_org_assignments,
     merge_repository_pin_classes_from_org_trees,
+    merge_repository_pr_actions_detective_workflows_from_org_trees,
     merge_repository_workflow_token_policies_from_org_trees,
     parse_historical_repository_names,
     write_outputs,
@@ -39,6 +41,26 @@ RELEVANT_DIFF_PATHS = (
     "scripts/client_workflow_pin.py",
     "scripts/common.py",
 )
+
+
+def apply_pr_actions_detective_trigger_gate(
+    files: list[dict[str, str]],
+    remove_files: list[str],
+    workflows: list[str] | tuple[str, ...],
+) -> tuple[list[dict[str, str]], list[str]]:
+    """
+    Install ``trigger-obs-aw-workflow-run.yml`` only when the allowlist is non-empty.
+
+    When empty, omit the file from ``files`` and ensure it is listed in
+    ``remove_files`` so redistribute deletes a previously installed copy.
+    """
+    if workflows:
+        return files, remove_files
+    filtered = [
+        entry for entry in files if entry["dst"] != PR_ACTIONS_DETECTIVE_TRIGGER_DST
+    ]
+    removes = sorted(set(remove_files) | {PR_ACTIONS_DETECTIVE_TRIGGER_DST})
+    return filtered, removes
 
 
 def list_org_template_files(org_key: str) -> list[dict[str, str]]:
@@ -201,6 +223,9 @@ def main() -> int:
     # (pilot / early-detection consumer of the same client templates).
     current_assignments = discover_repo_org_assignments(config_dir)
     token_policies = merge_repository_workflow_token_policies_from_org_trees(config_dir)
+    detective_workflows = (
+        merge_repository_pr_actions_detective_workflows_from_org_trees(config_dir)
+    )
     pin_classes = merge_repository_pin_classes_from_org_trees(config_dir)
     pointers = load_release_pointers()
 
@@ -239,6 +264,10 @@ def main() -> int:
         )
         current_dsts = dst_paths(files)
         remove_files = sorted(dst_paths(previous_files) - current_dsts)
+        allowlist = list(detective_workflows.get(repo, ()))
+        files, remove_files = apply_pr_actions_detective_trigger_gate(
+            files, remove_files, allowlist
+        )
         pin_class = pin_classes[repo]
         operations.append(
             {
@@ -249,6 +278,7 @@ def main() -> int:
                 "workflow-token-policy": token_policies.get(repo, ""),
                 "pin-class": pin_class,
                 "control-plane-pin": resolve_control_plane_pin(pin_class, pointers),
+                "pr-actions-detective-workflows": allowlist,
             }
         )
 
@@ -266,6 +296,7 @@ def main() -> int:
                 "control-plane-pin": (
                     resolve_control_plane_pin(pin_class, pointers) if pin_class else ""
                 ),
+                "pr-actions-detective-workflows": [],
             }
         )
 
