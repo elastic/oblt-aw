@@ -29,6 +29,8 @@ on:
         default: ""
   roles: [admin, maintainer, write]
   bots:
+    # Vault app authors live E2E fixture commits (GITHUB_TOKEN cannot fire pull_request).
+    - "elastic-vault-github-plugin-prod[bot]"
     - "github-actions[bot]"
 concurrency:
   group: ${{ github.workflow }}-pr-actions-detective-${{ github.event.workflow_run.id }}

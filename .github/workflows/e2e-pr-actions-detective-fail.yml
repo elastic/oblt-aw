@@ -6,9 +6,10 @@ name: E2E — intentional Actions failure (pr-actions-detective)
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled]
+    # Nonce trigger only. Do not watch this workflow file — seeding it onto the
+    # fixture branch must not start a second intentional failure on a different SHA.
     paths:
       - "testdata/agentic/pr-actions-detective/e2e-fail-trigger.md"
-      - ".github/workflows/e2e-pr-actions-detective-fail.yml"
 
 permissions:
   contents: read

@@ -17,12 +17,17 @@ import pr_actions_detective_e2e_harness as harness
 TESTDATA_ROOT = ROOT / "testdata" / "agentic" / "pr-actions-detective"
 LIVE_CASE_ID = "workflow-run-failure-open-pr-live"
 
-_NEGATIVE_CASE_EXPECTATIONS = {
+_CANONICAL_MARKERS = [
+    "## Remediation",
+    "### TL;DR",
+    "From workflow: PR Actions Detective",
+]
+_LIVE_CASE_EXPECTATIONS = {
     "dashboard_enabled": True,
-    "workflow_run_job_executed": False,
-    "agent_invoked": False,
-    "expect_agent_comment": False,
-    "agent_comment_markers": ["### TL;DR", "## Remediation"],
+    "workflow_run_job_executed": True,
+    "agent_invoked": True,
+    "expect_agent_comment": True,
+    "agent_comment_markers": list(_CANONICAL_MARKERS),
 }
 _NEGATIVE_CASE_TRIGGER = {
     "require_open_pr": True,
@@ -151,14 +156,18 @@ class TestHarnessHelpers:
                 "html_url": "https://example.test/c/1",
                 "created_at": since.isoformat().replace("+00:00", "Z"),
                 "user": {"login": "human-user"},
-                "body": "### TL;DR\n## Remediation\n",
+                "body": (
+                    "### TL;DR\n## Remediation\nFrom workflow: PR Actions Detective\n"
+                ),
             },
             {
                 "id": 2,
                 "html_url": "https://example.test/c/2",
                 "created_at": since.isoformat().replace("+00:00", "Z"),
                 "user": {"login": "copilot-swe-agent[bot]"},
-                "body": "### TL;DR\n## Remediation\n",
+                "body": (
+                    "### TL;DR\n## Remediation\nFrom workflow: PR Actions Detective\n"
+                ),
             },
         ]
         monkeypatch.setattr(harness, "_list_issue_comments", lambda *_a, **_k: comments)
@@ -166,7 +175,7 @@ class TestHarnessHelpers:
             "elastic/oblt-aw",
             1,
             since=since,
-            markers=["### TL;DR", "## Remediation"],
+            markers=list(_CANONICAL_MARKERS),
         )
         assert found is not None
         assert found["id"] == 2
@@ -201,13 +210,7 @@ class TestHarnessHelpers:
                         "fail_workflow_conclusion": "failure",
                         "fail_workflow_event": "pull_request",
                     },
-                    "expectations": {
-                        "dashboard_enabled": True,
-                        "workflow_run_job_executed": True,
-                        "agent_invoked": True,
-                        "expect_agent_comment": True,
-                        "agent_comment_markers": ["### TL;DR", "## Remediation"],
-                    },
+                    "expectations": dict(_LIVE_CASE_EXPECTATIONS),
                 }
             ),
             encoding="utf-8",
@@ -233,6 +236,28 @@ class TestHarnessHelpers:
         )
         assert outcome["blocked"] is True
         assert "Invalid live trigger contract" in str(outcome.get("block_reason"))
+        assert called == []
+
+    def test_live_mode_blocks_non_mapping_case_json(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        case_dir = tmp_path / "cases" / "list-root"
+        case_dir.mkdir(parents=True)
+        (case_dir / "case.json").write_text("[]\n", encoding="utf-8")
+        called: list[str] = []
+
+        def _boom(*_a: object, **_k: object) -> None:
+            called.append("ensure_e2e_pr")
+            raise AssertionError("ensure_e2e_pr must not run for malformed case.json")
+
+        monkeypatch.setattr(harness, "ensure_e2e_pr", _boom)
+        monkeypatch.chdir(ROOT)
+        outcome = harness.run_live_case(
+            case_dir,
+            harness.load_e2e_config(ROOT / "config/obs/e2e-pr-actions-detective.json"),
+        )
+        assert outcome["blocked"] is True
+        assert "case.json root must be a mapping" in str(outcome.get("block_reason"))
         assert called == []
 
     def test_sync_fail_workflow_refuses_differing_remote(
@@ -389,10 +414,8 @@ class TestOracleFailClosed:
 
     def test_string_expect_agent_comment_rejected(self) -> None:
         expectations = {
-            **_NEGATIVE_CASE_EXPECTATIONS,
+            **_LIVE_CASE_EXPECTATIONS,
             "expect_agent_comment": "true",  # type: ignore[dict-item]
-            "workflow_run_job_executed": True,
-            "agent_invoked": True,
         }
         report = _evaluate(
             _synthetic_live_outcome(),
@@ -401,15 +424,37 @@ class TestOracleFailClosed:
         )
         assert report["pass"] is False
 
+    def test_false_happy_path_expectation_bools_rejected(self) -> None:
+        for key in (
+            "agent_invoked",
+            "dashboard_enabled",
+            "expect_agent_comment",
+            "workflow_run_job_executed",
+        ):
+            expectations = {**_LIVE_CASE_EXPECTATIONS, key: False}
+            err = oracle.case_expectations_schema_error("live", expectations)
+            assert err is not None
+            assert key in err
+
     def test_missing_trigger_fail_closed(self) -> None:
         report = oracle.evaluate_outcome(
             _synthetic_live_outcome(),
-            case_expectations=_NEGATIVE_CASE_EXPECTATIONS,
+            case_expectations=dict(_LIVE_CASE_EXPECTATIONS),
             case_trigger=None,
         )
         assert report["pass"] is False
         assert any(
             c["id"] == "case_trigger" and not c["pass"] for c in report["checks"]
+        )
+
+    def test_non_mapping_outcome_sections_fail_closed(self) -> None:
+        outcome = _synthetic_live_outcome()
+        outcome["path_gates"] = ["not-a-mapping"]
+        report = _evaluate(outcome)
+        assert report["pass"] is False
+        assert any(
+            c["id"] == "outcome_sections_shape" and not c["pass"]
+            for c in report["checks"]
         )
 
     def test_blocked_outcome_fails(self) -> None:
@@ -475,13 +520,20 @@ class TestOracleFailClosed:
 
     def test_expectations_reject_empty_agent_comment_markers(self) -> None:
         expectations = {
-            **_NEGATIVE_CASE_EXPECTATIONS,
+            **_LIVE_CASE_EXPECTATIONS,
             "agent_comment_markers": [""],
         }
         err = oracle.case_expectations_schema_error("live", expectations)
         assert err is not None
         assert "agent_comment_markers" in err
-        false_dashboard = {**_NEGATIVE_CASE_EXPECTATIONS, "dashboard_enabled": False}
+        generic_only = {
+            **_LIVE_CASE_EXPECTATIONS,
+            "agent_comment_markers": ["### TL;DR", "## Remediation"],
+        }
+        err = oracle.case_expectations_schema_error("live", generic_only)
+        assert err is not None
+        assert "From workflow: PR Actions Detective" in err
+        false_dashboard = {**_LIVE_CASE_EXPECTATIONS, "dashboard_enabled": False}
         err = oracle.case_expectations_schema_error("live", false_dashboard)
         assert err is not None
         assert "dashboard_enabled" in err
@@ -525,9 +577,28 @@ class TestFailWorkflowArtifacts:
         assert "OBLT_AW_E2E_PR_ACTIONS_INTENTIONAL_FAILURE" in text
         assert "e2e:pr-actions-detective" in text
         assert "e2e/pr-actions-detective" in text
+        assert "testdata/agentic/pr-actions-detective/e2e-fail-trigger.md" in text
+        # Seeding this workflow onto the fixture must not path-filter self-trigger.
+        paths_block = text.split("paths:", 1)[1].split("permissions:", 1)[0]
+        assert "e2e-fail-trigger.md" in paths_block
+        assert "e2e-pr-actions-detective-fail.yml" not in paths_block
+
+    def test_lock_allows_vault_fixture_bot(self) -> None:
+        lock = (
+            ROOT / ".github/workflows/gh-aw-pr-actions-detective.lock.yml"
+        ).read_text(encoding="utf-8")
+        assert "GH_AW_ALLOWED_BOTS:" in lock
+        assert "elastic-vault-github-plugin-prod[bot]" in lock
+        # Activation membership must allow the Vault fixture author used by E2E writes.
+        allowed_line = next(
+            line for line in lock.splitlines() if "GH_AW_ALLOWED_BOTS:" in line
+        )
+        assert "elastic-vault-github-plugin-prod[bot]" in allowed_line
+        assert "github-actions[bot]" in allowed_line
 
     def test_config_matches_fixture_constants(self) -> None:
         cfg = harness.load_e2e_config(ROOT / "config/obs/e2e-pr-actions-detective.json")
         assert cfg["e2e_pr"]["branch"] == harness.FIXTURE_BRANCH
         assert cfg["e2e_pr"]["label"] == harness.FIXTURE_LABEL
         assert cfg["fail_workflow_file"] == "e2e-pr-actions-detective-fail.yml"
+        assert "From workflow: PR Actions Detective" in cfg["agent_comment_markers"]

@@ -13,6 +13,10 @@
     "label": "e2e:pr-actions-detective",
     "branch": "e2e/pr-actions-detective"
   },
-  "agent_comment_markers": ["### TL;DR", "## Remediation"],
+  "agent_comment_markers": [
+    "## Remediation",
+    "### TL;DR",
+    "From workflow: PR Actions Detective"
+  ],
   "dashboard_workflow_id": "obs:pr-actions-detective"
 }

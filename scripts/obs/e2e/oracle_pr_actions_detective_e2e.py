@@ -72,8 +72,15 @@ _LIVE_REQUIRED_EXPECTATION_KEYS = (
     "expect_agent_comment",
     "agent_comment_markers",
 )
-# Happy-path live E2E requires the dashboard gate on.
-_LIVE_REQUIRED_EXPECTATION_BOOL_TRUE_KEYS = ("dashboard_enabled",)
+# Happy-path live E2E must prove dashboard + execution + agent comment.
+_LIVE_REQUIRED_EXPECTATION_BOOL_TRUE_KEYS = (
+    "agent_invoked",
+    "dashboard_enabled",
+    "expect_agent_comment",
+    "workflow_run_job_executed",
+)
+# Footer identity from messages-footer (github.workflow == "PR Actions Detective").
+_LIVE_REQUIRED_COMMENT_MARKER_SUBSTRING = "From workflow: PR Actions Detective"
 _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "require_open_pr",
     "create_failed_actions_run",
@@ -91,7 +98,7 @@ _LIVE_PINNED_TRIGGER_STRS = {
 
 
 def agent_comment_markers_schema_error(markers: Any) -> str | None:
-    """Require a non-empty list of non-empty strings (find/clear identity)."""
+    """Require non-empty markers including the workflow-specific footer identity."""
     if not isinstance(markers, list) or not markers:
         return "agent_comment_markers must be a non-empty list"
     for idx, item in enumerate(markers):
@@ -99,7 +106,28 @@ def agent_comment_markers_schema_error(markers: Any) -> str | None:
             return (
                 f"agent_comment_markers[{idx}] must be a non-empty string, got {item!r}"
             )
+    if not any(_LIVE_REQUIRED_COMMENT_MARKER_SUBSTRING in item for item in markers):
+        return (
+            "agent_comment_markers must include "
+            f"{_LIVE_REQUIRED_COMMENT_MARKER_SUBSTRING!r} "
+            "(workflow-specific footer identity)"
+        )
     return None
+
+
+def _outcome_mapping_section(
+    value: Any, *, name: str
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Return a mapping section or an error when the artifact shape is wrong.
+
+    Missing/None sections normalize to ``{}``. Non-mapping values (including
+    non-empty lists) must not reach ``.get`` and crash the oracle.
+    """
+    if value is None:
+        return {}, None
+    if isinstance(value, dict):
+        return value, None
+    return None, (f"{name} must be a mapping, got {type(value).__name__}: {value!r}")
 
 
 def case_expectations_schema_error(
@@ -322,9 +350,38 @@ def _evaluate_live(
     case_id: str,
     layer: str,
 ) -> dict[str, Any]:
-    path_gates = outcome.get("path_gates") or {}
-    workflow_run_trigger = outcome.get("workflow_run_trigger") or {}
-    fail_workflow = outcome.get("fail_workflow") or {}
+    path_gates: dict[str, Any] = {}
+    workflow_run_trigger: dict[str, Any] = {}
+    fail_workflow: dict[str, Any] = {}
+    for name, raw in (
+        ("path_gates", outcome.get("path_gates")),
+        ("workflow_run_trigger", outcome.get("workflow_run_trigger")),
+        ("fail_workflow", outcome.get("fail_workflow")),
+    ):
+        section, shape_err = _outcome_mapping_section(raw, name=name)
+        if shape_err is not None:
+            _check(checks, "outcome_sections_shape", False, shape_err)
+            overall = all(item["pass"] for item in checks)
+            return {
+                "workflow_id": workflow_id,
+                "case_id": case_id,
+                "layer": layer,
+                "mode": "live",
+                "pass": overall,
+                "skipped": False,
+                "run_url": outcome.get("run_url"),
+                "checks": checks,
+                "agent_invoked": bool(outcome.get("agent_invoked")),
+                "notes": ["Malformed outcome sections fail closed."],
+            }
+        assert section is not None
+        if name == "path_gates":
+            path_gates = section
+        elif name == "workflow_run_trigger":
+            workflow_run_trigger = section
+        else:
+            fail_workflow = section
+    _check(checks, "outcome_sections_shape", True, "outcome sections are mappings")
     comment = outcome.get("agent_comment")
 
     _check(checks, "layer_e2e", layer == "e2e", f"layer={layer!r}")

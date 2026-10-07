@@ -1159,7 +1159,12 @@ def run_live_case(
         return out
 
     try:
-        case = _load_json(case_dir / "case.json")
+        case_raw = _load_json(case_dir / "case.json")
+        if not isinstance(case_raw, dict):
+            raise TypeError(
+                f"case.json root must be a mapping, got {type(case_raw).__name__}"
+            )
+        case = case_raw
         require_case_mode(case, "live", case_id=str(case.get("id", case_dir.name)))
         case_id = str(case.get("id", case_dir.name))
         trigger_raw = case.get("trigger") or {}
@@ -1361,7 +1366,14 @@ def run_live_case(
             comment = find_agent_comment(
                 repo, target_pr_number, since=since, markers=markers
             )
-    except (RuntimeError, TimeoutError, TypeError, ValueError, OSError) as exc:
+    except (
+        AttributeError,
+        RuntimeError,
+        TimeoutError,
+        TypeError,
+        ValueError,
+        OSError,
+    ) as exc:
         blocked: dict[str, Any] = {
             "workflow_id": workflow_id,
             "case_id": case_id,
@@ -1477,6 +1489,7 @@ def main(argv: list[str] | None = None) -> int:
             run_url=args.run_url or None,
         )
     except (
+        AttributeError,
         RuntimeError,
         TimeoutError,
         TypeError,

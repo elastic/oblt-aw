@@ -12,7 +12,7 @@ Integration wiring (resolve → wrapper → lock inputs, no live model) lives un
 
 | Case id | Expectation |
 |---------|-------------|
-| `workflow-run-failure-open-pr-live` | Sync intentional fail workflow + bump trigger file on the fixture PR → fail workflow concludes `failure` → agent posts a comment (harness finds it via `### TL;DR` + `## Remediation`; oracle asserts presence only) |
+| `workflow-run-failure-open-pr-live` | Sync intentional fail workflow + bump trigger file on the fixture PR → fail workflow concludes `failure` → agent posts a comment (harness finds it via section markers plus the unique footer `From workflow: PR Actions Detective`; oracle asserts presence only) |
 
 Oracle pass/fail for the agent side effect is **comment presence**. Section markers are **identity** for find/clear in the harness; asserting marker shape in the oracle is deferred. Agent prose content is out of scope.
 
@@ -22,7 +22,7 @@ Oracle pass/fail for the agent side effect is **comment presence**. Section mark
 2. **Vault app token** — the leaf workflow mints an ephemeral token via `elastic/oblt-actions/github/create-token` using `workflow-token-policy` from [`config/e2e.json`](../../config/e2e.json) (same shared E2E policy as automerge). Fixture Contents commits and PR writes must not use `github.token` — `GITHUB_TOKEN` commits do not reliably fire `pull_request`, and github-actions[bot] authorship can hit the approval gate.
 3. **Client trigger** — `trigger-obs-aw-workflow-run.yml` must be installed on `elastic/oblt-aw` (distributed via the obs client template).
 4. **Target PR** — harness creates or reuses one **long-lived** fixture PR labeled `e2e:pr-actions-detective` on branch `e2e/pr-actions-detective`. It is never closed by the harness. The `ci-gate` job in `ci.yml` skips work jobs for any `e2e:*` / `e2e/` fixture; the exact Actions-detective label/branch also skips agentic pull-request routes so the fixture does not burn CI or agent credits. Workflow concurrency (`e2e-pr-actions-detective`) serializes live runs against that shared fixture.
-5. **Fail workflow** — [`.github/workflows/e2e-pr-actions-detective-fail.yml`](../../.github/workflows/e2e-pr-actions-detective-fail.yml) runs only on the fixture PR (label + branch + same-repo). Each live run **seeds** that YAML onto the fixture tip when missing, no-ops when it already matches the checkout, and **refuses** to overwrite a differing remote copy (update the fixture via a normal PR). Only [`testdata/agentic/pr-actions-detective/e2e-fail-trigger.md`](../../testdata/agentic/pr-actions-detective/e2e-fail-trigger.md) is intentionally mutated each run so `pull_request` synchronize fires a real failed run (required so `workflow_run.pull_requests` is non-empty).
+5. **Fail workflow** — [`.github/workflows/e2e-pr-actions-detective-fail.yml`](../../.github/workflows/e2e-pr-actions-detective-fail.yml) runs only on the fixture PR (label + branch + same-repo). Its `paths` filter watches only [`e2e-fail-trigger.md`](../../testdata/agentic/pr-actions-detective/e2e-fail-trigger.md) so seeding the workflow YAML onto the fixture tip cannot start a second intentional failure. Each live run **seeds** that YAML when missing, no-ops when it already matches the checkout, and **refuses** to overwrite a differing remote copy (update the fixture via a normal PR). Only the nonce trigger file is mutated each run so `pull_request` synchronize fires a real failed run (required so `workflow_run.pull_requests` is non-empty).
 
 ### Reading failures
 
