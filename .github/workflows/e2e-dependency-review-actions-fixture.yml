@@ -1,0 +1,23 @@
+---
+name: E2E fixture — dependency-review Actions pin
+
+# Minimal same-repo workflow used only by the obs:dependency-review live E2E
+# harness. Seeded on the default branch with a known actions/checkout SHA; the
+# harness bumps the pin on an ephemeral fixture PR. Path-filtered to itself so
+# unrelated PRs do not run this job.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/e2e-dependency-review-actions-fixture.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  fixture-checkout:
+    name: Fixture checkout
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        # Seed pin for live E2E (harness bumps this SHA on the fixture PR).
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

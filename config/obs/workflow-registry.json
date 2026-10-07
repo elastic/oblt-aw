@@ -22,12 +22,21 @@
     {
       "id": "automerge",
       "name": "Automerge",
-      "description": "Enables auto-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready when validation and approval gates pass; GitHub enforces required checks at merge time.",
+      "description": "Arms and completes squash-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready: PR path validates/approves and arms when checks are pending; the frequent schedule profile merges via Vault REST when required checks are green.",
       "maturity": "stable",
       "default_enabled": false,
       "docs": "docs/guides/user/automerge-services.md",
-      "inner_workflows": ["obs-aw-automerge.yml"],
+      "inner_workflows": [
+        "obs-aw-automerge-deferred.yml",
+        "obs-aw-automerge.yml"
+      ],
       "sub_features": [
+        {
+          "id": "apm-cli",
+          "name": "APM CLI version",
+          "description": "Auto-merge for APM CLI pin updates (.apm.version / .apm-cli-pin).",
+          "default_enabled": false
+        },
         {
           "id": "github-actions",
           "name": "GitHub Actions bumps",
@@ -61,7 +70,7 @@
         {
           "id": "node-dependencies",
           "name": "Node dependencies",
-          "description": "Auto-merge for npm/yarn/pnpm manifest and lockfile updates.",
+          "description": "Auto-merge for npm/yarn/pnpm manifest, lockfile, and JS bundled dist updates.",
           "default_enabled": false
         },
         {

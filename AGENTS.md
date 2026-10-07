@@ -8,9 +8,9 @@
 
 ## Client entrypoint changes
 
-Use **[`.github/remote-workflow-template/`](.github/remote-workflow-template/)** as the source for distributed client workflows (per org subtree, for example `obs/.github/workflows/trigger-obs-aw-<workflow-id>.yml`, `docs/.github/workflows/trigger-docs-aw-*.yml`). See [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md), [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
+Use **[`.github/remote-workflow-template/`](.github/remote-workflow-template/)** as the source for distributed client workflows (per org subtree, for example `obs/.github/workflows/trigger-obs-aw-<workflow-id>.yml`, `docs/.github/workflows/trigger-docs-aw-*.yml`). Distribute installs those files into active repositories, including this control-plane repo when listed in `active-repositories.json` (pilot / `@main` early detection). See [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md), [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Do not reintroduce a monolithic `oblt-aw.yml` or `oblt-aw-ingress.yml`.
+Do not hand-edit installed `.github/workflows/trigger-*-aw-*.yml` copies; do not reintroduce a monolithic `oblt-aw.yml` or `oblt-aw-ingress.yml`.
 
 ## Fail-closed E2E harness / oracle changes
 
@@ -18,11 +18,15 @@ When hardening E2E gates (or addressing fail-closed review comments), follow **[
 
 Also keep these live-harness lessons (from automerge vm-images E2E review):
 
-- Poll the **caller** `trigger-obs-aw-*.yml` run (`event=pull_request`); nested reusable jobs appear there. Do **not** retarget config at `workflow_call`-only orchestrators solely because nested job *ids* are declared there.
+- Cleanup success requires side-effect evidence (bait/fixture absent after cleanup); never green solely on `cleanup.completed` after a soft-skip delete.
+- Before first review of a **new** live harness / owned lock: complete the **New live harness / owned-lock design checklist** in [`.cursor/rules/fail-closed-e2e-gates.mdc`](.cursor/rules/fail-closed-e2e-gates.mdc) (branch-prefix/event-guard lockstep, fixture create rollback, cleanup must fail the run, oracle identity fields, no “hardcoded via default input”).
+- Emit and assert **matched leaf job names** (not only `job_executed` / `job_conclusion`); bind pin-bump evidence to **canonical** SHA/version constants (not shape-only); require observed `pr_head_branch` equal to `fixture.branch` under the event-guard prefix.
+- Label ensure and path-gate `_as_bool` must fail closed (no crash, no “any error ⇒ create”).
 - Match **leaf** job names (e.g. `… / automerge / automerge`, `… / automerge / approve / conclusion`), not broad substrings that also hit siblings (`verify`, collection checks).
 - Never `OR` distinct named jobs in waiters/oracles (approve ≠ merge).
+- Poll the **caller** `trigger-obs-aw-*.yml` run (`event=pull_request`); nested reusable jobs appear there. Do **not** retarget config at `workflow_call`-only orchestrators solely because nested job *ids* are declared there.
+- Reject **every** required-true live trigger (`require_open_pr`, `force_*`, `wait_*`) before any remote mutation when false — do not stop after the first named flag.
 - Seed default-branch fixtures only when missing; refuse silent overwrite when remote content differs.
-- Label ensure and path-gate `_as_bool` must fail closed (no crash, no “any error ⇒ create”).
 
 Before commit/push on harness, oracle, E2E tests, or related workflows: **`pre-commit run --files <paths>` is mandatory** (includes mypy). Pytest alone does not authorize push. See also **[`.cursor/rules/ci-precommit-before-push.mdc`](.cursor/rules/ci-precommit-before-push.mdc)**.
 

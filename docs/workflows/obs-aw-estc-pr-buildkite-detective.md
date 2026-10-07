@@ -11,7 +11,7 @@ Landing home for this primitive (pilot under [#1882](https://github.com/elastic/
 ## Prerequisites
 
 - Triggered via `workflow_call` from the status event orchestrator (`obs-aw-event-status.yml` ← client `trigger-obs-aw-status.yml`).
-- Required secret: `BUILDKITE_API_TOKEN` — a Buildkite API token with read access to build logs for the repository's Buildkite organization. In consumer repositories, map this from `BUILDKITE_LOGS_API_TOKEN`.
+- Required secret: `BUILDKITE_API_TOKEN` — a Buildkite API token with read access to build logs for the repository's Buildkite organization. In consumer repositories, provision **`BUILDKITE_LOGS_API_TOKEN`** (mapped by `trigger-obs-aw-status.yml`).
 
 ## Usage
 
@@ -25,7 +25,7 @@ Ingress routes here when:
 The job `estc-pr-buildkite-detective` calls:
 
 ```yaml
-uses: elastic/oblt-aw/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml@main
+uses: ./.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml
 ```
 
 Edit the GH-AW source [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`](../../.github/workflows/gh-aw-estc-pr-buildkite-detective.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the lock).
@@ -69,7 +69,7 @@ Migration note for consumers: if you previously configured the consumer-facing s
 
 ## Cutover and rollback
 
-**Cutover (this pilot):** the wrapper `uses` `elastic/oblt-aw/.../gh-aw-estc-pr-buildkite-detective.lock.yml@main` instead of `elastic/ai-github-actions/...@main`. Consumer secret mapping and event routing are unchanged.
+**Cutover (this pilot):** the wrapper `uses` relative `./.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml` (inherits caller pin) instead of `elastic/ai-github-actions/...@main`. Consumer secret mapping and event routing are unchanged.
 
 **Rollback:** point the wrapper job back at the previous upstream lock:
 

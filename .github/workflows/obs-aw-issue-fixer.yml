@@ -35,6 +35,8 @@ jobs:
       github.event.issue.pull_request == null &&
       startsWith(github.event.comment.body, '/ai implement') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      !startsWith(github.event.issue.title, '[onboard]') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
@@ -59,6 +61,7 @@ jobs:
           - `oblt-aw/detector/res-not-accessible-by-integration`
           - `oblt-aw/triage/security-*`
           - `oblt-aw/triage/res-not-accessible-by-integration`
+        - Do not proceed for repository-onboard issues (`oblt-aw/onboard/repository` or title starting with `[onboard]`).
         - The issue must already contain a triage-generated resolution plan in the issue body or comments. Read it via GitHub MCP / `github` CLI.
 
         **Implementation Workflow (sequential and methodical):**
@@ -90,6 +93,8 @@ jobs:
       github.event.issue.pull_request == null &&
       startsWith(github.event.comment.body, '/ai implement') &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      !startsWith(github.event.issue.title, '[onboard]') &&
+      !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/security') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/detector/res-not-accessible-by-integration') &&
       !contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/triage/security-') &&
@@ -132,12 +137,9 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "Issue fixer finished without opening a pull request."
+            echo "The issue fixer finished without opening a pull request."
             echo
-            echo "- Workflow run: ${RUN_URL}"
-            echo "- Trigger: \`/ai implement\`"
-            echo "- If the agent intentionally called \`noop\` / \`report_incomplete\`, treat that as the completion signal."
-            echo "- If you expected a PR, check the run artifacts for empty safe outputs."
+            echo "If you expected a PR, comment \`/ai implement\` again on this issue (you need write access to the repository)."
             echo
-            echo "To retry: comment \`/ai implement\` again as an OWNER, MEMBER, or COLLABORATOR."
+            echo "Workflow run: ${RUN_URL}"
           } | gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -

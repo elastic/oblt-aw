@@ -23,10 +23,14 @@ The reusable workflow job id is `resolve-agentic-assets`. Route wrappers typical
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
 | `install-apm-packages` | boolean | `true` | Run [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI and runs `apm install`) |
 
+The APM CLI version comes from the control-plane pin in [`.apm.version`](../../.apm.version) (sparse-checked out with the resolver). Dependabot updates the matching PyPI pin in [`.apm-cli-pin/requirements.txt`](../../.apm-cli-pin/requirements.txt); [`.github/workflows/aw-sync-apm-version.yml`](../../.github/workflows/aw-sync-apm-version.yml) copies that version into `.apm.version`.
+
 Private GitHub dependencies use one of two auth paths during `apm install`:
 
 - When `ai-assets-token-policy` is set for the consumer repository in `config/<org>/active-repositories.json`, the workflow mints an ephemeral token via `elastic/oblt-actions/github/create-token@v1` and passes it to `apm-action` as `github-token` (forwarded internally as `GITHUB_APM_PAT`).
 - When `ai-assets-token-policy` is empty, `github-token` falls back to the job `GITHUB_TOKEN` (`contents: read`), which is sufficient for same-repository private path dependencies.
+
+If `apm install` fails (invalid skill path, private clone auth, malformed manifest, and so on), the install step emits a workflow warning and continues. Asset resolution still runs so downstream agent jobs are not blocked by APM package install alone.
 
 The `workflow-token-policy` field (exposed to route workflows as `shared-token-policy` via `aw-prelude`) is separate and covers agentic workflow `create-token` steps, not APM package clones.
 

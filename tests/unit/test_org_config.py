@@ -82,6 +82,7 @@ class TestMergeActiveRepositories:
                         "repositories": [
                             {
                                 "repository": "elastic/shared",
+                                "pin-class": "production",
                                 "workflow-token-policy": policy,
                                 "ai-assets-token-policy": "",
                             }
@@ -92,6 +93,85 @@ class TestMergeActiveRepositories:
             )
         with pytest.raises(SystemExit, match="Conflicting workflow-token-policy"):
             common.merge_repository_workflow_token_policies_from_org_trees(tmp_path)
+
+
+class TestPinClass:
+    def test_object_requires_pin_class(self) -> None:
+        content = json.dumps({"repositories": [{"repository": "elastic/foo"}]})
+        with pytest.raises(SystemExit, match="pin-class"):
+            common.parse_active_repository_entries(content)
+
+    def test_historical_names_accept_objects_without_pin_class(self) -> None:
+        content = json.dumps(
+            {
+                "repositories": [
+                    {
+                        "repository": "elastic/foo",
+                        "workflow-token-policy": "token-policy-legacy",
+                        "ai-assets-token-policy": "",
+                    },
+                    "elastic/bar",
+                ]
+            }
+        )
+        assert common.parse_historical_repository_names(content) == [
+            "elastic/bar",
+            "elastic/foo",
+        ]
+        with pytest.raises(SystemExit, match="pin-class"):
+            common.parse_repositories(content)
+
+    def test_oblt_aw_production_fails(self) -> None:
+        content = json.dumps(
+            {
+                "repositories": [
+                    {
+                        "repository": "elastic/oblt-aw",
+                        "pin-class": "production",
+                        "workflow-token-policy": "",
+                        "ai-assets-token-policy": "",
+                    }
+                ]
+            }
+        )
+        with pytest.raises(SystemExit, match="must use pin-class"):
+            common.parse_active_repository_entries(content)
+
+    def test_oblt_aw_string_entry_fails(self) -> None:
+        with pytest.raises(SystemExit, match="object entry"):
+            common.parse_active_repository_entries(json.dumps(["elastic/oblt-aw"]))
+
+    def test_missing_oblt_aw_fails_committed_validator(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        (tmp_path / "obs").mkdir()
+        (tmp_path / "obs" / "workflow-registry.json").write_text(
+            '{"workflows":[]}', encoding="utf-8"
+        )
+        (tmp_path / "obs" / "active-repositories.json").write_text(
+            json.dumps(
+                {
+                    "repositories": [
+                        {
+                            "repository": "elastic/foo",
+                            "pin-class": "production",
+                            "workflow-token-policy": "",
+                            "ai-assets-token-policy": "",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(SystemExit, match="must be listed"):
+            common.validate_committed_control_plane_pin_class(tmp_path)
+
+    def test_committed_lists_classify_oblt_aw_development(self) -> None:
+        config_dir = pathlib.Path(__file__).resolve().parents[2] / "config"
+        common.validate_committed_control_plane_pin_class(config_dir)
+        classes = common.merge_repository_pin_classes_from_org_trees(config_dir)
+        assert classes["elastic/oblt-aw"] == common.PIN_CLASS_DEVELOPMENT
+        assert classes["elastic/opentelemetry"] == common.PIN_CLASS_PRODUCTION
 
 
 class TestEnabledCompoundIdsFromBody:

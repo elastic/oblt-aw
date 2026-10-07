@@ -61,7 +61,9 @@ def list_subject_workflows() -> list[pathlib.Path]:
         and not p.name.endswith(".lock.yml")
         and not p.name.endswith(".lock.yaml")
         and not EVENT_ORCHESTRATOR_PATTERN.match(p.name)
-        and not p.name.startswith(("trg-", "trigger-"))
+        # Client entrypoints (distributed trigger-*) and control-plane-only
+        # e2e-trigger-* dispatch wrappers are not route reusables.
+        and not p.name.startswith(("e2e-trigger-", "trg-", "trigger-"))
     ]
 
 

@@ -411,30 +411,53 @@ def list_pr_trigger_runs(repo: str, workflow_file: str) -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], runs)
 
 
-def _job_conclusion_by_exact_or_suffix(
+# Canonical GH-AW terminal leaf under the nested dependency-review call.
+DEPENDENCY_REVIEW_CONCLUSION_LEAF_SUFFIX = (
+    " / dependency-review / dependency-review / conclusion"
+)
+
+
+def _job_match_by_exact_or_suffix(
     run_detail: dict[str, Any] | None,
     *,
     exact_names: tuple[str, ...] = (),
     endswith_suffixes: tuple[str, ...] = (),
-) -> str | None:
-    """Return conclusion for the first non-skipped job matching exact/suffix names.
+) -> tuple[str, str] | None:
+    """Return ``(job_name, conclusion)`` for the first non-skipped match.
 
     Prefer leaf suffixes (for example `` / automerge / automerge``) so sibling
     jobs under the same reusable call (verify, approve) cannot authorize a
-    different named gate.
+    different named gate. Name and conclusion come from the same match so
+    producers/oracles cannot diverge.
     """
     if not run_detail:
         return None
     exact = {n.lower() for n in exact_names}
     suffixes = tuple(s.lower() for s in endswith_suffixes)
     for job in run_detail.get("jobs") or []:
-        name = (job.get("name") or "").lower()
+        raw_name = str(job.get("name") or "")
+        name = raw_name.lower()
         conclusion = (job.get("conclusion") or "").lower()
         if conclusion in ("", "skipped"):
             continue
         if name in exact or any(name.endswith(suffix) for suffix in suffixes):
-            return conclusion or None
+            return (raw_name, conclusion)
     return None
+
+
+def _job_conclusion_by_exact_or_suffix(
+    run_detail: dict[str, Any] | None,
+    *,
+    exact_names: tuple[str, ...] = (),
+    endswith_suffixes: tuple[str, ...] = (),
+) -> str | None:
+    """Return conclusion for the first non-skipped job matching exact/suffix names."""
+    match = _job_match_by_exact_or_suffix(
+        run_detail,
+        exact_names=exact_names,
+        endswith_suffixes=endswith_suffixes,
+    )
+    return match[1] if match else None
 
 
 def dependency_review_job_conclusion(
@@ -453,8 +476,19 @@ def dependency_review_job_conclusion(
     """
     return _job_conclusion_by_exact_or_suffix(
         run_detail,
-        endswith_suffixes=(" / dependency-review / dependency-review / conclusion",),
+        endswith_suffixes=(DEPENDENCY_REVIEW_CONCLUSION_LEAF_SUFFIX,),
     )
+
+
+def dependency_review_matched_job_name(
+    run_detail: dict[str, Any] | None,
+) -> str | None:
+    """Display name of the dependency-review conclusion leaf that authorized the gate."""
+    match = _job_match_by_exact_or_suffix(
+        run_detail,
+        endswith_suffixes=(DEPENDENCY_REVIEW_CONCLUSION_LEAF_SUFFIX,),
+    )
+    return match[0] if match else None
 
 
 def dependency_review_job_executed(run_detail: dict[str, Any] | None) -> bool:
@@ -663,13 +697,19 @@ def wait_for_approving_review(
     return None
 
 
-def wait_for_merged_or_auto_merge(
+def wait_for_merged(
     repo: str,
     pr_number: int,
     *,
     timeout_seconds: int,
     interval_seconds: int,
 ) -> dict[str, Any]:
+    """Wait until the PR is actually merged (PR-path or deferred REST).
+
+    Armed-for-deferred-merge and native ``autoMergeRequest`` are not terminal
+    success: keep polling until ``MERGED`` / ``mergedAt``, matching oracle
+    ``pr_merged``.
+    """
     deadline = time.time() + timeout_seconds
     last: dict[str, Any] = {}
     while time.time() < deadline:
@@ -681,30 +721,19 @@ def wait_for_merged_or_auto_merge(
                 "--repo",
                 repo,
                 "--json",
-                "state,mergedAt,autoMergeRequest,mergeStateStatus",
+                "state,mergedAt,mergeStateStatus",
             ]
         )
         last = cast(dict[str, Any], pr or {})
         if (last.get("state") or "").upper() == "MERGED" or last.get("mergedAt"):
             return {
                 "merged": True,
-                "auto_merge_enabled": False,
                 "merged_at": last.get("mergedAt"),
                 "merge_state_status": last.get("mergeStateStatus"),
-            }
-        auto = last.get("autoMergeRequest")
-        if isinstance(auto, dict) and auto:
-            return {
-                "merged": False,
-                "auto_merge_enabled": True,
-                "merged_at": None,
-                "merge_state_status": last.get("mergeStateStatus"),
-                "auto_merge_request": auto,
             }
         time.sleep(interval_seconds)
     return {
         "merged": False,
-        "auto_merge_enabled": False,
         "merged_at": None,
         "merge_state_status": last.get("mergeStateStatus"),
         "timed_out": True,
@@ -739,7 +768,7 @@ def run_live_case(
     dr_markers = list(
         expectations.get("dependency_review_comment_markers")
         or cfg.get("dependency_review_comment_markers")
-        or ["Labels Applied"]
+        or ["## Dependency Update Analysis"]
     )
     allowed_author = str(cfg.get("allowed_pr_author") or ALLOWED_AUTHOR)
     timeout = int(cfg.get("poll_timeout_seconds") or 3600)
@@ -949,10 +978,13 @@ def run_live_case(
             timeout_seconds=min(600, timeout),
             interval_seconds=interval,
         )
-        merge_state = wait_for_merged_or_auto_merge(
+        # Cover long required checks plus at least one frequent-schedule tick
+        # (*/15 cron ≈ 900s) so deferred REST can complete after arming.
+        merge_wait = max(timeout, 900)
+        merge_state = wait_for_merged(
             repo,
             int(pr_info["number"]),
-            timeout_seconds=min(900, timeout),
+            timeout_seconds=merge_wait,
             interval_seconds=interval,
         )
         outcome_gate = find_comment_with_marker(

@@ -90,6 +90,7 @@ jobs:
           fetch-depth: 1
           token: ${{ github.token }}
           sparse-checkout: |
+            .apm.version
             scripts/agentic_assets_resolver.py
             scripts/apm_agentic_assets.py
             scripts/autodocignore.py
@@ -151,14 +152,35 @@ jobs:
         with:
           token-policy: ${{ steps.ai-assets-token-policy.outputs.ai-assets-token-policy }}
 
-      - name: Install agent packages from apm.yml
+      - name: Read APM CLI version pin
+        id: apm-cli-version
         if: >-
           inputs.install-apm-packages &&
           steps.detect.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < _oblt-aw/.apm.version)"
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid APM CLI version in _oblt-aw/.apm.version: ${version}"
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Install agent packages from apm.yml
+        id: install-apm-packages
+        if: >-
+          inputs.install-apm-packages &&
+          steps.detect.outputs.present == 'true'
+        continue-on-error: true
         uses: microsoft/apm-action@d723bb64ed70c135bbaf87d126b721dd2dae0439 # v1.10.0
         with:
-          apm-version: "0.20.0"
+          apm-version: ${{ steps.apm-cli-version.outputs.version }}
           github-token: ${{ steps.create-apm-token.outputs.token || github.token }}
+
+      - name: Warn when APM package install failed
+        if: steps.install-apm-packages.outcome == 'failure'
+        run: |
+          echo "::warning::APM package install failed (apm.yml skills/plugins may be incomplete). Continuing with agentic asset resolution."
 
       - name: Resolve agentic assets
         id: resolve

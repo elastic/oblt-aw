@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "workflow-token-policy": "token-policy-995e89faa204",
+  "workflow-token-policy-doc": "docs/workflows/gh-aw-onboard-repository.md"
+}

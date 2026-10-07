@@ -268,7 +268,10 @@ class TestResolverWithFragments:
         assert _fragment_ids(resolved) == ["triage-comment-format"]
         assert "## Issue Triage" in resolved["additional_instructions"]
 
-    def test_repo_map_dependency_review(self, tmp_path: pathlib.Path) -> None:
+    def test_repo_map_dependency_review_has_no_control_plane_fragments(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """Obs semantics live in gh-aw-dependency-review.md after migration."""
         config_dir = _root / "config"
         resolved = resolver.resolve_agentic_assets(
             repo_root=tmp_path,
@@ -276,15 +279,7 @@ class TestResolverWithFragments:
             org_key="obs",
             config_dir=config_dir,
             workflow_basename="obs-aw-dependency-review.yml",
-            platform_additional_instructions="Noop when not applicable (mandatory)",
+            platform_additional_instructions="",
         )
-        text = resolved["additional_instructions"]
-        assert _fragment_ids(resolved) == [
-            "dependency-review-github-read-and-safe-outputs",
-        ]
-        assert "safe-output tool" in text
-        assert "GITHUB_WORKSPACE" in text
-        assert "Shell `gh` is **not** authenticated" in text
-        assert text.index("safe-output tool") < text.index(
-            "Noop when not applicable (mandatory)"
-        )
+        assert _fragment_ids(resolved) == []
+        assert resolved["additional_instructions"].strip() == ""

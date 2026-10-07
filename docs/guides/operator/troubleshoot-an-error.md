@@ -25,7 +25,7 @@ Use this checklist when a workflow run fails or a user reports that agentic work
    - Dashboard issue created via [sync-control-plane-dashboard](../../workflows/sync-control-plane-dashboard.md)?
 
 4. **Check permissions, OIDC, and ephemeral tokens** — Failures on `create-token` or OIDC often mean:
-   - `workflow_ref` in the catalog token policy does not match the client workflow file path.
+   - `workflow_ref` in the catalog token policy does not match the client trigger glob (expected `trigger-*-aw-*.yml@*`, not `@refs/heads/main` only).
    - The client `run-obs-aw-<event>` job is missing `id-token: write`. See [Client template index](../../workflows/obs-aw-client-template.md).
    - Catalog policy was not merged before the `oblt-aw` registration merge.
 

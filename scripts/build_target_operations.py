@@ -19,17 +19,28 @@ import pathlib
 import subprocess
 import sys
 
+from client_workflow_pin import load_release_pointers, resolve_control_plane_pin
 from common import (
     PR_ACTIONS_DETECTIVE_TRIGGER_DST,
     discover_repo_org_assignments,
+    merge_repository_pin_classes_from_org_trees,
     merge_repository_pr_actions_detective_workflows_from_org_trees,
     merge_repository_workflow_token_policies_from_org_trees,
-    parse_repositories,
+    parse_historical_repository_names,
     write_outputs,
 )
 
 REMOTE_TEMPLATE_DIR = pathlib.Path(".github/remote-workflow-template")
 ZERO_SHA = "0000000000000000000000000000000000000000"
+# Keep in lockstep with distribute-client-workflow.yml on.push.paths (except the
+# workflow file itself) and the changed-files filter.
+RELEVANT_DIFF_PATHS = (
+    "config",
+    REMOTE_TEMPLATE_DIR.as_posix(),
+    "scripts/build_target_operations.py",
+    "scripts/client_workflow_pin.py",
+    "scripts/common.py",
+)
 
 
 def apply_pr_actions_detective_trigger_gate(
@@ -103,7 +114,11 @@ def list_org_template_files_at_ref(org_key: str, ref: str) -> list[dict[str, str
 
 
 def read_previous_repo_org_assignments(base_ref: str) -> dict[str, list[str]]:
-    """Repo→sorted-org-keys mapping at ``base_ref``, recovered from git history."""
+    """Repo→sorted-org-keys mapping at ``base_ref``, recovered from git history.
+
+    Historical files may lack ``pin-class``; names are extracted without
+    current-config validation.
+    """
     if not base_ref or base_ref == ZERO_SHA:
         return {}
     assignments: dict[str, set[str]] = {}
@@ -134,7 +149,7 @@ def read_previous_repo_org_assignments(base_ref: str) -> dict[str, list[str]]:
             ).stdout
         except subprocess.CalledProcessError:
             continue
-        for repo in parse_repositories(content):
+        for repo in parse_historical_repository_names(content):
             assignments.setdefault(repo, set()).add(org_key)
     return {repo: sorted(orgs) for repo, orgs in assignments.items()}
 
@@ -145,11 +160,12 @@ def parse_bool(value: str) -> bool:
 
 def has_relevant_git_changes(base_ref: str) -> bool:
     """
-    True when ``config/`` or the remote template tree differ between ``base_ref`` and HEAD.
+    True when relevant distribute inputs differ between ``base_ref`` and HEAD.
 
     Used as a fallback when the changed-files action reports count 0 (for example git
     renames under ``.github/remote-workflow-template/`` are not counted as added,
-    modified, or deleted).
+    modified, or deleted). Includes pin-rewrite scripts so source-only updates
+    still produce installation PRs.
     """
     if not base_ref or base_ref == ZERO_SHA:
         return False
@@ -162,8 +178,7 @@ def has_relevant_git_changes(base_ref: str) -> bool:
                 base_ref,
                 "HEAD",
                 "--",
-                "config",
-                REMOTE_TEMPLATE_DIR.as_posix(),
+                *RELEVANT_DIFF_PATHS,
             ],
             check=True,
             capture_output=True,
@@ -204,11 +219,15 @@ def main() -> int:
         return 0
 
     config_dir = pathlib.Path("config")
+    # Include the control-plane repo when listed in active-repositories.json
+    # (pilot / early-detection consumer of the same client templates).
     current_assignments = discover_repo_org_assignments(config_dir)
     token_policies = merge_repository_workflow_token_policies_from_org_trees(config_dir)
     detective_workflows = (
         merge_repository_pr_actions_detective_workflows_from_org_trees(config_dir)
     )
+    pin_classes = merge_repository_pin_classes_from_org_trees(config_dir)
+    pointers = load_release_pointers()
 
     previous_assignments = read_previous_repo_org_assignments(base_ref)
 
@@ -249,6 +268,7 @@ def main() -> int:
         files, remove_files = apply_pr_actions_detective_trigger_gate(
             files, remove_files, allowlist
         )
+        pin_class = pin_classes[repo]
         operations.append(
             {
                 "repository": repo,
@@ -256,6 +276,8 @@ def main() -> int:
                 "files": files,
                 "remove_files": remove_files,
                 "workflow-token-policy": token_policies.get(repo, ""),
+                "pin-class": pin_class,
+                "control-plane-pin": resolve_control_plane_pin(pin_class, pointers),
                 "pr-actions-detective-workflows": allowlist,
             }
         )
@@ -263,12 +285,17 @@ def main() -> int:
     removed_repositories = sorted(set(previous_assignments) - set(current_assignments))
     for repo in removed_repositories:
         files = files_for_orgs(previous_assignments[repo], at_base_ref=True)
+        pin_class = pin_classes.get(repo, "")
         operations.append(
             {
                 "repository": repo,
                 "operation": "remove",
                 "files": files,
                 "workflow-token-policy": token_policies.get(repo, ""),
+                "pin-class": pin_class,
+                "control-plane-pin": (
+                    resolve_control_plane_pin(pin_class, pointers) if pin_class else ""
+                ),
                 "pr-actions-detective-workflows": [],
             }
         )

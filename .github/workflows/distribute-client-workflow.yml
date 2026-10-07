@@ -6,9 +6,12 @@ on:
       - main
     paths:
       - config/**/active-repositories.json
+      - config/release-pointers.json
       - .github/remote-workflow-template/**
       - .github/workflows/distribute-client-workflow.yml
       - scripts/build_target_operations.py
+      - scripts/client_workflow_pin.py
+      - scripts/common.py
   workflow_dispatch:
     inputs:
       force:
@@ -48,7 +51,7 @@ jobs:
         with:
           base-ref: ${{ github.event.before }}
           ref: ${{ github.sha }}
-          filter: '["config/**/active-repositories.json",".github/remote-workflow-template/**"]'
+          filter: '["config/**/active-repositories.json","config/release-pointers.json",".github/remote-workflow-template/**","scripts/build_target_operations.py","scripts/client_workflow_pin.py","scripts/common.py"]'
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -120,6 +123,8 @@ jobs:
         if: ${{ matrix.target.operation == 'install' }}
         env:
           FILES_JSON: ${{ toJSON(matrix.target.files) }}
+          CONTROL_PLANE_PIN: ${{ matrix.target.control-plane-pin }}
+          TARGET_ROOT: ${{ github.workspace }}/target
         run: |
           set -euo pipefail
 
@@ -130,6 +135,8 @@ jobs:
             cp "$src" "$dst"
           done
 
+          python3 "$GITHUB_WORKSPACE/source/scripts/client_workflow_pin.py"
+
       - name: Render PR Actions Detective workflow allowlist
         if: ${{ matrix.target.operation == 'install' }}
         env:
@@ -138,8 +145,12 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/source/scripts
         run: |
           set -euo pipefail
+          if [ "$(jq 'length' <<< "$WORKFLOWS_JSON")" -eq 0 ]; then
+            echo "empty pr-actions-detective-workflows; skip render (removal handles stale file)"
+            exit 0
+          fi
           if [ ! -f "$TRIGGER_PATH" ]; then
-            echo "trigger-obs-aw-workflow-run.yml not installed (empty allowlist); skip render"
+            echo "trigger-obs-aw-workflow-run.yml not installed; skip render"
             exit 0
           fi
           python3 "${GITHUB_WORKSPACE}/source/scripts/render_pr_actions_detective_trigger.py" \
@@ -200,6 +211,28 @@ jobs:
             echo 'FILES_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: Resolve PR labels for target repository
+        id: pr-labels
+        env:
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+          TARGET_REPOSITORY: ${{ matrix.target.repository }}
+        run: |
+          set -euo pipefail
+          # Always apply control-plane labels. Add optional labels only when the
+          # target repo already defines them (do not create labels).
+          # Optional prepend order: alphabetical (backport-active-all, skip-changelog).
+          labels='oblt-aw/ai/merge-ready'
+          if gh api "repos/${TARGET_REPOSITORY}/labels/changelog:ci" --jq .name >/dev/null 2>&1; then
+            labels="changelog:ci,${labels}"
+          fi
+          if gh api "repos/${TARGET_REPOSITORY}/labels/skip-changelog" --jq .name >/dev/null 2>&1; then
+            labels="skip-changelog,${labels}"
+          fi
+          if gh api "repos/${TARGET_REPOSITORY}/labels/backport-active-all" --jq .name >/dev/null 2>&1; then
+            labels="backport-active-all,${labels}"
+          fi
+          echo "labels=${labels}" >> "$GITHUB_OUTPUT"
+
       - name: Create or update installation PR in target repository
         if: ${{ matrix.target.operation == 'install' }}
         id: cpr
@@ -209,8 +242,9 @@ jobs:
         with:
           token: ${{ steps.create-token.outputs.token }}
           path: target
+          sign-commits: true
           branch: oblt-aw/sync-client-workflow
-          labels: changelog:ci, oblt-aw/ai/merge-ready
+          labels: ${{ steps.pr-labels.outputs.labels }}
           commit-message: Sync agentic workflow files from elastic/oblt-aw
           title: Sync agentic workflow files from elastic/oblt-aw
           body: |
@@ -247,8 +281,9 @@ jobs:
         with:
           token: ${{ steps.create-token.outputs.token }}
           path: target
+          sign-commits: true
           branch: oblt-aw/remove-client-workflow
-          labels: changelog:ci, oblt-aw/ai/merge-ready
+          labels: ${{ steps.pr-labels.outputs.labels }}
           commit-message: Remove agentic workflow files managed by elastic/oblt-aw
           title: Remove agentic workflow files managed by elastic/oblt-aw
           body: |
@@ -259,6 +294,19 @@ jobs:
 
             ---
             Created by [workflow run](${{ env.JOB_URL }})
+
+      - name: Verify PR commit signatures
+        env:
+          TARGET_REPOSITORY: ${{ matrix.target.repository }}
+          OPERATION: ${{ matrix.target.operation == 'install' && steps.cpr.outputs.pull-request-operation || steps.cpr-remove.outputs.pull-request-operation }}
+          COMMITS_VERIFIED: ${{ matrix.target.operation == 'install' && steps.cpr.outputs.pull-request-commits-verified || steps.cpr-remove.outputs.pull-request-commits-verified }}
+        run: |
+          if [[ "$OPERATION" == "created" || "$OPERATION" == "updated" ]]; then
+            if [[ "$COMMITS_VERIFIED" != "true" ]]; then
+              echo "PR commits were not verified for $TARGET_REPOSITORY." >&2
+              exit 1
+            fi
+          fi
 
       - name: Record PR result
         if: always()

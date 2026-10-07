@@ -33,6 +33,7 @@ install-aw:
 ## Compile the gh-aw workflows source into its generated .lock.yml.
 compile-aw: install-aw
 	$(GH_AW_BIN) compile --purge
+	python3 scripts/wire_ephemeral_token.py
 
 ## Recompile every gh-aw workflow and fail if the generated lock files drift from the source.
 compile-aw-check: install-aw compile-aw

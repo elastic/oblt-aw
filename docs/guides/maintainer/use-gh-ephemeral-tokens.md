@@ -17,8 +17,9 @@ Per-repository entries in `config/<org-key>/active-repositories.json` include:
 
 | Field | Purpose |
 |-------|---------|
-| `workflow-token-policy` | Explicit Backstage policy name for agentic workflow `create-token` steps (exposed as `shared-token-policy` via [aw-prelude](../../workflows/aw-prelude.md)). Use `""` when Vault auto policy applies per trigger workflow ref. |
 | `ai-assets-token-policy` | Policy for private APM package clones during [aw-resolve-agentic-assets](../../workflows/aw-resolve-agentic-assets.md). Use `""` when the job `GITHUB_TOKEN` is sufficient. |
+| `pin-class` | `development` installs pin client `uses:` at `@main`; `production` installs pin at `tags.current` after the first promote. `elastic/oblt-aw` must be `development`. |
+| `workflow-token-policy` | Explicit Backstage policy name for agentic workflow `create-token` steps (exposed as `shared-token-policy` via [aw-prelude](../../workflows/aw-prelude.md)). Use `""` when Vault auto policy applies per trigger workflow ref. |
 
 Details: [distribute-client-workflow — distribution configuration contract](../../operations/distribute-client-workflow.md#distribution-configuration-contract-per-org-active-repositoriesjson).
 
@@ -26,7 +27,7 @@ Details: [distribute-client-workflow — distribution configuration contract](..
 
 Every newly registered consumer repository needs a Backstage **TokenPolicy** in `elastic/catalog-info` **before** merging the `oblt-aw` registration to `main`:
 
-- `bound_claims.workflow_ref` must match each client workflow that calls `create-token` (for example `elastic/<repo>/.github/workflows/trigger-obs-aw-automerge.yml@refs/heads/main`).
+- `bound_claims.workflow_ref` must match the client trigger glob with a ref wildcard (for example `elastic/<repo>/.github/workflows/trigger-obs-aw-*.yml@*`). Do not pin `@refs/heads/main` only: distribute may label install PRs with `backport-active-all`, and OIDC claims include the ref that ran.
 - `additional_permissions` is the union of permissions required by workflows in the org registry.
 
 Full procedure and YAML template: [Registering resources](../../onboarding/registering-a-repository.md).
@@ -48,13 +49,13 @@ See the reference table in [Registering resources — appendix](../../onboarding
 
 ## Nested GH-AW lock workflows
 
-Issue-triage, dependency-review, and issue-fixer wrappers call locked workflows in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) with `github-token-policy: ${{ inputs.shared-token-policy }}`. When that value is non-empty, lock jobs mint via `create-token` in the same job that writes labels, comments, pull requests, or reviews, so those writes re-trigger other workflows (`GITHUB_TOKEN` writes do not). The caller job must grant `id-token: write`. Leave `github-token-policy` empty to keep `GITHUB_TOKEN` / `GH_AW_GITHUB_TOKEN` for nested lock writes (no mint in the lock; label writes will not re-trigger downstream workflows).
+Issue-triage and issue-fixer wrappers call locked workflows in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) with `github-token-policy: ${{ inputs.shared-token-policy }}`. Dependency-review calls the in-repo lock [`gh-aw-dependency-review.lock.yml`](../../../.github/workflows/gh-aw-dependency-review.lock.yml) the same way; the lock maps that input to `WORKFLOW_TOKEN_POLICY` for the shared [`ephemeral-github-token`](../../../.github/workflows/gh-aw-fragments/ephemeral-github-token.md) fragment (env resolve, same pattern as onboard-repository). When that value is non-empty, lock jobs mint via `create-token` in the same job that writes labels, comments, pull requests, or reviews, so those writes re-trigger other workflows (`GITHUB_TOKEN` writes do not). The caller job must grant `id-token: write`. Leave `github-token-policy` empty to keep `GITHUB_TOKEN` / `GH_AW_GITHUB_TOKEN` for nested lock writes (no mint in the lock; label writes will not re-trigger downstream workflows).
 
 Automerge splits identities by PR author so approve never self-APPROVEs: `approve` / `gh-aw-mention-in-pr` passes empty `github-token-policy` (`GITHUB_TOKEN` / `github-actions[bot]`) for Vault, Dependabot, Renovate, and other authors; when the author is `github-actions[bot]`, it passes `shared-token-policy` so Vault submits the review (`verify` requires a non-empty policy in that case). Automerge continues via job `needs` and does not need review writes to re-trigger workflows. Merge jobs (`automerge` / merge-fallback) mint a Vault-app token when `shared-token-policy` is non-empty so REST merges run as that app (needed with `pull_request_bypassers` for CODEOWNERS-protected repos; Apps cannot be listed in `CODEOWNERS`); when empty they use `GITHUB_TOKEN`.
 
 ## Troubleshooting OIDC / create-token failures
 
-- Match `workflow_ref` exactly to the invoking client workflow file.
+- Match `workflow_ref` to the client trigger glob with `@*` (for example `trigger-obs-aw-*.yml@*`); filename wildcards need an explicit `token-policy` / `workflow-token-policy` input.
 - Confirm `id-token: write` on the client `run-obs-aw-<event>` job.
 - Confirm catalog policy merged **before** `oblt-aw` registration merged to `main`.
 

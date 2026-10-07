@@ -1,6 +1,7 @@
 name: Observability Agentic Workflow — Status Event
 
 # Event-scoped orchestrator for status-triggered routes.
+# - failure + buildkite → ESTC PR Buildkite Detective
 on:
   workflow_call:
     secrets:
@@ -17,8 +18,9 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
-      control-plane-workflows: '["obs-aw-estc-pr-buildkite-detective.yml"]'
-      load-allowed-authors: false
+      control-plane-workflows: >-
+        ["obs-aw-estc-pr-buildkite-detective.yml"]
+      load-allowed-authors: true
 
   estc-pr-buildkite-detective:
     needs: run-aw-prelude

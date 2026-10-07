@@ -25,6 +25,8 @@ Route wrappers keep descriptive ids such as `resolve-apm-assets` and `automerge`
 
 - Shared prelude (dashboard + allow lists): [docs/workflows/aw-prelude.md](aw-prelude.md)
 - Shared dashboard audit (enable/disable comments): [docs/workflows/aw-dashboard-audit.md](aw-dashboard-audit.md)
+- Release promote: [docs/workflows/aw-release-promote.md](aw-release-promote.md)
+- Release rollback: [docs/workflows/aw-release-rollback.md](aw-release-rollback.md)
 - Dashboard reader (reusable workflow): [docs/workflows/get-enabled-workflows.md](get-enabled-workflows.md)
 - PR and issue allow-list loader (reusable workflow): [docs/workflows/load-allowed-authors.md](load-allowed-authors.md)
 - Observability client templates (`trigger-obs-aw-*.yml` under remote-workflow-template): [docs/workflows/obs-aw-client-template.md](obs-aw-client-template.md)
@@ -38,6 +40,7 @@ Route wrappers keep descriptive ids such as `resolve-apm-assets` and `automerge`
 - PR Actions Detective workflow: [docs/workflows/obs-aw-pr-actions-detective.md](obs-aw-pr-actions-detective.md)
 - PR Buildkite Detective workflow: [docs/workflows/obs-aw-estc-pr-buildkite-detective.md](obs-aw-estc-pr-buildkite-detective.md)
 - Compiler upgrade workflow: [docs/workflows/compiler-upgrade.md](compiler-upgrade.md)
+- Onboard repository (in-repo only, not consumer catalog): [docs/workflows/gh-aw-onboard-repository.md](gh-aw-onboard-repository.md)
 - Duplicate Issue Detector workflow: [docs/workflows/obs-aw-duplicate-issue-detector.md](obs-aw-duplicate-issue-detector.md)
 - Issue Fixer workflow (generic fix-ready path): [docs/workflows/obs-aw-issue-fixer.md](obs-aw-issue-fixer.md)
 - Issue Triage workflow (issue opened): [docs/workflows/obs-aw-issue-triage.md](obs-aw-issue-triage.md)

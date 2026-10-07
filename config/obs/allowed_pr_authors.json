@@ -3,6 +3,8 @@
   "renovate[bot]",
   "Dependabot",
   "Renovate",
+  "elastic-renovate-prod[bot]",
   "elastic-vault-github-plugin-prod[bot]",
-  "github-actions[bot]"
+  "github-actions[bot]",
+  "mergify[bot]"
 ]

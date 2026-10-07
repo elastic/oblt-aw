@@ -201,11 +201,12 @@ jobs:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       # Empty → GITHUB_TOKEN; non-empty only when author is github-actions[bot] (avoid self-APPROVE).
       github-token-policy: ${{ github.event.pull_request.user.login == 'github-actions[bot]' && inputs.shared-token-policy || '' }}
+      report-failure-as-issue: false
       prompt: |
         For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
 
         This PR already passed automerge validation in the workflow (GITHUB_TOKEN) for author, label, draft/fork/ref, and dependency collection `${{ needs.check-dependency-collection.outputs.collection-id }}` (file-path classification; no extra repo labels).
-        Do not call check-run or commit status APIs. Required checks are enforced by GitHub when auto-merge is enabled.
+        Do not call check-run or commit status APIs. Required checks are enforced by GitHub at merge time (PR path and deferred merge path).
 
         Author allow list (single source of truth — do not invent other names):
         - Canonical list (from config/obs/allowed_pr_authors.json): `${{ inputs.shared-allowed-pr-authors-csv }}`
@@ -267,14 +268,13 @@ jobs:
           MERGE_FORKS: "false"
           MERGE_DELETE_BRANCH: "true"
           MERGE_REQUIRED_APPROVALS: "1"
-          MERGE_RETRIES: "10"
-          MERGE_RETRY_SLEEP: "20000"
+          # Short retry only: long CI is handled by obs-aw-automerge-deferred on frequent schedule.
+          MERGE_RETRIES: "3"
+          MERGE_RETRY_SLEEP: "15000"
 
-  # When REST merge still fails (for example merge queue), retry direct merge with the same
-  # token identity, then fall back to native "merge when ready". Do not pass --delete-branch:
-  # gh rejects it when merge queue is enabled. Async --auto often ignores bypass actors.
-  # Do not retry on pascalgn `skipped` (missing label/approvals); that would hide review gates.
-  enable-merge-when-ready:
+  # When pascalgn did not merge, one Vault REST squash-merge (bypass actor when policy set).
+  # Pending checks → soft-succeed so arm-for-deferred-merge can mark the PR; other errors fail.
+  rest-merge:
     needs: [automerge]
     if: >-
       always() &&
@@ -286,7 +286,21 @@ jobs:
       contents: write
       pull-requests: write
       id-token: write
+    outputs:
+      merged: ${{ steps.merge.outputs.merged }}
     steps:
+      - name: Checkout elastic/oblt-aw (REST error helpers)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/obs/automerge_armed_lib.sh
+          sparse-checkout-cone-mode: false
+
       - name: Create ephemeral GitHub token (configured policy)
         id: create-token-explicit
         if: ${{ inputs.shared-token-policy != '' }}
@@ -294,34 +308,96 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
-      - name: Merge or enable merge when ready
+      - name: Squash-merge via REST once
+        id: merge
         env:
           GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
-          # Pin merge to the head SHA evaluated in this run; 409 if the PR was updated mid-run.
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          # Direct REST merge honors classic BP pull_request_bypassers when using a Vault-app token.
-          # Capture API errors for logs; failure is expected when falling back to --auto.
+          # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
+          source _oblt-aw/scripts/obs/automerge_armed_lib.sh
           if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
             -f merge_method=squash \
             -f sha="${HEAD_SHA}" 2>&1)"; then
             echo "Merged via REST API."
+            echo "merged=true" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
-          echo "Direct merge failed; enabling native auto-merge as fallback."
           echo "REST merge error: ${merge_out}"
-          gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash
+          if automerge_merge_error_is_already_merged_message "${merge_out}"; then
+            echo "merged=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if printf '%s' "${merge_out}" | grep -qiE 'pull request is not open'; then
+            pr_state="$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json state -q .state)"
+            if [[ "${pr_state}" == "MERGED" ]]; then
+              echo "merged=true" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+            echo "PR not open and not MERGED (state=${pr_state}); failing."
+            exit 1
+          fi
+          if automerge_merge_error_is_pending_checks "${merge_out}"; then
+            echo "merged=false" >> "${GITHUB_OUTPUT}"
+            echo "REST merge blocked by pending checks (will arm for deferred merge)."
+            exit 0
+          fi
+          echo "REST merge failed with a non-retryable error."
+          exit 1
 
-  # Do not report workflow success when the PR is still open and auto-merge was not enabled.
+  # After rest-merge soft-succeeds on pending checks, upsert the SHA-bound armed comment.
+  arm-for-deferred-merge:
+    needs: [rest-merge]
+    if: >-
+      always() &&
+      needs.rest-merge.result == 'success' &&
+      needs.rest-merge.outputs.merged != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      armed: ${{ steps.arm.outputs.armed }}
+    steps:
+      - name: Checkout elastic/oblt-aw (armed marker helpers)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/obs/automerge_armed_lib.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Upsert armed comment for deferred merge
+        id: arm
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHARED_TOKEN_POLICY: ${{ inputs.shared-token-policy }}
+        run: |
+          set -euo pipefail
+          # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
+          source _oblt-aw/scripts/obs/automerge_armed_lib.sh
+          automerge_upsert_armed_comment "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}" "${RUN_URL}" "${SHARED_TOKEN_POLICY}"
+
+  # Success when merged now, not_ready (deferred), or armed for deferred merge.
   report-automerge-outcome:
     needs:
       - verify
       - check-dependency-collection
       - automerge
-      - enable-merge-when-ready
+      - rest-merge
+      - arm-for-deferred-merge
     if: >-
       always() &&
       needs.verify.outputs.proceed == 'true' &&
@@ -330,48 +406,96 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      contents: read
       pull-requests: write
     steps:
-      - name: Fail and comment when pull request remains unmerged
+      - name: Checkout elastic/oblt-aw (armed marker helpers)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/obs/automerge_armed_lib.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Report outcome (soft-succeed when not ready; fail only on permanent blockers)
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
-          FALLBACK_RESULT: ${{ needs.enable-merge-when-ready.result }}
+          REST_RESULT: ${{ needs.rest-merge.result }}
+          REST_MERGED: ${{ needs.rest-merge.outputs.merged }}
+          ARM_RESULT: ${{ needs.arm-for-deferred-merge.result }}
+          ARMED: ${{ needs.arm-for-deferred-merge.outputs.armed }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHARED_TOKEN_POLICY: ${{ inputs.shared-token-policy }}
         run: |
           set -euo pipefail
+          # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
+          source _oblt-aw/scripts/obs/automerge_armed_lib.sh
+
+          fail_with_comment() {
+            local detail="$1"
+            MARKER='<!-- obs-aw-automerge:outcome-gate -->'
+            body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
+              "$MARKER" \
+              "Automerge could not complete for this pull request." \
+              "${detail}" \
+              "Workflow run: ${RUN_URL}")"
+            comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
+              | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
+              | head -n 1)"
+            if [ -n "$comment_id" ]; then
+              gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
+            else
+              gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+            fi
+            echo "Automerge pipeline finished without merging or arming PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, rest=${REST_RESULT}, merged=${REST_MERGED}, arm=${ARM_RESULT}, armed=${ARMED})."
+            exit 1
+          }
+
           if [ "${MERGE_RESULT}" = "merged" ]; then
             echo "PR merged by automerge action."
             exit 0
           fi
-          if [ "${FALLBACK_RESULT}" = "success" ]; then
-            echo "Merge fallback succeeded (direct merge or native auto-merge)."
-            exit 0
-          fi
 
-          pr_json="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state,autoMergeRequest)"
+          pr_json="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state)"
           pr_state="$(printf '%s' "$pr_json" | jq -r .state)"
-          auto_merge="$(printf '%s' "$pr_json" | jq -r 'if .autoMergeRequest == null then "false" else "true" end')"
-          if [ "$pr_state" = "MERGED" ] || [ "$auto_merge" = "true" ]; then
-            echo "PR is merged or has auto-merge enabled; treating as success."
+          if [ "$pr_state" = "MERGED" ]; then
+            echo "PR is merged; treating as success."
             exit 0
           fi
 
-          MARKER='<!-- obs-aw-automerge:outcome-gate -->'
-          body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
-            "$MARKER" \
-            "Automerge could not complete for this pull request (\`mergeResult: ${MERGE_RESULT:-unknown}\`)." \
-            "Common causes include CODEOWNERS without a Vault-app \`pull_request_bypassers\` entry (Apps cannot be CODEOWNERS), empty \`shared-token-policy\` (merge uses \`GITHUB_TOKEN\`, which cannot bypass CODEOWNERS), missing approving review (org rulesets still require a write-access approval; automerge approves as \`github-actions[bot]\` via \`GITHUB_TOKEN\`), or other branch protection / ruleset gates that block merge." \
-            "Workflow run: ${RUN_URL}")"
-          comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate \
-            | jq --arg marker "$MARKER" -r '.[] | select(.body | contains($marker)) | .id' \
-            | head -n 1)"
-          if [ -n "$comment_id" ]; then
-            gh api --method PATCH "repos/${REPO}/issues/comments/${comment_id}" -f body="$body" >/dev/null
-          else
-            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$body"
+          if [ "${REST_RESULT}" = "success" ] && [ "${REST_MERGED}" = "true" ]; then
+            echo "PR merged by rest-merge."
+            exit 0
           fi
-          echo "Automerge pipeline finished without merging PR #${PR_NUMBER} (mergeResult=${MERGE_RESULT:-unknown}, fallback=${FALLBACK_RESULT})."
-          exit 1
+
+          if [ "${ARM_RESULT}" = "success" ] && [ "${ARMED}" = "true" ]; then
+            echo "PR armed for deferred merge when required checks succeed."
+            exit 0
+          fi
+
+          # Permanent REST failure (CODEOWNERS, rules, etc.) — do not soft-succeed.
+          if [ "${REST_RESULT}" = "failure" ]; then
+            fail_with_comment "REST merge failed with a non-retryable repository rule or required-check blocker (for example CODEOWNERS without Vault bypass). Check the linked workflow run for details, or ask a maintainer to merge this pull request manually."
+          fi
+
+          # not_ready soft-succeeds only when arming succeeded or we can still upsert
+          # after a successful rest-merge pending path. Never hide a permanent REST/arm failure.
+          if [ "${MERGE_RESULT}" = "not_ready" ]; then
+            if [ "${ARM_RESULT}" = "failure" ]; then
+              echo "mergeResult=not_ready but arm-for-deferred-merge failed; failing."
+              exit 1
+            fi
+            automerge_upsert_armed_comment "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}" "${RUN_URL}" "${SHARED_TOKEN_POLICY}"
+            echo "PR not ready (pending checks); commented and soft-succeeding for deferred retry."
+            exit 0
+          fi
+
+          fail_with_comment "A repository rule or required check is still blocking the merge. Check the linked workflow run for details, or ask a maintainer to merge this pull request manually."

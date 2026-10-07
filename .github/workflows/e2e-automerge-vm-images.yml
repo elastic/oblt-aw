@@ -3,14 +3,26 @@ name: E2E — Automerge VM images
 
 # Manual production E2E for obs:automerge:vm-images against elastic/oblt-aw.
 # Creates an ephemeral playground-shaped updatecli IMAGE bump PR as the Vault
-# app (OIDC create-token using workflow-token-policy from config/e2e.json,
-# bound to e2e-*.yml via token-policy-6cd7ac55e207), then asserts
+# app (OIDC create-token using workflow-token-policy from config/e2e.json or
+# config/release.json), then asserts
 # dependency-review → merge-ready → approve → automerge. Vault authorship
 # avoids the github-actions[bot] "Approve and run" gate on pull_request
 # workflows. Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
+    inputs:
+      checkout-ref:
+        description: Git ref or full SHA to checkout (default main tip)
+        required: false
+        type: string
+        default: main
   workflow_call:
+    inputs:
+      checkout-ref:
+        description: Git ref or full SHA to checkout (default main tip)
+        required: false
+        type: string
+        default: main
 
 permissions:
   contents: read
@@ -37,20 +49,49 @@ jobs:
     env:
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
+      - name: Checkout default branch (dispatch guard)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Validate checkout-ref for workflow_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          CHECKOUT_REF: ${{ inputs.checkout-ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+        run: python3 scripts/aw_e2e_validate_checkout_ref.py
+
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout-ref }}
 
-      # Shared E2E Vault role in config/e2e.json (wildcard e2e-*.yml policy
-      # requires an explicit token-policy input; do not reuse trigger-obs-aw-*).
+      # Vault role from config/e2e.json (direct e2e-*.yml dispatch) or
+      # config/release.json (nested under aw-release-promote.yml). Wildcard
+      # policies require an explicit token-policy input; do not reuse
+      # trigger-obs-aw-*.
       - name: Resolve E2E Vault token policy
         id: token-policy
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
           set -euo pipefail
-          POLICY="$(jq -r '."workflow-token-policy" // empty' config/e2e.json)"
+          promote_prefix="elastic/oblt-aw/.github/workflows/aw-release-promote.yml@"
+          if [[ "${WORKFLOW_REF}" == "${promote_prefix}"* ]]; then
+            config_path="config/release.json"
+          else
+            config_path="config/e2e.json"
+          fi
+          POLICY="$(jq -r '."workflow-token-policy" // empty' "${config_path}")"
           if [[ -z "${POLICY}" ]]; then
-            echo "::error::Missing non-empty workflow-token-policy in config/e2e.json"
+            echo "::error::Missing non-empty workflow-token-policy in ${config_path}"
             exit 1
           fi
+          echo "Resolved ${config_path} workflow-token-policy=${POLICY} (workflow_ref=${WORKFLOW_REF})"
           echo "token-policy=${POLICY}" >> "${GITHUB_OUTPUT}"
 
       - name: Create ephemeral GitHub token (Vault app)

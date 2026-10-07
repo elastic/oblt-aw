@@ -6,7 +6,7 @@ Source file: [.github/workflows/load-allowed-authors.yml](../../.github/workflow
 
 This reusable workflow reads [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json) and [config/obs/allowed_issue_authors.json](../../config/obs/allowed_issue_authors.json) from `elastic/oblt-aw` and exposes both allow lists as workflow outputs.
 
-Ingress uses the **PR** outputs to gate PR-only workflows by author login and to pass `allowed-bot-users` for dependency review. Ingress uses **`allowed_issue_authors_csv`** for specialized GH-AW issue wrappers (security and resource-not-accessible triage/fixer), not for generic `obs-aw-issue-triage` / `obs-aw-issue-fixer`.
+Ingress uses the **PR** outputs to gate PR-only workflows by author login (for example `obs-aw-event-pull-request` `contains(fromJSON(...), user.login)` checks). Dependency-review bots are hardcoded on the in-repo `gh-aw-dependency-review` lock to match [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json); the wrapper no longer passes `allowed-bot-users`. Ingress uses **`allowed_issue_authors_csv`** for specialized GH-AW issue wrappers (security and resource-not-accessible triage/fixer), not for generic `obs-aw-issue-triage` / `obs-aw-issue-fixer`.
 
 ## Usage
 
@@ -29,7 +29,7 @@ The reusable workflow job id is `load-oblt-aw-bot-allow-lists` (workflow filenam
 | Output | Type | Meaning |
 |--------|------|---------|
 | `allowed_pr_authors_json` | JSON array string | Compact JSON array of allowed PR author logins, used by ingress `contains(fromJSON(...), github.event.pull_request.user.login)` checks |
-| `allowed_pr_authors_csv` | string | Same PR logins comma-separated for workflows that accept CSV inputs (for example dependency review) |
+| `allowed_pr_authors_csv` | string | Same PR logins comma-separated for workflows that still accept CSV allow-list inputs (for example automerge) |
 | `allowed_issue_authors_json` | JSON array string | Compact JSON array of allowed logins for issue-scoped `allowed-bot-users` (optional use by callers) |
 | `allowed_issue_authors_csv` | string | Issue allow list comma-separated for `allowed-bot-users` on issue triage/fixer paths |
 

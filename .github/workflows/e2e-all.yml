@@ -1,11 +1,27 @@
 ---
 name: E2E — All
 
-# Manual orchestrator: call every leaf e2e-*.yml via workflow_call in parallel.
+# Orchestrator: call every leaf e2e-*.yml via workflow_call in parallel.
 # Add a new job here when introducing a new leaf E2E workflow.
-# Not part of the default PR required gate in ci.yml.
+# Not a PR CI gate — called by aw-release-promote.yml (pinned SHA);
+# also dispatchable for smoke.
+# Manual dispatch must run from the default branch; checkout-ref may only be
+# that branch tip or a full SHA on its history (see aw_e2e_validate_checkout_ref.py).
 on:
   workflow_dispatch:
+    inputs:
+      checkout-ref:
+        description: Default branch tip or full SHA on that history (default main)
+        required: false
+        type: string
+        default: main
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: Git ref or full SHA to checkout (default main tip)
+        required: false
+        type: string
+        default: main
 
 permissions:
   contents: read
@@ -15,8 +31,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  assert-trusted-dispatch:
+    name: Assert trusted dispatch checkout-ref
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Validate checkout-ref for workflow_dispatch
+        env:
+          CHECKOUT_REF: ${{ inputs.checkout-ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
+        run: python3 scripts/aw_e2e_validate_checkout_ref.py
+
   e2e-automerge-vm-images:
     name: Automerge vm-images
+    needs: [assert-trusted-dispatch]
+    if: >-
+      always() &&
+      !cancelled() &&
+      (needs.assert-trusted-dispatch.result == 'success' ||
+       needs.assert-trusted-dispatch.result == 'skipped')
     permissions:
       contents: write
       pull-requests: write
@@ -25,10 +69,38 @@ jobs:
       checks: read
       id-token: write
     uses: ./.github/workflows/e2e-automerge-vm-images.yml
+    with:
+      checkout-ref: ${{ inputs.checkout-ref }}
+    secrets: inherit
+
+  e2e-dependency-review:
+    name: Dependency review
+    needs: [assert-trusted-dispatch]
+    if: >-
+      always() &&
+      !cancelled() &&
+      (needs.assert-trusted-dispatch.result == 'success' ||
+       needs.assert-trusted-dispatch.result == 'skipped')
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      issues: write
+      checks: read
+      id-token: write
+    uses: ./.github/workflows/e2e-dependency-review.yml
+    with:
+      checkout-ref: ${{ inputs.checkout-ref }}
     secrets: inherit
 
   e2e-estc-pr-buildkite-detective:
     name: ESTC PR Buildkite Detective
+    needs: [assert-trusted-dispatch]
+    if: >-
+      always() &&
+      !cancelled() &&
+      (needs.assert-trusted-dispatch.result == 'success' ||
+       needs.assert-trusted-dispatch.result == 'skipped')
     permissions:
       contents: write
       pull-requests: write
@@ -37,6 +109,27 @@ jobs:
       issues: write
       checks: read
     uses: ./.github/workflows/e2e-estc-pr-buildkite-detective.yml
+    with:
+      checkout-ref: ${{ inputs.checkout-ref }}
+    secrets: inherit
+
+  e2e-autodoc:
+    name: Autodoc audit
+    needs: [assert-trusted-dispatch]
+    if: >-
+      always() &&
+      !cancelled() &&
+      (needs.assert-trusted-dispatch.result == 'success' ||
+       needs.assert-trusted-dispatch.result == 'skipped')
+    permissions:
+      actions: write
+      checks: read
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/e2e-autodoc.yml
+    with:
+      checkout-ref: ${{ inputs.checkout-ref }}
     secrets: inherit
 
   e2e-pr-actions-detective:

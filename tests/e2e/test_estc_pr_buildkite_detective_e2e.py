@@ -18,6 +18,10 @@ import oracle_estc_pr_buildkite_detective_e2e as oracle
 
 TESTDATA_ROOT = ROOT / "testdata" / "agentic" / "estc-pr-buildkite-detective"
 LIVE_CASE_ID = "status-failure-open-pr-live"
+ESTC_CONCLUSION_JOB = (
+    "run-obs-aw-status / estc-pr-buildkite-detective / "
+    "estc-pr-buildkite-detective / conclusion"
+)
 
 # Explicit negative-gate maps for oracle unit tests (gate case.json files removed).
 # Never authorize from outcome.expectations / outcome.trigger by default.
@@ -66,6 +70,7 @@ def _synthetic_live_outcome(
             "run_seen": True,
             "job_executed": True,
             "job_conclusion": "success",
+            "matched_job_name": ESTC_CONCLUSION_JOB,
             "url": "https://example.test/run",
         },
         "agent_comment": {"id": 1} if agent_invoked else None,
@@ -306,7 +311,7 @@ class TestHarnessLive:
                 "url": "https://example.test/run/2",
                 "jobs": [
                     {
-                        "name": "run-obs-aw-status / estc / agent",
+                        "name": ESTC_CONCLUSION_JOB,
                         "conclusion": "success",
                     }
                 ],
@@ -503,6 +508,7 @@ class TestHarnessLive:
         assert (
             harness.status_job_executed({"conclusion": "success", "jobs": []}) is False
         )
+        # Parent success alone must not authorize (oracle requires conclusion leaf).
         assert (
             harness.status_job_conclusion(
                 {
@@ -515,7 +521,21 @@ class TestHarnessLive:
                     ],
                 }
             )
-            == "success"
+            is None
+        )
+        assert (
+            harness.status_job_executed(
+                {
+                    "conclusion": "success",
+                    "jobs": [
+                        {
+                            "name": "run-obs-aw-status",
+                            "conclusion": "success",
+                        }
+                    ],
+                }
+            )
+            is False
         )
         assert (
             harness.status_job_conclusion(
@@ -531,6 +551,165 @@ class TestHarnessLive:
             )
             == "skipped"
         )
+
+    def test_status_job_conclusion_ignores_empty_conclusion(
+        self,
+    ) -> None:
+        """Empty/missing conclusions are unknown — never coerced to skipped."""
+        assert (
+            harness.status_job_conclusion(
+                {
+                    "conclusion": "success",
+                    "jobs": [
+                        {
+                            "name": "run-obs-aw-status",
+                            "conclusion": "",
+                        }
+                    ],
+                }
+            )
+            is None
+        )
+        assert (
+            harness.status_job_conclusion(
+                {
+                    "conclusion": "success",
+                    "jobs": [
+                        {
+                            "name": ESTC_CONCLUSION_JOB,
+                            "conclusion": None,
+                        }
+                    ],
+                }
+            )
+            is None
+        )
+        assert harness.status_job_match(
+            {
+                "jobs": [
+                    {
+                        "name": "run-obs-aw-status",
+                        "conclusion": "",
+                    },
+                    {
+                        "name": ESTC_CONCLUSION_JOB,
+                        "conclusion": "skipped",
+                    },
+                ],
+            }
+        ) == (ESTC_CONCLUSION_JOB, "skipped")
+
+    def test_status_job_conclusion_ignores_skipped_prelude_prefix(
+        self,
+    ) -> None:
+        """Promote #6: first nested job contains run-obs-aw-status but is skipped."""
+        run = {
+            "conclusion": "success",
+            "jobs": [
+                {
+                    "name": (
+                        "run-obs-aw-status / run-aw-prelude / "
+                        "load-oblt-aw-bot-allow-lists"
+                    ),
+                    "conclusion": "skipped",
+                },
+                {
+                    "name": (
+                        "run-obs-aw-status / run-aw-prelude / evaluate-workflow-gates"
+                    ),
+                    "conclusion": "success",
+                },
+                {
+                    "name": ESTC_CONCLUSION_JOB,
+                    "conclusion": "success",
+                },
+            ],
+        }
+        assert harness.status_job_conclusion(run) == "success"
+        assert harness.status_job_executed(run) is True
+        assert harness.status_job_matched_name(run) == ESTC_CONCLUSION_JOB
+
+    def test_status_job_conclusion_prefers_leaf_over_earlier_parent_success(
+        self,
+    ) -> None:
+        """Parent listed before leaf must not win positive evidence."""
+        run = {
+            "conclusion": "success",
+            "jobs": [
+                {
+                    "name": "run-obs-aw-status",
+                    "conclusion": "success",
+                },
+                {
+                    "name": ESTC_CONCLUSION_JOB,
+                    "conclusion": "success",
+                },
+            ],
+        }
+        assert harness.status_job_conclusion(run) == "success"
+        assert harness.status_job_matched_name(run) == ESTC_CONCLUSION_JOB
+        assert harness.status_job_executed(run) is True
+
+    def test_wait_for_new_run_skips_success_run_with_only_skipped_prelude(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = harness._utc_now().replace(microsecond=0)
+        created = since.isoformat().replace("+00:00", "Z")
+        listed = [
+            {
+                "databaseId": 1,
+                "status": "completed",
+                "conclusion": "success",
+                "createdAt": created,
+                "event": "status",
+                "displayTitle": "status",
+                "url": "https://example.test/run/1",
+                "headSha": "default-branch-tip",
+            }
+        ]
+        monkeypatch.setattr(
+            harness, "list_status_trigger_runs", lambda *_a, **_k: listed
+        )
+        monkeypatch.setattr(
+            harness,
+            "gh_json",
+            lambda *_a, **_k: {
+                "databaseId": 1,
+                "status": "completed",
+                "conclusion": "success",
+                "url": "https://example.test/run/1",
+                "jobs": [
+                    {
+                        "name": (
+                            "run-obs-aw-status / run-aw-prelude / "
+                            "load-oblt-aw-bot-allow-lists"
+                        ),
+                        "conclusion": "skipped",
+                    }
+                ],
+                "createdAt": created,
+                "headSha": "default-branch-tip",
+                "event": "status",
+            },
+        )
+        clock = {"now": since.timestamp()}
+
+        def fake_time() -> float:
+            return clock["now"]
+
+        def fake_sleep(_seconds: float) -> None:
+            clock["now"] += 10_000
+
+        monkeypatch.setattr(harness.time, "time", fake_time)
+        monkeypatch.setattr(harness.time, "sleep", fake_sleep)
+        result = harness.wait_for_new_run(
+            "elastic/oblt-aw",
+            "trigger-obs-aw-status.yml",
+            since=since,
+            timeout_seconds=1,
+            interval_seconds=1,
+        )
+        assert result is None
 
     def test_require_case_mode_rejects_mismatch(self) -> None:
         with pytest.raises(RuntimeError, match="declares mode='fixture'"):
@@ -1459,6 +1638,7 @@ class TestOracle:
                 "run_seen": True,
                 "job_executed": True,
                 "job_conclusion": "success",
+                "matched_job_name": ESTC_CONCLUSION_JOB,
                 "url": "https://example.test/run",
             },
             "agent_comment": {"id": 1},
@@ -1501,6 +1681,7 @@ class TestOracle:
                 "run_seen": True,
                 "job_executed": True,
                 "job_conclusion": "success",
+                "matched_job_name": ESTC_CONCLUSION_JOB,
                 "url": "https://example.test/run",
             },
             "agent_comment": {
@@ -1515,6 +1696,17 @@ class TestOracle:
         check_ids = {c["id"] for c in report["checks"]}
         assert "agent_comment_present" in check_ids
         assert "agent_comment_markers" not in check_ids
+
+    def test_live_oracle_requires_estc_conclusion_leaf_name(self) -> None:
+        outcome = _synthetic_live_outcome()
+        outcome["status_trigger"]["matched_job_name"] = (
+            "run-obs-aw-status / run-aw-prelude / load-oblt-aw-bot-allow-lists"
+        )
+        report = _evaluate(outcome)
+        assert report["pass"] is False
+        failed = {c["id"] for c in report["checks"] if not c["pass"]}
+        assert "status_job_executed" in failed
+        assert "status_job_success" in failed
 
     def test_live_oracle_asserts_trigger_status_contract(self) -> None:
         outcome = {
@@ -1540,6 +1732,7 @@ class TestOracle:
                 "run_seen": True,
                 "job_executed": True,
                 "job_conclusion": "success",
+                "matched_job_name": ESTC_CONCLUSION_JOB,
             },
             "agent_comment": {
                 "id": 1,
@@ -1580,6 +1773,7 @@ class TestOracle:
                 "run_seen": True,
                 "job_executed": True,
                 "job_conclusion": "success",
+                "matched_job_name": ESTC_CONCLUSION_JOB,
                 "url": "https://example.test/run",
             },
             "agent_comment": {"id": 1, "markers_present": {"### TL;DR": False}},
@@ -1596,6 +1790,7 @@ class TestOracle:
             "run_seen": False,
             "job_executed": True,
             "job_conclusion": "success",
+            "matched_job_name": ESTC_CONCLUSION_JOB,
             "url": "https://example.test/run",
         }
         report = _evaluate(outcome)
@@ -1643,6 +1838,7 @@ class TestOracle:
                 "run_seen": True,
                 "job_executed": True,
                 "job_conclusion": "success",
+                "matched_job_name": ESTC_CONCLUSION_JOB,
             },
         }
         report = _evaluate(
@@ -1683,6 +1879,7 @@ class TestOracle:
                 "run_seen": True,
                 "job_executed": True,
                 "job_conclusion": "success",
+                "matched_job_name": ESTC_CONCLUSION_JOB,
             },
             "agent_comment": {
                 "id": 1,
@@ -1720,6 +1917,7 @@ class TestOracle:
                 "run_seen": True,
                 "job_executed": True,
                 "job_conclusion": "success",
+                "matched_job_name": ESTC_CONCLUSION_JOB,
             },
             "agent_comment": {
                 "id": 1,
@@ -1756,6 +1954,7 @@ class TestOracle:
                 "run_seen": True,
                 "job_executed": True,
                 "job_conclusion": "success",
+                "matched_job_name": ESTC_CONCLUSION_JOB,
             },
             "agent_comment": {
                 "id": 1,

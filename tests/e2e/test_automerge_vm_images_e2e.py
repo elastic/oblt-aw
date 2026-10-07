@@ -64,7 +64,7 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
             "user": "github-actions[bot]",
             "state": "APPROVED",
         },
-        "merge": {"merged": True, "auto_merge_enabled": False},
+        "merge": {"merged": True},
     }
     base.update(overrides)
     return base
@@ -296,21 +296,19 @@ def test_oracle_fails_when_dependency_collection_gate_comment_present() -> None:
 
 def test_oracle_fails_when_not_merged() -> None:
     report = _evaluate(
-        _synthetic_live_outcome(
-            merge={"merged": False, "auto_merge_enabled": False, "timed_out": True}
-        )
+        _synthetic_live_outcome(merge={"merged": False, "timed_out": True})
     )
     assert report["pass"] is False
-    assert any(
-        c["id"] == "pr_merged_or_auto_merge" and not c["pass"] for c in report["checks"]
-    )
+    assert any(c["id"] == "pr_merged" and not c["pass"] for c in report["checks"])
 
 
-def test_oracle_accepts_auto_merge_enabled() -> None:
+def test_oracle_rejects_auto_merge_enabled_substitute() -> None:
+    """Native auto-merge must not green pr_merged (deferred REST is required)."""
     report = _evaluate(
         _synthetic_live_outcome(merge={"merged": False, "auto_merge_enabled": True})
     )
-    assert report["pass"] is True
+    assert report["pass"] is False
+    assert any(c["id"] == "pr_merged" and not c["pass"] for c in report["checks"])
 
 
 def test_oracle_blocked_outcome_fails() -> None:

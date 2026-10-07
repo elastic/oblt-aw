@@ -38,7 +38,7 @@ Here are some of the most important features of the **oblt-aw** framework:
 - **Update once, reach the fleet** — improve in `oblt-aw`; [distribution](docs/operations/distribute-client-workflow.md) refreshes clients across active repos.
 - **Quieter PRs** — narrow triggers; only matching routes run ([split-trigger](docs/architecture/overview.md#split-trigger-vs-monolithic-ingress)).
 - **Catalog with maturity** — registered workflows with clear maturity levels ([workflows index](docs/workflows/README.md), [maturity](docs/operations/workflow-maturity.md)).
-- **Clear ownership** — shared core in one repo; per-org data under `config/<org-key>/` ([register a repo](docs/onboarding/registering-a-repository.md)).
+- **Clear ownership** — shared core in one repo; per-org data under `config/<org-key>/` ([onboard a repo](docs/guides/user/onboard-a-repository.md), [technical registration](docs/onboarding/registering-a-repository.md)).
 
 ## Open for every Elastic organization
 

@@ -1,0 +1,51 @@
+name: Sync APM CLI version file
+
+# Dependabot updates .apm-cli-pin/requirements.txt (PyPI apm-cli). This workflow
+# copies the pinned version into root .apm.version so aw-resolve-agentic-assets
+# and automerge classification stay aligned.
+on:
+  pull_request:
+    paths:
+      - ".apm-cli-pin/requirements.txt"
+      - ".apm.version"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync-apm-version:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout pull request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ github.token }}
+
+      - name: Sync .apm.version from apm-cli pin
+        run: |
+          set -euo pipefail
+          pin="$(sed -nE 's/^[[:space:]]*apm-cli==([0-9]+\.[0-9]+\.[0-9]+)[[:space:]]*$/\1/p' .apm-cli-pin/requirements.txt | head -n 1)"
+          if [ -z "${pin}" ]; then
+            echo "::error::Could not parse apm-cli==X.Y.Z from .apm-cli-pin/requirements.txt"
+            exit 1
+          fi
+          current="$(tr -d '[:space:]' < .apm.version || true)"
+          if [ "${current}" = "${pin}" ]; then
+            echo "Already in sync (${pin})"
+            exit 0
+          fi
+          # Source of truth is .apm-cli-pin/requirements.txt (Dependabot pip updates).
+          printf '%s\n' "${pin}" > .apm.version
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .apm.version
+          git commit -m "Sync .apm.version to apm-cli ${pin}"
+          git push
+          echo "Synced .apm.version to ${pin}"

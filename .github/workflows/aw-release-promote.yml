@@ -1,0 +1,197 @@
+---
+name: AW release — promote
+
+# Promote tip of main at dispatch: run e2e-all, bump semver, move vN + previous tags,
+# commit pointers, and create a GitHub Release with auto-generated notes.
+# Runbook: docs/operations/agentic-release-model.md
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: Semver bump from current prod (ignored on first promote → v0.0.0)
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+        default: patch
+      dry-run:
+        description: Run E2E and plan only (no tags, no pointer commit, no GitHub Release)
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aw-release-promote
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Require default branch
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Fail unless dispatched on default branch
+        env:
+          REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          expected="refs/heads/${DEFAULT_BRANCH}"
+          if [ "${REF}" != "${expected}" ]; then
+            echo "::error::Promote must run on ${expected} (got ${REF})"
+            exit 1
+          fi
+          echo "Releasing tip of ${DEFAULT_BRANCH} @ ${{ github.sha }}"
+
+  e2e-all:
+    name: E2E — All
+    needs: guard
+    # Defense in depth: GitHub cannot restrict the workflow_dispatch branch
+    # picker; guard fails closed and this skips E2E off the default branch.
+    if: ${{ github.ref_name == github.event.repository.default_branch }}
+    permissions:
+      actions: write
+      checks: read
+      contents: write
+      id-token: write
+      issues: write
+      pull-requests: write
+      statuses: read
+    uses: ./.github/workflows/e2e-all.yml
+    with:
+      checkout-ref: ${{ github.sha }}
+    secrets: inherit
+
+  promote:
+    name: Tag and update pointers
+    needs: e2e-all
+    if: ${{ github.ref_name == github.event.repository.default_branch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Configure Git identity
+        uses: elastic/oblt-actions/git/setup@v1
+
+      - name: Promote tags and update pointers (local)
+        id: promote
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_TYPE: ${{ inputs.release-type }}
+          DRY_RUN: ${{ inputs.dry-run }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          git fetch origin "${DEFAULT_BRANCH}"
+          extra=(
+            --plan-output promote-plan.json
+            --require-ancestor-of "origin/${DEFAULT_BRANCH}"
+          )
+          if [ "${DRY_RUN}" = "true" ]; then
+            extra+=(--dry-run)
+          fi
+          python3 scripts/aw_release_promote.py \
+            --sha "${RELEASE_SHA}" \
+            --release-type "${RELEASE_TYPE}" \
+            "${extra[@]}"
+
+      # Org "[org] Require a PR" blocks direct pushes to main. Land pointers via a
+      # Vault-authored PR, approve as GITHUB_TOKEN, then squash-merge as Vault.
+      - name: Resolve release Vault token policy
+        id: token-policy
+        if: ${{ inputs.dry-run != true }}
+        run: |
+          set -euo pipefail
+          POLICY="$(jq -r '."workflow-token-policy" // empty' config/release.json)"
+          if [[ -z "${POLICY}" ]]; then
+            echo "::error::Missing non-empty workflow-token-policy in config/release.json"
+            exit 1
+          fi
+          echo "token-policy=${POLICY}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create ephemeral GitHub token (Vault app)
+        id: create-token
+        if: ${{ inputs.dry-run != true }}
+        uses: elastic/oblt-actions/github/create-token@v1
+        with:
+          token-policy: ${{ steps.token-policy.outputs.token-policy }}
+
+      - name: Prepare release-pointers on default-branch tip
+        id: prepare-pointers
+        if: ${{ inputs.dry-run != true }}
+        env:
+          BRANCH_PREFIX: release/pointers
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          PLAN_BASE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: bash scripts/aw_release_prepare_pointers_branch.sh
+
+      - name: Open release-pointers pull request
+        id: pointers-pr
+        if: ${{ inputs.dry-run != true && steps.prepare-pointers.outputs.has_changes == 'true' }}
+        env:
+          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        with:
+          token: ${{ steps.create-token.outputs.token }}
+          sign-commits: true
+          branch: release/pointers-${{ github.run_id }}
+          base: ${{ github.event.repository.default_branch }}
+          add-paths: config/release-pointers.json
+          commit-message: "chore(release): promote ${{ inputs.release-type }} (${{ github.sha }})"
+          title: "chore(release): promote ${{ inputs.release-type }} (${{ github.sha }})"
+          body: |
+            Land `config/release-pointers.json` after gated promote of `${{ github.sha }}`
+            (`release-type=${{ inputs.release-type }}`).
+
+            Direct pushes to the default branch are blocked by the org Require-a-PR ruleset.
+
+            Created by [workflow run](${{ env.JOB_URL }}).
+
+      # Publish tags before merging pointers so distribute (triggered by the
+      # pointers push) never writes production uses: @vN for a missing tag.
+      - name: Push release tags
+        if: ${{ inputs.dry-run != true }}
+        env:
+          PYTHONPATH: scripts
+        run: |
+          set -euo pipefail
+          python3 scripts/aw_release_promote.py --push-from-plan promote-plan.json
+
+      - name: Approve and merge release-pointers pull request
+        if: ${{ inputs.dry-run != true && steps.pointers-pr.outputs.pull-request-number != '' }}
+        env:
+          APPROVE_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD_SHA: ${{ steps.pointers-pr.outputs.pull-request-head-sha }}
+          GH_TOKEN: ${{ steps.create-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pointers-pr.outputs.pull-request-number }}
+        run: bash scripts/aw_release_merge_pointers_pr.sh
+
+      - name: Create GitHub Release with generated notes
+        if: ${{ inputs.dry-run != true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: scripts
+        run: |
+          set -euo pipefail
+          python3 scripts/aw_release_promote.py --create-release-from-plan promote-plan.json
