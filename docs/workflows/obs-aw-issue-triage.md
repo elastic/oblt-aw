@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-issue-triage.yml](../../.github/workflows/obs-aw-issue-triage.yml)
+Source file: [.github/workflows/obs-aw-issue-triage.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-issue-triage.yml)
 
 Reusable wrapper that calls the locked generic issue-triage workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trigger-obs-aw-issue-triage.yml` calls this workflow on `issues` `opened` when prelude allows `obs:issue-triage`.
 

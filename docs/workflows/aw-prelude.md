@@ -2,11 +2,11 @@
 
 ## Overview
 
-Source file: [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml)
+Source file: [.github/workflows/aw-prelude.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml)
 
 Shared reusable prelude for agentic workflows (dashboard gating and optional allow lists).
 
-Event-scoped orchestrators (`obs-aw-event-*`, `docs-aw-event-*`) call this workflow once per GitHub event family, then fan out to per-route `*-aw-*` workflows with `shared-proceed` and related outputs. CI enforces that route reusables declare `shared-proceed` via [scripts/validate_aw_workflow_prelude.py](../../scripts/validate_aw_workflow_prelude.py).
+Event-scoped orchestrators (`obs-aw-event-*`, `docs-aw-event-*`) call this workflow once per GitHub event family, then fan out to per-route `*-aw-*` workflows with `shared-proceed` and related outputs. CI enforces that route reusables declare `shared-proceed` via [scripts/validate_aw_workflow_prelude.py](https://github.com/elastic/oblt-aw/blob/main/scripts/validate_aw_workflow_prelude.py).
 
 APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the prelude. Call [aw-resolve-agentic-assets.yml](aw-resolve-agentic-assets.md) once per `gh-aw-*` agent invocation instead.
 
@@ -14,8 +14,8 @@ APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the pre
 
 | Job id | Role |
 |--------|------|
-| `read-oblt-aw-dashboard` | Calls [get-enabled-workflows.yml](../../.github/workflows/get-enabled-workflows.yml) |
-| `load-oblt-aw-bot-allow-lists` | Calls [load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml) when `load-allowed-authors` input is true |
+| `read-oblt-aw-dashboard` | Calls [get-enabled-workflows.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/get-enabled-workflows.yml) |
+| `load-oblt-aw-bot-allow-lists` | Calls [load-allowed-authors.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/load-allowed-authors.yml) when `load-allowed-authors` input is true |
 | `evaluate-workflow-gates` | Resolves token policy, evaluates dashboard gates, packs allow-list outputs |
 
 Event orchestrators invoke this workflow as job `run-aw-prelude`.

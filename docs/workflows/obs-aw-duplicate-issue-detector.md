@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-duplicate-issue-detector.yml](../../.github/workflows/obs-aw-duplicate-issue-detector.yml)
+Source file: [.github/workflows/obs-aw-duplicate-issue-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-duplicate-issue-detector.yml)
 
 Reusable wrapper that calls the locked duplicate-issue-detector workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trigger-obs-aw-duplicate-issue-detector.yml` calls this workflow on `issues` `opened` or `workflow_dispatch` when prelude allows `obs:duplicate-issue-detector`.
 

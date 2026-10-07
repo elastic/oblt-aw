@@ -59,7 +59,7 @@ Each run uploads `e2e-autodoc-<case_id>-<run_id>` with `outcome.json`, `oracle-r
 ## Related
 
 - Bait fixture: [autodoc-e2e-bait](autodoc-e2e-bait.md)
-- Config: [`config/obs/e2e-autodoc.json`](../../config/obs/e2e-autodoc.json)
-- Harness/oracle: [`scripts/obs/e2e/`](../../scripts/obs/e2e/)
+- Config: [`config/obs/e2e-autodoc.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/e2e-autodoc.json)
+- Harness/oracle: [`scripts/obs/e2e/`](https://github.com/elastic/oblt-aw/tree/main/scripts/obs/e2e)
 - Workflow doc: [obs-aw-autodoc](../workflows/obs-aw-autodoc.md)
 - Design: [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md)

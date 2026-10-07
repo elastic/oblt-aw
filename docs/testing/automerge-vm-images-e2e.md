@@ -7,7 +7,7 @@ Production end-to-end harness for updatecli-shaped VM-image bumps ([#1732](https
 Live E2E only against **`elastic/oblt-aw`**:
 
 1. Seed `.buildkite/pipeline.e2e-automerge-vm-images.yml` on the default branch **only when missing** (refuse overwrite if remote content differs); bump IMAGE pins on an ephemeral fixture branch (playground/updatecli `platform-ingest-elastic-agent-*` shape).
-2. Open an ephemeral same-repo PR authored as **`elastic-vault-github-plugin-prod[bot]`** via OIDC [`create-token`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) using `workflow-token-policy` from [`config/e2e.json`](../../config/e2e.json) (dedicated `token-policy-6cd7ac55e207` in `elastic/catalog-info`, bound to `e2e-*.yml`) — not `GITHUB_TOKEN` / `github-actions[bot]`, and not the agentic `trigger-obs-aw-*` policy. Vault authorship avoids GitHub’s [bot PR “Approve and run” gate](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/) so `pull_request` workflows (including dependency-review) start automatically.
+2. Open an ephemeral same-repo PR authored as **`elastic-vault-github-plugin-prod[bot]`** via OIDC [`create-token`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) using `workflow-token-policy` from [`config/e2e.json`](https://github.com/elastic/oblt-aw/blob/main/config/e2e.json) (dedicated `token-policy-6cd7ac55e207` in `elastic/catalog-info`, bound to `e2e-*.yml`) — not `GITHUB_TOKEN` / `github-actions[bot]`, and not the agentic `trigger-obs-aw-*` policy. Vault authorship avoids GitHub’s [bot PR “Approve and run” gate](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/) so `pull_request` workflows (including dependency-review) start automatically.
 3. Wait for `trigger-obs-aw-pull-request.yml` → dependency-review → `oblt-aw/ai/merge-ready` (nested jobs are inspected on that **caller** run).
 4. Wait for automerge (`obs:automerge:vm-images`) **merge leaf** job success, plus approving review → merged or auto-merge enabled (approve is not a substitute for the merge job). Automerge approves as `github-actions[bot]` (`GITHUB_TOKEN`) when the author is Vault, then merges as Vault when the agentic `workflow-token-policy` is set on the automerge route.
 
@@ -23,11 +23,11 @@ Live E2E only against **`elastic/oblt-aw`**:
    - `obs:dependency-review`
    - `obs:automerge`
    - `obs:automerge:vm-images` (currently opt-in; harness fails closed if missing)
-2. **Token policy** — `token-policy-6cd7ac55e207` must exist in `elastic/catalog-info` (bound to `elastic/oblt-aw/.github/workflows/e2e-*.yml@*`, same permissions as `token-policy-oblt-aw-oblt-aw`). When this leaf runs under [`aw-release-promote.yml`](../../.github/workflows/aw-release-promote.yml) (OIDC `workflow_ref` is the promote entrypoint), harnesses use `token-policy-bd2501d7d475` from [`config/release.json`](../../config/release.json) (bound to `aw-release-promote.yml`). Direct E2E dispatch uses [`config/e2e.json`](../../config/e2e.json). E2E workflows pass the selected policy explicitly to `create-token` (wildcard policies cannot auto-derive). Agentic routes keep using `workflow-token-policy` from [`config/obs/active-repositories.json`](../../config/obs/active-repositories.json) via `aw-prelude`.
+2. **Token policy** — `token-policy-6cd7ac55e207` must exist in `elastic/catalog-info` (bound to `elastic/oblt-aw/.github/workflows/e2e-*.yml@*`, same permissions as `token-policy-oblt-aw-oblt-aw`). When this leaf runs under [`aw-release-promote.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-release-promote.yml) (OIDC `workflow_ref` is the promote entrypoint), harnesses use `token-policy-bd2501d7d475` from [`config/release.json`](https://github.com/elastic/oblt-aw/blob/main/config/release.json) (bound to `aw-release-promote.yml`). Direct E2E dispatch uses [`config/e2e.json`](https://github.com/elastic/oblt-aw/blob/main/config/e2e.json). E2E workflows pass the selected policy explicitly to `create-token` (wildcard policies cannot auto-derive). Agentic routes keep using `workflow-token-policy` from [`config/obs/active-repositories.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json) via `aw-prelude`.
 3. **Vault bypassers** — classic BP `pull_request_bypassers` includes the Vault app when CODEOWNERS would otherwise block merge; if the default branch uses a `merge_queue` ruleset, that ruleset also lists the Vault app as an Integration `bypass_actors` entry (existing onboarding).
-4. **Runner identity** — live runs mint Vault via `create-token` (see [e2e-automerge-vm-images.yml](../../.github/workflows/e2e-automerge-vm-images.yml)). The harness reads author via the REST Pulls API (`user.login`); do not use `gh pr view --json author` (GraphQL returns `app/…` since gh ≥ 2.50).
+4. **Runner identity** — live runs mint Vault via `create-token` (see [e2e-automerge-vm-images.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-automerge-vm-images.yml)). The harness reads author via the REST Pulls API (`user.login`); do not use `gh pr view --json author` (GraphQL returns `app/…` since gh ≥ 2.50).
 
-CI for fixture PRs is skipped when the `ci-gate` job in [`ci.yml`](../../.github/workflows/ci.yml) sets `skip=true` (any same-repo PR with an `e2e:*` label and a head ref under `e2e/`). Agentic pull-request routes are **not** skipped (unlike the ESTC fixture).
+CI for fixture PRs is skipped when the `ci-gate` job in [`ci.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/ci.yml) sets `skip=true` (any same-repo PR with an `e2e:*` label and a head ref under `e2e/`). Agentic pull-request routes are **not** skipped (unlike the ESTC fixture).
 
 ## How to run
 
@@ -53,8 +53,8 @@ Each run uploads `e2e-automerge-vm-images-vm-images-bump-live-<run_id>` with `ou
 
 ## Related
 
-- Config: [`config/obs/e2e-automerge-vm-images.json`](../../config/obs/e2e-automerge-vm-images.json)
-- Harness/oracle: [`scripts/obs/e2e/`](../../scripts/obs/e2e/)
-- Fixture pipeline: [`.buildkite/pipeline.e2e-automerge-vm-images.yml`](../../.buildkite/pipeline.e2e-automerge-vm-images.yml)
+- Config: [`config/obs/e2e-automerge-vm-images.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/e2e-automerge-vm-images.json)
+- Harness/oracle: [`scripts/obs/e2e/`](https://github.com/elastic/oblt-aw/tree/main/scripts/obs/e2e)
+- Fixture pipeline: [`.buildkite/pipeline.e2e-automerge-vm-images.yml`](https://github.com/elastic/oblt-aw/blob/main/.buildkite/pipeline.e2e-automerge-vm-images.yml)
 - Playground reference: `elastic/observability-robots-playground-public` (`bump-vm-images.yml`, `updatecli/updatecli-bump-vm-images.yml`)
 - Routing: [automerge-routing](../routing/automerge-routing.md)

@@ -20,4 +20,4 @@ Do **not** complete this page in product docs on `main`; that would remove the g
 ## Related
 
 - Harness docs: [autodoc-e2e](autodoc-e2e.md)
-- Config: [`config/obs/e2e-autodoc.json`](../../config/obs/e2e-autodoc.json)
+- Config: [`config/obs/e2e-autodoc.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/e2e-autodoc.json)

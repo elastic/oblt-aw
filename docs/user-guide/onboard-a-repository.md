@@ -4,7 +4,7 @@
 
 Use this guide when you want OBLT Agentic Workflows (`oblt-aw`) in a repository that is **not yet registered**. You open one issue in `elastic/oblt-aw`; automation opens the required pull requests; you merge them; then you enable workflows from the Control Plane Dashboard in your repository.
 
-Technical registration detail for maintainers and agents: [Registering resources](../../onboarding/registering-a-repository.md).
+Technical registration detail for maintainers and agents: [Registering resources](../onboarding/registering-a-repository.md).
 
 ## Prerequisites
 
@@ -34,8 +34,8 @@ Technical registration detail for maintainers and agents: [Registering resources
 5. **Merge manually in order** — Humans merge. Merge the **catalog-info** TokenPolicy PR **before** the **oblt-aw** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed workflows in production. Auto-merge of these PRs is **out of scope** for now.
 
 6. **After the oblt-aw registration PR merges to `main`** — Existing automation creates:
-   - A **client template install/update PR** in your repository (`trigger-obs-aw-*.yml` or docs equivalents) via [distribute-client-workflow](../../operations/distribute-client-workflow.md).
-   - A **Control Plane Dashboard** issue in your repository via [sync-control-plane-dashboard](../../workflows/sync-control-plane-dashboard.md).
+   - A **client template install/update PR** in your repository (`trigger-obs-aw-*.yml` or docs equivalents) via [distribute-client-workflow](../operations/distribute-client-workflow.md).
+   - A **Control Plane Dashboard** issue in your repository via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
 
    Merge the client install PR. Confirm the dashboard issue exists (title `[oblt-aw] Control Plane Dashboard`, label `oblt-aw/dashboard`).
 
@@ -43,14 +43,14 @@ Technical registration detail for maintainers and agents: [Registering resources
 
 ## Troubleshooting
 
-- **No agent comment / no PRs** — Confirm you have **write** on `elastic/oblt-aw` and the issue has `oblt-aw/onboard/repository` (without write, GitHub drops the form label). Check the Actions run for `gh-aw-onboard-repository`. Cross-repo PR creation needs the agent TokenPolicy / minted token (see [gh-aw-onboard-repository](../../workflows/gh-aw-onboard-repository.md)).
+- **No agent comment / no PRs** — Confirm you have **write** on `elastic/oblt-aw` and the issue has `oblt-aw/onboard/repository` (without write, GitHub drops the form label). Check the Actions run for `gh-aw-onboard-repository`. Cross-repo PR creation needs the agent TokenPolicy / minted token (see [gh-aw-onboard-repository](../workflows/gh-aw-onboard-repository.md)).
 - **Retry after a partial run** — Remove and re-apply the `oblt-aw/onboard/repository` label. The agent does not open duplicates for concerns that already have an open `[oblt-aw][onboard]` PR; it gap-fills missing concerns (for example a secrets PR that was skipped incorrectly) and comments with exact PR URLs when the inventory is complete.
-- **Registration merged too early** — If `oblt-aw` registration landed before catalog TokenPolicy was active, follow [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting).
-- **No install PR or dashboard** — Confirm the repository appears in `config/<org-key>/active-repositories.json` on `main`, then see [distribute-client-workflow](../../operations/distribute-client-workflow.md) and [sync-control-plane-dashboard](../../workflows/sync-control-plane-dashboard.md).
+- **Registration merged too early** — If `oblt-aw` registration landed before catalog TokenPolicy was active, follow [Registering resources — troubleshooting](../onboarding/registering-a-repository.md#troubleshooting).
+- **No install PR or dashboard** — Confirm the repository appears in `config/<org-key>/active-repositories.json` on `main`, then see [distribute-client-workflow](../operations/distribute-client-workflow.md) and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
 
 ## References
 
-- [Registering resources](../../onboarding/registering-a-repository.md) — technical procedure the agent follows
-- [Onboarding index](../../onboarding/README.md)
-- [Control Plane Dashboard](../../operations/control-plane-dashboard.md)
-- [gh-aw-onboard-repository](../../workflows/gh-aw-onboard-repository.md)
+- [Registering resources](../onboarding/registering-a-repository.md) — technical procedure the agent follows
+- [Onboarding index](../onboarding/index.md)
+- [Control Plane Dashboard](../operations/control-plane-dashboard.md)
+- [gh-aw-onboard-repository](../workflows/gh-aw-onboard-repository.md)

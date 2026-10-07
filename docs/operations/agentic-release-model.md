@@ -112,7 +112,7 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 
 ### Vault token policy (pointers PR)
 
-Promote and rollback mint distinct Vault roles from [`config/release.json`](../../config/release.json) via OIDC (`elastic/oblt-actions/github/create-token`):
+Promote and rollback mint distinct Vault roles from [`config/release.json`](https://github.com/elastic/oblt-aw/blob/main/config/release.json) via OIDC (`elastic/oblt-actions/github/create-token`):
 
 | Entrypoint | Config key | Role (`catalog-info`) | `bound_claims.workflow_ref` |
 |------------|------------|------------------------|-----------------------------|

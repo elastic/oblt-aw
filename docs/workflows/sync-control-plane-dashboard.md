@@ -2,9 +2,9 @@
 
 ## Overview
 
-Source file: [.github/workflows/sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml)
+Source file: [.github/workflows/sync-control-plane-dashboard.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard.yml)
 
-This workflow creates or updates the **single** Control Plane Dashboard issue in each repository listed in the union of org `config/<org-key>/active-repositories.json` files (for example [config/obs/active-repositories.json](../../config/obs/active-repositories.json)). The dashboard lists workflows **per org** with maturity badges and opt-in checkboxes.
+This workflow creates or updates the **single** Control Plane Dashboard issue in each repository listed in the union of org `config/<org-key>/active-repositories.json` files (for example [config/obs/active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json)). The dashboard lists workflows **per org** with maturity badges and opt-in checkboxes.
 
 ## Prerequisites
 
@@ -19,14 +19,14 @@ Triggers:
 
 - `push` to `main` when any of these paths change:
   - `config/**/workflow-registry.json` and `config/**/active-repositories.json` (per-org trees)
-  - [.github/workflows/sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml)
+  - [.github/workflows/sync-control-plane-dashboard.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard.yml)
 - `workflow_dispatch` with optional input `force-sync-defaults` (boolean, default `false`)
 
 *Note: Editing the dashboard issue does not trigger this sync workflow. Runtime opt-in/opt-out is still read by the ingress (`get-enabled-workflows`). Checkbox edits on the dashboard do trigger the shared [aw-dashboard-audit](aw-dashboard-audit.md) path via consumer `issues.edited` routing. Sync-driven checkbox resets (including `force-sync-defaults`) also post audit comments from this script with a fixed automation reason.*
 
 Execution:
 
-1. **prepare-repos job:** Builds repos matrix from the union of org active-repository lists via [scripts/build_repos_matrix.py](../../scripts/build_repos_matrix.py); outputs JSON for matrix strategy
+1. **prepare-repos job:** Builds repos matrix from the union of org active-repository lists via [scripts/build_repos_matrix.py](https://github.com/elastic/oblt-aw/blob/main/scripts/build_repos_matrix.py); outputs JSON for matrix strategy
 2. **sync-dashboard job:** Matrix job (one job per repo); each invokes `scripts/sync_control_plane_dashboard.py --repo <owner/repo>` (and `--force-sync-defaults` when the dispatch input is `true`):
     - Search for existing open issue with label `oblt-aw/dashboard`
     - Create or update the issue with title `[oblt-aw] Control Plane Dashboard`, body merged from each applicable org registry (sections per org, three-part checkbox markers)

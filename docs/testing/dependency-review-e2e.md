@@ -6,8 +6,8 @@ Production end-to-end harness for Actions pin-bump pull requests. Mirrors the au
 
 Live E2E only against **`elastic/oblt-aw`**:
 
-1. Seed [`.github/workflows/e2e-dependency-review-actions-fixture.yml`](../../.github/workflows/e2e-dependency-review-actions-fixture.yml) on the default branch **only when missing** (refuse overwrite if remote content differs). The seed `actions/checkout` pin lives in that fixture workflow — do not duplicate the SHA or version here.
-2. Open an ephemeral same-repo PR authored as **`elastic-vault-github-plugin-prod[bot]`** via OIDC [`create-token`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) using `workflow-token-policy` from [`config/e2e.json`](../../config/e2e.json) (dedicated `token-policy-6cd7ac55e207` in `elastic/catalog-info`, bound to `e2e-*.yml`). The PR bumps the fixture pin to the harness bump target (`BUMP_CHECKOUT_*` in [`scripts/obs/e2e/dependency_review_e2e_harness.py`](../../scripts/obs/e2e/dependency_review_e2e_harness.py)). Vault authorship avoids GitHub’s [bot PR “Approve and run” gate](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/) so `pull_request` workflows (including dependency-review) start automatically.
+1. Seed [`.github/workflows/e2e-dependency-review-actions-fixture.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-dependency-review-actions-fixture.yml) on the default branch **only when missing** (refuse overwrite if remote content differs). The seed `actions/checkout` pin lives in that fixture workflow — do not duplicate the SHA or version here.
+2. Open an ephemeral same-repo PR authored as **`elastic-vault-github-plugin-prod[bot]`** via OIDC [`create-token`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) using `workflow-token-policy` from [`config/e2e.json`](https://github.com/elastic/oblt-aw/blob/main/config/e2e.json) (dedicated `token-policy-6cd7ac55e207` in `elastic/catalog-info`, bound to `e2e-*.yml`). The PR bumps the fixture pin to the harness bump target (`BUMP_CHECKOUT_*` in [`scripts/obs/e2e/dependency_review_e2e_harness.py`](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/e2e/dependency_review_e2e_harness.py)). Vault authorship avoids GitHub’s [bot PR “Approve and run” gate](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/) so `pull_request` workflows (including dependency-review) start automatically.
 3. Wait for `trigger-obs-aw-pull-request.yml` → dependency-review leaf job `… / dependency-review / dependency-review / conclusion` success (nested jobs are inspected on that **caller** run — not `obs-aw-event-pull-request.yml`).
 4. Wait for analysis comment presence (identity title `## Dependency Update Analysis` only — not analysis body prose) and label `oblt-aw/ai/merge-ready`.
 5. Close the fixture PR and delete its branch (ephemeral).
@@ -21,10 +21,10 @@ Live E2E only against **`elastic/oblt-aw`**:
 ## Prerequisites (live)
 
 1. **Dashboard** — on the Control Plane Dashboard for `elastic/oblt-aw`, enable `obs:dependency-review`.
-2. **Token policy** — `token-policy-6cd7ac55e207` must exist in `elastic/catalog-info` (bound to `elastic/oblt-aw/.github/workflows/e2e-*.yml@*`). When this leaf runs under [`aw-release-promote.yml`](../../.github/workflows/aw-release-promote.yml) (OIDC `workflow_ref` is the promote entrypoint), harnesses use `token-policy-bd2501d7d475` from [`config/release.json`](../../config/release.json) (bound to `aw-release-promote.yml`). Direct E2E dispatch uses [`config/e2e.json`](../../config/e2e.json). E2E workflows pass the selected policy explicitly to `create-token`.
-3. **Runner identity** — live runs mint Vault via `create-token` (see [e2e-dependency-review.yml](../../.github/workflows/e2e-dependency-review.yml)). The harness reads author via the REST Pulls API (`user.login`); do not use `gh pr view --json author` (GraphQL returns `app/…` since gh ≥ 2.50).
+2. **Token policy** — `token-policy-6cd7ac55e207` must exist in `elastic/catalog-info` (bound to `elastic/oblt-aw/.github/workflows/e2e-*.yml@*`). When this leaf runs under [`aw-release-promote.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-release-promote.yml) (OIDC `workflow_ref` is the promote entrypoint), harnesses use `token-policy-bd2501d7d475` from [`config/release.json`](https://github.com/elastic/oblt-aw/blob/main/config/release.json) (bound to `aw-release-promote.yml`). Direct E2E dispatch uses [`config/e2e.json`](https://github.com/elastic/oblt-aw/blob/main/config/e2e.json). E2E workflows pass the selected policy explicitly to `create-token`.
+3. **Runner identity** — live runs mint Vault via `create-token` (see [e2e-dependency-review.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-dependency-review.yml)). The harness reads author via the REST Pulls API (`user.login`); do not use `gh pr view --json author` (GraphQL returns `app/…` since gh ≥ 2.50).
 
-CI for fixture PRs is skipped when the `ci-gate` job in [`ci.yml`](../../.github/workflows/ci.yml) sets `skip=true` (any same-repo PR with an `e2e:*` label and a head ref under `e2e/`). Dependency-review still runs on the fixture. **Automerge is skipped** for label `e2e:dependency-review` on branches under `e2e/dependency-review/` so applying `oblt-aw/ai/merge-ready` cannot arm `obs:automerge:github-actions` against the Actions pin-bump PR (see [`obs-aw-event-pull-request.yml`](../../.github/workflows/obs-aw-event-pull-request.yml)).
+CI for fixture PRs is skipped when the `ci-gate` job in [`ci.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/ci.yml) sets `skip=true` (any same-repo PR with an `e2e:*` label and a head ref under `e2e/`). Dependency-review still runs on the fixture. **Automerge is skipped** for label `e2e:dependency-review` on branches under `e2e/dependency-review/` so applying `oblt-aw/ai/merge-ready` cannot arm `obs:automerge:github-actions` against the Actions pin-bump PR (see [`obs-aw-event-pull-request.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-pull-request.yml)).
 
 ## How to run
 
@@ -50,8 +50,8 @@ Each run uploads `e2e-dependency-review-actions-pin-bump-live-<run_id>` with `ou
 
 ## Related
 
-- Config: [`config/obs/e2e-dependency-review.json`](../../config/obs/e2e-dependency-review.json)
-- Harness/oracle: [`scripts/obs/e2e/`](../../scripts/obs/e2e/)
-- Fixture workflow: [`.github/workflows/e2e-dependency-review-actions-fixture.yml`](../../.github/workflows/e2e-dependency-review-actions-fixture.yml)
+- Config: [`config/obs/e2e-dependency-review.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/e2e-dependency-review.json)
+- Harness/oracle: [`scripts/obs/e2e/`](https://github.com/elastic/oblt-aw/tree/main/scripts/obs/e2e)
+- Fixture workflow: [`.github/workflows/e2e-dependency-review-actions-fixture.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-dependency-review-actions-fixture.yml)
 - Routing: [dependency-review-routing](../routing/dependency-review-routing.md)
 - Workflow docs: [obs-aw-dependency-review](../workflows/obs-aw-dependency-review.md)

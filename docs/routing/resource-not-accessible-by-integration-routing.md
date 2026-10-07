@@ -6,9 +6,9 @@ Client templates: `trigger-obs-aw-resource-not-accessible-by-integration-*.yml` 
 
 Routed workflows:
 
-- [.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml)
-- [.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml)
-- [.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml)
+- [.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml)
 
 ## Usage
 

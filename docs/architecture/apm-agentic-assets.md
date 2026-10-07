@@ -1,10 +1,10 @@
 # APM agentic assets (consumer repositories)
 
-Consumer repositories can declare **shared** and **per-workflow** agentic assets in [`apm.yml`](https://github.com/microsoft/apm) using the `x-oblt-aw` extension. The control plane resolves those assets in [`aw-resolve-agentic-assets.yml`](../../.github/workflows/aw-resolve-agentic-assets.yml) immediately before each upstream `gh-aw-*` invocation (not in [`aw-prelude.yml`](../../.github/workflows/aw-prelude.yml)).
+Consumer repositories can declare **shared** and **per-workflow** agentic assets in [`apm.yml`](https://github.com/microsoft/apm) using the `x-oblt-aw` extension. The control plane resolves those assets in [`aw-resolve-agentic-assets.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-resolve-agentic-assets.yml) immediately before each upstream `gh-aw-*` invocation (not in [`aw-prelude.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml)).
 
 ## Workflow identifiers
 
-Keys under `x-oblt-aw.<org-key>.workflows` must match the `id` field in that org’s [`workflow-registry.json`](../../config/obs/workflow-registry.json) (for example `agent-suggestions` under `obs`, `docs-pr-ai-menu` under `docs`). Ingress and dashboard gating continue to use compound ids `org-key:workflow-id` (for example `obs:agent-suggestions`).
+Keys under `x-oblt-aw.<org-key>.workflows` must match the `id` field in that org’s [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) (for example `agent-suggestions` under `obs`, `docs-pr-ai-menu` under `docs`). Ingress and dashboard gating continue to use compound ids `org-key:workflow-id` (for example `obs:agent-suggestions`).
 
 ## Structure
 
@@ -95,9 +95,9 @@ x-oblt-aw:
 When the dashboard gate passes (`proceed == true`), each agent job’s preceding `resolve-apm-assets` call:
 
 1. Checks out the **consumer** repository (caller context).
-2. Installs [`requirements-runtime.txt`](../../requirements-runtime.txt) with pip cache via `actions/setup-python`.
-3. Runs [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI with tool-cache reuse and runs `apm install` for declared skills, plugins, MCP servers, and other APM dependencies). The CLI version is the control-plane pin in [`.apm.version`](../../.apm.version). Private GitHub packages use `ai-assets-token-policy` from `config/<org>/active-repositories.json` when set; otherwise the job `GITHUB_TOKEN` is passed as `github-token` (see [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md)). Install failures warn and continue so asset resolution is not blocked.
-4. Runs [`scripts/resolve_agentic_assets_cli.py`](../../scripts/resolve_agentic_assets_cli.py), which calls [`agentic_assets_resolver.resolve_agentic_assets`](../../scripts/agentic_assets_resolver.py), with the compound workflow id (`org-key:workflow-id`) and calling wrapper basename to select the org block (including optional `inner-workflows`) and produce:
+2. Installs [`requirements-runtime.txt`](https://github.com/elastic/oblt-aw/blob/main/requirements-runtime.txt) with pip cache via `actions/setup-python`.
+3. Runs [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI with tool-cache reuse and runs `apm install` for declared skills, plugins, MCP servers, and other APM dependencies). The CLI version is the control-plane pin in [`.apm.version`](https://github.com/elastic/oblt-aw/blob/main/.apm.version). Private GitHub packages use `ai-assets-token-policy` from `config/<org>/active-repositories.json` when set; otherwise the job `GITHUB_TOKEN` is passed as `github-token` (see [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md)). Install failures warn and continue so asset resolution is not blocked.
+4. Runs [`scripts/resolve_agentic_assets_cli.py`](https://github.com/elastic/oblt-aw/blob/main/scripts/resolve_agentic_assets_cli.py), which calls [`agentic_assets_resolver.resolve_agentic_assets`](https://github.com/elastic/oblt-aw/blob/main/scripts/agentic_assets_resolver.py), with the compound workflow id (`org-key:workflow-id`) and calling wrapper basename to select the org block (including optional `inner-workflows`) and produce:
    - `resolved-additional-instructions`
    - `resolved-inputs-json` (merged platform + APM inputs)
    - `resolved-setup-commands-json`
@@ -109,7 +109,7 @@ Downstream `gh-aw-*` jobs should pass `additional-instructions: ${{ needs.<resol
 
 `x-oblt-aw` is a vendor extension on consumer `apm.yml`. APM preserves unknown top-level keys per the [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/).
 
-JSON Schema for this extension block: [`config/schema/apm-agentic-workflows.schema.json`](../../config/schema/apm-agentic-workflows.schema.json).
+JSON Schema for this extension block: [`config/schema/apm-agentic-workflows.schema.json`](https://github.com/elastic/oblt-aw/blob/main/config/schema/apm-agentic-workflows.schema.json).
 
 ## References
 
@@ -117,5 +117,5 @@ JSON Schema for this extension block: [`config/schema/apm-agentic-workflows.sche
 - [APM (Agent Package Manager)](https://github.com/microsoft/apm)
 - [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format and vendor extension fields
 - [Multi-org agentic workflows](./multi-org-agentic-workflows.md)
-- [Resolve agentic assets](../../.github/workflows/aw-resolve-agentic-assets.yml)
-- [Agentic Workflow Prelude](../../.github/workflows/aw-prelude.yml)
+- [Resolve agentic assets](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-resolve-agentic-assets.yml)
+- [Agentic Workflow Prelude](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml)

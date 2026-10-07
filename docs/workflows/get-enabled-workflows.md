@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/get-enabled-workflows.yml](../../.github/workflows/get-enabled-workflows.yml)
+Source file: [.github/workflows/get-enabled-workflows.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/get-enabled-workflows.yml)
 
 This reusable workflow reads the Control Plane Dashboard issue (`oblt-aw/dashboard`) and emits normalized outputs consumed by ingress gating.
 
@@ -17,7 +17,7 @@ Triggers:
 
 Called by ingress:
 
-- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml), job `read-oblt-aw-dashboard`
+- [.github/workflows/aw-prelude.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml), job `read-oblt-aw-dashboard`
 
 The reusable workflow job id is `read-oblt-aw-dashboard`.
 
@@ -57,7 +57,7 @@ Top-level permissions:
 - `contents: read`
 - `issues: read`
 
-The job checks out **`elastic/oblt-aw`** at `main` with **sparse checkout** (`fetch-depth: 1`): only `scripts/get_enabled_workflows.py` and `scripts/common.py` (the latter is required for `from common import ...`). This matches the pattern used in [.github/workflows/load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml) for minimal clones.
+The job checks out **`elastic/oblt-aw`** at `main` with **sparse checkout** (`fetch-depth: 1`): only `scripts/get_enabled_workflows.py` and `scripts/common.py` (the latter is required for `from common import ...`). This matches the pattern used in [.github/workflows/load-allowed-authors.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/load-allowed-authors.yml) for minimal clones.
 
 ## References
 

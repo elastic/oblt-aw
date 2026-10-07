@@ -13,9 +13,9 @@ If a service is **enabled**, matching bot PRs can continue through the normal va
 
 Technical details for eligibility, validation, approval, tokens, and merge behavior live in:
 
-- [Automerge deferred (schedule)](../../workflows/obs-aw-automerge-deferred.md)
-- [Automerge routing](../../routing/automerge-routing.md)
-- [Automerge workflow](../../workflows/obs-aw-automerge.md)
+- [Automerge deferred (schedule)](../workflows/obs-aw-automerge-deferred.md)
+- [Automerge routing](../routing/automerge-routing.md)
+- [Automerge workflow](../workflows/obs-aw-automerge.md)
 
 ## What each service means
 

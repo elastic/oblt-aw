@@ -2,8 +2,8 @@
 
 ## Overview
 
-Source: [.github/workflows/gh-aw-onboard-repository.md](../../.github/workflows/gh-aw-onboard-repository.md)
-Generated lock: [.github/workflows/gh-aw-onboard-repository.lock.yml](../../.github/workflows/gh-aw-onboard-repository.lock.yml)
+Source: [.github/workflows/gh-aw-onboard-repository.md](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-onboard-repository.md)
+Generated lock: [.github/workflows/gh-aw-onboard-repository.lock.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-onboard-repository.lock.yml)
 
 In-repo GitHub Agentic Workflow that onboards a consumer repository when an issue in **`elastic/oblt-aw`** carries the label **`oblt-aw/onboard/repository`**.
 
@@ -16,9 +16,9 @@ This workflow is **not** part of the consumer agentic catalog:
 
 ## Prerequisites
 
-- Issue created from [.github/ISSUE_TEMPLATE/onboard-repository.yml](../../.github/ISSUE_TEMPLATE/onboard-repository.yml) (or otherwise labeled `oblt-aw/onboard/repository`).
+- Issue created from [.github/ISSUE_TEMPLATE/onboard-repository.yml](https://github.com/elastic/oblt-aw/blob/main/.github/ISSUE_TEMPLATE/onboard-repository.yml) (or otherwise labeled `oblt-aw/onboard/repository`).
 - Actor must have **`write`** (or `maintain` / `admin`) on `elastic/oblt-aw`. Lower roles can open issues but cannot apply the form label or pass the workflow role gate.
-- Catalog TokenPolicy from [`config/onboard-repository.json`](../../config/onboard-repository.json) (`workflow-token-policy`) active for `elastic/oblt-aw/.github/workflows/gh-aw-onboard-repository.lock.yml` (see companion catalog-info PR). The workflow imports generic `gh-aw-fragments/ephemeral-github-token.md` and sets `WORKFLOW_TOKEN_POLICY_CONFIG=config/onboard-repository.json` (same pattern as E2E + `config/e2e.json`). That fragment resolves the policy and mints via `elastic/oblt-actions/github/create-token@v1` in activation/agent/safe_outputs/conclusion. `make compile-aw` runs `scripts/wire_ephemeral_token.py` so lock jobs prefer the minted token, then `GH_AW_GITHUB_TOKEN` / `GITHUB_TOKEN` as fallback.
+- Catalog TokenPolicy from [`config/onboard-repository.json`](https://github.com/elastic/oblt-aw/blob/main/config/onboard-repository.json) (`workflow-token-policy`) active for `elastic/oblt-aw/.github/workflows/gh-aw-onboard-repository.lock.yml` (see companion catalog-info PR). The workflow imports generic `gh-aw-fragments/ephemeral-github-token.md` and sets `WORKFLOW_TOKEN_POLICY_CONFIG=config/onboard-repository.json` (same pattern as E2E + `config/e2e.json`). That fragment resolves the policy and mints via `elastic/oblt-actions/github/create-token@v1` in activation/agent/safe_outputs/conclusion. `make compile-aw` runs `scripts/wire_ephemeral_token.py` so lock jobs prefer the minted token, then `GH_AW_GITHUB_TOKEN` / `GITHUB_TOKEN` as fallback.
 
 ## Usage
 

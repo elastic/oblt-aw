@@ -4,7 +4,7 @@
 
 This guide covers local setup and quality checks for contributors. All changes must pass CI before merge.
 
-For goal-oriented **maintainer stories** (add a workflow, change maturity, ephemeral tokens), see [docs/admin-guide/](../admin-guide/).
+For goal-oriented **maintainer stories** (add a workflow, change maturity, ephemeral tokens), see [docs/admin-guide/](../admin-guide/index.md).
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ pip install pre-commit
 pre-commit install --hook-type pre-commit --hook-type pre-push
 ```
 
-This installs the hooks from [.pre-commit-config.yaml](../../.pre-commit-config.yaml). They run on `git commit` and `git push`. Agents must also follow the GOLD rule [.cursor/rules/ci-precommit-before-push.mdc](../../.cursor/rules/ci-precommit-before-push.mdc).
+This installs the hooks from [.pre-commit-config.yaml](https://github.com/elastic/oblt-aw/blob/main/.pre-commit-config.yaml). They run on `git commit` and `git push`. Agents must also follow the GOLD rule [.cursor/rules/ci-precommit-before-push.mdc](https://github.com/elastic/oblt-aw/blob/main/.cursor/rules/ci-precommit-before-push.mdc).
 
 ### 3. Install Python dependencies
 
@@ -91,7 +91,7 @@ make update-license-check
 
 License headers are not applied to `*.yml` or `*.yaml` files (including GitHub Actions workflows).
 
-The `update-license-files` hook uses `always_run: true` in [.pre-commit-config.yaml](../../.pre-commit-config.yaml) so the script runs on every pre-commit invocation and rescans all header targets (not only when certain file types are staged).
+The `update-license-files` hook uses `always_run: true` in [.pre-commit-config.yaml](https://github.com/elastic/oblt-aw/blob/main/.pre-commit-config.yaml) so the script runs on every pre-commit invocation and rescans all header targets (not only when certain file types are staged).
 
 ### Individual tools
 
@@ -121,10 +121,10 @@ The following hooks run on commit (and in CI via the pre-commit job):
 
 ## CI Workflow
 
-The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)) runs on every pull request (any base branch). See [docs/workflows/ci.md](../workflows/ci.md) for details.
+The CI workflow ([.github/workflows/ci.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/ci.yml)) runs on every pull request (any base branch). See [docs/workflows/ci.md](../workflows/ci.md) for details.
 
 ## References
 
 - CI workflow: [docs/workflows/ci.md](../workflows/ci.md)
-- Pre-commit config: [.pre-commit-config.yaml](../../.pre-commit-config.yaml)
-- Workflow catalog: [docs/workflows/README.md](../workflows/README.md)
+- Pre-commit config: [.pre-commit-config.yaml](https://github.com/elastic/oblt-aw/blob/main/.pre-commit-config.yaml)
+- Workflow catalog: [docs/workflows/README.md](../workflows/index.md)

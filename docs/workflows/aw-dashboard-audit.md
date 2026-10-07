@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/aw-dashboard-audit.yml](../../.github/workflows/aw-dashboard-audit.yml)
+Source file: [.github/workflows/aw-dashboard-audit.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-dashboard-audit.yml)
 
 Shared (org-agnostic) reusable workflow that audits Control Plane Dashboard checkbox enable/disable changes as **comments on the same dashboard issue**. It is not gated by [aw-prelude](aw-prelude.md) or dashboard checkboxes, so auditing still runs when workflows are disabled.
 
@@ -50,11 +50,11 @@ Audit comments include an HTML marker such as:
 | obs | `trigger-obs-aw-issues.yml` (`edited`) | `obs-aw-event-issues.yml` → `dashboard-audit` | `obs-aw-event-issue-comment.yml` → `dashboard-audit-reason` |
 | docs | `trigger-docs-aw-issues.yml` (`edited`) | `docs-aw-event-issues.yml` → `dashboard-audit` | `docs-aw-event-issue-comment.yml` → `dashboard-audit-reason` (client job gated to dashboard `created`; prelude skipped on `created`) |
 
-Script: [scripts/dashboard_audit.py](../../scripts/dashboard_audit.py)
+Script: [scripts/dashboard_audit.py](https://github.com/elastic/oblt-aw/blob/main/scripts/dashboard_audit.py)
 
 ## References
 
 - [Control Plane Dashboard — user instructions](../operations/control-plane-dashboard.md)
 - [Opt in or opt out](../user-guide/opt-in-opt-out.md)
 - [sync-control-plane-dashboard](sync-control-plane-dashboard.md)
-- [Routing README](../routing/README.md)
+- [Routing README](../routing/index.md)

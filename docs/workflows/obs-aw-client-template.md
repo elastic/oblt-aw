@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Source of truth (edit here only):** [.github/remote-workflow-template/obs/.github/workflows/](../../.github/remote-workflow-template/obs/.github/workflows/)
+**Source of truth (edit here only):** [.github/remote-workflow-template/obs/.github/workflows/](https://github.com/elastic/oblt-aw/tree/main/.github/remote-workflow-template/obs/.github/workflows)
 
 ## Event-scoped client model
 

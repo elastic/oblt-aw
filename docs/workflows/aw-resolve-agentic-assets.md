@@ -2,11 +2,11 @@
 
 ## Overview
 
-Source file: [.github/workflows/aw-resolve-agentic-assets.yml](../../.github/workflows/aw-resolve-agentic-assets.yml)
+Source file: [.github/workflows/aw-resolve-agentic-assets.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-resolve-agentic-assets.yml)
 
 Resolves consumer agentic assets for **one** `gh-aw-*` invocation: [`apm.yml`](https://github.com/microsoft/apm) / `x-oblt-aw` blocks, workflow-specific consumer files (for example `.oblt-aw.autodocignore`), and platform baseline instructions. Call this reusable immediately before each job that `uses` an upstream agentic workflow lock file.
 
-CI enforces the contract via [scripts/validate_aw_workflow_resolve_agentic_assets.py](../../scripts/validate_aw_workflow_resolve_agentic_assets.py): every local `*-aw-*` workflow with at least one `gh-aw-*` call must invoke `aw-resolve-agentic-assets.yml` at least once per agent job (for example `obs-aw-autodoc.yml` uses two resolve jobs for audit and fix).
+CI enforces the contract via [scripts/validate_aw_workflow_resolve_agentic_assets.py](https://github.com/elastic/oblt-aw/blob/main/scripts/validate_aw_workflow_resolve_agentic_assets.py): every local `*-aw-*` workflow with at least one `gh-aw-*` call must invoke `aw-resolve-agentic-assets.yml` at least once per agent job (for example `obs-aw-autodoc.yml` uses two resolve jobs for audit and fix).
 
 Wrappers that only gate or run scripts (for example `obs-aw-security-injection-detector.yml`) do not call this workflow.
 
@@ -23,7 +23,7 @@ The reusable workflow job id is `resolve-agentic-assets`. Route wrappers typical
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
 | `install-apm-packages` | boolean | `true` | Run [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI and runs `apm install`) |
 
-The APM CLI version comes from the control-plane pin in [`.apm.version`](../../.apm.version) (sparse-checked out with the resolver). Dependabot updates the matching PyPI pin in [`.apm-cli-pin/requirements.txt`](../../.apm-cli-pin/requirements.txt); [`.github/workflows/aw-sync-apm-version.yml`](../../.github/workflows/aw-sync-apm-version.yml) copies that version into `.apm.version`.
+The APM CLI version comes from the control-plane pin in [`.apm.version`](https://github.com/elastic/oblt-aw/blob/main/.apm.version) (sparse-checked out with the resolver). Dependabot updates the matching PyPI pin in [`.apm-cli-pin/requirements.txt`](https://github.com/elastic/oblt-aw/blob/main/.apm-cli-pin/requirements.txt); [`.github/workflows/aw-sync-apm-version.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-sync-apm-version.yml) copies that version into `.apm.version`.
 
 Private GitHub dependencies use one of two auth paths during `apm install`:
 
@@ -82,12 +82,12 @@ jobs:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
 ```
 
-Examples with upstream gates: [obs-aw-automerge.yml](../../.github/workflows/obs-aw-automerge.yml) (resolve after verify + dependency collection), [obs-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml) (resolve after discover). Multi-agent wrappers use one resolve job per `gh-aw-*` invocation — see [obs-aw-autodoc.yml](../../.github/workflows/obs-aw-autodoc.yml).
+Examples with upstream gates: [obs-aw-automerge.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-automerge.yml) (resolve after verify + dependency collection), [obs-aw-resource-not-accessible-by-integration-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml) (resolve after discover). Multi-agent wrappers use one resolve job per `gh-aw-*` invocation — see [obs-aw-autodoc.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-autodoc.yml).
 
 ## References
 
 - [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format and vendor extension fields
 - [APM agentic assets architecture](../architecture/apm-agentic-assets.md)
 - [Agentic Workflow Prelude](aw-prelude.md)
-- [scripts/agentic_assets_resolver.py](../../scripts/agentic_assets_resolver.py) — importable library (APM + consumer config)
-- [scripts/resolve_agentic_assets_cli.py](../../scripts/resolve_agentic_assets_cli.py) — GitHub Actions CLI entrypoint
+- [scripts/agentic_assets_resolver.py](https://github.com/elastic/oblt-aw/blob/main/scripts/agentic_assets_resolver.py) — importable library (APM + consumer config)
+- [scripts/resolve_agentic_assets_cli.py](https://github.com/elastic/oblt-aw/blob/main/scripts/resolve_agentic_assets_cli.py) — GitHub Actions CLI entrypoint

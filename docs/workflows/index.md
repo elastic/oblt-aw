@@ -6,7 +6,7 @@ applies_to: {}
 
 # Workflow catalog (filename index)
 
-Documentation for each workflow source in [.github/workflows/](../../.github/workflows/) and the distributed client template source.
+Documentation for each workflow source in [.github/workflows/](https://github.com/elastic/oblt-aw/tree/main/.github/workflows) and the distributed client template source.
 
 **Prefer the outcome view first:** [Catalog by outcome](by-outcome.md).
 

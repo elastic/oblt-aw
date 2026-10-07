@@ -2,11 +2,11 @@
 
 ## Overview
 
-Source file: [.github/workflows/load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml)
+Source file: [.github/workflows/load-allowed-authors.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/load-allowed-authors.yml)
 
-This reusable workflow reads [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json) and [config/obs/allowed_issue_authors.json](../../config/obs/allowed_issue_authors.json) from `elastic/oblt-aw` and exposes both allow lists as workflow outputs.
+This reusable workflow reads [config/obs/allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) and [config/obs/allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json) from `elastic/oblt-aw` and exposes both allow lists as workflow outputs.
 
-Ingress uses the **PR** outputs to gate PR-only workflows by author login (for example `obs-aw-event-pull-request` `contains(fromJSON(...), user.login)` checks). Dependency-review bots are hardcoded on the in-repo `gh-aw-dependency-review` lock to match [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json); the wrapper no longer passes `allowed-bot-users`. Ingress uses **`allowed_issue_authors_csv`** for specialized GH-AW issue wrappers (security and resource-not-accessible triage/fixer), not for generic `obs-aw-issue-triage` / `obs-aw-issue-fixer`.
+Ingress uses the **PR** outputs to gate PR-only workflows by author login (for example `obs-aw-event-pull-request` `contains(fromJSON(...), user.login)` checks). Dependency-review bots are hardcoded on the in-repo `gh-aw-dependency-review` lock to match [config/obs/allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json); the wrapper no longer passes `allowed-bot-users`. Ingress uses **`allowed_issue_authors_csv`** for specialized GH-AW issue wrappers (security and resource-not-accessible triage/fixer), not for generic `obs-aw-issue-triage` / `obs-aw-issue-fixer`.
 
 ## Usage
 
@@ -16,7 +16,7 @@ Triggers:
 
 Called by ingress:
 
-- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml), job `load-oblt-aw-bot-allow-lists` (when `load-allowed-authors: true`)
+- [.github/workflows/aw-prelude.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml), job `load-oblt-aw-bot-allow-lists` (when `load-allowed-authors: true`)
 
 Prelude runs this job only when `load-allowed-authors` is true and `github.event_name` is `pull_request` or `issues`.
 
@@ -52,5 +52,5 @@ It then emits outputs with:
 ## References
 
 - [docs/workflows/aw-prelude.md](aw-prelude.md)
-- [config/obs/allowed_pr_authors.json](../../config/obs/allowed_pr_authors.json)
-- [config/obs/allowed_issue_authors.json](../../config/obs/allowed_issue_authors.json)
+- [config/obs/allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json)
+- [config/obs/allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json)

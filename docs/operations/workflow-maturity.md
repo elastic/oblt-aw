@@ -1,6 +1,6 @@
 # Workflow Maturity Criteria
 
-This document defines the maturity levels used to classify agentic workflows in the Control Plane Dashboard. Maturity is assigned centrally in each org’s [workflow-registry.json](../../config/obs/workflow-registry.json) (for example under `config/obs/`) by maintainers.
+This document defines the maturity levels used to classify agentic workflows in the Control Plane Dashboard. Maturity is assigned centrally in each org’s [workflow-registry.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) (for example under `config/obs/`) by maintainers.
 
 ## Maturity Levels
 
@@ -45,7 +45,7 @@ This document defines the maturity levels used to classify agentic workflows in 
 
 ## Assignment
 
-Maturity is set in each org’s [workflow-registry.json](../../config/obs/workflow-registry.json) (for example `config/obs/workflow-registry.json`). Each workflow entry includes:
+Maturity is set in each org’s [workflow-registry.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) (for example `config/obs/workflow-registry.json`). Each workflow entry includes:
 
 - `maturity`: one of `stable`, `early-adoption`, or `experimental`
 - `default_enabled`: default checkbox state used by dashboard sync when a workflow is not yet present in an existing dashboard issue body

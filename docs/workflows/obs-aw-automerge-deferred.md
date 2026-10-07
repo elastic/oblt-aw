@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-automerge-deferred.yml](../../.github/workflows/obs-aw-automerge-deferred.yml)
+Source file: [.github/workflows/obs-aw-automerge-deferred.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-automerge-deferred.yml)
 
 Deferred merge path for [obs-aw-automerge.yml](obs-aw-automerge.md). Finds open PRs that already have `oblt-aw/ai/merge-ready` and a **bot-authored** armed comment marker bound to the current head SHA (`<!-- obs-aw-automerge:armed sha=<40-hex> -->`), re-checks author/collection gates, and squash-merges via the REST API as the Vault app when `shared-token-policy` is set.
 

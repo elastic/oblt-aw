@@ -6,10 +6,10 @@ The security workflow exposes four independently toggleable **category detectors
 
 | Sub-feature id | Workflow file | SEC rule focus |
 |----------------|---------------|----------------|
-| `injection` | [obs-aw-security-injection-detector.yml](../../.github/workflows/obs-aw-security-injection-detector.yml) | SEC-010–SEC-012 |
-| `supply-chain` | [obs-aw-security-supply-chain-detector.yml](../../.github/workflows/obs-aw-security-supply-chain-detector.yml) | SEC-030–SEC-035 |
-| `secrets` | [obs-aw-security-secrets-detector.yml](../../.github/workflows/obs-aw-security-secrets-detector.yml) | SEC-001–SEC-003, SEC-020–SEC-022 |
-| `least-privilege` | [obs-aw-security-least-privilege-detector.yml](../../.github/workflows/obs-aw-security-least-privilege-detector.yml) | SEC-040–SEC-044 |
+| `injection` | [obs-aw-security-injection-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-injection-detector.yml) | SEC-010–SEC-012 |
+| `supply-chain` | [obs-aw-security-supply-chain-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-supply-chain-detector.yml) | SEC-030–SEC-035 |
+| `secrets` | [obs-aw-security-secrets-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-secrets-detector.yml) | SEC-001–SEC-003, SEC-020–SEC-022 |
+| `least-privilege` | [obs-aw-security-least-privilege-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-least-privilege-detector.yml) | SEC-040–SEC-044 |
 
 **Parent** checkbox `obs:security` gates triage, fixer, and superseder. Each category detector additionally requires its sub-feature id (`obs:security:injection`, etc.) in `enabled-workflows`.
 
@@ -17,7 +17,7 @@ This implements the detector stage of the pipeline in [docs/architecture/securit
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from [obs-aw-event-schedule.yml](../../.github/workflows/obs-aw-event-schedule.yml) on `schedule` or `workflow_dispatch`.
+- Triggered via `workflow_call` from [obs-aw-event-schedule.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-schedule.yml) on `schedule` or `workflow_dispatch`.
 - No repository secrets: issue creation uses an ephemeral token from [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
 
 ## Usage
@@ -30,11 +30,11 @@ Each category detector runs a single **scan** job:
 4. Runs `_oblt-aw/scripts/obs/security-scan.sh target <category>` where `<category>` is `injection`, `supply-chain`, `secrets`, or `least-privilege`.
 5. When findings exist, creates issues with label `oblt-aw/detector/security` via `create-security-issues.sh`.
 
-New issues trigger the issues orchestrator; when `obs:security` is enabled, [obs-aw-security-issue-superseder.yml](../../.github/workflows/obs-aw-security-issue-superseder.yml) deduplicates open issues per SEC id before triage.
+New issues trigger the issues orchestrator; when `obs:security` is enabled, [obs-aw-security-issue-superseder.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-issue-superseder.yml) deduplicates open issues per SEC id before triage.
 
 ## Scan logic (summary)
 
-Category filtering is applied after tool runs and deduplication in [scripts/obs/security-scan.sh](../../scripts/obs/security-scan.sh). Tools (actionlint, zizmor, semgrep, shellcheck, npm audit, custom heuristics) still execute fully; output is filtered to the requested category.
+Category filtering is applied after tool runs and deduplication in [scripts/obs/security-scan.sh](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/security-scan.sh). Tools (actionlint, zizmor, semgrep, shellcheck, npm audit, custom heuristics) still execute fully; output is filtered to the requested category.
 
 | Category | Example rules | Mechanisms |
 |----------|---------------|------------|
@@ -48,7 +48,7 @@ Category filtering is applied after tool runs and deduplication in [scripts/obs/
 - Workflow-level `permissions`: `contents: read`.
 - Job `scan` permissions: `actions: read`, `contents: read`, `pull-requests: read`, `id-token: write`.
 - Client `trigger-obs-aw-schedule-daily.yml` must grant `id-token: write` on the schedule orchestrator job.
-- zizmor `unpinned-uses` policy: [`.github/zizmor.yml`](../../.github/zizmor.yml) allows `ref-pin` for trusted namespaces `actions/*` and `elastic/*`; other `uses:` must be hash-pinned. The scan script applies that file with `--config` (optional override: `ZIZMOR_CONFIG`).
+- zizmor `unpinned-uses` policy: [`.github/zizmor.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/zizmor.yml) allows `ref-pin` for trusted namespaces `actions/*` and `elastic/*`; other `uses:` must be hash-pinned. The scan script applies that file with `--config` (optional override: `ZIZMOR_CONFIG`).
 
 ## References
 

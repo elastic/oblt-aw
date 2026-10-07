@@ -110,7 +110,7 @@ Manual maintainers may still use draft PRs for early review; the agent path does
 
 4. **Merge the `elastic/oblt-aw` registration pull request** — Merge the feature branch from step **1** into **`main`**. That triggers **distribute-client-workflow** and **sync-control-plane-dashboard** for the new target.
 
-5. **Verify the client workflow distribution pull request** — After the push to **`main`**, confirm **distribute-client-workflow** produced an install or update PR in **`elastic/<repo>`** that adds the `trigger-obs-aw-*.yml` client templates from [remote-workflow-template/obs](../../.github/remote-workflow-template/obs/) ([client template index](../workflows/obs-aw-client-template.md)). Remove legacy `.github/workflows/oblt-aw.yml` if the PR does not already delete it.
+5. **Verify the client workflow distribution pull request** — After the push to **`main`**, confirm **distribute-client-workflow** produced an install or update PR in **`elastic/<repo>`** that adds the `trigger-obs-aw-*.yml` client templates from [remote-workflow-template/obs](https://github.com/elastic/oblt-aw/tree/main/.github/remote-workflow-template/obs) ([client template index](../workflows/obs-aw-client-template.md)). Remove legacy `.github/workflows/oblt-aw.yml` if the PR does not already delete it.
 
 6. **Verify the Control Plane Dashboard issue** — Confirm **sync-control-plane-dashboard** created or updated the open issue labeled **`oblt-aw/dashboard`** with title **`[oblt-aw] Control Plane Dashboard`** in **`elastic/<repo>`** ([sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md), [control-plane-dashboard](../operations/control-plane-dashboard.md)).
 
@@ -210,10 +210,10 @@ Draft placeholder for `additional_permissions` (not valid YAML until substituted
 
 | Workflow / context | `token-policy-…` id (explicit in YAML in this repo) |
 |--------------------|-------------------------------------------------------|
-| [distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml) | `token-policy-63405ab45244` |
-| [sync-control-plane-dashboard.yml](../../.github/workflows/sync-control-plane-dashboard.yml) | `token-policy-8b60ba56dd3f` |
+| [distribute-client-workflow.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/distribute-client-workflow.yml) | `token-policy-63405ab45244` |
+| [sync-control-plane-dashboard.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard.yml) | `token-policy-8b60ba56dd3f` |
 | Category detector workflows (for example `obs-aw-security-injection-detector.yml`) | `-` (no explicit `with.token-policy` on `create-token`) |
-| [obs-aw-automerge.yml](../../.github/workflows/obs-aw-automerge.yml) (ephemeral token step) | `-` (no explicit `with.token-policy` on `create-token`) |
+| [obs-aw-automerge.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-automerge.yml) (ephemeral token step) | `-` (no explicit `with.token-policy` on `create-token`) |
 
 ## Troubleshooting
 

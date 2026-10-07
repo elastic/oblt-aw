@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
+Source file: [.github/workflows/ci.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/ci.yml)
 
 This workflow runs quality checks and tests on every pull request (any base branch). It enforces pre-commit checks (including Actionlint), Python unit and integration tests (`tests/unit`, `tests/integration`; not live `tests/e2e/`), TypeScript tests via `npm test`, and gh-aw lock drift (`make compile-aw-check`). Live E2E is **not** a PR gate — it runs on promote (`aw-release-promote` → `e2e-all`) and via manual `e2e-all` / leaf dispatch.
 
@@ -24,13 +24,13 @@ This workflow runs quality checks and tests on every pull request (any base bran
 
 ## Pre-commit Hooks
 
-The `pre-commit` job uses [elastic/oblt-actions/pre-commit@v1](https://github.com/elastic/oblt-actions/blob/v1/pre-commit), which runs all hooks defined in [.pre-commit-config.yaml](../../.pre-commit-config.yaml):
+The `pre-commit` job uses [elastic/oblt-actions/pre-commit@v1](https://github.com/elastic/oblt-actions/blob/v1/pre-commit), which runs all hooks defined in [.pre-commit-config.yaml](https://github.com/elastic/oblt-aw/blob/main/.pre-commit-config.yaml):
 
 - **YAML**: yamllint with `.yamllint.yml`
 - **Shell**: ShellCheck on shell scripts
 - **GitHub Actions**: actionlint on workflow definitions
 - **Python**: ruff + ruff-format on Python files repo-wide; mypy (strict) on `scripts/`
-- **License**: Apache 2.0 headers and NOTICE sync ([scripts/update_license_files.py](../../scripts/update_license_files.py); excludes `*.yml` / `*.yaml`)
+- **License**: Apache 2.0 headers and NOTICE sync ([scripts/update_license_files.py](https://github.com/elastic/oblt-aw/blob/main/scripts/update_license_files.py); excludes `*.yml` / `*.yaml`)
 - **General**: trailing whitespace, EOF, YAML/JSON checks, merge conflict detection, line endings
 - **Action pinning**: Enforced by workflow design (trusted actions use tags; untrusted use SHA). Ratchet is not used because sethvargo/ratchet lacks `.pre-commit-hooks.yaml` and our policy uses tags for trusted namespaces.
 
@@ -55,7 +55,7 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 ## gh-aw drift
 
 - `gh-aw-drift` always runs on non-fixture PRs (`make compile-aw-check`).
-- Live lock provenance is gated at promote time via [`e2e-all.yml`](../../.github/workflows/e2e-all.yml) from [`aw-release-promote.yml`](../../.github/workflows/aw-release-promote.yml) — see [agentic-release-model](../operations/agentic-release-model.md).
+- Live lock provenance is gated at promote time via [`e2e-all.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml) from [`aw-release-promote.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-release-promote.yml) — see [agentic-release-model](../operations/agentic-release-model.md).
 
 ## Scorecard
 
@@ -70,8 +70,8 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 
 ## References
 
-- Pre-commit config: [.pre-commit-config.yaml](../../.pre-commit-config.yaml)
+- Pre-commit config: [.pre-commit-config.yaml](https://github.com/elastic/oblt-aw/blob/main/.pre-commit-config.yaml)
 - Local development: [docs/development/contributing.md](../development/contributing.md)
 - Testing platform design (unit through E2E, release gates): [docs/architecture/agentic-workflow-testing-platform.md](../architecture/agentic-workflow-testing-platform.md)
 - Agentic release model (promote/rollback): [docs/operations/agentic-release-model.md](../operations/agentic-release-model.md)
-- E2E orchestrator: [.github/workflows/e2e-all.yml](../../.github/workflows/e2e-all.yml)
+- E2E orchestrator: [.github/workflows/e2e-all.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml)

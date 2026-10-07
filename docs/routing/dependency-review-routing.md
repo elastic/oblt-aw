@@ -4,7 +4,7 @@
 
 Client template chain: `trigger-obs-aw-pull-request.yml` → `obs-aw-event-pull-request.yml` → `obs-aw-dependency-review.yml`
 
-Routed workflow source: [.github/workflows/obs-aw-dependency-review.yml](../../.github/workflows/obs-aw-dependency-review.yml)
+Routed workflow source: [.github/workflows/obs-aw-dependency-review.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-dependency-review.yml)
 
 ## Usage
 

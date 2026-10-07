@@ -1,6 +1,6 @@
 # Instruction fragments (control plane)
 
-Control-plane agentic prompts can be composed from reusable Markdown fragments under each org config tree. The resolver loads them in [`aw-resolve-agentic-assets.yml`](../../.github/workflows/aw-resolve-agentic-assets.yml) before platform inline text and consumer `apm.yml` assets.
+Control-plane agentic prompts can be composed from reusable Markdown fragments under each org config tree. The resolver loads them in [`aw-resolve-agentic-assets.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-resolve-agentic-assets.yml) before platform inline text and consumer `apm.yml` assets.
 
 ## Layout
 
@@ -82,5 +82,5 @@ In `workflow-registry.json`, the list of wrapper basenames for a workflow id is 
 
 ## Implementation
 
-- Loader: [`scripts/instruction_fragments.py`](../../scripts/instruction_fragments.py)
-- Composition entrypoint: [`scripts/agentic_assets_resolver.py`](../../scripts/agentic_assets_resolver.py)
+- Loader: [`scripts/instruction_fragments.py`](https://github.com/elastic/oblt-aw/blob/main/scripts/instruction_fragments.py)
+- Composition entrypoint: [`scripts/agentic_assets_resolver.py`](https://github.com/elastic/oblt-aw/blob/main/scripts/agentic_assets_resolver.py)

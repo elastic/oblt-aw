@@ -4,9 +4,9 @@
 
 **Adopting** a new workflow means: it is **defined in the remote control plane** (`elastic/oblt-aw` — reusable `obs-aw-*` workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trigger-obs-aw-<workflow-id>.yml`** client template. Template source calls `elastic/oblt-aw/.github/workflows/obs-aw-event-*.yml@main`; installed pins follow `pin-class` ([agentic-release-model](../operations/agentic-release-model.md)).
 
-You **cannot** meaningfully “enable” a workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](../../config/obs/workflow-registry.json), the **client template and `obs-aw-*` wrapper** exist, and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane Dashboard. A workflow runs only when its checkbox is checked on that dashboard (or after sync creates the dashboard and you enable it).
+You **cannot** meaningfully “enable” a workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json), the **client template and `obs-aw-*` wrapper** exist, and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane Dashboard. A workflow runs only when its checkbox is checked on that dashboard (or after sync creates the dashboard and you enable it).
 
-Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`workflow-registry.json`](../../config/obs/workflow-registry.json) and [`active-repositories.json`](../../config/obs/active-repositories.json). Gating uses compound ids `org-key:workflow-id` ([`get-enabled-workflows`](../workflows/get-enabled-workflows.md), [Control Plane Dashboard format](../operations/control-plane-dashboard-format.md), [multi-org design](../architecture/multi-org-agentic-workflows.md)).
+Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) and [`active-repositories.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json). Gating uses compound ids `org-key:workflow-id` ([`get-enabled-workflows`](../workflows/get-enabled-workflows.md), [Control Plane Dashboard format](../operations/control-plane-dashboard-format.md), [multi-org design](../architecture/multi-org-agentic-workflows.md)).
 
 **If the workflow already exists in `oblt-aw`** and you only need repository-side adoption, **jump to [Consumer repositories](#consumer-repositories)** (after [Registering resources](registering-a-repository.md) where applicable).
 
@@ -45,7 +45,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 7. Update documentation
 
-- [`docs/workflows/README.md`](../workflows/README.md), **`docs/workflows/obs-aw-<name>.md`**, and **`docs/routing/<topic>-routing.md`** when triggers or labels are non-trivial.
+- [`docs/workflows/README.md`](../workflows/index.md), **`docs/workflows/obs-aw-<name>.md`**, and **`docs/routing/<topic>-routing.md`** when triggers or labels are non-trivial.
 
 ### 8. Validate, merge, and confirm sync
 
