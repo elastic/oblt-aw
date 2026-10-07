@@ -81,6 +81,8 @@ jobs:
       - name: Checkout consumer repository
         uses: actions/checkout@v7
 
+        with:
+          persist-credentials: false
       - name: Checkout oblt-aw resolver scripts
         uses: actions/checkout@v7
         with:
@@ -104,6 +106,7 @@ jobs:
             requirements-runtime.txt
           sparse-checkout-cone-mode: false
 
+          persist-credentials: false
       - name: Resolve compound workflow id from registry
         id: registry
         env:

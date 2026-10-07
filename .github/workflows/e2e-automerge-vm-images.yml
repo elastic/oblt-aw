@@ -56,6 +56,7 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
 
+          persist-credentials: false
       - name: Validate checkout-ref for workflow_dispatch
         if: github.event_name == 'workflow_dispatch'
         env:
@@ -74,6 +75,7 @@ jobs:
       # config/release.json (nested under aw-release-promote.yml). Wildcard
       # policies require an explicit token-policy input; do not reuse
       # trigger-obs-aw-*.
+          persist-credentials: false
       - name: Resolve E2E Vault token policy
         id: token-policy
         env:
