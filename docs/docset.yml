@@ -6,30 +6,43 @@ registry: internal
 exclude:
   - "**/README.md"
   - examples/**
+  - guides/**
   - testing/fixtures/**
 
 toc:
   - file: index.md
   - file: get-started.md
-  - folder: guides
+  - folder: user-guide
     children:
       - file: index.md
-      - folder: user
+      - file: onboard-a-repository.md
+      - file: start-from-scratch.md
+      - file: enable-a-new-workflow.md
+      - file: opt-in-opt-out.md
+      - file: automerge-services.md
+  - folder: admin-guide
+    children:
+      - file: index.md
+      - file: add-a-new-agentic-workflow.md
+      - file: change-maturity-level.md
+      - file: use-gh-ephemeral-tokens.md
+  - folder: troubleshooting
+    children:
+      - file: index.md
+      - file: troubleshoot-an-error.md
+      - file: configure-a-github-secret.md
+  - folder: knowledge-base
+    children:
+      - file: index.md
+      - file: architecture.md
+      - file: reference.md
+      - folder: frequent-asked-problems
         children:
-          - file: onboard-a-repository.md
-          - file: start-from-scratch.md
-          - file: enable-a-new-workflow.md
-          - file: opt-in-opt-out.md
-          - file: automerge-services.md
-      - folder: operator
-        children:
-          - file: troubleshoot-an-error.md
-          - file: configure-a-github-secret.md
-      - folder: maintainer
-        children:
-          - file: add-a-new-agentic-workflow.md
-          - file: change-maturity-level.md
-          - file: use-gh-ephemeral-tokens.md
+          - file: index.md
+          - file: workflows-skipped-or-not-running.md
+          - file: create-token-or-oidc-failures.md
+          - file: missing-client-template-or-dashboard.md
+          - file: registration-before-catalog-token-policy.md
   - folder: workflows
     children:
       - file: by-outcome.md
@@ -71,7 +84,7 @@ toc:
       - hidden: ./sync-control-plane-dashboard.md
   - folder: architecture
     children:
-      - file: overview.md
+      - hidden: ./overview.md
       - hidden: ./agentic-workflow-testing-platform.md
       - hidden: ./apm-agentic-assets.md
       - hidden: ./instruction-fragments.md
@@ -79,14 +92,14 @@ toc:
       - hidden: ./security-agent-architecture.md
   - folder: operations
     children:
-      - file: control-plane-dashboard.md
-      - file: distribute-client-workflow.md
-      - file: workflow-maturity.md
+      - hidden: ./control-plane-dashboard.md
+      - hidden: ./distribute-client-workflow.md
+      - hidden: ./workflow-maturity.md
       - hidden: ./agentic-release-model.md
       - hidden: ./control-plane-dashboard-format.md
   - folder: routing
     children:
-      - file: index.md
+      - hidden: ./index.md
       - hidden: ./agent-suggestions-routing.md
       - hidden: ./autodoc-routing.md
       - hidden: ./automerge-routing.md
@@ -96,16 +109,16 @@ toc:
       - hidden: ./security-routing.md
   - folder: onboarding
     children:
-      - file: index.md
+      - hidden: ./index.md
       - hidden: ./adopting-agentic-workflows.md
       - hidden: ./registering-a-repository.md
   - folder: development
     children:
-      - file: contributing.md
-      - file: codex-publish.md
+      - hidden: ./contributing.md
+      - hidden: ./codex-publish.md
   - folder: testing
     children:
-      - file: index.md
+      - hidden: ./index.md
       - hidden: ./autodoc-e2e-bait.md
       - hidden: ./autodoc-e2e.md
       - hidden: ./automerge-vm-images-e2e.md

@@ -36,7 +36,7 @@ Behavior:
 4. Open up to four **normal (non-draft)** PRs (separate concerns); do not merge them. Discover secrets from **every** org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines — do **not** filter by `default_enabled`; then resolve shared modules in the secrets checkout. PR bodies must be valid Markdown (real newlines).
 5. Comment with required content (parsed inputs, PR checklist, merge order, user-guide pointer) in **valid Markdown** — real newlines; full PR URLs or `#aw_…` rewrite. Heading wording is not fixed.
 
-User-facing steps: [Onboard a repository](../guides/user/onboard-a-repository.md).
+User-facing steps: [Onboard a repository](../user-guide/onboard-a-repository.md).
 
 ## Configuration
 
@@ -59,6 +59,6 @@ Generic catalog routes skip onboard issues so they do not compete with this agen
 
 ## References
 
-- [Onboard a repository (user guide)](../guides/user/onboard-a-repository.md)
+- [Onboard a repository (user guide)](../user-guide/onboard-a-repository.md)
 - [Registering resources](../onboarding/registering-a-repository.md)
 - [Compiler upgrade / compile](compiler-upgrade.md) — `make compile-aw-check` regenerates the lock file

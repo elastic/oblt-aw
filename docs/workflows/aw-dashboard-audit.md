@@ -55,6 +55,6 @@ Script: [scripts/dashboard_audit.py](../../scripts/dashboard_audit.py)
 ## References
 
 - [Control Plane Dashboard — user instructions](../operations/control-plane-dashboard.md)
-- [Opt in or opt out](../guides/user/opt-in-opt-out.md)
+- [Opt in or opt out](../user-guide/opt-in-opt-out.md)
 - [sync-control-plane-dashboard](sync-control-plane-dashboard.md)
 - [Routing README](../routing/README.md)

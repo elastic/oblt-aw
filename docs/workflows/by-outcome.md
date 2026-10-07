@@ -8,7 +8,7 @@ applies_to: {}
 
 Consumer workflows registered for Observability (`config/obs/workflow-registry.json`) and Docs (`config/docs/workflow-registry.json`). Each row links to enablement and the control-plane doc. For upstream agent encyclopedias, use [AI GitHub Actions](https://elastic.github.io/ai-github-actions/).
 
-How to turn a row on: [Enable a new workflow](../guides/user/enable-a-new-workflow.md). Maturity meanings: [Workflow maturity](../operations/workflow-maturity.md).
+How to turn a row on: [Enable a new workflow](../user-guide/enable-a-new-workflow.md). Maturity meanings: [Workflow maturity](../operations/workflow-maturity.md).
 
 ## Issues
 
@@ -41,7 +41,7 @@ Related: [Security triage](obs-aw-security-triage.md), [Security fixer](obs-aw-s
 
 | Workflow | Maturity | What it does | Docs |
 |----------|----------|--------------|------|
-| Automerge | stable | Arms and squash-merges allowed bot PRs when checks are green | [Choose Automerge services](../guides/user/automerge-services.md), [obs-aw-automerge](obs-aw-automerge.md) |
+| Automerge | stable | Arms and squash-merges allowed bot PRs when checks are green | [Choose Automerge services](../user-guide/automerge-services.md), [obs-aw-automerge](obs-aw-automerge.md) |
 
 ## Docs organization
 

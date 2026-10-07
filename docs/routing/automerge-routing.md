@@ -7,7 +7,7 @@ Client template chains:
 - `trigger-obs-aw-pull-request.yml` → `obs-aw-event-pull-request.yml` → `obs-aw-automerge.yml` (validate, approve, try merge, REST retry, **arm** if checks pending)
 - `trigger-obs-aw-schedule-frequent.yml` → `obs-aw-event-schedule.yml` (`schedule-profile: frequent`) → `obs-aw-automerge-deferred.yml` (Vault REST merge for armed PRs)
 
-For the user-facing Automerge service catalogue, see [Automerge services](../guides/user/automerge-services.md).
+For the user-facing Automerge service catalogue, see [Automerge services](../user-guide/automerge-services.md).
 
 Routed workflow sources:
 

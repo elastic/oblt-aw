@@ -12,7 +12,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): `wor
 
 ## Prefer the short user stories first
 
-- [Onboard a repository](../guides/user/onboard-a-repository.md) — Developer path: issue form → label → agent PRs → dashboard.
+- [Onboard a repository](../user-guide/onboard-a-repository.md) — Developer path: issue form → label → agent PRs → dashboard.
 - [Get started](../get-started.md) — Ordered onboard → enable → catalog.
 
 ## Long-form guides

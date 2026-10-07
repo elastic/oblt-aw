@@ -29,7 +29,7 @@ Use this checklist when a workflow run fails or a user reports that agentic work
    - The client `run-obs-aw-<event>` job is missing `id-token: write`. See [Client template index](../../workflows/obs-aw-client-template.md).
    - Catalog policy was not merged before the `oblt-aw` registration merge.
 
-   Registration troubleshooting: [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting). Maintainer detail: [Use GitHub ephemeral tokens](../maintainer/use-gh-ephemeral-tokens.md).
+   Registration troubleshooting: [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting). Maintainer detail: [Use GitHub ephemeral tokens](../admin-guide/use-gh-ephemeral-tokens.md).
 
 5. **Check workflow-specific conditions** — After prelude gating, each route applies its own labels, comments, or allow lists. Open the workflow doc and routing doc:
    - Workflow catalog: [docs/workflows/README.md](../../workflows/README.md)
@@ -42,4 +42,5 @@ Use this checklist when a workflow run fails or a user reports that agentic work
 - [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting)
 - [Adopting a new remote agentic workflow — troubleshooting](../../onboarding/adopting-agentic-workflows.md#troubleshooting)
 - [Control Plane Dashboard — default behavior](../../operations/control-plane-dashboard.md#default-behavior)
-- [Guides by role](../README.md)
+- [Troubleshooting index](index.md)
+- [Frequent Asked Problems](../knowledge-base/frequent-asked-problems/index.md)

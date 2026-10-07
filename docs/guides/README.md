@@ -1,36 +1,9 @@
-# Guides by role
+# Guides (moved)
 
-Canonical Codex / docs-builder entry: [index.md](index.md).
+Story guides now live under the portal sections:
 
-Pick your audience:
+- [User guide](../user-guide/index.md)
+- [Admin guide](../admin-guide/index.md)
+- [Troubleshooting](../troubleshooting/index.md)
 
-| Audience | When you are… | Stories |
-|----------|---------------|---------|
-| **User** | A developer or repo owner using agentic workflows in your repository | [User stories](user/) |
-| **Operator** | Responsible for the service (for example, answering in `#observability-robots`) | [Operator stories](operator/) |
-| **Maintainer** | Contributing to `elastic/oblt-aw` or `elastic/ai-github-actions` | [Maintainer stories](maintainer/) |
-
-## User stories
-
-- [Onboard a repository](user/onboard-a-repository.md) — Open an issue in `elastic/oblt-aw`, merge agent-opened PRs, then enable workflows from the Control Plane Dashboard.
-- [Start from scratch](user/start-from-scratch.md) — Short pointer to the issue-driven onboard path (and technical registration).
-- [Enable a new workflow](user/enable-a-new-workflow.md) — Turn on a workflow that already exists in the org registry and client templates.
-- [Opt in or opt out](user/opt-in-opt-out.md) — Enable or disable workflows from the dashboard and understand runtime gating.
-- [Choose Automerge services](user/automerge-services.md) — Review the dependency-update categories that Automerge can merge for your repository.
-
-## Operator stories
-
-- [Troubleshoot an error](operator/troubleshoot-an-error.md) — Structured checklist from a failed workflow run to the right doc.
-- [Configure a GitHub secret](operator/configure-a-github-secret.md) — When repository secrets are required versus ephemeral tokens.
-
-## Maintainer stories
-
-- [Add a new agentic workflow](maintainer/add-a-new-agentic-workflow.md) — Ship a new routed workflow on the control plane.
-- [Change maturity level](maintainer/change-maturity-level.md) — Update `workflow-registry.json` and dashboard sync behavior.
-- [Use GitHub ephemeral tokens](maintainer/use-gh-ephemeral-tokens.md) — `create-token`, OIDC, and token policy fields.
-
-## References
-
-- [Documentation portal home](../index.md)
-- [Onboarding (long-form guides)](../onboarding/index.md)
-- [Contributing to oblt-aw](../development/contributing.md)
+Portal home: [../index.md](../index.md).

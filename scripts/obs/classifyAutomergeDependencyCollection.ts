@@ -21,7 +21,7 @@ const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
 const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate -->';
 const AUTOMERGE_PARENT_COMPOUND_ID = 'obs:automerge';
 const AUTOMERGE_SERVICES_GUIDE_URL =
-  'https://github.com/elastic/oblt-aw/blob/main/docs/guides/user/automerge-services.md';
+  'https://github.com/elastic/oblt-aw/blob/main/docs/user-guide/automerge-services.md';
 
 /** @typedef {object} DependencyCollection
  * @property {string} id

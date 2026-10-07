@@ -16,9 +16,9 @@ If the repository is **not** listed in `config/<org-key>/active-repositories.jso
 2. Wait for the agent checklist and merge the opened PRs in the documented order (catalog TokenPolicy before `oblt-aw` registration).
 3. After registration merges, merge the client-template install PR in your repository and confirm the Control Plane Dashboard issue exists.
 
-Details: [Onboard a repository](guides/user/onboard-a-repository.md).
+Details: [Onboard a repository](user-guide/onboard-a-repository.md).
 
-If the repository is **already** registered, skip to step 2. Short pointer: [Start from scratch](guides/user/start-from-scratch.md).
+If the repository is **already** registered, skip to step 2. Short pointer: [Start from scratch](user-guide/start-from-scratch.md).
 
 ## 2. Enable workflows
 
@@ -26,15 +26,18 @@ If the repository is **already** registered, skip to step 2. Short pointer: [Sta
 2. Confirm the event-scoped client for the workflow’s trigger family is installed under `.github/workflows/` (for example `trigger-obs-aw-pull-request.yml`).
 3. Check the workflow row. GitHub saves on click; the next matching event applies gating.
 
-Details: [Enable a new workflow](guides/user/enable-a-new-workflow.md) and [Opt in or opt out](guides/user/opt-in-opt-out.md).
+Details: [Enable a new workflow](user-guide/enable-a-new-workflow.md) and [Opt in or opt out](user-guide/opt-in-opt-out.md).
 
 ## 3. Pick what you need
 
-Browse workflows by day-to-day outcome (issues, PRs, security, automerge): [Workflow catalog by outcome](workflows/by-outcome.md).
+Browse workflows by day-to-day outcome: [Workflow catalog by outcome](workflows/by-outcome.md).
 
-For Automerge categories: [Choose Automerge services](guides/user/automerge-services.md).
+For Automerge categories: [Choose Automerge services](user-guide/automerge-services.md).
+
+More in the [User guide](user-guide/index.md).
 
 ## Where to get help
 
-- Failed run: [Troubleshoot an error](guides/operator/troubleshoot-an-error.md)
+- Failed run: [Troubleshooting](troubleshooting/index.md)
+- Recurring issues: [Frequent Asked Problems](knowledge-base/frequent-asked-problems/index.md)
 - Slack: `#observability-robots` (operators and maintainers)

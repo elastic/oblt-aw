@@ -32,13 +32,13 @@ See the [architecture overview](docs/architecture/overview.md).
 Here are some of the most important features of the **oblt-aw** framework:
 
 - **Automatic client distribution** — no hand-copying entrypoints; [distribution](docs/operations/distribute-client-workflow.md) installs/updates `trigger-obs-aw-*.yml` ([client template](docs/workflows/obs-aw-client-template.md), [adopting workflows](docs/onboarding/adopting-agentic-workflows.md)).
-- **Self-service dashboard** — enable/disable with checkboxes on `[oblt-aw] Control Plane Dashboard` ([dashboard](docs/operations/control-plane-dashboard.md), [opt-in / opt-out](docs/guides/user/opt-in-opt-out.md)).
+- **Self-service dashboard** — enable/disable with checkboxes on `[oblt-aw] Control Plane Dashboard` ([dashboard](docs/operations/control-plane-dashboard.md), [opt-in / opt-out](docs/user-guide/opt-in-opt-out.md)).
 - **Shared prelude** — same gating and allow lists before every agent run ([aw-prelude](docs/workflows/aw-prelude.md)).
 - **Shared agentic assets** — resolved in the framework ([aw-resolve-agentic-assets](docs/workflows/aw-resolve-agentic-assets.md)).
 - **Update once, reach the fleet** — improve in `oblt-aw`; [distribution](docs/operations/distribute-client-workflow.md) refreshes clients across active repos.
 - **Quieter PRs** — narrow triggers; only matching routes run ([split-trigger](docs/architecture/overview.md#split-trigger-vs-monolithic-ingress)).
 - **Catalog with maturity** — registered workflows with clear maturity levels ([workflows index](docs/workflows/README.md), [maturity](docs/operations/workflow-maturity.md)).
-- **Clear ownership** — shared core in one repo; per-org data under `config/<org-key>/` ([onboard a repo](docs/guides/user/onboard-a-repository.md), [technical registration](docs/onboarding/registering-a-repository.md)).
+- **Clear ownership** — shared core in one repo; per-org data under `config/<org-key>/` ([onboard a repo](docs/user-guide/onboard-a-repository.md), [technical registration](docs/onboarding/registering-a-repository.md)).
 
 ## Open for every Elastic organization
 
@@ -55,13 +55,14 @@ Executable workflows live under [.github/workflows/](.github/workflows/); their 
 
 ## Documentation
 
-**Portal (Elastic Internal Docs / Codex):** [https://codex.elastic.dev/r/oblt-aw/](https://codex.elastic.dev/r/oblt-aw/) — story-first guides for onboarding, enablement, and the workflow catalog. Source Markdown lives under `docs/` (see [docs/index.md](docs/index.md)).
+**Portal (Elastic Internal Docs / Codex):** [https://codex.elastic.dev/r/oblt-aw/](https://codex.elastic.dev/r/oblt-aw/) — story-first guides for onboarding, enablement, and operations. Source Markdown lives under `docs/` (see [docs/index.md](docs/index.md)).
 
 - Get started: [docs/get-started.md](docs/get-started.md)
-- Guides by role: [docs/guides/index.md](docs/guides/index.md)
+- User guide: [docs/user-guide/index.md](docs/user-guide/index.md)
+- Admin guide: [docs/admin-guide/index.md](docs/admin-guide/index.md)
+- Troubleshooting: [docs/troubleshooting/index.md](docs/troubleshooting/index.md)
+- Knowledge base: [docs/knowledge-base/index.md](docs/knowledge-base/index.md)
 - Workflow catalog by outcome: [docs/workflows/by-outcome.md](docs/workflows/by-outcome.md)
-- Architecture: [docs/architecture/overview.md](docs/architecture/overview.md)
-- Contributing: [docs/development/contributing.md](docs/development/contributing.md)
 - How docs publish to Codex: [docs/development/codex-publish.md](docs/development/codex-publish.md)
 
 ## Development

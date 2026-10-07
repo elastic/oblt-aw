@@ -59,11 +59,11 @@ Automerge splits identities by PR author so approve never self-APPROVEs: `approv
 - Confirm `id-token: write` on the client `run-obs-aw-<event>` job.
 - Confirm catalog policy merged **before** `oblt-aw` registration merged to `main`.
 
-See [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting) and [Troubleshoot an error](../operator/troubleshoot-an-error.md).
+See [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting) and [Troubleshoot an error](../troubleshooting/troubleshoot-an-error.md).
 
 ## See also
 
 - [Registering resources](../../onboarding/registering-a-repository.md)
 - [aw-resolve-agentic-assets](../../workflows/aw-resolve-agentic-assets.md) — `ai-assets-token-policy` and APM installs
 - [aw-prelude](../../workflows/aw-prelude.md) — `token-policy` output
-- [Configure a GitHub secret](../operator/configure-a-github-secret.md) — when long-lived secrets are still required
+- [Configure a GitHub secret](../troubleshooting/configure-a-github-secret.md) — when long-lived secrets are still required

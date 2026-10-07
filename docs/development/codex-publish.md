@@ -54,4 +54,4 @@ cross_links:
   - oblt-aw
 ```
 
-and link with `oblt-aw://guides/user/onboard-a-repository.md` (path relative to this repo’s `docs/`).
+and link with `oblt-aw://user-guide/onboard-a-repository.md` (path relative to this repo’s `docs/`).

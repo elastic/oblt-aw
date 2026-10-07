@@ -12,47 +12,17 @@ Upstream agent behavior (what the agent does on an issue or PR) lives in [AI Git
 
 ## Get started
 
-1. [Onboard your repository](guides/user/onboard-a-repository.md) — open one issue in `elastic/oblt-aw`, merge the agent-opened PRs, then use the dashboard.
-2. [Enable a workflow](guides/user/enable-a-new-workflow.md) — check the box on the Control Plane Dashboard.
-3. [Opt in or opt out](guides/user/opt-in-opt-out.md) — change enablement any time; gating applies on the next matching event.
+1. [Onboard your repository](user-guide/onboard-a-repository.md) — open one issue in `elastic/oblt-aw`, merge the agent-opened PRs, then use the dashboard.
+2. [Enable a workflow](user-guide/enable-a-new-workflow.md) — check the box on the Control Plane Dashboard.
+3. [Opt in or opt out](user-guide/opt-in-opt-out.md) — change enablement any time; gating applies on the next matching event.
 
 Full path: [Get started](get-started.md).
 
-## I want to…
+## Guides
 
-| Goal | Guide |
-|------|--------|
-| Onboard a repository that is not registered yet | [Onboard a repository](guides/user/onboard-a-repository.md) |
-| Turn on a workflow that already exists for my org | [Enable a new workflow](guides/user/enable-a-new-workflow.md) |
-| Enable or disable workflows from the dashboard | [Opt in or opt out](guides/user/opt-in-opt-out.md) |
-| Choose which dependency-update bots Automerge can merge | [Choose Automerge services](guides/user/automerge-services.md) |
-| See what workflows do and when they run | [Workflow catalog by outcome](workflows/by-outcome.md) |
-
-## When something fails
-
-| Goal | Guide |
-|------|--------|
-| Debug a failed workflow run | [Troubleshoot an error](guides/operator/troubleshoot-an-error.md) |
-| Decide if a repository secret is required | [Configure a GitHub secret](guides/operator/configure-a-github-secret.md) |
-
-## Maintain the platform
-
-| Goal | Guide |
-|------|--------|
-| Ship a new routed workflow on the control plane | [Add a new agentic workflow](guides/maintainer/add-a-new-agentic-workflow.md) |
-| Change maturity or dashboard sync behavior | [Change maturity level](guides/maintainer/change-maturity-level.md) |
-| Use ephemeral tokens and token policies | [Use GitHub ephemeral tokens](guides/maintainer/use-gh-ephemeral-tokens.md) |
-| Contribute to `elastic/oblt-aw` | [Contributing](development/contributing.md) |
-
-## Reference
-
-Deep dives for architecture, routing, operations, and testing:
-
-- [Architecture overview](architecture/overview.md)
-- [Multi-organization design](architecture/multi-org-agentic-workflows.md)
-- [Routing](routing/index.md)
-- [Distribution](operations/distribute-client-workflow.md)
-- [Control Plane Dashboard](operations/control-plane-dashboard.md)
-- [Workflow maturity](operations/workflow-maturity.md)
-- [Onboarding (long-form)](onboarding/index.md)
-- [How docs publish to Codex](development/codex-publish.md)
+| Section | Audience |
+|---------|----------|
+| [User guide](user-guide/index.md) | Developers and repo owners (onboard, enable, Automerge, catalog) |
+| [Admin guide](admin-guide/index.md) | Maintainers who change the control plane |
+| [Troubleshooting](troubleshooting/index.md) | Failed runs and secrets |
+| [Knowledge base](knowledge-base/index.md) | Architecture, reference, and Frequent Asked Problems |
