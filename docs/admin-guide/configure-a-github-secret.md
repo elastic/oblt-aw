@@ -20,7 +20,7 @@ For these workflows you still need:
 - Registration and catalog token policy ([Registering resources](../onboarding/registering-a-repository.md))
 - `id-token: write` on the client `run-obs-aw-<event>` job when `create-token` is in the call chain ([Client template index](../workflows/obs-aw-client-template.md))
 
-See [Use GitHub ephemeral tokens](../admin-guide/use-gh-ephemeral-tokens.md) for the token-policy model.
+See [Use GitHub ephemeral tokens](use-gh-ephemeral-tokens.md) for the token-policy model.
 
 ## When repository secrets are required
 
@@ -40,7 +40,7 @@ Consumer repositories use Backstage **TokenPolicy** resources in `elastic/catalo
 
 ## See also
 
-- [Registering resources — step 7 (secrets)](../onboarding/registering-a-repository.md)
 - [obs-aw-security-detector](../workflows/obs-aw-security-detector.md) — no secrets pattern
-- [Use GitHub ephemeral tokens](../admin-guide/use-gh-ephemeral-tokens.md)
-- [Troubleshoot an error](troubleshoot-an-error.md)
+- [Registering resources — step 7 (secrets)](../onboarding/registering-a-repository.md)
+- [Troubleshoot an error](../troubleshooting/troubleshoot-an-error.md)
+- [Use GitHub ephemeral tokens](use-gh-ephemeral-tokens.md)

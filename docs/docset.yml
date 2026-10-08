@@ -23,12 +23,12 @@ toc:
       - file: index.md
       - file: add-a-new-agentic-workflow.md
       - file: change-maturity-level.md
+      - file: configure-a-github-secret.md
       - file: use-gh-ephemeral-tokens.md
   - folder: troubleshooting
     children:
       - file: index.md
       - file: troubleshoot-an-error.md
-      - file: configure-a-github-secret.md
       - folder: common-problems
         children:
           - file: index.md

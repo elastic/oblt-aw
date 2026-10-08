@@ -23,7 +23,7 @@ This guide does **not** cover shipping a **new** agentic workflow in the framewo
 
 1. **Confirm the agentic workflow row on the Control Plane dashboard** — Open the issue labeled `oblt-aw/dashboard` (from Issues, or search `label:oblt-aw/dashboard`). If the agentic workflow is missing, wait for Control Plane dashboard sync after a framework merge, or ask a maintainer to confirm it is registered in `workflow-registry.json`.
 
-2. **Configure secrets (if required)** — Read the agentic workflow’s doc under [docs/workflows/](../workflows/index.md) (for example `obs-aw-<name>.md`). Some agentic workflows need no repository secrets (for example [obs-aw-security-detector](../workflows/obs-aw-security-detector.md) uses ephemeral tokens only). See [Configure a GitHub secret](../troubleshooting/configure-a-github-secret.md).
+2. **Configure secrets (if required)** — Read the agentic workflow’s doc under [docs/workflows/](../workflows/index.md) (for example `obs-aw-<name>.md`). Some agentic workflows need no repository secrets (for example [obs-aw-security-detector](../workflows/obs-aw-security-detector.md) uses ephemeral tokens only). See [Configure a GitHub secret](../admin-guide/configure-a-github-secret.md).
 
 3. **Check the agentic workflow on the Control Plane dashboard** — Open the Control Plane dashboard issue and check the checkbox for the agentic workflow. GitHub saves immediately on click. See [Control Plane dashboard — enabling an agentic workflow](../operations/control-plane-dashboard.md#enabling-an-agentic-workflow).
 

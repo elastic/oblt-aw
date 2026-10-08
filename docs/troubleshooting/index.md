@@ -1,18 +1,18 @@
 ---
 navigation_title: Troubleshooting
-description: Debug failed agentic workflow runs, decide when repository secrets are required, and look up common problems.
+description: Debug failed agentic workflow runs and look up common problems.
 applies_to: {}
 ---
 
 # Troubleshooting
 
-Use these guides when a workflow run fails, a workflow does not run, or you need to decide how credentials are provisioned.
+Use these guides when a workflow run fails or a workflow does not run.
 
 | Goal | Guide |
 |------|--------|
 | Work through a failed or skipped run | [Troubleshoot an error](troubleshoot-an-error.md) |
-| Decide if a repository secret is required vs ephemeral tokens | [Configure a GitHub secret](configure-a-github-secret.md) |
 | Look up a known symptom | [Common problems](common-problems/index.md) |
+| Decide if a repository secret is required vs ephemeral tokens | [Configure a GitHub secret](../admin-guide/configure-a-github-secret.md) |
 
 ## Common problems
 

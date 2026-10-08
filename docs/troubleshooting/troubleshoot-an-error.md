@@ -35,7 +35,7 @@ Use this checklist when a workflow run fails or a user reports that agentic work
    - Workflow catalog: [docs/workflows/README.md](../workflows/index.md)
    - Routing index: [docs/routing/README.md](../routing/index.md)
 
-6. **Check secrets** — If the workflow doc declares repository secrets, confirm they are provisioned via [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets). See [Configure a GitHub secret](configure-a-github-secret.md).
+6. **Check secrets** — If the workflow doc declares repository secrets, confirm they are provisioned via [`elastic/observability-github-secrets`](https://github.com/elastic/observability-github-secrets). See [Configure a GitHub secret](../admin-guide/configure-a-github-secret.md).
 
 ## See also
 

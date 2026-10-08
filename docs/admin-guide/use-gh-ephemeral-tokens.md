@@ -62,4 +62,4 @@ See [create-token or OIDC failures](../troubleshooting/common-problems/create-to
 - [Registering resources](../onboarding/registering-a-repository.md)
 - [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md) — `ai-assets-token-policy` and APM installs
 - [aw-prelude](../workflows/aw-prelude.md) — `token-policy` output
-- [Configure a GitHub secret](../troubleshooting/configure-a-github-secret.md) — when long-lived secrets are still required
+- [Configure a GitHub secret](configure-a-github-secret.md) — when long-lived secrets are still required

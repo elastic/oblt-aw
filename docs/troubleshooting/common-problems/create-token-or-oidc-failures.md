@@ -27,4 +27,4 @@ Common verified causes:
 ## See also
 
 - [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting)
-- [Configure a GitHub secret](../configure-a-github-secret.md) — when a long-lived secret is still required
+- [Configure a GitHub secret](../../admin-guide/configure-a-github-secret.md) — when a long-lived secret is still required

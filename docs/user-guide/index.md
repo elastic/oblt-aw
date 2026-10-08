@@ -19,5 +19,5 @@ Procedures for developers and repo owners who use OBLT Agentic Workflows in a co
 
 ## Related
 
-- [Troubleshooting](../troubleshooting/index.md) — failed runs, secrets, and common problems
-- [Admin guide](../admin-guide/index.md) — shipping or changing framework agentic workflows
+- [Admin guide](../admin-guide/index.md) — shipping or changing framework agentic workflows, secrets
+- [Troubleshooting](../troubleshooting/index.md) — failed runs and common problems

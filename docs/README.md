@@ -20,10 +20,10 @@ How publish works: [development/codex-publish.md](development/codex-publish.md).
 
 ## Topic folders
 
-- `admin-guide/` — maintain the framework
+- `admin-guide/` — framework maintenance, secrets, ephemeral tokens
 - `architecture/`, `operations/`, `routing/`, `onboarding/`, `development/`, `testing/` — deeper sources (architecture hub and TOC)
 - `knowledge-base/` — architecture hub
-- `troubleshooting/` — failed runs, secrets, and common problems
+- `troubleshooting/` — failed runs and common problems
 - `user-guide/` — developer enablement stories
 - `workflows/` — outcome catalog + per-workflow docs
 
