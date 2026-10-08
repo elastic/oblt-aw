@@ -32,7 +32,7 @@ See the [architecture overview](docs/architecture/overview.md).
 Here are some of the most important features of the **oblt-aw** framework:
 
 - **Automatic client distribution** — no hand-copying entrypoints; [distribution](docs/operations/distribute-client-workflow.md) installs/updates `trigger-obs-aw-*.yml` ([client template](docs/workflows/obs-aw-client-template.md), [adopting workflows](docs/onboarding/adopting-agentic-workflows.md)).
-- **Self-service dashboard** — enable/disable with checkboxes on `[oblt-aw] Control Plane Dashboard` ([dashboard](docs/operations/control-plane-dashboard.md), [opt-in / opt-out](docs/user-guide/opt-in-opt-out.md)).
+- **Self-service dashboard** — enable/disable with checkboxes on `[oblt-aw] Control Plane Dashboard` ([dashboard](docs/operations/control-plane-dashboard.md), [enable or disable](docs/user-guide/enable-a-new-workflow.md)).
 - **Shared prelude** — same gating and allow lists before every agent run ([aw-prelude](docs/workflows/aw-prelude.md)).
 - **Shared agentic assets** — resolved in the framework ([aw-resolve-agentic-assets](docs/workflows/aw-resolve-agentic-assets.md)).
 - **Update once, reach the fleet** — improve in `oblt-aw`; [distribution](docs/operations/distribute-client-workflow.md) refreshes clients across active repos.

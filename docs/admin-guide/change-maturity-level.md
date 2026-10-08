@@ -4,6 +4,14 @@
 
 Maturity (`stable`, `early-adoption`, `experimental`) is assigned centrally in each org’s `workflow-registry.json`. It appears as a badge on the Control Plane Dashboard and describes adoption expectations — it does not by itself enable or disable a workflow.
 
+| Level | Meaning |
+|-------|---------|
+| `stable` | Production-ready; suitable for general adoption |
+| `early-adoption` | Usable with possible rough edges; feedback welcome |
+| `experimental` | In active development; not for production-critical use |
+
+Full criteria: [Workflow maturity](../operations/workflow-maturity.md).
+
 ## Prerequisites
 
 - Permission to open a pull request to `elastic/oblt-aw`.

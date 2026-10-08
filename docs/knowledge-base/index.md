@@ -1,19 +1,18 @@
 ---
 navigation_title: Knowledge base
-description: Architecture, reference material, and Frequently Asked Problems for oblt-aw.
+description: Architecture and Frequently Asked Problems for oblt-aw.
 applies_to: {}
 ---
 
 # Knowledge base
 
-Deep dives and reference material for how `oblt-aw` works, plus short write-ups of problems the team has already solved.
+Deep dives for how `oblt-aw` works, plus short write-ups of problems the team has already solved.
 
 ## Sections
 
 | Section | What you find |
 |---------|----------------|
 | [Architecture](architecture.md) | System design, multi-org model, security and testing platforms |
-| [Reference](reference.md) | Routing, operations, workflow filename index, onboarding long-form, testing, Codex publish |
 | [Frequently Asked Problems](frequent-asked-problems/index.md) | Recurring failures and how we resolve them |
 
 ## Prefer guides first

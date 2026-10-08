@@ -6,31 +6,31 @@ applies_to: {}
 
 # Get started
 
-Use this path if you are an Elastic developer and want agentic workflows in a repository through **oblt-aw** (not a per-repo curl install of upstream agents).
+Use this path if you are an Elastic developer and want agentic workflows in a repository through **oblt-aw**.
 
 ## 1. Onboard the repository
 
 If the repository is **not** listed in `config/<org-key>/active-repositories.json` yet:
 
-1. Open an **Onboard a repository** issue in [elastic/oblt-aw](https://github.com/elastic/oblt-aw/issues).
-2. Wait for the agent checklist and merge the opened PRs in the documented order (catalog TokenPolicy before `oblt-aw` registration).
-3. After registration merges, merge the client-template install PR in your repository and confirm the Control Plane Dashboard issue exists.
+1. Open an **[Onboard a repository](https://github.com/elastic/oblt-aw/issues/new?template=onboard-repository.yml)** issue in [elastic/oblt-aw](https://github.com/elastic/oblt-aw).
+2. Follow the agent checklist on the issue and merge the pull requests it opens.
+3. Merge the workflows PR in your repository and confirm the Control Plane Dashboard issue exists.
 
-Details: [Onboard a repository](user-guide/onboard-a-repository.md).
+For further details, see [Onboard a repository](user-guide/onboard-a-repository.md).
 
-If the repository is **already** registered, skip to step 2. Short pointer: [Start from scratch](user-guide/start-from-scratch.md).
+If the repository is **already** registered, skip to step 2.
 
 ## 2. Enable workflows
 
-1. Open the `[oblt-aw] Control Plane Dashboard` issue in your repository (label `oblt-aw/dashboard`).
-2. Confirm the event-scoped client for the workflow’s trigger family is installed under `.github/workflows/` (for example `trigger-obs-aw-pull-request.yml`).
+1. Open the `[oblt-aw] Control Plane Dashboard` issue in your repository (GitHub label `oblt-aw/dashboard`).
+2. Confirm the matching workflow file is installed under `.github/workflows/` (for example `trigger-obs-aw-pull-request.yml`).
 3. Check the workflow row. GitHub saves on click; the next matching event applies gating.
 
-Details: [Enable a new workflow](user-guide/enable-a-new-workflow.md) and [Opt in or opt out](user-guide/opt-in-opt-out.md).
+For further details, see [Enable or disable a workflow](user-guide/enable-a-new-workflow.md).
 
-## 3. Pick what you need
+## 3. Pick what agentic automation you need
 
-Browse workflows by day-to-day outcome: [Workflow catalog by outcome](workflows/by-outcome.md).
+Browse by what you want to automate: [Workflow catalog by outcome](workflows/by-outcome.md).
 
 For Automerge categories: [Choose Automerge services](user-guide/automerge-services.md).
 

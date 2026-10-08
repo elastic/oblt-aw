@@ -1,21 +1,24 @@
-# Enable a new workflow
+# Enable or disable a workflow
 
 ## Overview
 
-The workflow **already exists** in your org’s `workflow-registry.json`, the control-plane wrappers are shipped, and your repository is registered. You only need to opt in from the Control Plane Dashboard and confirm the event-scoped client for its trigger type is installed.
+Workflow enablement is controlled **only** through the Control Plane Dashboard issue in your repository — not through `active-repositories.json` or config files in the consumer repo.
+
+The workflow **already exists** in your org’s `workflow-registry.json`, the control-plane wrappers are shipped, and your repository is registered. You opt in or out from the dashboard and confirm the event-scoped client for its trigger type is installed.
 
 This guide does **not** cover shipping a **new** workflow on the control plane — that is a maintainer task. See [Add a new agentic workflow](../admin-guide/add-a-new-agentic-workflow.md).
 
 ## Prerequisites
 
-- Your repository is listed in `config/<org-key>/active-repositories.json` and registration is complete ([Start from scratch](start-from-scratch.md)).
+- Your repository is listed in `config/<org-key>/active-repositories.json` and registration is complete ([Onboard a repository](onboard-a-repository.md)).
+- Your repository has an open Control Plane Dashboard issue (`label:oblt-aw/dashboard`, title `[oblt-aw] Control Plane Dashboard`).
 - The workflow appears as a row on your repository’s Control Plane Dashboard after [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) runs.
 
-## Steps
+## Enable a workflow
 
 1. **Confirm the workflow row on the dashboard** — Open the issue labeled `oblt-aw/dashboard`. If the workflow is missing, wait for dashboard sync after a control-plane merge, or ask a maintainer to confirm the workflow is registered in `workflow-registry.json`.
 
-2. **Confirm the event-scoped client is installed** — Workflows share client templates by GitHub event family (for example `trigger-obs-aw-issues.yml` for `issues` events), not one file per workflow id. Check that the client for your workflow’s trigger type exists under `.github/workflows/`. See the template index in [Client template index](../workflows/obs-aw-client-template.md). If it is missing, see [distribute-client-workflow](../operations/distribute-client-workflow.md).
+2. **Confirm the matching workflow file is installed** — Agentic workflows share one GitHub Actions workflow file per event family (for example `trigger-obs-aw-issues.yml` for `issues` events), not one file per workflow id. Check that file under `.github/workflows/`. See [Client template index](../workflows/obs-aw-client-template.md). If it is missing, see [distribute-client-workflow](../operations/distribute-client-workflow.md).
 
 3. **Configure secrets (if required)** — Read the workflow’s doc under [docs/workflows/](../workflows/index.md) (for example `obs-aw-<name>.md`). Some workflows need no repository secrets (for example [obs-aw-security-detector](../workflows/obs-aw-security-detector.md) uses ephemeral tokens only). See [Configure a GitHub secret](../troubleshooting/configure-a-github-secret.md).
 
@@ -23,9 +26,29 @@ This guide does **not** cover shipping a **new** workflow on the control plane �
 
 5. **Trigger or wait for a client run** — Gating applies on the next client workflow run (`pull_request`, `issues`, `schedule`, and so on). Checking a box does not run workflows immediately. See [get-enabled-workflows](../workflows/get-enabled-workflows.md).
 
+## Disable a workflow
+
+1. Open the Control Plane Dashboard issue.
+2. **Uncheck** the workflow’s checkbox. GitHub saves immediately on click.
+3. Reply on the same issue with a short **deactivation reason** when the audit comment asks for it (the comment also mentions `@elastic/observablt-ci`).
+
+The workflow is excluded from `enabled-workflows` on the next client run. Full UI steps: [Control Plane Dashboard — disabling a workflow](../operations/control-plane-dashboard.md#disabling-a-workflow).
+
+## Default behavior
+
+| Dashboard state | Result |
+|-----------------|--------|
+| No dashboard exists | All workflows are deactivated |
+| Dashboard exists, all checkboxes unchecked | All workflows are deactivated |
+| Dashboard exists, some checkboxes checked | Only checked workflows run |
+
+Dashboard checkbox edits do **not** start agentic workflows by themselves. Runtime gating is still read inside the ingress when a client workflow runs. Separately, `issues.edited` on the dashboard issue triggers the shared [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) path so enable/disable changes are recorded as comments on that issue. See [routing README](../routing/index.md).
+
 ## See also
 
-- [Opt in or opt out](opt-in-opt-out.md)
 - [Control Plane Dashboard — user instructions](../operations/control-plane-dashboard.md)
+- [aw-dashboard-audit](../workflows/aw-dashboard-audit.md)
+- [get-enabled-workflows](../workflows/get-enabled-workflows.md)
 - [Client template index](../workflows/obs-aw-client-template.md)
+- [Workflow maturity badges](../operations/control-plane-dashboard.md#maturity-badges) — `stable`, `early-adoption`, `experimental`
 - [Adopting a new remote agentic workflow — consumer repositories](../onboarding/adopting-agentic-workflows.md#consumer-repositories)

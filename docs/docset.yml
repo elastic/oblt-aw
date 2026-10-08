@@ -18,7 +18,6 @@ toc:
       - file: onboard-a-repository.md
       - file: start-from-scratch.md
       - file: enable-a-new-workflow.md
-      - file: opt-in-opt-out.md
       - file: automerge-services.md
   - folder: admin-guide
     children:
@@ -35,7 +34,6 @@ toc:
     children:
       - file: index.md
       - file: architecture.md
-      - file: reference.md
       - folder: frequent-asked-problems
         children:
           - file: index.md
