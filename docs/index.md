@@ -6,6 +6,11 @@ applies_to: {}
 
 # OBLT Agentic Workflows (`oblt-aw`)
 
+:::{image} images/oblt-aw-framework-emblem.jpg
+:alt: oblt-aw — AI agentic workflows and automation control plane for Elastic
+:width: 420px
+:::
+
 **oblt-aw** is the shared control plane for [GitHub Agentic Workflows](https://github.github.com/gh-aw/) across Elastic repositories. We distribute the agentic workflows; you turn them on or off from a Control Plane Dashboard in your repository.
 
 Upstream agent behavior (what the agent does on an issue or PR) lives in [AI GitHub Actions](https://elastic.github.io/ai-github-actions/). This portal covers how Elastic developers **adopt and operate** those agents through `oblt-aw`.
