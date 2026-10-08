@@ -41,9 +41,8 @@ Technical registration detail for maintainers and agents: [Registering resources
 
 ## Troubleshooting
 
-Onboard-specific failures live here so the guide stays self-contained; recurring patterns are also in [Frequently Asked Problems](../knowledge-base/frequent-asked-problems/index.md).
+Full fixes live under [Troubleshooting](../troubleshooting/index.md). Quick links:
 
-- **No agent comment / no PRs** — Confirm you have **write** on `elastic/oblt-aw` and the issue has `oblt-aw/onboard/repository` (without write, GitHub drops the form label). Check the Actions run for `gh-aw-onboard-repository`. Cross-repo PR creation needs the agent TokenPolicy / minted token (see [gh-aw-onboard-repository](../workflows/gh-aw-onboard-repository.md)).
-- **Retry after a partial run** — Remove and re-apply the `oblt-aw/onboard/repository` label. The agent does not open duplicates for concerns that already have an open `[oblt-aw][onboard]` PR; it gap-fills missing concerns (for example a secrets PR that was skipped incorrectly) and comments with exact PR URLs when the inventory is complete.
-- **Registration merged too early** — If `oblt-aw` registration landed before catalog TokenPolicy was active, follow [Registering resources — troubleshooting](../onboarding/registering-a-repository.md#troubleshooting).
-- **No install PR or Control Plane dashboard** — Confirm the repository appears in `config/<org-key>/active-repositories.json` on `main`, then see [distribute-client-workflow](../operations/distribute-client-workflow.md) and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
+- **No agent comment / no PRs** (or retry after a partial run) — [Onboard agent no comment or PRs](../troubleshooting/common-problems/onboard-agent-no-comment-or-prs.md)
+- **Registration merged too early** — [Registration before catalog TokenPolicy](../troubleshooting/common-problems/registration-before-catalog-token-policy.md)
+- **No install PR or Control Plane dashboard** — [Missing client template or Control Plane dashboard](../troubleshooting/common-problems/missing-client-template-or-dashboard.md)

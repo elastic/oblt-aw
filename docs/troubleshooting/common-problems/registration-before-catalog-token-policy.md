@@ -23,4 +23,4 @@ The catalog-info token policy must be **merged and active** before the `elastic/
 ## See also
 
 - [Registering resources](../../onboarding/registering-a-repository.md)
-- [Troubleshoot an error](../../troubleshooting/troubleshoot-an-error.md)
+- [Troubleshoot an error](../troubleshoot-an-error.md)

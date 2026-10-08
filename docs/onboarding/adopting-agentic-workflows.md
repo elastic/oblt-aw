@@ -67,7 +67,9 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ## Troubleshooting
 
-- **Agentic workflow never runs after checking the box** — Wait for a supported trigger on the installed `trigger-obs-aw-*.yml` client ([obs-aw-client-template](../workflows/obs-aw-client-template.md)).
+Full symptom write-ups: [Common problems](../troubleshooting/common-problems/index.md).
+
+- **Agentic workflow never runs after checking the box** — Wait for a supported trigger on the installed `trigger-obs-aw-*.yml` client ([obs-aw-client-template](../workflows/obs-aw-client-template.md)). If jobs stay skipped, see [Workflows skipped or not running](../troubleshooting/common-problems/workflows-skipped-or-not-running.md).
 - **Validation fails on the PR** — Compare `permissions` with a sibling wrapper; confirm the route basename is listed under the correct `inner_workflows` entry in `workflow-registry.json` and appears in the matching event orchestrator’s `control-plane-workflows` input.
 
 ## References

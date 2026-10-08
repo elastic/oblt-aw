@@ -22,9 +22,9 @@ Common verified causes:
 
 1. Confirm `id-token: write` on the client entrypoint — [Client template index](../../workflows/obs-aw-client-template.md).
 2. Align the catalog policy `workflow_ref` with distributed triggers — [Use GitHub ephemeral tokens](../../admin-guide/use-gh-ephemeral-tokens.md).
-3. Use the operator checklist — [Troubleshoot an error](../../troubleshooting/troubleshoot-an-error.md) (permissions / OIDC step).
+3. Use the operator checklist — [Troubleshoot an error](../troubleshoot-an-error.md) (permissions / OIDC step).
 
 ## See also
 
 - [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting)
-- [Configure a GitHub secret](../../troubleshooting/configure-a-github-secret.md) — when a long-lived secret is still required
+- [Configure a GitHub secret](../configure-a-github-secret.md) — when a long-lived secret is still required

@@ -32,7 +32,7 @@ Behavior and agent instructions for the locked workflow are defined in `elastic/
 
 ## Troubleshooting
 
-- A `/ai` comment from non-collaborators (for example, `CONTRIBUTOR`, `NONE`, or `FIRST_TIMER`) will not route to `obs-aw-mention-in-issue` because ingress blocks author associations outside `OWNER`/`MEMBER`/`COLLABORATOR`.
+- A `/ai` comment from non-collaborators (for example, `CONTRIBUTOR`, `NONE`, or `FIRST_TIMER`) will not route to `obs-aw-mention-in-issue` because ingress blocks author associations outside `OWNER`/`MEMBER`/`COLLABORATOR`. Broader run failures: [Troubleshooting](../troubleshooting/index.md).
 
 ## Configuration
 

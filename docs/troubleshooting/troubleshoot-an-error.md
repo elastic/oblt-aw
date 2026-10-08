@@ -43,4 +43,4 @@ Use this checklist when a workflow run fails or a user reports that agentic work
 - [Adopting a new remote agentic workflow — troubleshooting](../onboarding/adopting-agentic-workflows.md#troubleshooting)
 - [Control Plane dashboard — default behavior](../operations/control-plane-dashboard.md#default-behavior)
 - [Troubleshooting index](index.md)
-- [Frequently Asked Problems](../knowledge-base/frequent-asked-problems/index.md)
+- [Common problems](common-problems/index.md)

@@ -18,7 +18,7 @@ Runtime gating reads the Control Plane dashboard. A missing Control Plane dashbo
 
 1. Confirm an open `[oblt-aw] Control Plane Dashboard` issue and that the agentic workflow checkbox is checked — [Enable or disable an agentic workflow](../../user-guide/enable-a-new-workflow.md).
 2. If the repo is new, finish onboard and merge the client install PR — [Onboard a repository](../../user-guide/onboard-a-repository.md).
-3. Walk the full checklist — [Troubleshoot an error](../../troubleshooting/troubleshoot-an-error.md) (Control Plane dashboard gating, then registration/distribution).
+3. Walk the full checklist — [Troubleshoot an error](../troubleshoot-an-error.md) (Control Plane dashboard gating, then registration/distribution).
 
 ## See also
 

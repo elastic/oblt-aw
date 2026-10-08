@@ -29,17 +29,18 @@ toc:
       - file: index.md
       - file: troubleshoot-an-error.md
       - file: configure-a-github-secret.md
+      - folder: common-problems
+        children:
+          - file: index.md
+          - file: create-token-or-oidc-failures.md
+          - file: missing-client-template-or-dashboard.md
+          - file: onboard-agent-no-comment-or-prs.md
+          - file: registration-before-catalog-token-policy.md
+          - file: workflows-skipped-or-not-running.md
   - folder: knowledge-base
     children:
       - file: index.md
       - file: architecture.md
-      - folder: frequent-asked-problems
-        children:
-          - file: index.md
-          - file: workflows-skipped-or-not-running.md
-          - file: create-token-or-oidc-failures.md
-          - file: missing-client-template-or-dashboard.md
-          - file: registration-before-catalog-token-policy.md
   - folder: workflows
     children:
       - file: by-outcome.md

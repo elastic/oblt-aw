@@ -18,9 +18,9 @@ Post-registration automation creates the distribute PR and Control Plane dashboa
 
 1. Confirm the repository is listed in `config/<org-key>/active-repositories.json` on `main`.
 2. Follow [distribute-client-workflow](../../operations/distribute-client-workflow.md) and [sync-control-plane-dashboard](../../workflows/sync-control-plane-dashboard.md).
-3. Re-check the onboard path — [Onboard a repository](../../user-guide/onboard-a-repository.md) (troubleshooting: no install PR or Control Plane dashboard).
+3. Re-check the onboard path — [Onboard a repository](../../user-guide/onboard-a-repository.md).
 
 ## See also
 
-- [Troubleshoot an error](../../troubleshooting/troubleshoot-an-error.md)
+- [Troubleshoot an error](../troubleshoot-an-error.md)
 - [Registering resources](../../onboarding/registering-a-repository.md)

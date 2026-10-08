@@ -55,11 +55,7 @@ Automerge splits identities by PR author so approve never self-APPROVEs: `approv
 
 ## Troubleshooting OIDC / create-token failures
 
-- Match `workflow_ref` to the client trigger glob with `@*` (for example `trigger-obs-aw-*.yml@*`); filename wildcards need an explicit `token-policy` / `workflow-token-policy` input.
-- Confirm `id-token: write` on the client `run-obs-aw-<event>` job.
-- Confirm catalog policy merged **before** `oblt-aw` registration merged to `main`.
-
-See [Registering resources — troubleshooting](../onboarding/registering-a-repository.md#troubleshooting) and [Troubleshoot an error](../troubleshooting/troubleshoot-an-error.md).
+See [create-token or OIDC failures](../troubleshooting/common-problems/create-token-or-oidc-failures.md). Maintainer checklist: [Troubleshoot an error](../troubleshooting/troubleshoot-an-error.md). Registration detail: [Registering resources — troubleshooting](../onboarding/registering-a-repository.md#troubleshooting).
 
 ## See also
 
