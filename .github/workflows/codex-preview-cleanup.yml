@@ -19,4 +19,4 @@ jobs:
       contents: none
       deployments: write
       id-token: write
-    uses: elastic/docs-actions/.github/workflows/codex-preview-cleanup.yml@e1608f9d7c62bc4c59ab21fc691809351b1a31aa # ratchet:elastic/docs-actions/.github/workflows/codex-preview-cleanup.yml@v1
+    uses: elastic/docs-actions/.github/workflows/codex-preview-cleanup.yml@v1

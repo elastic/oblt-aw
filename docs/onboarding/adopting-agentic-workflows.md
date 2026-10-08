@@ -2,9 +2,9 @@
 
 ## Overview
 
-**Adopting** a new agentic workflow means: it is **defined in the framework** (`elastic/oblt-aw` — reusable `obs-aw-*` Actions workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trigger-obs-aw-<workflow-id>.yml`** client template. Template source calls `elastic/oblt-aw/.github/workflows/obs-aw-event-*.yml@main`; installed pins follow `pin-class` ([release-model](../operations/release-model.md)).
+**Adopting** a new agentic workflow means: it is **defined in the framework** (`elastic/oblt-aw` — reusable `obs-aw-*` Actions workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **event-scoped** client (`trigger-obs-aw-<event>.yml`) that calls the matching `obs-aw-event-*` orchestrator. Template source stays `@main`; installed pins follow `pin-class` ([release-model](../operations/release-model.md)).
 
-You **cannot** meaningfully “enable” an agentic workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json), the **client template and `obs-aw-*` wrapper** exist, and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane dashboard. An agentic workflow runs only when its checkbox is checked on that Control Plane dashboard (or after sync creates the Control Plane dashboard and you enable it).
+You **cannot** meaningfully “enable” an agentic workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json), the **`obs-aw-*` route** is wired into the matching event orchestrator (and client when the event family is new), and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane dashboard. An agentic workflow runs only when its checkbox is checked on that Control Plane dashboard (or after sync creates the Control Plane dashboard and you enable it).
 
 Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) and [`active-repositories.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json). Gating uses compound ids `org-key:workflow-id` ([`get-enabled-workflows`](../workflows/get-enabled-workflows.md), [Control Plane dashboard format](../operations/control-plane-dashboard-format.md), [multi-org design](../architecture/multi-org-agentic-workflows.md)).
 
@@ -13,19 +13,19 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 ## Prerequisites
 
 - **Framework:** Permission to change `elastic/oblt-aw` on `main` via reviewed pull requests.
-- **Consumer repos:** Target repositories listed in `active-repositories.json` and per-workflow client YAML installed ([Client template](../workflows/obs-aw-client-template.md); the **security detector** uses an ephemeral token — [obs-aw-security-detector](../workflows/obs-aw-security-detector.md)).
+- **Consumer repos:** Target repositories listed in `active-repositories.json` with event-scoped client YAML installed ([Client template](../workflows/obs-aw-client-template.md); the **security detector** uses an ephemeral token — [obs-aw-security-detector](../workflows/obs-aw-security-detector.md)).
 
 ## Framework checklist (`elastic/oblt-aw`)
 
 ### 1. Add the reusable workflow (and upstream lock, if applicable)
 
-- Add `.github/workflows/trigger-obs-aw-<name>.yml (client); obs-aw-<name>.yml` at the repository root.
+- Add `.github/workflows/obs-aw-<name>.yml` (route reusable) at the repository root.
 - When the agent graph lives in **`elastic/ai-github-actions`**, add a thin wrapper that calls the pinned lock file and pass domain-specific `with:` / `secrets:`.
 
 ### 2. Add route contract and event orchestration
 
 - Route reusable (`obs-aw-*` / `docs-aw-*`): declare required `shared-proceed` (and shared allow-list / token-policy inputs); gate agent jobs with `if: inputs.shared-proceed == 'true'` plus event/label/comment guards. Do **not** call `aw-prelude.yml` from route workflows.
-- Event orchestrator (`*-aw-event-*.yml`): first job calls [aw-prelude.yml](../workflows/aw-prelude.md) with `control-plane-workflows` listing every route basename for that GitHub event family; fan out with `fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['<basename>']` ([aw-prelude](../workflows/aw-prelude.md)).
+- Event orchestrator (`*-aw-event-*.yml`): first job calls [aw-prelude.yml](../workflows/aw-prelude.md) with `control-plane-workflows` listing every route basename for that GitHub event family; fan out with `fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['<basename>']` ([aw-prelude](../workflows/aw-prelude.md)). Prefer extending an existing orchestrator for that event family rather than adding a new client file.
 
 ### 3. Mirror permissions from similar workflows
 
@@ -39,9 +39,11 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 - Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (repo-relative path under `docs/workflows/`), and `inner_workflows` (basenames of every `obs-aw-*` / `docs-aw-*` wrapper that share this Control Plane dashboard id) under `config/<org-key>/workflow-registry.json`.
 
-### 6. Add a client template
+### 6. Wire the event-scoped client (only when needed)
 
-- Add `.github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-<workflow-id>.yml` with **only** the triggers for this workflow ([obs-aw client template](../workflows/obs-aw-client-template.md)).
+- Clients are **event-scoped** (`trigger-obs-aw-pull-request.yml`, `trigger-obs-aw-issues.yml`, …), shared by all routes in that event family ([obs-aw client template](../workflows/obs-aw-client-template.md)).
+- If the route fits an existing event family, update that family’s orchestrator (step 2) — do **not** add a new `trigger-obs-aw-<workflow-id>.yml`.
+- Add `.github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-<event>.yml` only when introducing a **new** GitHub event family (or a conditional client such as `trigger-obs-aw-workflow-run.yml`).
 
 ### 7. Update documentation
 

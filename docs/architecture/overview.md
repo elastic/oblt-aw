@@ -2,11 +2,12 @@
 
 ## Overview
 
-`oblt-aw` is an opinionated agentic framework that exposes reusable `obs-aw-*` workflows. Each consumer installs one or more **`trigger-obs-aw-*.yml`** client templates (narrow `on:` triggers) that call the matching framework workflow. Control-plane gating (Control Plane dashboard and allow lists) and optional [APM agentic assets](./apm-agentic-assets.md) resolution run in [aw-prelude](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml) before agent-specific jobs.
+`oblt-aw` is an opinionated agentic framework that exposes reusable `obs-aw-*` workflows. Each consumer installs one or more **event-scoped** **`trigger-obs-aw-*.yml`** client templates (narrow `on:` triggers) that call the matching `obs-aw-event-*` orchestrator. Control-plane gating (Control Plane dashboard and allow lists) runs in [aw-prelude](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml). Optional [APM agentic assets](./apm-agentic-assets.md) resolution runs through [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md) once per `gh-aw-*` agent invocation, not inside the prelude.
 
 Framework workflows:
 
-- [.github/workflows/aw-prelude.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml) (control plane: Control Plane dashboard, allow lists; plus APM asset resolution)
+- [.github/workflows/aw-prelude.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml) (control plane: Control Plane dashboard, allow lists)
+- [.github/workflows/aw-resolve-agentic-assets.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-resolve-agentic-assets.yml) (APM asset resolution; once per agent job)
 - [.github/workflows/get-enabled-workflows.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/get-enabled-workflows.yml) (Control Plane dashboard read; used by prelude)
 
 Specialized workflows:
@@ -29,7 +30,7 @@ Specialized workflows:
 
 ## Usage
 
-Consumer repositories install per-workflow client templates (example):
+Consumer repositories install event-scoped client templates (example):
 
 ```yaml
 # .github/workflows/trigger-obs-aw-pull-request.yml
@@ -43,7 +44,7 @@ jobs:
 
 ## Framework and consumer interaction diagram
 
-The diagram below summarizes **how operators configure the framework in `elastic/oblt-aw`**, **how automation reaches target repositories**, and **how a run delegates** into reusable workflows in this catalog. Each target repository installs **`trigger-obs-aw-<workflow-id>.yml`** files from [remote-workflow-template/obs](https://github.com/elastic/oblt-aw/tree/main/.github/remote-workflow-template/obs) with **event-specific `on:`** triggers; each client job calls the matching **`obs-aw-*`** workflow, which runs **prelude** then agent steps.
+The diagram below summarizes **how operators configure the framework in `elastic/oblt-aw`**, **how automation reaches target repositories**, and **how a run delegates** into reusable workflows in this catalog. Each target repository installs **event-scoped** **`trigger-obs-aw-<event>.yml`** files from [remote-workflow-template/obs](https://github.com/elastic/oblt-aw/tree/main/.github/remote-workflow-template/obs); each client job calls the matching **`obs-aw-event-*`** orchestrator, which runs **prelude** once then fans out to route workflows.
 
 ```mermaid
 flowchart TB
@@ -66,7 +67,7 @@ flowchart TB
 
   subgraph CON["Target repository (consumer)"]
     EVT["Target-repo GitHub activity\nschedule, issues, pull_request, …"]
-    CLIENT["Client trigger-obs-aw-*.yml per workflow\nfrom remote-workflow-template\nnarrow on: triggers"]
+    CLIENT["Client trigger-obs-aw-*.yml per event family\nfrom remote-workflow-template\nnarrow on: triggers"]
     DASH["Issue: [oblt-aw] Control Plane Dashboard\nlabel oblt-aw/dashboard"]
     EVT --> CLIENT
     DASH -.->|checkbox state| GET

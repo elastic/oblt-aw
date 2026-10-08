@@ -8,7 +8,7 @@ applies_to: {}
 
 ## Symptom
 
-After a repository was added to `active-repositories.json`, client workflows fail on `create-token`, or cross-repo onboard PRs cannot mint tokens. The catalog-info TokenPolicy PR was still open or merged after registration.
+After a repository was added to `active-repositories.json`, installed client workflows fail on `create-token`. The consumer’s catalog-info TokenPolicy PR was still open or merged after registration. (Onboarding-agent mint failures use a separate policy in `config/onboard-repository.json`, not the consumer TokenPolicy.)
 
 ## Cause
 

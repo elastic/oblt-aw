@@ -20,10 +20,11 @@ Observability Robots may link here with Docs v3 cross-links (`oblt-aw://…`) fr
 
 | Workflow | When | Purpose |
 |----------|------|---------|
-| [`.github/workflows/codex-preview.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/codex-preview.yml) | PR and push to `main` touching `docs/**` | Build and publish Codex preview / production update |
+| [`.github/workflows/codex-preview.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/codex-preview.yml) | PR touching `docs/**` | Build and deploy a Codex **preview** |
+| [`.github/workflows/codex-preview.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/codex-preview.yml) | Push to `main` touching `docs/**` | Build the docset and update the Codex **link index** (centralized production build consumes the index; this job does not deploy production) |
 | [`.github/workflows/codex-preview-cleanup.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/codex-preview-cleanup.yml) | Any PR closed | Remove preview deployment (no-ops if none) |
 
-Both call reusable workflows from `elastic/docs-actions`. File names must stay `codex-preview.yml` and `codex-preview-cleanup.yml` (OIDC / Vault bindings).
+Both call reusable workflows from `elastic/docs-actions` at `@v1`. File names must stay `codex-preview.yml` and `codex-preview-cleanup.yml` (OIDC / Vault bindings).
 
 ## One-time platform registration
 
