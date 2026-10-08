@@ -4,7 +4,7 @@
 
 Workflow enablement is controlled **only** through the Control Plane Dashboard issue in your repository — not through `active-repositories.json` or config files in the consumer repo.
 
-The workflow **already exists** in your org’s `workflow-registry.json`, the control-plane wrappers are shipped, and your repository is registered. You opt in or out from the dashboard and confirm the event-scoped client for its trigger type is installed.
+The workflow **already exists** in your org’s `workflow-registry.json`, the control-plane wrappers are shipped, your repository is registered, and [distribute-client-workflow](../operations/distribute-client-workflow.md) has installed the event-scoped client triggers. You opt in or out from the dashboard.
 
 This guide does **not** cover shipping a **new** workflow on the control plane — that is a maintainer task. See [Add a new agentic workflow](../admin-guide/add-a-new-agentic-workflow.md).
 
@@ -18,13 +18,11 @@ This guide does **not** cover shipping a **new** workflow on the control plane �
 
 1. **Confirm the workflow row on the dashboard** — Open the issue labeled `oblt-aw/dashboard`. If the workflow is missing, wait for dashboard sync after a control-plane merge, or ask a maintainer to confirm the workflow is registered in `workflow-registry.json`.
 
-2. **Confirm the matching workflow file is installed** — Agentic workflows share one GitHub Actions workflow file per event family (for example `trigger-obs-aw-issues.yml` for `issues` events), not one file per workflow id. Check that file under `.github/workflows/`. See [Client template index](../workflows/obs-aw-client-template.md). If it is missing, see [distribute-client-workflow](../operations/distribute-client-workflow.md).
+2. **Configure secrets (if required)** — Read the workflow’s doc under [docs/workflows/](../workflows/index.md) (for example `obs-aw-<name>.md`). Some workflows need no repository secrets (for example [obs-aw-security-detector](../workflows/obs-aw-security-detector.md) uses ephemeral tokens only). See [Configure a GitHub secret](../troubleshooting/configure-a-github-secret.md).
 
-3. **Configure secrets (if required)** — Read the workflow’s doc under [docs/workflows/](../workflows/index.md) (for example `obs-aw-<name>.md`). Some workflows need no repository secrets (for example [obs-aw-security-detector](../workflows/obs-aw-security-detector.md) uses ephemeral tokens only). See [Configure a GitHub secret](../troubleshooting/configure-a-github-secret.md).
+3. **Check the workflow on the dashboard** — Open the dashboard issue and check the checkbox for the workflow. GitHub saves immediately on click. See [Control Plane Dashboard — enabling a workflow](../operations/control-plane-dashboard.md#enabling-a-workflow).
 
-4. **Check the workflow on the dashboard** — Open the dashboard issue and check the checkbox for the workflow. GitHub saves immediately on click. See [Control Plane Dashboard — enabling a workflow](../operations/control-plane-dashboard.md#enabling-a-workflow).
-
-5. **Trigger or wait for a client run** — Gating applies on the next client workflow run (`pull_request`, `issues`, `schedule`, and so on). Checking a box does not run workflows immediately. See [get-enabled-workflows](../workflows/get-enabled-workflows.md).
+4. **Trigger or wait for a client run** — Gating applies on the next client workflow run (`pull_request`, `issues`, `schedule`, and so on). Checking a box does not run workflows immediately. See [get-enabled-workflows](../workflows/get-enabled-workflows.md).
 
 ## Disable a workflow
 

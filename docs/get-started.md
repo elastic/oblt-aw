@@ -23,8 +23,7 @@ If the repository is **already** registered, skip to step 2.
 ## 2. Enable workflows
 
 1. Open the `[oblt-aw] Control Plane Dashboard` issue in your repository (GitHub label `oblt-aw/dashboard`).
-2. Confirm the matching workflow file is installed under `.github/workflows/` (for example `trigger-obs-aw-pull-request.yml`).
-3. Check the workflow row. GitHub saves on click; the next matching event applies gating.
+2. Check the workflow row. GitHub saves on click; the next matching event applies gating.
 
 For further details, see [Enable or disable a workflow](user-guide/enable-a-new-workflow.md).
 
