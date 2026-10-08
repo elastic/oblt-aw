@@ -1,14 +1,12 @@
 ---
-navigation_title: Filename index
-description: Filename-oriented index of every workflow source documented under docs/workflows.
+navigation_title: All workflow docs
+description: Alphabetical index of every workflow document under docs/workflows.
 applies_to: {}
 ---
 
-# Workflow catalog (filename index)
+# All workflow docs
 
-Documentation for each workflow source in [.github/workflows/](https://github.com/elastic/oblt-aw/tree/main/.github/workflows) and the distributed client template source.
-
-**Prefer the outcome view first:** [Catalog by outcome](by-outcome.md).
+Alphabetical index of every workflow document under `docs/workflows/` (framework sources and client templates). Prefer [Catalog by outcome](by-outcome.md) if you are choosing what to enable.
 
 ## Job naming (Actions UI)
 
@@ -23,7 +21,7 @@ Shared framework jobs use **kebab-case, action-oriented** ids with domain contex
 | Gate evaluation | `evaluate-workflow-gates` |
 | Agentic asset resolve (leaf reusable) | `resolve-agentic-assets` |
 
-## All workflow docs
+## Index
 
 - [Agent suggestions](obs-aw-agent-suggestions.md)
 - [Allow-list loader](load-allowed-authors.md)

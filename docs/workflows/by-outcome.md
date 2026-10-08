@@ -51,6 +51,6 @@ Related: [Security triage](obs-aw-security-triage.md), [Security fixer](obs-aw-s
 | Docs Issue AI Menu | experimental | Issue AI menu for the Docs org | [docs-aw-ai-menu](docs-aw-ai-menu.md) |
 | Docs PR AI Menu | experimental | PR AI menu for the Docs org | [docs-aw-pr-ai-menu](docs-aw-pr-ai-menu.md) |
 
-## Filename index
+## All workflow docs
 
-Maintainer-oriented list of every workflow source file: [Workflow catalog (filename index)](index.md).
+Alphabetical index of every workflow document (framework sources and client templates): [All workflow docs](index.md).
