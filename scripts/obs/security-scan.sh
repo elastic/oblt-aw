@@ -60,6 +60,67 @@ touch "$FINDINGS_TMP"
 cleanup() { rm -f "$FINDINGS_TMP"; }
 trap cleanup EXIT
 
+# --- SEC-002: `${{ secrets.* }}` interpolation in workflow run command text ---
+if [ -d "$REPO_ROOT/.github/workflows" ]; then
+  (
+    cd "$REPO_ROOT" || exit 0
+    find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) -print 2>/dev/null
+  ) | while IFS= read -r wf; do
+    [ -f "$REPO_ROOT/$wf" ] || continue
+    awk '
+      function leading_spaces(s, t) {
+        t = s
+        sub(/[^ ].*$/, "", t)
+        return length(t)
+      }
+      function has_secret_interpolation(s) {
+        return s ~ /\$\{\{[[:space:]]*secrets\./
+      }
+      BEGIN {
+        in_run_block = 0
+        run_indent = -1
+      }
+      {
+        line = $0
+        trimmed = line
+        sub(/^[[:space:]]+/, "", trimmed)
+        indent = leading_spaces(line)
+
+        if (in_run_block) {
+          # run block ends when indentation returns to run key level or less.
+          if (trimmed != "" && indent <= run_indent) {
+            in_run_block = 0
+          } else {
+            if (has_secret_interpolation(line)) {
+              print NR
+            }
+            next
+          }
+        }
+
+        if (trimmed ~ /^run:[[:space:]]*/ || trimmed ~ /^-[[:space:]]+run:[[:space:]]*/) {
+          run_indent = indent
+          rest = trimmed
+          sub(/^-[[:space:]]+run:[[:space:]]*/, "", rest)
+          sub(/^run:[[:space:]]*/, "", rest)
+
+          if (rest ~ /^[>|][[:space:]]*/) {
+            in_run_block = 1
+            if (has_secret_interpolation(line)) {
+              print NR
+            }
+          } else if (has_secret_interpolation(rest)) {
+            print NR
+          }
+        }
+      }
+    ' "$REPO_ROOT/$wf" 2>/dev/null | while IFS= read -r line_no; do
+      emit "${wf#./}" "$line_no" "SEC-002" "high" "workflow run command text interpolates \${{ secrets.* }} directly; use env indirection." \
+        >>"$FINDINGS_TMP"
+    done
+  done
+fi
+
 # --- SEC-011: standalone shell scripts (shellcheck) ---
 (
   cd "$REPO_ROOT" || exit 0
@@ -94,7 +155,6 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v actionlint >/dev/null 2>&
     .kind as $k |
     (if $k == "credentials" then "SEC-020"
      elif $k == "shellcheck" then "SEC-011"
-     elif (.message | test("secret"; "i")) then "SEC-002"
      else "SEC-010" end) as $rule |
     (if $k == "credentials" then "high"
      elif $k == "shellcheck" then "medium"
@@ -134,7 +194,7 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
         "ref-confusion": "SEC-030",
         "ref-version-mismatch": "SEC-030",
         "impostor-commit": "SEC-030",
-        "secrets-outside-env": "SEC-002",
+        "secrets-outside-env": "SEC-022",
         "unredacted-secrets": "SEC-021",
         "hardcoded-container-credentials": "SEC-020",
         "overprovisioned-secrets": "SEC-022",
