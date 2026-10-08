@@ -28,8 +28,8 @@ Continue to the full [Get started](get-started.md) guide.
 
 | Section | Audience |
 |---------|----------|
-| [Glossary](glossary.md) | Shared terms (framework, control plane, Control Plane dashboard) |
 | [User guide](user-guide/index.md) | Developers and repo owners (onboard, enable, Automerge, catalog) |
 | [Admin guide](admin-guide/index.md) | Maintainers who change the framework |
 | [Troubleshooting](troubleshooting/index.md) | Failed runs and secrets |
 | [Knowledge base](knowledge-base/index.md) | Architecture and Frequently Asked Problems |
+| [Glossary](glossary.md) | Shared terms (framework, control plane, Control Plane dashboard) |

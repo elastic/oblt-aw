@@ -12,7 +12,6 @@ exclude:
 toc:
   - file: index.md
   - file: get-started.md
-  - file: glossary.md
   - folder: user-guide
     children:
       - file: index.md
@@ -124,3 +123,4 @@ toc:
       - hidden: ./dependency-review-e2e.md
       - hidden: ./estc-pr-buildkite-detective-e2e.md
       - hidden: ./pr-actions-detective-e2e.md
+  - file: glossary.md
