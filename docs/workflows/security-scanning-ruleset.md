@@ -40,7 +40,7 @@ The table below documents how each rule ID is currently represented in the detec
 | Rule ID | Implemented in detector | Primary implementation path |
 |---------|-------------------------|-----------------------------|
 | SEC-001 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
-| SEC-002 | Yes | `actionlint` secret message mapping and `zizmor` `secrets-outside-env` mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
+| SEC-002 | Yes | `actionlint` secret message mapping plus `zizmor` `secrets-outside-env` only when the matched line is `${{ secrets.* }}` inside `run:` command text (generated `.lock.yml` excluded) in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-003 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-010 | Yes | `actionlint` expression mapping, `zizmor` template/github-env mappings, and `semgrep` injection mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-011 | Yes | `shellcheck` and `actionlint` shellcheck mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
