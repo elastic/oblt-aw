@@ -13,7 +13,6 @@ Procedures for developers and repo owners who use OBLT Agentic Workflows in a co
 | Goal | Guide |
 |------|--------|
 | Onboard a repository that is not registered yet | [Onboard a repository](onboard-a-repository.md) |
-| Quick link to onboarding | [Start from scratch](start-from-scratch.md) |
 | Enable or disable an agentic workflow from the dashboard | [Enable or disable an agentic workflow](enable-a-new-workflow.md) |
 | Choose which dependency-update bots Automerge covers | [Choose Automerge services](automerge-services.md) |
 | See what agentic workflows do and when they run | [Agentic workflow catalog by outcome](../workflows/by-outcome.md) |

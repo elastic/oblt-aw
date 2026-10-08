@@ -16,7 +16,6 @@ toc:
     children:
       - file: index.md
       - file: onboard-a-repository.md
-      - file: start-from-scratch.md
       - file: enable-a-new-workflow.md
       - file: automerge-services.md
   - folder: admin-guide
