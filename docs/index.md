@@ -15,7 +15,7 @@ Upstream agent behavior (what the agent does on an issue or PR) lives in [AI Git
 1. [Onboard your repository](user-guide/onboard-a-repository.md) — open one issue in `elastic/oblt-aw`, merge the agent-opened PRs, then use the dashboard.
 2. [Enable or disable an agentic workflow](user-guide/enable-a-new-workflow.md) — check or uncheck the box on the Control Plane Dashboard; gating applies on the next matching event.
 
-Step-by-step: [Get started](get-started.md).
+Continue to the full [Get started](get-started.md) guide.
 
 ## Guides
 
