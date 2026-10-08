@@ -56,6 +56,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
 
@@ -71,6 +72,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ inputs.checkout-ref }}
 
       - name: Set up Python
