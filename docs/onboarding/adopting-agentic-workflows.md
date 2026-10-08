@@ -37,7 +37,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 5. Register in `workflow-registry.json`
 
-- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (repo-relative path under `docs/workflows/`), and `inner_workflows` (basenames of every `obs-aw-*` / `docs-aw-*` wrapper that share this Control Plane dashboard id) under `config/<org-key>/workflow-registry.json`.
+- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (any repo-relative documentation path; usually under `docs/workflows/`), and `inner_workflows` (basenames of every `obs-aw-*` / `docs-aw-*` wrapper that share this Control Plane dashboard id) under `config/<org-key>/workflow-registry.json`.
 
 ### 6. Wire the event-scoped client (only when needed)
 

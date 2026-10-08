@@ -29,7 +29,7 @@ Follow the framework checklist in [Adopting a new remote agentic workflow](../on
 
 2. **Add route contract and event orchestration** — Route reusables declare `shared-proceed`; event orchestrators (`obs-aw-event-*.yml`) call [aw-prelude](../workflows/aw-prelude.md) once and fan out. Add your route basename to the matching orchestrator’s `control-plane-workflows` input when the GitHub event family already exists. Route workflows must not call `aw-prelude` directly.
 
-3. **Register in `workflow-registry.json`** — Add `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (repo-relative path under `docs/workflows/`), and `inner_workflows` under `config/<org-key>/`.
+3. **Register in `workflow-registry.json`** — Add `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (any repo-relative documentation path; usually under `docs/workflows/`, sometimes a user-guide page such as `docs/user-guide/automerge-services.md`), and `inner_workflows` under `config/<org-key>/`.
 
    Example shape from [config/obs/workflow-registry.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) (adapt fields for the new id):
 
