@@ -55,6 +55,6 @@ Script: [scripts/dashboard_audit.py](https://github.com/elastic/oblt-aw/blob/mai
 ## References
 
 - [Control Plane Dashboard — user instructions](../operations/control-plane-dashboard.md)
-- [Enable or disable a workflow](../user-guide/enable-a-new-workflow.md)
+- [Enable or disable an agentic workflow](../user-guide/enable-a-new-workflow.md)
 - [sync-control-plane-dashboard](sync-control-plane-dashboard.md)
 - [Routing README](../routing/index.md)

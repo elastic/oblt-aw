@@ -15,8 +15,8 @@ Use this checklist when a workflow run fails or a user reports that agentic work
    - **Consumer repo** (`trigger-obs-aw-*.yml`): start with the client template and event orchestrator. See [Client template index](../workflows/obs-aw-client-template.md).
    - **`elastic/oblt-aw`**: control-plane operation (distribution, dashboard sync, CI). See [docs/workflows/](../workflows/index.md) for the matching workflow doc.
 
-2. **Check dashboard gating** — If jobs were skipped or `shared-proceed` is false, the workflow may not be enabled on the Control Plane Dashboard.
-   - Confirm an open dashboard issue exists and the workflow checkbox is checked. See [Control Plane Dashboard](../operations/control-plane-dashboard.md).
+2. **Check dashboard gating** — If jobs were skipped or `shared-proceed` is false, the agentic workflow may not be enabled on the Control Plane Dashboard.
+   - Confirm an open dashboard issue exists and the agentic workflow checkbox is checked. See [Control Plane Dashboard](../operations/control-plane-dashboard.md).
    - Review [get-enabled-workflows](../workflows/get-enabled-workflows.md) and [aw-prelude](../workflows/aw-prelude.md) outputs (`effective-raw`, `enabled-workflows`, `proceed-by-workflow`).
 
 3. **Check registration and distribution** — For new or recently registered repositories:

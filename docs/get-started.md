@@ -20,16 +20,21 @@ For further details, see [Onboard a repository](user-guide/onboard-a-repository.
 
 If the repository is **already** registered, skip to step 2.
 
-## 2. Enable workflows
+## 2. Enable agentic workflows
 
 1. Open the `[oblt-aw] Control Plane Dashboard` issue in your repository (GitHub label `oblt-aw/dashboard`).
-2. Check the workflow row. GitHub saves on click; the next matching event applies gating.
+2. Check the agentic workflow row. GitHub saves on click; the next matching event applies gating.
 
-For further details, see [Enable or disable a workflow](user-guide/enable-a-new-workflow.md).
+:::{image} images/control-plane-dashboard-enable.png
+:alt: Control Plane Dashboard Enable/Disable checkboxes for agentic workflows
+:screenshot:
+:::
+
+For further details, see [Enable or disable an agentic workflow](user-guide/enable-a-new-workflow.md).
 
 ## 3. Pick what agentic automation you need
 
-Browse by what you want to automate: [Workflow catalog by outcome](workflows/by-outcome.md).
+Browse by what you want to automate: [Agentic workflow catalog by outcome](workflows/by-outcome.md).
 
 For Automerge categories: [Choose Automerge services](user-guide/automerge-services.md).
 

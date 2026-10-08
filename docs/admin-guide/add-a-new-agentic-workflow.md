@@ -4,7 +4,7 @@
 
 You are shipping a **new** routed workflow on the `elastic/oblt-aw` control plane so consumer repositories can enable it from the Control Plane Dashboard.
 
-This is the maintainer path. Repo owners who only need to **enable** an existing workflow should use [Enable or disable a workflow](../user-guide/enable-a-new-workflow.md).
+This is the maintainer path. Repo owners who only need to **enable** an existing agentic workflow should use [Enable or disable an agentic workflow](../user-guide/enable-a-new-workflow.md).
 
 ## Prerequisites
 
@@ -29,7 +29,7 @@ Follow the control-plane checklist in [Adopting a new remote agentic workflow](.
 
 6. **Validate and merge** — CI must pass. After merge, [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) adds the new checkbox to consumer dashboards.
 
-7. **Consumer adoption** — Registered repos receive template updates via [distribute-client-workflow](../operations/distribute-client-workflow.md). Users enable the workflow from the dashboard ([Enable or disable a workflow](../user-guide/enable-a-new-workflow.md)).
+7. **Consumer adoption** — Registered repos receive template updates via [distribute-client-workflow](../operations/distribute-client-workflow.md). Users enable the agentic workflow from the dashboard ([Enable or disable an agentic workflow](../user-guide/enable-a-new-workflow.md)).
 
 When a workflow calls `gh-aw-*`, each agent job must invoke [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md) immediately before the lock file (enforced by CI).
 

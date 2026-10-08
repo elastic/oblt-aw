@@ -1,12 +1,12 @@
 ---
 navigation_title: Home
-description: Developer docs for OBLT Agentic Workflows (oblt-aw) — onboard a repo, enable workflows, and operate the fleet.
+description: Developer docs for OBLT Agentic Workflows (oblt-aw) — onboard a repo, enable agentic workflows, and operate the fleet.
 applies_to: {}
 ---
 
 # OBLT Agentic Workflows (`oblt-aw`)
 
-**oblt-aw** is the shared control plane for [GitHub Agentic Workflows](https://github.github.com/gh-aw/) across Elastic repositories. We distribute the workflows; you turn them on or off from a Control Plane Dashboard in your repository.
+**oblt-aw** is the shared control plane for [GitHub Agentic Workflows](https://github.github.com/gh-aw/) across Elastic repositories. We distribute the agentic workflows; you turn them on or off from a Control Plane Dashboard in your repository.
 
 Upstream agent behavior (what the agent does on an issue or PR) lives in [AI GitHub Actions](https://elastic.github.io/ai-github-actions/). This portal covers how Elastic developers **adopt and operate** those agents through `oblt-aw`.
 

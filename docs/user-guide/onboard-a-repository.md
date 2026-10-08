@@ -2,7 +2,7 @@
 
 ## Overview
 
-Use this guide when you want OBLT Agentic Workflows (`oblt-aw`) in a repository that is **not yet registered**. You open one issue in `elastic/oblt-aw`; automation opens the required pull requests; you merge them; then you enable workflows from the Control Plane Dashboard in your repository.
+Use this guide when you want OBLT Agentic Workflows (`oblt-aw`) in a repository that is **not yet registered**. You open one issue in `elastic/oblt-aw`; automation opens the required pull requests; you merge them; then you enable agentic workflows from the Control Plane Dashboard in your repository.
 
 Technical registration detail for maintainers and agents: [Registering resources](../onboarding/registering-a-repository.md).
 
@@ -20,7 +20,7 @@ Technical registration detail for maintainers and agents: [Registering resources
    - **Repository** — `elastic/<repo>` (example: `elastic/my-repo`).
    - **Organization key** — `obs` or `docs` (matches a `config/<org-key>/` folder in `elastic/oblt-aw`).
 
-3. **Submit** — The form applies the label `oblt-aw/onboard/repository`. That starts the in-repo agent `gh-aw-onboard-repository` in `elastic/oblt-aw` only (this is **not** a consumer catalog / Control Plane Dashboard workflow).
+3. **Submit** — The form applies the label `oblt-aw/onboard/repository`. That starts the in-repo agent `gh-aw-onboard-repository` in `elastic/oblt-aw` only (this is **not** a consumer catalog / Control Plane Dashboard agentic workflow).
 
 4. **Wait for the agent checklist comment** — The agent posts progress on the issue and opens **separate, normal (non-draft) pull requests**, one concern per PR. Typical PRs:
 
@@ -29,15 +29,15 @@ Technical registration detail for maintainers and agents: [Registering resources
    | 1 | `elastic/catalog-info` | TokenPolicy for client `create-token` |
    | 2 | `elastic/oblt-aw` | Entry in `config/<org-key>/active-repositories.json` |
    | 3 | `elastic/observability-github-settings` | Vault app in classic BP `pull_request_bypassers` (and merge-queue ruleset `bypass_actors` when present) |
-   | 4 | `elastic/observability-github-secrets` | When org workflow docs’ **Prerequisites** (or **API / Interface**) require consumer secrets; otherwise the agent notes “none” |
+   | 4 | `elastic/observability-github-secrets` | When org agentic workflow docs’ **Prerequisites** (or **API / Interface**) require consumer secrets; otherwise the agent notes “none” |
 
-5. **Merge manually in order** — Humans merge. Merge the **catalog-info** TokenPolicy PR **before** the **oblt-aw** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed workflows in production. Auto-merge of these PRs is **out of scope** for now.
+5. **Merge manually in order** — Humans merge. Merge the **catalog-info** TokenPolicy PR **before** the **oblt-aw** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed agentic workflows in production. Auto-merge of these PRs is **out of scope** for now.
 
 6. **After the oblt-aw registration PR merges to `main`** — Existing automation opens an agentic workflows triggers PR in your repository (`trigger-obs-aw-*.yml` or docs equivalents) via [distribute-client-workflow](../operations/distribute-client-workflow.md), and creates a **Control Plane Dashboard** issue via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
 
    Merge the agentic workflows triggers PR. Confirm the dashboard issue exists (title `[oblt-aw] Control Plane Dashboard`, GitHub label `oblt-aw/dashboard`).
 
-7. **Enable or disable workflows** — In your repository, open the Control Plane Dashboard issue and check or uncheck the workflows you want. GitHub saves on click. Workflows apply on the next supported client trigger. See [Enable or disable a workflow](enable-a-new-workflow.md).
+7. **Enable or disable agentic workflows** — In your repository, open the Control Plane Dashboard issue and check or uncheck the agentic workflows you want. GitHub saves on click. Agentic workflows apply on the next supported client trigger. See [Enable or disable an agentic workflow](enable-a-new-workflow.md).
 
 ## Troubleshooting
 

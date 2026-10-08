@@ -8,7 +8,7 @@ This document explains how to use the OBLT AW Control Plane Dashboard to enable 
 
 ## What Is the Dashboard?
 
-The Control Plane Dashboard is a single GitHub Issue in your repository that lists all available agentic workflows. It provides a Renovate Dependency Dashboard–style interface: you enable or disable each workflow by checking or unchecking task list items.
+The Control Plane Dashboard is a single GitHub Issue in your repository that lists all available agentic workflows. It provides a Renovate Dependency Dashboard–style interface: you enable or disable each agentic workflow by checking or unchecking task list items.
 
 - **Title:** `[oblt-aw] Control Plane Dashboard`
 - **Label:** `oblt-aw/dashboard`
@@ -24,30 +24,30 @@ The Control Plane Dashboard is a single GitHub Issue in your repository that lis
 2. Search for `label:oblt-aw/dashboard` or `in:title "Control Plane Dashboard"`
 3. If the dashboard does not exist, it will be created when your repository is added to an org’s `config/<org-key>/active-repositories.json` in `elastic/oblt-aw` and the sync workflow runs
 
-### Enabling a Workflow
+### Enabling an agentic workflow
 
 1. Open the Control Plane Dashboard issue
-2. Find the workflow you want to enable
-3. **Check** the checkbox next to the workflow (click it). GitHub saves the change immediately.
+2. Find the agentic workflow you want to enable
+3. **Check** the checkbox next to the agentic workflow (click it). GitHub saves the change immediately.
 
-There is no config file. When the client workflow runs, the ingress (`get-enabled-workflows`) reads the dashboard issue at runtime and applies `enabled-workflows` gating. The workflow will run on the next trigger (e.g. `schedule`, `workflow_dispatch`, `pull_request`).
+There is no config file. When the client workflow runs, the ingress (`get-enabled-workflows`) reads the dashboard issue at runtime and applies `enabled-workflows` gating. The agentic workflow runs on the next trigger (e.g. `schedule`, `workflow_dispatch`, `pull_request`).
 
-### Disabling a Workflow
+### Disabling an agentic workflow
 
 1. Open the Control Plane Dashboard issue
-2. Find the workflow you want to disable
-3. **Uncheck** the checkbox next to the workflow (click it). GitHub saves the change immediately.
+2. Find the agentic workflow you want to disable
+3. **Uncheck** the checkbox next to the agentic workflow (click it). GitHub saves the change immediately.
 4. An **audit comment** is posted on the same issue asking for a short **deactivation reason** and mentioning `@elastic/observablt-ci`. Reply on the issue with the reason so it is recorded on the audit entry.
 
-The ingress dashboard stage excludes the workflow from `enabled-workflows` at runtime. The workflow will no longer run for your repository until you enable it again.
+The ingress dashboard stage excludes the agentic workflow from `enabled-workflows` at runtime. The agentic workflow will no longer run for your repository until you enable it again.
 
 ### Audit trail
 
-Every enable or disable of a workflow or sub-feature checkbox produces a comment on the Control Plane Dashboard issue with **when**, **what** (compound id + enabled/disabled), and **who**. Activations are audit-only (no team mention). Deactivations require a reason (via follow-up comment) and mention `@elastic/observablt-ci`. Sync / `force-sync-defaults` resets are also audited (actor = automation, fixed reason string). See [aw-dashboard-audit](../workflows/aw-dashboard-audit.md).
+Every enable or disable of an agentic workflow or sub-feature checkbox produces a comment on the Control Plane Dashboard issue with **when**, **what** (compound id + enabled/disabled), and **who**. Activations are audit-only (no team mention). Deactivations require a reason (via follow-up comment) and mention `@elastic/observablt-ci`. Sync / `force-sync-defaults` resets are also audited (actor = automation, fixed reason string). See [aw-dashboard-audit](../workflows/aw-dashboard-audit.md).
 
-### Sub-features (composite workflows)
+### Sub-features (composite agentic workflows)
 
-Some workflows expose **indented child checkboxes** under the parent on the Control Plane Dashboard. These let you enable or disable individual parts of a composite workflow (for example, specific dependency collections under Automerge).
+Some agentic workflows expose **indented child checkboxes** under the parent on the Control Plane Dashboard. These let you enable or disable individual parts of a composite agentic workflow (for example, specific dependency collections under Automerge).
 
 For Automerge, these child checkboxes are **service enrollments**: first enable Automerge, then choose which dependency-update categories you want it to merge. See [Automerge services](../user-guide/automerge-services.md) for the user-facing catalogue.
 
@@ -57,15 +57,15 @@ For Automerge, these child checkboxes are **service enrollments**: first enable 
 | Checked | Unchecked | Parent runs; that sub-feature does not |
 | Checked | Checked | Parent runs; that sub-feature runs |
 
-Sub-features only take effect while the parent workflow is enabled.
+Sub-features only take effect while the parent agentic workflow is enabled.
 
 ---
 
 ## What Happens at Runtime
 
-1. **You edit the issue** — Check or uncheck one or more workflow checkboxes (no PRs). An [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) comment records when / what / who on the same issue; deactivations also ask for a reason and mention `@elastic/observablt-ci`.
+1. **You edit the issue** — Check or uncheck one or more agentic workflow checkboxes (no PRs). An [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) comment records when / what / who on the same issue; deactivations also ask for a reason and mention `@elastic/observablt-ci`.
 2. **Client runs** — On the next trigger (schedule, workflow_dispatch, pull_request, etc.), the client workflow starts
-3. **`get-enabled-workflows` runs inside the ingress** — If there is no open dashboard issue, `effective-raw` is empty and normalized `enabled-workflows` is `[]` (no workflows run). Otherwise it fetches the issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:<org-key>:<workflow-id> -->` at line start; legacy `obs` lines without an org segment are accepted), and writes normalized `enabled-workflows` as a JSON array string (`[]` or `["org:workflow-id", ...]`).
+3. **`get-enabled-workflows` runs inside the ingress** — If there is no open dashboard issue, `effective-raw` is empty and normalized `enabled-workflows` is `[]` (no agentic workflows run). Otherwise it fetches the issue via API, parses checkboxes (`^- [x] <!-- oblt-aw:<org-key>:<workflow-id> -->` at line start; legacy `obs` lines without an org segment are accepted), and writes normalized `enabled-workflows` as a JSON array string (`[]` or `["org:workflow-id", ...]`).
 4. **Ingress gating** — The ingress uses `enabled-workflows` and `effective-raw` from `get-enabled-workflows` to gate downstream jobs.
 5. **Ingress gates execution** — Empty `effective-raw` or `enabled-workflows == []` → none; non-empty `enabled-workflows` → only listed compound ids. See [Default Behavior](#default-behavior).
 
@@ -75,15 +75,15 @@ Sub-features only take effect while the parent workflow is enabled.
 
 | Dashboard state | Result |
 |-----------------|--------|
-| **No dashboard exists** | All workflows are deactivated |
-| **Dashboard exists, all checkboxes unchecked** | All workflows are deactivated |
-| **Dashboard exists, some checkboxes checked** | Only checked workflows are executed |
+| **No dashboard exists** | All agentic workflows are deactivated |
+| **Dashboard exists, all checkboxes unchecked** | All agentic workflows are deactivated |
+| **Dashboard exists, some checkboxes checked** | Only checked agentic workflows are executed |
 
 ---
 
 ## Maturity Badges
 
-Each workflow in the dashboard shows a maturity level:
+Each agentic workflow in the dashboard shows a maturity level:
 
 | Maturity       | Meaning                                                                 |
 |----------------|-------------------------------------------------------------------------|

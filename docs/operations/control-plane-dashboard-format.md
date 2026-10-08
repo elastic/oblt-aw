@@ -82,8 +82,8 @@ Click a checkbox to enable or disable a workflow:
 
 ### Instructions
 
-- **Enable a workflow:** Check the checkbox next to the workflow.
-- **Disable a workflow:** Uncheck the checkbox.
+- **Enable an agentic workflow:** Check the checkbox next to the agentic workflow.
+- **Disable an agentic workflow:** Uncheck the checkbox.
 - Changes are applied at runtime when the client runs; `get-enabled-workflows` reads this issue and supplies `enabled-workflows` to the ingress.
 ```
 
@@ -188,11 +188,11 @@ To extract enabled workflows from the issue body (when a dashboard issue exists)
 
 The dashboard MUST include clear instructions. Recommended text:
 
-- **Enable a workflow:** Check the checkbox next to the workflow. `get-enabled-workflows` will include its compound id in `enabled-workflows` at runtime.
-- **Disable a workflow:** Uncheck the checkbox. `get-enabled-workflows` will exclude it from `enabled-workflows` at runtime.
-- **Sub-features:** Some workflows expose indented child checkboxes. Enable or disable individual parts of a composite workflow. Sub-features apply only while the parent workflow is enabled.
+- **Enable an agentic workflow:** Check the checkbox next to the agentic workflow. `get-enabled-workflows` will include its compound id in `enabled-workflows` at runtime.
+- **Disable an agentic workflow:** Uncheck the checkbox. `get-enabled-workflows` will exclude it from `enabled-workflows` at runtime.
+- **Sub-features:** Some agentic workflows expose indented child checkboxes. Enable or disable individual parts of a composite agentic workflow. Sub-features apply only while the parent agentic workflow is enabled.
 - **When changes apply:** The dashboard is read at runtime when the client runs. No config file; no PRs on checkbox edits.
-- **Default behavior:** No dashboard or dashboard with all unchecked → no workflows run; dashboard exists with some checked → only checked workflows executed.
+- **Default behavior:** No dashboard or dashboard with all unchecked → no agentic workflows run; dashboard exists with some checked → only checked agentic workflows executed.
 
 ---
 
