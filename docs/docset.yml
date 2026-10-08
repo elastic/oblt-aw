@@ -41,6 +41,13 @@ toc:
     children:
       - file: index.md
       - file: architecture.md
+      - folder: qa
+        children:
+          - file: index.md
+          - file: e2e.md
+          - file: integration.md
+          - file: unit.md
+      - file: release.md
   - folder: workflows
     children:
       - file: by-outcome.md
@@ -94,7 +101,7 @@ toc:
       - hidden: ./control-plane-dashboard.md
       - hidden: ./distribute-client-workflow.md
       - hidden: ./workflow-maturity.md
-      - hidden: ./agentic-release-model.md
+      - hidden: ./release-model.md
       - hidden: ./control-plane-dashboard-format.md
   - folder: routing
     children:

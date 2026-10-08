@@ -14,7 +14,7 @@ Client templates are grouped by **GitHub event family** so co-triggered routes s
 uses: elastic/oblt-aw/.github/workflows/docs-aw-event-pull-request.yml@main
 ```
 
-Template source stays `@main`. Distribute substitutes the production moving major for `pin-class: production` installs after the first promote; `development` installs keep `@main` (see [agentic-release-model](../operations/agentic-release-model.md)).
+Template source stays `@main`. Distribute substitutes the production moving major for `pin-class: production` installs after the first promote; `development` installs keep `@main` (see [release-model](../operations/release-model.md)).
 
 Per-route Control Plane dashboard gating uses the required `shared-proceed` input (and related shared allow-list fields) passed from [aw-prelude.yml](aw-prelude.md) via each `docs-aw-event-*` orchestrator.
 

@@ -45,7 +45,7 @@ Triggers:
 
 - `workflow_dispatch` (manual) and `workflow_call` (from `e2e-all.yml`). One run at a time via concurrency group `e2e-estc-pr-buildkite-detective`. Always runs case `status-failure-open-pr-live`.
 
-Not part of the default PR `required` job in [`ci.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/ci.yml). Production promote runs this leaf via [`e2e-all.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml) from [`aw-release-promote.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-release-promote.yml) ([agentic-release-model](../operations/agentic-release-model.md)).
+Not part of the default PR `required` job in [`ci.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/ci.yml). Production promote runs this leaf via [`e2e-all.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml) from [`aw-release-promote.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-release-promote.yml) ([release-model](../operations/release-model.md)).
 
 ### Local (live only)
 

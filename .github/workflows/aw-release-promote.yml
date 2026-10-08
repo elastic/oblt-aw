@@ -3,7 +3,7 @@ name: AW release — promote
 
 # Promote tip of main at dispatch: run e2e-all, bump semver, move vN + previous tags,
 # commit pointers, and create a GitHub Release with auto-generated notes.
-# Runbook: docs/operations/agentic-release-model.md
+# Runbook: docs/operations/release-model.md
 on:
   workflow_dispatch:
     inputs:

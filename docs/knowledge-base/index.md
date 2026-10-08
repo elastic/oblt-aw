@@ -1,6 +1,6 @@
 ---
 navigation_title: Knowledge base
-description: Architecture and system design for oblt-aw.
+description: Architecture, release, and QA for oblt-aw.
 applies_to: {}
 ---
 
@@ -12,7 +12,9 @@ Deep dives for how `oblt-aw` works.
 
 | Section | What you find |
 |---------|----------------|
-| [Architecture](architecture.md) | System design, multi-org model, security and testing platforms |
+| [Architecture](architecture.md) | System design, multi-org model, security |
+| [QA](qa/index.md) | Testing platform — unit, integration, E2E |
+| [Release](release.md) | Promote train, pins, rollback |
 
 ## Prefer guides first
 

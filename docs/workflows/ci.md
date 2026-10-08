@@ -55,7 +55,7 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 ## gh-aw drift
 
 - `gh-aw-drift` always runs on non-fixture PRs (`make compile-aw-check`).
-- Live lock provenance is gated at promote time via [`e2e-all.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml) from [`aw-release-promote.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-release-promote.yml) — see [agentic-release-model](../operations/agentic-release-model.md).
+- Live lock provenance is gated at promote time via [`e2e-all.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml) from [`aw-release-promote.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-release-promote.yml) — see [release-model](../operations/release-model.md).
 
 ## Scorecard
 
@@ -73,5 +73,5 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 - Pre-commit config: [.pre-commit-config.yaml](https://github.com/elastic/oblt-aw/blob/main/.pre-commit-config.yaml)
 - Local development: [docs/development/contributing.md](../development/contributing.md)
 - Testing platform design (unit through E2E, release gates): [docs/architecture/agentic-workflow-testing-platform.md](../architecture/agentic-workflow-testing-platform.md)
-- Agentic release model (promote/rollback): [docs/operations/agentic-release-model.md](../operations/agentic-release-model.md)
+- Release model (promote/rollback): [docs/operations/release-model.md](../operations/release-model.md)
 - E2E orchestrator: [.github/workflows/e2e-all.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml)

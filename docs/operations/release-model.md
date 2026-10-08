@@ -1,4 +1,4 @@
-# Agentic workflow release model
+# Release model
 
 **Status:** Implementation for [#1878](https://github.com/elastic/oblt-aw/issues/1878) (parent [#1879](https://github.com/elastic/oblt-aw/issues/1879)).
 **Testing contract:** [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md).

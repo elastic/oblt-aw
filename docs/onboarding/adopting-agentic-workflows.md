@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Adopting** a new agentic workflow means: it is **defined in the framework** (`elastic/oblt-aw` — reusable `obs-aw-*` Actions workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trigger-obs-aw-<workflow-id>.yml`** client template. Template source calls `elastic/oblt-aw/.github/workflows/obs-aw-event-*.yml@main`; installed pins follow `pin-class` ([agentic-release-model](../operations/agentic-release-model.md)).
+**Adopting** a new agentic workflow means: it is **defined in the framework** (`elastic/oblt-aw` — reusable `obs-aw-*` Actions workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trigger-obs-aw-<workflow-id>.yml`** client template. Template source calls `elastic/oblt-aw/.github/workflows/obs-aw-event-*.yml@main`; installed pins follow `pin-class` ([release-model](../operations/release-model.md)).
 
 You **cannot** meaningfully “enable” an agentic workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json), the **client template and `obs-aw-*` wrapper** exist, and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane dashboard. An agentic workflow runs only when its checkbox is checked on that Control Plane dashboard (or after sync creates the Control Plane dashboard and you enable it).
 

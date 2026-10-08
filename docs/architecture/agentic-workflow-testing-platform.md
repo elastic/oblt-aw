@@ -80,7 +80,7 @@ Scope for this layer:
 
 - Run the real status → `trigger-obs-aw-status` → `obs-aw-event-status` → `obs-aw-estc-pr-buildkite-detective` → in-repo `gh-aw-estc-pr-buildkite-detective.lock.yml` path against **`elastic/oblt-aw`** (this slice’s production consumer).
 - **Entry event (mandatory):** the distributed client, status orchestrator, and wrapper all require `github.event_name == 'status'` (plus failure + `buildkite` context on this slice). An outer `workflow_dispatch`, path-filtered `pull_request`, or `workflow_call` job must drive a **real** failed commit status with a `buildkite` context and a `target_url` that the lock's Buildkite URL parser accepts. Those outer triggers alone do not enter the route. Live happy path: the harness creates an intentional Buildkite failure; **Buildkite** publishes the status via `publish_commit_status` (default context `buildkite/<pipeline>`). No harness-posted synthetic statuses.
-- **Revision under test:** production promote calls `e2e-all` with `checkout-ref=${{ github.sha }}` (tip of `main` at promote start) so later merges are excluded from the gated revision; tagging still proceeds if `main` advances during E2E. Standalone `e2e-all` / leaf dispatches default `checkout-ref=main` (smoke/health). See [agentic-release-model](../operations/agentic-release-model.md).
+- **Revision under test:** production promote calls `e2e-all` with `checkout-ref=${{ github.sha }}` (tip of `main` at promote start) so later merges are excluded from the gated revision; tagging still proceeds if `main` advances during E2E. Standalone `e2e-all` / leaf dispatches default `checkout-ref=main` (smoke/health). See [release-model](../operations/release-model.md).
 - Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, dynamic intentional Buildkite failure via `BUILDKITE_TOKEN` + [`catalog-info.yaml`](https://github.com/elastic/oblt-aw/blob/main/catalog-info.yaml) pipeline `oblt-aw-e2e-estc-fail` with `publish_commit_status: true`, Control Plane dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
 - Capture artifacts: workflow run URL, agent job logs (redacted), resulting PR comment or issue side effects, structured safe-outputs if present.
 
@@ -172,7 +172,7 @@ flowchart LR
 
 **Cost control:** E2E is tiered — **promote** calls `e2e-all` on `aw-release-promote` (mandatory live gate); sampling only on standalone smoke/health runs (`e2e-all` / leaf `workflow_dispatch`). PR CI does not run live E2E. Expand the leaf list only in `e2e-all.yml`.
 
-Promote workflow: [agentic-release-model](../operations/agentic-release-model.md) (`aw-release-promote.yml`).
+Promote workflow: [release-model](../operations/release-model.md) (`aw-release-promote.yml`).
 
 ## First vertical slice: `estc-pr-buildkite-detective`
 
@@ -187,7 +187,7 @@ Promote workflow: [agentic-release-model](../operations/agentic-release-model.md
 1. Integration fixtures cover resolve → wrapper input mapping for this workflow. (**Done** — [#1910](https://github.com/elastic/oblt-aw/issues/1910))
 2. Production E2E on **`elastic/oblt-aw`** exercises intentional Buildkite failure → Buildkite-published status → detective agent. Outer trigger may be path-filtered `pull_request`, dispatch, or `workflow_call`; the route still requires a real `status` event. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 3. Oracles: infrastructure success + structured side-effect check (stable marker or schema); no full free-text golden file.
-4. Results publish as artifacts / `workflow_call` outputs. Promote calls `e2e-all` and proceeds only when it succeeds ([agentic-release-model](../operations/agentic-release-model.md)).
+4. Results publish as artifacts / `workflow_call` outputs. Promote calls `e2e-all` and proceeds only when it succeeds ([release-model](../operations/release-model.md)).
 5. Docs updated: this design remains authoritative; workflow doc links here instead of “not covered”.
 
 ### Follow-up issues
@@ -205,7 +205,7 @@ Promote workflow: [agentic-release-model](../operations/agentic-release-model.md
 - [x] Wire artifact upload + `outputs.pass`; document how #1878 promote reads pass/fail (`summary.json` / `oracle-report.json`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] ESTC E2E is manual-only on a long-lived fixture (no quarantine list for the single live case). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Update [obs-aw-estc-pr-buildkite-detective](../workflows/obs-aw-estc-pr-buildkite-detective.md) when the first E2E job lands. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
-- [x] Promote calls `e2e-all` on tip of `main` at dispatch (no separate e2e-run-id). ([#1878](https://github.com/elastic/oblt-aw/issues/1878) / [#1911](https://github.com/elastic/oblt-aw/issues/1911)) — see [agentic-release-model](../operations/agentic-release-model.md).
+- [x] Promote calls `e2e-all` on tip of `main` at dispatch (no separate e2e-run-id). ([#1878](https://github.com/elastic/oblt-aw/issues/1878) / [#1911](https://github.com/elastic/oblt-aw/issues/1911)) — see [release-model](../operations/release-model.md).
 
 ## Non-goals
 
@@ -230,7 +230,7 @@ Resolved by this design where noted; remaining items are for implementation issu
 | E2E revision pin | **Resolved:** promote always uses tip of default branch (`github.sha`); later merges during E2E do not abort tagging ([#1878](https://github.com/elastic/oblt-aw/issues/1878)) |
 | Status-route entry | **Resolved:** Buildkite publishes failed `status` (+ Buildkite context/`target_url`); harness creates the intentional failure build; path-filtered PR / dispatch / `workflow_call` are outer-only |
 | How closely E2E must match production models/tools | **Resolved policy:** match production fragment defaults for the slice; document any intentional drift; prefer recorded Buildkite payloads when live access is costly or unstable |
-| Promote workflow wiring | **Resolved:** [agentic-release-model](../operations/agentic-release-model.md) (`aw-release-promote.yml` / `aw-release-rollback.yml`) |
+| Promote workflow wiring | **Resolved:** [release-model](../operations/release-model.md) (`aw-release-promote.yml` / `aw-release-rollback.yml`) |
 
 ## References
 

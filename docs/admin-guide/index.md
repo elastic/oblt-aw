@@ -22,4 +22,4 @@ Procedures for maintainers who change `elastic/oblt-aw` or related agentic asset
 
 - Long-form adoption checklist: [Adopting a new remote agentic workflow](../onboarding/adopting-agentic-workflows.md)
 - Technical registration contract: [Registering resources](../onboarding/registering-a-repository.md)
-- [Knowledge base](../knowledge-base/index.md) — architecture and reference
+- [Knowledge base](../knowledge-base/index.md) — architecture, release, and QA
