@@ -49,8 +49,9 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 - [`docs/workflows/README.md`](../workflows/index.md), **`docs/workflows/obs-aw-<name>.md`**, and **`docs/routing/<topic>-routing.md`** when triggers or labels are non-trivial.
 
-### 8. Validate, merge, and confirm sync
+### 8. Test, validate, merge, and confirm sync
 
+- Add [unit](../knowledge-base/qa/unit.md), [integration](../knowledge-base/qa/integration.md), and [E2E](../knowledge-base/qa/e2e.md) coverage for the new route (live E2E for the production-like agent path). Unit and integration run on every PR; live E2E gates promote. See [QA](../knowledge-base/qa/index.md).
 - Merge to `main`; confirm [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) renders the new checkbox.
 
 ## Consumer repositories
@@ -78,6 +79,7 @@ Full symptom write-ups: [Common problems](../troubleshooting/common-problems/ind
 
 - [Architecture overview](../architecture/overview.md)
 - [aw-prelude](../workflows/aw-prelude.md)
-- [obs-aw client template](../workflows/obs-aw-client-template.md)
 - [Control Plane dashboard format](../operations/control-plane-dashboard-format.md)
+- [obs-aw client template](../workflows/obs-aw-client-template.md)
+- [QA](../knowledge-base/qa/index.md) — unit, integration, and E2E layers
 - [Registering resources](registering-a-repository.md)

@@ -51,7 +51,7 @@ Follow the framework checklist in [Adopting a new remote agentic workflow](../on
 
 5. **Update documentation** — `docs/workflows/obs-aw-<name>.md`, routing doc when triggers are non-trivial, and [docs/workflows/README.md](../workflows/index.md).
 
-6. **Validate and merge** — CI must pass. After merge, [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) adds the new checkbox to consumer Control Plane dashboards.
+6. **Test, validate, and merge** — Cover the new route with [unit](../knowledge-base/qa/unit.md), [integration](../knowledge-base/qa/integration.md), and [E2E](../knowledge-base/qa/e2e.md) (live harness for the production-like agent path). Unit and integration run on every PR; live E2E gates promote. See [QA](../knowledge-base/qa/index.md). CI must pass. After merge, [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) adds the new checkbox to consumer Control Plane dashboards.
 
 7. **Consumer adoption** — Registered repos receive template updates via [distribute-client-workflow](../operations/distribute-client-workflow.md). Users enable the agentic workflow from the Control Plane dashboard ([Enable or disable an agentic workflow](../user-guide/enable-a-new-workflow.md)).
 
@@ -65,6 +65,7 @@ When a workflow calls `gh-aw-*`, each agent job must invoke [aw-resolve-agentic-
 ## See also
 
 - [Adopting a new remote agentic workflow](../onboarding/adopting-agentic-workflows.md) — full checklist and consumer section
-- [Contributing to oblt-aw](../development/contributing.md) — local setup and pre-commit
 - [Change maturity level](change-maturity-level.md)
+- [Contributing to oblt-aw](../development/contributing.md) — local setup and pre-commit
+- [QA](../knowledge-base/qa/index.md) — unit, integration, and E2E layers
 - [Use GitHub ephemeral tokens](use-gh-ephemeral-tokens.md)
