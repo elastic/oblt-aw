@@ -50,6 +50,76 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
+scan_sec002_run_secret_interpolation() {
+  local repo_root="$1"
+  local pybin=""
+  if command -v python3 >/dev/null 2>&1; then
+    pybin="python3"
+  elif command -v python >/dev/null 2>&1; then
+    pybin="python"
+  else
+    return 0
+  fi
+
+  "$pybin" - "$repo_root" <<'PY'
+import pathlib
+import re
+import sys
+
+repo_root = pathlib.Path(sys.argv[1])
+workflows_dir = repo_root / ".github" / "workflows"
+if not workflows_dir.is_dir():
+    raise SystemExit(0)
+
+secret_expr = re.compile(r"\$\{\{\s*secrets\.", re.IGNORECASE)
+run_pattern = re.compile(r"^(\s*)(?:-\s*)?run:\s*(.*)$")
+
+for workflow_path in sorted(workflows_dir.rglob("*.y*ml")):
+    if workflow_path.name.endswith((".lock.yml", ".lock.yaml")):
+        continue
+    rel_path = workflow_path.relative_to(repo_root).as_posix()
+    lines = workflow_path.read_text(encoding="utf-8").splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        run_match = run_pattern.match(line)
+        if run_match is None:
+            i += 1
+            continue
+
+        run_indent = len(run_match.group(1))
+        run_tail = run_match.group(2).strip()
+
+        if run_tail == "" or run_tail.startswith(("|", ">")):
+            j = i + 1
+            while j < len(lines):
+                block_line = lines[j]
+                if block_line.strip() == "":
+                    j += 1
+                    continue
+                block_indent = len(block_line) - len(block_line.lstrip(" "))
+                if block_indent <= run_indent:
+                    break
+                if secret_expr.search(block_line):
+                    print(
+                        f"{rel_path}|{j + 1}|SEC-002|high|"
+                        "Workflow run command interpolates ${{ secrets.* }}; "
+                        "use env: indirection."
+                    )
+                j += 1
+            i = j
+            continue
+
+        if secret_expr.search(run_tail):
+            print(
+                f"{rel_path}|{i + 1}|SEC-002|high|"
+                "Workflow run command interpolates ${{ secrets.* }}; "
+                "use env: indirection."
+            )
+        i += 1
+PY
+}
+
 emit() {
   echo "$1|$2|$3|$4|$5"
 }
@@ -59,6 +129,9 @@ FINDINGS_TMP="${TMPDIR:-/tmp}/security-scan-$$.txt"
 touch "$FINDINGS_TMP"
 cleanup() { rm -f "$FINDINGS_TMP"; }
 trap cleanup EXIT
+
+# --- SEC-002: "${{ secrets.* }}" in workflow run command text ---
+scan_sec002_run_secret_interpolation "$REPO_ROOT" >>"$FINDINGS_TMP"
 
 # --- SEC-011: standalone shell scripts (shellcheck) ---
 (
@@ -94,7 +167,6 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v actionlint >/dev/null 2>&
     .kind as $k |
     (if $k == "credentials" then "SEC-020"
      elif $k == "shellcheck" then "SEC-011"
-     elif (.message | test("secret"; "i")) then "SEC-002"
      else "SEC-010" end) as $rule |
     (if $k == "credentials" then "high"
      elif $k == "shellcheck" then "medium"
@@ -134,7 +206,7 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
         "ref-confusion": "SEC-030",
         "ref-version-mismatch": "SEC-030",
         "impostor-commit": "SEC-030",
-        "secrets-outside-env": "SEC-002",
+        "secrets-outside-env": "SEC-022",
         "unredacted-secrets": "SEC-021",
         "hardcoded-container-credentials": "SEC-020",
         "overprovisioned-secrets": "SEC-022",
