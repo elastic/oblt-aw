@@ -21,6 +21,17 @@ Per-repository entries in `config/<org-key>/active-repositories.json` include:
 | `pin-class` | `development` installs pin client `uses:` at `@main`; `production` installs pin at `tags.current` after the first promote. `elastic/oblt-aw` must be `development`. |
 | `workflow-token-policy` | Explicit Backstage policy name for agentic workflow `create-token` steps (exposed as `shared-token-policy` via [aw-prelude](../workflows/aw-prelude.md)). Use `""` when Vault auto policy applies per trigger workflow ref. |
 
+Example registration object shape:
+
+```json
+{
+  "repository": "elastic/<repo>",
+  "pin-class": "production",
+  "workflow-token-policy": "token-policy-<12-char sha256>",
+  "ai-assets-token-policy": ""
+}
+```
+
 Details: [distribute-client-workflow — distribution configuration contract](../operations/distribute-client-workflow.md).
 
 ## Catalog TokenPolicy (mandatory for new consumers)
@@ -29,6 +40,14 @@ Every newly registered consumer repository needs a Backstage **TokenPolicy** in 
 
 - `bound_claims.workflow_ref` must match the client trigger glob with a ref wildcard (for example `elastic/<repo>/.github/workflows/trigger-obs-aw-*.yml@*`). Do not pin `@refs/heads/main` only: distribute may label install PRs with `backport-active-all`, and OIDC claims include the ref that ran.
 - `additional_permissions` is the union of permissions required by workflows in the org registry.
+
+```text
+# Correct: ref wildcard
+elastic/<repo>/.github/workflows/trigger-obs-aw-*.yml@*
+
+# Incorrect for distribute/backport refs
+elastic/<repo>/.github/workflows/trigger-obs-aw-*.yml@refs/heads/main
+```
 
 Full procedure and YAML template: [Registering resources](../onboarding/registering-a-repository.md).
 

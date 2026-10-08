@@ -8,6 +8,14 @@ applies_to: {}
 
 Use these guides when a workflow run fails or a workflow does not run.
 
+```mermaid
+flowchart LR
+  A[Failed or skipped run] --> B[Troubleshoot an error]
+  A --> C[Common problems]
+  B --> D[Fix and re-run]
+  C --> D
+```
+
 | Goal | Guide |
 |------|--------|
 | Work through a failed or skipped run | [Troubleshoot an error](troubleshoot-an-error.md) |

@@ -14,11 +14,23 @@ After a repository was added to `active-repositories.json`, client workflows fai
 
 The catalog-info token policy must be **merged and active** before the `elastic/oblt-aw` registration change lands on `main`. Otherwise consumer automation can call `create-token` before the policy exists.
 
+```mermaid
+flowchart LR
+  A[Merge catalog-info] --> B[Merge oblt-aw registration]
+  B --> C[Client create-token works]
+```
+
 ## Fix
 
 1. Merge the catalog-info TokenPolicy PR first, then registration — [Onboard a repository](../../user-guide/onboard-a-repository.md) (merge order).
 2. If registration already landed too early, follow [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting).
 3. For policy shape and OIDC claims, see [Use GitHub ephemeral tokens](../../admin-guide/use-gh-ephemeral-tokens.md).
+
+Expected `workflow_ref` shape (ref wildcard required):
+
+```text
+elastic/<repo>/.github/workflows/trigger-obs-aw-*.yml@*
+```
 
 ## See also
 

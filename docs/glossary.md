@@ -8,6 +8,15 @@ applies_to: {}
 
 Shared vocabulary for **oblt-aw**. Prefer these names in docs and discussion so framework, control plane, and Control Plane dashboard stay distinct.
 
+```mermaid
+flowchart LR
+  F[Framework oblt-aw] --> CP[Control plane]
+  CP --> D[Control Plane dashboard]
+  F --> CT[Client templates]
+  D --> G[enabled-workflows gating]
+  CT --> G
+```
+
 ## Terms
 
 ### Agentic workflow
@@ -39,6 +48,11 @@ See [Architecture overview](architecture/overview.md), [Control Plane dashboard]
 ### Control Plane dashboard
 
 The single GitHub issue per consumer repository (title `[oblt-aw] Control Plane Dashboard`, label `oblt-aw/dashboard`) with checkboxes to enable or disable agentic workflows. Synced by `sync-control-plane-dashboard`; read at runtime by `get-enabled-workflows`.
+
+:::{image} images/find-control-plane-dashboard.png
+:alt: Issues search for label oblt-aw/dashboard showing the Control Plane Dashboard issue
+:screenshot:
+:::
 
 See [Control Plane dashboard — user instructions](operations/control-plane-dashboard.md), [Sync Control Plane dashboard](workflows/sync-control-plane-dashboard.md).
 

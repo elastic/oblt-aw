@@ -2,6 +2,24 @@
 
 ## Overview
 
+```mermaid
+flowchart TD
+  A[catalog-info TokenPolicy] --> B[oblt-aw active-repositories.json]
+  B --> C[observability-github-settings bypassers]
+  C --> D[observability-github-secrets when required]
+  B --> E[distribute client triggers]
+  B --> F[sync Control Plane dashboard]
+  E --> G[Humans enable checkboxes]
+  F --> G
+```
+
+Developer UX for the issue form: [Onboard a repository](../user-guide/onboard-a-repository.md).
+
+:::{image} ../images/onboard-repository-issue-form.png
+:alt: Onboard a repository issue form with Repository and Organization key fields
+:screenshot:
+:::
+
 This guide onboards:
 
 1. **GitHub repository** — Listed in `elastic/oblt-aw` under `config/<org-key>/active-repositories.json` so [distribute-client-workflow](../operations/distribute-client-workflow.md) can install the client template and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) can maintain the Control Plane dashboard issue.
@@ -25,6 +43,13 @@ Consumer repositories in this guide are always under the **`elastic`** GitHub or
 ## Pull request inventory (separate concerns)
 
 Open **one pull request per concern** (do not combine catalog, registration, settings, and secrets into a single PR). Preferred open order matches merge dependency:
+
+```mermaid
+flowchart LR
+  P1[1 catalog-info] --> P2[2 oblt-aw]
+  P2 --> P3[3 settings]
+  P3 --> P4[4 secrets optional]
+```
 
 | Order | Repository | What changes | Required? |
 |------:|------------|--------------|-----------|
@@ -151,6 +176,15 @@ Manual maintainers may still use draft PRs for early review; the agent path does
    Merge and apply the settings change before relying on [obs-aw-automerge](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens) in production. Detail: [CODEOWNERS and ephemeral tokens](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens).
 
 9. **Humans — Opt workflows in or out from the Control Plane dashboard** — **Humans** complete this step in the GitHub web UI by checking or unchecking task-list checkboxes on the Control Plane dashboard issue (GitHub saves on click). Workflow enablement is **not** configured in `active-repositories.json`; it is controlled only through the **Control Plane dashboard** issue in **`elastic/<repo>`** (task-list checkboxes and `<!-- oblt-aw:<org-key>:<workflow-id> -->` markers). Read [Control Plane dashboard gating](adopting-agentic-workflows.md#control-plane-dashboard-gating-reference) and complete [steps 1–2 in *Adopting a new remote agentic workflow*](adopting-agentic-workflows.md#consumer-repositories): confirm rows exist after sync, then check or uncheck workflows to match policy; wait for a **client** run for changes to apply ([obs-aw-client-template](../workflows/obs-aw-client-template.md)).
+
+   :::{image} ../images/control-plane-dashboard-checkboxes.png
+   :alt: Control Plane dashboard Enable/Disable checkboxes after registration
+   :screenshot:
+   :::
+
+   ```bash
+   gh issue list --repo elastic/<repo> --label oblt-aw/dashboard --state open
+   ```
 
 ## Appendix: Token policy YAML template
 

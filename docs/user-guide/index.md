@@ -8,6 +8,11 @@ applies_to: {}
 
 Procedures for developers and repo owners who use OBLT Agentic Workflows in a consumer repository. Prefer [Get started](../get-started.md) if you are new.
 
+:::{image} ../images/control-plane-dashboard-issue.png
+:alt: Control Plane dashboard issue in a consumer repository
+:screenshot:
+:::
+
 ## I want to…
 
 | Goal | Guide |

@@ -57,7 +57,7 @@ For further details, see [Enable or disable an agentic workflow](user-guide/enab
 
 ## 3. Pick what agentic automation you need
 
-Browse by what you want to automate: [Agentic workflow catalog by outcome](workflows/by-outcome.md).
+Browse by what you want to automate: [Agentic workflow catalog by outcome](knowledge-base/agentic-workflows/by-outcome.md).
 
 For Automerge dependency collections: [Choose Automerge dependency collections](user-guide/automerge-services.md).
 

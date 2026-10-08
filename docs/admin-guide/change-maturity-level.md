@@ -28,10 +28,13 @@ Full criteria: [Workflow maturity](../operations/workflow-maturity.md).
      "id": "automerge",
      "name": "Automerge",
      "description": "...",
-     "maturity": "early-adoption",
+     "maturity": "stable",
      "default_enabled": false,
-     "docs": "docs/workflows/obs-aw-automerge.md",
-     "inner_workflows": ["obs-aw-automerge.yml"]
+     "docs": "docs/user-guide/automerge-services.md",
+     "inner_workflows": [
+       "obs-aw-automerge-deferred.yml",
+       "obs-aw-automerge.yml"
+     ]
    }
    ```
 
@@ -40,6 +43,11 @@ Full criteria: [Workflow maturity](../operations/workflow-maturity.md).
 4. **Open a pull request and merge** — After merge to `main`, [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) updates Control Plane dashboard issue bodies with the new maturity badge.
 
 5. **Confirm on a consumer Control Plane dashboard** — Open a registered repo’s Control Plane dashboard and verify the badge updated. User checkbox choices are unchanged unless you also changed `default_enabled` and used a forced sync (see [control-plane-dashboard-format](../operations/control-plane-dashboard-format.md) for sync semantics).
+
+   :::{image} ../images/control-plane-dashboard-issue.png
+   :alt: Control Plane dashboard maturity badges in the workflow catalog table
+   :screenshot:
+   :::
 
 ## See also
 

@@ -10,6 +10,35 @@ Consumer agentic workflows registered for Observability (`config/obs/workflow-re
 
 How to turn a row on or off: [Enable or disable an agentic workflow](../../user-guide/enable-a-new-workflow.md). Maturity meanings: [Workflow maturity](../../operations/workflow-maturity.md).
 
+```mermaid
+flowchart TB
+  subgraph issues [Issues]
+    IT[Issue Triage]
+    MI[Mention in Issue]
+    DID[Duplicate Issue Detector]
+    IF[Issue Fixer]
+    AS[Agent Suggestions]
+  end
+  subgraph prs [Pull requests]
+    AD[Automated Documentation]
+    DR[Dependency Review]
+    PAD[PR Actions Detective]
+    PBD[PR Buildkite Detective]
+    RNA[Resource Not Accessible]
+  end
+  subgraph security [Security]
+    SEC[Security detector]
+  end
+  subgraph deps [Dependency updates]
+    AM[Automerge]
+  end
+```
+
+:::{image} ../../images/control-plane-dashboard-issue.png
+:alt: Control Plane dashboard catalog table showing workflows, maturity, and descriptions
+:screenshot:
+:::
+
 ## Issues
 
 | Agentic workflow | Maturity | What it does | Docs |

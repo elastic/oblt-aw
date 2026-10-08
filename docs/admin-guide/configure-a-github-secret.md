@@ -6,6 +6,13 @@ Not every agentic workflow needs repository secrets. Many workflows mint **ephem
 
 Use this guide to decide which path applies, then follow the workflow-specific doc for exact secret names.
 
+```mermaid
+flowchart TD
+  A[Read workflow doc Prerequisites] --> B{Long-lived consumer secret named?}
+  B -->|no| C[Use ephemeral create-token + catalog TokenPolicy]
+  B -->|yes| D[Provision via observability-github-secrets]
+```
+
 ## Prerequisites
 
 - The workflow id and its doc under [docs/workflows/](../workflows/index.md).

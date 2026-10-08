@@ -4,10 +4,27 @@
 
 Use this checklist when a workflow run fails or a user reports that agentic workflows are not running. Work through the steps in order; each step points to the doc that owns the behavior.
 
+```mermaid
+flowchart TD
+  A[Open run URL] --> B{Consumer or framework?}
+  B --> C[Check Control Plane dashboard gating]
+  C --> D{shared-proceed / checkbox OK?}
+  D -->|no| E[Enable workflow or finish onboard]
+  D -->|yes| F[Check registration and distribute]
+  F --> G[Check OIDC / create-token]
+  G --> H[Check route-specific conditions]
+  H --> I[Check secrets if required]
+```
+
 ## Prerequisites
 
 - A GitHub Actions workflow run URL (or enough detail to find it: repository, workflow name, time).
 - Read access to the consumer repository and, when the failure is in framework reusables, `elastic/oblt-aw`.
+
+```bash
+# Inspect a failed run (replace owner/repo and run-id)
+gh run view <run-id> --repo elastic/<repo> --log-failed
+```
 
 ## Steps
 
@@ -19,6 +36,15 @@ Use this checklist when a workflow run fails or a user reports that agentic work
    - Confirm an open Control Plane dashboard issue exists and the agentic workflow checkbox is checked. See [Control Plane dashboard](../operations/control-plane-dashboard.md).
    - Review [get-enabled-workflows](../workflows/get-enabled-workflows.md) and [aw-prelude](../workflows/aw-prelude.md) outputs (`effective-raw`, `enabled-workflows`, `proceed-by-workflow`).
 
+   :::{image} ../images/find-control-plane-dashboard.png
+   :alt: Issues search for the Control Plane dashboard by label oblt-aw/dashboard
+   :screenshot:
+   :::
+
+   ```bash
+   gh issue list --repo elastic/<repo> --label oblt-aw/dashboard --state open
+   ```
+
 3. **Check registration and distribution** — For new or recently registered repositories:
    - Repository listed in `config/<org-key>/active-repositories.json`? See [Registering resources](../onboarding/registering-a-repository.md).
    - Client templates installed via [distribute-client-workflow](../operations/distribute-client-workflow.md)?
@@ -28,6 +54,16 @@ Use this checklist when a workflow run fails or a user reports that agentic work
    - `workflow_ref` in the catalog token policy does not match the client trigger glob (expected `trigger-*-aw-*.yml@*`, not `@refs/heads/main` only).
    - The client `run-obs-aw-<event>` job is missing `id-token: write`. See [Client template index](../workflows/obs-aw-client-template.md).
    - Catalog policy was not merged before the `oblt-aw` registration merge.
+
+   Expected client job permission (from the distributed pull-request trigger):
+
+   ```yaml
+   jobs:
+     run-obs-aw-pull-request:
+       permissions:
+         id-token: write
+         # ... plus contents, issues, pull-requests, and other grants
+   ```
 
    Registration troubleshooting: [Registering resources — troubleshooting](../onboarding/registering-a-repository.md#troubleshooting). Maintainer detail: [Use GitHub ephemeral tokens](../admin-guide/use-gh-ephemeral-tokens.md).
 

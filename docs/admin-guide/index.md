@@ -8,6 +8,13 @@ applies_to: {}
 
 Procedures for maintainers who change `elastic/oblt-aw` or related agentic assets. Repo owners who only enable existing workflows should use the [User guide](../user-guide/index.md).
 
+```mermaid
+flowchart LR
+  A[Add workflow] --> B[Set maturity]
+  B --> C[Secrets vs ephemeral tokens]
+  C --> D[Token policies]
+```
+
 ## Maintain the framework
 
 | Goal | Guide |
