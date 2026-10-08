@@ -14,7 +14,7 @@ If the repository is **not** listed in `config/<org-key>/active-repositories.jso
 
 1. Open an **[Onboard a repository](https://github.com/elastic/oblt-aw/issues/new?template=onboard-repository.yml)** issue in [elastic/oblt-aw](https://github.com/elastic/oblt-aw).
 2. Follow the agent checklist on the issue and merge the pull requests it opens.
-3. Merge the workflows PR in your repository and confirm the Control Plane Dashboard issue exists.
+3. Merge the agentic workflows triggers PR in your repository and confirm the Control Plane Dashboard issue exists.
 
 For further details, see [Onboard a repository](user-guide/onboard-a-repository.md).
 

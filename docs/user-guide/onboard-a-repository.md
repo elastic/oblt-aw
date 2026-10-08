@@ -33,9 +33,9 @@ Technical registration detail for maintainers and agents: [Registering resources
 
 5. **Merge manually in order** — Humans merge. Merge the **catalog-info** TokenPolicy PR **before** the **oblt-aw** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed workflows in production. Auto-merge of these PRs is **out of scope** for now.
 
-6. **After the oblt-aw registration PR merges to `main`** — Existing automation opens a workflows PR in your repository (`trigger-obs-aw-*.yml` or docs equivalents) via [distribute-client-workflow](../operations/distribute-client-workflow.md), and creates a **Control Plane Dashboard** issue via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
+6. **After the oblt-aw registration PR merges to `main`** — Existing automation opens an agentic workflows triggers PR in your repository (`trigger-obs-aw-*.yml` or docs equivalents) via [distribute-client-workflow](../operations/distribute-client-workflow.md), and creates a **Control Plane Dashboard** issue via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
 
-   Merge the workflows PR. Confirm the dashboard issue exists (title `[oblt-aw] Control Plane Dashboard`, GitHub label `oblt-aw/dashboard`).
+   Merge the agentic workflows triggers PR. Confirm the dashboard issue exists (title `[oblt-aw] Control Plane Dashboard`, GitHub label `oblt-aw/dashboard`).
 
 7. **Enable or disable workflows** — In your repository, open the Control Plane Dashboard issue and check or uncheck the workflows you want. GitHub saves on click. Workflows apply on the next supported client trigger. See [Enable or disable a workflow](enable-a-new-workflow.md).
 
