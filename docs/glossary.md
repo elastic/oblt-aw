@@ -14,7 +14,7 @@ Shared vocabulary for **oblt-aw**. Prefer these names in docs and discussion so 
 
 A registered automation unit in an org’s `workflow-registry.json` (compound id `org-key:workflow-id`). Consumers enable it from the Control Plane dashboard; when gated on, a client trigger runs the matching framework route (`obs-aw-*` / `docs-aw-*`).
 
-See [Enable or disable an agentic workflow](user-guide/enable-a-new-workflow.md), [Workflow catalog by outcome](workflows/by-outcome.md).
+See [Enable or disable an agentic workflow](user-guide/enable-a-new-workflow.md), [Workflow catalog by outcome](knowledge-base/agentic-workflows/by-outcome.md).
 
 ### Client template
 

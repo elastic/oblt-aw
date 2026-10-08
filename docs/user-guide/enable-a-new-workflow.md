@@ -14,6 +14,15 @@ This guide does **not** cover shipping a **new** agentic workflow in the framewo
 - Your repository has an open Control Plane dashboard issue (`label:oblt-aw/dashboard`, title `[oblt-aw] Control Plane Dashboard`).
 - The agentic workflow appears as a row on your repository’s Control Plane dashboard after [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) runs.
 
+```bash
+gh issue list --repo elastic/<repo> --label oblt-aw/dashboard --state open
+```
+
+:::{image} ../images/find-control-plane-dashboard.png
+:alt: Issues search filtered by label oblt-aw/dashboard showing the Control Plane Dashboard issue
+:screenshot:
+:::
+
 ## Enable an agentic workflow
 
 :::{image} ../images/enable-agentic-workflow.gif
@@ -23,9 +32,19 @@ This guide does **not** cover shipping a **new** agentic workflow in the framewo
 
 1. **Confirm the agentic workflow row on the Control Plane dashboard** — Open the issue labeled `oblt-aw/dashboard` (from Issues, or search `label:oblt-aw/dashboard`). If the agentic workflow is missing, wait for Control Plane dashboard sync after a framework merge, or ask a maintainer to confirm it is registered in `workflow-registry.json`.
 
+   :::{image} ../images/control-plane-dashboard-issue.png
+   :alt: Control Plane dashboard issue showing the Observability workflow catalog table
+   :screenshot:
+   :::
+
 2. **Configure secrets (if required)** — Read the agentic workflow’s doc under [docs/workflows/](../workflows/index.md) (for example `obs-aw-<name>.md`). Some agentic workflows need no repository secrets (for example [obs-aw-security-detector](../workflows/obs-aw-security-detector.md) uses ephemeral tokens only). See [Configure a GitHub secret](../admin-guide/configure-a-github-secret.md).
 
 3. **Check the agentic workflow on the Control Plane dashboard** — Open the Control Plane dashboard issue and check the checkbox for the agentic workflow. GitHub saves immediately on click. See [Control Plane dashboard — enabling an agentic workflow](../operations/control-plane-dashboard.md#enabling-an-agentic-workflow).
+
+   :::{image} ../images/control-plane-dashboard-checkboxes.png
+   :alt: Enable/Disable checkboxes on the Control Plane dashboard
+   :screenshot:
+   :::
 
 4. **Trigger or wait for a client run** — Gating applies on the next client workflow run (`pull_request`, `issues`, `schedule`, and so on). Checking a box does not run agentic workflows immediately. See [get-enabled-workflows](../workflows/get-enabled-workflows.md).
 
@@ -44,6 +63,16 @@ The agentic workflow is excluded from `enabled-workflows` on the next client run
 | No Control Plane dashboard exists | All agentic workflows are deactivated |
 | Control Plane dashboard exists, all checkboxes unchecked | All agentic workflows are deactivated |
 | Control Plane dashboard exists, some checkboxes checked | Only checked agentic workflows run |
+
+```mermaid
+flowchart TD
+  A[Checkbox edited] --> B[GitHub saves on click]
+  B --> C[Audit comment on dashboard issue]
+  B --> D[Next client trigger reads enabled-workflows]
+  D --> E{Workflow checked?}
+  E -->|yes| F[Route may proceed]
+  E -->|no| G[shared-proceed false / skipped]
+```
 
 Control Plane dashboard checkbox edits do **not** start agentic workflows by themselves. Runtime gating is still read inside the ingress when a client workflow runs. Separately, `issues.edited` on the Control Plane dashboard issue triggers the shared [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) path so enable/disable changes are recorded as comments on that issue. See [routing README](../routing/index.md).
 

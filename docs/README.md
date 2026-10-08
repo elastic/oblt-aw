@@ -22,10 +22,10 @@ How publish works: [development/codex-publish.md](development/codex-publish.md).
 
 - `admin-guide/` — framework maintenance, secrets, ephemeral tokens
 - `architecture/`, `operations/`, `routing/`, `onboarding/`, `development/`, `testing/` — deeper sources (architecture hub and TOC)
-- `knowledge-base/` — architecture, release, and QA hubs
+- `knowledge-base/` — Agentic Workflows catalog, architecture, release, and QA hubs
 - `troubleshooting/` — failed runs and common problems
 - `user-guide/` — developer enablement stories
-- `workflows/` — outcome catalog + per-workflow docs
+- `workflows/` — per-workflow docs (hidden from sidebar; linked from the catalog)
 
 ## Local Codex preview
 

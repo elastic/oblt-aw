@@ -40,6 +40,10 @@ toc:
   - folder: knowledge-base
     children:
       - file: index.md
+      - folder: agentic-workflows
+        children:
+          - file: index.md
+          - file: by-outcome.md
       - file: architecture.md
       - folder: qa
         children:
@@ -50,8 +54,7 @@ toc:
       - file: release.md
   - folder: workflows
     children:
-      - file: by-outcome.md
-      - file: index.md
+      - hidden: ./index.md
       - hidden: ./aw-dashboard-audit.md
       - hidden: ./aw-prelude.md
       - hidden: ./aw-release-promote.md

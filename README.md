@@ -65,7 +65,7 @@ Executable workflows live under [.github/workflows/](.github/workflows/); their 
 - Admin guide: [docs/admin-guide/index.md](docs/admin-guide/index.md)
 - Troubleshooting: [docs/troubleshooting/index.md](docs/troubleshooting/index.md)
 - Knowledge base: [docs/knowledge-base/index.md](docs/knowledge-base/index.md)
-- Workflow catalog by outcome: [docs/workflows/by-outcome.md](docs/workflows/by-outcome.md)
+- Workflow catalog by outcome: [docs/knowledge-base/agentic-workflows/by-outcome.md](docs/knowledge-base/agentic-workflows/by-outcome.md)
 - How docs publish to Codex: [docs/development/codex-publish.md](docs/development/codex-publish.md)
 
 ## Development

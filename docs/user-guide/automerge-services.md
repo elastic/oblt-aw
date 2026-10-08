@@ -9,7 +9,22 @@ Automerge has two layers:
 
 This lets a team say: “We trust Automerge for these update types, but not for the rest.”
 
+:::{image} ../images/control-plane-dashboard-checkboxes.png
+:alt: Automerge parent checkbox with nested dependency collection checkboxes on the Control Plane dashboard
+:screenshot:
+:::
+
 If a dependency collection is **enabled**, matching bot PRs can continue through the normal validation, approval, and merge flow (arm while required CI is pending; deferred merge on the frequent schedule profile). If a collection is **disabled**, those PRs stay unmerged; use the Automerge link on the Control Plane dashboard or the dependency-collection gate comment to review this catalogue and enable the right collection if you want it.
+
+```mermaid
+flowchart TD
+  A[Bot dependency PR] --> B{Automerge parent enabled?}
+  B -->|no| Z[Skip Automerge]
+  B -->|yes| C{Matching collection enabled?}
+  C -->|no| Z
+  C -->|yes| D[Validate / approve / arm]
+  D --> E[Deferred merge when checks green]
+```
 
 Technical details for eligibility, validation, approval, tokens, and merge behavior live in:
 
@@ -32,6 +47,23 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 | Open Policy Agent | Rego policies plus OPA version and configuration updates | `**/*.rego`, `**/.opa-version`, `**/opa.yaml`, `**/opa.yml` | Keep policy code and OPA tooling current while preserving review control elsewhere | Enabled: OPA policy/version/config update PRs may merge. Disabled: they stay pending. |
 | VM / container images | CI runner, Docker/container, Compose, and snapshot-environment image-pin updates | `.buildkite/**`, `**/Dockerfile`, `**/Dockerfile.*`, `**/docker-compose.yml`, `**/docker-compose.yaml`, `testing/environments/snapshot.yml` | Handy when image-pin bumps are expected and you trust the matching automation path | Enabled: image-pin PRs may merge. Disabled: they are held back for manual review. |
 | Package version | `.package-version` bump automation | `.package-version`, `**/.package-version` | Useful for repos that treat version file bumps as routine automation | Enabled: version-bump PRs may merge. Disabled: they remain open. |
+
+Collection ids and globs are defined in [`config/obs/automerge-dependency-collections.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/automerge-dependency-collections.json). Example entry:
+
+```json
+{
+  "id": "github-actions",
+  "description": "GitHub Actions and composite action version bumps",
+  "file-glob": [
+    ".github/workflows/**",
+    ".github/actions/**",
+    "**/action.yml",
+    "**/action.yaml"
+  ]
+}
+```
+
+On the Control Plane dashboard, that collection appears as an indented checkbox under Automerge (`obs:automerge:github-actions`).
 
 ## Choosing what to enable
 

@@ -1,12 +1,12 @@
 ---
-navigation_title: All workflow docs
+navigation_title: Workflow documentation index
 description: Alphabetical index of every workflow document under docs/workflows.
 applies_to: {}
 ---
 
-# All workflow docs
+# Workflow documentation index
 
-Alphabetical index of every workflow document under `docs/workflows/` (framework sources and client templates). Prefer [Catalog by outcome](by-outcome.md) if you are choosing what to enable.
+Alphabetical index of every workflow document under `docs/workflows/` (framework sources and client templates). Prefer [Catalog by outcome](../knowledge-base/agentic-workflows/by-outcome.md) if you are choosing what to enable.
 
 ## Job naming (Actions UI)
 
