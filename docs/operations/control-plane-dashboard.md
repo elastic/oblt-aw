@@ -12,7 +12,7 @@ The Control Plane dashboard is a single GitHub Issue in your repository that lis
 
 - **Title:** `[oblt-aw] Control Plane Dashboard`
 - **Label:** `oblt-aw/dashboard`
-- **Location:** Created and maintained automatically by the control plane; you can pin it at the top of your Issues list for easy access
+- **Location:** Created and maintained automatically by the control plane. [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) pins the issue by default so it appears at the top of the Issues list (GitHub allows at most three pinned issues; if pin fails, sync logs and continues)
 
 ---
 
@@ -21,8 +21,21 @@ The Control Plane dashboard is a single GitHub Issue in your repository that lis
 ### Finding the Control Plane dashboard
 
 1. Open the **Issues** tab of your repository
-2. Search for `label:oblt-aw/dashboard` or `in:title "Control Plane Dashboard"`
-3. If the Control Plane dashboard does not exist, it will be created when your repository is added to an org’s `config/<org-key>/active-repositories.json` in `elastic/oblt-aw` and the sync workflow runs
+2. Look for the pinned `[oblt-aw] Control Plane Dashboard` issue at the top of the list
+
+   :::{image} ../images/pinned-control-plane-dashboard.png
+   :alt: Control Plane Dashboard issue pinned at the top of the repository Issues page
+   :screenshot:
+   :::
+
+3. If it is not pinned, search for `label:oblt-aw/dashboard` or `in:title "Control Plane Dashboard"`
+
+   :::{image} ../images/find-control-plane-dashboard.png
+   :alt: Issues search filtered by label oblt-aw/dashboard showing the Control Plane Dashboard issue
+   :screenshot:
+   :::
+
+4. If the Control Plane dashboard does not exist, it will be created when your repository is added to an org’s `config/<org-key>/active-repositories.json` in `elastic/oblt-aw` and the sync workflow runs
 
 ### Enabling an agentic workflow
 

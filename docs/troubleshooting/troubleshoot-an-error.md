@@ -33,7 +33,7 @@ gh run view <run-id> --repo elastic/<repo> --log-failed
    - **`elastic/oblt-aw`**: framework operation (distribution, CI) and control plane (Control Plane dashboard sync). See [docs/workflows/](../workflows/index.md) for the matching workflow doc.
 
 2. **Check Control Plane dashboard gating** — If jobs were skipped or `shared-proceed` is false, the agentic workflow may not be enabled on the Control Plane dashboard.
-   - Confirm an open Control Plane dashboard issue exists and the agentic workflow checkbox is checked. See [Control Plane dashboard](../operations/control-plane-dashboard.md).
+   - Confirm an open Control Plane dashboard issue exists and the agentic workflow checkbox is checked. Sync pins it by default at the top of Issues; otherwise search with `label:oblt-aw/dashboard`. See [Control Plane dashboard](../operations/control-plane-dashboard.md#finding-the-control-plane-dashboard).
    - Review [get-enabled-workflows](../workflows/get-enabled-workflows.md) and [aw-prelude](../workflows/aw-prelude.md) outputs (`effective-raw`, `enabled-workflows`, `proceed-by-workflow`).
 
    :::{image} ../images/find-control-plane-dashboard.png

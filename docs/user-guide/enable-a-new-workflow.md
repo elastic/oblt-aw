@@ -11,12 +11,17 @@ This guide does **not** cover shipping a **new** agentic workflow in the framewo
 ## Prerequisites
 
 - Your repository is listed in `config/<org-key>/active-repositories.json` and registration is complete ([Onboard a repository](onboard-a-repository.md)).
-- Your repository has an open Control Plane dashboard issue (`label:oblt-aw/dashboard`, title `[oblt-aw] Control Plane Dashboard`).
+- Your repository has an open Control Plane dashboard issue (`label:oblt-aw/dashboard`, title `[oblt-aw] Control Plane Dashboard`). Sync pins it by default, so it usually appears at the top of the Issues list. If it is not pinned (for example when the repository already has three pinned issues), search with `label:oblt-aw/dashboard`.
 - The agentic workflow appears as a row on your repository’s Control Plane dashboard after [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) runs.
 
 ```bash
 gh issue list --repo elastic/<repo> --label oblt-aw/dashboard --state open
 ```
+
+:::{image} ../images/pinned-control-plane-dashboard.png
+:alt: Control Plane Dashboard issue pinned at the top of the repository Issues page
+:screenshot:
+:::
 
 :::{image} ../images/find-control-plane-dashboard.png
 :alt: Issues search filtered by label oblt-aw/dashboard showing the Control Plane Dashboard issue

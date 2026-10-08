@@ -28,6 +28,8 @@ flowchart TD
 2. Follow [distribute-client-workflow](../../operations/distribute-client-workflow.md) and [sync-control-plane-dashboard](../../workflows/sync-control-plane-dashboard.md).
 3. Re-check the onboard path — [Onboard a repository](../../user-guide/onboard-a-repository.md).
 
+   Sync pins the Control Plane dashboard by default at the top of Issues; if it is missing from the pin list, search with `label:oblt-aw/dashboard` ([Finding the Control Plane dashboard](../../operations/control-plane-dashboard.md#finding-the-control-plane-dashboard)).
+
    ```bash
    gh issue list --repo elastic/<repo> --label oblt-aw/dashboard --state open
    gh pr list --repo elastic/<repo> --search "trigger-obs-aw" --state open

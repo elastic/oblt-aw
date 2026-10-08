@@ -62,7 +62,12 @@ Technical registration detail for maintainers and agents: [Registering resources
 
 6. **After the oblt-aw registration PR merges to `main`** — Existing automation opens an agentic workflows triggers PR in your repository (`trigger-obs-aw-*.yml` or docs equivalents) via [distribute-client-workflow](../operations/distribute-client-workflow.md), and creates a **Control Plane dashboard** issue via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
 
-   Merge the agentic workflows triggers PR. Confirm the Control Plane dashboard issue exists (title `[oblt-aw] Control Plane Dashboard`, GitHub label `oblt-aw/dashboard`).
+   Merge the agentic workflows triggers PR. Confirm the Control Plane dashboard issue exists (title `[oblt-aw] Control Plane Dashboard`, GitHub label `oblt-aw/dashboard`). Sync pins it by default, so it usually appears at the top of the Issues list. If it is not pinned (for example when the repository already has three pinned issues), search with `label:oblt-aw/dashboard`.
+
+   :::{image} ../images/pinned-control-plane-dashboard.png
+   :alt: Control Plane Dashboard issue pinned at the top of the repository Issues page
+   :screenshot:
+   :::
 
    :::{image} ../images/find-control-plane-dashboard.png
    :alt: Issues search for label oblt-aw/dashboard showing the Control Plane Dashboard issue

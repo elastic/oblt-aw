@@ -47,14 +47,14 @@ See [Architecture overview](architecture/overview.md), [Control Plane dashboard]
 
 ### Control Plane dashboard
 
-The single GitHub issue per consumer repository (title `[oblt-aw] Control Plane Dashboard`, label `oblt-aw/dashboard`) with checkboxes to enable or disable agentic workflows. Synced by `sync-control-plane-dashboard`; read at runtime by `get-enabled-workflows`.
+The single GitHub issue per consumer repository (title `[oblt-aw] Control Plane Dashboard`, label `oblt-aw/dashboard`) with checkboxes to enable or disable agentic workflows. Synced by `sync-control-plane-dashboard` (pinned by default at the top of Issues); read at runtime by `get-enabled-workflows`.
 
 :::{image} images/find-control-plane-dashboard.png
 :alt: Issues search for label oblt-aw/dashboard showing the Control Plane Dashboard issue
 :screenshot:
 :::
 
-See [Control Plane dashboard — user instructions](operations/control-plane-dashboard.md), [Sync Control Plane dashboard](workflows/sync-control-plane-dashboard.md).
+See [Control Plane dashboard — user instructions](operations/control-plane-dashboard.md) (including how to find the pinned issue), [Sync Control Plane dashboard](workflows/sync-control-plane-dashboard.md).
 
 ### Dependency collection
 

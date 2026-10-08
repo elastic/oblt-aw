@@ -35,16 +35,21 @@ If the repository is **already** registered, skip to step 2.
 
 ## 2. Enable agentic workflows
 
-1. Open the `[oblt-aw] Control Plane Dashboard` issue in your repository (GitHub label `oblt-aw/dashboard`).
+1. Open the `[oblt-aw] Control Plane Dashboard` issue in your repository (GitHub label `oblt-aw/dashboard`). Sync pins it by default, so it usually appears at the top of the Issues list. If it is not pinned (for example when the repository already has three pinned issues), search with `label:oblt-aw/dashboard`.
 2. Check the agentic workflow row. GitHub saves on click; the next matching event applies gating.
+
+:::{image} images/pinned-control-plane-dashboard.png
+:alt: Control Plane Dashboard issue pinned at the top of the repository Issues page
+:screenshot:
+:::
 
 :::{image} images/find-control-plane-dashboard.png
 :alt: Issues search filtered by label oblt-aw/dashboard showing the Control Plane Dashboard issue
 :screenshot:
 :::
 
-:::{image} images/control-plane-dashboard-enable.png
-:alt: Control Plane dashboard enable/disable checkboxes for agentic workflows
+:::{image} images/control-plane-dashboard-checkboxes.png
+:alt: Enable/Disable checkboxes on the Control Plane dashboard
 :screenshot:
 :::
 
