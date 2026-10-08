@@ -8,12 +8,12 @@ applies_to: {}
 
 :::{image} images/oblt-aw-framework-emblem.jpg
 :alt: oblt-aw — opinionated agentic framework for Elastic
-:width: 420px
+:width: 720px
 :::
 
-**oblt-aw** is an opinionated agentic framework for [GitHub Agentic Workflows](https://github.github.com/gh-aw/) across Elastic repositories. It distributes client triggers and routed workflows; the **control plane** is how you configure and gate them (Control Plane dashboard, opt-in/opt-out, audit, and prelude verification).
+**oblt-aw** is an opinionated agentic framework for [GitHub Agentic Workflows](https://github.github.com/gh-aw/) across Elastic repositories.
 
-Upstream agent behavior (what the agent does on an issue or PR) lives in [AI GitHub Actions](https://elastic.github.io/ai-github-actions/). This portal covers how Elastic developers **adopt and operate** those agents through `oblt-aw`.
+Agent behavior (what the agent does on an issue or PR) is defined in locked `gh-aw-*` workflows. Some already live in this repository; others still live in [AI GitHub Actions](https://elastic.github.io/ai-github-actions/) and will move here over time. This portal covers how Elastic developers adopt and operate those agents through `oblt-aw`.
 
 Shared vocabulary (framework vs control plane vs Control Plane dashboard): [Glossary](glossary.md).
 
