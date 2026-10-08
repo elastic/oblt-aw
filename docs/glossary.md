@@ -1,6 +1,6 @@
 ---
 navigation_title: Glossary
-description: Shared terms for the oblt-aw framework, control plane, and Control Plane dashboard.
+description: Shared terms for the oblt-aw framework, control plane, Control Plane dashboard, and dependency collections.
 applies_to: {}
 ---
 
@@ -41,6 +41,12 @@ See [Architecture overview](architecture/overview.md), [Control Plane dashboard]
 The single GitHub issue per consumer repository (title `[oblt-aw] Control Plane Dashboard`, label `oblt-aw/dashboard`) with checkboxes to enable or disable agentic workflows. Synced by `sync-control-plane-dashboard`; read at runtime by `get-enabled-workflows`.
 
 See [Control Plane dashboard — user instructions](operations/control-plane-dashboard.md), [Sync Control Plane dashboard](workflows/sync-control-plane-dashboard.md).
+
+### Dependency collection
+
+A named Automerge sub-feature that groups dependency-update PRs by changed file paths (globs in [`config/obs/automerge-dependency-collections.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/automerge-dependency-collections.json)). On the Control Plane dashboard, each collection is an indented checkbox under Automerge (`obs:automerge:<collection-id>`). The collection gate classifies the PR and skips approve/merge when that collection is not enabled.
+
+See [Automerge dependency collections](user-guide/automerge-services.md), [Automerge routing](routing/automerge-routing.md).
 
 ### Distribution
 

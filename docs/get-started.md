@@ -36,7 +36,7 @@ For further details, see [Enable or disable an agentic workflow](user-guide/enab
 
 Browse by what you want to automate: [Agentic workflow catalog by outcome](workflows/by-outcome.md).
 
-For Automerge categories: [Choose Automerge services](user-guide/automerge-services.md).
+For Automerge dependency collections: [Choose Automerge dependency collections](user-guide/automerge-services.md).
 
 More in the [User guide](user-guide/index.md).
 

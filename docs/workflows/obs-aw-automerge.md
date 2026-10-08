@@ -23,7 +23,7 @@ Required status checks are **not** queried in `verify`; branch protection and th
 
 Ingress selects which events dispatch here; see [Automerge routing](../routing/automerge-routing.md).
 
-If you are choosing which dependency-update categories to enroll, start with [Automerge services](../user-guide/automerge-services.md).
+If you are choosing which dependency collections to enroll, start with [Automerge dependency collections](../user-guide/automerge-services.md).
 
 ## Prerequisites
 

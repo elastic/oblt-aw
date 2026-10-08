@@ -42,7 +42,7 @@ Related: [Security triage](obs-aw-security-triage.md), [Security fixer](obs-aw-s
 
 | Agentic workflow | Maturity | What it does | Docs |
 |----------|----------|--------------|------|
-| Automerge | stable | Arms and squash-merges allowed bot PRs when checks are green | [Choose Automerge services](../user-guide/automerge-services.md), [obs-aw-automerge](obs-aw-automerge.md) |
+| Automerge | stable | Arms and squash-merges allowed bot PRs when checks are green | [Choose Automerge dependency collections](../user-guide/automerge-services.md), [obs-aw-automerge](obs-aw-automerge.md) |
 
 ## Docs organization
 

@@ -170,7 +170,7 @@ function buildGateCommentBody(outcome, changedFiles, enabledCollectionIds) {
 
   let reason = '';
   let nextStep =
-    `To allow automerge for this kind of update, enable the matching collection under Automerge on the Control Plane Dashboard (the \`oblt-aw/dashboard\` issue). See [Automerge services](${AUTOMERGE_SERVICES_GUIDE_URL}) for what each collection covers.`;
+    `To allow automerge for this kind of update, enable the matching collection under Automerge on the Control Plane Dashboard (the \`oblt-aw/dashboard\` issue). See [Automerge dependency collections](${AUTOMERGE_SERVICES_GUIDE_URL}) for what each collection covers.`;
   if (outcome.status === 'disabled') {
     reason = `Automerge skipped this pull request because the **\`${outcome.collectionId}\`** collection is not enabled for this repository.`;
   } else if (outcome.status === 'unclassified') {

@@ -1,15 +1,15 @@
-# Automerge services
+# Automerge dependency collections
 
 ## Overview
 
 Automerge has two layers:
 
 1. **Parent toggle:** turns Automerge on for the repository.
-2. **Service checkboxes:** choose which dependency-update categories Automerge may merge.
+2. **Dependency collection checkboxes:** choose which dependency collections Automerge may merge.
 
 This lets a team say: “We trust Automerge for these update types, but not for the rest.”
 
-If a service is **enabled**, matching bot PRs can continue through the normal validation, approval, and merge flow (arm while required CI is pending; deferred merge on the frequent schedule profile). If a service is **disabled**, those PRs stay unmerged; use the Automerge link on the Control Plane dashboard or the dependency-collection gate comment to review this catalogue and enable the right category if you want it.
+If a dependency collection is **enabled**, matching bot PRs can continue through the normal validation, approval, and merge flow (arm while required CI is pending; deferred merge on the frequent schedule profile). If a collection is **disabled**, those PRs stay unmerged; use the Automerge link on the Control Plane dashboard or the dependency-collection gate comment to review this catalogue and enable the right collection if you want it.
 
 Technical details for eligibility, validation, approval, tokens, and merge behavior live in:
 
@@ -17,10 +17,10 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 - [Automerge routing](../routing/automerge-routing.md)
 - [Automerge workflow](../workflows/obs-aw-automerge.md)
 
-## What each service means
+## What each dependency collection means
 
-| Service | What it covers | Representative files | Why enable it | Enabled vs disabled |
-|---------|----------------|----------------------|---------------|---------------------|
+| Collection | What it covers | Representative files | Why enable it | Enabled vs disabled |
+|------------|----------------|----------------------|---------------|---------------------|
 | APM CLI version | APM CLI pin updates for agent package install | `.apm.version`, `**/.apm.version`, `.apm-cli-pin/requirements.txt` | Keep the framework APM CLI pin current when Dependabot bumps `apm-cli` | Enabled: matching pin PRs may merge. Disabled: they remain open. |
 | GitHub Actions bumps | Version updates for GitHub Actions and composite actions | `.github/workflows/**`, `.github/actions/**`, `**/action.yml`, `**/action.yaml` | Keep CI actions current without hand-merging routine bumps | Enabled: qualifying bumps can merge. Disabled: those PRs stop at the Control Plane dashboard gate. |
 | pre-commit hook updates | Dependency updates for pre-commit hooks | `.pre-commit-config.yaml` | Keep local and CI hook versions moving with low review overhead | Enabled: hook bump PRs may merge. Disabled: they stay queued. |
@@ -36,12 +36,12 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 ## Choosing what to enable
 
 - Start with the **parent Automerge toggle**.
-- Enable only the service categories that match your repository.
-- If you are unsure, leave a category disabled until you are comfortable with the risk.
+- Enable only the dependency collections that match your repository.
+- If you are unsure, leave a collection disabled until you are comfortable with the risk.
 
 ## Related Control Plane dashboard behavior
 
-- The Control Plane dashboard shows each service with a concise label and description.
-- The Control Plane dashboard's **Automerge** link opens this guide for service selection, while the technical workflow and routing docs above cover implementation details.
+- The Control Plane dashboard shows each dependency collection with a concise label and description.
+- The Control Plane dashboard's **Automerge** link opens this guide for collection selection, while the technical workflow and routing docs above cover implementation details.
 - The checkbox marker is the real parsing contract; the visible text is for humans.
-- Parent and service checkboxes are still subject to the normal Automerge workflow rules.
+- Parent and dependency collection checkboxes are still subject to the normal Automerge workflow rules.
