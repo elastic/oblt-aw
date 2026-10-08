@@ -58,8 +58,8 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 | Requirement | Details |
 |---------------|---------|
 | Classification | Changed file paths on the PR are matched against [config/obs/automerge-dependency-collections.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/automerge-dependency-collections.json) (`file-glob` per collection). No extra labels are required in consumer repositories. |
-| Enabled collections | Only collections enabled on the Control Plane Dashboard (`obs:automerge:<collection-id>` sub-feature checkboxes under Automerge) proceed to `approve` and `automerge`. The parent `obs:automerge` checkbox must also be enabled. |
-| Skipped PRs | When classification fails or the collection is not enabled on the dashboard, the job posts or updates a single PR comment (marker `obs-aw-automerge:dependency-collection-gate`) and downstream jobs do not run. |
+| Enabled collections | Only collections enabled on the Control Plane dashboard (`obs:automerge:<collection-id>` sub-feature checkboxes under Automerge) proceed to `approve` and `automerge`. The parent `obs:automerge` checkbox must also be enabled. |
+| Skipped PRs | When classification fails or the collection is not enabled on the Control Plane dashboard, the job posts or updates a single PR comment (marker `obs-aw-automerge:dependency-collection-gate`) and downstream jobs do not run. |
 
 **`approve` job:** Nested `gh-aw-mention-in-pr` uses author-aware `github-token-policy` (Vault only for `github-actions[bot]` authors; otherwise `GITHUB_TOKEN`). For repos with “Require review from Code Owners”, add the Vault app to classic branch-protection `pull_request_bypassers` and merge as that app (see [obs-aw-automerge.md](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens)).
 

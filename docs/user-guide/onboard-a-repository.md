@@ -2,7 +2,7 @@
 
 ## Overview
 
-Use this guide when you want OBLT Agentic Workflows (`oblt-aw`) in a repository that is **not yet registered**. You open one issue in `elastic/oblt-aw`; automation opens the required pull requests; you merge them; then you enable agentic workflows from the Control Plane Dashboard in your repository.
+Use this guide when you want OBLT Agentic Workflows (`oblt-aw`) in a repository that is **not yet registered**. You open one issue in `elastic/oblt-aw`; automation opens the required pull requests; you merge them; then you enable agentic workflows from the Control Plane dashboard in your repository.
 
 Technical registration detail for maintainers and agents: [Registering resources](../onboarding/registering-a-repository.md).
 
@@ -20,7 +20,7 @@ Technical registration detail for maintainers and agents: [Registering resources
    - **Repository** — `elastic/<repo>` (example: `elastic/my-repo`).
    - **Organization key** — `obs` or `docs` (matches a `config/<org-key>/` folder in `elastic/oblt-aw`).
 
-3. **Submit** — The form applies the label `oblt-aw/onboard/repository`. That starts the in-repo agent `gh-aw-onboard-repository` in `elastic/oblt-aw` only (this is **not** a consumer catalog / Control Plane Dashboard agentic workflow).
+3. **Submit** — The form applies the label `oblt-aw/onboard/repository`. That starts the in-repo agent `gh-aw-onboard-repository` in `elastic/oblt-aw` only (this is **not** a consumer catalog / Control Plane dashboard agentic workflow).
 
 4. **Wait for the agent checklist comment** — The agent posts progress on the issue and opens **separate, normal (non-draft) pull requests**, one concern per PR. Typical PRs:
 
@@ -33,11 +33,11 @@ Technical registration detail for maintainers and agents: [Registering resources
 
 5. **Merge manually in order** — Humans merge. Merge the **catalog-info** TokenPolicy PR **before** the **oblt-aw** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed agentic workflows in production. Auto-merge of these PRs is **out of scope** for now.
 
-6. **After the oblt-aw registration PR merges to `main`** — Existing automation opens an agentic workflows triggers PR in your repository (`trigger-obs-aw-*.yml` or docs equivalents) via [distribute-client-workflow](../operations/distribute-client-workflow.md), and creates a **Control Plane Dashboard** issue via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
+6. **After the oblt-aw registration PR merges to `main`** — Existing automation opens an agentic workflows triggers PR in your repository (`trigger-obs-aw-*.yml` or docs equivalents) via [distribute-client-workflow](../operations/distribute-client-workflow.md), and creates a **Control Plane dashboard** issue via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
 
-   Merge the agentic workflows triggers PR. Confirm the dashboard issue exists (title `[oblt-aw] Control Plane Dashboard`, GitHub label `oblt-aw/dashboard`).
+   Merge the agentic workflows triggers PR. Confirm the Control Plane dashboard issue exists (title `[oblt-aw] Control Plane Dashboard`, GitHub label `oblt-aw/dashboard`).
 
-7. **Enable or disable agentic workflows** — In your repository, open the Control Plane Dashboard issue and check or uncheck the agentic workflows you want. GitHub saves on click. Agentic workflows apply on the next supported client trigger. See [Enable or disable an agentic workflow](enable-a-new-workflow.md).
+7. **Enable or disable agentic workflows** — In your repository, open the Control Plane dashboard issue and check or uncheck the agentic workflows you want. GitHub saves on click. Agentic workflows apply on the next supported client trigger. See [Enable or disable an agentic workflow](enable-a-new-workflow.md).
 
 ## Troubleshooting
 
@@ -46,4 +46,4 @@ Onboard-specific failures live here so the guide stays self-contained; recurring
 - **No agent comment / no PRs** — Confirm you have **write** on `elastic/oblt-aw` and the issue has `oblt-aw/onboard/repository` (without write, GitHub drops the form label). Check the Actions run for `gh-aw-onboard-repository`. Cross-repo PR creation needs the agent TokenPolicy / minted token (see [gh-aw-onboard-repository](../workflows/gh-aw-onboard-repository.md)).
 - **Retry after a partial run** — Remove and re-apply the `oblt-aw/onboard/repository` label. The agent does not open duplicates for concerns that already have an open `[oblt-aw][onboard]` PR; it gap-fills missing concerns (for example a secrets PR that was skipped incorrectly) and comments with exact PR URLs when the inventory is complete.
 - **Registration merged too early** — If `oblt-aw` registration landed before catalog TokenPolicy was active, follow [Registering resources — troubleshooting](../onboarding/registering-a-repository.md#troubleshooting).
-- **No install PR or dashboard** — Confirm the repository appears in `config/<org-key>/active-repositories.json` on `main`, then see [distribute-client-workflow](../operations/distribute-client-workflow.md) and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
+- **No install PR or Control Plane dashboard** — Confirm the repository appears in `config/<org-key>/active-repositories.json` on `main`, then see [distribute-client-workflow](../operations/distribute-client-workflow.md) and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).

@@ -20,9 +20,9 @@ Routed workflow source: [.github/workflows/obs-aw-dependency-review.yml](https:/
   - `elastic-renovate-prod[bot]`
   - `elastic-vault-github-plugin-prod[bot]`
   - `github-actions[bot]`
-- Dashboard gate passes for registry id `dependency-review` (`enabled-workflows` contains `obs:dependency-review`).
+- Control Plane dashboard gate passes for registry id `dependency-review` (`enabled-workflows` contains `obs:dependency-review`).
 
-For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/aw-prelude.md](../workflows/aw-prelude.md).
+For Control Plane dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/aw-prelude.md](../workflows/aw-prelude.md).
 
 When the lock succeeds without a `comment_id`, `notify-no-comment` upserts a single comment on the triggering PR (marker `obs-aw-dependency-review:notify-no-comment`; run URL + retry guidance). See [docs/workflows/obs-aw-dependency-review.md](../workflows/obs-aw-dependency-review.md) for the empty-safe-outputs failure mode.
 

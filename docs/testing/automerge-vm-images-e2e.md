@@ -19,7 +19,7 @@ Live E2E only against **`elastic/oblt-aw`**:
 
 ## Prerequisites (live)
 
-1. **Dashboard** — on the Control Plane Dashboard for `elastic/oblt-aw`, enable:
+1. **Control Plane dashboard** — on the Control Plane dashboard for `elastic/oblt-aw`, enable:
    - `obs:dependency-review`
    - `obs:automerge`
    - `obs:automerge:vm-images` (currently opt-in; harness fails closed if missing)

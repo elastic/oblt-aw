@@ -12,13 +12,13 @@ Documentation for each workflow source in [.github/workflows/](https://github.co
 
 ## Job naming (Actions UI)
 
-Shared control-plane jobs use **kebab-case, action-oriented** ids with domain context:
+Shared framework jobs use **kebab-case, action-oriented** ids with domain context:
 
 | Pattern | Example job ids |
 |---------|-----------------|
 | Consumer entrypoint | `run-obs-aw-pull-request`, `run-docs-aw-issues` |
 | Event orchestrator prelude | `run-aw-prelude` |
-| Dashboard read | `read-oblt-aw-dashboard` |
+| Control Plane dashboard read | `read-oblt-aw-dashboard` |
 | Allow-list load | `load-oblt-aw-bot-allow-lists` |
 | Gate evaluation | `evaluate-workflow-gates` |
 | Agentic asset resolve (leaf reusable) | `resolve-agentic-assets` |
@@ -33,9 +33,9 @@ Shared control-plane jobs use **kebab-case, action-oriented** ids with domain co
 - [CI](ci.md)
 - [Compiler upgrade](compiler-upgrade.md)
 - [Compiler upgrade (Observability)](obs-aw-compiler-upgrade.md)
-- [Dashboard audit](aw-dashboard-audit.md)
-- [Dashboard reader](get-enabled-workflows.md)
-- [Dashboard sync](sync-control-plane-dashboard.md)
+- [Control Plane dashboard audit](aw-dashboard-audit.md)
+- [Control Plane dashboard reader](get-enabled-workflows.md)
+- [Control Plane dashboard sync](sync-control-plane-dashboard.md)
 - [Dependency review](obs-aw-dependency-review.md)
 - [Distribution](distribute-client-workflow.md)
 - [Docs client templates](docs-aw-client-template.md)

@@ -9,7 +9,7 @@ Automerge has two layers:
 
 This lets a team say: “We trust Automerge for these update types, but not for the rest.”
 
-If a service is **enabled**, matching bot PRs can continue through the normal validation, approval, and merge flow (arm while required CI is pending; deferred merge on the frequent schedule profile). If a service is **disabled**, those PRs stay unmerged; use the Automerge link on the Control Plane Dashboard or the dependency-collection gate comment to review this catalogue and enable the right category if you want it.
+If a service is **enabled**, matching bot PRs can continue through the normal validation, approval, and merge flow (arm while required CI is pending; deferred merge on the frequent schedule profile). If a service is **disabled**, those PRs stay unmerged; use the Automerge link on the Control Plane dashboard or the dependency-collection gate comment to review this catalogue and enable the right category if you want it.
 
 Technical details for eligibility, validation, approval, tokens, and merge behavior live in:
 
@@ -21,8 +21,8 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 
 | Service | What it covers | Representative files | Why enable it | Enabled vs disabled |
 |---------|----------------|----------------------|---------------|---------------------|
-| APM CLI version | APM CLI pin updates for agent package install | `.apm.version`, `**/.apm.version`, `.apm-cli-pin/requirements.txt` | Keep the control-plane APM CLI pin current when Dependabot bumps `apm-cli` | Enabled: matching pin PRs may merge. Disabled: they remain open. |
-| GitHub Actions bumps | Version updates for GitHub Actions and composite actions | `.github/workflows/**`, `.github/actions/**`, `**/action.yml`, `**/action.yaml` | Keep CI actions current without hand-merging routine bumps | Enabled: qualifying bumps can merge. Disabled: those PRs stop at the dashboard gate. |
+| APM CLI version | APM CLI pin updates for agent package install | `.apm.version`, `**/.apm.version`, `.apm-cli-pin/requirements.txt` | Keep the framework APM CLI pin current when Dependabot bumps `apm-cli` | Enabled: matching pin PRs may merge. Disabled: they remain open. |
+| GitHub Actions bumps | Version updates for GitHub Actions and composite actions | `.github/workflows/**`, `.github/actions/**`, `**/action.yml`, `**/action.yaml` | Keep CI actions current without hand-merging routine bumps | Enabled: qualifying bumps can merge. Disabled: those PRs stop at the Control Plane dashboard gate. |
 | pre-commit hook updates | Dependency updates for pre-commit hooks | `.pre-commit-config.yaml` | Keep local and CI hook versions moving with low review overhead | Enabled: hook bump PRs may merge. Disabled: they stay queued. |
 | Python dependencies | Python package and lockfile updates | `**/pyproject.toml`, `**/requirements.txt`, `**/requirements-*.txt`, `**/poetry.lock`, `**/Pipfile`, `**/Pipfile.lock` | Useful when Python bumps are routine and low risk for your repo | Enabled: matching Python update PRs may merge. Disabled: they require manual attention. |
 | Go dependencies | Go module and sum updates | `go.mod`, `go.sum`, `**/go.mod`, `**/go.sum` | Good for teams that accept standard Go dependency refreshes automatically | Enabled: Go dependency PRs may merge. Disabled: they remain unmerged. |
@@ -39,9 +39,9 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 - Enable only the service categories that match your repository.
 - If you are unsure, leave a category disabled until you are comfortable with the risk.
 
-## Related dashboard behavior
+## Related Control Plane dashboard behavior
 
-- The dashboard shows each service with a concise label and description.
-- The dashboard's **Automerge** link opens this guide for service selection, while the technical workflow and routing docs above cover implementation details.
+- The Control Plane dashboard shows each service with a concise label and description.
+- The Control Plane dashboard's **Automerge** link opens this guide for service selection, while the technical workflow and routing docs above cover implementation details.
 - The checkbox marker is the real parsing contract; the visible text is for humans.
 - Parent and service checkboxes are still subject to the normal Automerge workflow rules.

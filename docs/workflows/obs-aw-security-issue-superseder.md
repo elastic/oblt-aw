@@ -11,7 +11,7 @@ Implementation is a shell script ([`scripts/obs/supersede-security-issues.sh`](h
 ## Prerequisites
 
 - Invoked via `workflow_call` from [obs-aw-event-issues.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-issues.yml) (client template `trigger-obs-aw-issues.yml`).
-- Dashboard gating uses registry id **`security`** (`obs:security`) — same compound id as detector, triage, and fixer.
+- Control Plane dashboard gating uses registry id **`security`** (`obs:security`) — same compound id as detector, triage, and fixer.
 - Ephemeral GitHub token from [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) (same pattern as the security detector).
 
 ## Usage

@@ -1,6 +1,6 @@
 ---
 navigation_title: Get started
-description: Onboard a repository and enable OBLT Agentic Workflows from the Control Plane Dashboard.
+description: Onboard a repository and enable OBLT Agentic Workflows from the Control Plane dashboard.
 applies_to: {}
 ---
 
@@ -14,7 +14,7 @@ If the repository is **not** listed in `config/<org-key>/active-repositories.jso
 
 1. Open an **[Onboard a repository](https://github.com/elastic/oblt-aw/issues/new?template=onboard-repository.yml)** issue in [elastic/oblt-aw](https://github.com/elastic/oblt-aw).
 2. Follow the agent checklist on the issue and merge the pull requests it opens.
-3. Merge the agentic workflows triggers PR in your repository and confirm the Control Plane Dashboard issue exists.
+3. Merge the agentic workflows triggers PR in your repository and confirm the Control Plane dashboard issue exists.
 
 For further details, see [Onboard a repository](user-guide/onboard-a-repository.md).
 
@@ -26,7 +26,7 @@ If the repository is **already** registered, skip to step 2.
 2. Check the agentic workflow row. GitHub saves on click; the next matching event applies gating.
 
 :::{image} images/control-plane-dashboard-enable.png
-:alt: Control Plane Dashboard Enable/Disable checkboxes for agentic workflows
+:alt: Control Plane dashboard enable/disable checkboxes for agentic workflows
 :screenshot:
 :::
 

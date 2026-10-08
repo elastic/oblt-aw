@@ -2,20 +2,20 @@
 
 ## Overview
 
-**Adopting** a new agentic workflow means: it is **defined in the remote control plane** (`elastic/oblt-aw` — reusable `obs-aw-*` Actions workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trigger-obs-aw-<workflow-id>.yml`** client template. Template source calls `elastic/oblt-aw/.github/workflows/obs-aw-event-*.yml@main`; installed pins follow `pin-class` ([agentic-release-model](../operations/agentic-release-model.md)).
+**Adopting** a new agentic workflow means: it is **defined in the framework** (`elastic/oblt-aw` — reusable `obs-aw-*` Actions workflows with [aw-prelude](../workflows/aw-prelude.md)), then **consumer repositories** run it through a distributed **`trigger-obs-aw-<workflow-id>.yml`** client template. Template source calls `elastic/oblt-aw/.github/workflows/obs-aw-event-*.yml@main`; installed pins follow `pin-class` ([agentic-release-model](../operations/agentic-release-model.md)).
 
-You **cannot** meaningfully “enable” an agentic workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json), the **client template and `obs-aw-*` wrapper** exist, and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane Dashboard. An agentic workflow runs only when its checkbox is checked on that dashboard (or after sync creates the dashboard and you enable it).
+You **cannot** meaningfully “enable” an agentic workflow in a repository until it **exists in that org’s** [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json), the **client template and `obs-aw-*` wrapper** exist, and [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) has rendered it on the Control Plane dashboard. An agentic workflow runs only when its checkbox is checked on that Control Plane dashboard (or after sync creates the Control Plane dashboard and you enable it).
 
-Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) and [`active-repositories.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json). Gating uses compound ids `org-key:workflow-id` ([`get-enabled-workflows`](../workflows/get-enabled-workflows.md), [Control Plane Dashboard format](../operations/control-plane-dashboard-format.md), [multi-org design](../architecture/multi-org-agentic-workflows.md)).
+Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) and [`active-repositories.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json). Gating uses compound ids `org-key:workflow-id` ([`get-enabled-workflows`](../workflows/get-enabled-workflows.md), [Control Plane dashboard format](../operations/control-plane-dashboard-format.md), [multi-org design](../architecture/multi-org-agentic-workflows.md)).
 
 **If the agentic workflow already exists in `oblt-aw`** and you only need repository-side adoption, **jump to [Consumer repositories](#consumer-repositories)** (after [Registering resources](registering-a-repository.md) where applicable).
 
 ## Prerequisites
 
-- **Control plane:** Permission to change `elastic/oblt-aw` on `main` via reviewed pull requests.
+- **Framework:** Permission to change `elastic/oblt-aw` on `main` via reviewed pull requests.
 - **Consumer repos:** Target repositories listed in `active-repositories.json` and per-workflow client YAML installed ([Client template](../workflows/obs-aw-client-template.md); the **security detector** uses an ephemeral token — [obs-aw-security-detector](../workflows/obs-aw-security-detector.md)).
 
-## Control plane checklist (`elastic/oblt-aw`)
+## Framework checklist (`elastic/oblt-aw`)
 
 ### 1. Add the reusable workflow (and upstream lock, if applicable)
 
@@ -37,7 +37,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ### 5. Register in `workflow-registry.json`
 
-- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (repo-relative path under `docs/workflows/`), and `inner_workflows` (basenames of every `obs-aw-*` / `docs-aw-*` wrapper that share this dashboard id) under `config/<org-key>/workflow-registry.json`.
+- Add one object with unique `id`, `name`, `description`, `maturity`, `default_enabled`, `docs` (repo-relative path under `docs/workflows/`), and `inner_workflows` (basenames of every `obs-aw-*` / `docs-aw-*` wrapper that share this Control Plane dashboard id) under `config/<org-key>/workflow-registry.json`.
 
 ### 6. Add a client template
 
@@ -53,17 +53,17 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 
 ## Consumer repositories
 
-1. **Verify** the agentic workflow row exists on the Control Plane Dashboard after sync.
-2. **Install secrets** and enable via dashboard when policy requires opt-in.
+1. **Verify** the agentic workflow row exists on the Control Plane dashboard after sync.
+2. **Install secrets** and enable via Control Plane dashboard when policy requires opt-in.
 3. **Remove** legacy `.github/workflows/oblt-aw.yml` if still present.
 
-## Dashboard gating (reference)
+## Control Plane dashboard gating (reference)
 
-| Dashboard state | Effect |
+| Control Plane dashboard state | Effect |
 |-----------------|--------|
-| No open dashboard issue (`effective-raw` empty) | None |
-| Dashboard exists, all unchecked | None |
-| Dashboard exists, some checked | Only checked `org-key:workflow-id` values |
+| No open Control Plane dashboard issue (`effective-raw` empty) | None |
+| Control Plane dashboard exists, all unchecked | None |
+| Control Plane dashboard exists, some checked | Only checked `org-key:workflow-id` values |
 
 ## Troubleshooting
 
@@ -75,5 +75,5 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 - [Architecture overview](../architecture/overview.md)
 - [aw-prelude](../workflows/aw-prelude.md)
 - [obs-aw client template](../workflows/obs-aw-client-template.md)
-- [Control Plane Dashboard format](../operations/control-plane-dashboard-format.md)
+- [Control Plane dashboard format](../operations/control-plane-dashboard-format.md)
 - [Registering resources](registering-a-repository.md)

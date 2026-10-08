@@ -19,11 +19,11 @@ The reusable workflow job id is `resolve-agentic-assets`. Route wrappers typical
 | Input | Type | Default | Purpose |
 |-------|------|---------|---------|
 | `workflow-basename` | string | (required) | Basename of the calling wrapper; used to resolve org key and registry workflow id for `x-oblt-aw.<org-key>.workflows.<id>` selection |
-| `platform-additional-instructions` | string | `""` | Control-plane baseline text for this agent invocation (prepended before repo APM instructions) |
+| `platform-additional-instructions` | string | `""` | Framework baseline text for this agent invocation (prepended before repo APM instructions) |
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
 | `install-apm-packages` | boolean | `true` | Run [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI and runs `apm install`) |
 
-The APM CLI version comes from the control-plane pin in [`.apm.version`](https://github.com/elastic/oblt-aw/blob/main/.apm.version) (sparse-checked out with the resolver). Dependabot updates the matching PyPI pin in [`.apm-cli-pin/requirements.txt`](https://github.com/elastic/oblt-aw/blob/main/.apm-cli-pin/requirements.txt); [`.github/workflows/aw-sync-apm-version.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-sync-apm-version.yml) copies that version into `.apm.version`.
+The APM CLI version comes from the framework pin in [`.apm.version`](https://github.com/elastic/oblt-aw/blob/main/.apm.version) (sparse-checked out with the resolver). Dependabot updates the matching PyPI pin in [`.apm-cli-pin/requirements.txt`](https://github.com/elastic/oblt-aw/blob/main/.apm-cli-pin/requirements.txt); [`.github/workflows/aw-sync-apm-version.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-sync-apm-version.yml) copies that version into `.apm.version`.
 
 Private GitHub dependencies use one of two auth paths during `apm install`:
 
@@ -41,12 +41,12 @@ The `workflow-token-policy` field (exposed to route workflows as `shared-token-p
 | `apm-manifest-present` | Consumer has `apm.yml` / `apm.yaml` |
 | `apm-extension-present` | Manifest contains `x-oblt-aw` |
 | `asset-source` | `none`, `common`, `workflow`, or `inner-workflow` |
-| `resolved-additional-instructions` | Merged control-plane fragments, platform, APM, and consumer-side instructions |
+| `resolved-additional-instructions` | Merged framework fragments, platform, APM, and consumer-side instructions |
 | `resolved-inputs-json` | Merged platform + APM inputs |
 | `resolved-setup-commands-json` | JSON array of shell commands from the selected asset block (`setup-commands` inline string/list and optional `setup-commands-file`) |
 | `resolved-instruction-layers-json` | JSON object listing which fragment ids and inline/auto layers were appended (`org-key`, `workflow-id`, `workflow-basename`, `layers`) |
 
-Instruction merge order and control-plane fragment layout: [instruction fragments](../architecture/instruction-fragments.md). Consumer `apm.yml` contract: [APM agentic assets](../architecture/apm-agentic-assets.md).
+Instruction merge order and framework fragment layout: [instruction fragments](../architecture/instruction-fragments.md). Consumer `apm.yml` contract: [APM agentic assets](../architecture/apm-agentic-assets.md).
 
 ### Typical caller pattern
 

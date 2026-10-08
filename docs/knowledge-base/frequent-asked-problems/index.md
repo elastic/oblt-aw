@@ -13,7 +13,7 @@ Short answers for problems the team has already diagnosed. Each page links to th
 | Workflow jobs skipped or agents never run | [Workflows skipped or not running](workflows-skipped-or-not-running.md) |
 | Registration merged before catalog TokenPolicy was active | [Registration before catalog TokenPolicy](registration-before-catalog-token-policy.md) |
 | `create-token` / OIDC failures on client runs | [create-token or OIDC failures](create-token-or-oidc-failures.md) |
-| No distribute PR or no Control Plane Dashboard after registration | [Missing client template or dashboard](missing-client-template-or-dashboard.md) |
+| No distribute PR or no Control Plane dashboard after registration | [Missing client template or Control Plane dashboard](missing-client-template-or-dashboard.md) |
 | Unsure whether a long-lived repository secret is required | [Configure a GitHub secret](../../troubleshooting/configure-a-github-secret.md) |
 
 ## How to add an entry

@@ -20,7 +20,7 @@ Live E2E only against **`elastic/oblt-aw`**:
 
 ## Prerequisites (live)
 
-1. **Dashboard** — on the Control Plane Dashboard for `elastic/oblt-aw`, enable `obs:dependency-review`.
+1. **Control Plane dashboard** — on the Control Plane dashboard for `elastic/oblt-aw`, enable `obs:dependency-review`.
 2. **Token policy** — `token-policy-6cd7ac55e207` must exist in `elastic/catalog-info` (bound to `elastic/oblt-aw/.github/workflows/e2e-*.yml@*`). When this leaf runs under [`aw-release-promote.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-release-promote.yml) (OIDC `workflow_ref` is the promote entrypoint), harnesses use `token-policy-bd2501d7d475` from [`config/release.json`](https://github.com/elastic/oblt-aw/blob/main/config/release.json) (bound to `aw-release-promote.yml`). Direct E2E dispatch uses [`config/e2e.json`](https://github.com/elastic/oblt-aw/blob/main/config/e2e.json). E2E workflows pass the selected policy explicitly to `create-token`.
 3. **Runner identity** — live runs mint Vault via `create-token` (see [e2e-dependency-review.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-dependency-review.yml)). The harness reads author via the REST Pulls API (`user.login`); do not use `gh pr view --json author` (GraphQL returns `app/…` since gh ≥ 2.50).
 

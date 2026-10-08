@@ -5,22 +5,22 @@
 
 ## Goal
 
-Promote control-plane changes safely with mandatory gating E2E, keep consumer trigger churn low (major bumps only), and support quick rollback.
+Promote framework changes safely with mandatory gating E2E, keep consumer trigger churn low (major bumps only), and support quick rollback.
 
 ## Current pins (inventory)
 
 | Surface | Location | Pointer today |
 |---------|----------|---------------|
 | Distributed client triggers | `.github/remote-workflow-template/**/trigger-*-aw-*.yml` | Source tree pins `@main`; distribute substitutes the install pin from `pin-class` |
-| Installed client triggers (incl. control plane) | `.github/workflows/trigger-*-aw-*.yml` in each active repo | `development` → `@main`; `production` → `tags.current` (`@v0`) once `pointers.current.sha` is set **and** that tag exists on origin |
+| Installed client triggers (incl. framework pins) | `.github/workflows/trigger-*-aw-*.yml` in each active repo | `development` → `@main`; `production` → `tags.current` (`@v0`) once `pointers.current.sha` is set **and** that tag exists on origin |
 | Development pins | `pin-class: development` in `config/*/active-repositories.json` | Always `@main`. `elastic/oblt-aw` must be development (live E2E consumer) |
-| E2E-only schedule entry | `.github/workflows/e2e-trigger-obs-aw-schedule.yml` | Relative `./` (control-plane only; not distributed) |
+| E2E-only schedule entry | `.github/workflows/e2e-trigger-obs-aw-schedule.yml` | Relative `./` (framework-only; not distributed) |
 | Event orchestrators → routes | `obs-aw-event-*.yml` | Relative `./` (inherits caller pin) |
 | In-repo GH-AW locks | `obs-aw-autodoc.yml`, `obs-aw-dependency-review.yml`, `obs-aw-estc-pr-buildkite-detective.yml` | Relative `./gh-aw-*.lock.yml` (inherits caller pin) |
 | Upstream locks still in `ai-github-actions` | Other `obs-aw-*.yml` wrappers | `elastic/ai-github-actions/...@main` (until [#1876](https://github.com/elastic/oblt-aw/issues/1876)) |
 | Release metadata | `config/release-pointers.json` | `current` / `next` / `previous` SHAs + semver |
 
-**Why development stays on `@main`:** After promote, production consumers pin the moving major (`@v0`). Development repositories (including `elastic/oblt-aw`) keep consuming tip of `main` so live schedules, PR routes, and E2E that poll real client triggers catch control-plane regressions before the shared train promotes. Parser/CI reject any `pin-class` for `elastic/oblt-aw` other than `development`.
+**Why development stays on `@main`:** After promote, production consumers pin the moving major (`@v0`). Development repositories (including `elastic/oblt-aw`) keep consuming tip of `main` so live schedules, PR routes, and E2E that poll real client triggers catch framework regressions before the shared train promotes. Parser/CI reject any `pin-class` for `elastic/oblt-aw` other than `development`.
 
 Initial development list (everyone else in the obs/docs active lists is production):
 
@@ -86,7 +86,7 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 | Who | Maintainers with Actions `workflow_dispatch` on this repo |
 | Recovery target | **≤ 15 minutes** when git tags and `release-pointers.json` are healthy |
 | Failed pointers merge | Re-run the same rollback. Do not promote until origin `vN` matches committed pointers (or that rollback’s in-flight SHA). |
-| Optional blast-radius stop | Disable routes via Control Plane Dashboard ([aw-prelude](../workflows/aw-prelude.md)) |
+| Optional blast-radius stop | Disable routes via Control Plane dashboard ([aw-prelude](../workflows/aw-prelude.md)) |
 
 ## First promote (after this model lands)
 

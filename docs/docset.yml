@@ -12,6 +12,7 @@ exclude:
 toc:
   - file: index.md
   - file: get-started.md
+  - file: glossary.md
   - folder: user-guide
     children:
       - file: index.md

@@ -1,6 +1,6 @@
-# Instruction fragments (control plane)
+# Instruction fragments (framework)
 
-Control-plane agentic prompts can be composed from reusable Markdown fragments under each org config tree. The resolver loads them in [`aw-resolve-agentic-assets.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-resolve-agentic-assets.yml) before platform inline text and consumer `apm.yml` assets.
+Framework agentic prompts can be composed from reusable Markdown fragments under each org config tree. The resolver loads them in [`aw-resolve-agentic-assets.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-resolve-agentic-assets.yml) before platform inline text and consumer `apm.yml` assets.
 
 ## Layout
 
@@ -57,20 +57,20 @@ Control-plane agentic prompts can be composed from reusable Markdown fragments u
 Keep only **shared** policy in fragments (text that is identical across multiple wrappers). Workflow-specific task, preconditions, implementation steps, and PR requirements stay in each wrapper's `platform-additional-instructions`.
 
 - **`common`** — appended for every workflow in the org when the map exists.
-- **`workflows.<workflow-id>.fragments`** — appended for that registry workflow id (dashboard unit).
-- **`workflows.<workflow-id>.inner-workflows.<basename>.fragments`** — appended for one control-plane wrapper when several wrappers share a registry id (for example `security` → fixer vs triage).
+- **`workflows.<workflow-id>.fragments`** — appended for that registry workflow id (Control Plane dashboard unit).
+- **`workflows.<workflow-id>.inner-workflows.<basename>.fragments`** — appended for one framework wrapper when several wrappers share a registry id (for example `security` → fixer vs triage).
 
 Shorthand: a workflow entry may be a bare array of fragment ids instead of `{ "fragments": [...] }`.
 
 ## Compose order (append)
 
-1. Control-plane `common` fragments
-2. Control-plane `workflows.<id>.fragments`
-3. Control-plane `inner-workflows.<basename>.fragments`
+1. Framework `common` fragments
+2. Framework `workflows.<id>.fragments`
+3. Framework `inner-workflows.<basename>.fragments`
 4. Platform inline `platform-additional-instructions`
 5. Consumer fragments / inline / auto (see [APM agentic assets](apm-agentic-assets.md))
 
-Absent map file ⇒ no control-plane fragments (existing callers unchanged). Unknown fragment ids or missing `.md` files fail the resolve job.
+Absent map file ⇒ no framework fragments (existing callers unchanged). Unknown fragment ids or missing `.md` files fail the resolve job.
 
 ## Observability
 

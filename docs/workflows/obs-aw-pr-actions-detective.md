@@ -12,7 +12,7 @@ Landing home for this primitive (under [#2055](https://github.com/elastic/oblt-a
 
 - Triggered via `workflow_call` from the workflow-run event orchestrator (`obs-aw-event-workflow-run.yml` ← client `trigger-obs-aw-workflow-run.yml`).
 - No consumer secrets beyond the usual agentic token setup (no Buildkite token).
-- The client trigger is installed only when `pr-actions-detective-workflows` is non-empty in [active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json). Distribute renders those workflow **`name:`** values into `on.workflow_run.workflows`. The job `if` keeps only failures with associated pull requests. Dashboard gating (`obs:pr-actions-detective`) remains off by default.
+- The client trigger is installed only when `pr-actions-detective-workflows` is non-empty in [active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json). Distribute renders those workflow **`name:`** values into `on.workflow_run.workflows`. The job `if` keeps only failures with associated pull requests. Control Plane dashboard gating (`obs:pr-actions-detective`) remains off by default.
 
 ## Usage
 
@@ -22,7 +22,7 @@ Ingress routes here when:
 - `github.event_name == 'workflow_run'` for one of those named workflows,
 - `github.event.workflow_run.conclusion == 'failure'`,
 - the completed run has a non-empty associated pull-request list, and
-- Dashboard gate passes for registry id `pr-actions-detective` (`enabled-workflows` contains `obs:pr-actions-detective`).
+- Control Plane dashboard gate passes for registry id `pr-actions-detective` (`enabled-workflows` contains `obs:pr-actions-detective`).
 
 The job `pr-actions-detective` calls:
 
@@ -68,7 +68,7 @@ Wrapper `workflow_call` contract:
 
 Lock inputs passed by the wrapper:
 
-- `additional-instructions` — resolved control-plane + consumer instructions
+- `additional-instructions` — resolved framework + consumer instructions
 - `setup-commands` — `join(fromJSON(resolved-setup-commands-json), fromJSON('"\n"'))` from resolve (empty when the consumer has none; `fromJSON` supplies a real newline because expression string literals do not interpret `\n`)
 
 ## Cutover and rollback

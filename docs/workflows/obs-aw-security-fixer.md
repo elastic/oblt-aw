@@ -36,7 +36,7 @@ Configured instructions require:
 
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 
-Workflow-specific prompt text (including least-privilege and env-indirection) lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from control-plane fragments under `workflows.security.inner-workflows.obs-aw-security-fixer.yml` in [`config/obs/instruction-fragment-map.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Triage does not load those fixer fragments.
+Workflow-specific prompt text (including least-privilege and env-indirection) lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from framework fragments under `workflows.security.inner-workflows.obs-aw-security-fixer.yml` in [`config/obs/instruction-fragment-map.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Triage does not load those fixer fragments.
 
 ## Failure mode (empty safe outputs)
 

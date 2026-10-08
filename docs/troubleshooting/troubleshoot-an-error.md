@@ -7,22 +7,22 @@ Use this checklist when a workflow run fails or a user reports that agentic work
 ## Prerequisites
 
 - A GitHub Actions workflow run URL (or enough detail to find it: repository, workflow name, time).
-- Read access to the consumer repository and, when the failure is in control-plane reusables, `elastic/oblt-aw`.
+- Read access to the consumer repository and, when the failure is in framework reusables, `elastic/oblt-aw`.
 
 ## Steps
 
 1. **Identify where the run lives** — Open the run URL.
    - **Consumer repo** (`trigger-obs-aw-*.yml`): start with the client template and event orchestrator. See [Client template index](../workflows/obs-aw-client-template.md).
-   - **`elastic/oblt-aw`**: control-plane operation (distribution, dashboard sync, CI). See [docs/workflows/](../workflows/index.md) for the matching workflow doc.
+   - **`elastic/oblt-aw`**: framework operation (distribution, CI) and control plane (Control Plane dashboard sync). See [docs/workflows/](../workflows/index.md) for the matching workflow doc.
 
-2. **Check dashboard gating** — If jobs were skipped or `shared-proceed` is false, the agentic workflow may not be enabled on the Control Plane Dashboard.
-   - Confirm an open dashboard issue exists and the agentic workflow checkbox is checked. See [Control Plane Dashboard](../operations/control-plane-dashboard.md).
+2. **Check Control Plane dashboard gating** — If jobs were skipped or `shared-proceed` is false, the agentic workflow may not be enabled on the Control Plane dashboard.
+   - Confirm an open Control Plane dashboard issue exists and the agentic workflow checkbox is checked. See [Control Plane dashboard](../operations/control-plane-dashboard.md).
    - Review [get-enabled-workflows](../workflows/get-enabled-workflows.md) and [aw-prelude](../workflows/aw-prelude.md) outputs (`effective-raw`, `enabled-workflows`, `proceed-by-workflow`).
 
 3. **Check registration and distribution** — For new or recently registered repositories:
    - Repository listed in `config/<org-key>/active-repositories.json`? See [Registering resources](../onboarding/registering-a-repository.md).
    - Client templates installed via [distribute-client-workflow](../operations/distribute-client-workflow.md)?
-   - Dashboard issue created via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md)?
+   - Control Plane dashboard issue created via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md)?
 
 4. **Check permissions, OIDC, and ephemeral tokens** — Failures on `create-token` or OIDC often mean:
    - `workflow_ref` in the catalog token policy does not match the client trigger glob (expected `trigger-*-aw-*.yml@*`, not `@refs/heads/main` only).
@@ -41,6 +41,6 @@ Use this checklist when a workflow run fails or a user reports that agentic work
 
 - [Registering resources — troubleshooting](../onboarding/registering-a-repository.md#troubleshooting)
 - [Adopting a new remote agentic workflow — troubleshooting](../onboarding/adopting-agentic-workflows.md#troubleshooting)
-- [Control Plane Dashboard — default behavior](../operations/control-plane-dashboard.md#default-behavior)
+- [Control Plane dashboard — default behavior](../operations/control-plane-dashboard.md#default-behavior)
 - [Troubleshooting index](index.md)
 - [Frequently Asked Problems](../knowledge-base/frequent-asked-problems/index.md)

@@ -11,7 +11,7 @@ This workflow is **not** part of the consumer agentic catalog:
 
 - Not listed in `config/<org-key>/workflow-registry.json`
 - Not distributed via client `trigger-*` templates
-- Not shown on the Control Plane Dashboard
+- Not shown on the Control Plane dashboard
 - Not named `obs-aw-*` or `docs-aw-*`
 
 ## Prerequisites

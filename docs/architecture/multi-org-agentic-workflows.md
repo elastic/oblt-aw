@@ -2,11 +2,11 @@
 
 **Revision:** Org-specific config lives under **`config/<org-key>/`** (direct children of `config/`, e.g. **`config/obs/`**) — **not** under `config/orgs/`. **`enabled-workflows`** uses the **canonical compound id** **`org:workflow-id`** (colon). Locked details below; implementation tracking: [action plan](https://github.com/elastic/observability-robots/issues/4189#issuecomment-4287044747).
 
-This document extends the current OBLT AW control-plane model so multiple Elastic internal organizations (product lines or programs) can **collaborate in one catalog repository**, each owning **distinct agentic workflows**, **separate distribution targets**, and **clear ownership** inside a **single** consumer-facing dashboard.
+This document extends the current OBLT AW framework model so multiple Elastic internal organizations (product lines or programs) can **collaborate in one catalog repository**, each owning **distinct agentic workflows**, **separate distribution targets**, and **clear ownership** inside a **single** consumer-facing Control Plane dashboard.
 
-**Implemented layout:** Per-org [workflow-registry.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json), [active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json), [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json), and [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json) (Observability) under `config/<org-key>/` only — **no JSON files directly under `config/`** (only subdirectories such as `config/obs/`, `config/docs/`, or reserved `config/schema/`), hard-coded dashboard label `oblt-aw/dashboard`, title `[oblt-aw] Control Plane Dashboard`, and checkbox markers `<!-- oblt-aw:<org-key>:<workflow-id> -->` (see [sync_control_plane_dashboard.py](https://github.com/elastic/oblt-aw/blob/main/scripts/sync_control_plane_dashboard.py), [get_enabled_workflows.py](https://github.com/elastic/oblt-aw/blob/main/scripts/get_enabled_workflows.py)).
+**Implemented layout:** Per-org [workflow-registry.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json), [active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json), [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json), and [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json) (Observability) under `config/<org-key>/` only — **no JSON files directly under `config/`** (only subdirectories such as `config/obs/`, `config/docs/`, or reserved `config/schema/`), hard-coded Control Plane dashboard label `oblt-aw/dashboard`, title `[oblt-aw] Control Plane Dashboard`, and checkbox markers `<!-- oblt-aw:<org-key>:<workflow-id> -->` (see [sync_control_plane_dashboard.py](https://github.com/elastic/oblt-aw/blob/main/scripts/sync_control_plane_dashboard.py), [get_enabled_workflows.py](https://github.com/elastic/oblt-aw/blob/main/scripts/get_enabled_workflows.py)).
 
-**Goal:** Parameterize by **organization key** (from **`config/<org-key>/`** folder names — e.g. `config/obs/`) so other groups can add registries and repo lists. **One open dashboard issue per consumer repository** lists every workflow, **grouped by org**. Checklist markers **always include the org** so parsing and user inspection stay unambiguous.
+**Goal:** Parameterize by **organization key** (from **`config/<org-key>/`** folder names — e.g. `config/obs/`) so other groups can add registries and repo lists. **One open Control Plane dashboard issue per consumer repository** lists every workflow, **grouped by org**. Checklist markers **always include the org** so parsing and user inspection stay unambiguous.
 
 ---
 
@@ -14,11 +14,11 @@ This document extends the current OBLT AW control-plane model so multiple Elasti
 
 | Principle | Requirement |
 |-----------|-------------|
-| **Single control-plane issue** | Each consumer repository has **at most one** dashboard issue (same label and title as today, e.g. `oblt-aw/dashboard`, `[oblt-aw] Control Plane Dashboard`). **Workflows are grouped by org** inside the body (Markdown sections), not split across multiple issues. |
+| **Single Control Plane dashboard issue** | Each consumer repository has **at most one** Control Plane dashboard issue (same label and title as today, e.g. `oblt-aw/dashboard`, `[oblt-aw] Control Plane Dashboard`). **Workflows are grouped by org** inside the body (Markdown sections), not split across multiple issues. |
 | **Org in every marker** | Task-list comments **must** encode **product prefix + org + workflow id** (see §2) so enabled-state parsing and support triage always know the owning org. |
 | **Org identity from path only** | The **canonical org identifier** is the **`config/<org-key>/` directory name** (direct child of `config/`). Do **not** add a separate `organization.json`; optional human labels for section headings live in each org’s `workflow-registry.json` (e.g. top-level `section_title`) if needed. |
-| **Visible ownership** | Dashboard sections and tables make **which org owns which workflow** obvious (e.g. `### Observability (obs)` then workflows for that org). |
-| **Separated distribution** | Each org keeps its own **active-repositories.json** (who receives the client workflow and dashboard sync). **Sync** merges all org registries when updating the **single** dashboard for repos in the union of those lists (or per policy: only orgs that target that repo). |
+| **Visible ownership** | Control Plane dashboard sections and tables make **which org owns which workflow** obvious (e.g. `### Observability (obs)` then workflows for that org). |
+| **Separated distribution** | Each org keeps its own **active-repositories.json** (who receives the client workflow and Control Plane dashboard sync). **Sync** merges all org registries when updating the **single** Control Plane dashboard for repos in the union of those lists (or per policy: only orgs that target that repo). |
 | **Common core** | Shared Python and reusable workflows live at **repository root** (`scripts/`, `.github/workflows/`); org-specific **data** lives only under `config/<org-key>/`. |
 | **Sync on change** | Path filters and automation can still scope to `config/<org-key>/**` (e.g. `config/obs/**`, `config/docs/**`) so unrelated orgs do not fan out unnecessary work. |
 
@@ -53,7 +53,7 @@ Regex and tests in `sync_control_plane_dashboard.py` / `get_enabled_workflows.py
 ```text
 config/
   obs/                                      # org-key = "obs" (folder name under config/)
-    workflow-registry.json                  # workflows[] + optional top-level section_title for dashboard
+    workflow-registry.json                  # workflows[] + optional top-level section_title for Control Plane dashboard
     active-repositories.json                # { "repositories": [ "owner/repo", ... ] }
   docs/                                     # optional minimal second org (tests / section-merge); org-key "docs"
     workflow-registry.json
@@ -67,8 +67,8 @@ scripts/
   common.py                                 # Shared helpers (org discovery, markers, distribution inputs)
   build_target_operations.py                # Distribution matrix builder (all org templates)
   build_repos_matrix.py                     # Union of repos for sync-control-plane-dashboard matrix
-  sync_control_plane_dashboard.py         # Merge org registries → one dashboard issue body
-  get_enabled_workflows.py                # Parse dashboard; normalized enabled-workflows for ingress
+  sync_control_plane_dashboard.py         # Merge org registries → one Control Plane dashboard issue body
+  get_enabled_workflows.py                # Parse Control Plane dashboard; normalized enabled-workflows for ingress
   summarize_pr_results.sh                   # PR result summary for distribute-client-workflow
   update_license_files.py                   # Apache headers / NOTICE (repo-wide)
   obs/
@@ -88,7 +88,7 @@ scripts/
   ...
 ```
 
-**Layout:** Cross-org control-plane and distribution Python at `scripts/` root; Observability-only tooling under `scripts/obs/`; Docs menu scripts under `scripts/docs/`; tests under `tests/`; docs under `docs/architecture/` and `docs/operations/`.
+**Layout:** Cross-org framework and distribution Python at `scripts/` root; Observability-only tooling under `scripts/obs/`; Docs menu scripts under `scripts/docs/`; tests under `tests/`; docs under `docs/architecture/` and `docs/operations/`.
 
 ---
 
@@ -100,7 +100,7 @@ scripts/
 
 ---
 
-## 5. Single dashboard: consumer repository
+## 5. Single Control Plane dashboard: consumer repository
 
 | Concept | Value |
 |--------|--------|
@@ -111,14 +111,14 @@ scripts/
 
 **Runtime:** `get-enabled-workflows` loads **that one issue**, parses **all** checked lines with `<!-- oblt-aw:<org-key>:<workflow-id> -->`, and emits the normalized enabled list (**`org:workflow-id`**) for ingress gating.
 
-**Ingress:** Routed jobs use the **same** compound ids in `enabled-workflows` as appear in the dashboard / registry output (e.g. `obs:agent-suggestions`).
+**Ingress:** Routed jobs use the **same** compound ids in `enabled-workflows` as appear in the Control Plane dashboard / registry output (e.g. `obs:agent-suggestions`).
 
 ---
 
 ## 6. Automation: repositories and sync
 
 - **Per-org** `active-repositories.json` still defines which repos each org cares about.
-- **Dashboard sync** for a given `owner/repo`: include workflows from **every org folder** that lists this repo (merge). If a repo is only in `obs`, only `obs` sections appear; if in multiple orgs, **all relevant sections** appear in the **same** issue.
+- **Control Plane dashboard sync** for a given `owner/repo`: include workflows from **every org folder** that lists this repo (merge). If a repo is only in `obs`, only `obs` sections appear; if in multiple orgs, **all relevant sections** appear in the **same** issue.
 - **`build_repos_matrix.py`:** Runs with **no CLI arguments**. It discovers org trees under `config/<org-key>/`, unions and deduplicates `active-repositories.json` entries, and writes workflow outputs:
   - `repos`: JSON array for matrix strategy in the shape `[{"repository":"owner/repo"}, ...]`
   - `has_repos`: `"true"` when at least one repository exists, otherwise `"false"`
@@ -129,8 +129,8 @@ scripts/
 
 ## 7. Discoverability for users
 
-- **Dashboard body:** Mandatory **org section headers** and, where helpful, a summary table column **Org**.
-- **Registry:** Each workflow entry can include optional `display_name`; org is always implied by **`config/<org-key>/`** and reflected in the merged dashboard.
+- **Control Plane dashboard body:** Mandatory **org section headers** and, where helpful, a summary table column **Org**.
+- **Registry:** Each workflow entry can include optional `display_name`; org is always implied by **`config/<org-key>/`** and reflected in the merged Control Plane dashboard.
 
 ---
 
@@ -140,21 +140,21 @@ This migration is already implemented in this repository:
 
 1. `config/obs/` is the source of truth for Observability org configuration, and top-level `config/*.json` aliases are removed.
 2. Marker format and parser behavior use org-aware identifiers (`<!-- oblt-aw:<org-key>:<workflow-id> -->` and `org:workflow-id`) with legacy two-part parsing support.
-3. Dashboard sync merges org data into one issue body with one dashboard label/title.
+3. Control Plane dashboard sync merges org data into one issue body with one Control Plane dashboard label/title.
 4. Ingress gating uses compound `org:workflow-id` identifiers.
-5. Tests cover org-aware parsing and dashboard generation, including multi-org section and marker handling.
+5. Tests cover org-aware parsing and Control Plane dashboard generation, including multi-org section and marker handling.
 
 ---
 
 ## 9. Scope (downstream)
 
-- **No mandatory changes** outside **`elastic/oblt-aw`** for this design (e.g. other Elastic repos or consumer-specific docs beyond normal adoption of the published control-plane). Consumer repositories continue to use the ingress and dashboard as today; only the **id strings** in `enabled-workflows` and markers gain the **`org:`** prefix.
+- **No mandatory changes** outside **`elastic/oblt-aw`** for this design (e.g. other Elastic repos or consumer-specific docs beyond normal adoption of the published framework). Consumer repositories continue to use the ingress and Control Plane dashboard as today; only the **id strings** in `enabled-workflows` and markers gain the **`org:`** prefix.
 
 ---
 
 ## References
 
 - [OBLT AW Architecture Overview](./overview.md)
-- [Control Plane Dashboard Format](../operations/control-plane-dashboard-format.md)
+- [Control Plane dashboard Format](../operations/control-plane-dashboard-format.md)
 - [Workflow maturity](../operations/workflow-maturity.md)
 - [Reusing workflows (GitHub Docs)](https://docs.github.com/en/actions/using-workflows/reusing-workflows)

@@ -12,6 +12,7 @@ How publish works: [development/codex-publish.md](development/codex-publish.md).
 
 - Portal home: [index.md](index.md)
 - Get started: [get-started.md](get-started.md)
+- Glossary: [glossary.md](glossary.md)
 - User guide: [user-guide/index.md](user-guide/index.md)
 - Admin guide: [admin-guide/index.md](admin-guide/index.md)
 - Troubleshooting: [troubleshooting/index.md](troubleshooting/index.md)
@@ -19,7 +20,7 @@ How publish works: [development/codex-publish.md](development/codex-publish.md).
 
 ## Topic folders
 
-- `admin-guide/` — maintain the control plane
+- `admin-guide/` — maintain the framework
 - `architecture/`, `operations/`, `routing/`, `onboarding/`, `development/`, `testing/` — deeper sources (architecture hub and TOC)
 - `knowledge-base/` — architecture hub and Frequently Asked Problems
 - `troubleshooting/` — failed runs and secrets

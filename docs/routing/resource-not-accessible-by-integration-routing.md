@@ -25,9 +25,9 @@ Routing rules from ingress:
 
 Generic issue-triage and issue-fixer skip issues that carry this detector or triage label so they do not compete with this pipeline.
 
-All three routes (detector, triage, fixer) also require the shared dashboard gate to pass: `enabled-workflows` must contain `obs:resource-not-accessible-by-integration`.
+All three routes (detector, triage, fixer) also require the shared Control Plane dashboard gate to pass: `enabled-workflows` must contain `obs:resource-not-accessible-by-integration`.
 
-For dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/aw-prelude.md](../workflows/aw-prelude.md).
+For Control Plane dashboard gate semantics (`get-enabled-workflows` and `enabled-workflows`), see [docs/workflows/aw-prelude.md](../workflows/aw-prelude.md).
 
 When called directly, **detector**, **triage**, and **fixer** all run in the repository that invokes the reusable workflow (no extra repository allowlist).
 

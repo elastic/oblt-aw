@@ -11,7 +11,7 @@ Deferred merge path for [obs-aw-automerge.yml](obs-aw-automerge.md). Finds open 
 ## Prerequisites
 
 - Client `trigger-obs-aw-schedule-frequent.yml` must be installed (distribution).
-- Prelude allows registry id `obs:automerge` (same dashboard gate as the PR automerge path).
+- Prelude allows registry id `obs:automerge` (same Control Plane dashboard gate as the PR automerge path).
 - The PR was previously armed by `obs-aw-automerge.yml` after approve.
 
 ## Usage

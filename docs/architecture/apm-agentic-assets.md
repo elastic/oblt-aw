@@ -1,14 +1,14 @@
 # APM agentic assets (consumer repositories)
 
-Consumer repositories can declare **shared** and **per-workflow** agentic assets in [`apm.yml`](https://github.com/microsoft/apm) using the `x-oblt-aw` extension. The control plane resolves those assets in [`aw-resolve-agentic-assets.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-resolve-agentic-assets.yml) immediately before each upstream `gh-aw-*` invocation (not in [`aw-prelude.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml)).
+Consumer repositories can declare **shared** and **per-workflow** agentic assets in [`apm.yml`](https://github.com/microsoft/apm) using the `x-oblt-aw` extension. The framework resolves those assets in [`aw-resolve-agentic-assets.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-resolve-agentic-assets.yml) immediately before each upstream `gh-aw-*` invocation (not in [`aw-prelude.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml)).
 
 ## Workflow identifiers
 
-Keys under `x-oblt-aw.<org-key>.workflows` must match the `id` field in that org’s [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) (for example `agent-suggestions` under `obs`, `docs-pr-ai-menu` under `docs`). Ingress and dashboard gating continue to use compound ids `org-key:workflow-id` (for example `obs:agent-suggestions`).
+Keys under `x-oblt-aw.<org-key>.workflows` must match the `id` field in that org’s [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) (for example `agent-suggestions` under `obs`, `docs-pr-ai-menu` under `docs`). Ingress and Control Plane dashboard gating continue to use compound ids `org-key:workflow-id` (for example `obs:agent-suggestions`).
 
 ## Structure
 
-`x-oblt-aw` is nested by **org key** (same names as `config/<org-key>/` in the control plane, e.g. `obs`, `docs`):
+`x-oblt-aw` is nested by **org key** (same names as `config/<org-key>/` in the framework, e.g. `obs`, `docs`):
 
 | Path | Requirement | Behavior |
 |------|-------------|----------|
@@ -34,13 +34,13 @@ A repository in multiple org fleets may define separate `obs` and `docs` blocks 
 
 | Layer | Behavior |
 |-------|----------|
-| **Control-plane fragments** | Org map under `config/<org-key>/` — see [instruction fragments](instruction-fragments.md). Appended before platform inline. |
-| **Platform** (`platform-additional-instructions` / `platform-inputs-json` on `resolve-apm-assets`) | Control-plane baseline for that agent invocation; applied after control-plane fragments. Input keys can be overridden by APM per key. |
+| **Framework fragments** | Org map under `config/<org-key>/` — see [instruction fragments](instruction-fragments.md). Appended before platform inline. |
+| **Platform** (`platform-additional-instructions` / `platform-inputs-json` on `resolve-apm-assets`) | Framework baseline for that agent invocation; applied after framework fragments. Input keys can be overridden by APM per key. |
 | **`x-oblt-aw.<org-key>.workflows.<id>.inner-workflows.<basename>`** | **Override:** when this key matches the calling wrapper basename, that block is used and parent `workflows.<id>` / `common` are ignored for asset fields. |
 | **`x-oblt-aw.<org-key>.workflows.<id>`** | **Override:** when this key exists and no matching inner-workflow block applies, that org’s `common` is ignored entirely for that run. The `inner-workflows` map on the parent is structural only (not instruction text). |
 | **`x-oblt-aw.<org-key>.common`** | Used when no `workflows.<id>` entry exists for the running workflow in that org. |
 
-There is no field-level merge between `common`, `workflows.<id>`, and `inner-workflows.<basename>` (override at the selected grain). Control-plane **fragments** append across grains; see [instruction fragments](instruction-fragments.md).
+There is no field-level merge between `common`, `workflows.<id>`, and `inner-workflows.<basename>` (override at the selected grain). Framework **fragments** append across grains; see [instruction fragments](instruction-fragments.md).
 
 If `x-oblt-aw` exists but the running org key is not configured, resolution returns platform-only assets (`asset-source: none`).
 
@@ -92,11 +92,11 @@ x-oblt-aw:
 
 ## Runtime behavior
 
-When the dashboard gate passes (`proceed == true`), each agent job’s preceding `resolve-apm-assets` call:
+When the Control Plane dashboard gate passes (`proceed == true`), each agent job’s preceding `resolve-apm-assets` call:
 
 1. Checks out the **consumer** repository (caller context).
 2. Installs [`requirements-runtime.txt`](https://github.com/elastic/oblt-aw/blob/main/requirements-runtime.txt) with pip cache via `actions/setup-python`.
-3. Runs [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI with tool-cache reuse and runs `apm install` for declared skills, plugins, MCP servers, and other APM dependencies). The CLI version is the control-plane pin in [`.apm.version`](https://github.com/elastic/oblt-aw/blob/main/.apm.version). Private GitHub packages use `ai-assets-token-policy` from `config/<org>/active-repositories.json` when set; otherwise the job `GITHUB_TOKEN` is passed as `github-token` (see [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md)). Install failures warn and continue so asset resolution is not blocked.
+3. Runs [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI with tool-cache reuse and runs `apm install` for declared skills, plugins, MCP servers, and other APM dependencies). The CLI version is the framework pin in [`.apm.version`](https://github.com/elastic/oblt-aw/blob/main/.apm.version). Private GitHub packages use `ai-assets-token-policy` from `config/<org>/active-repositories.json` when set; otherwise the job `GITHUB_TOKEN` is passed as `github-token` (see [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md)). Install failures warn and continue so asset resolution is not blocked.
 4. Runs [`scripts/resolve_agentic_assets_cli.py`](https://github.com/elastic/oblt-aw/blob/main/scripts/resolve_agentic_assets_cli.py), which calls [`agentic_assets_resolver.resolve_agentic_assets`](https://github.com/elastic/oblt-aw/blob/main/scripts/agentic_assets_resolver.py), with the compound workflow id (`org-key:workflow-id`) and calling wrapper basename to select the org block (including optional `inner-workflows`) and produce:
    - `resolved-additional-instructions`
    - `resolved-inputs-json` (merged platform + APM inputs)
@@ -113,7 +113,7 @@ JSON Schema for this extension block: [`config/schema/apm-agentic-workflows.sche
 
 ## References
 
-- [Instruction fragments](instruction-fragments.md) — control-plane prompt composition
+- [Instruction fragments](instruction-fragments.md) — framework prompt composition
 - [APM (Agent Package Manager)](https://github.com/microsoft/apm)
 - [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format and vendor extension fields
 - [Multi-org agentic workflows](./multi-org-agentic-workflows.md)

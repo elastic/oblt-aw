@@ -2,7 +2,7 @@
 
 ## Overview
 
-The security workflow exposes four independently toggleable **category detectors** on the Control Plane Dashboard. Each runs the same static scan toolchain but emits findings only for rules in that category (see [security-scanning-ruleset.md](security-scanning-ruleset.md)).
+The security workflow exposes four independently toggleable **category detectors** on the Control Plane dashboard. Each runs the same static scan toolchain but emits findings only for rules in that category (see [security-scanning-ruleset.md](security-scanning-ruleset.md)).
 
 | Sub-feature id | Workflow file | SEC rule focus |
 |----------------|---------------|----------------|

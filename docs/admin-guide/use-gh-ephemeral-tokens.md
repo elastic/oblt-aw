@@ -32,9 +32,9 @@ Every newly registered consumer repository needs a Backstage **TokenPolicy** in 
 
 Full procedure and YAML template: [Registering resources](../onboarding/registering-a-repository.md).
 
-## Control-plane fixed policies
+## Framework fixed policies
 
-Some control-plane workflows use explicit policy ids in YAML (not copied into consumer repos):
+Some framework workflows use explicit policy ids in YAML (not copied into consumer repos):
 
 | Workflow | Policy id (in this repo) |
 |----------|--------------------------|

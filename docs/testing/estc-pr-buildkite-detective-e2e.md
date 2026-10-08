@@ -18,7 +18,7 @@ Oracle pass/fail for the agent side effect is **comment presence**. Section mark
 
 ## Prerequisites (live)
 
-1. **Dashboard** — enable `obs:estc-pr-buildkite-detective` on the Control Plane Dashboard for `elastic/oblt-aw` (issue labeled `oblt-aw/dashboard`). Currently required; the harness fails closed if the checkbox is off.
+1. **Control Plane dashboard** — enable `obs:estc-pr-buildkite-detective` on the Control Plane dashboard for `elastic/oblt-aw` (issue labeled `oblt-aw/dashboard`). Currently required; the harness fails closed if the checkbox is off.
 2. **Secret** — `BUILDKITE_LOGS_API_TOKEN` on `elastic/oblt-aw` (mapped by `trigger-obs-aw-status.yml` into the wrapper). Must be able to **read** the E2E fail pipeline’s builds/logs.
 3. **Secret** — `BUILDKITE_TOKEN` with Buildkite scopes **`write_builds`** (+ read) / pipeline access level that can create builds so the harness can create and poll an intentional failure build.
 4. **Buildkite pipeline** — provisioned via [`catalog-info.yaml`](https://github.com/elastic/oblt-aw/blob/main/catalog-info.yaml) Resource `buildkite-pipeline-oblt-aw-e2e-estc-fail` (steps: [`.buildkite/pipeline.e2e-estc-fail.yml`](https://github.com/elastic/oblt-aw/blob/main/.buildkite/pipeline.e2e-estc-fail.yml); statuses from `publish_commit_status: true`, context `buildkite/<pipeline>` e.g. `buildkite/oblt-aw-e2e-estc-fail`). After merge to `main`, confirm RRE reconciliation at https://buildkite.com/elastic/oblt-aw-e2e-estc-fail. See [`.buildkite/README.e2e-estc-fail.md`](https://github.com/elastic/oblt-aw/blob/main/.buildkite/README.e2e-estc-fail.md). Optional vars: `E2E_BUILDKITE_ORG` (default `elastic`), `E2E_BUILDKITE_PIPELINE` (default `oblt-aw-e2e-estc-fail`) — the harness derives the expected status context from the resolved pipeline name only.
@@ -49,7 +49,7 @@ Not part of the default PR `required` job in [`ci.yml`](https://github.com/elast
 
 ### Local (live only)
 
-Live mode needs `gh` auth, dashboard enablement, `BUILDKITE_TOKEN`, and the intentional-failure Buildkite pipeline.
+Live mode needs `gh` auth, Control Plane dashboard enablement, `BUILDKITE_TOKEN`, and the intentional-failure Buildkite pipeline.
 
 Harness/oracle unit coverage (no live agent):
 

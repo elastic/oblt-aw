@@ -6,7 +6,7 @@ applies_to: {}
 
 # Agentic workflow catalog by outcome
 
-Consumer agentic workflows registered for Observability (`config/obs/workflow-registry.json`) and Docs (`config/docs/workflow-registry.json`). Each row links to enablement and the control-plane doc. For upstream agent encyclopedias, use [AI GitHub Actions](https://elastic.github.io/ai-github-actions/).
+Consumer agentic workflows registered for Observability (`config/obs/workflow-registry.json`) and Docs (`config/docs/workflow-registry.json`). Each row links to enablement and the framework doc. For upstream agent encyclopedias, use [AI GitHub Actions](https://elastic.github.io/ai-github-actions/).
 
 How to turn a row on or off: [Enable or disable an agentic workflow](../user-guide/enable-a-new-workflow.md). Maturity meanings: [Workflow maturity](../operations/workflow-maturity.md).
 

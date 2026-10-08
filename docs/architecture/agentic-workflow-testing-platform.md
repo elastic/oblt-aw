@@ -8,7 +8,7 @@ This document defines test layers (unit through E2E), how to stabilize stochasti
 
 ## Overview
 
-Agentic workflows in `oblt-aw` combine deterministic control-plane logic (prelude, registries, fragment composition, validators) with stochastic agent execution (model output, tool use). Conventional CI already covers much of the deterministic surface via `pytest`, TypeScript unit tests, and workflow validators in [`.github/workflows/ci.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/ci.yml). It does **not** yet prove production-like agent paths end to end.
+Agentic workflows in `oblt-aw` combine deterministic framework logic (registries, fragment composition, validators) and control-plane gating (prelude) with stochastic agent execution (model output, tool use). Conventional CI already covers much of the deterministic surface via `pytest`, TypeScript unit tests, and workflow validators in [`.github/workflows/ci.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/ci.yml). It does **not** yet prove production-like agent paths end to end.
 
 The testing platform goal: recreate environment and inputs carefully enough that regressions are detectable, without requiring bit-identical LLM free text.
 
@@ -33,7 +33,7 @@ Each layer owns a distinct proof. Higher layers must not replace lower ones.
 
 | Layer | What it proves | Primary ownership today | Where it runs |
 |-------|----------------|-------------------------|---------------|
-| **Unit** | Pure functions and scripts behave for known inputs/outputs (gates, registry, fragment merge, dashboard parse, TS helpers). | `tests/unit/*.py`, `tests/unit/*.test.ts` | Every PR (`python-tests`, `typescript-tests` in `ci.yml`) |
+| **Unit** | Pure functions and scripts behave for known inputs/outputs (gates, registry, fragment merge, Control Plane dashboard parse, TS helpers). | `tests/unit/*.py`, `tests/unit/*.test.ts` | Every PR (`python-tests`, `typescript-tests` in `ci.yml`) |
 | **Functional** | Workflow YAML and GH-AW contracts hold: prelude/`shared-proceed`, resolve-agentic-assets on `gh-aw-*` callers, reusable permissions alignment, actionlint/pre-commit. | `scripts/validate_aw_workflow_*.py`, pre-commit | Every PR |
 | **Integration** | Wrapper ↔ lock ↔ token/policy/fragment wiring works together without a live model (or with mocked/stubbed agent steps). Frozen fixtures for inputs, secrets shapes, and resolved instruction layers. | First slice: `tests/integration/test_estc_pr_buildkite_detective.py` + `testdata/agentic/estc-pr-buildkite-detective/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Token-policy dry-run deferred. | Every PR via `pytest tests/unit tests/integration` (`python-tests` in `ci.yml`); heavier fixtures may later move to promote |
 | **E2E** | Production-like path: client/orchestrator routing, prelude gate, resolve assets, agent job, observable side effects under a controlled consumer environment. | `tests/e2e/` (harness/oracle coverage) + manual / `workflow_dispatch` live workflows ([#1911](https://github.com/elastic/oblt-aw/issues/1911)) | Manual / promote paths — **not** default PR `python-tests` |
@@ -42,7 +42,7 @@ Each layer owns a distinct proof. Higher layers must not replace lower ones.
 
 Examples of what unit tests already cover (non-exhaustive):
 
-- Dashboard enablement and gate evaluation (`tests/unit/test_get_enabled_workflows.py`, `tests/unit/test_evaluate_workflow_gates.py`)
+- Control Plane dashboard enablement and gate evaluation (`tests/unit/test_get_enabled_workflows.py`, `tests/unit/test_evaluate_workflow_gates.py`)
 - Instruction fragments and APM asset resolution (`tests/unit/test_instruction_fragments.py`, `tests/unit/test_apm_agentic_assets.py`)
 - Registry and org config (`tests/unit/test_workflow_registry.py`, `tests/unit/test_org_config.py`)
 - Distribution helpers (`tests/unit/test_build_repos_matrix.py`, `tests/unit/test_build_target_operations.py`)
@@ -56,7 +56,7 @@ CI steps beyond pytest:
 
 - `python scripts/validate_aw_workflow_prelude.py`
 - `python scripts/validate_aw_workflow_resolve_agentic_assets.py`
-- `python scripts/validate_aw_workflow_permissions.py` (control-plane `.github/workflows/` **and** `.github/remote-workflow-template/` client triggers)
+- `python scripts/validate_aw_workflow_permissions.py` (framework `.github/workflows/` **and** `.github/remote-workflow-template/` client triggers)
 - Pre-commit (yamllint, actionlint, ruff, mypy on `scripts/`, and related hooks)
 
 **Assert:** static/contract properties of workflow graphs and permissions. Still no live agent.
@@ -81,7 +81,7 @@ Scope for this layer:
 - Run the real status → `trigger-obs-aw-status` → `obs-aw-event-status` → `obs-aw-estc-pr-buildkite-detective` → in-repo `gh-aw-estc-pr-buildkite-detective.lock.yml` path against **`elastic/oblt-aw`** (this slice’s production consumer).
 - **Entry event (mandatory):** the distributed client, status orchestrator, and wrapper all require `github.event_name == 'status'` (plus failure + `buildkite` context on this slice). An outer `workflow_dispatch`, path-filtered `pull_request`, or `workflow_call` job must drive a **real** failed commit status with a `buildkite` context and a `target_url` that the lock's Buildkite URL parser accepts. Those outer triggers alone do not enter the route. Live happy path: the harness creates an intentional Buildkite failure; **Buildkite** publishes the status via `publish_commit_status` (default context `buildkite/<pipeline>`). No harness-posted synthetic statuses.
 - **Revision under test:** production promote calls `e2e-all` with `checkout-ref=${{ github.sha }}` (tip of `main` at promote start) so later merges are excluded from the gated revision; tagging still proceeds if `main` advances during E2E. Standalone `e2e-all` / leaf dispatches default `checkout-ref=main` (smoke/health). See [agentic-release-model](../operations/agentic-release-model.md).
-- Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, dynamic intentional Buildkite failure via `BUILDKITE_TOKEN` + [`catalog-info.yaml`](https://github.com/elastic/oblt-aw/blob/main/catalog-info.yaml) pipeline `oblt-aw-e2e-estc-fail` with `publish_commit_status: true`, dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
+- Control environment: pinned model settings from [`.github/workflows/gh-aw-fragments/obs-defaults.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md), frozen instruction fragments, dynamic intentional Buildkite failure via `BUILDKITE_TOKEN` + [`catalog-info.yaml`](https://github.com/elastic/oblt-aw/blob/main/catalog-info.yaml) pipeline `oblt-aw-e2e-estc-fail` with `publish_commit_status: true`, Control Plane dashboard checkbox enabled for `obs:estc-pr-buildkite-detective`.
 - Capture artifacts: workflow run URL, agent job logs (redacted), resulting PR comment or issue side effects, structured safe-outputs if present.
 
 **Assert:** using the oracle strategy below — never free-text equality of the full agent narrative.
@@ -125,7 +125,7 @@ Prefer stronger, cheaper checks first:
 |--------|---------|
 | **Inside `oblt-aw`** | **Chosen.** Unit and functional suites, CI validators, in-repo GH-AW pilot (`gh-aw-estc-pr-buildkite-detective`), and docs already live here. |
 | **New dedicated repo** | Deferred. Reconsider if E2E harness becomes a shared product across catalogs outside Observability ownership, or if repo size/noise justifies a split. |
-| **Elsewhere (for example only in `ai-github-actions`)** | Rejected for Observability-owned wrappers and control-plane contracts; those assets are authored and gated here. |
+| **Elsewhere (for example only in `ai-github-actions`)** | Rejected for Observability-owned wrappers and framework contracts; those assets are authored and gated here. |
 
 **Fixture PR noise control:** Same-repo fixture PRs with any label matching `e2e:*` and a head ref under `e2e/` are detected once by the `ci-gate` job in [`ci.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/ci.yml) (`skip=true`); work jobs then use `needs.ci-gate.outputs.skip != 'true'`. Agentic pull-request route skips in [`obs-aw-event-pull-request.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-pull-request.yml) cover detective fixtures (`e2e:estc-pr-buildkite-detective` on `e2e/estc-pr-buildkite-detective`, and `e2e:pr-actions-detective` on `e2e/pr-actions-detective`) so those long-lived PRs do not burn dependency-review/automerge credits; other live E2E fixtures (for example automerge vm-images) still exercise those routes.
 
@@ -198,7 +198,7 @@ Promote workflow: [agentic-release-model](../operations/agentic-release-model.md
 ### Implementation checklist
 
 - [x] Inventory secrets for live E2E (`BUILDKITE_LOGS_API_TOKEN` via client trigger; `BUILDKITE_TOKEN` + intentional-failure pipeline). See [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
-- [x] Use **`elastic/oblt-aw`** as the E2E consumer (no separate sandbox). Enable `obs:estc-pr-buildkite-detective` on its Control Plane Dashboard before live runs. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
+- [x] Use **`elastic/oblt-aw`** as the E2E consumer (no separate sandbox). Enable `obs:estc-pr-buildkite-detective` on its Control Plane dashboard before live runs. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Add integration fixtures under a dedicated tree — `tests/integration/` + `testdata/agentic/estc-pr-buildkite-detective/` ([#1910](https://github.com/elastic/oblt-aw/issues/1910)). Token-policy dry-run deferred.
 - [x] Add E2E workflow [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` and `workflow_call` via `e2e-all`; long-lived fixture PR + concurrency); kept out of default PR `required`. ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
 - [x] Implement oracle script(s) that assert structured outcomes and emit a machine-readable report (`scripts/obs/e2e/oracle_estc_pr_buildkite_detective_e2e.py`). ([#1911](https://github.com/elastic/oblt-aw/issues/1911))
@@ -224,7 +224,7 @@ Resolved by this design where noted; remaining items are for implementation issu
 | First E2E vertical slice | **Resolved:** `obs:estc-pr-buildkite-detective` |
 | Oracle strategy | **Resolved:** structured side effects + schema; no free-text golden |
 | E2E consumer repository | **Resolved:** `elastic/oblt-aw` (no separate sandbox for this slice) |
-| Exact credentials, runners, and isolation inventory | **Resolved for live:** `BUILDKITE_LOGS_API_TOKEN` + `BUILDKITE_TOKEN` + intentional-failure pipeline; dashboard checkbox must be enabled |
+| Exact credentials, runners, and isolation inventory | **Resolved for live:** `BUILDKITE_LOGS_API_TOKEN` + `BUILDKITE_TOKEN` + intentional-failure pipeline; Control Plane dashboard checkbox must be enabled |
 | E2E vs release gates | **Resolved:** E2E gates production promote inside `aw-release-promote` on tip of `main` at dispatch |
 | Gating coverage / quarantine | **Resolved:** promote requires every in-scope leaf job to succeed; uncovered/`unknown` and quarantined cases set `pass: false` (block promote / `outputs.pass`); smoke may still sample coverage but does not tag |
 | E2E revision pin | **Resolved:** promote always uses tip of default branch (`github.sha`); later merges during E2E do not abort tagging ([#1878](https://github.com/elastic/oblt-aw/issues/1878)) |

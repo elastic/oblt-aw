@@ -18,6 +18,7 @@ Deep dives for how `oblt-aw` works, plus short write-ups of problems the team ha
 ## Prefer guides first
 
 - New to the product: [Get started](../get-started.md)
+- Shared terms: [Glossary](../glossary.md)
 - Day-to-day enablement: [User guide](../user-guide/index.md)
-- Control-plane changes: [Admin guide](../admin-guide/index.md)
+- Framework changes: [Admin guide](../admin-guide/index.md)
 - Active incident: [Troubleshooting](../troubleshooting/index.md)

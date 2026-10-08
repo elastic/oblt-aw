@@ -8,7 +8,7 @@ Reusable wrapper that calls the Observability-owned Dependency Review lock in th
 
 Landing home for this primitive (under [#2098](https://github.com/elastic/oblt-aw/issues/2098) / [#1876](https://github.com/elastic/oblt-aw/issues/1876)): **`elastic/oblt-aw`**.
 
-Instruction ownership for this import: **Merge**. Noop / CVE / merge-ready / GitHub-read safe-output rules live in [`.github/workflows/gh-aw-dependency-review.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.md). The control-plane fragment map no longer composes a dependency-review layer; `aw-resolve-agentic-assets` only merges consumer APM instructions.
+Instruction ownership for this import: **Merge**. Noop / CVE / merge-ready / GitHub-read safe-output rules live in [`.github/workflows/gh-aw-dependency-review.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.md). The framework fragment map no longer composes a dependency-review layer; `aw-resolve-agentic-assets` only merges consumer APM instructions.
 
 ## Prerequisites
 
@@ -22,7 +22,7 @@ Ingress routes here when:
 - `github.event_name == 'pull_request'`,
 - action is `opened` / `synchronize` / `reopened`,
 - author is on the allowed PR authors list, and
-- Dashboard gate passes for registry id `dependency-review` (`enabled-workflows` contains `obs:dependency-review`).
+- Control Plane dashboard gate passes for registry id `dependency-review` (`enabled-workflows` contains `obs:dependency-review`).
 
 The job `dependency-review` calls:
 
@@ -91,7 +91,7 @@ The lock hardcodes the add-labels allowlist to `oblt-aw/ai/merge-ready` in the m
 
 ## Cutover and rollback
 
-**Cutover:** the wrapper `uses` relative `./.github/workflows/gh-aw-dependency-review.lock.yml` (inherits caller pin) instead of `elastic/ai-github-actions/...@main`. Event routing and dashboard id are unchanged.
+**Cutover:** the wrapper `uses` relative `./.github/workflows/gh-aw-dependency-review.lock.yml` (inherits caller pin) instead of `elastic/ai-github-actions/...@main`. Event routing and Control Plane dashboard id are unchanged.
 
 **Rollback:** point the wrapper job back at the previous upstream lock:
 

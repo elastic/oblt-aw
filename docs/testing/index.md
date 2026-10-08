@@ -6,7 +6,7 @@ applies_to: {}
 
 # Testing
 
-E2E and live-harness notes for control-plane workflows. These pages support maintainers validating routes; they are not part of the developer get-started path.
+E2E and live-harness notes for framework workflows. These pages support maintainers validating routes; they are not part of the developer get-started path.
 
 - [Autodoc E2E](autodoc-e2e.md)
 - [Autodoc E2E bait](autodoc-e2e-bait.md)

@@ -2,7 +2,9 @@
 
 ## What is oblt-aw, and what problems does it solve?
 
-**oblt-aw** ([elastic/oblt-aw](https://github.com/elastic/oblt-aw)) is an opinionated shared framework for [GitHub Agentic Workflows](https://github.github.com/gh-aw/): reusable routes, thin clients [distributed automatically](docs/operations/distribute-client-workflow.md) to repos, and a **control plane** to turn workflows on or off (dashboard, sync, distribution, shared prelude).
+**oblt-aw** ([elastic/oblt-aw](https://github.com/elastic/oblt-aw)) is an opinionated agentic framework for [GitHub Agentic Workflows](https://github.github.com/gh-aw/): reusable routes, thin clients [distributed automatically](docs/operations/distribute-client-workflow.md) to repos, plus a **control plane** for configuration and gating (Control Plane dashboard, opt-in/opt-out, audit, and prelude verification).
+
+Terms: [docs/glossary.md](docs/glossary.md) (framework vs control plane vs Control Plane dashboard).
 
 Today many teams still wire each agent by hand in every repo (local workflow → `gh-aw-*.lock.yml`). That does not scale. We want to mitigate:
 
@@ -22,7 +24,7 @@ In a very simplified way:
 
 1. Clients (`trigger-obs-aw-*.yml`) are **installed** using an [automated distribution](docs/operations/distribute-client-workflow.md) ([client template](docs/workflows/obs-aw-client-template.md)).
 2. On a matching event, the client calls [elastic/oblt-aw](https://github.com/elastic/oblt-aw).
-3. [Prelude](docs/workflows/aw-prelude.md) checks the [Control Plane Dashboard](docs/operations/control-plane-dashboard.md).
+3. [Prelude](docs/workflows/aw-prelude.md) checks the [Control Plane dashboard](docs/operations/control-plane-dashboard.md).
 4. If enabled, the route runs the pinned agent from [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
 
 See the [architecture overview](docs/architecture/overview.md).
@@ -32,8 +34,8 @@ See the [architecture overview](docs/architecture/overview.md).
 Here are some of the most important features of the **oblt-aw** framework:
 
 - **Automatic client distribution** — no hand-copying entrypoints; [distribution](docs/operations/distribute-client-workflow.md) installs/updates `trigger-obs-aw-*.yml` ([client template](docs/workflows/obs-aw-client-template.md), [adopting workflows](docs/onboarding/adopting-agentic-workflows.md)).
-- **Self-service dashboard** — enable/disable with checkboxes on `[oblt-aw] Control Plane Dashboard` ([dashboard](docs/operations/control-plane-dashboard.md), [enable or disable](docs/user-guide/enable-a-new-workflow.md)).
-- **Shared prelude** — same gating and allow lists before every agent run ([aw-prelude](docs/workflows/aw-prelude.md)).
+- **Self-service Control Plane dashboard** — enable/disable with checkboxes on `[oblt-aw] Control Plane Dashboard` ([Control Plane dashboard](docs/operations/control-plane-dashboard.md), [enable or disable](docs/user-guide/enable-a-new-workflow.md)).
+- **Control plane (prelude)** — same Control Plane dashboard gating and allow lists before every agent run ([aw-prelude](docs/workflows/aw-prelude.md)).
 - **Shared agentic assets** — resolved in the framework ([aw-resolve-agentic-assets](docs/workflows/aw-resolve-agentic-assets.md)).
 - **Update once, reach the fleet** — improve in `oblt-aw`; [distribution](docs/operations/distribute-client-workflow.md) refreshes clients across active repos.
 - **Quieter PRs** — narrow triggers; only matching routes run ([split-trigger](docs/architecture/overview.md#split-trigger-vs-monolithic-ingress)).
@@ -42,11 +44,11 @@ Here are some of the most important features of the **oblt-aw** framework:
 
 ## Open for every Elastic organization
 
-Not Observability-only. Each org owns `config/<org-key>/`; [distribution](docs/operations/distribute-client-workflow.md) and dashboard sync stay scoped to that org; consumers still get one shared dashboard grouped by org. Observability leads; docs already has a second org footprint. Details: [multi-org design](docs/architecture/multi-org-agentic-workflows.md).
+Not Observability-only. Each org owns `config/<org-key>/`; [distribution](docs/operations/distribute-client-workflow.md) and Control Plane dashboard sync stay scoped to that org; consumers still get one shared Control Plane dashboard grouped by org. Observability leads; docs already has a second org footprint. Details: [multi-org design](docs/architecture/multi-org-agentic-workflows.md).
 
 ## Quick Start
 
-Target repositories install event-scoped client templates from this repository (for example `trigger-obs-aw-pull-request.yml`, `trigger-obs-aw-issues.yml`). Each event client calls an `obs-aw-event-*` orchestrator that runs shared dashboard gating via [aw-prelude.yml](.github/workflows/aw-prelude.yml) and passes `shared-proceed` (plus allow-list fields) into each route reusable.
+Target repositories install event-scoped client templates from this repository (for example `trigger-obs-aw-pull-request.yml`, `trigger-obs-aw-issues.yml`). Each event client calls an `obs-aw-event-*` orchestrator that runs shared Control Plane dashboard gating via [aw-prelude.yml](.github/workflows/aw-prelude.yml) and passes `shared-proceed` (plus allow-list fields) into each route reusable.
 
 - Observability templates: [.github/remote-workflow-template/obs/.github/workflows/](.github/remote-workflow-template/obs/.github/workflows/) — see [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md)
 - Docs templates: [.github/remote-workflow-template/docs/.github/workflows/](.github/remote-workflow-template/docs/.github/workflows/) (`trigger-docs-aw-issues.yml`, `trigger-docs-aw-issue-comment.yml`, `trigger-docs-aw-pull-request.yml`, `trigger-docs-aw-workflow-run.yml`)
@@ -58,6 +60,7 @@ Executable workflows live under [.github/workflows/](.github/workflows/); their 
 **Portal (Elastic Internal Docs / Codex, planned):** [https://codex.elastic.dev/r/oblt-aw/](https://codex.elastic.dev/r/oblt-aw/) — story-first guides for onboarding, enablement, and operations. Live after docs-infra registration and token policies; until then use the in-repo index ([docs/index.md](docs/index.md)).
 
 - Get started: [docs/get-started.md](docs/get-started.md)
+- Glossary: [docs/glossary.md](docs/glossary.md)
 - User guide: [docs/user-guide/index.md](docs/user-guide/index.md)
 - Admin guide: [docs/admin-guide/index.md](docs/admin-guide/index.md)
 - Troubleshooting: [docs/troubleshooting/index.md](docs/troubleshooting/index.md)

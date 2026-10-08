@@ -20,4 +20,4 @@ Routing rules for event-to-workflow dispatch.
 
 Client template index: [Observability client templates](../workflows/obs-aw-client-template.md).
 
-Runtime gating for agentic workflows is still read inside the ingress (`get-enabled-workflows`) when a client workflow runs. Separately, `issues.edited` on the Control Plane Dashboard issue (`label:oblt-aw/dashboard`) triggers the shared [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) path (all orgs) to record enable/disable comments on that issue.
+Runtime gating for agentic workflows is still read inside the ingress (`get-enabled-workflows`) when a client workflow runs. Separately, `issues.edited` on the Control Plane dashboard issue (`label:oblt-aw/dashboard`) triggers the shared [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) path (all orgs) to record enable/disable comments on that issue.

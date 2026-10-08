@@ -8,7 +8,7 @@
 
 ## Event-scoped client model
 
-Client templates are grouped by **GitHub event family** so co-triggered routes share one dashboard read per workflow run. Each event-scoped client calls an orchestrator reusable (`docs-aw-event-*.yml`) that runs [aw-prelude.yml](aw-prelude.md) once, then fans out to per-route `docs-aw-*` workflows.
+Client templates are grouped by **GitHub event family** so co-triggered routes share one Control Plane dashboard read per workflow run. Each event-scoped client calls an orchestrator reusable (`docs-aw-event-*.yml`) that runs [aw-prelude.yml](aw-prelude.md) once, then fans out to per-route `docs-aw-*` workflows.
 
 ```yaml
 uses: elastic/oblt-aw/.github/workflows/docs-aw-event-pull-request.yml@main
@@ -16,7 +16,7 @@ uses: elastic/oblt-aw/.github/workflows/docs-aw-event-pull-request.yml@main
 
 Template source stays `@main`. Distribute substitutes the production moving major for `pin-class: production` installs after the first promote; `development` installs keep `@main` (see [agentic-release-model](../operations/agentic-release-model.md)).
 
-Per-route dashboard gating uses the required `shared-proceed` input (and related shared allow-list fields) passed from [aw-prelude.yml](aw-prelude.md) via each `docs-aw-event-*` orchestrator.
+Per-route Control Plane dashboard gating uses the required `shared-proceed` input (and related shared allow-list fields) passed from [aw-prelude.yml](aw-prelude.md) via each `docs-aw-event-*` orchestrator.
 
 ### Template index
 
@@ -44,7 +44,7 @@ Top-level permissions on every client template:
 
 - `contents: read`
 
-Control-plane `docs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
+Framework `docs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
 
 Job-level permissions on the client entrypoint job (for example `run-docs-aw-pull-request`) must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below).
 
