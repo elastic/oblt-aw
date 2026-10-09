@@ -42,11 +42,27 @@ Initial development list (everyone else in the obs/docs active lists is producti
 - **Opt-in fine grain:** per-workflow pointers only when a route must promote independently (not implemented in the first slice; extend `release-pointers.json` when needed).
 
 ```mermaid
-flowchart LR
-  Main[Merge to main]
-  Promo[Promote on main: E2E then tag]
-  Main --> Promo
-  Promo -->|rollback| Prev[Retarget vN to previous]
+flowchart TB
+  Merge["Merge to main\nPR CI only — no live E2E"]
+  Promo["aw-release-promote\nmanual dispatch on main"]
+  E2E["e2e-all on tip SHA"]
+  Tags["Push tags\nvX.Y.Z immutable; vN / next / previous move"]
+  Ptr["Land release-pointers.json\nVault-authored PR"]
+  Rel["GitHub Release for vX.Y.Z"]
+  Dist["distribute-client-workflow"]
+  Dev["development → always @main"]
+  Prod["production → tags.current e.g. @v0"]
+  Roll["aw-release-rollback\nconfirm = rollback"]
+
+  Merge --> Promo
+  Promo --> E2E
+  E2E --> Tags
+  Tags --> Ptr
+  Ptr --> Rel
+  Rel --> Dist
+  Dist --> Dev
+  Dist --> Prod
+  Roll -.->|retarget vN to previous| Prod
 ```
 
 ### Consumer churn

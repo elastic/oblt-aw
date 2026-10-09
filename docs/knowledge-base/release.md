@@ -10,6 +10,30 @@ How framework changes move from `main` to production consumer pins, and how to r
 
 ## Flow
 
+```mermaid
+flowchart TB
+  Merge["Merge to main\nPR CI only — no live E2E"]
+  Promo["aw-release-promote\nmanual dispatch on main"]
+  E2E["e2e-all on tip SHA"]
+  Tags["Push tags\nvX.Y.Z immutable; vN / next / previous move"]
+  Ptr["Land release-pointers.json\nVault-authored PR"]
+  Rel["GitHub Release for vX.Y.Z"]
+  Dist["distribute-client-workflow"]
+  Dev["development → always @main"]
+  Prod["production → tags.current e.g. @v0"]
+  Roll["aw-release-rollback\nconfirm = rollback"]
+
+  Merge --> Promo
+  Promo --> E2E
+  E2E --> Tags
+  Tags --> Ptr
+  Ptr --> Rel
+  Rel --> Dist
+  Dist --> Dev
+  Dist --> Prod
+  Roll -.->|retarget vN to previous| Prod
+```
+
 1. Merge to `main` after PR CI (unit, functional, integration — not live E2E).
 2. Manually dispatch [`aw-release-promote.yml`](../workflows/aw-release-promote.md) on the default branch with `release-type` (`patch` / `minor` / `major`).
 3. Promote calls `e2e-all` on the tip SHA at dispatch, then tags, lands `config/release-pointers.json`, and creates a GitHub Release.
