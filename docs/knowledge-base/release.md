@@ -50,12 +50,33 @@ Rollback is a separate manual dispatch: [`aw-release-rollback.yml`](../workflows
 
 Template source under `.github/remote-workflow-template/` stays `@main`. Distribute substitutes the install pin from each repo’s `pin-class`.
 
+## `release-pointers.json`
+
+[`config/release-pointers.json`](https://github.com/elastic/oblt-aw/blob/main/config/release-pointers.json) is the committed record of which framework SHA and semver production consumers follow. Promote and rollback update it through a Vault-authored PR; do not hand-edit it on `main`.
+
+| Field | Meaning |
+|-------|---------|
+| `major` | Production major line; first promote creates `v{major}.0.0` |
+| `pointers.current` | SHA and immutable semver (`vX.Y.Z`) that production should track |
+| `pointers.next` | Same SHA/semver as `current` after a normal promote (ops slot for a future staged train) |
+| `pointers.previous` | Prior `current` (rollback target; a second rollback can swap back) |
+| `schema_version` | Must be `1` |
+| `tags.current` | Moving major tag **name** production installs use (for example `v0` → `@v0`) |
+| `tags.next` / `tags.previous` | Moving ops tag names (`next`, `previous`) — not semver-shaped |
+
+**Pointers vs tags:** each `pointers.*` entry stores a full SHA, immutable semver, and `updated_at`. The `tags.*` object only names the moving git tags. Distribute reads `tags.current` for production `uses:` pins once `pointers.current.sha` is set and that tag exists on origin.
+
+**Order:** tags are pushed before the pointers PR merges, so distribute never rewrites production installs to a missing `@vN`.
+
+Full field rules, bootstrap, and fail-closed checks: [Release model — release-pointers.json](../operations/release-model.md#release-pointersjson).
+
 ## Docs
 
 | Topic | Doc |
 |-------|-----|
+| Distribution | [distribute-client-workflow](../operations/distribute-client-workflow.md) |
 | Full model and runbook | [Release model](../operations/release-model.md) |
 | Promote workflow | [aw-release-promote](../workflows/aw-release-promote.md) |
+| `release-pointers.json` | [Release model — release-pointers.json](../operations/release-model.md#release-pointersjson) |
 | Rollback workflow | [aw-release-rollback](../workflows/aw-release-rollback.md) |
 | Testing contract (E2E gate) | [QA](qa/index.md) |
-| Distribution | [distribute-client-workflow](../operations/distribute-client-workflow.md) |

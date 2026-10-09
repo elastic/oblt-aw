@@ -72,6 +72,61 @@ flowchart TB
 | Patch / minor (compatible) | None for production — retarget `v0` after promote. Development stays on `@main`. |
 | Major / breaking (incl. graduate to `v1`) | Bump templates to `@v1` (or next major), redistribute |
 
+## `release-pointers.json`
+
+Committed source of truth for the shared promote train: [`config/release-pointers.json`](https://github.com/elastic/oblt-aw/blob/main/config/release-pointers.json). Library: [`scripts/release_pointers.py`](https://github.com/elastic/oblt-aw/blob/main/scripts/release_pointers.py).
+
+### Who writes and who reads
+
+| Actor | Role |
+|-------|------|
+| `aw-release-promote` / `aw-release-rollback` | Plan pointer updates, push tags, then land the file via a Vault-authored PR (org rules block direct pushes to `main`) |
+| `distribute-client-workflow` | For `pin-class: production`, substitutes `uses: …@<tags.current>` once `pointers.current.sha` is set **and** that tag exists on origin; otherwise keeps `@main` |
+| Humans | Do **not** hand-edit on `main`. Inspect the file to see current/previous SHAs and semver |
+
+### Schema (`schema_version: 1`)
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `major` | int ≥ 0 | Production major line. First promote (all pointer SHAs empty) creates `v{major}.0.0` regardless of `release-type` |
+| `notes` | string | Human comment only; not consumed by automation |
+| `pointers.current` | object | Production target: `sha` (40-char hex), `semver` (`vX.Y.Z`), `updated_at` (UTC ISO) |
+| `pointers.next` | object | After a normal promote, same SHA/semver as `current` (reserved for a staged “next” train later) |
+| `pointers.previous` | object | Prior `current` after a promote (rollback target). After rollback, holds the displaced promote so a second rollback can undo |
+| `schema_version` | int | Must be `1` |
+| `tags.current` | string | Moving major tag name (`v0`, later `v1`, …). Production install pin is `@` + this value |
+| `tags.next` | string | Moving ops tag name (default `next`). Must not look like semver or `vN` |
+| `tags.previous` | string | Moving ops tag name (default `previous`). Same naming rules as `tags.next`; must differ from `tags.next` |
+
+Empty `sha` / `semver` strings mean uninitialized. Partial state (some fields filled, others empty) is refused for bootstrap.
+
+### Pointers vs tags
+
+- **`pointers.*`** record *what* was promoted: commit SHA + immutable audit semver.
+- **`tags.*`** name the *moving* git tags that force-update on promote/rollback. Immutable tags (`v0.0.1`, …) are never listed here and are never force-pushed.
+- Consumers pin the moving major (`@v0`), not the immutable `vX.Y.Z`. The pointers file ties that major to a recorded SHA for operators and fail-closed checks.
+
+### Promote update
+
+1. Pick immutable semver: bootstrap → `v{major}.0.0`; otherwise bump from the **highest** pointer semver (`patch` / `minor` / `major`) so a rollback cannot rewind numbering.
+2. Set `tags.current` to `v{new_major}`.
+3. Move `previous` ← old `current`; set `current` and `next` to the gated SHA + new semver; set `major` from the new semver.
+4. Push immutable tag, then force-update moving tags, **then** open/merge the pointers PR.
+
+### Rollback update
+
+1. Require non-empty `previous` ≠ `current`.
+2. Retarget moving `tags.current` (and `next`) to the previous SHA — the **current** major tag name stays (after a major promote, rollback moves `v1`, not the prior major).
+3. Swap pointers: new `current` ← old `previous`; new `previous` ← displaced `current` (so a second rollback can undo).
+4. Push moving tags, then land the pointers PR (same Vault path as promote).
+
+### Fail-closed rules (summary)
+
+- Before a later promote/rollback: origin’s `tags.current` must match `pointers.current` (or this run’s in-flight SHA). Other mismatches are refused.
+- Before opening the pointers PR: tip’s `release-pointers.json` must still match the plan-base SHA (re-dispatch if another promote/rollback landed).
+- Tags publish before the pointers merge so distribute (path filter includes this file) never writes `@vN` for a tag missing on origin.
+- If the pointers merge fails after tags moved: re-run the same promote or rollback; do not start a new promote until origin `vN` matches committed pointers (or that run’s in-flight SHA).
+
 ## Automation vs human gates
 
 | Step | Mode |
