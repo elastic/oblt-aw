@@ -34,10 +34,10 @@ Quarantined or missing required cases **block** production promote (fail-closed)
 | Dependency review | [dependency-review-e2e](../../testing/dependency-review-e2e.md) |
 | ESTC PR Buildkite Detective | [estc-pr-buildkite-detective-e2e](../../testing/estc-pr-buildkite-detective-e2e.md) |
 | PR Actions Detective | [pr-actions-detective-e2e](../../testing/pr-actions-detective-e2e.md) |
-| Index | [Testing](../../testing/index.md) |
 
 ## See also
 
 - Design: [Testing platform](../../architecture/agentic-workflow-testing-platform.md)
+- Live harness notes: [Testing](../../testing/index.md)
 - [QA overview](index.md)
 - [Release model](../../operations/release-model.md)
