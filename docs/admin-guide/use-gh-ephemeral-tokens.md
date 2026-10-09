@@ -57,8 +57,8 @@ Some framework workflows use explicit policy ids in YAML (not copied into consum
 
 | Workflow | Policy id (in this repo) |
 |----------|--------------------------|
-| [distribute-client-workflow](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/distribute-client-workflow.yml) | `token-policy-63405ab45244` |
-| [sync-control-plane-dashboard](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard.yml) | `token-policy-8b60ba56dd3f` |
+| [distribute-client-workflow](../workflows/distribute-client-workflow.md) | `token-policy-63405ab45244` |
+| [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) | `token-policy-8b60ba56dd3f` |
 
 See the reference table in [Registering resources — appendix](../onboarding/registering-a-repository.md).
 
