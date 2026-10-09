@@ -23,8 +23,6 @@ Today many teams still wire each agent by hand in every repo (local workflow →
 - **Slow rollouts** — every repo reinvents install and enablement.
 - **Unsustainable management** as repos and agents grow.
 
-Routing and management stay in the framework; agents still run from pinned upstream locks. Clients are **distributed automatically**, so entry points stay centralized.
-
 ## Features and benefits
 
 - **Automatic client distribution** — no hand-copying entrypoints; [distribution](operations/distribute-client-workflow.md) installs/updates `trigger-obs-aw-*.yml` ([client template](workflows/obs-aw-client-template.md), [adopting workflows](onboarding/adopting-agentic-workflows.md)).
