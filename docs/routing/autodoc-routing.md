@@ -22,8 +22,8 @@ The event name is evaluated in the context of the workflow run that invoked the 
 ## Notes
 
 - `obs-aw-autodoc.yml` uses Observability-owned locks in this repository:
-  - `elastic/oblt-aw/.github/workflows/gh-aw-docs-patrol.lock.yml@main` — detects documentation drift and creates an issue with findings (source: [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md))
-  - `elastic/oblt-aw/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main` — implements the findings and opens a docs-only PR when an issue was created (source: [`.github/workflows/gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md))
+  - `elastic/oblt-aw/.github/workflows/gh-aw-docs-patrol.lock.yml@main` — detects documentation drift and creates an issue with findings (source: [`.github/workflows/gh-aw-docs-patrol.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-docs-patrol.md))
+  - `elastic/oblt-aw/.github/workflows/gh-aw-create-pr-from-issue.lock.yml@main` — implements the findings and opens a docs-only PR when an issue was created (source: [`.github/workflows/gh-aw-create-pr-from-issue.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-create-pr-from-issue.md))
 - It is intended to analyze repository documentation and open a focused documentation PR.
 - It must not merge PRs automatically.
 

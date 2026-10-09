@@ -2,11 +2,11 @@
 
 ## Overview
 
-Source file: [.github/workflows/get-enabled-workflows.yml](../../.github/workflows/get-enabled-workflows.yml)
+Source file: [.github/workflows/get-enabled-workflows.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/get-enabled-workflows.yml)
 
-This reusable workflow reads the Control Plane Dashboard issue (`oblt-aw/dashboard`) and emits normalized outputs consumed by ingress gating.
+This reusable workflow reads the Control Plane dashboard issue (`oblt-aw/dashboard`) and emits normalized outputs consumed by ingress gating.
 
-It does not route agentic workflows directly. It only resolves dashboard state into a stable contract for downstream `if:` conditions.
+It does not route agentic workflows directly. It only resolves Control Plane dashboard state into a stable contract for downstream `if:` conditions.
 
 ## Usage
 
@@ -17,7 +17,7 @@ Triggers:
 
 Called by ingress:
 
-- [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml), job `read-oblt-aw-dashboard`
+- [.github/workflows/aw-prelude.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml), job `read-oblt-aw-dashboard`
 
 The reusable workflow job id is `read-oblt-aw-dashboard`.
 
@@ -28,15 +28,15 @@ The reusable workflow job id is `read-oblt-aw-dashboard`.
 | Output | Type | Meaning |
 |--------|------|---------|
 | `enabled-workflows` | JSON array string | Normalized array (`[]` or `["org:workflow-id", ...]`) used by ingress `contains(fromJSON(...), 'org:workflow-id')` checks |
-| `effective-raw` | string | Pre-normalization signal from dashboard read: `''` (no open dashboard issue), `[]`, or `["org:workflow-id", ...]` |
+| `effective-raw` | string | Pre-normalization signal from Control Plane dashboard read: `''` (no open Control Plane dashboard issue), `[]`, or `["org:workflow-id", ...]` |
 
 Semantics used by ingress:
 
-- `effective-raw == ''`: no open dashboard issue exists; gated workflows do not run.
-- `effective-raw != ''` and `enabled-workflows == []`: dashboard exists but nothing is selected; gated workflows do not run.
+- `effective-raw == ''`: no open Control Plane dashboard issue exists; gated workflows do not run.
+- `effective-raw != ''` and `enabled-workflows == []`: Control Plane dashboard exists but nothing is selected; gated workflows do not run.
 - `effective-raw != ''` and non-empty `enabled-workflows`: only listed compound ids (`org:workflow-id`) are enabled.
 
-## Dashboard Parsing and Normalization
+## Control Plane dashboard parsing and normalization
 
 The workflow fetches the first open issue with label `oblt-aw/dashboard`, then parses checked task-list entries matching the three-part marker at line start:
 
@@ -46,9 +46,9 @@ Legacy two-part lines (`<!-- oblt-aw:<workflow-id> -->` without an org) are trea
 
 Normalization behavior:
 
-- Empty or missing dashboard content normalizes to `[]` for `enabled-workflows`.
+- Empty or missing Control Plane dashboard content normalizes to `[]` for `enabled-workflows`.
 - Non-array payloads are normalized into unique compound ids (bare tokens get an `obs:` prefix).
-- `effective-raw` is emitted separately to preserve the "no dashboard issue" signal.
+- `effective-raw` is emitted separately to preserve the "no Control Plane dashboard issue" signal.
 
 ## Configuration
 
@@ -57,7 +57,7 @@ Top-level permissions:
 - `contents: read`
 - `issues: read`
 
-The job checks out **`elastic/oblt-aw`** at `main` with **sparse checkout** (`fetch-depth: 1`): only `scripts/get_enabled_workflows.py` and `scripts/common.py` (the latter is required for `from common import ...`). This matches the pattern used in [.github/workflows/load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml) for minimal clones.
+The job checks out **`elastic/oblt-aw`** at `main` with **sparse checkout** (`fetch-depth: 1`): only `scripts/get_enabled_workflows.py` and `scripts/common.py` (the latter is required for `from common import ...`). This matches the pattern used in [.github/workflows/load-allowed-authors.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/load-allowed-authors.yml) for minimal clones.
 
 ## References
 

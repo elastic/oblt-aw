@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml)
+Source file: [.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-resource-not-accessible-by-integration-triage.yml)
 
 This reusable workflow triages issues that carry the detector label `oblt-aw/detector/res-not-accessible-by-integration` for the `Resource not accessible by integration` problem class and prepares fix-ready issues.
 

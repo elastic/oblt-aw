@@ -2,21 +2,21 @@
 
 ## Overview
 
-**Source of truth (edit here only):** [.github/remote-workflow-template/docs/.github/workflows/](../../.github/remote-workflow-template/docs/.github/workflows/)
+**Source of truth (edit here only):** [.github/remote-workflow-template/docs/.github/workflows/](https://github.com/elastic/oblt-aw/tree/main/.github/remote-workflow-template/docs/.github/workflows)
 
-`distribute-client-workflow` installs these files into consumer repositories for every repository listed under [config/docs/active-repositories.json](../../config/docs/active-repositories.json).
+`distribute-client-workflow` installs these files into consumer repositories for every repository listed under [config/docs/active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/docs/active-repositories.json).
 
 ## Event-scoped client model
 
-Client templates are grouped by **GitHub event family** so co-triggered routes share one dashboard read per workflow run. Each event-scoped client calls an orchestrator reusable (`docs-aw-event-*.yml`) that runs [aw-prelude.yml](aw-prelude.md) once, then fans out to per-route `docs-aw-*` workflows.
+Client templates are grouped by **GitHub event family** so co-triggered routes share one Control Plane dashboard read per workflow run. Each event-scoped client calls an orchestrator reusable (`docs-aw-event-*.yml`) that runs [aw-prelude.yml](aw-prelude.md) once, then fans out to per-route `docs-aw-*` workflows.
 
 ```yaml
 uses: elastic/oblt-aw/.github/workflows/docs-aw-event-pull-request.yml@main
 ```
 
-Template source stays `@main`. Distribute substitutes the production moving major for `pin-class: production` installs after the first promote; `development` installs keep `@main` (see [agentic-release-model](../operations/agentic-release-model.md)).
+Template source stays `@main`. Distribute substitutes the production moving major for `pin-class: production` installs after the first promote; `development` installs keep `@main` (see [release-model](../operations/release-model.md)).
 
-Per-route dashboard gating uses the required `shared-proceed` input (and related shared allow-list fields) passed from [aw-prelude.yml](aw-prelude.md) via each `docs-aw-event-*` orchestrator.
+Per-route Control Plane dashboard gating uses the required `shared-proceed` input (and related shared allow-list fields) passed from [aw-prelude.yml](aw-prelude.md) via each `docs-aw-event-*` orchestrator.
 
 ### Template index
 
@@ -33,8 +33,8 @@ Route-specific conditions (for example PR vs non-PR issue comments, menu checkbo
 
 Fork PRs cannot post issue comments with a write-capable `GITHUB_TOKEN` from a `pull_request` workflow. `pull_request_target` is unsafe (runs in the base repo with elevated token on untrusted fork events). The PR menu therefore uses a **split-workflow** pattern:
 
-1. **`trigger-docs-aw-pull-request.yml`** — `pull_request` only; uploads a `pr-number` artifact via [docs-aw-pr-ai-menu-collect.yml](../../.github/workflows/docs-aw-pr-ai-menu-collect.yml).
-2. **`trigger-docs-aw-workflow-run.yml`** — `workflow_run` when the collect workflow completes successfully on `main`; calls [docs-aw-pr-ai-menu.yml](../../.github/workflows/docs-aw-pr-ai-menu.yml) to download the artifact and post the menu from trusted base-repo context.
+1. **`trigger-docs-aw-pull-request.yml`** — `pull_request` only; uploads a `pr-number` artifact via [docs-aw-pr-ai-menu-collect.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-pr-ai-menu-collect.yml).
+2. **`trigger-docs-aw-workflow-run.yml`** — `workflow_run` when the collect workflow completes successfully on `main`; calls [docs-aw-pr-ai-menu.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-pr-ai-menu.yml) to download the artifact and post the menu from trusted base-repo context.
 
 Menu checkbox handling (`issue_comment`) uses `trigger-docs-aw-issue-comment.yml`. Manual refresh uses `workflow_dispatch` on `trigger-docs-aw-issues.yml` (issue menu) or `trigger-docs-aw-workflow-run.yml` (PR menu). Fork checkbox triggers require org membership (enforced in `scripts/docs/pr-menu/evaluate-trigger.js`).
 
@@ -44,7 +44,7 @@ Top-level permissions on every client template:
 
 - `contents: read`
 
-Control-plane `docs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
+Framework `docs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
 
 Job-level permissions on the client entrypoint job (for example `run-docs-aw-pull-request`) must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below).
 

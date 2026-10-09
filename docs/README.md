@@ -1,38 +1,36 @@
 # OBLT AW Documentation
 
-## Overview
+Story-first developer docs for `oblt-aw`. Edit Markdown here; Elastic Internal Docs (Codex) publishes from this tree.
 
-This directory contains the documentation for `oblt-aw`.
+## Published portal
 
-The structure is organized by intent:
+After Codex registration: [https://codex.elastic.dev/r/oblt-aw/](https://codex.elastic.dev/r/oblt-aw/)
 
-- `architecture/`: system-level design and lifecycle.
-- `workflows/`: one document per workflow file.
-- `routing/`: canonical routing rules and event-to-workflow mapping (all per-workflow routing docs live here; see `docs/routing/README.md`).
-- `operations/`: rollout and maintenance operations.
-- `development/`: contributor setup and local quality checks.
+How publish works: [development/codex-publish.md](development/codex-publish.md).
 
-## Prerequisites
+## Start here (in-repo)
 
-- Access to this repository.
-- Familiarity with reusable GitHub Actions workflows (`workflow_call`).
+- Portal home: [index.md](index.md)
+- Get started: [get-started.md](get-started.md)
+- Glossary: [glossary.md](glossary.md)
+- User guide: [user-guide/index.md](user-guide/index.md)
+- Admin guide: [admin-guide/index.md](admin-guide/index.md)
+- Troubleshooting: [troubleshooting/index.md](troubleshooting/index.md)
+- Knowledge base: [knowledge-base/index.md](knowledge-base/index.md)
 
-## Usage
+## Topic folders
 
-Use this index as the starting point and then navigate by topic.
+- `admin-guide/` — framework maintenance, secrets, ephemeral tokens
+- `architecture/`, `operations/`, `routing/`, `onboarding/`, `development/`, `testing/` — deeper sources (architecture hub and TOC)
+- `knowledge-base/` — Agentic Workflows catalog, architecture, release, and QA hubs
+- `troubleshooting/` — failed runs and common problems
+- `user-guide/` — developer enablement stories
+- `workflows/` — per-workflow docs (hidden from sidebar; linked from the catalog)
 
-- **Guides by role** (user, operator, maintainer stories): [docs/guides/README.md](guides/README.md)
-- Architecture overview: [docs/architecture/overview.md](architecture/overview.md)
-- Agentic workflow testing platform (design): [docs/architecture/agentic-workflow-testing-platform.md](architecture/agentic-workflow-testing-platform.md)
-- Workflow catalog: [docs/workflows/README.md](workflows/README.md)
-- Routing guide: [docs/routing/README.md](routing/README.md)
-- Distribution operations: [docs/operations/distribute-client-workflow.md](operations/distribute-client-workflow.md)
-- Agentic release model (promote / rollback / `@v0` train): [docs/operations/agentic-release-model.md](operations/agentic-release-model.md)
-- Control Plane Dashboard (user instructions): [docs/operations/control-plane-dashboard.md](operations/control-plane-dashboard.md)
-- Contributing and local setup: [docs/development/contributing.md](development/contributing.md)
-- Onboard a repository (developers): [docs/guides/user/onboard-a-repository.md](guides/user/onboard-a-repository.md)
-- Onboarding (technical / long-form): [docs/onboarding/README.md](onboarding/README.md)
+## Local Codex preview
 
-## References
+```bash
+docs-builder serve
+```
 
-- Repository entrypoint README: [README.md](../README.md)
+See [development/codex-publish.md](development/codex-publish.md).

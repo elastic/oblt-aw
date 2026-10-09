@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-agent-suggestions.yml](../../.github/workflows/obs-aw-agent-suggestions.yml)
+Source file: [.github/workflows/obs-aw-agent-suggestions.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-agent-suggestions.yml)
 
 This reusable wrapper runs the upstream agent-suggestions workflow with repository-specific policy for issue creation.
 

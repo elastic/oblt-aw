@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml)
+Source file: [.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-resource-not-accessible-by-integration-fixer.yml)
 
 This reusable workflow executes issue-based fixes for issues labeled as ready to fix in the Resource Not Accessible by Integration flow.
 
@@ -33,7 +33,7 @@ Configured instructions require:
 
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 
-Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from control-plane fragments under `workflows.resource-not-accessible-by-integration.inner-workflows.obs-aw-resource-not-accessible-by-integration-fixer.yml` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Detector and triage wrappers do not load those fixer fragments.
+Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from framework fragments under `workflows.resource-not-accessible-by-integration.inner-workflows.obs-aw-resource-not-accessible-by-integration-fixer.yml` in [`config/obs/instruction-fragment-map.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Detector and triage wrappers do not load those fixer fragments.
 
 ## Configuration
 

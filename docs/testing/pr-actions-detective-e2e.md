@@ -18,11 +18,11 @@ Oracle pass/fail for the agent side effect is **comment presence**. Section mark
 
 ## Prerequisites (live)
 
-1. **Dashboard** — enable `obs:pr-actions-detective` on the Control Plane Dashboard for `elastic/oblt-aw` (issue labeled `oblt-aw/dashboard`). The harness fails closed if the checkbox is off (`dashboard_enabled` is pinned true).
-2. **Vault app token** — the leaf workflow mints an ephemeral token via `elastic/oblt-actions/github/create-token` using `workflow-token-policy` from [`config/e2e.json`](../../config/e2e.json) (same shared E2E policy as automerge). Fixture Contents commits and PR writes must not use `github.token` — `GITHUB_TOKEN` commits do not reliably fire `pull_request`, and github-actions[bot] authorship can hit the approval gate.
+1. **Control Plane dashboard** — enable `obs:pr-actions-detective` on the Control Plane dashboard for `elastic/oblt-aw` (issue labeled `oblt-aw/dashboard`). The harness fails closed if the checkbox is off (`dashboard_enabled` is pinned true).
+2. **Vault app token** — the leaf workflow mints an ephemeral token via `elastic/oblt-actions/github/create-token` using `workflow-token-policy` from [`config/e2e.json`](https://github.com/elastic/oblt-aw/blob/main/config/e2e.json) (same shared E2E policy as automerge). Fixture Contents commits and PR writes must not use `github.token` — `GITHUB_TOKEN` commits do not reliably fire `pull_request`, and github-actions[bot] authorship can hit the approval gate.
 3. **Client trigger** — `trigger-obs-aw-workflow-run.yml` must be installed on `elastic/oblt-aw` (distributed via the obs client template).
 4. **Target PR** — harness creates or reuses one **long-lived** fixture PR labeled `e2e:pr-actions-detective` on branch `e2e/pr-actions-detective`. It is never closed by the harness. The `ci-gate` job in `ci.yml` skips work jobs for any `e2e:*` / `e2e/` fixture; the exact Actions-detective label/branch also skips agentic pull-request routes so the fixture does not burn CI or agent credits. Workflow concurrency (`e2e-pr-actions-detective`) serializes live runs against that shared fixture.
-5. **Fail workflow** — [`.github/workflows/e2e-pr-actions-detective-fail.yml`](../../.github/workflows/e2e-pr-actions-detective-fail.yml) runs only on the fixture PR (label + branch + same-repo). Its `paths` filter watches only [`e2e-fail-trigger.md`](../../testdata/agentic/pr-actions-detective/e2e-fail-trigger.md) so seeding the workflow YAML onto the fixture tip cannot start a second intentional failure. Each live run **seeds** that YAML when missing, no-ops when it already matches the checkout, and **refuses** to overwrite a differing remote copy (update the fixture via a normal PR). Only the nonce trigger file is mutated each run so `pull_request` synchronize fires a real failed run (required so `workflow_run.pull_requests` is non-empty).
+5. **Fail workflow** — [`.github/workflows/e2e-pr-actions-detective-fail.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-pr-actions-detective-fail.yml) runs only on the fixture PR (label + branch + same-repo). Its `paths` filter watches only [`e2e-fail-trigger.md`](https://github.com/elastic/oblt-aw/blob/main/testdata/agentic/pr-actions-detective/e2e-fail-trigger.md) so seeding the workflow YAML onto the fixture tip cannot start a second intentional failure. Each live run **seeds** that YAML when missing, no-ops when it already matches the checkout, and **refuses** to overwrite a differing remote copy (update the fixture via a normal PR). Only the nonce trigger file is mutated each run so `pull_request` synchronize fires a real failed run (required so `workflow_run.pull_requests` is non-empty).
 
 ### Reading failures
 
@@ -32,7 +32,7 @@ Harness and oracle print `block_reason` / failed checks in the job log (and emit
 
 ### GitHub Actions (preferred)
 
-Workflow: [`.github/workflows/e2e-pr-actions-detective.yml`](../../.github/workflows/e2e-pr-actions-detective.yml)
+Workflow: [`.github/workflows/e2e-pr-actions-detective.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-pr-actions-detective.yml)
 
 ```bash
 gh workflow run e2e-pr-actions-detective.yml
@@ -44,11 +44,11 @@ Triggers:
 
 - `workflow_dispatch` (manual) and `workflow_call` (from `e2e-all.yml`). One run at a time via concurrency group `e2e-pr-actions-detective`. Always runs case `workflow-run-failure-open-pr-live`.
 
-Not part of the default PR `required` job in [`ci.yml`](../../.github/workflows/ci.yml). Control-plane lock/wrapper still resolve via `@main` on the live path (smoke); candidate-ref pinning is a separate follow-up.
+Not part of the default PR `required` job in [`ci.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/ci.yml). Framework lock/wrapper still resolve via `@main` on the live path (smoke); candidate-ref pinning is a separate follow-up.
 
 ### Local (live only)
 
-Live mode needs `gh` auth and dashboard enablement.
+Live mode needs `gh` auth and Control Plane dashboard enablement.
 
 Harness/oracle unit coverage (no live agent):
 
@@ -68,8 +68,8 @@ Each run uploads `e2e-pr-actions-detective-workflow-run-failure-open-pr-live-<ru
 
 ## Related
 
-- Config: [`config/obs/e2e-pr-actions-detective.json`](../../config/obs/e2e-pr-actions-detective.json)
-- Harness/oracle: [`scripts/obs/e2e/`](../../scripts/obs/e2e/)
+- Config: [`config/obs/e2e-pr-actions-detective.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/e2e-pr-actions-detective.json)
+- Harness/oracle: [`scripts/obs/e2e/`](https://github.com/elastic/oblt-aw/tree/main/scripts/obs/e2e)
 - Workflow doc: [obs-aw-pr-actions-detective](../workflows/obs-aw-pr-actions-detective.md)
 - Design: [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md)
 - Integration fixtures (sibling): [#2055](https://github.com/elastic/oblt-aw/issues/2055)

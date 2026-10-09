@@ -1,6 +1,6 @@
 # Workflow Maturity Criteria
 
-This document defines the maturity levels used to classify agentic workflows in the Control Plane Dashboard. Maturity is assigned centrally in each org’s [workflow-registry.json](../../config/obs/workflow-registry.json) (for example under `config/obs/`) by maintainers.
+This document defines the maturity levels used to classify agentic workflows in the Control Plane dashboard. Maturity is assigned centrally in each org’s [workflow-registry.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) (for example under `config/obs/`) by maintainers.
 
 ## Maturity Levels
 
@@ -45,11 +45,11 @@ This document defines the maturity levels used to classify agentic workflows in 
 
 ## Assignment
 
-Maturity is set in each org’s [workflow-registry.json](../../config/obs/workflow-registry.json) (for example `config/obs/workflow-registry.json`). Each workflow entry includes:
+Maturity is set in each org’s [workflow-registry.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json) (for example `config/obs/workflow-registry.json`). Each workflow entry includes:
 
 - `maturity`: one of `stable`, `early-adoption`, or `experimental`
-- `default_enabled`: default checkbox state used by dashboard sync when a workflow is not yet present in an existing dashboard issue body
+- `default_enabled`: default checkbox state used by Control Plane dashboard sync when a workflow is not yet present in an existing Control Plane dashboard issue body
 
-`default_enabled` does not override user-edited dashboard checkbox state during normal dashboard sync runs. It defines the initial state for newly introduced workflow IDs until users change them in the dashboard issue (unless `force-sync-defaults` is used to reset checkboxes). All Observability (`config/obs/`) workflows use `default_enabled: false` (opt-in).
+`default_enabled` does not override user-edited Control Plane dashboard checkbox state during normal Control Plane dashboard sync runs. It defines the initial state for newly introduced workflow IDs until users change them in the Control Plane dashboard issue (unless `force-sync-defaults` is used to reset checkboxes). All Observability (`config/obs/`) workflows use `default_enabled: false` (opt-in).
 
 Future enhancement: maturity could be derived automatically from metrics (e.g., successful execution ratio, proposed actions taken).

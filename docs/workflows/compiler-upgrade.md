@@ -1,6 +1,6 @@
 ## Overview
 
-Source file: [.github/workflows/compiler-upgrade.md](../../.github/workflows/compiler-upgrade.md)
+Source file: [.github/workflows/compiler-upgrade.md](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/compiler-upgrade.md)
 
 This workflow source checks whether the pinned gh-aw compiler version in `.aw-compiler-version` is behind the latest upstream release and opens an issue only when an actionable upgrade is available.
 

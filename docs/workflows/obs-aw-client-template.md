@@ -2,19 +2,19 @@
 
 ## Overview
 
-**Source of truth (edit here only):** [.github/remote-workflow-template/obs/.github/workflows/](../../.github/remote-workflow-template/obs/.github/workflows/)
+**Source of truth (edit here only):** [.github/remote-workflow-template/obs/.github/workflows/](https://github.com/elastic/oblt-aw/tree/main/.github/remote-workflow-template/obs/.github/workflows)
 
 ## Event-scoped client model
 
-Client templates are grouped by **GitHub event family** so co-triggered routes share one dashboard read and one allow-list load per workflow run. Each event-scoped client calls an orchestrator reusable (`obs-aw-event-*.yml`) that runs [aw-prelude.yml](aw-prelude.md) once, then fans out to per-route `obs-aw-*` workflows.
+Client templates are grouped by **GitHub event family** so co-triggered routes share one Control Plane dashboard read and one allow-list load per workflow run. Each event-scoped client calls an orchestrator reusable (`obs-aw-event-*.yml`) that runs [aw-prelude.yml](aw-prelude.md) once, then fans out to per-route `obs-aw-*` workflows.
 
 ```yaml
 uses: elastic/oblt-aw/.github/workflows/obs-aw-event-pull-request.yml@main
 ```
 
-Template source stays `@main`. Distribute substitutes `@v0` (or the current `tags.current` major) for `pin-class: production` installs after the first promote; `development` installs keep `@main` (see [agentic-release-model](../operations/agentic-release-model.md)).
+Template source stays `@main`. Distribute substitutes `@v0` (or the current `tags.current` major) for `pin-class: production` installs after the first promote; `development` installs keep `@main` (see [release-model](../operations/release-model.md)).
 
-Per-route dashboard gating uses the required `shared-proceed` input (and related shared allow-list fields) passed from [aw-prelude.yml](aw-prelude.md) via each `obs-aw-event-*` orchestrator.
+Per-route Control Plane dashboard gating uses the required `shared-proceed` input (and related shared allow-list fields) passed from [aw-prelude.yml](aw-prelude.md) via each `obs-aw-event-*` orchestrator.
 
 ### Architecture
 
@@ -51,7 +51,7 @@ flowchart TB
   C_SCH --> ORCH
 ```
 
-Full platform view (distribution, dashboard sync, before/after ingress): [architecture overview — split-trigger diagrams](../architecture/overview.md#split-trigger-vs-monolithic-ingress).
+Full platform view (distribution, Control Plane dashboard sync, before/after ingress): [architecture overview — split-trigger diagrams](../architecture/overview.md#split-trigger-vs-monolithic-ingress).
 
 ### Template index
 
@@ -69,7 +69,7 @@ Route-specific conditions (labels, `/ai` comment prefix, allow-listed PR authors
 
 ### PR Actions Detective allowlist
 
-`trigger-obs-aw-workflow-run.yml` is **not** byte-copied for every consumer. Distribute installs it only when the repository’s `pr-actions-detective-workflows` list in [config/obs/active-repositories.json](../../config/obs/active-repositories.json) is non-empty, and renders those GitHub Actions workflow **`name:`** values into `on.workflow_run.workflows`. See [distribute-client-workflow](../operations/distribute-client-workflow.md). Enable the dashboard checkbox only after the allowlist is set for that repository.
+`trigger-obs-aw-workflow-run.yml` is **not** byte-copied for every consumer. Distribute installs it only when the repository’s `pr-actions-detective-workflows` list in [config/obs/active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json) is non-empty, and renders those GitHub Actions workflow **`name:`** values into `on.workflow_run.workflows`. See [distribute-client-workflow](../operations/distribute-client-workflow.md). Enable the Control Plane dashboard checkbox only after the allowlist is set for that repository.
 
 ## Configuration
 
@@ -77,7 +77,7 @@ Top-level permissions on every client template:
 
 - `contents: read`
 
-Control-plane `obs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
+Framework `obs-aw-*` workflows declare permissions on **each job** (workflow root is `contents: read` only). Jobs that call `gh-aw-*.lock.yml` should match the upstream lock workflow permissions.
 
 Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull-request`) must be at least as permissive as the union of all route jobs in the called event orchestrator (see table below). GitHub validates that ceiling against **every** declared callee job, including jobs skipped by `if:` (for example daily-only routes when `schedule-profile` is `frequent`). CI enforces this via `scripts/validate_aw_workflow_permissions.py`, which scans this template tree.
 

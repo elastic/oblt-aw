@@ -16,7 +16,7 @@
 
 """Release pointer store and tag helpers for the agentic release train.
 
-See docs/operations/agentic-release-model.md.
+See docs/operations/release-model.md.
 """
 
 from __future__ import annotations

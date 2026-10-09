@@ -2,11 +2,11 @@
 
 ## Overview
 
-Source file: [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelude.yml)
+Source file: [.github/workflows/aw-prelude.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml)
 
-Shared reusable prelude for agentic workflows (dashboard gating and optional allow lists).
+Shared reusable prelude for agentic workflows (Control Plane dashboard gating and optional allow lists).
 
-Event-scoped orchestrators (`obs-aw-event-*`, `docs-aw-event-*`) call this workflow once per GitHub event family, then fan out to per-route `*-aw-*` workflows with `shared-proceed` and related outputs. CI enforces that route reusables declare `shared-proceed` via [scripts/validate_aw_workflow_prelude.py](../../scripts/validate_aw_workflow_prelude.py).
+Event-scoped orchestrators (`obs-aw-event-*`, `docs-aw-event-*`) call this workflow once per GitHub event family, then fan out to per-route `*-aw-*` workflows with `shared-proceed` and related outputs. CI enforces that route reusables declare `shared-proceed` via [scripts/validate_aw_workflow_prelude.py](https://github.com/elastic/oblt-aw/blob/main/scripts/validate_aw_workflow_prelude.py).
 
 APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the prelude. Call [aw-resolve-agentic-assets.yml](aw-resolve-agentic-assets.md) once per `gh-aw-*` agent invocation instead.
 
@@ -14,9 +14,9 @@ APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the pre
 
 | Job id | Role |
 |--------|------|
-| `read-oblt-aw-dashboard` | Calls [get-enabled-workflows.yml](../../.github/workflows/get-enabled-workflows.yml) |
-| `load-oblt-aw-bot-allow-lists` | Calls [load-allowed-authors.yml](../../.github/workflows/load-allowed-authors.yml) when `load-allowed-authors` input is true |
-| `evaluate-workflow-gates` | Resolves token policy, evaluates dashboard gates, packs allow-list outputs |
+| `read-oblt-aw-dashboard` | Calls [get-enabled-workflows.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/get-enabled-workflows.yml) |
+| `load-oblt-aw-bot-allow-lists` | Calls [load-allowed-authors.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/load-allowed-authors.yml) when `load-allowed-authors` input is true |
+| `evaluate-workflow-gates` | Resolves token policy, evaluates Control Plane dashboard gates, packs allow-list outputs |
 
 Event orchestrators invoke this workflow as job `run-aw-prelude`.
 
@@ -26,7 +26,7 @@ Event orchestrators invoke this workflow as job `run-aw-prelude`.
 
 | Input | Type | Default | Purpose |
 |-------|------|---------|---------|
-| `control-plane-workflows` | string | (required) | JSON array of control-plane workflow basenames to evaluate (for example `["obs-aw-automerge.yml","obs-aw-dependency-review.yml"]`) |
+| `control-plane-workflows` | string | (required) | JSON array of framework workflow basenames to evaluate (for example `["obs-aw-automerge.yml","obs-aw-dependency-review.yml"]`) |
 | `load-allowed-authors` | boolean | `false` | When true, loads PR and issue bot allow lists on `pull_request` / `issues` events |
 
 ### Outputs
@@ -34,7 +34,7 @@ Event orchestrators invoke this workflow as job `run-aw-prelude`.
 | Output | Description |
 |--------|-------------|
 | `proceed-by-workflow` | JSON map of workflow basename → `true`/`false` proceed flags |
-| `effective-raw` | Raw dashboard read (`''` means no open dashboard issue) |
+| `effective-raw` | Raw Control Plane dashboard read (`''` means no open Control Plane dashboard issue) |
 | `enabled-workflows` | Normalized JSON array of compound ids |
 | `allowed-pr-authors-json` / `allowed-pr-authors-csv` | PR allow list (empty when not loaded) |
 | `allowed-issue-authors-json` / `allowed-issue-authors-csv` | Issue allow list (empty when not loaded) |
