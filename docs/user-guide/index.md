@@ -1,6 +1,6 @@
 ---
 navigation_title: User guide
-description: What Elastic developers do with oblt-aw — onboard, enable or disable agentic workflows, and choose Automerge dependency collections.
+description: What Elastic developers do with oblt-aw — onboard, enable or disable agentic workflows, define local AI assets, and choose Automerge dependency collections.
 applies_to: {}
 ---
 
@@ -19,6 +19,7 @@ Procedures for developers and repo owners who use OBLT Agentic Workflows in a co
 |------|--------|
 | Onboard a repository that is not registered yet | [Onboard a repository](onboard-a-repository.md) |
 | Enable or disable an agentic workflow from the Control Plane dashboard | [Enable or disable an agentic workflow](enable-a-new-workflow.md) |
+| Define local AI assets (`apm.yml` / `x-oblt-aw`) in a target repository | [Define local AI assets](local-ai-assets.md) |
 | Choose which dependency collections Automerge covers | [Choose Automerge dependency collections](automerge-services.md) |
 | See what agentic workflows do and when they run | [Agentic workflow catalog by outcome](../knowledge-base/agentic-workflows/by-outcome.md) |
 

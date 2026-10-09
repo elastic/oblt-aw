@@ -1,5 +1,7 @@
 # APM agentic assets (consumer repositories)
 
+Repo-owner procedure (add `apm.yml`, verify a run): [Define local AI assets](../user-guide/local-ai-assets.md).
+
 Consumer repositories can declare **shared** and **per-workflow** agentic assets in [`apm.yml`](https://github.com/microsoft/apm) using the `x-oblt-aw` extension. The framework resolves those assets in [`aw-resolve-agentic-assets.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-resolve-agentic-assets.yml) immediately before each upstream `gh-aw-*` invocation (not in [`aw-prelude.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-prelude.yml)).
 
 ## Workflow identifiers

@@ -17,6 +17,7 @@ toc:
       - file: index.md
       - file: onboard-a-repository.md
       - file: enable-a-new-workflow.md
+      - file: local-ai-assets.md
       - file: automerge-services.md
   - folder: admin-guide
     children:

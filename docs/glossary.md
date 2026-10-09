@@ -74,6 +74,12 @@ The opinionated agentic framework hosted in [elastic/oblt-aw](https://github.com
 
 See [Home](index.md), [Get started](get-started.md).
 
+### Local AI assets
+
+Repo-local agent customization declared in consumer `apm.yml` under `x-oblt-aw` (instructions, fragments, setup commands, optional APM packages). Resolved per agent invocation by [aw-resolve-agentic-assets](workflows/aw-resolve-agentic-assets.md); not required to enable workflows from the Control Plane dashboard.
+
+See [Define local AI assets](user-guide/local-ai-assets.md), [APM agentic assets](architecture/apm-agentic-assets.md).
+
 ### Org key
 
 Directory name under `config/<org-key>/` (for example `obs`, `docs`). Owns that org’s registry, active repositories, and allow lists. Appears in compound ids and Control Plane dashboard sections.
