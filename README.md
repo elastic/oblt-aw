@@ -1,5 +1,9 @@
 # Introducing oblt-aw — a framework for agentic workflows
 
+<p align="center">
+  <img src="docs/images/oblt-aw-framework-emblem.jpg" alt="oblt-aw — opinionated agentic framework for Elastic" width="720" />
+</p>
+
 ## What is oblt-aw, and what problems does it solve?
 
 **oblt-aw** ([elastic/oblt-aw](https://github.com/elastic/oblt-aw)) is an opinionated agentic framework for [GitHub Agentic Workflows](https://github.github.com/gh-aw/): reusable routes, thin clients [distributed automatically](docs/operations/distribute-client-workflow.md) to repos, plus a **control plane** for configuration and gating (Control Plane dashboard, opt-in/opt-out, audit, and prelude verification).
