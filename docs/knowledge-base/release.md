@@ -68,7 +68,7 @@ Template source under `.github/remote-workflow-template/` stays `@main`. Distrib
 
 **Order:** tags are pushed before the pointers PR merges, so distribute never rewrites production installs to a missing `@vN`.
 
-Full field rules, bootstrap, and fail-closed checks: [Release model — release-pointers.json](../operations/release-model.md#release-pointersjson).
+Full field rules, bootstrap, and fail-closed checks: [Release model — release-pointers.json](../operations/release-model.md#release-pointers.json).
 
 ## Docs
 
@@ -77,6 +77,6 @@ Full field rules, bootstrap, and fail-closed checks: [Release model — release-
 | Distribution | [distribute-client-workflow](../operations/distribute-client-workflow.md) |
 | Full model and runbook | [Release model](../operations/release-model.md) |
 | Promote workflow | [aw-release-promote](../workflows/aw-release-promote.md) |
-| `release-pointers.json` | [Release model — release-pointers.json](../operations/release-model.md#release-pointersjson) |
+| `release-pointers.json` | [Release model — release-pointers.json](../operations/release-model.md#release-pointers.json) |
 | Rollback workflow | [aw-release-rollback](../workflows/aw-release-rollback.md) |
 | Testing contract (E2E gate) | [QA](qa/index.md) |
