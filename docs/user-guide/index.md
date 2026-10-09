@@ -6,10 +6,10 @@ applies_to: {}
 
 # User guide
 
-Procedures for developers and repo owners who use OBLT Agentic Workflows in a consumer repository. Prefer [Get started](../get-started.md) if you are new.
+Procedures for developers and target repository owners who use OBLT Agentic Workflows in a target repository. Prefer [Get started](../get-started.md) if you are new.
 
 :::{image} ../images/control-plane-dashboard-issue.png
-:alt: Control Plane dashboard issue in a consumer repository
+:alt: Control Plane dashboard issue in a target repository
 :screenshot:
 :::
 

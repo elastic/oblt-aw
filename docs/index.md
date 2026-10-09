@@ -58,8 +58,8 @@ Continue to the full [Get started](get-started.md) guide.
 
 | Section | Audience |
 |---------|----------|
-| [User guide](user-guide/index.md) | Developers and repo owners (onboard, enable, Automerge, catalog) |
-| [Admin guide](admin-guide/index.md) | Maintainers who change the framework |
+| [User guide](user-guide/index.md) | Developers and target repository owners (onboard, enable, Automerge, catalog) |
+| [Admin guide](admin-guide/index.md) | Framework maintainers who change `elastic/oblt-aw` |
 | [Troubleshooting](troubleshooting/index.md) | Failed runs and common problems |
 | [Knowledge base](knowledge-base/index.md) | Agentic Workflows, architecture, release, and QA |
 | [Glossary](glossary.md) | Shared terms (framework, control plane, Control Plane dashboard, dependency collection) |

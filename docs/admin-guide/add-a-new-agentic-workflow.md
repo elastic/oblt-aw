@@ -4,7 +4,7 @@
 
 You are shipping a **new** routed workflow in the `elastic/oblt-aw` framework so consumer repositories can enable it from the Control Plane dashboard.
 
-This is the maintainer path. Repo owners who only need to **enable** an existing agentic workflow should use [Enable or disable an agentic workflow](../user-guide/enable-a-new-workflow.md).
+This is the maintainer path. Target repository owners who only need to **enable** an existing agentic workflow should use [Enable or disable an agentic workflow](../user-guide/enable-a-new-workflow.md).
 
 ```mermaid
 flowchart TD
