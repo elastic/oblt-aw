@@ -40,10 +40,10 @@ Agent behavior (what the agent does on an issue or PR) is defined in locked `gh-
 
 In simplified form:
 
-1. Clients (`trigger-obs-aw-*.yml`) are **installed** using [automated distribution](operations/distribute-client-workflow.md) ([client template](workflows/obs-aw-client-template.md)).
+1. Clients (`trigger-<org-key>-aw-*.yml`) are **installed** using [automated distribution](operations/distribute-client-workflow.md) ([Observability client template](workflows/obs-aw-client-template.md), [Docs client template](workflows/docs-aw-client-template.md)).
 2. On a matching event, the client calls [elastic/oblt-aw](https://github.com/elastic/oblt-aw).
 3. [Prelude](workflows/aw-prelude.md) checks the [Control Plane dashboard](operations/control-plane-dashboard.md).
-4. If enabled, the route runs the pinned agent from [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions).
+4. If enabled, the route runs its pinned implementation — an in-repo or upstream `gh-aw-*` lock, a Docs Actions reusable, or a deterministic framework workflow.
 
 See the [architecture overview](architecture/overview.md).
 

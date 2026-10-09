@@ -26,11 +26,13 @@ flowchart LR
 2. If registration already landed too early, follow [Registering resources — troubleshooting](../../onboarding/registering-a-repository.md#troubleshooting).
 3. For policy shape and OIDC claims, see [Use GitHub ephemeral tokens](../../admin-guide/use-gh-ephemeral-tokens.md).
 
-Expected `workflow_ref` shape (ref wildcard required):
+Expected `workflow_ref` shape (ref wildcard required; use the registered org key):
 
 ```text
-elastic/<repo>/.github/workflows/trigger-obs-aw-*.yml@*
+elastic/<repo>/.github/workflows/trigger-<org-key>-aw-*.yml@*
 ```
+
+Examples: `trigger-obs-aw-*.yml@*` or `trigger-docs-aw-*.yml@*`.
 
 ## See also
 

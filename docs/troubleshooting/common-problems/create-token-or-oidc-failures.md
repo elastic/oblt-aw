@@ -20,20 +20,22 @@ Common verified causes:
 
 ## Fix
 
-1. Confirm `id-token: write` on the client entrypoint — [Client template index](../../workflows/obs-aw-client-template.md).
+1. Confirm `id-token: write` on the client entrypoint — [Observability client template](../../workflows/obs-aw-client-template.md) or [Docs client template](../../workflows/docs-aw-client-template.md).
 
    ```yaml
    jobs:
-     run-obs-aw-pull-request:
+     run-obs-aw-pull-request: # or run-docs-aw-pull-request
        permissions:
          id-token: write
    ```
 
-2. Align the catalog policy `workflow_ref` with distributed triggers — [Use GitHub ephemeral tokens](../../admin-guide/use-gh-ephemeral-tokens.md).
+2. Align the catalog policy `workflow_ref` with distributed triggers for the registered org key — [Use GitHub ephemeral tokens](../../admin-guide/use-gh-ephemeral-tokens.md).
 
    ```text
-   elastic/<repo>/.github/workflows/trigger-obs-aw-*.yml@*
+   elastic/<repo>/.github/workflows/trigger-<org-key>-aw-*.yml@*
    ```
+
+   Examples: `trigger-obs-aw-*.yml@*` or `trigger-docs-aw-*.yml@*`.
 
 3. Use the operator checklist — [Troubleshoot an error](../troubleshoot-an-error.md) (permissions / OIDC step).
 

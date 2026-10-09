@@ -32,7 +32,8 @@ flowchart TD
 
    ```bash
    gh issue list --repo elastic/<repo> --label oblt-aw/dashboard --state open
-   gh pr list --repo elastic/<repo> --search "trigger-obs-aw" --state open
+   # Match the registered org key (obs → trigger-obs-aw, docs → trigger-docs-aw)
+   gh pr list --repo elastic/<repo> --search "trigger-obs-aw OR trigger-docs-aw" --state open
    ```
 
    :::{image} ../../images/find-control-plane-dashboard.png

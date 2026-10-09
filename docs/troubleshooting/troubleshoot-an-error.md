@@ -29,7 +29,7 @@ gh run view <run-id> --repo elastic/<repo> --log-failed
 ## Steps
 
 1. **Identify where the run lives** — Open the run URL.
-   - **Consumer repo** (`trigger-obs-aw-*.yml`): start with the client template and event orchestrator. See [Client template index](../workflows/obs-aw-client-template.md).
+   - **Consumer repo** (`trigger-<org-key>-aw-*.yml`): start with the client template and event orchestrator for that org. See [Observability client template](../workflows/obs-aw-client-template.md) or [Docs client template](../workflows/docs-aw-client-template.md).
    - **`elastic/oblt-aw`**: framework operation (distribution, CI) and control plane (Control Plane dashboard sync). See [docs/workflows/](../workflows/index.md) for the matching workflow doc.
 
 2. **Check Control Plane dashboard gating** — If jobs were skipped or `shared-proceed` is false, the agentic workflow may not be enabled on the Control Plane dashboard.

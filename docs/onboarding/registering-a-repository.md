@@ -60,7 +60,7 @@ flowchart LR
 
 **Merge order (humans):** merge **catalog-info** before the **`elastic/oblt-aw`** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed workflows in production. Auto-merge of these registration PRs is **out of scope**.
 
-**Out of scope for registration PRs:** do not edit `config/<org-key>/workflow-registry.json`, client templates under `.github/remote-workflow-template/`, or Control Plane dashboard checkbox definitions. Those apply after registration via distribute / sync / huma Control Plane dashboard opt-in.
+**Out of scope for registration PRs:** do not edit `config/<org-key>/workflow-registry.json`, client templates under `.github/remote-workflow-template/`, or Control Plane dashboard checkbox definitions. Those apply after registration via distribute / sync / human Control Plane dashboard opt-in.
 
 ## Consumer secrets discovery
 
