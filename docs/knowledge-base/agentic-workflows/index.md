@@ -10,4 +10,4 @@ What each consumer agentic workflow does, its maturity, and where to enable it.
 
 | Page | What you find |
 |------|----------------|
-| [Catalog by outcome](by-outcome.md) | Agentic workflows grouped by Issues, PRs, Security, Automerge, and Docs |
+| [Catalog by outcome](by-outcome.md) | Agentic workflows grouped by org (Observability, Docs), then by outcome |

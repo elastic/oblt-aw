@@ -1,36 +1,46 @@
 ---
 navigation_title: Catalog by outcome
-description: OBLT Agentic Workflows grouped by developer outcome — what each does, maturity, and how to enable.
+description: OBLT Agentic Workflows grouped by organization, then by developer outcome — what each does, maturity, and how to enable.
 applies_to: {}
 ---
 
 # Agentic workflow catalog by outcome
 
-Consumer agentic workflows registered for Observability (`config/obs/workflow-registry.json`) and Docs (`config/docs/workflow-registry.json`). Each row links to enablement and the framework doc. For upstream agent encyclopedias, use [AI GitHub Actions](https://elastic.github.io/ai-github-actions/).
+Consumer agentic workflows registered for Observability (`config/obs/workflow-registry.json`) and Docs (`config/docs/workflow-registry.json`). Grouped by organization, then by outcome. Each row links to enablement and the framework doc. For upstream agent encyclopedias, use [AI GitHub Actions](https://elastic.github.io/ai-github-actions/).
 
 How to turn a row on or off: [Enable or disable an agentic workflow](../../user-guide/enable-a-new-workflow.md). Maturity meanings: [Workflow maturity](../../operations/workflow-maturity.md).
 
 ```mermaid
 flowchart TB
-  subgraph issues [Issues]
-    IT[Issue Triage]
-    MI[Mention in Issue]
-    DID[Duplicate Issue Detector]
-    IF[Issue Fixer]
-    AS[Agent Suggestions]
+  subgraph obs [Observability]
+    subgraph obs_issues [Issues]
+      IT[Issue Triage]
+      MI[Mention in Issue]
+      DID[Duplicate Issue Detector]
+      IF[Issue Fixer]
+      AS[Agent Suggestions]
+    end
+    subgraph obs_prs [Pull requests]
+      AD[Automated Documentation]
+      DR[Dependency Review]
+      PAD[PR Actions Detective]
+      PBD[PR Buildkite Detective]
+      RNA[Resource Not Accessible]
+    end
+    subgraph obs_security [Security]
+      SEC[Security detector]
+    end
+    subgraph obs_deps [Dependency updates]
+      AM[Automerge]
+    end
   end
-  subgraph prs [Pull requests]
-    AD[Automated Documentation]
-    DR[Dependency Review]
-    PAD[PR Actions Detective]
-    PBD[PR Buildkite Detective]
-    RNA[Resource Not Accessible]
-  end
-  subgraph security [Security]
-    SEC[Security detector]
-  end
-  subgraph deps [Dependency updates]
-    AM[Automerge]
+  subgraph docs [Docs]
+    subgraph docs_issues [Issues]
+      DIM[Docs Issue AI Menu]
+    end
+    subgraph docs_prs [Pull requests]
+      DPM[Docs PR AI Menu]
+    end
   end
 ```
 
@@ -39,7 +49,9 @@ flowchart TB
 :screenshot:
 :::
 
-## Issues
+## Observability
+
+### Issues
 
 | Agentic workflow | Maturity | What it does | Docs |
 |----------|----------|--------------|------|
@@ -49,7 +61,7 @@ flowchart TB
 | Issue Fixer | experimental | Generic `/ai implement` fixes (non-security paths) | [obs-aw-issue-fixer](../../workflows/obs-aw-issue-fixer.md) |
 | Agent Suggestions | experimental | Suggests agentic workflows for the repository | [obs-aw-agent-suggestions](../../workflows/obs-aw-agent-suggestions.md) |
 
-## Pull requests
+### Pull requests
 
 | Agentic workflow | Maturity | What it does | Docs |
 |----------|----------|--------------|------|
@@ -59,7 +71,7 @@ flowchart TB
 | PR Buildkite Detective | stable | Diagnoses Buildkite failures on a PR | [obs-aw-estc-pr-buildkite-detective](../../workflows/obs-aw-estc-pr-buildkite-detective.md) |
 | Resource Not Accessible by Integration | early-adoption | Detects, triages, and fixes that Actions error | [obs-aw-resource-not-accessible-by-integration-detector](../../workflows/obs-aw-resource-not-accessible-by-integration-detector.md) |
 
-## Security
+### Security
 
 | Agentic workflow | Maturity | What it does | Docs |
 |----------|----------|--------------|------|
@@ -67,17 +79,24 @@ flowchart TB
 
 Related: [Security triage](../../workflows/obs-aw-security-triage.md), [Security fixer](../../workflows/obs-aw-security-fixer.md), [Security issue superseder](../../workflows/obs-aw-security-issue-superseder.md), [Security scanning ruleset](../../workflows/security-scanning-ruleset.md), [Security routing](../../routing/security-routing.md).
 
-## Dependency updates / Automerge
+### Dependency updates / Automerge
 
 | Agentic workflow | Maturity | What it does | Docs |
 |----------|----------|--------------|------|
 | Automerge | stable | Arms and squash-merges allowed bot PRs when checks are green | [Choose Automerge dependency collections](../../user-guide/automerge-services.md), [obs-aw-automerge](../../workflows/obs-aw-automerge.md) |
 
-## Docs organization
+## Docs
+
+### Issues
 
 | Agentic workflow | Maturity | What it does | Docs |
 |----------|----------|--------------|------|
 | Docs Issue AI Menu | experimental | Issue AI menu for the Docs org | [docs-aw-ai-menu](../../workflows/docs-aw-ai-menu.md) |
+
+### Pull requests
+
+| Agentic workflow | Maturity | What it does | Docs |
+|----------|----------|--------------|------|
 | Docs PR AI Menu | experimental | PR AI menu for the Docs org | [docs-aw-pr-ai-menu](../../workflows/docs-aw-pr-ai-menu.md) |
 
 Framework source docs (not in the sidebar): [workflow documentation index](../../workflows/index.md).
