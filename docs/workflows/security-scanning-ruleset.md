@@ -112,6 +112,8 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Pattern**: `run:` block containing `${{ secrets.` in the command text.
 
+**Detector boundary (implemented)**: `scripts/obs/security-scan.sh` keeps SEC-002 findings from zizmor only when they resolve to authored workflow `run:` command context. Findings in generated `.github/workflows/*.lock.yml` files and authored `env:`/`with:`-only secret wiring are excluded.
+
 ---
 
 ### Rule SEC-003: Env Indirection Requirement
