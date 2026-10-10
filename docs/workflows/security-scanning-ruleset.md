@@ -49,7 +49,7 @@ The table below documents how each rule ID is currently represented in the detec
 | SEC-021 | Yes | `zizmor` `unredacted-secrets` mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-022 | Yes | `zizmor` `overprovisioned-secrets` and `secrets-inherit` mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-030 | Yes | `zizmor` unpinned/ref-integrity mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
-| SEC-031 | Yes | `zizmor` third-party/high-risk action source mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
+| SEC-031 | Yes | `zizmor` action-source and artifact-credential-persistence mappings (`known-vulnerable-actions`, `forbidden-uses`, `archived-uses`, `artipacked`) in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-032 | Yes | Custom `curl`/`wget` integrity heuristic in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-033 | Yes | `npm audit` check when `package-lock.json` is present in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-034 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
@@ -208,14 +208,23 @@ The table below documents how each rule ID is currently represented in the detec
 
 ---
 
-### Rule SEC-031: Third-Party or High-Risk Action Source
+### Rule SEC-031: Action Source or Checkout Credential Persistence Risk
 
 **Severity**: Medium
 **Maps to**: Supply chain — third-party action auditing.
 
-**Description**: Actions from namespaces outside `actions/` and `github/` (or an org allowlist) require explicit review; detector flags for visibility.
+**Description**: Detector flags action source risk (`known-vulnerable-actions`,
+`forbidden-uses`, `archived-uses`) and checkout credential persistence
+(`artipacked`) when workflow patterns can retain git credentials longer than
+necessary.
 
-**Note**: Severity may be informational in internal repos with approved third parties; triage can apply `oblt-aw/triage/other` when accepted risk is documented.
+**Remediation guidance (artipacked)**: For `actions/checkout` steps, set
+`with.persist-credentials: false` unless a documented write-path exception is
+required.
+
+**Note**: Severity may be informational in internal repos with approved third
+parties; triage can apply `oblt-aw/triage/other` when accepted risk is
+documented.
 
 ---
 

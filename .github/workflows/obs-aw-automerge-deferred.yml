@@ -49,6 +49,7 @@ jobs:
       - name: Checkout elastic/oblt-aw (discover helper)
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           repository: elastic/oblt-aw
           ref: main
           path: _oblt-aw
@@ -95,6 +96,7 @@ jobs:
       - name: Checkout elastic/oblt-aw (gate helpers)
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           repository: elastic/oblt-aw
           ref: main
           path: _oblt-aw
