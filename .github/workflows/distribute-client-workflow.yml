@@ -338,7 +338,7 @@ jobs:
   summarize:
     needs: create-prs
     if: ${{ always() && needs.create-prs.result != 'skipped' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
       - name: Checkout source repository

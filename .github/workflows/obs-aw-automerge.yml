@@ -280,7 +280,7 @@ jobs:
       always() &&
       (needs.automerge.outputs.merge_result == 'merge_failed' ||
        needs.automerge.outputs.merge_result == 'not_ready')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     permissions:
       contents: write
@@ -403,7 +403,7 @@ jobs:
       needs.verify.outputs.proceed == 'true' &&
       needs.check-dependency-collection.outputs.allowed == 'true' &&
       needs.automerge.result != 'skipped'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     permissions:
       contents: read
