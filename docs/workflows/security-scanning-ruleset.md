@@ -40,14 +40,14 @@ The table below documents how each rule ID is currently represented in the detec
 | Rule ID | Implemented in detector | Primary implementation path |
 |---------|-------------------------|-----------------------------|
 | SEC-001 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
-| SEC-002 | Yes | `actionlint` secret message mapping and `zizmor` `secrets-outside-env` mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
+| SEC-002 | Yes | Dedicated `run:` command-text scanner for `${{ secrets.* }}` interpolation in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-003 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-010 | Yes | `actionlint` expression mapping, `zizmor` template/github-env mappings, and `semgrep` injection mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-011 | Yes | `shellcheck` and `actionlint` shellcheck mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-012 | Yes | `zizmor` default and targeted mappings plus `semgrep` non-injection workflow mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-020 | Yes | `actionlint` credentials mapping and `zizmor` hardcoded credentials mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-021 | Yes | `zizmor` `unredacted-secrets` mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
-| SEC-022 | Yes | `zizmor` `overprovisioned-secrets` and `secrets-inherit` mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
+| SEC-022 | Yes | `zizmor` `secrets-outside-env`, `overprovisioned-secrets`, and `secrets-inherit` mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-030 | Yes | `zizmor` unpinned/ref-integrity mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-031 | Yes | `zizmor` third-party/high-risk action source mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-032 | Yes | Custom `curl`/`wget` integrity heuristic in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
@@ -111,6 +111,8 @@ The table below documents how each rule ID is currently represented in the detec
 **Description**: `${{ secrets.* }}` must not appear inside `run:` command strings. Use `env:` and environment variables.
 
 **Pattern**: `run:` block containing `${{ secrets.` in the command text.
+
+**Detector boundary**: SEC-002 is emitted only for `run:` command text interpolation. Non-`run:` secret wiring (for example `with.github-token` and other secret scoping contexts, including generated workflow lock files) maps to SEC-022 when detected by `zizmor`.
 
 ---
 
