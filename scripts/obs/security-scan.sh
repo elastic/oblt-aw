@@ -180,11 +180,17 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
       (.concrete.location.start_point.row // 0) as $row0 |
       (($row0 + 1) | tostring) as $line |
       ($finding.ident) as $id |
+      # gh-aw generated lock workflows include compiler-managed secret references
+      # in action inputs. Keep SEC-002 focused on authored workflow surfaces.
+      if ($id == "secrets-outside-env" and ($rel3 | test("^\\.github/workflows/gh-aw-.*\\.lock\\.yml$"))) then
+        empty
+      else
       ($finding.determinations.severity // "Medium" | ascii_downcase) as $zs |
       (sev_map[$zs] // "medium") as $sev |
       (sec_for($id)) as $rule |
       (if $rule == "SEC-030" then "medium" else $sev end) as $sev2 |
       "\($rel3)|\($line)|\($rule)|\($sev2)|zizmor [\($id)]: \($finding.desc | gsub("\\|"; " ")) (\($finding.url))"
+      end
     end
   ' >>"$FINDINGS_TMP" 2>/dev/null || true
 fi
