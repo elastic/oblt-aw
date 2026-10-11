@@ -43,6 +43,7 @@ jobs:
           path: target
           fetch-depth: 0
 
+          persist-credentials: false
       - name: Checkout oblt-aw (detector scripts)
         uses: actions/checkout@v7
         with:
@@ -50,6 +51,7 @@ jobs:
           ref: main
           path: _oblt-aw
 
+          persist-credentials: false
       - name: Install tools
         run: bash _oblt-aw/scripts/obs/install_security_detector_tools.sh
 

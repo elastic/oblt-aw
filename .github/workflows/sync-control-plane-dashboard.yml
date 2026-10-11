@@ -36,6 +36,8 @@ jobs:
       - name: Checkout source repository
         uses: actions/checkout@v7
 
+        with:
+          persist-credentials: false
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
@@ -73,6 +75,8 @@ jobs:
       - name: Checkout source repository
         uses: actions/checkout@v7
 
+        with:
+          persist-credentials: false
       - name: Create ephemeral GitHub token
         id: create-token
         uses: elastic/oblt-actions/github/create-token@v1
