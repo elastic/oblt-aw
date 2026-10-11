@@ -169,6 +169,8 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Remediation guidance**: Pass values through environment variables with strict quoting, use intermediate scripts with validation, or restrict to trusted event types.
 
+**Detector note (generated lock workflows):** The detector suppresses zizmor `template-injection` findings from `.github/workflows/*.lock.yml`. Those workflows are compiler-generated and repeatedly surface parse-guard-vars expansion noise; remediation must happen in the hand-authored source workflows/fragments and compiler path, not by editing lock files.
+
 ---
 
 ### Rule SEC-011: Command Injection in Shell Scripts

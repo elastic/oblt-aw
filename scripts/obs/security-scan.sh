@@ -184,7 +184,14 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
       (sev_map[$zs] // "medium") as $sev |
       (sec_for($id)) as $rule |
       (if $rule == "SEC-030" then "medium" else $sev end) as $sev2 |
-      "\($rel3)|\($line)|\($rule)|\($sev2)|zizmor [\($id)]: \($finding.desc | gsub("\\|"; " ")) (\($finding.url))"
+      # gh-aw lock workflows are generated artifacts; template-injection findings on
+      # *.lock.yml guard-policy expansion are compiler-path noise and tracked via source
+      # workflow fixes, so skip those detector rows here.
+      if ($id == "template-injection" and ($rel3 | test("^\\.github/workflows/.*\\.lock\\.yml$"))) then
+        empty
+      else
+        "\($rel3)|\($line)|\($rule)|\($sev2)|zizmor [\($id)]: \($finding.desc | gsub("\\|"; " ")) (\($finding.url))"
+      end
     end
   ' >>"$FINDINGS_TMP" 2>/dev/null || true
 fi
