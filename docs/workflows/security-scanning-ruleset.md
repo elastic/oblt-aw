@@ -47,9 +47,9 @@ The table below documents how each rule ID is currently represented in the detec
 | SEC-012 | Yes | `zizmor` default and targeted mappings plus `semgrep` non-injection workflow mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-020 | Yes | `actionlint` credentials mapping and `zizmor` hardcoded credentials mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-021 | Yes | `zizmor` `unredacted-secrets` mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
-| SEC-022 | Yes | `zizmor` `overprovisioned-secrets` and `secrets-inherit` mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
+| SEC-022 | Yes | `zizmor` `overprovisioned-secrets`, `secrets-inherit`, and `artipacked` mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-030 | Yes | `zizmor` unpinned/ref-integrity mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
-| SEC-031 | Yes | `zizmor` third-party/high-risk action source mappings in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
+| SEC-031 | Yes | `zizmor` third-party/high-risk action source mappings (for example `known-vulnerable-actions`, `forbidden-uses`, `archived-uses`) in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-032 | Yes | Custom `curl`/`wget` integrity heuristic in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-033 | Yes | `npm audit` check when `package-lock.json` is present in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-034 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |

@@ -54,6 +54,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
 
@@ -69,6 +70,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           ref: ${{ inputs.checkout-ref }}
 
       # Shared E2E Vault role in config/e2e.json (wildcard e2e-*.yml policy
