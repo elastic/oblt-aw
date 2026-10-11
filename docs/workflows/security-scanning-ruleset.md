@@ -60,6 +60,9 @@ The table below documents how each rule ID is currently represented in the detec
 | SEC-043 | Yes | `zizmor` `dangerous-triggers` mapping in [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 | SEC-044 | No | Not currently emitted by [`scripts/obs/security-scan.sh`](../../scripts/obs/security-scan.sh) |
 
+> [!NOTE]
+> For SEC-010 `template-injection` findings from zizmor, the detector suppresses `.github/workflows/*.lock.yml` generated lockfile duplicates and keeps source workflow findings actionable.
+
 ---
 
 ## Severity Levels
