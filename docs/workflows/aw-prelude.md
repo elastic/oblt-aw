@@ -6,7 +6,18 @@ Source file: [.github/workflows/aw-prelude.yml](../../.github/workflows/aw-prelu
 
 Shared reusable prelude for agentic workflows (dashboard gating and optional allow lists).
 
-Event-scoped orchestrators (`obs-aw-event-*`, `docs-aw-event-*`) call this workflow once per GitHub event family, then fan out to per-route `*-aw-*` workflows with `shared-proceed` and related outputs. CI enforces that route reusables declare `shared-proceed` via [scripts/validate_aw_workflow_prelude.py](../../scripts/validate_aw_workflow_prelude.py).
+Event-scoped orchestrators (`obs-aw-event-*`, `docs-aw-event-*`) call this workflow once per GitHub event family, then fan out to per-route `*-aw-*` workflows with `shared-proceed` and related outputs. CI enforces the route contract via [scripts/validate_aw_workflow_prelude.py](../../scripts/validate_aw_workflow_prelude.py): route reusables must declare `shared-proceed` and gate at least one job with an `if:` expression that contains `inputs.shared-proceed` (for example `inputs.shared-proceed == 'true'`).
+
+Compliant route job gate example:
+
+```yaml
+jobs:
+  run:
+    if: inputs.shared-proceed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "shared proceed gate passed"
+```
 
 APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the prelude. Call [aw-resolve-agentic-assets.yml](aw-resolve-agentic-assets.md) once per `gh-aw-*` agent invocation instead.
 
