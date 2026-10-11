@@ -97,7 +97,7 @@ jobs:
             scripts/resolve_repository_token_policy.py
             config/
           sparse-checkout-cone-mode: false
-
+          persist-credentials: false
       - name: Resolve repository token policy
         id: token-policy
         env:
