@@ -51,7 +51,7 @@ Jobs:
 | Workflow (default) | `contents: read` |
 | `verify` | `actions: read`, `contents: read`, `pull-requests: read` (validate script reads the PR) |
 | `check-dependency-collection` | `contents: read`, `pull-requests: write` (list PR files, post or remove gate comment) |
-| `approve` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `id-token: write` (GH-AW mention-in-pr; OIDC mint when `github-token-policy` is set for `github-actions[bot]` authors) |
+| `approve` | `actions: read`, `contents: write`, `discussions: write`, `issues: write`, `pull-requests: write`, `copilot-requests: write`, `id-token: write` (GH-AW mention-in-pr; OIDC mint when `github-token-policy` is set for `github-actions[bot]` authors) |
 | `automerge` | `contents: write`, `pull-requests: write`, `id-token: write` (OIDC mint when policy set; merge via automerge action) |
 | `rest-merge` | `contents: write`, `pull-requests: write`, `id-token: write` (OIDC mint when policy set; REST squash-merge) |
 | `arm-for-deferred-merge` | `contents: read`, `pull-requests: write` (helper checkout and armed comment) |
