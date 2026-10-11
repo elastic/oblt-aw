@@ -39,7 +39,7 @@ Category filtering is applied after tool runs and deduplication in [scripts/obs/
 | Category | Example rules | Mechanisms |
 |----------|---------------|------------|
 | injection | SEC-010–SEC-012 | actionlint, zizmor, semgrep, shellcheck |
-| secrets | SEC-002, SEC-020–SEC-022 | actionlint, zizmor |
+| secrets | SEC-002, SEC-020–SEC-022 | custom `run:` scanner, actionlint, zizmor |
 | supply-chain | SEC-030–SEC-033, SEC-035 | zizmor, npm audit, curl/wget heuristic |
 | least-privilege | SEC-040, SEC-042–SEC-043 | zizmor |
 
