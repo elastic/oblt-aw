@@ -59,6 +59,7 @@ jobs:
             scripts/obs/discover_armed_automerge_prs.sh
           sparse-checkout-cone-mode: false
 
+          persist-credentials: false
       - name: Find armed merge-ready candidate(s)
         id: find
         env:
@@ -112,6 +113,7 @@ jobs:
             package-lock.json
           sparse-checkout-cone-mode: false
 
+          persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
