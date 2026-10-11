@@ -48,6 +48,7 @@ jobs:
             config/obs/allowed_issue_authors.json
           sparse-checkout-cone-mode: false
 
+          persist-credentials: false
       - name: Pack allow list for job output
         id: pack
         run: |
