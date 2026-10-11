@@ -94,7 +94,6 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v actionlint >/dev/null 2>&
     .kind as $k |
     (if $k == "credentials" then "SEC-020"
      elif $k == "shellcheck" then "SEC-011"
-     elif (.message | test("secret"; "i")) then "SEC-002"
      else "SEC-010" end) as $rule |
     (if $k == "credentials" then "high"
      elif $k == "shellcheck" then "medium"
@@ -134,7 +133,7 @@ if [ -d "$REPO_ROOT/.github/workflows" ] && command -v zizmor >/dev/null 2>&1; t
         "ref-confusion": "SEC-030",
         "ref-version-mismatch": "SEC-030",
         "impostor-commit": "SEC-030",
-        "secrets-outside-env": "SEC-002",
+        "secrets-outside-env": "SEC-022",
         "unredacted-secrets": "SEC-021",
         "hardcoded-container-credentials": "SEC-020",
         "overprovisioned-secrets": "SEC-022",
