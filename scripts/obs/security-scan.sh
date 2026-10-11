@@ -54,10 +54,94 @@ emit() {
   echo "$1|$2|$3|$4|$5"
 }
 
+is_sec002_run_context() {
+  local rel_path="$1"
+  local line="$2"
+  local abs_path="$REPO_ROOT/$rel_path"
+
+  [[ "$line" =~ ^[0-9]+$ ]] || return 1
+  [ -f "$abs_path" ] || return 1
+
+  awk -v target="$line" '
+function indent(s) {
+  match(s, /[^ ]/)
+  if (RSTART == 0) return length(s)
+  return RSTART - 1
+}
+
+{
+  lines[NR] = $0
+}
+
+END {
+  if (target < 1 || target > NR) {
+    exit 1
+  }
+
+  target_line = lines[target]
+  target_indent = indent(target_line)
+
+  if (target_line ~ /run:[[:space:]].*\$\{\{[[:space:]]*secrets\./) {
+    exit 0
+  }
+
+  if (target_line !~ /\$\{\{[[:space:]]*secrets\./) {
+    exit 1
+  }
+
+  for (i = target - 1; i >= 1; i--) {
+    current_line = lines[i]
+    if (current_line ~ /^[[:space:]]*$/) {
+      continue
+    }
+
+    current_indent = indent(current_line)
+    if (current_indent < target_indent && current_line ~ /^[[:space:]-]*run:[[:space:]]*(\||>|[|>]-)?[[:space:]]*$/) {
+      exit 0
+    }
+
+    if (current_indent <= target_indent && current_line ~ /^[[:space:]-]*[A-Za-z0-9_.@"'\''\/-]+:[[:space:]]*/) {
+      if (current_line ~ /^[[:space:]-]*run:[[:space:]]*/) {
+        exit 0
+      }
+      exit 1
+    }
+  }
+
+  exit 1
+}
+  ' "$abs_path"
+}
+
+filter_sec002_findings() {
+  local input_file="$1"
+  local output_file="$2"
+
+  : >"$output_file"
+
+  while IFS= read -r finding; do
+    [ -n "$finding" ] || continue
+    IFS='|' read -r file line rule _ <<<"$finding"
+
+    if [ "$rule" = "SEC-002" ]; then
+      if [[ "$file" == .github/workflows/*.lock.yml ]]; then
+        continue
+      fi
+      if ! is_sec002_run_context "$file" "$line"; then
+        continue
+      fi
+    fi
+
+    printf '%s\n' "$finding" >>"$output_file"
+  done <"$input_file"
+}
+
 # Collect findings here, then dedupe by file|line (keep highest severity).
 FINDINGS_TMP="${TMPDIR:-/tmp}/security-scan-$$.txt"
 touch "$FINDINGS_TMP"
-cleanup() { rm -f "$FINDINGS_TMP"; }
+FINDINGS_FILTERED_TMP="${TMPDIR:-/tmp}/security-scan-filtered-$$.txt"
+touch "$FINDINGS_FILTERED_TMP"
+cleanup() { rm -f "$FINDINGS_TMP" "$FINDINGS_FILTERED_TMP"; }
 trap cleanup EXIT
 
 # --- SEC-011: standalone shell scripts (shellcheck) ---
@@ -251,6 +335,8 @@ if command -v npm >/dev/null 2>&1; then
     done
 fi
 
+filter_sec002_findings "$FINDINGS_TMP" "$FINDINGS_FILTERED_TMP"
+
 # --- Dedupe: same file + line → keep highest severity; merge messages with " | " on tie ---
 awk -F'|' '
 function rank(s) {
@@ -285,7 +371,7 @@ END {
     print a[1] "|" a[2] "|" outrule[k] "|" outsev[k] "|" outmsg[k]
   }
 }
-' "$FINDINGS_TMP" | sort -t'|' -k1,1 -k2,2n | awk -F'|' -v cat="$SCAN_CATEGORY" '
+' "$FINDINGS_FILTERED_TMP" | sort -t'|' -k1,1 -k2,2n | awk -F'|' -v cat="$SCAN_CATEGORY" '
 function rule_category(rule) {
   if (rule == "SEC-010" || rule == "SEC-011" || rule == "SEC-012") return "injection"
   if (rule == "SEC-001" || rule == "SEC-002" || rule == "SEC-003" ||
