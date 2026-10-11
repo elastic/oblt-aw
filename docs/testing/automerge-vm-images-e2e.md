@@ -37,9 +37,9 @@ CI for fixture PRs is skipped when the `ci-gate` job in [`ci.yml`](../../.github
 gh workflow run e2e-automerge-vm-images.yml
 ```
 
-To run every leaf E2E (this one plus others): `gh workflow run e2e-all.yml`.
+To run every leaf E2E, trigger each workflow explicitly (for example, `gh workflow run e2e-automerge-vm-images.yml` and `gh workflow run e2e-estc-pr-buildkite-detective.yml`).
 
-Triggers: `workflow_dispatch` (manual) and `workflow_call` (from `e2e-all.yml`). Concurrency group `e2e-automerge-vm-images`.
+Triggers: `workflow_dispatch` (manual) and `workflow_call` (from reusable callers). Concurrency group `e2e-automerge-vm-images`.
 
 ### Harness/oracle unit coverage (no live agent)
 
