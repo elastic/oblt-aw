@@ -129,6 +129,25 @@ Prefer stronger, cheaper checks first:
 
 **Fixture PR noise control:** Same-repo fixture PRs with any label matching `e2e:*` and a head ref under `e2e/` are detected once by the `ci-gate` job in [`ci.yml`](../../.github/workflows/ci.yml) (`skip=true`); work jobs then use `needs.ci-gate.outputs.skip != 'true'`. Agentic pull-request route skips in [`obs-aw-event-pull-request.yml`](../../.github/workflows/obs-aw-event-pull-request.yml) cover detective fixtures (`e2e:estc-pr-buildkite-detective` on `e2e/estc-pr-buildkite-detective`, and `e2e:pr-actions-detective` on `e2e/pr-actions-detective`) so those long-lived PRs do not burn dependency-review/automerge credits; other live E2E fixtures (for example automerge vm-images) still exercise those routes.
 
+### Fixture PR draft policy
+
+When a live harness opens a fixture pull request:
+
+1. **Default to draft** (`gh pr create --draft`, and convert on reuse/reopen) when the under-test path does **not** require a ready-for-review PR. Draft fixtures avoid automatic CODEOWNERS review requests.
+2. **Keep ready** only when a production gate excludes drafts. Today that is `obs:automerge` ([`scripts/obs/validateAutomergePr.ts`](../../scripts/obs/validateAutomergePr.ts)). Document the exception next to the create call.
+3. **Do not** apply a global “always draft” helper without an opt-out for automerge-style paths.
+4. Agent-created PRs (for example autodoc fix PRs) follow the agentic workflow `draft:` setting; they are outside this harness fixture rule.
+
+Shared helper: [`scripts/obs/e2e/e2e_fixture_pr.py`](../../scripts/obs/e2e/e2e_fixture_pr.py) (`ensure_pr_is_draft`).
+
+| Live harness | Fixture PR |
+|--------------|------------|
+| Automerge VM images | Ready (required) |
+| Autodoc | N/A (no harness fixture PR) |
+| Dependency review | Draft |
+| ESTC PR Buildkite Detective | Draft |
+| PR Actions Detective | Draft |
+
 Primitive migration ([#1876](https://github.com/elastic/oblt-aw/issues/1876)) may move more locks into this repo; colocating tests with that ownership reduces cross-repo friction.
 
 ## Release consumption contract

@@ -582,6 +582,84 @@ class TestHarnessHelpers:
             is True
         )
 
+    def test_ensure_e2e_pr_create_uses_draft(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        create_cmds: list[list[str]] = []
+
+        def fake_gh_json(args: list[str], **_k: object) -> object:
+            if args[:2] == ["pr", "view"]:
+                return {
+                    "number": 2100,
+                    "url": "https://example.test/pr/2100",
+                    "headRefName": harness.FIXTURE_BRANCH,
+                    "headRefOid": "abc",
+                    "title": "fixture",
+                    "headRepository": {"nameWithOwner": "elastic/oblt-aw"},
+                    "labels": [{"name": harness.FIXTURE_LABEL}],
+                }
+            return {}
+
+        def fake_gh_text(_args: list[str], **_k: object) -> str:
+            return "main\n" if "defaultBranchRef" in " ".join(_args) else "sha-main\n"
+
+        class _Proc:
+            def __init__(self, code: int = 0, out: str = "", err: str = "") -> None:
+                self.returncode = code
+                self.stdout = out
+                self.stderr = err
+
+        def fake_run(cmd: list[str], **_k: object) -> _Proc:
+            if cmd[:3] == [
+                "gh",
+                "api",
+                f"repos/elastic/oblt-aw/git/ref/heads/{harness.FIXTURE_BRANCH}",
+            ]:
+                return _Proc(0, "{}")
+            if cmd[:3] == ["gh", "pr", "create"]:
+                create_cmds.append(list(cmd))
+                return _Proc(0, out="https://github.com/elastic/oblt-aw/pull/2100\n")
+            if cmd[:3] == ["gh", "label", "create"]:
+                return _Proc(0)
+            return _Proc(0)
+
+        monkeypatch.setattr(harness, "gh_json", fake_gh_json)
+        monkeypatch.setattr(harness, "gh_text", fake_gh_text)
+        monkeypatch.setattr(harness.subprocess, "run", fake_run)
+        monkeypatch.setattr(harness, "find_open_e2e_pr", lambda *_a, **_k: None)
+        monkeypatch.setattr(harness, "_ensure_label", lambda *_a, **_k: None)
+        monkeypatch.setattr(harness, "seed_fixture_marker", lambda *_a, **_k: None)
+        monkeypatch.setattr(harness, "ensure_pr_is_draft", lambda *_a, **_k: {})
+
+        cfg = harness.load_e2e_config(ROOT / "config/obs/e2e-pr-actions-detective.json")
+        pr = harness.ensure_e2e_pr("elastic/oblt-aw", cfg)
+        assert int(pr["number"]) == 2100
+        assert create_cmds and "--draft" in create_cmds[0]
+
+    def test_require_draft_fixture_pr_converts_ready_pr(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        draft_calls: list[tuple[str, int]] = []
+        monkeypatch.setattr(
+            harness,
+            "_require_pr_label",
+            lambda *_a, **_k: {
+                "number": 2100,
+                "labels": [{"name": harness.FIXTURE_LABEL}],
+            },
+        )
+
+        def fake_ensure(repo: str, pr_number: int) -> dict[str, object]:
+            draft_calls.append((repo, pr_number))
+            return {"number": pr_number, "isDraft": True}
+
+        monkeypatch.setattr(harness, "ensure_pr_is_draft", fake_ensure)
+        pr = harness._require_draft_fixture_pr(
+            "elastic/oblt-aw", 2100, harness.FIXTURE_LABEL
+        )
+        assert int(pr["number"]) == 2100
+        assert draft_calls == [("elastic/oblt-aw", 2100)]
+
 
 class TestOracleFailClosed:
     def test_happy_path_passes(self) -> None:
