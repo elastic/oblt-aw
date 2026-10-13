@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-issue-triage.yml](../../.github/workflows/obs-aw-issue-triage.yml)
+Source file: [.github/workflows/obs-aw-issue-triage.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-issue-triage.yml)
 
 Reusable wrapper that calls the locked generic issue-triage workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trigger-obs-aw-issue-triage.yml` calls this workflow on `issues` `opened` when prelude allows `obs:issue-triage`.
 
@@ -23,7 +23,7 @@ Ingress routes here when:
   - `oblt-aw/detector/res-not-accessible-by-integration`
   - `oblt-aw/triage/security-*`
   - `oblt-aw/triage/res-not-accessible-by-integration`, and
-- Dashboard gate passes for registry id `issue-triage` (`enabled-workflows` contains `obs:issue-triage`).
+- Control Plane dashboard gate passes for registry id `issue-triage` (`enabled-workflows` contains `obs:issue-triage`).
 
 Those exclusions keep specialized security and resource-not-accessible triage authoritative when their detector or triage labels are present, and keep repository-onboard issues for [`gh-aw-onboard-repository`](gh-aw-onboard-repository.md) (title gate covers `opened` before the form label event).
 
@@ -49,7 +49,7 @@ Permissions:
 `workflow_call` contract:
 
 
-Ingress does not pass `allowed-bot-users` for this generic path; the upstream lock workflow uses its built-in defaults (no control-plane issue author list).
+Ingress does not pass `allowed-bot-users` for this generic path; the upstream lock workflow uses its built-in defaults (no framework issue author list).
 
 ## References
 

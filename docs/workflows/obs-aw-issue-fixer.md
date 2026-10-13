@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-issue-fixer.yml](../../.github/workflows/obs-aw-issue-fixer.yml)
+Source file: [.github/workflows/obs-aw-issue-fixer.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-issue-fixer.yml)
 
 Reusable wrapper that calls the locked generic issue-fixer workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trigger-obs-aw-issue-fixer.yml` calls this workflow on `issue_comment` when prelude allows `obs:issue-fixer` and route guards pass.
 
@@ -29,7 +29,7 @@ Ingress routes here when:
 - `github.event.comment.author_association` is `OWNER`, `MEMBER`, or `COLLABORATOR`, and
 - issue is not an onboard-repository issue (title `[onboard]…` or label `oblt-aw/onboard/repository`), and
 - issue labels do not match the specialized security or resource-not-accessible fixer routes, and
-- Dashboard gate passes for registry id `issue-fixer` (`enabled-workflows` contains `obs:issue-fixer`).
+- Control Plane dashboard gate passes for registry id `issue-fixer` (`enabled-workflows` contains `obs:issue-fixer`).
 
 The job `run` calls:
 
@@ -48,7 +48,7 @@ Configured instructions require:
 
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 
-Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from control-plane fragments mapped under `workflows.issue-fixer` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)).
+Workflow-specific prompt text lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from framework fragments mapped under `workflows.issue-fixer` in [`config/obs/instruction-fragment-map.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)).
 
 ## Configuration
 
@@ -66,7 +66,7 @@ Permissions:
 - Required inputs: `shared-proceed`, `shared-allowed-pr-authors-json`, `shared-allowed-pr-authors-csv`, `shared-allowed-issue-authors-json`, `shared-allowed-issue-authors-csv`, and `shared-token-policy`.
 - No `workflow_call.secrets`: `GITHUB_TOKEN` is system-reserved and cannot be declared. Callers must not use `secrets: inherit` or map `GITHUB_TOKEN`. Local jobs and the nested lock use the automatic `secrets.GITHUB_TOKEN` / `github.token`.
 
-Ingress does not pass `allowed-bot-users` for this generic path; the upstream lock workflow uses its built-in defaults (no control-plane issue author list).
+Ingress does not pass `allowed-bot-users` for this generic path; the upstream lock workflow uses its built-in defaults (no framework issue author list).
 
 ## References
 

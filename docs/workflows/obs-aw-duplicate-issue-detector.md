@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-duplicate-issue-detector.yml](../../.github/workflows/obs-aw-duplicate-issue-detector.yml)
+Source file: [.github/workflows/obs-aw-duplicate-issue-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-duplicate-issue-detector.yml)
 
 Reusable wrapper that calls the locked duplicate-issue-detector workflow in [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). The client template `trigger-obs-aw-duplicate-issue-detector.yml` calls this workflow on `issues` `opened` or `workflow_dispatch` when prelude allows `obs:duplicate-issue-detector`.
 
@@ -15,7 +15,7 @@ Reusable wrapper that calls the locked duplicate-issue-detector workflow in [ela
 Ingress routes here when:
 
 - `github.event_name == 'issues'` and `github.event.action == 'opened'` (and the issue is **not** an onboard-repository issue: title does not start with `[onboard]` and label `oblt-aw/onboard/repository` is absent), or `github.event_name == 'workflow_dispatch'`, and
-- Dashboard gate passes for registry id `duplicate-issue-detector` (`enabled-workflows` contains `obs:duplicate-issue-detector`).
+- Control Plane dashboard gate passes for registry id `duplicate-issue-detector` (`enabled-workflows` contains `obs:duplicate-issue-detector`).
 
 Onboard-repository issues are skipped (title and/or label) so [`gh-aw-onboard-repository`](gh-aw-onboard-repository.md) remains the exclusive automation for that path.
 
@@ -27,7 +27,7 @@ Behavior and agent instructions for the locked workflow are defined in [elastic/
 
 ## Configuration
 
-Permissions (job-level on the control-plane reusable; union mirrored on the client trigger):
+Permissions (job-level on the framework reusable; union mirrored on the client trigger):
 
 | Job | Permissions |
 |-----|-------------|

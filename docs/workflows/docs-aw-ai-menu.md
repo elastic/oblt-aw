@@ -2,13 +2,13 @@
 
 ## Overview
 
-Source file: [.github/workflows/docs-aw-ai-menu.yml](../../.github/workflows/docs-aw-ai-menu.yml)
+Source file: [.github/workflows/docs-aw-ai-menu.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-ai-menu.yml)
 
 Reusable implementation for the Docs issue AI menu. Event-scoped client templates call `docs-aw-event-issues.yml` or `docs-aw-event-issue-comment.yml`, which fan out to this route on supported events.
 
 ## Prerequisites
 
-- Triggered via `workflow_call` from [docs-aw-event-issues.yml](../../.github/workflows/docs-aw-event-issues.yml) or [docs-aw-event-issue-comment.yml](../../.github/workflows/docs-aw-event-issue-comment.yml) after client templates in [docs-aw-client-template.md](docs-aw-client-template.md).
+- Triggered via `workflow_call` from [docs-aw-event-issues.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-event-issues.yml) or [docs-aw-event-issue-comment.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-event-issue-comment.yml) after client templates in [docs-aw-client-template.md](docs-aw-client-template.md).
 
 ## Usage
 
@@ -47,4 +47,4 @@ Key job-level permissions:
 
 - Client templates: [docs/workflows/docs-aw-client-template.md](docs-aw-client-template.md)
 - Prelude gating: [docs/workflows/aw-prelude.md](aw-prelude.md)
-- Menu scripts: [scripts/docs/issue-menu/](../../scripts/docs/issue-menu/)
+- Menu scripts: [scripts/docs/issue-menu/](https://github.com/elastic/oblt-aw/tree/main/scripts/docs/issue-menu)

@@ -6,7 +6,7 @@ Client template chain: `trigger-obs-aw-issue-comment.yml` → `obs-aw-event-issu
 
 Routed workflow:
 
-- [.github/workflows/obs-aw-issue-fixer.yml](../../.github/workflows/obs-aw-issue-fixer.yml)
+- [.github/workflows/obs-aw-issue-fixer.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-issue-fixer.yml)
 
 ## Usage
 

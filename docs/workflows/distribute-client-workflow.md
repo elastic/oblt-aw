@@ -2,16 +2,16 @@
 
 ## Overview
 
-Source file: [.github/workflows/distribute-client-workflow.yml](../../.github/workflows/distribute-client-workflow.yml)
+Source file: [.github/workflows/distribute-client-workflow.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/distribute-client-workflow.yml)
 
 This workflow creates PRs across target repositories to install, update, or remove the per-org template file set (for example `.github/workflows/trigger-obs-aw-*.yml`, `.github/workflows/trigger-docs-aw-*.yml`, and any other paths under each org’s `.github/remote-workflow-template/<org-key>/` tree).
 
 ## Prerequisites
 
 - Triggered by changes to:
-  - `config/**/active-repositories.json` (per-org repo lists; example [config/obs/active-repositories.json](../../config/obs/active-repositories.json))
+  - `config/**/active-repositories.json` (per-org repo lists; example [config/obs/active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json))
   - `config/release-pointers.json` (production pin retarget after promote)
-  - [.github/remote-workflow-template/](../../.github/remote-workflow-template/) (per-org subtrees such as `obs/`, `docs/`)
+  - [.github/remote-workflow-template/](https://github.com/elastic/oblt-aw/tree/main/.github/remote-workflow-template) (per-org subtrees such as `obs/`, `docs/`)
   - `scripts/build_target_operations.py`, `scripts/client_workflow_pin.py`, `scripts/common.py` (target matrix and pin rewrite)
 - Or manually triggered with `workflow_dispatch`.
 - The minted token must be a GitHub App bot token with contents and pull-request write access in each target repository. Both PR actions use built-in bot commit signing (`sign-commits: true`), not GPG secrets. A created or updated PR fails its matrix leg unless the action reports its commits as verified; skipped operations are unaffected.
@@ -26,7 +26,7 @@ Main jobs:
 
 Core behavior:
 
-- computes target operations via [scripts/build_target_operations.py](../../scripts/build_target_operations.py)
+- computes target operations via [scripts/build_target_operations.py](https://github.com/elastic/oblt-aw/blob/main/scripts/build_target_operations.py)
 - clones each target repository
 - installs or updates each `dst` from the per-target `files: [{src, dst}, ...]` list
 - rewrites `uses: elastic/oblt-aw/...@<pin>` from `control-plane-pin` (`pin-class`)
@@ -34,7 +34,7 @@ Core behavior:
 - removes all managed `dst` paths when a repository leaves the config (`operation: remove`)
 - opens or updates PRs using `peter-evans/create-pull-request`
 - labels those PRs with `oblt-aw/ai/merge-ready`, and with `backport-active-all` / `changelog:ci` / `skip-changelog` when the target repository already defines those labels (consumer TokenPolicies must use `trigger-*-aw-*.yml@*` so OIDC works on backported branches; `skip-changelog` unblocks fragment gates that ignore `changelog:ci`)
-- emits consolidated summary via [scripts/summarize_pr_results.sh](../../scripts/summarize_pr_results.sh)
+- emits consolidated summary via [scripts/summarize_pr_results.sh](https://github.com/elastic/oblt-aw/blob/main/scripts/summarize_pr_results.sh)
 
 ### Input and output contracts
 

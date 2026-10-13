@@ -6,13 +6,13 @@ Client templates: `trigger-obs-aw-security-*.yml` → matching `obs-aw-security-
 
 Routed workflows (`obs-aw-security-*`; registry id `security`):
 
-- [.github/workflows/obs-aw-security-injection-detector.yml](../../.github/workflows/obs-aw-security-injection-detector.yml)
-- [.github/workflows/obs-aw-security-supply-chain-detector.yml](../../.github/workflows/obs-aw-security-supply-chain-detector.yml)
-- [.github/workflows/obs-aw-security-secrets-detector.yml](../../.github/workflows/obs-aw-security-secrets-detector.yml)
-- [.github/workflows/obs-aw-security-least-privilege-detector.yml](../../.github/workflows/obs-aw-security-least-privilege-detector.yml)
-- [.github/workflows/obs-aw-security-issue-superseder.yml](../../.github/workflows/obs-aw-security-issue-superseder.yml)
-- [.github/workflows/obs-aw-security-triage.yml](../../.github/workflows/obs-aw-security-triage.yml)
-- [.github/workflows/obs-aw-security-fixer.yml](../../.github/workflows/obs-aw-security-fixer.yml)
+- [.github/workflows/obs-aw-security-injection-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-injection-detector.yml)
+- [.github/workflows/obs-aw-security-supply-chain-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-supply-chain-detector.yml)
+- [.github/workflows/obs-aw-security-secrets-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-secrets-detector.yml)
+- [.github/workflows/obs-aw-security-least-privilege-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-least-privilege-detector.yml)
+- [.github/workflows/obs-aw-security-issue-superseder.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-issue-superseder.yml)
+- [.github/workflows/obs-aw-security-triage.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-triage.yml)
+- [.github/workflows/obs-aw-security-fixer.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-fixer.yml)
 
 All workflows use the same Control Plane dashboard gate: prelude allows `obs:security` when the parent workflow is enabled. Category detectors additionally require their sub-feature id (`obs:security:injection`, `obs:security:supply-chain`, `obs:security:secrets`, or `obs:security:least-privilege`) in `enabled-workflows` ([aw-prelude](../workflows/aw-prelude.md)).
 

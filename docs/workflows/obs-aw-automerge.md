@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-automerge.yml](../../.github/workflows/obs-aw-automerge.yml)
+Source file: [.github/workflows/obs-aw-automerge.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-automerge.yml)
 
 This reusable `workflow_call` workflow handles a **single** pull request using `github.event.pull_request` from the caller (typically a client `pull_request` workflow). It validates the PR with `GITHUB_TOKEN`, runs the GH-AW mention-in-pr approval step when validation passes, then attempts squash-merge via **pascalgn/automerge-action**.
 
@@ -23,7 +23,7 @@ Required status checks are **not** queried in `verify`; branch protection and th
 
 Ingress selects which events dispatch here; see [Automerge routing](../routing/automerge-routing.md).
 
-If you are choosing which dependency-update categories to enroll, start with [Automerge services](../guides/user/automerge-services.md).
+If you are choosing which dependency collections to enroll, start with [Automerge dependency collections](../user-guide/automerge-services.md).
 
 ## Prerequisites
 
@@ -35,7 +35,7 @@ If you are choosing which dependency-update categories to enroll, start with [Au
 Jobs:
 
 - `verify`: shallow sparse checkout of `elastic/oblt-aw` (`allowed_pr_authors.json`, `validateAutomergePr.ts`, and npm manifests only), then runs `scripts/obs/validateAutomergePr.ts` for `github.event.pull_request.number` (author allow list aligned with dependency-review, merge-ready label, draft/fork/ref; requires non-empty `shared-token-policy` when the author is `github-actions[bot]`).
-- `check-dependency-collection`: shallow sparse checkout of `elastic/oblt-aw` (collection config, gate scripts, and `package.json` / lockfile only), then classifies the PR by changed file paths against [config/obs/automerge-dependency-collections.json](../../config/obs/automerge-dependency-collections.json); skips `approve`/`automerge` when the collection is not enabled on the Control Plane Dashboard (`obs:automerge:<collection-id>` sub-features) and posts a PR comment explaining why (no extra labels in target repos). Prelude passes `shared-enabled-workflows` into this job.
+- `check-dependency-collection`: shallow sparse checkout of `elastic/oblt-aw` (collection config, gate scripts, and `package.json` / lockfile only), then classifies the PR by changed file paths against [config/obs/automerge-dependency-collections.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/automerge-dependency-collections.json); skips `approve`/`automerge` when the collection is not enabled on the Control Plane dashboard (`obs:automerge:<collection-id>` sub-features) and posts a PR comment explaining why (no extra labels in target repos). Prelude passes `shared-enabled-workflows` into this job.
 - `approve`: invokes `elastic/ai-github-actions` `gh-aw-mention-in-pr.lock.yml` when `verify` and `check-dependency-collection` pass (Copilot must not call check-run APIs for gating; branch protection / deferred merge path handle required checks at merge time). The prompt injects `shared-allowed-pr-authors-csv` from [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) (same file as `verify` / ingress — no hardcoded author list) plus the webhook login, and instructs normalizing GraphQL `app/<slug>` → `<slug>[bot]` before comparing. Sets `github-token-policy` to `shared-token-policy` only when the PR author is `github-actions[bot]`; otherwise omits / empty so the review is submitted as `github-actions[bot]` (`GITHUB_TOKEN`).
 - `automerge`: when `shared-token-policy` is non-empty, mints an ephemeral Vault-app token (`create-token`) and runs **pascalgn/automerge-action** with that token; when empty, uses `GITHUB_TOKEN`. Short retries only (`MERGE_RETRIES: 3`); long CI is handled by the deferred merge path.
 - `rest-merge`: runs when `automerge` outputs `merge_failed` or `not_ready`; one Vault REST squash-merge. Soft-succeeds with `merged=false` on pending-check errors; fails on other errors (for example CODEOWNERS without bypass).
