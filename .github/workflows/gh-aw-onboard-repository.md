@@ -63,7 +63,6 @@ network:
     - "docs.elastic.dev"
 safe-outputs:
   activation-comments: false
-  report-failed-jobs: false
   # Compile-time secrets chain; scripts/wire_ephemeral_token.py prefers create-token output.
   github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   add-comment:
