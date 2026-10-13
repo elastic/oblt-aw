@@ -8,7 +8,7 @@ applies_to: {}
 
 :::{image} images/oblt-aw-framework-emblem.jpg
 :alt: oblt-aw — opinionated agentic framework for Elastic
-:width: 720px
+:width: 504px
 :::
 
 **oblt-aw** is an opinionated agentic framework for [GitHub Agentic Workflows](https://github.github.com/gh-aw/) across Elastic repositories.
