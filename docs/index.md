@@ -36,14 +36,14 @@ Today many teams still wire each agentic workflow by hand in every repo (local w
 
 ## How it works
 
-Each agentic workflow’s behavior (what its agent does on an issue or PR) is defined in locked `gh-aw-*` workflows. Some already live in this repository; others still live in [AI GitHub Actions](https://elastic.github.io/ai-github-actions/) and will move here over time. This portal covers how Elastic developers adopt and operate those agentic workflows through `oblt-aw`.
+When you open a GitHub issue or pull request, a schedule fires, or another matching event happens, an agentic workflow can run—if you enabled it on the Control Plane dashboard—and leave feedback or take actions. What that agent does is defined in locked `gh-aw-*` workflows. Some already live in this repository; others still live in [AI GitHub Actions](https://elastic.github.io/ai-github-actions/) and will move here over time. This portal covers how Elastic developers adopt and operate those agentic workflows through `oblt-aw`.
 
 In simplified form:
 
 1. Clients (`trigger-<org-key>-aw-*.yml`) are **installed** using [automated distribution](operations/distribute-client-workflow.md) ([Observability client template](workflows/obs-aw-client-template.md), [Docs client template](workflows/docs-aw-client-template.md)).
 2. On a matching event, the client calls [elastic/oblt-aw](https://github.com/elastic/oblt-aw).
 3. [Prelude](workflows/aw-prelude.md) checks the [Control Plane dashboard](operations/control-plane-dashboard.md).
-4. If enabled, the route runs its pinned implementation — an in-repo or upstream `gh-aw-*` lock, a Docs Actions reusable, or a deterministic framework workflow.
+4. If the Control Plane dashboard allows it, the matching route runs the pinned implementation for that agentic workflow: usually a `gh-aw-*` lock (in this repo or upstream), sometimes a Docs Actions reusable, or a deterministic framework workflow with no model.
 
 See the [architecture overview](architecture/overview.md).
 
