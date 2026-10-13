@@ -2,16 +2,16 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-security-issue-superseder.yml](../../.github/workflows/obs-aw-security-issue-superseder.yml)
+Source file: [.github/workflows/obs-aw-security-issue-superseder.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-issue-superseder.yml)
 
 Deterministic supersession for security detector issues. When a **new** issue is opened with label `oblt-aw/detector/security`, this workflow closes **older open** issues for the **same SEC rule** and retires linked bot fix PRs when safe.
 
-Implementation is a shell script ([`scripts/obs/supersede-security-issues.sh`](../../scripts/obs/supersede-security-issues.sh)); it does **not** call [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). See [elastic/observability-robots#4424](https://github.com/elastic/observability-robots/issues/4424).
+Implementation is a shell script ([`scripts/obs/supersede-security-issues.sh`](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/supersede-security-issues.sh)); it does **not** call [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions). See [elastic/observability-robots#4424](https://github.com/elastic/observability-robots/issues/4424).
 
 ## Prerequisites
 
-- Invoked via `workflow_call` from [obs-aw-event-issues.yml](../../.github/workflows/obs-aw-event-issues.yml) (client template `trigger-obs-aw-issues.yml`).
-- Dashboard gating uses registry id **`security`** (`obs:security`) — same compound id as detector, triage, and fixer.
+- Invoked via `workflow_call` from [obs-aw-event-issues.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-issues.yml) (client template `trigger-obs-aw-issues.yml`).
+- Control Plane dashboard gating uses registry id **`security`** (`obs:security`) — same compound id as detector, triage, and fixer.
 - Ephemeral GitHub token from [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) (same pattern as the security detector).
 
 ## Usage
@@ -73,8 +73,8 @@ No secrets are declared on this workflow.
 ## References
 
 - Client template: [obs-aw-client-template.md](obs-aw-client-template.md) — registry id `security`
-- Script: [`scripts/obs/supersede-security-issues.sh`](../../scripts/obs/supersede-security-issues.sh)
-- Issue creation (detector): [`scripts/obs/create-security-issues.sh`](../../scripts/obs/create-security-issues.sh)
+- Script: [`scripts/obs/supersede-security-issues.sh`](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/supersede-security-issues.sh)
+- Issue creation (detector): [`scripts/obs/create-security-issues.sh`](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/create-security-issues.sh)
 - [Security agent architecture](../architecture/security-agent-architecture.md)
 - [Security routing](../routing/security-routing.md)
 - [elastic/observability-robots#4424](https://github.com/elastic/observability-robots/issues/4424)

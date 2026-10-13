@@ -1,7 +1,7 @@
 {
   "version": 1,
   "rollback-workflow-token-policy": "token-policy-0052d19cd01e",
-  "rollback-workflow-token-policy-doc": "docs/operations/agentic-release-model.md",
+  "rollback-workflow-token-policy-doc": "docs/operations/release-model.md",
   "workflow-token-policy": "token-policy-bd2501d7d475",
-  "workflow-token-policy-doc": "docs/operations/agentic-release-model.md"
+  "workflow-token-policy-doc": "docs/operations/release-model.md"
 }

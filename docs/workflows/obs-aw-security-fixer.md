@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-security-fixer.yml](../../.github/workflows/obs-aw-security-fixer.yml)
+Source file: [.github/workflows/obs-aw-security-fixer.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-fixer.yml)
 
 This reusable workflow executes issue-based fixes for security vulnerabilities. It calls [elastic/ai-github-actions/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml@main](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-issue-fixer-unrestricted.lock.yml) via `workflow_call` with security-specific instructions (no separate clone of [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions)). That lock may open draft PRs that change `.github/` (including workflow YAML). Remediation scope follows the ruleset in [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) and triage resolution plans.
 
@@ -36,7 +36,7 @@ Configured instructions require:
 
 The nested lock workflow mints an OIDC ephemeral token when `github-token-policy` is non-empty so pull requests and comments re-trigger downstream routes.
 
-Workflow-specific prompt text (including least-privilege and env-indirection) lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from control-plane fragments under `workflows.security.inner-workflows.obs-aw-security-fixer.yml` in [`config/obs/instruction-fragment-map.json`](../../config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Triage does not load those fixer fragments.
+Workflow-specific prompt text (including least-privilege and env-indirection) lives in `platform-additional-instructions` on this wrapper. Shared GitHub-read/safe-output contract plus draft, review, and merge policy is composed from framework fragments under `workflows.security.inner-workflows.obs-aw-security-fixer.yml` in [`config/obs/instruction-fragment-map.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/instruction-fragment-map.json) (see [instruction fragments](../architecture/instruction-fragments.md)). Triage does not load those fixer fragments.
 
 ## Failure mode (empty safe outputs)
 

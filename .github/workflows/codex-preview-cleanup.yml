@@ -1,0 +1,22 @@
+---
+name: docs-cleanup
+
+# Removes Codex preview deployments when a pull request is closed.
+# File name must remain codex-preview-cleanup.yml (OIDC / platform bindings).
+# No paths filter: a PR may create a preview then drop docs/** before close;
+# the reusable cleanup workflow no-ops when no matching deployment exists.
+on:
+  pull_request_target:
+    types:
+      - closed
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    permissions:
+      contents: none
+      deployments: write
+      id-token: write
+    uses: elastic/docs-actions/.github/workflows/codex-preview-cleanup.yml@v1

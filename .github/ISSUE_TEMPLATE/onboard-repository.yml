@@ -11,7 +11,7 @@ body:
 
         Fill in the fields below and submit. Automation opens the required pull requests and comments on this issue with status, any errors, and what to do next.
 
-        Guide: [Onboard a repository](https://github.com/elastic/oblt-aw/blob/main/docs/guides/user/onboard-a-repository.md)
+        Guide: [Onboard a repository](https://github.com/elastic/oblt-aw/blob/main/docs/user-guide/onboard-a-repository.md)
   - type: input
     id: repository
     attributes:

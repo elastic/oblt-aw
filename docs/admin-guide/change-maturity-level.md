@@ -1,0 +1,57 @@
+# Change maturity level
+
+## Overview
+
+Maturity (`stable`, `early-adoption`, `experimental`) is assigned centrally in each org’s `workflow-registry.json`. It appears as a badge on the Control Plane dashboard and describes adoption expectations — it does not by itself enable or disable a workflow.
+
+| Level | Meaning |
+|-------|---------|
+| `stable` | Production-ready; suitable for general adoption |
+| `early-adoption` | Usable with possible rough edges; feedback welcome |
+| `experimental` | In active development; not for production-critical use |
+
+Full criteria: [Workflow maturity](../operations/workflow-maturity.md).
+
+## Prerequisites
+
+- Permission to open a pull request to `elastic/oblt-aw`.
+- The workflow `id` and org key (`config/<org-key>/`).
+
+## Steps
+
+1. **Read the criteria** — See [Workflow maturity criteria](../operations/workflow-maturity.md) for definitions of `stable`, `early-adoption`, and `experimental`.
+
+2. **Edit `workflow-registry.json`** — Under `config/<org-key>/workflow-registry.json`, find the workflow object and set `maturity` to the new level. Example shape (from [config/obs/workflow-registry.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json)):
+
+   ```json
+   {
+     "id": "automerge",
+     "name": "Automerge",
+     "description": "...",
+     "maturity": "stable",
+     "default_enabled": false,
+     "docs": "docs/user-guide/automerge-services.md",
+     "inner_workflows": [
+       "obs-aw-automerge-deferred.yml",
+       "obs-aw-automerge.yml"
+     ]
+   }
+   ```
+
+3. **Review `default_enabled` if needed** — `default_enabled` controls the initial checkbox state when a **new** workflow id is synced onto a Control Plane dashboard. It does not override user-edited checkboxes during normal sync. See [Workflow maturity criteria — assignment](../operations/workflow-maturity.md#assignment).
+
+4. **Open a pull request and merge** — After merge to `main`, [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) updates Control Plane dashboard issue bodies with the new maturity badge.
+
+5. **Confirm on a consumer Control Plane dashboard** — Open a registered repo’s Control Plane dashboard and verify the badge updated. User checkbox choices are unchanged unless you also changed `default_enabled` and used a forced sync (see [control-plane-dashboard-format](../operations/control-plane-dashboard-format.md) for sync semantics).
+
+   :::{image} ../images/control-plane-dashboard-issue.png
+   :alt: Control Plane dashboard maturity badges in the workflow catalog table
+   :screenshot:
+   :::
+
+## See also
+
+- [Workflow maturity criteria](../operations/workflow-maturity.md)
+- [Control Plane dashboard — maturity badges](../operations/control-plane-dashboard.md#maturity-badges)
+- [Add a new agentic workflow](add-a-new-agentic-workflow.md) — registering a new workflow id
+- [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md)

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-autodoc.yml](../../.github/workflows/obs-aw-autodoc.yml)
+Source file: [.github/workflows/obs-aw-autodoc.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-autodoc.yml)
 
 This reusable workflow automates documentation maintenance in two stages: audit for documentation drift, then open a docs-only PR when findings exist.
 
@@ -18,7 +18,7 @@ Jobs:
 
 - `audit`: calls the Observability-owned `gh-aw-docs-patrol.lock.yml` to analyze docs and create an issue with actionable findings. Safe-output issue bodies neutralize `@mentions`; triage uses the baked `[oblt-aw][autodoc]` title prefix and concrete source paths.
 - `fix`: calls the Observability-owned `gh-aw-create-pr-from-issue.lock.yml` only when `audit` created an issue.
-- Failure meta-issue suppression for both stages is baked into the in-repo locks via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) (no `report-failure-as-issue` lock input). Intentional findings from `create_issue` (audit) are unchanged.
+- Failure meta-issue suppression for both stages is baked into the in-repo locks via [`obs-defaults.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md) (no `report-failure-as-issue` lock input). Intentional findings from `create_issue` (audit) are unchanged.
 - `finalize-pr`: ensures the PR body includes `Fixes #<audit-issue>` so merge closes the audit issue (safe-output may neutralize agent-written closing keywords; this step injects a real one), requests a review from `@elastic/observablt-ci`, and applies the `changelog:docs` label if that label exists in the repository.
 - `notify-fix-failure`: when `fix` fails after an audit issue was created, comments recovery guidance on that issue (including `/ai implement`) and applies `oblt-aw/autodoc/fix-failed` when that label exists in the repository.
 - `notify-no-pr`: when `fix` succeeds with an empty `created_pr_number`, comments recovery guidance on the audit issue (same pattern as issue/security/RNAI fixers).
@@ -35,21 +35,21 @@ The job `fix` calls:
 uses: ./.github/workflows/gh-aw-create-pr-from-issue.lock.yml
 ```
 
-Edit the GH-AW sources [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md) and [`.github/workflows/gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the locks).
+Edit the GH-AW sources [`.github/workflows/gh-aw-docs-patrol.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-docs-patrol.md) and [`.github/workflows/gh-aw-create-pr-from-issue.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-create-pr-from-issue.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the locks).
 
 ### Opinionated vs preserved
 
 | Opinionated (Observability-owned) | Preserved as lock inputs |
 |-----------------------------------|--------------------------|
-| Model, failure-issue suppression, and GitHub `trusted-users` via [`obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) | Audit: `additional-instructions` (from `aw-resolve-agentic-assets`: APM + `.oblt-aw.autodocignore` overlays; optional E2E mode injects fixed audit-only platform text when `e2e-autodoc-mode` is true) |
-| Lookback window (`1 day ago`), issue title prefix (`[oblt-aw][autodoc]`), and merged audit prompt in [`gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md) | Fix: `target-issue-number` (from `audit.outputs.created_issue_number`) and `additional-instructions` (APM + autodocignore only — no E2E platform text) |
-| Docs-only fix prompt, ready-for-review PRs, docs `allowed-files`, and top-level docs `protected-files` excludes in [`gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md) | Optional control-plane `e2e-trigger-obs-aw-schedule.yml` input `e2e-autodoc-mode` (false by default on `obs-aw-event-schedule`; live E2E only) |
-| Comment footer via [`messages-footer.md`](../../.github/workflows/gh-aw-fragments/messages-footer.md) | |
+| Model, failure-issue suppression, and GitHub `trusted-users` via [`obs-defaults.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md) | Audit: `additional-instructions` (from `aw-resolve-agentic-assets`: APM + `.oblt-aw.autodocignore` overlays; optional E2E mode injects fixed audit-only platform text when `e2e-autodoc-mode` is true) |
+| Lookback window (`1 day ago`), issue title prefix (`[oblt-aw][autodoc]`), and merged audit prompt in [`gh-aw-docs-patrol.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-docs-patrol.md) | Fix: `target-issue-number` (from `audit.outputs.created_issue_number`) and `additional-instructions` (APM + autodocignore only — no E2E platform text) |
+| Docs-only fix prompt, ready-for-review PRs, docs `allowed-files`, and top-level docs `protected-files` excludes in [`gh-aw-create-pr-from-issue.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-create-pr-from-issue.md) | Optional framework-only `e2e-trigger-obs-aw-schedule.yml` input `e2e-autodoc-mode` (false by default on `obs-aw-event-schedule`; live E2E only) |
+| Comment footer via [`messages-footer.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/messages-footer.md) | |
 | Bot actor hardcoded on each source (`github-actions[bot]`) | |
 
-**Audit prompt:** docs-patrol lookback/drift analysis plus Observability gap criteria, secret-docs rules, false-positive / out-of-scope guards, and mandatory `@elastic/observablt-ci` issue notification live in [`gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md). Live E2E dispatches control-plane-only [`e2e-trigger-obs-aw-schedule.yml`](../../.github/workflows/e2e-trigger-obs-aw-schedule.yml) with `e2e-autodoc-mode=true` so the wrapper passes fixed audit `platform-additional-instructions` (`E2E_AUTODOC_MODE=true`) that scope docs-patrol to [`docs/testing/fixtures/e2e-autodoc-bait.md`](../testing/fixtures/e2e-autodoc-bait.md). Client [`trigger-obs-aw-schedule-daily.yml`](../../.github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-schedule-daily.yml) has no E2E inputs.
+**Audit prompt:** docs-patrol lookback/drift analysis plus Observability gap criteria, secret-docs rules, false-positive / out-of-scope guards, and mandatory `@elastic/observablt-ci` issue notification live in [`gh-aw-docs-patrol.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-docs-patrol.md). Live E2E dispatches framework-only [`e2e-trigger-obs-aw-schedule.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-trigger-obs-aw-schedule.yml) with `e2e-autodoc-mode=true` so the wrapper passes fixed audit `platform-additional-instructions` (`E2E_AUTODOC_MODE=true`) that scope docs-patrol to [`docs/testing/fixtures/e2e-autodoc-bait.md`](../testing/fixtures/e2e-autodoc-bait.md). Client [`trigger-obs-aw-schedule-daily.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/remote-workflow-template/obs/.github/workflows/trigger-obs-aw-schedule-daily.yml) has no E2E inputs.
 
-**Fix prompt:** PR title/body rules, docs-only constraints, secret-docs rules, markdown/Helm/AI-asset guards, and autodocignore semantics live in [`gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md). The wrapper does not pass fix `platform-additional-instructions`; resolve still supplies APM / autodocignore overlays via `additional-instructions`.
+**Fix prompt:** PR title/body rules, docs-only constraints, secret-docs rules, markdown/Helm/AI-asset guards, and autodocignore semantics live in [`gh-aw-create-pr-from-issue.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-create-pr-from-issue.md). The wrapper does not pass fix `platform-additional-instructions`; resolve still supplies APM / autodocignore overlays via `additional-instructions`.
 
 **PR creation (fix):** the compiled create-PR lock opens PRs **ready for review** (`draft: false`). `finalize-pr` then ensures `Fixes #<audit-issue>` is on the PR body (close-on-merge), requests review, and applies `changelog:docs` when present.
 
@@ -103,14 +103,14 @@ with:
 
 Copies in `elastic/ai-github-actions` remain for other consumers; this cutover does not deprecate or remove them.
 
-**E2E:** production schedule-path validation for audit and fix stages lives under [autodoc-e2e](../testing/autodoc-e2e.md) ([#2052](https://github.com/elastic/oblt-aw/issues/2052), [#2053](https://github.com/elastic/oblt-aw/issues/2053)). Manual `workflow_dispatch` via [`.github/workflows/e2e-autodoc.yml`](../../.github/workflows/e2e-autodoc.yml); not a default PR required gate.
+**E2E:** production schedule-path validation for audit and fix stages lives under [autodoc-e2e](../testing/autodoc-e2e.md) ([#2052](https://github.com/elastic/oblt-aw/issues/2052), [#2053](https://github.com/elastic/oblt-aw/issues/2053)). Manual `workflow_dispatch` via [`.github/workflows/e2e-autodoc.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-autodoc.yml); not a default PR required gate.
 
 ## References
 
 - Routing rules: [docs/routing/autodoc-routing.md](../routing/autodoc-routing.md)
-- In-repo audit source: [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md)
-- In-repo fix source: [`.github/workflows/gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md)
-- Shared model defaults: [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md)
+- In-repo audit source: [`.github/workflows/gh-aw-docs-patrol.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-docs-patrol.md)
+- In-repo fix source: [`.github/workflows/gh-aw-create-pr-from-issue.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-create-pr-from-issue.md)
+- Shared model defaults: [`.github/workflows/gh-aw-fragments/obs-defaults.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md)
 - Prior upstream (rollback / other consumers): [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — `gh-aw-docs-patrol`, `gh-aw-create-pr-from-issue`
 - E2E harness: [autodoc-e2e](../testing/autodoc-e2e.md)
 - Protected files reference: [GH-AW safe outputs (pull requests)](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/reference/safe-outputs-pull-requests.md)

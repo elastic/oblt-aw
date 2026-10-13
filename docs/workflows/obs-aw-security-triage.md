@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-security-triage.yml](../../.github/workflows/obs-aw-security-triage.yml)
+Source file: [.github/workflows/obs-aw-security-triage.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-security-triage.yml)
 
 This reusable workflow triages security-related issues labeled `oblt-aw/detector/security` and prepares fix-ready issues for the security fixer workflow. It classifies vulnerabilities in GitHub Actions workflows and shell scripts: injection, secret management, supply chain, and least privilege—matching [docs/workflows/security-scanning-ruleset.md](security-scanning-ruleset.md) and [elastic/observability-robots#3758](https://github.com/elastic/observability-robots/issues/3758). It runs in the **caller repository** (same as the detector).
 

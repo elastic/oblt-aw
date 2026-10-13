@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml](../../.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml)
+Source file: [.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml)
 
 This reusable workflow detects `Resource not accessible by integration` occurrences in workflow logs and creates issue output through the log-searching-agent workflow. It discovers all workflows in the repository and runs the agent per workflow via a matrix strategy.
 

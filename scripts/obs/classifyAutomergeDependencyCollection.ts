@@ -21,7 +21,7 @@ const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
 const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate -->';
 const AUTOMERGE_PARENT_COMPOUND_ID = 'obs:automerge';
 const AUTOMERGE_SERVICES_GUIDE_URL =
-  'https://github.com/elastic/oblt-aw/blob/main/docs/guides/user/automerge-services.md';
+  'https://github.com/elastic/oblt-aw/blob/main/docs/user-guide/automerge-services.md';
 
 /** @typedef {object} DependencyCollection
  * @property {string} id
@@ -170,7 +170,7 @@ function buildGateCommentBody(outcome, changedFiles, enabledCollectionIds) {
 
   let reason = '';
   let nextStep =
-    `To allow automerge for this kind of update, enable the matching collection under Automerge on the Control Plane Dashboard (the \`oblt-aw/dashboard\` issue). See [Automerge services](${AUTOMERGE_SERVICES_GUIDE_URL}) for what each collection covers.`;
+    `To allow automerge for this kind of update, enable the matching collection under Automerge on the Control Plane Dashboard (the \`oblt-aw/dashboard\` issue). See [Automerge dependency collections](${AUTOMERGE_SERVICES_GUIDE_URL}) for what each collection covers.`;
   if (outcome.status === 'disabled') {
     reason = `Automerge skipped this pull request because the **\`${outcome.collectionId}\`** collection is not enabled for this repository.`;
   } else if (outcome.status === 'unclassified') {

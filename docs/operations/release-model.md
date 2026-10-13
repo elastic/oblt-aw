@@ -1,26 +1,26 @@
-# Agentic workflow release model
+# Release model
 
 **Status:** Implementation for [#1878](https://github.com/elastic/oblt-aw/issues/1878) (parent [#1879](https://github.com/elastic/oblt-aw/issues/1879)).
 **Testing contract:** [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md).
 
 ## Goal
 
-Promote control-plane changes safely with mandatory gating E2E, keep consumer trigger churn low (major bumps only), and support quick rollback.
+Promote framework changes safely with mandatory gating E2E, keep consumer trigger churn low (major bumps only), and support quick rollback.
 
 ## Current pins (inventory)
 
 | Surface | Location | Pointer today |
 |---------|----------|---------------|
 | Distributed client triggers | `.github/remote-workflow-template/**/trigger-*-aw-*.yml` | Source tree pins `@main`; distribute substitutes the install pin from `pin-class` |
-| Installed client triggers (incl. control plane) | `.github/workflows/trigger-*-aw-*.yml` in each active repo | `development` → `@main`; `production` → `tags.current` (`@v0`) once `pointers.current.sha` is set **and** that tag exists on origin |
+| Installed client triggers (incl. framework pins) | `.github/workflows/trigger-*-aw-*.yml` in each active repo | `development` → `@main`; `production` → `tags.current` (`@v0`) once `pointers.current.sha` is set **and** that tag exists on origin |
 | Development pins | `pin-class: development` in `config/*/active-repositories.json` | Always `@main`. `elastic/oblt-aw` must be development (live E2E consumer) |
-| E2E-only schedule entry | `.github/workflows/e2e-trigger-obs-aw-schedule.yml` | Relative `./` (control-plane only; not distributed) |
+| E2E-only schedule entry | `.github/workflows/e2e-trigger-obs-aw-schedule.yml` | Relative `./` (framework-only; not distributed) |
 | Event orchestrators → routes | `obs-aw-event-*.yml` | Relative `./` (inherits caller pin) |
 | In-repo GH-AW locks | `obs-aw-autodoc.yml`, `obs-aw-dependency-review.yml`, `obs-aw-estc-pr-buildkite-detective.yml` | Relative `./gh-aw-*.lock.yml` (inherits caller pin) |
 | Upstream locks still in `ai-github-actions` | Other `obs-aw-*.yml` wrappers | `elastic/ai-github-actions/...@main` (until [#1876](https://github.com/elastic/oblt-aw/issues/1876)) |
 | Release metadata | `config/release-pointers.json` | `current` / `next` / `previous` SHAs + semver |
 
-**Why development stays on `@main`:** After promote, production consumers pin the moving major (`@v0`). Development repositories (including `elastic/oblt-aw`) keep consuming tip of `main` so live schedules, PR routes, and E2E that poll real client triggers catch control-plane regressions before the shared train promotes. Parser/CI reject any `pin-class` for `elastic/oblt-aw` other than `development`.
+**Why development stays on `@main`:** After promote, production consumers pin the moving major (`@v0`). Development repositories (including `elastic/oblt-aw`) keep consuming tip of `main` so live schedules, PR routes, and E2E that poll real client triggers catch framework regressions before the shared train promotes. Parser/CI reject any `pin-class` for `elastic/oblt-aw` other than `development`.
 
 Initial development list (everyone else in the obs/docs active lists is production):
 
@@ -42,11 +42,27 @@ Initial development list (everyone else in the obs/docs active lists is producti
 - **Opt-in fine grain:** per-workflow pointers only when a route must promote independently (not implemented in the first slice; extend `release-pointers.json` when needed).
 
 ```mermaid
-flowchart LR
-  Main[Merge to main]
-  Promo[Promote on main: E2E then tag]
-  Main --> Promo
-  Promo -->|rollback| Prev[Retarget vN to previous]
+flowchart TB
+  Merge["Merge to main\nPR CI only — no live E2E"]
+  Promo["aw-release-promote\nmanual dispatch on main"]
+  E2E["e2e-all on tip SHA"]
+  Tags["Push tags\nvX.Y.Z immutable; vN / next / previous move"]
+  Ptr["Land release-pointers.json\nVault-authored PR"]
+  Rel["GitHub Release for vX.Y.Z"]
+  Dist["distribute-client-workflow"]
+  Dev["development → always @main"]
+  Prod["production → tags.current e.g. @v0"]
+  Roll["aw-release-rollback\nconfirm = rollback"]
+
+  Merge --> Promo
+  Promo --> E2E
+  E2E --> Tags
+  Tags --> Ptr
+  Ptr --> Rel
+  Rel --> Dist
+  Dist --> Dev
+  Dist --> Prod
+  Roll -.->|retarget vN to previous| Prod
 ```
 
 ### Consumer churn
@@ -55,6 +71,61 @@ flowchart LR
 |-------------|-----------------|
 | Patch / minor (compatible) | None for production — retarget `v0` after promote. Development stays on `@main`. |
 | Major / breaking (incl. graduate to `v1`) | Bump templates to `@v1` (or next major), redistribute |
+
+## `release-pointers.json`
+
+Committed source of truth for the shared promote train: [`config/release-pointers.json`](https://github.com/elastic/oblt-aw/blob/main/config/release-pointers.json). Library: [`scripts/release_pointers.py`](https://github.com/elastic/oblt-aw/blob/main/scripts/release_pointers.py).
+
+### Who writes and who reads
+
+| Actor | Role |
+|-------|------|
+| `aw-release-promote` / `aw-release-rollback` | Plan pointer updates, push tags, then land the file via a Vault-authored PR (org rules block direct pushes to `main`) |
+| `distribute-client-workflow` | For `pin-class: production`, substitutes `uses: …@<tags.current>` once `pointers.current.sha` is set **and** that tag exists on origin; otherwise keeps `@main` |
+| Humans | Do **not** hand-edit on `main`. Inspect the file to see current/previous SHAs and semver |
+
+### Schema (`schema_version: 1`)
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `major` | int ≥ 0 | Production major line. First promote (all pointer SHAs empty) creates `v{major}.0.0` regardless of `release-type` |
+| `notes` | string | Human comment only; not consumed by automation |
+| `pointers.current` | object | Production target: `sha` (40-char hex), `semver` (`vX.Y.Z`), `updated_at` (UTC ISO) |
+| `pointers.next` | object | After a normal promote, same SHA/semver as `current` (reserved for a staged “next” train later) |
+| `pointers.previous` | object | Prior `current` after a promote (rollback target). After rollback, holds the displaced promote so a second rollback can undo |
+| `schema_version` | int | Must be `1` |
+| `tags.current` | string | Moving major tag name (`v0`, later `v1`, …). Production install pin is `@` + this value |
+| `tags.next` | string | Moving ops tag name (default `next`). Must not look like semver or `vN` |
+| `tags.previous` | string | Moving ops tag name (default `previous`). Same naming rules as `tags.next`; must differ from `tags.next` |
+
+Empty `sha` / `semver` strings mean uninitialized. Partial state (some fields filled, others empty) is refused for bootstrap.
+
+### Pointers vs tags
+
+- **`pointers.*`** record *what* was promoted: commit SHA + immutable audit semver.
+- **`tags.*`** name the *moving* git tags that force-update on promote/rollback. Immutable tags (`v0.0.1`, …) are never listed here and are never force-pushed.
+- Consumers pin the moving major (`@v0`), not the immutable `vX.Y.Z`. The pointers file ties that major to a recorded SHA for operators and fail-closed checks.
+
+### Promote update
+
+1. Pick immutable semver: bootstrap → `v{major}.0.0`; otherwise bump from the **highest** pointer semver (`patch` / `minor` / `major`) so a rollback cannot rewind numbering.
+2. Set `tags.current` to `v{new_major}`.
+3. Move `previous` ← old `current`; set `current` and `next` to the gated SHA + new semver; set `major` from the new semver.
+4. Push immutable tag, then force-update moving tags, **then** open/merge the pointers PR.
+
+### Rollback update
+
+1. Require non-empty `previous` ≠ `current`.
+2. Retarget moving `tags.current` (and `next`) to the previous SHA — the **current** major tag name stays (after a major promote, rollback moves `v1`, not the prior major).
+3. Swap pointers: new `current` ← old `previous`; new `previous` ← displaced `current` (so a second rollback can undo).
+4. Push moving tags, then land the pointers PR (same Vault path as promote).
+
+### Fail-closed rules (summary)
+
+- Before a later promote/rollback: origin’s `tags.current` must match `pointers.current` (or this run’s in-flight SHA). Other mismatches are refused.
+- Before opening the pointers PR: tip’s `release-pointers.json` must still match the plan-base SHA (re-dispatch if another promote/rollback landed).
+- Tags publish before the pointers merge so distribute (path filter includes this file) never writes `@vN` for a tag missing on origin.
+- If the pointers merge fails after tags moved: re-run the same promote or rollback; do not start a new promote until origin `vN` matches committed pointers (or that run’s in-flight SHA).
 
 ## Automation vs human gates
 
@@ -86,7 +157,7 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 | Who | Maintainers with Actions `workflow_dispatch` on this repo |
 | Recovery target | **≤ 15 minutes** when git tags and `release-pointers.json` are healthy |
 | Failed pointers merge | Re-run the same rollback. Do not promote until origin `vN` matches committed pointers (or that rollback’s in-flight SHA). |
-| Optional blast-radius stop | Disable routes via Control Plane Dashboard ([aw-prelude](../workflows/aw-prelude.md)) |
+| Optional blast-radius stop | Disable routes via Control Plane dashboard ([aw-prelude](../workflows/aw-prelude.md)) |
 
 ## First promote (after this model lands)
 
@@ -112,7 +183,7 @@ Standalone `e2e-all.yml` remains available for smoke without tagging (`checkout-
 
 ### Vault token policy (pointers PR)
 
-Promote and rollback mint distinct Vault roles from [`config/release.json`](../../config/release.json) via OIDC (`elastic/oblt-actions/github/create-token`):
+Promote and rollback mint distinct Vault roles from [`config/release.json`](https://github.com/elastic/oblt-aw/blob/main/config/release.json) via OIDC (`elastic/oblt-actions/github/create-token`):
 
 | Entrypoint | Config key | Role (`catalog-info`) | `bound_claims.workflow_ref` |
 |------------|------------|------------------------|-----------------------------|

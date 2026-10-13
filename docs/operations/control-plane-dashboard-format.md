@@ -1,19 +1,19 @@
-# Control Plane Dashboard Issue Format
+# Control Plane dashboard issue format
 
 **Related issues:** [elastic/observability-robots#3732](https://github.com/elastic/observability-robots/issues/3732), [elastic/observability-robots#4189](https://github.com/elastic/observability-robots/issues/4189)
 
-This document defines the structure and format of the OBLT AW Control Plane Dashboard issue. The format enables reliable parsing when users edit checkboxes to opt in or opt out of agentic workflows.
+This document defines the structure and format of the OBLT AW Control Plane dashboard issue. The format enables reliable parsing when users edit checkboxes to opt in or opt out of agentic workflows.
 
 ---
 
 ## Overview
 
-The Control Plane Dashboard is a **single** GitHub issue per consumer repository that lists all available agentic workflows, **grouped by owning org** (see `config/<org-key>/` in this repository). Users enable or disable each workflow by checking task-list items. When the client workflow runs, the ingress (`get-enabled-workflows`) looks for an open issue labeled `oblt-aw/dashboard` and sets gating from `effective-raw` and normalized `enabled-workflows`:
+The Control Plane dashboard is a **single** GitHub issue per consumer repository that lists all available agentic workflows, **grouped by owning org** (see `config/<org-key>/` in this repository). Users enable or disable each workflow by checking task-list items. When the client workflow runs, the ingress (`get-enabled-workflows`) looks for an open issue labeled `oblt-aw/dashboard` and sets gating from `effective-raw` and normalized `enabled-workflows`:
 
-- **No such issue** → `effective-raw` is empty; no agentic workflows run until sync creates the dashboard and workflows are enabled.
-- **Dashboard exists** → normalized outputs are a JSON array string: `[]` if **no** checkboxes are checked (no agentic workflows run), or `["org:workflow-id", ...]` for only the checked workflows, using the **canonical compound id** (colon-separated).
+- **No such issue** → `effective-raw` is empty; no agentic workflows run until sync creates the Control Plane dashboard and workflows are enabled.
+- **Control Plane dashboard exists** → normalized outputs are a JSON array string: `[]` if **no** checkboxes are checked (no agentic workflows run), or `["org:workflow-id", ...]` for only the checked workflows, using the **canonical compound id** (colon-separated).
 
-There is no config file (no `.github/obs-aw-config.json`) and no PRs when users toggle checkboxes. Runtime gating is read each time the client runs via `get-enabled-workflows`. Separately, `issues.edited` on the dashboard issue triggers the shared [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) path to record enable/disable comments on that issue.
+There is no config file (no `.github/obs-aw-config.json`) and no PRs when users toggle checkboxes. Runtime gating is read each time the client runs via `get-enabled-workflows`. Separately, `issues.edited` on the Control Plane dashboard issue triggers the shared [aw-dashboard-audit](../workflows/aw-dashboard-audit.md) path to record enable/disable comments on that issue.
 
 ---
 
@@ -22,7 +22,7 @@ There is no config file (no `.github/obs-aw-config.json`) and no PRs when users 
 Every workflow in ingress gating is identified by **`org-key:workflow-id`**:
 
 - **`org-key`** — Directory name under `config/<org-key>/` in `elastic/oblt-aw` (for example `obs`, `docs`). Not to be confused with the repository’s root `docs/` Markdown tree.
-- **`workflow-id`** — Unique within that org’s [`workflow-registry.json`](../../config/obs/workflow-registry.json). Each registry entry lists every control-plane reusable it gates via `inner_workflows` (basenames under `.github/workflows/`, for example `obs-aw-security-detector.yml`); multiple files may share one `id` (detector/fixer/triage).
+- **`workflow-id`** — Unique within that org’s [`workflow-registry.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json). Each registry entry lists every framework reusable it gates via `inner_workflows` (basenames under `.github/workflows/`, for example `obs-aw-security-detector.yml`); multiple files may share one `id` (detector/fixer/triage).
 
 **Examples:** `obs:agent-suggestions`, `docs:example-workflow`.
 
@@ -34,15 +34,15 @@ Workflows may declare optional **`sub_features`** in the registry. Each sub-feat
 
 Parent workflows remain **`org:workflow-id`** (two segments). Sub-feature ids appear in the same `enabled-workflows` JSON array as parent ids.
 
-Legacy dashboard lines used **`<!-- oblt-aw:<workflow-id> -->`** (no org). Parsers treat those as **`obs:<workflow-id>`**. New and synced bodies use the three-part HTML comment (see below).
+Legacy Control Plane dashboard lines used **`<!-- oblt-aw:<workflow-id> -->`** (no org). Parsers treat those as **`obs:<workflow-id>`**. New and synced bodies use the three-part HTML comment (see below).
 
 ---
 
 ## Markdown Structure
 
-The dashboard issue body MUST follow this structure:
+The Control Plane dashboard issue body MUST follow this structure:
 
-1. **Intro** — Short description of the dashboard and how to use it
+1. **Intro** — Short description of the Control Plane dashboard and how to use it
 2. **One section per org** — For each org that lists this repo in `config/<org-key>/active-repositories.json`: heading `### {section_title} ({org_key})`, workflow summary table, then `#### Enable / Disable` with task-list checkboxes
 3. **Instructions for users** — How to enable/disable workflows and what happens when they do (once, at the end)
 
@@ -82,8 +82,8 @@ Click a checkbox to enable or disable a workflow:
 
 ### Instructions
 
-- **Enable a workflow:** Check the checkbox next to the workflow.
-- **Disable a workflow:** Uncheck the checkbox.
+- **Enable an agentic workflow:** Check the checkbox next to the agentic workflow.
+- **Disable an agentic workflow:** Uncheck the checkbox.
 - Changes are applied at runtime when the client runs; `get-enabled-workflows` reads this issue and supplies `enabled-workflows` to the ingress.
 ```
 
@@ -134,7 +134,7 @@ or, when enabled:
 
 ### Initial Checkbox State for New Workflow IDs
 
-When dashboard sync introduces a workflow ID that does not already exist in the dashboard issue body, initial checkbox state comes from that entry's `default_enabled` value in the org’s `workflow-registry.json`:
+When Control Plane dashboard sync introduces a workflow ID that does not already exist in the Control Plane dashboard issue body, initial checkbox state comes from that entry's `default_enabled` value in the org’s `workflow-registry.json`:
 
 - `default_enabled: true` → rendered as `- [x]`
 - `default_enabled: false` → rendered as `- [ ]`
@@ -150,13 +150,13 @@ If a workflow checkbox already exists in the issue body, the current issue state
 | checked | checked | Parent workflow runs; that sub-feature runs |
 | (no sub-features) | — | Existing single-checkbox behaviour, unchanged |
 
-When a control-plane workflow file is listed under a sub-feature’s `inner_workflows`, prelude gating requires **both** the parent compound id and the sub-feature compound id in `enabled-workflows`.
+When a framework workflow file is listed under a sub-feature’s `inner_workflows`, prelude gating requires **both** the parent compound id and the sub-feature compound id in `enabled-workflows`.
 
 The rendered child checkbox text may include a concise service description for humans, for example `VM / container images — CI runner or container image pin updates`. The invisible `<!-- oblt-aw:... -->` marker remains the parsing contract.
 
 ### Parsing Algorithm
 
-To extract enabled workflows from the issue body (when a dashboard issue exists):
+To extract enabled workflows from the issue body (when a Control Plane dashboard issue exists):
 
 1. Split the body into lines.
 2. For each checked line matching **sub-feature** pattern at line start (optional leading whitespace):
@@ -168,9 +168,9 @@ To extract enabled workflows from the issue body (when a dashboard issue exists)
 4. For each checked line matching **legacy two-part** pattern:
    `^\s*- [x] <!-- oblt-aw:([a-z0-9-]+) -->`
    emit `obs:workflow-id`.
-5. Emit a compact JSON array string of those compound ids in document order (deduplicated). That string is what `get-enabled-workflows` writes to the `enabled-workflows` output when the dashboard issue exists.
+5. Emit a compact JSON array string of those compound ids in document order (deduplicated). That string is what `get-enabled-workflows` writes to the `enabled-workflows` output when the Control Plane dashboard issue exists.
 
-**No open dashboard issue:** The job outputs `[]` for the normalized `enabled-workflows` output (same as an empty selection). Prelude treats empty `effective-raw` the same way: no workflows run.
+**No open Control Plane dashboard issue:** The job outputs `[]` for the normalized `enabled-workflows` output (same as an empty selection). Prelude treats empty `effective-raw` the same way: no workflows run.
 
 ---
 
@@ -186,13 +186,13 @@ To extract enabled workflows from the issue body (when a dashboard issue exists)
 
 ## Instructions for Users
 
-The dashboard MUST include clear instructions. Recommended text:
+The Control Plane dashboard MUST include clear instructions. Recommended text:
 
-- **Enable a workflow:** Check the checkbox next to the workflow. `get-enabled-workflows` will include its compound id in `enabled-workflows` at runtime.
-- **Disable a workflow:** Uncheck the checkbox. `get-enabled-workflows` will exclude it from `enabled-workflows` at runtime.
-- **Sub-features:** Some workflows expose indented child checkboxes. Enable or disable individual parts of a composite workflow. Sub-features apply only while the parent workflow is enabled.
-- **When changes apply:** The dashboard is read at runtime when the client runs. No config file; no PRs on checkbox edits.
-- **Default behavior:** No dashboard or dashboard with all unchecked → no workflows run; dashboard exists with some checked → only checked workflows executed.
+- **Enable an agentic workflow:** Check the checkbox next to the agentic workflow. `get-enabled-workflows` will include its compound id in `enabled-workflows` at runtime.
+- **Disable an agentic workflow:** Uncheck the checkbox. `get-enabled-workflows` will exclude it from `enabled-workflows` at runtime.
+- **Sub-features:** Some agentic workflows expose indented child checkboxes. Enable or disable individual parts of a composite agentic workflow. Sub-features apply only while the parent agentic workflow is enabled.
+- **When changes apply:** The Control Plane dashboard is read at runtime when the client runs. No config file; no PRs on checkbox edits.
+- **Default behavior:** No Control Plane dashboard, or one with all unchecked → no agentic workflows run; Control Plane dashboard exists with some checked → only checked agentic workflows executed.
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/obs-aw-estc-pr-buildkite-detective.yml](../../.github/workflows/obs-aw-estc-pr-buildkite-detective.yml)
+Source file: [.github/workflows/obs-aw-estc-pr-buildkite-detective.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-estc-pr-buildkite-detective.yml)
 
 Reusable wrapper that calls the Observability-owned PR Buildkite Detective lock in this repository. Client `trigger-obs-aw-status.yml` routes failed Buildkite `status` events here when prelude allows `obs:estc-pr-buildkite-detective`.
 
@@ -20,7 +20,7 @@ Ingress routes here when:
 - `github.event_name == 'status'`,
 - `github.event.state == 'failure'`, and
 - `github.event.context` contains `buildkite`, and
-- Dashboard gate passes for registry id `estc-pr-buildkite-detective` (`enabled-workflows` contains `obs:estc-pr-buildkite-detective`).
+- Control Plane dashboard gate passes for registry id `estc-pr-buildkite-detective` (`enabled-workflows` contains `obs:estc-pr-buildkite-detective`).
 
 The job `estc-pr-buildkite-detective` calls:
 
@@ -28,18 +28,18 @@ The job `estc-pr-buildkite-detective` calls:
 uses: ./.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml
 ```
 
-Edit the GH-AW source [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`](../../.github/workflows/gh-aw-estc-pr-buildkite-detective.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the lock).
+Edit the GH-AW source [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-estc-pr-buildkite-detective.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the lock).
 
 ### Opinionated vs preserved
 
 | Opinionated (Observability-owned) | Preserved as lock inputs |
 |-----------------------------------|--------------------------|
-| Model, failure-issue suppression (`report-failure-as-issue` / `report-failed-jobs` false; `noop` / `missing-tool` / `missing-data` / `report-incomplete` do not create issues), and GitHub `trusted-users` via [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md) | `additional-instructions` (from `aw-resolve-agentic-assets`) |
-| Comment footer via [`.github/workflows/gh-aw-fragments/messages-footer.md`](../../.github/workflows/gh-aw-fragments/messages-footer.md) (What is this? → [oblt-aw README](https://github.com/elastic/oblt-aw/blob/main/README.md)) | `setup-commands` (joined from consumer `apm.yml` when non-empty) |
+| Model, failure-issue suppression (`report-failure-as-issue` / `report-failed-jobs` false; `noop` / `missing-tool` / `missing-data` / `report-incomplete` do not create issues), and GitHub `trusted-users` via [`.github/workflows/gh-aw-fragments/obs-defaults.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md) | `additional-instructions` (from `aw-resolve-agentic-assets`) |
+| Comment footer via [`.github/workflows/gh-aw-fragments/messages-footer.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/messages-footer.md) (What is this? → [oblt-aw README](https://github.com/elastic/oblt-aw/blob/main/README.md)) | `setup-commands` (joined from consumer `apm.yml` when non-empty) |
 | Bot actors hardcoded on the source (`github-actions[bot]`, `buildkite-limited-access[bot]`) — GH-AW does not allow `on.bots` in shared fragments | |
 | Wrapper exposes only `shared-proceed` (+ Buildkite secret) | |
 
-Shared compile imports for this workflow also include the other files under [`.github/workflows/gh-aw-fragments/`](../../.github/workflows/gh-aw-fragments/).
+Shared compile imports for this workflow also include the other files under [`.github/workflows/gh-aw-fragments/`](https://github.com/elastic/oblt-aw/tree/main/.github/workflows/gh-aw-fragments).
 
 ## Configuration
 
@@ -62,7 +62,7 @@ Wrapper `workflow_call` contract:
 
 Lock inputs passed by the wrapper:
 
-- `additional-instructions` — resolved control-plane + consumer instructions
+- `additional-instructions` — resolved framework + consumer instructions
 - `setup-commands` — `join(fromJSON(resolved-setup-commands-json), fromJSON('"\n"'))` from resolve (empty when the consumer has none; `fromJSON` supplies a real newline because expression string literals do not interpret `\n`)
 
 Migration note for consumers: if you previously configured the consumer-facing secret name as `BUILDKITE_API_TOKEN`, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN` in repository/organization secrets.
@@ -79,16 +79,16 @@ uses: elastic/ai-github-actions/.github/workflows/gh-aw-estc-pr-buildkite-detect
 
 Copies in `elastic/ai-github-actions` remain for other consumers; this pilot does not deprecate or remove them.
 
-**Integration (no live model):** fixtures and wiring checks for resolve → wrapper → lock inputs live under [`testdata/agentic/estc-pr-buildkite-detective/`](../../testdata/agentic/estc-pr-buildkite-detective/) and [`tests/integration/test_estc_pr_buildkite_detective.py`](../../tests/integration/test_estc_pr_buildkite_detective.py) ([#1910](https://github.com/elastic/oblt-aw/issues/1910)).
+**Integration (no live model):** fixtures and wiring checks for resolve → wrapper → lock inputs live under [`testdata/agentic/estc-pr-buildkite-detective/`](https://github.com/elastic/oblt-aw/tree/main/testdata/agentic/estc-pr-buildkite-detective) and [`tests/integration/test_estc_pr_buildkite_detective.py`](https://github.com/elastic/oblt-aw/blob/main/tests/integration/test_estc_pr_buildkite_detective.py) ([#1910](https://github.com/elastic/oblt-aw/issues/1910)).
 
-**E2E / production status-path validation:** design lives in [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md) ([#1877](https://github.com/elastic/oblt-aw/issues/1877)). Production E2E runs on **`elastic/oblt-aw`** via [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](../../.github/workflows/e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` only; **not** a default PR required gate). Live happy path: intentional Buildkite failure → Buildkite-published status → agent comment (oracle asserts presence). Runs reuse one long-lived fixture PR on `e2e/estc-pr-buildkite-detective` (serialized by concurrency). See [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) ([#1911](https://github.com/elastic/oblt-aw/issues/1911)).
+**E2E / production status-path validation:** design lives in [agentic-workflow-testing-platform](../architecture/agentic-workflow-testing-platform.md) ([#1877](https://github.com/elastic/oblt-aw/issues/1877)). Production E2E runs on **`elastic/oblt-aw`** via [`.github/workflows/e2e-estc-pr-buildkite-detective.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-estc-pr-buildkite-detective.yml) (`workflow_dispatch` only; **not** a default PR required gate). Live happy path: intentional Buildkite failure → Buildkite-published status → agent comment (oracle asserts presence). Runs reuse one long-lived fixture PR on `e2e/estc-pr-buildkite-detective` (serialized by concurrency). See [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) ([#1911](https://github.com/elastic/oblt-aw/issues/1911)).
 
 ## References
 
 - Client template: [obs-aw-client-template.md](obs-aw-client-template.md) — registry id `estc-pr-buildkite-detective`
-- In-repo source: [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`](../../.github/workflows/gh-aw-estc-pr-buildkite-detective.md)
-- In-repo lock: [`.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml`](../../.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
-- Shared model defaults: [`.github/workflows/gh-aw-fragments/obs-defaults.md`](../../.github/workflows/gh-aw-fragments/obs-defaults.md)
+- In-repo source: [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-estc-pr-buildkite-detective.md)
+- In-repo lock: [`.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
+- Shared model defaults: [`.github/workflows/gh-aw-fragments/obs-defaults.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md)
 - Prior upstream (rollback / other consumers): [elastic/ai-github-actions](https://github.com/elastic/ai-github-actions) — [`.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml`](https://github.com/elastic/ai-github-actions/blob/main/.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml)
 - Prior upstream documentation: [elastic.github.io/ai-github-actions](https://elastic.github.io/ai-github-actions/workflows/gh-agent-workflows/estc-pr-buildkite-detective/)
-- E2E harness: [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) — live cases under [`testdata/agentic/estc-pr-buildkite-detective/cases/`](../../testdata/agentic/estc-pr-buildkite-detective/cases/)
+- E2E harness: [estc-pr-buildkite-detective-e2e](../testing/estc-pr-buildkite-detective-e2e.md) — live cases under [`testdata/agentic/estc-pr-buildkite-detective/cases/`](https://github.com/elastic/oblt-aw/tree/main/testdata/agentic/estc-pr-buildkite-detective/cases)

@@ -25,7 +25,7 @@
       "description": "Arms and completes squash-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready: PR path validates/approves and arms when checks are pending; the frequent schedule profile merges via Vault REST when required checks are green.",
       "maturity": "stable",
       "default_enabled": false,
-      "docs": "docs/guides/user/automerge-services.md",
+      "docs": "docs/user-guide/automerge-services.md",
       "inner_workflows": [
         "obs-aw-automerge-deferred.yml",
         "obs-aw-automerge.yml"
