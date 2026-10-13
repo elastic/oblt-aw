@@ -20,7 +20,7 @@ Each **organization** owns `config/<org-key>/` (for example `config/obs/`): [`wo
 ### 1. Add the reusable workflow (and upstream lock, if applicable)
 
 - Add `.github/workflows/obs-aw-<name>.yml` (route reusable) at the repository root.
-- When the agent graph lives in **`elastic/ai-github-actions`**, add a thin wrapper that calls the pinned lock file and pass domain-specific `with:` / `secrets:`.
+- When the agentic workflow lives in **`elastic/ai-github-actions`**, add a thin wrapper that calls the pinned lock file and pass domain-specific `with:` / `secrets:`.
 
 ### 2. Add route contract and event orchestration
 

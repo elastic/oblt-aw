@@ -1,6 +1,6 @@
 ---
 navigation_title: Workflows skipped or not running
-description: Jobs skip or agents never run because Control Plane dashboard gating or registration is incomplete.
+description: Jobs skip or agentic workflows never run because Control Plane dashboard gating or registration is incomplete.
 applies_to: {}
 ---
 

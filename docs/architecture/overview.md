@@ -62,7 +62,7 @@ flowchart TB
   end
 
   subgraph UP["elastic/ai-github-actions (upstream)"]
-    LOCK["Locked reusable agent workflows\nworkflow_call targets"]
+    LOCK["Locked reusable agentic workflows\nworkflow_call targets"]
   end
 
   subgraph CON["Target repository (consumer)"]

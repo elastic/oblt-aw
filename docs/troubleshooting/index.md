@@ -30,4 +30,4 @@ flowchart LR
 | No distribute PR or no Control Plane dashboard after registration | [Missing client template or Control Plane dashboard](common-problems/missing-client-template-or-dashboard.md) |
 | Onboard agent never comments or opens PRs | [Onboard agent no comment or PRs](common-problems/onboard-agent-no-comment-or-prs.md) |
 | Registration merged before catalog TokenPolicy was active | [Registration before catalog TokenPolicy](common-problems/registration-before-catalog-token-policy.md) |
-| Workflow jobs skipped or agents never run | [Workflows skipped or not running](common-problems/workflows-skipped-or-not-running.md) |
+| Workflow jobs skipped or agentic workflows never run | [Workflows skipped or not running](common-problems/workflows-skipped-or-not-running.md) |

@@ -15,7 +15,7 @@ Short answers for problems the team has already diagnosed. Each page links to th
 | Onboard agent never comments or opens PRs | [Onboard agent no comment or PRs](onboard-agent-no-comment-or-prs.md) |
 | Registration merged before catalog TokenPolicy was active | [Registration before catalog TokenPolicy](registration-before-catalog-token-policy.md) |
 | Unsure whether a long-lived repository secret is required | [Configure a GitHub secret](../../admin-guide/configure-a-github-secret.md) |
-| Workflow jobs skipped or agents never run | [Workflows skipped or not running](workflows-skipped-or-not-running.md) |
+| Workflow jobs skipped or agentic workflows never run | [Workflows skipped or not running](workflows-skipped-or-not-running.md) |
 
 ## How to add an entry
 

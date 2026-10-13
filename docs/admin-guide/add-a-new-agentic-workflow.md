@@ -19,7 +19,7 @@ flowchart TD
 ## Prerequisites
 
 - Permission to change `elastic/oblt-aw` on `main` via reviewed pull requests.
-- When the agent graph lives in **`elastic/ai-github-actions`**, access to add or update the pinned `gh-aw-*.lock.yml` wrapper there.
+- When the agentic workflow lives in **`elastic/ai-github-actions`**, access to add or update the pinned `gh-aw-*.lock.yml` wrapper there.
 
 ## Steps
 

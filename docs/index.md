@@ -15,19 +15,19 @@ applies_to: {}
 
 ## Problems it solves
 
-Today many teams still wire each agent by hand in every repo (local workflow → `gh-aw-*.lock.yml`). That does not scale. **oblt-aw** mitigates:
+Today many teams still wire each agentic workflow by hand in every repo (local workflow → `gh-aw-*.lock.yml`). That does not scale. **oblt-aw** mitigates:
 
 - **Copy-paste setup** in every repo (triggers, secrets, permissions).
 - **No shared on/off switch**, so fleet behavior drifts.
-- **Expensive updates** — chase N repos to change the same agent.
+- **Expensive updates** — chase N repos to change the same agentic workflow.
 - **Slow rollouts** — every repo reinvents install and enablement.
-- **Unsustainable management** as repos and agents grow.
+- **Unsustainable management** as repos and agentic workflows grow.
 
 ## Features and benefits
 
 - **Automatic client distribution** — no hand-copying entrypoints; [distribution](operations/distribute-client-workflow.md) installs/updates `trigger-obs-aw-*.yml` ([client template](workflows/obs-aw-client-template.md), [adopting workflows](onboarding/adopting-agentic-workflows.md)).
 - **Self-service Control Plane dashboard** — enable/disable with checkboxes on `[oblt-aw] Control Plane Dashboard` ([Control Plane dashboard](operations/control-plane-dashboard.md), [enable or disable](user-guide/enable-a-new-workflow.md)).
-- **Control plane (prelude)** — same Control Plane dashboard gating and allow lists before every agent run ([aw-prelude](workflows/aw-prelude.md)).
+- **Control plane (prelude)** — same Control Plane dashboard gating and allow lists before every agentic workflow run ([aw-prelude](workflows/aw-prelude.md)).
 - **Shared agentic assets** — resolved in the framework ([aw-resolve-agentic-assets](workflows/aw-resolve-agentic-assets.md)).
 - **Update once, reach the fleet** — improve in `oblt-aw`; [distribution](operations/distribute-client-workflow.md) refreshes clients across active repos.
 - **Quieter PRs** — narrow triggers; only matching routes run ([split-trigger](architecture/overview.md#split-trigger-vs-monolithic-ingress)).
@@ -36,7 +36,7 @@ Today many teams still wire each agent by hand in every repo (local workflow →
 
 ## How it works
 
-Agent behavior (what the agent does on an issue or PR) is defined in locked `gh-aw-*` workflows. Some already live in this repository; others still live in [AI GitHub Actions](https://elastic.github.io/ai-github-actions/) and will move here over time. This portal covers how Elastic developers adopt and operate those agents through `oblt-aw`.
+Each agentic workflow’s behavior (what its agent does on an issue or PR) is defined in locked `gh-aw-*` workflows. Some already live in this repository; others still live in [AI GitHub Actions](https://elastic.github.io/ai-github-actions/) and will move here over time. This portal covers how Elastic developers adopt and operate those agentic workflows through `oblt-aw`.
 
 In simplified form:
 

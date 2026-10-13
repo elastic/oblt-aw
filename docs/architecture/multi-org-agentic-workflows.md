@@ -82,7 +82,7 @@ scripts/
     pr-menu/                                # Docs AI PR menu (github-script modules)
 
 .github/workflows/
-  obs-aw-*.yml                               # Reusable agent workflows — see §4
+  obs-aw-*.yml                               # Reusable agentic workflows — see §4
   sync-control-plane-dashboard.yml
   distribute-client-workflow.yml
   ...
