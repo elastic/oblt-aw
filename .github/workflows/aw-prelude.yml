@@ -43,7 +43,8 @@ on:
       token-policy:
         description: >-
           workflow-token-policy from config/<org>/active-repositories.json for this
-          repository when set; empty when not configured (create-token uses Vault auto policy).
+          repository when set; empty when not configured (callers skip create-token and
+          use the job GITHUB_TOKEN).
         value: ${{ jobs.evaluate-workflow-gates.outputs.token-policy }}
 
 permissions:

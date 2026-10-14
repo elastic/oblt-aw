@@ -38,7 +38,7 @@ Event orchestrators invoke this workflow as job `run-aw-prelude`.
 | `enabled-workflows` | Normalized JSON array of compound ids |
 | `allowed-pr-authors-json` / `allowed-pr-authors-csv` | PR allow list (empty when not loaded) |
 | `allowed-issue-authors-json` / `allowed-issue-authors-csv` | Issue allow list (empty when not loaded) |
-| `token-policy` | `workflow-token-policy` from `active-repositories.json` when configured |
+| `token-policy` | `workflow-token-policy` from `active-repositories.json` when configured; empty means callers skip `create-token` and use the job `GITHUB_TOKEN` |
 
 ### Gating rule
 

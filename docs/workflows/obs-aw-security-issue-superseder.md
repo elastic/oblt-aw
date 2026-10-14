@@ -25,7 +25,7 @@ Ingress routes here when:
 Job **supersede-security-issues**:
 
 1. Checks out `scripts/obs/supersede-security-issues.sh` from [elastic/oblt-aw](https://github.com/elastic/oblt-aw) at ref `main`.
-2. Creates an ephemeral token when configured (Vault auto policy or repo `workflow-token-policy`).
+2. Mints an ephemeral token when `shared-token-policy` is non-empty; otherwise uses `GITHUB_TOKEN`.
 3. Runs the script with the **canonical** issue number (`github.event.issue.number`).
 
 ### Supersession policy
@@ -55,7 +55,7 @@ Environment passed to the script:
 | Variable | Source |
 |----------|--------|
 | `GITHUB_REPOSITORY` | Caller repository |
-| `GH_TOKEN` | Ephemeral token from `create-token` |
+| `GH_TOKEN` | Ephemeral token from `create-token` when `shared-token-policy` is set; otherwise `GITHUB_TOKEN` |
 
 Set `DRY_RUN=1` locally to log actions without mutating GitHub.
 
