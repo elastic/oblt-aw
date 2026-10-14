@@ -18,7 +18,7 @@ This implements the detector stage of the pipeline in [docs/architecture/securit
 ## Prerequisites
 
 - Triggered via `workflow_call` from [obs-aw-event-schedule.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-schedule.yml) on `schedule` or `workflow_dispatch`.
-- No repository secrets: issue creation uses an ephemeral token from [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token).
+- No repository secrets: when `shared-token-policy` is non-empty, issue creation mints an ephemeral token from [`elastic/oblt-actions/github/create-token@v1`](https://github.com/elastic/oblt-actions/tree/v1/github/create-token) so `issues` events re-trigger triage/superseder; when empty, it uses the job `GITHUB_TOKEN` (writes do not re-trigger).
 
 ## Usage
 
@@ -46,7 +46,7 @@ Category filtering is applied after tool runs and deduplication in [scripts/obs/
 ## Configuration
 
 - Workflow-level `permissions`: `contents: read`.
-- Job `scan` permissions: `actions: read`, `contents: read`, `pull-requests: read`, `id-token: write`.
+- Job `scan` permissions: `actions: read`, `contents: read`, `issues: write`, `pull-requests: read`, `id-token: write`.
 - Client `trigger-obs-aw-schedule-daily.yml` must grant `id-token: write` on the schedule orchestrator job.
 - zizmor `unpinned-uses` policy: [`.github/zizmor.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/zizmor.yml) allows `ref-pin` for trusted namespaces `actions/*` and `elastic/*`; other `uses:` must be hash-pinned. The scan script applies that file with `--config` (optional override: `ZIZMOR_CONFIG`).
 

@@ -59,14 +59,9 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
-      - name: Create ephemeral GitHub token (Vault auto policy)
-        id: create-token-auto
-        if: inputs.shared-token-policy == ''
-        uses: elastic/oblt-actions/github/create-token@v1
-
       - name: Supersede older security detector issues
         env:
-          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || steps.create-token-auto.outputs.token }}
+          GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           chmod +x _oblt-aw/scripts/obs/supersede-security-issues.sh
