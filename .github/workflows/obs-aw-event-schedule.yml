@@ -88,7 +88,7 @@ jobs:
       actions: read
       contents: read
       id-token: write
-      issues: read
+      issues: write
       pull-requests: read
     uses: ./.github/workflows/obs-aw-security-injection-detector.yml
     with:
@@ -109,7 +109,7 @@ jobs:
       actions: read
       contents: read
       id-token: write
-      issues: read
+      issues: write
       pull-requests: read
     uses: ./.github/workflows/obs-aw-security-supply-chain-detector.yml
     with:
@@ -130,7 +130,7 @@ jobs:
       actions: read
       contents: read
       id-token: write
-      issues: read
+      issues: write
       pull-requests: read
     uses: ./.github/workflows/obs-aw-security-secrets-detector.yml
     with:
@@ -151,7 +151,7 @@ jobs:
       actions: read
       contents: read
       id-token: write
-      issues: read
+      issues: write
       pull-requests: read
     uses: ./.github/workflows/obs-aw-security-least-privilege-detector.yml
     with:
