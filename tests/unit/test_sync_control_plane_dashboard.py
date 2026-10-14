@@ -131,8 +131,16 @@ class TestWorkflowTableName:
         assert scpd.workflow_table_name(
             "Dependency Review", "docs/workflows/obs-aw-dependency-review.md"
         ) == (
-            "[Dependency Review](https://github.com/elastic/oblt-aw/blob/main/"
-            "docs/workflows/obs-aw-dependency-review.md)"
+            "[Dependency Review](https://docs-v3-preview.elastic.dev/"
+            "workflows/obs-aw-dependency-review)"
+        )
+
+    def test_links_user_guide_docs_to_codex(self) -> None:
+        assert scpd.workflow_table_name(
+            "Automerge", "docs/user-guide/automerge-services.md"
+        ) == (
+            "[Automerge](https://docs-v3-preview.elastic.dev/"
+            "user-guide/automerge-services)"
         )
 
     def test_returns_plain_name_when_docs_missing(self) -> None:
@@ -251,8 +259,8 @@ class TestBuildDashboardBody:
         assert "🟢 stable" in body
         assert "### Observability (obs)" in body
         assert (
-            "[Agent Suggestions](https://github.com/elastic/oblt-aw/blob/main/"
-            "docs/workflows/obs-aw-agent-suggestions.md)"
+            "[Agent Suggestions](https://docs-v3-preview.elastic.dev/"
+            "workflows/obs-aw-agent-suggestions)"
         ) in body
 
     def test_builds_plain_workflow_name_when_docs_absent(self) -> None:

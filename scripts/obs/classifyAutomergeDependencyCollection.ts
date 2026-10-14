@@ -22,6 +22,8 @@ const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate --
 const AUTOMERGE_PARENT_COMPOUND_ID = 'obs:automerge';
 const AUTOMERGE_SERVICES_GUIDE_URL =
   'https://github.com/elastic/oblt-aw/blob/main/docs/user-guide/automerge-services.md';
+const OPT_IN_OPT_OUT_GUIDE_URL =
+  'https://docs-v3-preview.elastic.dev/user-guide/opt-in-opt-out';
 
 /** @typedef {object} DependencyCollection
  * @property {string} id
@@ -192,6 +194,8 @@ function buildGateCommentBody(outcome, changedFiles, enabledCollectionIds) {
     reason,
     '',
     nextStep,
+    '',
+    `See [Opt in or opt out](${OPT_IN_OPT_OUT_GUIDE_URL}) for how to enable or disable Automerge collections on the Control Plane Dashboard.`,
     '',
     `Collections currently enabled for automerge: ${enabledList}`,
     '',

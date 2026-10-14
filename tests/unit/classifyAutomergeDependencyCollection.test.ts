@@ -545,4 +545,5 @@ test('buildGateCommentBody includes disabled collection and enabled list', () =>
   assert.match(body, /dependency-collection-gate/);
   assert.match(body, /Control Plane Dashboard/);
   assert.match(body, /docs\/user-guide\/automerge-services\.md/);
+  assert.match(body, /docs-v3-preview\.elastic\.dev\/user-guide\/opt-in-opt-out/);
 });
