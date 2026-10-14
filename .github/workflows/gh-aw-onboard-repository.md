@@ -41,15 +41,17 @@ checkout:
   - fetch-depth: 0
   - repository: elastic/catalog-info
     path: repos/catalog-info
-    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+    github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   - repository: elastic/observability-github-settings
     path: repos/observability-github-settings
-    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+    github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   - repository: elastic/observability-github-secrets
     path: repos/observability-github-secrets
-    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+    github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 tools:
   github:
+    # Prefer OIDC create-token output, then MCP/secret fallbacks (gh-aw >= v0.89.21).
+    github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     toolsets: [repos, issues, pull_requests, search, actions]
     allowed-repos:
       - "elastic/oblt-aw"
@@ -63,9 +65,8 @@ network:
     - "docs.elastic.dev"
 safe-outputs:
   activation-comments: false
-  report-failed-jobs: false
-  # Compile-time secrets chain; scripts/wire_ephemeral_token.py prefers create-token output.
-  github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+  # Prefer OIDC create-token output, then secrets (gh-aw >= v0.89.21).
+  github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   add-comment:
     max: 2
     issues: true

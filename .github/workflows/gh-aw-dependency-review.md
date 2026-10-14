@@ -67,6 +67,8 @@ permissions:
   id-token: write
 tools:
   github:
+    # Prefer OIDC create-token output, then MCP/secret fallbacks (gh-aw >= v0.89.21).
+    github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     # Override obs-defaults trusted-users so bot authors in on.bots are trusted.
     trusted-users: "dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-renovate-prod[bot],elastic-vault-github-plugin-prod[bot],github-actions[bot],mergify[bot]"
     toolsets: [repos, issues, pull_requests, search, actions]
@@ -74,8 +76,8 @@ tools:
   web-fetch:
 safe-outputs:
   activation-comments: false
-  # Also listed in obs-defaults; gh-aw v0.88.7 does not merge report-failed-jobs from imports.
-  report-failed-jobs: false
+  # Prefer OIDC create-token output, then secrets (gh-aw >= v0.89.21).
+  github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 strict: false
 timeout-minutes: 60
 steps:
