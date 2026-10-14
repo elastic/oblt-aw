@@ -4,9 +4,10 @@ name: E2E — PR Actions Detective
 # Live happy path only: intentional failed Actions run → workflow_run → agent.
 # Reuses one long-lived fixture PR (label e2e:pr-actions-detective,
 # branch e2e/pr-actions-detective); creates it if missing; never closes it.
-# Fixture Contents writes use the Vault app token (OIDC create-token from
-# config/e2e.json) so pull_request workflow_run events fire and bot-authored
-# fixture PRs are not held by the github-actions[bot] approval gate.
+# Fixture Contents writes use the Vault app token (OIDC create-token using
+# workflow-token-policy from config/e2e.json or config/release.json) so
+# pull_request workflow_run events fire and bot-authored fixture PRs are not
+# held by the github-actions[bot] approval gate.
 # Not part of the default PR required gate in ci.yml.
 on:
   workflow_dispatch:
@@ -71,17 +72,28 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
 
-      # Shared E2E Vault role in config/e2e.json (wildcard e2e-*.yml policy
-      # requires an explicit token-policy input; do not reuse trigger-obs-aw-*).
+      # Vault role from config/e2e.json (direct e2e-*.yml dispatch) or
+      # config/release.json (nested under aw-release-promote.yml). Wildcard
+      # policies require an explicit token-policy input; do not reuse
+      # trigger-obs-aw-*.
       - name: Resolve E2E Vault token policy
         id: token-policy
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
           set -euo pipefail
-          POLICY="$(jq -r '."workflow-token-policy" // empty' config/e2e.json)"
+          promote_prefix="elastic/oblt-aw/.github/workflows/aw-release-promote.yml@"
+          if [[ "${WORKFLOW_REF}" == "${promote_prefix}"* ]]; then
+            config_path="config/release.json"
+          else
+            config_path="config/e2e.json"
+          fi
+          POLICY="$(jq -r '."workflow-token-policy" // empty' "${config_path}")"
           if [[ -z "${POLICY}" ]]; then
-            echo "::error::Missing non-empty workflow-token-policy in config/e2e.json"
+            echo "::error::Missing non-empty workflow-token-policy in ${config_path}"
             exit 1
           fi
+          echo "Resolved ${config_path} workflow-token-policy=${POLICY} (workflow_ref=${WORKFLOW_REF})"
           echo "token-policy=${POLICY}" >> "${GITHUB_OUTPUT}"
 
       - name: Create ephemeral GitHub token (Vault app)
