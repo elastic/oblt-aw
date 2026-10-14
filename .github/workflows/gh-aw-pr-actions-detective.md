@@ -48,8 +48,6 @@ tools:
   web-fetch:
 safe-outputs:
   activation-comments: false
-  # Also listed in obs-defaults; report-failed-jobs still does not merge from imports.
-  report-failed-jobs: false
 strict: false
 timeout-minutes: 60
 steps:

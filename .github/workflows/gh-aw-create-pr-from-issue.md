@@ -65,8 +65,6 @@ tools:
 strict: false
 safe-outputs:
   activation-comments: false
-  # Also listed in obs-defaults; gh-aw v0.88.7 does not merge report-failed-jobs from imports.
-  report-failed-jobs: false
   max-patch-size: 10240
   add-comment:
     max: 1

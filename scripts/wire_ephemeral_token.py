@@ -14,11 +14,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Wire minted create-token outputs into compiled GH-AW lock files.
+"""Wire residual minted-token env bindings into compiled GH-AW lock files.
 
-The gh-aw compiler rejects mixed steps.* || secrets.* github-token expressions.
-This post-process prefers create-token step outputs, then caller secrets, then
-GITHUB_TOKEN. It also adds id-token: write to jobs that mint tokens.
+Frontmatter may declare mixed steps.* || secrets.* github-token expressions
+(gh-aw >= v0.89.21). The compiler still emits some secrets-only env bindings
+(GH_AW_GITHUB_TOKEN, SECRET_*, checkout GH_TOKEN). This post-process prefers
+create-token step outputs on those lines inside minting jobs, and adds
+id-token: write to jobs that mint tokens.
 
 Lock files are processed when they contain a create-token step (for example from
 gh-aw-fragments/ephemeral-github-token.md) or a github-token-policy

@@ -14,9 +14,11 @@
 # Importing workflows must set one of those env vars (workflow- or job-level)
 # and grant permissions.id-token: write.
 #
-# The compiler only accepts a single secrets.* chain or a single steps.*.outputs.*
-# expression for github-token, so scripts/wire_ephemeral_token.py rewrites compiled
-# lock files to prefer the minted step outputs before GH_AW_GITHUB_TOKEN / GITHUB_TOKEN.
+# Author mixed github-token expressions in the importing workflow (gh-aw >= v0.89.21):
+#   ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+# (and the MCP chain for tools.github.github-token). make compile-aw still runs
+# scripts/wire_ephemeral_token.py for compiler-emitted env token bindings and to add
+# id-token: write on minting jobs.
 #
 # Resolve + create-token steps are defined once (YAML anchors) and reused per job.
 jobs:
