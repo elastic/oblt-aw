@@ -57,7 +57,7 @@ Use this dashboard to enable or disable agentic workflows for this repository. C
 
 | Workflow | Maturity | Description |
 |----------|----------|-------------|
-| [Agent Suggestions](https://github.com/elastic/oblt-aw/blob/main/docs/workflows/obs-aw-agent-suggestions.md) | 🟠 experimental | … inner-workflows: `obs-aw-agent-suggestions.yml` |
+| [Agent Suggestions](https://docs-v3-preview.elastic.dev/workflows/obs-aw-agent-suggestions) | 🟠 experimental | … inner-workflows: `obs-aw-agent-suggestions.yml` |
 
 #### Enable / Disable
 
@@ -178,7 +178,7 @@ To extract enabled workflows from the issue body (when a Control Plane dashboard
 
 | Column | Description |
 |--------|-------------|
-| **Workflow** | Human-readable name from the org’s `workflow-registry.json`. When the entry sets `docs` (repo-relative path under `docs/workflows/`), the name is a Markdown link to `https://github.com/elastic/oblt-aw/blob/main/<docs>` |
+| **Workflow** | Human-readable name from the org’s `workflow-registry.json`. When the entry sets `docs` (repo-relative path under `docs/`, for example `docs/workflows/…` or `docs/user-guide/…`), the name is a Markdown link to the Codex page (`https://docs-v3-preview.elastic.dev/<path-without-docs-prefix-or-.md>`) |)
 | **Maturity** | `stable`, `early-adoption`, or `experimental` (from the org’s `workflow-registry.json`) |
 | **Description** | Short description from the org’s `workflow-registry.json`, followed by `inner-workflows:` and backtick-quoted wrapper basenames (parent `inner_workflows` then each sub-feature’s list, de-duplicated). Those basenames are the keys consumers use under `x-oblt-aw.<org-key>.workflows.<id>.inner-workflows` in `apm.yml`. Child checkbox labels may also append a concise service description for readability. |
 

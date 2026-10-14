@@ -60,7 +60,7 @@ from dashboard_audit import AUDIT_TEAM_MENTION, post_sync_checkbox_audits
 
 DASHBOARD_LABEL = "oblt-aw/dashboard"
 DASHBOARD_TITLE = "[oblt-aw] Control Plane Dashboard"
-DOCS_BASE_URL = "https://github.com/elastic/oblt-aw/blob/main/"
+CODEX_DOCS_BASE_URL = "https://docs-v3-preview.elastic.dev/"
 SYNC_AUDIT_ACTOR = "oblt-aw-sync"
 FORCE_SYNC_REASON = "force-sync-defaults"
 DASHBOARD_SYNC_REASON = "dashboard-sync"
@@ -92,6 +92,17 @@ def maturity_badge(maturity: str) -> str:
     return badges.get(maturity, maturity)
 
 
+def codex_docs_url(docs_path: str) -> str:
+    """Map a repo-relative docs path to the published Codex URL.
+
+    ``docs/workflows/foo.md`` → ``https://docs-v3-preview.elastic.dev/workflows/foo``
+    """
+    path = docs_path.strip()
+    path = path.removeprefix("docs/")
+    path = path.removesuffix(".md")
+    return f"{CODEX_DOCS_BASE_URL}{path}"
+
+
 def workflow_table_name(name: str, docs: str | None) -> str:
     """Return the Workflow column cell, linking to official docs when set."""
     if not docs:
@@ -99,7 +110,7 @@ def workflow_table_name(name: str, docs: str | None) -> str:
     docs_path = docs.strip()
     if not docs_path:
         return name
-    return f"[{name}]({DOCS_BASE_URL}{docs_path})"
+    return f"[{name}]({codex_docs_url(docs_path)})"
 
 
 def collect_inner_workflows(workflow: dict[str, Any]) -> list[str]:
