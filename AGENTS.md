@@ -6,6 +6,12 @@
 2. **After workflow markdown changes**: if you change a `.md` file under `.github/workflows/`, run `make compile-aw-check` before pushing.
 3. **Do not add generated lock files to .gitignore**: never add `.lock.yml` files to `.gitignore`.
 
+## Copilot review policy layout
+
+- The bundled review baseline is split verbatim across `.github/instructions/review-policy-core.instructions.md`, `.github/instructions/review-policy-security.instructions.md`, and `.github/instructions/review-policy-tests.instructions.md`. Keep every Copilot instruction file below 4,000 characters.
+- `.github/copilot-instructions.md` is intentionally a short index. The `# High-signal code review policy` heading and `configure-ai-review:split-baseline` markers identify the split layout; do not add the complete baseline to the index.
+- The current `configure-ai-review` reconciliation logic does not recognize this split layout and may report an ambiguous legacy baseline. Preserve the split files and do not accept a reconciliation change that reinserts the full baseline into the index.
+
 ## Client entrypoint changes
 
 Use **[`.github/remote-workflow-template/`](.github/remote-workflow-template/)** as the source for distributed client workflows (per org subtree, for example `obs/.github/workflows/trigger-obs-aw-<workflow-id>.yml`, `docs/.github/workflows/trigger-docs-aw-*.yml`). Distribute installs those files into active repositories, including this control-plane repo when listed in `active-repositories.json` (pilot / `@main` early detection). See [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md), [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
