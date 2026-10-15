@@ -13,6 +13,8 @@ imports:
   - gh-aw-fragments/safe-output-add-comment-pr-hide-older.md
 engine:
   id: copilot
+  # Required on gh-aw >= v0.91.x: BYOK Copilot disables native web-fetch unless SDK mode is on.
+  copilot-sdk: true
 on:
   stale-check: false
   workflow_call:

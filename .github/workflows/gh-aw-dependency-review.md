@@ -16,6 +16,8 @@ imports:
   - gh-aw-fragments/obs-defaults.md
 engine:
   id: copilot
+  # Required on gh-aw >= v0.91.x: BYOK Copilot disables native web-fetch unless SDK mode is on.
+  copilot-sdk: true
   concurrency:
     group: "gh-aw-copilot-${{ github.workflow }}-dependency-review-${{ github.event.pull_request.number }}"
 on:
