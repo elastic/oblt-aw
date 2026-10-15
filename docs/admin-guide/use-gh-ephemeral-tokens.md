@@ -19,7 +19,7 @@ Per-repository entries in `config/<org-key>/active-repositories.json` include:
 |-------|---------|
 | `ai-assets-token-policy` | Policy for private APM package clones during [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md). Use `""` when the job `GITHUB_TOKEN` is sufficient. |
 | `pin-class` | `development` installs pin client `uses:` at `@main`; `production` installs pin at `tags.current` after the first promote. `elastic/oblt-aw` must be `development`. |
-| `workflow-token-policy` | Explicit Backstage policy name for agentic workflow `create-token` steps (exposed as `shared-token-policy` via [aw-prelude](../workflows/aw-prelude.md)). Use `""` when Vault auto policy applies per trigger workflow ref. |
+| `workflow-token-policy` | Explicit Backstage policy name for agentic workflow `create-token` steps (exposed as `shared-token-policy` via [aw-prelude](../workflows/aw-prelude.md)). Use `""` only when callers should skip minting and use the job `GITHUB_TOKEN` (no re-trigger / no Vault app identity). New consumers need a non-empty value plus a catalog TokenPolicy whenever ephemeral tokens are required. |
 
 Example registration object shape:
 
@@ -64,7 +64,7 @@ See the reference table in [Registering resources — appendix](../onboarding/re
 
 ## Example: workflow without repository secrets
 
-[obs-aw-security-detector](../workflows/obs-aw-security-detector.md) declares no `secrets` on `workflow_call`. Issue creation uses an ephemeral token so downstream issue-triggered workflows can run. The client template must include `id-token: write` on the client entrypoint job (for example `run-obs-aw-pull-request`).
+[obs-aw-security-detector](../workflows/obs-aw-security-detector.md) declares no `secrets` on `workflow_call`. When `shared-token-policy` is set, issue creation mints an ephemeral token so downstream issue-triggered workflows can run; when empty, it uses `GITHUB_TOKEN` (no re-trigger). The client template must include `id-token: write` on the client entrypoint job (for example `run-obs-aw-pull-request`) whenever minting is used.
 
 ## Nested GH-AW lock workflows
 
