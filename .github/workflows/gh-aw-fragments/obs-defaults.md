@@ -25,4 +25,6 @@ Failure reporting: `report-failure-as-issue` and `report-failed-jobs` are off, a
 
 Note: `on.bots` cannot be declared in a shared fragment; pin bot actors on each workflow that needs them (for example `github-actions[bot]` and `buildkite-limited-access[bot]`).
 
-Note: gh-aw v0.89.21 merges imported `report-failed-jobs` into the main workflow `safe-outputs`; do not repeat it on importing workflows. Do not declare a bare `noop:` on the main workflow; that overrides this fragment and restores `report-as-issue: true`.
+Note: gh-aw merges imported `report-failed-jobs` into the main workflow `safe-outputs`; do not repeat it on importing workflows. Do not declare a bare `noop:` on the main workflow; that overrides this fragment and restores `report-as-issue: true`.
+
+Note: on gh-aw >= v0.91.x, Copilot BYOK is the default and native `tools.web-fetch` needs `engine.copilot-sdk: true` on each importing workflow that declares `web-fetch`.

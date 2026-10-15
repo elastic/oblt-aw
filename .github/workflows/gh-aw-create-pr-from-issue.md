@@ -17,6 +17,8 @@ imports:
   - gh-aw-fragments/obs-defaults.md
 engine:
   id: copilot
+  # Required on gh-aw >= v0.91.x: BYOK Copilot disables native web-fetch unless SDK mode is on.
+  copilot-sdk: true
   concurrency:
     group: "gh-aw-copilot-${{ github.workflow }}-create-pr-from-issue-${{ inputs.target-issue-number }}"
   # Wider than defaults so short Copilot CAPI 502 / proxy outages can clear
