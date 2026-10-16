@@ -134,11 +134,11 @@ Prefer stronger, cheaper checks first:
 When a live harness opens a fixture pull request:
 
 1. **Default to draft** (`gh pr create --draft`, and convert on reuse/reopen) when the under-test path does **not** require a ready-for-review PR. Draft fixtures avoid automatic CODEOWNERS review requests.
-2. **Keep ready** only when a production gate excludes drafts. Today that is `obs:automerge` ([`scripts/obs/validateAutomergePr.ts`](../../scripts/obs/validateAutomergePr.ts)). Document the exception next to the create call.
+2. **Keep ready** only when a production gate excludes drafts. Today that is `obs:automerge` ([`scripts/obs/validateAutomergePr.ts`](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/validateAutomergePr.ts)). Document the exception next to the create call.
 3. **Do not** apply a global “always draft” helper without an opt-out for automerge-style paths.
 4. Agent-created PRs (for example autodoc fix PRs) follow the agentic workflow `draft:` setting; they are outside this harness fixture rule.
 
-Shared helper: [`scripts/obs/e2e/e2e_fixture_pr.py`](../../scripts/obs/e2e/e2e_fixture_pr.py) (`ensure_pr_is_draft`).
+Shared helper: [`scripts/obs/e2e/e2e_fixture_pr.py`](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/e2e/e2e_fixture_pr.py) (`ensure_pr_is_draft`).
 
 | Live harness | Fixture PR |
 |--------------|------------|
