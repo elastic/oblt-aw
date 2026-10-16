@@ -18,8 +18,10 @@ This workflow creates or updates the **single** Control Plane dashboard issue in
 Triggers:
 
 - `push` to `main` when any of these paths change:
-  - `config/**/workflow-registry.json` and `config/**/active-repositories.json` (per-org trees)
   - [.github/workflows/sync-control-plane-dashboard.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard.yml)
+  - `config/**/active-repositories.json` and `config/**/workflow-registry.json` (per-org trees)
+  - `scripts/common.py` (checkbox markers and parsing used in the issue body)
+  - `scripts/sync_control_plane_dashboard.py` (dashboard body builder)
 - `workflow_dispatch` with optional input `force-sync-defaults` (boolean, default `false`)
 
 *Note: Editing the Control Plane dashboard issue does not trigger this sync workflow. Runtime opt-in/opt-out is still read by the ingress (`get-enabled-workflows`). Checkbox edits on the Control Plane dashboard do trigger the shared [aw-dashboard-audit](aw-dashboard-audit.md) path via consumer `issues.edited` routing. Sync-driven checkbox resets (including `force-sync-defaults`) also post audit comments from this script with a fixed automation reason.*
