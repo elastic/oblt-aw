@@ -254,6 +254,74 @@ def seed_fixture_marker(repo: str, *, branch: str) -> None:
     )
 
 
+def _ensure_fixture_branch_ahead(repo: str, *, branch: str, base: str) -> None:
+    """Ensure ``branch`` has commits not on ``base`` so ``gh pr create`` can open a PR.
+
+    Marker seeding is a no-op when remote content already matches ``MARKER_BODY``.
+    A long-lived fixture branch can then sit behind (or equal to) ``base`` with
+    ``ahead_by: 0``, which GitHub rejects as a PR head. Create an empty tip
+    commit via the Git Data API without changing tree contents.
+    """
+    compare = gh_json(["api", f"repos/{repo}/compare/{base}...{branch}"])
+    if not isinstance(compare, dict):
+        raise TypeError(
+            f"Unexpected compare response for {base}...{branch} on {repo}: "
+            f"{type(compare).__name__}"
+        )
+    ahead_by = int(compare.get("ahead_by") or 0)
+    if ahead_by >= 1:
+        return
+
+    log_info(
+        f"Fixture branch {branch} is not ahead of {base} (ahead_by={ahead_by}); "
+        "creating empty tip commit so gh can open the fixture PR."
+    )
+    tip_sha = gh_text(
+        ["api", f"repos/{repo}/git/ref/heads/{branch}", "--jq", ".object.sha"]
+    ).strip()
+    if not tip_sha:
+        raise RuntimeError(f"Missing tip SHA for {repo}@{branch}")
+    tree_sha = gh_text(
+        ["api", f"repos/{repo}/git/commits/{tip_sha}", "--jq", ".tree.sha"]
+    ).strip()
+    if not tree_sha:
+        raise RuntimeError(f"Missing tree SHA for tip {tip_sha} on {repo}@{branch}")
+
+    new_commit = gh_json(
+        [
+            "api",
+            "--method",
+            "POST",
+            f"repos/{repo}/git/commits",
+            "-f",
+            "message=chore(e2e): tip commit for PR Actions Detective fixture PR",
+            "-f",
+            f"tree={tree_sha}",
+            "-f",
+            f"parents[]={tip_sha}",
+        ]
+    )
+    if not isinstance(new_commit, dict):
+        raise TypeError(
+            f"Unexpected git/commits response for {repo}@{branch}: "
+            f"{type(new_commit).__name__}"
+        )
+    new_sha = str(new_commit.get("sha") or "").strip()
+    if not new_sha:
+        raise RuntimeError(f"Empty tip commit response missing sha for {repo}@{branch}")
+    gh_json(
+        [
+            "api",
+            "--method",
+            "PATCH",
+            f"repos/{repo}/git/refs/heads/{branch}",
+            "-f",
+            f"sha={new_sha}",
+        ]
+    )
+    log_info(f"Updated {repo}@{branch} tip to {new_sha} (empty commit).")
+
+
 def load_e2e_config(path: Path) -> dict[str, Any]:
     data = _load_json(path)
     if not isinstance(data, dict):
@@ -514,6 +582,9 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         )
 
     seed_fixture_marker(repo, branch=branch)
+    # Marker seed may be a no-op; GitHub still requires the head tip to be
+    # ahead of base before ``gh pr create`` succeeds.
+    _ensure_fixture_branch_ahead(repo, branch=branch, base=default_branch)
 
     # Draft by default: detective path only needs an open PR; draft avoids
     # CODEOWNERS review requests on the long-lived fixture.
@@ -596,9 +667,11 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
 
     matched = _list_prs_by_head(repo, branch=branch, state="open", limit=5)
     if not matched:
+        detail = create_out.strip()
         raise RuntimeError(
             f"Failed to ensure E2E PR on {repo} branch {branch}. "
             f"Create an open same-repo PR labeled {label!r}."
+            + (f" gh pr create: {detail}" if detail else "")
         )
     pr_number = int(matched[0]["number"])
     edit = subprocess.run(

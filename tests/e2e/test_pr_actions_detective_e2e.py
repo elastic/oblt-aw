@@ -587,10 +587,68 @@ class TestHarnessHelpers:
             is True
         )
 
+    def test_ensure_fixture_branch_ahead_noop_when_already_ahead(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[list[str]] = []
+
+        def fake_gh_json(args: list[str], **_k: object) -> object:
+            calls.append(list(args))
+            if args[:1] == ["api"] and len(args) > 1 and "compare/" in args[1]:
+                return {"ahead_by": 1, "behind_by": 5}
+            raise AssertionError(f"unexpected gh_json args: {args}")
+
+        monkeypatch.setattr(harness, "gh_json", fake_gh_json)
+        harness._ensure_fixture_branch_ahead(
+            "elastic/oblt-aw",
+            branch=harness.FIXTURE_BRANCH,
+            base="main",
+        )
+        assert len(calls) == 1
+
+    def test_ensure_fixture_branch_ahead_creates_empty_tip(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        api_cmds: list[list[str]] = []
+
+        def fake_gh_json(args: list[str], **_k: object) -> object:
+            api_cmds.append(list(args))
+            if args[:1] == ["api"] and len(args) > 1 and "compare/" in args[1]:
+                return {"ahead_by": 0, "behind_by": 5}
+            if args[:3] == ["api", "--method", "POST"] and any(
+                "git/commits" in part for part in args
+            ):
+                assert "parents[]=tip-sha" in args
+                assert "tree=tree-sha" in args
+                return {"sha": "new-tip-sha"}
+            if args[:3] == ["api", "--method", "PATCH"]:
+                assert "sha=new-tip-sha" in args
+                return {}
+            raise AssertionError(f"unexpected gh_json args: {args}")
+
+        def fake_gh_text(args: list[str], **_k: object) -> str:
+            joined = " ".join(args)
+            if "git/ref/heads/" in joined:
+                return "tip-sha\n"
+            if "git/commits/" in joined:
+                return "tree-sha\n"
+            raise AssertionError(f"unexpected gh_text args: {args}")
+
+        monkeypatch.setattr(harness, "gh_json", fake_gh_json)
+        monkeypatch.setattr(harness, "gh_text", fake_gh_text)
+        harness._ensure_fixture_branch_ahead(
+            "elastic/oblt-aw",
+            branch=harness.FIXTURE_BRANCH,
+            base="main",
+        )
+        assert any(args[:3] == ["api", "--method", "POST"] for args in api_cmds)
+        assert any(args[:3] == ["api", "--method", "PATCH"] for args in api_cmds)
+
     def test_ensure_e2e_pr_create_uses_draft(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         create_cmds: list[list[str]] = []
+        ahead_calls: list[tuple[str, str, str]] = []
 
         def fake_gh_json(args: list[str], **_k: object) -> object:
             if args[:2] == ["pr", "view"]:
@@ -628,18 +686,23 @@ class TestHarnessHelpers:
                 return _Proc(0)
             return _Proc(0)
 
+        def fake_ahead(repo: str, *, branch: str, base: str) -> None:
+            ahead_calls.append((repo, branch, base))
+
         monkeypatch.setattr(harness, "gh_json", fake_gh_json)
         monkeypatch.setattr(harness, "gh_text", fake_gh_text)
         monkeypatch.setattr(harness.subprocess, "run", fake_run)
         monkeypatch.setattr(harness, "find_open_e2e_pr", lambda *_a, **_k: None)
         monkeypatch.setattr(harness, "_ensure_label", lambda *_a, **_k: None)
         monkeypatch.setattr(harness, "seed_fixture_marker", lambda *_a, **_k: None)
+        monkeypatch.setattr(harness, "_ensure_fixture_branch_ahead", fake_ahead)
         monkeypatch.setattr(harness, "ensure_pr_is_draft", lambda *_a, **_k: {})
 
         cfg = harness.load_e2e_config(ROOT / "config/obs/e2e-pr-actions-detective.json")
         pr = harness.ensure_e2e_pr("elastic/oblt-aw", cfg)
         assert int(pr["number"]) == 2100
         assert create_cmds and "--draft" in create_cmds[0]
+        assert ahead_calls == [("elastic/oblt-aw", harness.FIXTURE_BRANCH, "main")]
 
     def test_require_draft_fixture_pr_converts_ready_pr(
         self, monkeypatch: pytest.MonkeyPatch
