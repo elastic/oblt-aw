@@ -38,10 +38,14 @@ from typing import Any, cast
 
 import yaml  # type: ignore[import-untyped]
 
-# scripts/ siblings (e.g. get_enabled_workflows) when this file lives under scripts/obs/e2e/.
+# Same directory (e2e_fixture_pr) + scripts/ siblings when this file lives under scripts/obs/e2e/.
+_E2E_DIR = Path(__file__).resolve().parent
 _SCRIPTS_DIR = Path(__file__).resolve().parents[2]
-if str(_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS_DIR))
+for _path in (_E2E_DIR, _SCRIPTS_DIR):
+    if str(_path) not in sys.path:
+        sys.path.insert(0, str(_path))
+
+from e2e_fixture_pr import ensure_pr_is_draft
 
 WORKFLOW_ID = "obs:estc-pr-buildkite-detective"
 DEFAULT_CONFIG = Path("config/obs/e2e-estc-pr-buildkite-detective.json")
@@ -678,6 +682,13 @@ def _require_pr_label(repo: str, pr_number: int, label: str) -> dict[str, Any]:
     return pr
 
 
+def _require_draft_fixture_pr(repo: str, pr_number: int, label: str) -> dict[str, Any]:
+    """Require the fixture label and draft state (convert ready fixtures once)."""
+    pr = _require_pr_label(repo, pr_number, label)
+    ensure_pr_is_draft(repo, int(pr["number"]))
+    return pr
+
+
 def _find_closed_fixture_pr(
     repo: str, *, branch: str, label: str
 ) -> dict[str, Any] | None:
@@ -707,7 +718,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         )
     existing = find_open_e2e_pr(repo, label, branch=branch)
     if existing:
-        return _require_pr_label(repo, int(existing["number"]), label)
+        return _require_draft_fixture_pr(repo, int(existing["number"]), label)
 
     _ensure_label(repo, label)
     default_branch = gh_text(
@@ -775,6 +786,8 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
             put_args.extend(["-f", f"sha={sha}"])
     gh_json(put_args)
 
+    # Draft by default: ESTC does not require ready-for-review; draft avoids
+    # CODEOWNERS review requests on the long-lived fixture.
     create = subprocess.run(
         [
             "gh",
@@ -792,6 +805,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
             e2e_pr["body"],
             "--label",
             label,
+            "--draft",
         ],
         capture_output=True,
         text=True,
@@ -802,14 +816,14 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         # Prefer the create URL over label search (label index can lag).
         created_number = _pr_number_from_gh_output(create.stdout or create_out)
         if created_number is not None:
-            return _require_pr_label(repo, created_number, label)
+            return _require_draft_fixture_pr(repo, created_number, label)
     elif "already exists" not in create_out.lower():
         # Fall through to reopen / label recovery below.
         pass
 
     created = find_open_e2e_pr(repo, label, branch=branch)
     if created:
-        return _require_pr_label(repo, int(created["number"]), label)
+        return _require_draft_fixture_pr(repo, int(created["number"]), label)
 
     # Closed fixture PR on the same branch: reopen (create may have failed).
     closed = _find_closed_fixture_pr(repo, branch=branch, label=label)
@@ -851,8 +865,8 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
                 )
         reopened = find_open_e2e_pr(repo, label, branch=branch)
         if reopened:
-            return _require_pr_label(repo, int(reopened["number"]), label)
-        return _require_pr_label(repo, pr_number, label)
+            return _require_draft_fixture_pr(repo, int(reopened["number"]), label)
+        return _require_draft_fixture_pr(repo, pr_number, label)
 
     matched = _list_prs_by_head(repo, branch=branch, state="open", limit=5)
     if not matched:
@@ -877,7 +891,7 @@ def ensure_e2e_pr(repo: str, cfg: dict[str, Any]) -> dict[str, Any]:
         check=False,
     )
     if edit.returncode == 0:
-        return _require_pr_label(repo, pr_number, label)
+        return _require_draft_fixture_pr(repo, pr_number, label)
     raise RuntimeError(
         f"Failed to add label {label!r} to PR #{pr_number} on {repo}: "
         f"{(edit.stderr or edit.stdout or '').strip() or f'exit {edit.returncode}'}"

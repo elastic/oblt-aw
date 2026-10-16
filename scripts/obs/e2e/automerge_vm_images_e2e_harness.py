@@ -330,6 +330,7 @@ def create_bump_pr(
     body = str(e2e.get("body") or "").strip() or (
         "Ephemeral E2E fixture PR for obs:automerge:vm-images."
     )
+    # Intentionally ready (no --draft): validateAutomergePr excludes draft PRs.
     create = subprocess.run(
         [
             "gh",

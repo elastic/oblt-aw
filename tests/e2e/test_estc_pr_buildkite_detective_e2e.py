@@ -1251,7 +1251,7 @@ steps:
         )
         monkeypatch.setattr(
             harness,
-            "_require_pr_label",
+            "_require_draft_fixture_pr",
             lambda *_a, **_k: {
                 "number": 1959,
                 "url": "https://example.test/pr/1959",
@@ -1352,6 +1352,7 @@ steps:
         monkeypatch.setattr(harness.subprocess, "run", fake_run)
         monkeypatch.setattr(harness, "find_open_e2e_pr", fake_find_open)
         monkeypatch.setattr(harness, "_ensure_label", lambda *_a, **_k: None)
+        monkeypatch.setattr(harness, "ensure_pr_is_draft", lambda *_a, **_k: {})
 
         cfg = harness.load_e2e_config(
             ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
@@ -1359,6 +1360,7 @@ steps:
         pr = harness.ensure_e2e_pr("elastic/oblt-aw", cfg)
         assert int(pr["number"]) == 1959
         assert any(c[:3] == ["gh", "pr", "reopen"] for c in calls)
+        assert any(c[:3] == ["gh", "pr", "create"] and "--draft" in c for c in calls)
         head_filters = [
             args[args.index("--head") + 1]
             for args in calls
@@ -1433,11 +1435,19 @@ steps:
                 return _Proc(0)
             return _Proc(0)
 
+        create_cmds: list[list[str]] = []
+
+        def tracking_run(cmd: list[str], **_k: object) -> object:
+            if cmd[:3] == ["gh", "pr", "create"]:
+                create_cmds.append(list(cmd))
+            return fake_run(cmd, **_k)
+
         monkeypatch.setattr(harness, "gh_json", fake_gh_json)
         monkeypatch.setattr(harness, "gh_text", fake_gh_text)
-        monkeypatch.setattr(harness.subprocess, "run", fake_run)
+        monkeypatch.setattr(harness.subprocess, "run", tracking_run)
         monkeypatch.setattr(harness, "find_open_e2e_pr", lambda *_a, **_k: None)
         monkeypatch.setattr(harness, "_ensure_label", lambda *_a, **_k: None)
+        monkeypatch.setattr(harness, "ensure_pr_is_draft", lambda *_a, **_k: {})
 
         cfg = harness.load_e2e_config(
             ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
@@ -1446,6 +1456,7 @@ steps:
         assert int(pr["number"]) == 1965
         # Must not fall through to broken owner:branch list recovery.
         assert "elastic:e2e/estc-pr-buildkite-detective" not in list_heads
+        assert create_cmds and "--draft" in create_cmds[0]
 
     def test_ensure_e2e_pr_recovers_via_bare_head_when_create_url_missing(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1515,6 +1526,7 @@ steps:
         monkeypatch.setattr(harness.subprocess, "run", fake_run)
         monkeypatch.setattr(harness, "find_open_e2e_pr", lambda *_a, **_k: None)
         monkeypatch.setattr(harness, "_ensure_label", lambda *_a, **_k: None)
+        monkeypatch.setattr(harness, "ensure_pr_is_draft", lambda *_a, **_k: {})
 
         cfg = harness.load_e2e_config(
             ROOT / "config/obs/e2e-estc-pr-buildkite-detective.json"
@@ -1524,6 +1536,58 @@ steps:
         assert list_heads
         assert all(h == "e2e/estc-pr-buildkite-detective" for h in list_heads)
         assert "elastic:e2e/estc-pr-buildkite-detective" not in list_heads
+
+    def test_require_draft_fixture_pr_converts_ready_pr(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        draft_calls: list[tuple[str, int]] = []
+
+        monkeypatch.setattr(
+            harness,
+            "_require_pr_label",
+            lambda *_a, **_k: {
+                "number": 1959,
+                "url": "https://example.test/pr/1959",
+                "headRefName": "e2e/estc-pr-buildkite-detective",
+                "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
+            },
+        )
+
+        def fake_ensure(repo: str, pr_number: int) -> dict[str, object]:
+            draft_calls.append((repo, pr_number))
+            return {"number": pr_number, "isDraft": True}
+
+        monkeypatch.setattr(harness, "ensure_pr_is_draft", fake_ensure)
+        pr = harness._require_draft_fixture_pr(
+            "elastic/oblt-aw", 1959, "e2e:estc-pr-buildkite-detective"
+        )
+        assert int(pr["number"]) == 1959
+        assert draft_calls == [("elastic/oblt-aw", 1959)]
+
+    def test_require_draft_fixture_pr_fails_closed_when_convert_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "_require_pr_label",
+            lambda *_a, **_k: {
+                "number": 1959,
+                "labels": [{"name": "e2e:estc-pr-buildkite-detective"}],
+            },
+        )
+
+        def boom(_repo: str, _pr: int) -> dict[str, object]:
+            raise RuntimeError(
+                "Fixture PR #1959 on elastic/oblt-aw is ready for review and "
+                "converting to draft failed: boom. Convert it once with "
+                "`gh pr ready --undo 1959 --repo elastic/oblt-aw` and re-run."
+            )
+
+        monkeypatch.setattr(harness, "ensure_pr_is_draft", boom)
+        with pytest.raises(RuntimeError, match="converting to draft failed"):
+            harness._require_draft_fixture_pr(
+                "elastic/oblt-aw", 1959, "e2e:estc-pr-buildkite-detective"
+            )
 
     def test_ensure_failed_buildkite_uses_main_base_branch(
         self, monkeypatch: pytest.MonkeyPatch

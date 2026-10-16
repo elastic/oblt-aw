@@ -48,6 +48,7 @@ for _path in (_E2E_DIR, _SCRIPTS_DIR):
 # Reuse shared gh / Contents helpers from the ESTC harness and PR-route waiters
 # from the automerge harness.
 import automerge_vm_images_e2e_harness as automerge
+import e2e_fixture_pr
 import estc_pr_buildkite_detective_e2e_harness as estc
 
 WORKFLOW_ID = "obs:dependency-review"
@@ -436,6 +437,8 @@ def create_pin_bump_pr(
         )
         repo_owner = repo.partition("/")[0]
         head_ref = f"{repo_owner}:{branch}" if repo_owner else branch
+        # Draft by default: dependency-review does not exclude drafts; draft
+        # avoids CODEOWNERS review requests on the ephemeral fixture.
         create = subprocess.run(
             [
                 "gh",
@@ -453,6 +456,7 @@ def create_pin_bump_pr(
                 body,
                 "--label",
                 label,
+                "--draft",
             ],
             capture_output=True,
             text=True,
@@ -469,6 +473,7 @@ def create_pin_bump_pr(
                 f"Could not parse PR number from gh pr create: {create_out}"
             )
         created_pr = pr_number
+        e2e_fixture_pr.ensure_pr_is_draft(repo, pr_number)
 
         pr = estc.gh_json(
             [

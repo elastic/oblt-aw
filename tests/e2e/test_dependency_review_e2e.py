@@ -207,6 +207,9 @@ def test_create_pin_bump_pr_uses_explicit_owner_head_ref(
     monkeypatch.setattr(
         harness, "rest_pr_author_login", lambda _repo, _pr: harness.ALLOWED_AUTHOR
     )
+    monkeypatch.setattr(
+        harness.e2e_fixture_pr, "ensure_pr_is_draft", lambda *_a, **_k: {}
+    )
     monkeypatch.setattr(harness.subprocess, "run", fake_run)
 
     harness.create_pin_bump_pr("elastic/oblt-aw", cfg, run_id="run-1")
@@ -215,6 +218,7 @@ def test_create_pin_bump_pr_uses_explicit_owner_head_ref(
     assert (
         pr_create_cmd[head_idx + 1] == f"elastic:{harness.FIXTURE_BRANCH_PREFIX}run-1"
     )
+    assert "--draft" in pr_create_cmd
 
 
 def test_cleanup_fixture_pr_rejects_existing_branch_after_close(

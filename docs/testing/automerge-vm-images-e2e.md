@@ -29,6 +29,8 @@ Live E2E only against **`elastic/oblt-aw`**:
 
 CI for fixture PRs is skipped when the `ci-gate` job in [`ci.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/ci.yml) sets `skip=true` (any same-repo PR with an `e2e:*` label and a head ref under `e2e/`). Agentic pull-request routes are **not** skipped (unlike the ESTC fixture).
 
+**Fixture PR must stay ready (non-draft):** `validateAutomergePr` excludes drafts. Do not add `--draft` on create for this harness (see [Fixture PR draft policy](../architecture/agentic-workflow-testing-platform.md#fixture-pr-draft-policy)).
+
 ## How to run
 
 ### GitHub Actions (preferred)
