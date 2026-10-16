@@ -38,7 +38,7 @@ jobs:
         (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
         github.event_name == 'workflow_dispatch'
       )
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     permissions:
       actions: read
@@ -100,7 +100,7 @@ jobs:
       github.event.comment.user.login == 'github-actions[bot]' &&
       contains(github.event.comment.body, '<!-- docs-pr-ai-menu:start -->') &&
       contains(github.event.comment.body, '<!-- docs-pr-ai-menu:end -->')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     permissions:
       contents: read
@@ -132,7 +132,7 @@ jobs:
     name: Refresh AI PR menu after trigger
     needs: [evaluate-trigger]
     if: needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     permissions:
       checks: read
@@ -197,7 +197,7 @@ jobs:
     name: Refresh AI PR menu after docs review
     needs: [evaluate-trigger, run-docs-review]
     if: always() && needs.evaluate-trigger.outputs.docs_review_triggered == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     permissions:
       checks: read
