@@ -45,7 +45,7 @@ DEFAULT_CONFIG = Path("config/obs/e2e-pr-actions-detective.json")
 MARKER_PATH = "testdata/agentic/pr-actions-detective/e2e-fixture-pr.md"
 MARKER_BODY = (
     "# E2E fixture PR\n\n"
-    "Kept open for live `workflow_run` → agent E2E of "
+    "Kept open for live `workflow_run` → agent E2E of\n"
     "`obs:pr-actions-detective`. Do not merge.\n"
 )
 TRIGGER_PATH = "testdata/agentic/pr-actions-detective/e2e-fail-trigger.md"

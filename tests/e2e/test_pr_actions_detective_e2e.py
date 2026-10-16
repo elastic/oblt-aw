@@ -98,6 +98,11 @@ def _evaluate(
 
 
 class TestHarnessHelpers:
+    def test_marker_body_matches_checked_in_fixture_file(self) -> None:
+        # Live seeding refuses overwrite when remote content differs from MARKER_BODY.
+        checked_in = (ROOT / harness.MARKER_PATH).read_text(encoding="utf-8")
+        assert harness.MARKER_BODY == checked_in
+
     def test_job_names_indicate_agent_ignores_wrapper_job(self) -> None:
         assert not harness._job_names_indicate_agent(
             {
