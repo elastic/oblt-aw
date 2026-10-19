@@ -131,7 +131,7 @@ class TestWorkflowTableName:
         assert scpd.workflow_table_name(
             "Dependency Review", "docs/workflows/obs-aw-dependency-review.md"
         ) == (
-            "[Dependency Review](https://docs-v3-preview.elastic.dev/"
+            "[Dependency Review](https://codex.elastic.dev/r/oblt-aw/"
             "workflows/obs-aw-dependency-review)"
         )
 
@@ -139,7 +139,7 @@ class TestWorkflowTableName:
         assert scpd.workflow_table_name(
             "Automerge", "docs/user-guide/automerge-services.md"
         ) == (
-            "[Automerge](https://docs-v3-preview.elastic.dev/"
+            "[Automerge](https://codex.elastic.dev/r/oblt-aw/"
             "user-guide/automerge-services)"
         )
 
@@ -259,7 +259,7 @@ class TestBuildDashboardBody:
         assert "🟢 stable" in body
         assert "### Observability (obs)" in body
         assert (
-            "[Agent Suggestions](https://docs-v3-preview.elastic.dev/"
+            "[Agent Suggestions](https://codex.elastic.dev/r/oblt-aw/"
             "workflows/obs-aw-agent-suggestions)"
         ) in body
 
