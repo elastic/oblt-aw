@@ -16,7 +16,7 @@
   "agent_comment_markers": [
     "## Remediation",
     "### TL;DR",
-    "From workflow: PR Actions Detective"
+    "From workflow: Observability Agentic Workflow — Workflow Run"
   ],
   "dashboard_workflow_id": "obs:pr-actions-detective"
 }

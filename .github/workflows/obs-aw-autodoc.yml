@@ -75,9 +75,73 @@ jobs:
     with:
       workflow-basename: obs-aw-autodoc.yml
 
+  # Fetch the audit issue outside the create-pr agent firewall (DIFC tags
+  # github-actions[bot] issues none:public). Verify producer identity, then
+  # merge resolve overlays + handoff for the fix agent prompt.
+  prepare-fix-instructions:
+    needs: [audit, resolve-apm-assets-fix]
+    if: inputs.shared-proceed == 'true' && needs.audit.outputs.created_issue_number != ''
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+    outputs:
+      additional-instructions: ${{ steps.prepare.outputs.additional_instructions }}
+    steps:
+      - name: Fetch trusted audit issue and merge fix instructions
+        id: prepare
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.audit.outputs.created_issue_number }}
+          RESOLVED: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
+          EXPECTED_AUTHOR: github-actions[bot]
+          EXPECTED_TITLE_PREFIX: "[oblt-aw][autodoc]"
+        run: |
+          set -euo pipefail
+          if [ -z "${ISSUE_NUMBER}" ]; then
+            echo "::error::audit created_issue_number is required for trusted handoff"
+            exit 1
+          fi
+          issue_json="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}")"
+          author="$(printf '%s\n' "${issue_json}" | jq -r '.user.login // empty')"
+          title="$(printf '%s\n' "${issue_json}" | jq -r '.title // empty')"
+          number="$(printf '%s\n' "${issue_json}" | jq -r '.number // empty')"
+          state="$(printf '%s\n' "${issue_json}" | jq -r '.state // empty')"
+          body="$(printf '%s\n' "${issue_json}" | jq -r '.body // empty')"
+          if [ "${number}" != "${ISSUE_NUMBER}" ]; then
+            echo "::error::Issue number mismatch (got ${number}, expected ${ISSUE_NUMBER})"
+            exit 1
+          fi
+          if [ "${author}" != "${EXPECTED_AUTHOR}" ]; then
+            echo "::error::Refuse audit handoff: author ${author@Q} is not ${EXPECTED_AUTHOR}"
+            exit 1
+          fi
+          case "${title}" in
+            "${EXPECTED_TITLE_PREFIX}"*) ;;
+            *)
+              echo "::error::Refuse audit handoff: title must start with ${EXPECTED_TITLE_PREFIX@Q} (got ${title@Q})"
+              exit 1
+              ;;
+          esac
+          if [ "${state}" != "open" ]; then
+            echo "::error::Refuse audit handoff: issue #${ISSUE_NUMBER} state is ${state@Q}, expected open"
+            exit 1
+          fi
+          {
+            echo "additional_instructions<<EOF_AUTODOC_FIX_INSTRUCTIONS"
+            printf '%s\n' "${RESOLVED}"
+            printf '\n## Trusted autodoc audit issue handoff\n\n'
+            printf -- '- **Repository**: %s\n' "${GITHUB_REPOSITORY}"
+            printf -- '- **Issue**: #%s\n' "${ISSUE_NUMBER}"
+            printf -- '- **Author**: %s\n' "${author}"
+            printf -- '- **Title**: %s\n\n' "${title}"
+            printf '### Issue body\n\n'
+            printf '%s\n' "${body}"
+            echo "EOF_AUTODOC_FIX_INSTRUCTIONS"
+          } >> "${GITHUB_OUTPUT}"
+
   # Step 2: Create a PR implementing the audit findings (only when an issue was created)
   fix:
-    needs: [audit, resolve-apm-assets-fix]
+    needs: [audit, prepare-fix-instructions]
     permissions:
       actions: read
       contents: write
@@ -92,7 +156,7 @@ jobs:
       # prompt (including top-level docs protected-files excludes) are
       # opinionated on the in-repo lock.
       target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
-      additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
+      additional-instructions: ${{ needs.prepare-fix-instructions.outputs.additional-instructions }}
     secrets: inherit
 
   # Step 3: Finalize autodoc PR — link audit issue for close-on-merge, assign reviewer, labels

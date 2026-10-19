@@ -72,6 +72,11 @@ WORKFLOW_RUN_DETECTIVE_CONCLUSION_LEAF_SUFFIX = (
 # negative evidence, never as a success substitute for the conclusion leaf.
 WORKFLOW_RUN_ROUTE_JOB_EXACT = ("run-obs-aw-workflow-run",)
 WORKFLOW_RUN_ROUTE_JOB_SUFFIXES = (" / run-obs-aw-workflow-run",)
+# Safe-output footer uses github.workflow on the workflow_run *caller*
+# (trigger-obs-aw-workflow-run.yml), not the nested lock display name.
+CALLER_WORKFLOW_FOOTER_IDENTITY = (
+    "From workflow: Observability Agentic Workflow — Workflow Run"
+)
 
 
 def _load_json(path: Path) -> Any:
@@ -1123,6 +1128,11 @@ def _text_mentions_run_id(text: str, run_id: int) -> bool:
     return re.search(rf"(?<!\d){rid}(?!\d)", text) is not None
 
 
+def _actions_run_url(repo: str, run_id: int) -> str:
+    """Canonical GitHub Actions run URL for ``owner/name`` + ``run_id``."""
+    return f"https://github.com/{repo}/actions/runs/{int(run_id)}"
+
+
 def _fixture_pr_comment_binds_fail_and_route(
     repo: str,
     fixture_pr_number: int,
@@ -1130,16 +1140,32 @@ def _fixture_pr_comment_binds_fail_and_route(
     fail_run_id: int,
     route_run_id: int,
 ) -> bool:
-    """True when a bot comment on the fixture PR cites both run ids."""
+    """True when a bot comment binds fail + route via full run URLs.
+
+    Fail-closed: the fail run URL must appear in the report body (before the
+    footer rule), and the candidate route run URL must appear in the generated
+    caller footer (``CALLER_WORKFLOW_FOOTER_IDENTITY``). Bare digit mentions or
+    related-link-only route ids do not correlate.
+    """
+    fail_url = _actions_run_url(repo, fail_run_id)
+    route_url = _actions_run_url(repo, route_run_id)
     for comment in _list_issue_comments(repo, fixture_pr_number):
         login = (comment.get("user") or {}).get("login")
         if not _is_bot_comment_author(login):
             continue
         body = str(comment.get("body") or "")
-        if _text_mentions_run_id(body, fail_run_id) and _text_mentions_run_id(
-            body, route_run_id
-        ):
-            return True
+        footer_idx = body.rfind("\n---\n")
+        if footer_idx < 0:
+            continue
+        report = body[:footer_idx]
+        footer = body[footer_idx:]
+        if CALLER_WORKFLOW_FOOTER_IDENTITY not in footer:
+            continue
+        if fail_url not in report:
+            continue
+        if route_url not in footer:
+            continue
+        return True
     return False
 
 

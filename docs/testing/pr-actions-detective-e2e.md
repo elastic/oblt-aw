@@ -12,7 +12,7 @@ Integration wiring (resolve → wrapper → lock inputs, no live model) lives un
 
 | Case id | Expectation |
 |---------|-------------|
-| `workflow-run-failure-open-pr-live` | Sync intentional fail workflow + bump trigger file on the fixture PR → fail workflow concludes `failure` → agent posts a comment (harness finds it via section markers plus the unique footer `From workflow: PR Actions Detective`; oracle asserts presence only) |
+| `workflow-run-failure-open-pr-live` | Sync intentional fail workflow + bump trigger file on the fixture PR → fail workflow concludes `failure` → agent posts a comment (harness finds it via section markers plus the caller footer `From workflow: Observability Agentic Workflow — Workflow Run`; oracle asserts presence only) |
 
 Oracle pass/fail for the agent side effect is **comment presence**. Section markers are **identity** for find/clear in the harness; asserting marker shape in the oracle is deferred. Agent prose content is out of scope.
 

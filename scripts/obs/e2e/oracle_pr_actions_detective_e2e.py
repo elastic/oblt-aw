@@ -86,8 +86,11 @@ _LIVE_REQUIRED_EXPECTATION_BOOL_TRUE_KEYS = (
     "expect_agent_comment",
     "workflow_run_job_executed",
 )
-# Footer identity from messages-footer (github.workflow == "PR Actions Detective").
-_LIVE_REQUIRED_COMMENT_MARKER_SUBSTRING = "From workflow: PR Actions Detective"
+# Footer identity from messages-footer: github.workflow is the workflow_run
+# *caller* name (trigger-obs-aw-workflow-run.yml), not the nested lock name.
+_LIVE_REQUIRED_COMMENT_MARKER_SUBSTRING = (
+    "From workflow: Observability Agentic Workflow — Workflow Run"
+)
 _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "require_open_pr",
     "create_failed_actions_run",
