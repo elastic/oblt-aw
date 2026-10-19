@@ -60,7 +60,7 @@ from dashboard_audit import AUDIT_TEAM_MENTION, post_sync_checkbox_audits
 
 DASHBOARD_LABEL = "oblt-aw/dashboard"
 DASHBOARD_TITLE = "[oblt-aw] Control Plane Dashboard"
-CODEX_DOCS_BASE_URL = "https://docs-v3-preview.elastic.dev/"
+CODEX_DOCS_BASE_URL = "https://codex.elastic.dev/r/oblt-aw/"
 SYNC_AUDIT_ACTOR = "oblt-aw-sync"
 FORCE_SYNC_REASON = "force-sync-defaults"
 DASHBOARD_SYNC_REASON = "dashboard-sync"
@@ -95,7 +95,7 @@ def maturity_badge(maturity: str) -> str:
 def codex_docs_url(docs_path: str) -> str:
     """Map a repo-relative docs path to the published Codex URL.
 
-    ``docs/workflows/foo.md`` → ``https://docs-v3-preview.elastic.dev/workflows/foo``
+    ``docs/workflows/foo.md`` → ``https://codex.elastic.dev/r/oblt-aw/workflows/foo``
     """
     path = docs_path.strip()
     path = path.removeprefix("docs/")
