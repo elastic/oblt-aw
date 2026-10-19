@@ -20,7 +20,6 @@ sys.path.insert(0, str(_root / "scripts"))
 WRAPPER_BASENAME = "obs-aw-autodoc.yml"
 LOCK_BASENAME = "gh-aw-create-pr-from-issue.lock.yml"
 RESOLVE_JOB = "resolve-apm-assets-fix"
-PREPARE_FIX_JOB = "prepare-fix-instructions"
 FIX_JOB = "fix"
 
 WRAPPER_PATH = _root / ".github" / "workflows" / WRAPPER_BASENAME
@@ -116,26 +115,6 @@ class TestAutodocCreatePrWrapperLockWiring:
             "workflow_call", {}
         ).get("inputs", {})
 
-    def test_prepare_fix_instructions_verifies_bot_audit_issue(self) -> None:
-        wrapper = _load_yaml(WRAPPER_PATH)
-        prepare = wrapper["jobs"][PREPARE_FIX_JOB]
-        needs = prepare.get("needs") or []
-        if isinstance(needs, str):
-            needs = [needs]
-        assert "audit" in needs
-        assert RESOLVE_JOB in needs
-        assert prepare.get("outputs", {}).get("additional-instructions") == (
-            "${{ steps.prepare.outputs.additional_instructions }}"
-        )
-        steps = prepare.get("steps") or []
-        assert steps, f"{PREPARE_FIX_JOB} must define steps"
-        run_text = "\n".join(str(step.get("run") or "") for step in steps)
-        env = steps[0].get("env") or {}
-        assert env.get("EXPECTED_AUTHOR") == "github-actions[bot]"
-        assert env.get("EXPECTED_TITLE_PREFIX") == "[oblt-aw][autodoc]"
-        assert "Trusted autodoc audit issue handoff" in run_text
-        assert "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" in run_text
-
     def test_fix_job_passes_minimal_inputs_to_in_repo_lock(self) -> None:
         wrapper = _load_yaml(WRAPPER_PATH)
         lock = _load_yaml(LOCK_PATH)
@@ -155,12 +134,16 @@ class TestAutodocCreatePrWrapperLockWiring:
         needs = fix.get("needs") or []
         if isinstance(needs, str):
             needs = [needs]
-        assert PREPARE_FIX_JOB in needs, (
-            f"{FIX_JOB} must need {PREPARE_FIX_JOB} for trusted audit handoff"
+        assert RESOLVE_JOB in needs, (
+            f"{FIX_JOB} must need {RESOLVE_JOB} so needs.*.outputs resolve at runtime"
+        )
+        assert "prepare-fix-instructions" not in wrapper["jobs"], (
+            "create-pr must read the audit issue via MCP; do not inject issue "
+            "bodies through prepare-fix-instructions / additional-instructions"
         )
         assert (
             with_block.get("additional-instructions")
-            == "${{ needs.prepare-fix-instructions.outputs.additional-instructions }}"
+            == "${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}"
         )
         assert (
             with_block.get("target-issue-number")
@@ -190,25 +173,26 @@ class TestAutodocCreatePrWrapperLockWiring:
 
 
 class TestCreatePrSafeOutputPolicy:
-    def test_source_keeps_approved_integrity_with_trusted_handoff(self) -> None:
+    def test_source_overrides_min_integrity_none_for_bot_audit_issues(self) -> None:
         source = SOURCE_PATH.read_text(encoding="utf-8")
-        assert "min-integrity: none" not in source, (
-            "create-pr-from-issue must not lower tools.github.min-integrity; "
-            "use the wrapper Trusted autodoc audit issue handoff instead"
+        assert "min-integrity: none" in source, (
+            "create-pr-from-issue must set tools.github.min-integrity: none so "
+            "github-actions[bot] audit issues are readable (DIFC tags them "
+            "none:public despite trusted-users; temporary until DIFC honors "
+            "trusted-users for bot-authored issues)"
         )
-        assert "Trusted autodoc audit issue handoff" in source
-        assert "obs-aw-autodoc.yml" in source
+        assert "Trusted autodoc audit issue handoff" not in source
+        assert "prepare-fix-instructions" not in source
 
     def test_compiled_lock_ready_for_review_docs_allowlist_and_excludes(self) -> None:
         assert LOCK_PATH.is_file(), f"missing compiled lock {LOCK_PATH}"
         assert SOURCE_PATH.is_file(), f"missing source {SOURCE_PATH}"
         lock_text = LOCK_PATH.read_text(encoding="utf-8")
-        assert "GH_AW_GITHUB_MIN_INTEGRITY: 'approved'" in lock_text, (
-            "compiled lock must keep GH_AW_GITHUB_MIN_INTEGRITY approved "
-            "(trusted audit handoff replaces MCP issue_read for bot issues)"
+        assert "GH_AW_GITHUB_MIN_INTEGRITY: 'none'" in lock_text, (
+            "compiled lock must set GH_AW_GITHUB_MIN_INTEGRITY to none "
+            "(create-pr must read github-actions[bot] audit issues via MCP)"
         )
-        assert "Trusted autodoc audit issue handoff" in lock_text
-        assert "Fetch trusted autodoc audit issue handoff" not in lock_text
+        assert "Trusted autodoc audit issue handoff" not in lock_text
         cfg = _first_safe_outputs_config(lock_text)
         create_pr = cfg.get("create_pull_request") or {}
         assert isinstance(create_pr, dict)

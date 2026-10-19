@@ -62,12 +62,13 @@ permissions:
 tools:
   github:
     toolsets: [repos, issues, pull_requests, search, actions]
-    # Keep obs-defaults min-integrity: approved. DIFC currently tags
-    # github-actions[bot] audit issues as none:public despite trusted-users, so
-    # the agent must not rely on MCP issue_read for the target body. The autodoc
-    # wrapper (obs-aw-autodoc.yml) fetches the issue outside the agent firewall,
-    # verifies producer identity, and injects a Trusted autodoc audit issue
-    # handoff block via additional-instructions.
+    # Temporary override of obs-defaults `approved`: DIFC currently tags
+    # github-actions[bot] audit issues as `none:public` (see DIFC_FILTERED
+    # integrity_tags) even when trusted-users lists that bot, so create-pr
+    # cannot read the target issue body under min-integrity: approved.
+    # Keep the normal architecture (agent reads #N via MCP). Remove this once
+    # DIFC honors trusted-users for bot-authored issues.
+    min-integrity: none
   bash: true
   web-fetch:
 strict: false
@@ -183,7 +184,7 @@ When `.oblt-aw.autodocignore` exists at the repository root, treat its patterns 
 
 ## Instructions
 
-1. Read the **Trusted autodoc audit issue handoff** block in the appended instructions first (issue #${{ inputs.target-issue-number }}). Treat that block as the authoritative requirements and acceptance criteria. Do **not** use GitHub MCP `issue_read` / issue search to re-fetch the target audit issue body — DIFC may filter `github-actions[bot]` issue content under `min-integrity: approved`.
+1. Read issue #${{ inputs.target-issue-number }} first to understand requirements and acceptance criteria.
 2. Investigate the relevant documentation paths and implement a focused docs-only fix for the issue.
 3. Run required repo checks (lint/build/test) relevant to your change when applicable. If required commands cannot run, explain why and do not open a PR.
 4. Call `ready_to_make_pr` and apply its checklist.
