@@ -348,6 +348,48 @@ class TestHarnessHelpers:
             fixture_pr_number=2399,
         )
 
+    def test_run_correlates_rejects_longer_run_id_url_prefixes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Substring URL checks must not treat run 42 as a match for /runs/420."""
+        body = (
+            "Evidence: https://github.com/elastic/oblt-aw/actions/runs/420\n"
+            "\n"
+            "---\n"
+            "[What is this?](https://github.com/elastic/oblt-aw/blob/main/README.md) | "
+            "[From workflow: Observability Agentic Workflow — Workflow Run]"
+            "(https://github.com/elastic/oblt-aw/actions/runs/990)\n"
+        )
+        monkeypatch.setattr(
+            harness,
+            "_list_issue_comments",
+            lambda *_a, **_k: [
+                {"user": {"login": "github-actions[bot]"}, "body": body}
+            ],
+        )
+        assert not harness._run_correlates_to_fail_run(
+            {
+                "databaseId": 99,
+                "headSha": "main-tip",
+                "displayTitle": "Observability Agentic Workflow — Workflow Run",
+                "url": "https://github.com/elastic/oblt-aw/actions/runs/99",
+            },
+            fail_run_id=42,
+            fail_head_sha="pr-head",
+            repo="elastic/oblt-aw",
+            fixture_pr_number=2399,
+        )
+        assert not harness._text_contains_actions_run_url(
+            "https://github.com/elastic/oblt-aw/actions/runs/420",
+            "elastic/oblt-aw",
+            42,
+        )
+        assert harness._text_contains_actions_run_url(
+            "https://github.com/elastic/oblt-aw/actions/runs/42)",
+            "elastic/oblt-aw",
+            42,
+        )
+
     def test_fixture_comment_correlation_populates_agent_comment(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

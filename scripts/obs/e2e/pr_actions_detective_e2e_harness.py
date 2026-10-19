@@ -1133,6 +1133,20 @@ def _actions_run_url(repo: str, run_id: int) -> str:
     return f"https://github.com/{repo}/actions/runs/{int(run_id)}"
 
 
+def _text_contains_actions_run_url(text: str, repo: str, run_id: int) -> bool:
+    """True when ``text`` contains the canonical Actions run URL with an ID boundary.
+
+    Rejects prefix false positives such as expected run ``42`` matching
+    ``/actions/runs/420`` (``"…/runs/42" in "…/runs/420"`` is true for a bare
+    substring check). Requires the next character after the URL not be a digit
+    so Markdown links like ``(…/runs/99)`` still match.
+    """
+    if not text:
+        return False
+    url = re.escape(_actions_run_url(repo, int(run_id)))
+    return re.search(rf"{url}(?!\d)", text) is not None
+
+
 def _fixture_pr_comment_binds_fail_and_route(
     repo: str,
     fixture_pr_number: int,
@@ -1144,11 +1158,9 @@ def _fixture_pr_comment_binds_fail_and_route(
 
     Fail-closed: the fail run URL must appear in the report body (before the
     footer rule), and the candidate route run URL must appear in the generated
-    caller footer (``CALLER_WORKFLOW_FOOTER_IDENTITY``). Bare digit mentions or
-    related-link-only route ids do not correlate.
+    caller footer (``CALLER_WORKFLOW_FOOTER_IDENTITY``). Bare digit mentions,
+    related-link-only route ids, or longer-ID URL prefixes do not correlate.
     """
-    fail_url = _actions_run_url(repo, fail_run_id)
-    route_url = _actions_run_url(repo, route_run_id)
     for comment in _list_issue_comments(repo, fixture_pr_number):
         login = (comment.get("user") or {}).get("login")
         if not _is_bot_comment_author(login):
@@ -1161,9 +1173,9 @@ def _fixture_pr_comment_binds_fail_and_route(
         footer = body[footer_idx:]
         if CALLER_WORKFLOW_FOOTER_IDENTITY not in footer:
             continue
-        if fail_url not in report:
+        if not _text_contains_actions_run_url(report, repo, fail_run_id):
             continue
-        if route_url not in footer:
+        if not _text_contains_actions_run_url(footer, repo, route_run_id):
             continue
         return True
     return False
