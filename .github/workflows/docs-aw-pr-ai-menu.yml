@@ -80,6 +80,7 @@ jobs:
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
 
+          persist-credentials: false
       - name: Create or update AI PR menu comment
         uses: actions/github-script@v9
         env:
@@ -119,6 +120,7 @@ jobs:
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
 
+          persist-credentials: false
       - name: Parse AI PR menu transition
         id: evaluate
         uses: actions/github-script@v9
@@ -154,6 +156,7 @@ jobs:
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
 
+          persist-credentials: false
       - name: Refresh AI PR menu status
         uses: actions/github-script@v9
         with:
@@ -219,6 +222,7 @@ jobs:
             scripts/docs/pr-menu
           sparse-checkout-cone-mode: true
 
+          persist-credentials: false
       - name: Refresh AI PR menu status
         uses: actions/github-script@v9
         env:
