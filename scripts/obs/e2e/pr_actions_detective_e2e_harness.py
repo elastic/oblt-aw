@@ -61,9 +61,22 @@ DEFAULT_FIXTURE_BODY = (
 FIXTURE_BRANCH = "e2e/pr-actions-detective"
 FIXTURE_LABEL = "e2e:pr-actions-detective"
 DEFAULT_FAIL_LOG_MARKER = "OBLT_AW_E2E_PR_ACTIONS_INTENTIONAL_FAILURE"
-# Caller trigger leaf job id (exact) and nested reusable display suffix.
+# Nested reusable display name for the PR Actions Detective lock terminal leaf on
+# the workflow_run caller (see trigger-obs-aw-workflow-run.yml). Parent
+# ``run-obs-aw-workflow-run`` alone never authorizes: GitHub expands the
+# reusable call into nested jobs and does not emit a bare parent success row.
+WORKFLOW_RUN_DETECTIVE_CONCLUSION_LEAF_SUFFIX = (
+    " / pr-actions-detective / pr-actions-detective / conclusion"
+)
+# Legacy parent identities (exact / namespaced suffix) — only for skipped-route
+# negative evidence, never as a success substitute for the conclusion leaf.
 WORKFLOW_RUN_ROUTE_JOB_EXACT = ("run-obs-aw-workflow-run",)
 WORKFLOW_RUN_ROUTE_JOB_SUFFIXES = (" / run-obs-aw-workflow-run",)
+# Safe-output footer uses github.workflow on the workflow_run *caller*
+# (trigger-obs-aw-workflow-run.yml), not the nested lock display name.
+CALLER_WORKFLOW_FOOTER_IDENTITY = (
+    "From workflow: Observability Agentic Workflow — Workflow Run"
+)
 
 
 def _load_json(path: Path) -> Any:
@@ -71,11 +84,11 @@ def _load_json(path: Path) -> Any:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(timezone.utc)  # noqa: UP017
 
 
 def _parse_gh_time(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))  # noqa: FURB162
 
 
 def _running_in_github_actions() -> bool:
@@ -1025,6 +1038,7 @@ def wait_for_new_run(
     not_before: datetime | None = None,
     fail_run_id: int | None = None,
     fail_head_sha: str | None = None,
+    fixture_pr_number: int | None = None,
 ) -> dict[str, Any] | None:
     """Wait for a workflow_run-triggered caller run whose named job succeeded.
 
@@ -1035,8 +1049,10 @@ def wait_for_new_run(
     the time floor above harness ``since`` so older caller runs cannot match.
 
     Fail closed: require ``fail_run_id`` and a positive correlation to that
-    intentional failure (title/URL/basename or matching ``headSha``). Never
-    accept a time-floor-only candidate.
+    intentional failure (title/URL, matching ``headSha``, or fixture-PR agent
+    comment that binds both the fail run and this caller run). Never accept a
+    time-floor-only candidate. ``workflow_run`` callers run on the default
+    branch tip, so ``headSha`` alone rarely matches the PR fail commit.
     """
     excluded = set(exclude_run_ids or ())
     floor = not_before if not_before is not None else since
@@ -1080,7 +1096,11 @@ def wait_for_new_run(
                 c
                 for c in candidates
                 if _run_correlates_to_fail_run(
-                    c, fail_run_id=fail_run_id, fail_head_sha=fail_head_sha
+                    c,
+                    fail_run_id=fail_run_id,
+                    fail_head_sha=fail_head_sha,
+                    repo=repo,
+                    fixture_pr_number=fixture_pr_number,
                 )
             ]
             if correlated:
@@ -1108,11 +1128,66 @@ def _text_mentions_run_id(text: str, run_id: int) -> bool:
     return re.search(rf"(?<!\d){rid}(?!\d)", text) is not None
 
 
+def _actions_run_url(repo: str, run_id: int) -> str:
+    """Canonical GitHub Actions run URL for ``owner/name`` + ``run_id``."""
+    return f"https://github.com/{repo}/actions/runs/{int(run_id)}"
+
+
+def _text_contains_actions_run_url(text: str, repo: str, run_id: int) -> bool:
+    """True when ``text`` contains the canonical Actions run URL with an ID boundary.
+
+    Rejects prefix false positives such as expected run ``42`` matching
+    ``/actions/runs/420`` (``"…/runs/42" in "…/runs/420"`` is true for a bare
+    substring check). Requires the next character after the URL not be a digit
+    so Markdown links like ``(…/runs/99)`` still match.
+    """
+    if not text:
+        return False
+    url = re.escape(_actions_run_url(repo, int(run_id)))
+    return re.search(rf"{url}(?!\d)", text) is not None
+
+
+def _fixture_pr_comment_binds_fail_and_route(
+    repo: str,
+    fixture_pr_number: int,
+    *,
+    fail_run_id: int,
+    route_run_id: int,
+) -> bool:
+    """True when a bot comment binds fail + route via full run URLs.
+
+    Fail-closed: the fail run URL must appear in the report body (before the
+    footer rule), and the candidate route run URL must appear in the generated
+    caller footer (``CALLER_WORKFLOW_FOOTER_IDENTITY``). Bare digit mentions,
+    related-link-only route ids, or longer-ID URL prefixes do not correlate.
+    """
+    for comment in _list_issue_comments(repo, fixture_pr_number):
+        login = (comment.get("user") or {}).get("login")
+        if not _is_bot_comment_author(login):
+            continue
+        body = str(comment.get("body") or "")
+        footer_idx = body.rfind("\n---\n")
+        if footer_idx < 0:
+            continue
+        report = body[:footer_idx]
+        footer = body[footer_idx:]
+        if CALLER_WORKFLOW_FOOTER_IDENTITY not in footer:
+            continue
+        if not _text_contains_actions_run_url(report, repo, fail_run_id):
+            continue
+        if not _text_contains_actions_run_url(footer, repo, route_run_id):
+            continue
+        return True
+    return False
+
+
 def _run_correlates_to_fail_run(
     run: dict[str, Any],
     *,
     fail_run_id: int,
     fail_head_sha: str | None = None,
+    repo: str | None = None,
+    fixture_pr_number: int | None = None,
 ) -> bool:
     """Return True when a run positively binds to the intentional fail run."""
     if fail_head_sha and str(run.get("headSha") or "") == fail_head_sha:
@@ -1126,60 +1201,90 @@ def _run_correlates_to_fail_run(
     title_l = title.lower()
     if "e2e-pr-actions-detective-fail" in title_l:
         return True
-    return (
-        "intentional actions failure" in title_l and "pr-actions-detective" in title_l
+    if "intentional actions failure" in title_l and "pr-actions-detective" in title_l:
+        return True
+    route_run_id_raw = run.get("databaseId")
+    return bool(
+        repo
+        and fixture_pr_number is not None
+        and route_run_id_raw is not None
+        and _fixture_pr_comment_binds_fail_and_route(
+            repo,
+            int(fixture_pr_number),
+            fail_run_id=fail_run_id,
+            route_run_id=int(route_run_id_raw),
+        )
     )
 
 
-def _job_match_by_exact_or_suffix(
+def _is_workflow_run_detective_conclusion_leaf(name: str) -> bool:
+    """True for the nested PR Actions Detective ``conclusion`` leaf."""
+    return name.lower().endswith(WORKFLOW_RUN_DETECTIVE_CONCLUSION_LEAF_SUFFIX)
+
+
+def _is_workflow_run_route_parent_name(name: str) -> bool:
+    """True for the top-level ``run-obs-aw-workflow-run`` caller job only."""
+    lower = name.lower()
+    if lower in {n.lower() for n in WORKFLOW_RUN_ROUTE_JOB_EXACT}:
+        return True
+    return any(lower.endswith(s.lower()) for s in WORKFLOW_RUN_ROUTE_JOB_SUFFIXES)
+
+
+def workflow_run_job_match(
     run_detail: dict[str, Any] | None,
-    *,
-    exact_names: tuple[str, ...] = (),
-    endswith_suffixes: tuple[str, ...] = (),
 ) -> tuple[str, str] | None:
-    """Return ``(job_name, conclusion)`` for the first non-skipped match."""
+    """Return ``(job_name, conclusion)`` for the workflow-run route job.
+
+    Positive evidence requires the detective conclusion leaf (oracle lockstep).
+    Parent ``run-obs-aw-workflow-run`` matches are kept only for an explicit
+    ``skipped`` conclusion so negative cases can assert skip. Nested prelude
+    children that only contain the parent id as a prefix are ignored for
+    success authorization.
+    """
     if not run_detail:
         return None
-    exact = {n.lower() for n in exact_names}
-    suffixes = tuple(s.lower() for s in endswith_suffixes)
+    skipped_match: tuple[str, str] | None = None
     for job in run_detail.get("jobs") or []:
         raw_name = str(job.get("name") or "")
-        name = raw_name.lower()
-        conclusion = (job.get("conclusion") or "").lower()
-        if conclusion in ("", "skipped"):
+        is_leaf = _is_workflow_run_detective_conclusion_leaf(raw_name)
+        is_parent = _is_workflow_run_route_parent_name(raw_name)
+        if not is_leaf and not is_parent:
             continue
-        if name in exact or any(name.endswith(suffix) for suffix in suffixes):
+        conclusion = (job.get("conclusion") or "").lower()
+        if conclusion == "":
+            continue
+        if conclusion == "skipped":
+            if skipped_match is None:
+                skipped_match = (raw_name, "skipped")
+            continue
+        if is_leaf:
             return (raw_name, conclusion)
-    return None
+    return skipped_match
 
 
 def workflow_run_matched_job_name(run_detail: dict[str, Any] | None) -> str | None:
     """Return the matched workflow-run route leaf job name, if any."""
-    match = _job_match_by_exact_or_suffix(
-        run_detail,
-        exact_names=WORKFLOW_RUN_ROUTE_JOB_EXACT,
-        endswith_suffixes=WORKFLOW_RUN_ROUTE_JOB_SUFFIXES,
-    )
+    match = workflow_run_job_match(run_detail)
     return match[0] if match else None
 
 
 def workflow_run_job_conclusion(run_detail: dict[str, Any] | None) -> str | None:
-    """Return the named workflow-run route job conclusion when present.
+    """Return the detective conclusion-leaf conclusion, or parent skip.
 
-    Fail closed: do not treat overall run conclusion as a substitute.
-    Match only the exact leaf ``run-obs-aw-workflow-run`` (or a namespaced
-    name ending in `` / run-obs-aw-workflow-run``).
+    Fail closed: do not treat overall run conclusion as a substitute. Parent
+    success alone never authorizes the gate.
     """
-    match = _job_match_by_exact_or_suffix(
-        run_detail,
-        exact_names=WORKFLOW_RUN_ROUTE_JOB_EXACT,
-        endswith_suffixes=WORKFLOW_RUN_ROUTE_JOB_SUFFIXES,
-    )
+    match = workflow_run_job_match(run_detail)
     return match[1] if match else None
 
 
 def workflow_run_job_executed(run_detail: dict[str, Any] | None) -> bool:
-    return workflow_run_job_conclusion(run_detail) == "success"
+    """True only when the detective conclusion leaf completed with success."""
+    match = workflow_run_job_match(run_detail)
+    if match is None:
+        return False
+    name, conclusion = match
+    return _is_workflow_run_detective_conclusion_leaf(name) and conclusion == "success"
 
 
 def _job_names_indicate_agent(run_detail: dict[str, Any] | None) -> bool:
@@ -1480,6 +1585,7 @@ def run_live_case(
             not_before=fail_created,
             fail_run_id=fail_run_id,
             fail_head_sha=fail_head_sha,
+            fixture_pr_number=target_pr_number,
         )
         if run_detail is None:
             raise TimeoutError(

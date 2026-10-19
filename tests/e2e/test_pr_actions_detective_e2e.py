@@ -20,8 +20,18 @@ LIVE_CASE_ID = "workflow-run-failure-open-pr-live"
 _CANONICAL_MARKERS = [
     "## Remediation",
     "### TL;DR",
-    "From workflow: PR Actions Detective",
+    "From workflow: Observability Agentic Workflow — Workflow Run",
 ]
+_CALLER_FOOTER_COMMENT = (
+    "### TL;DR\n"
+    "## Remediation\n"
+    "Evidence: https://github.com/elastic/oblt-aw/actions/runs/42\n"
+    "\n"
+    "---\n"
+    "[What is this?](https://github.com/elastic/oblt-aw/blob/main/README.md) | "
+    "[From workflow: Observability Agentic Workflow — Workflow Run]"
+    "(https://github.com/elastic/oblt-aw/actions/runs/99)\n"
+)
 _LIVE_CASE_EXPECTATIONS = {
     "dashboard_enabled": True,
     "workflow_run_job_executed": True,
@@ -36,6 +46,9 @@ _NEGATIVE_CASE_TRIGGER = {
     "fail_workflow_conclusion": "failure",
     "fail_workflow_event": "pull_request",
 }
+_CANONICAL_ROUTE_CONCLUSION_JOB = (
+    "run-obs-aw-workflow-run / pr-actions-detective / pr-actions-detective / conclusion"
+)
 
 
 def _synthetic_live_outcome(
@@ -68,7 +81,7 @@ def _synthetic_live_outcome(
             "run_seen": True,
             "job_executed": True,
             "job_conclusion": "success",
-            "matched_job_name": "run-obs-aw-workflow-run",
+            "matched_job_name": _CANONICAL_ROUTE_CONCLUSION_JOB,
             "url": "https://example.test/run",
         },
         "agent_comment": {"id": 1} if agent_invoked else None,
@@ -171,14 +184,15 @@ class TestHarnessHelpers:
             fail_head_sha="expected-sha",
         )
 
-    def test_workflow_run_job_executed_requires_named_job(self) -> None:
+    def test_workflow_run_job_executed_requires_conclusion_leaf(self) -> None:
         assert not harness.workflow_run_job_executed(
             {
                 "jobs": [{"name": "unrelated", "conclusion": "success"}],
                 "conclusion": "success",
             }
         )
-        assert harness.workflow_run_job_executed(
+        # Parent reusable-call success alone must not authorize the gate.
+        assert not harness.workflow_run_job_executed(
             {
                 "jobs": [
                     {
@@ -188,26 +202,42 @@ class TestHarnessHelpers:
                 ]
             }
         )
-        assert harness.workflow_run_matched_job_name(
+        assert harness.workflow_run_job_executed(
             {
                 "jobs": [
                     {
-                        "name": "Observability Agentic Workflow — Workflow Run / "
-                        "run-obs-aw-workflow-run",
+                        "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
                         "conclusion": "success",
                     }
                 ]
             }
-        ) == ("Observability Agentic Workflow — Workflow Run / run-obs-aw-workflow-run")
-        assert not harness.workflow_run_job_executed(
-            {
-                "jobs": [
-                    {
-                        "name": "run-obs-aw-workflow-run-helper",
-                        "conclusion": "success",
-                    }
-                ]
-            }
+        )
+        assert (
+            harness.workflow_run_matched_job_name(
+                {
+                    "jobs": [
+                        {
+                            "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
+                            "conclusion": "success",
+                        }
+                    ]
+                }
+            )
+            == _CANONICAL_ROUTE_CONCLUSION_JOB
+        )
+        # Parent skip is observable but does not count as executed.
+        assert (
+            harness.workflow_run_job_conclusion(
+                {
+                    "jobs": [
+                        {
+                            "name": "run-obs-aw-workflow-run",
+                            "conclusion": "skipped",
+                        }
+                    ]
+                }
+            )
+            == "skipped"
         )
         assert not harness.workflow_run_job_executed(
             {
@@ -219,6 +249,183 @@ class TestHarnessHelpers:
                 ]
             }
         )
+        assert not harness.workflow_run_job_executed(
+            {
+                "jobs": [
+                    {
+                        "name": (
+                            "run-obs-aw-workflow-run / run-aw-prelude / "
+                            "evaluate-workflow-gates"
+                        ),
+                        "conclusion": "success",
+                    }
+                ]
+            }
+        )
+
+    def test_run_correlates_via_fixture_pr_comment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "_list_issue_comments",
+            lambda *_a, **_k: [
+                {
+                    "user": {"login": "github-actions[bot]"},
+                    "body": _CALLER_FOOTER_COMMENT,
+                }
+            ],
+        )
+        assert harness._run_correlates_to_fail_run(
+            {
+                "databaseId": 99,
+                "headSha": "main-tip",
+                "displayTitle": "Observability Agentic Workflow — Workflow Run",
+                "url": "https://github.com/elastic/oblt-aw/actions/runs/99",
+            },
+            fail_run_id=42,
+            fail_head_sha="pr-head",
+            repo="elastic/oblt-aw",
+            fixture_pr_number=2399,
+        )
+        # Wrong route run id in the comment bind → no correlation.
+        assert not harness._run_correlates_to_fail_run(
+            {
+                "databaseId": 100,
+                "headSha": "main-tip",
+                "displayTitle": "Observability Agentic Workflow — Workflow Run",
+                "url": "https://github.com/elastic/oblt-aw/actions/runs/100",
+            },
+            fail_run_id=42,
+            fail_head_sha="pr-head",
+            repo="elastic/oblt-aw",
+            fixture_pr_number=2399,
+        )
+
+    def test_run_correlates_rejects_route_id_only_as_related_link(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Route id in the report body alone must not correlate the waiter."""
+        body = (
+            "Evidence: https://github.com/elastic/oblt-aw/actions/runs/42\n"
+            "Related investigation: "
+            "https://github.com/elastic/oblt-aw/actions/runs/99\n"
+            "\n"
+            "---\n"
+            "[What is this?](https://github.com/elastic/oblt-aw/blob/main/README.md) | "
+            "[From workflow: Observability Agentic Workflow — Workflow Run]"
+            "(https://github.com/elastic/oblt-aw/actions/runs/100)\n"
+        )
+        monkeypatch.setattr(
+            harness,
+            "_list_issue_comments",
+            lambda *_a, **_k: [
+                {"user": {"login": "github-actions[bot]"}, "body": body}
+            ],
+        )
+        assert not harness._run_correlates_to_fail_run(
+            {
+                "databaseId": 99,
+                "headSha": "main-tip",
+                "displayTitle": "Observability Agentic Workflow — Workflow Run",
+                "url": "https://github.com/elastic/oblt-aw/actions/runs/99",
+            },
+            fail_run_id=42,
+            fail_head_sha="pr-head",
+            repo="elastic/oblt-aw",
+            fixture_pr_number=2399,
+        )
+        assert harness._run_correlates_to_fail_run(
+            {
+                "databaseId": 100,
+                "headSha": "main-tip",
+                "displayTitle": "Observability Agentic Workflow — Workflow Run",
+                "url": "https://github.com/elastic/oblt-aw/actions/runs/100",
+            },
+            fail_run_id=42,
+            fail_head_sha="pr-head",
+            repo="elastic/oblt-aw",
+            fixture_pr_number=2399,
+        )
+
+    def test_run_correlates_rejects_longer_run_id_url_prefixes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Substring URL checks must not treat run 42 as a match for /runs/420."""
+        body = (
+            "Evidence: https://github.com/elastic/oblt-aw/actions/runs/420\n"
+            "\n"
+            "---\n"
+            "[What is this?](https://github.com/elastic/oblt-aw/blob/main/README.md) | "
+            "[From workflow: Observability Agentic Workflow — Workflow Run]"
+            "(https://github.com/elastic/oblt-aw/actions/runs/990)\n"
+        )
+        monkeypatch.setattr(
+            harness,
+            "_list_issue_comments",
+            lambda *_a, **_k: [
+                {"user": {"login": "github-actions[bot]"}, "body": body}
+            ],
+        )
+        assert not harness._run_correlates_to_fail_run(
+            {
+                "databaseId": 99,
+                "headSha": "main-tip",
+                "displayTitle": "Observability Agentic Workflow — Workflow Run",
+                "url": "https://github.com/elastic/oblt-aw/actions/runs/99",
+            },
+            fail_run_id=42,
+            fail_head_sha="pr-head",
+            repo="elastic/oblt-aw",
+            fixture_pr_number=2399,
+        )
+        assert not harness._text_contains_actions_run_url(
+            "https://github.com/elastic/oblt-aw/actions/runs/420",
+            "elastic/oblt-aw",
+            42,
+        )
+        assert harness._text_contains_actions_run_url(
+            "https://github.com/elastic/oblt-aw/actions/runs/42)",
+            "elastic/oblt-aw",
+            42,
+        )
+
+    def test_fixture_comment_correlation_populates_agent_comment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Same caller-footer comment must correlate and satisfy find_agent_comment."""
+        since = harness._utc_now().replace(microsecond=0)
+        comments = [
+            {
+                "id": 6215394759,
+                "html_url": "https://example.test/c/6215394759",
+                "created_at": since.isoformat().replace("+00:00", "Z"),
+                "user": {"login": "github-actions[bot]"},
+                "body": _CALLER_FOOTER_COMMENT,
+            }
+        ]
+        monkeypatch.setattr(harness, "_list_issue_comments", lambda *_a, **_k: comments)
+        assert harness._run_correlates_to_fail_run(
+            {
+                "databaseId": 99,
+                "headSha": "main-tip",
+                "displayTitle": "Observability Agentic Workflow — Workflow Run",
+                "url": "https://github.com/elastic/oblt-aw/actions/runs/99",
+            },
+            fail_run_id=42,
+            fail_head_sha="pr-head",
+            repo="elastic/oblt-aw",
+            fixture_pr_number=2399,
+        )
+        found = harness.find_agent_comment(
+            "elastic/oblt-aw",
+            2399,
+            since=since,
+            markers=list(_CANONICAL_MARKERS),
+        )
+        assert found is not None
+        assert found["id"] == 6215394759
+        assert all(found["markers_present"].values())
 
     def test_wait_for_new_run_rejects_time_only_uncorrelated(
         self, monkeypatch: pytest.MonkeyPatch
@@ -255,7 +462,7 @@ class TestHarnessHelpers:
                 "headSha": "other",
                 "jobs": [
                     {
-                        "name": "run-obs-aw-workflow-run",
+                        "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
                         "conclusion": "success",
                     }
                 ],
@@ -307,7 +514,7 @@ class TestHarnessHelpers:
                 "headSha": "expected-sha",
                 "jobs": [
                     {
-                        "name": "run-obs-aw-workflow-run",
+                        "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
                         "conclusion": "success",
                     }
                 ],
@@ -363,18 +570,14 @@ class TestHarnessHelpers:
                 "html_url": "https://example.test/c/1",
                 "created_at": since.isoformat().replace("+00:00", "Z"),
                 "user": {"login": "human-user"},
-                "body": (
-                    "### TL;DR\n## Remediation\nFrom workflow: PR Actions Detective\n"
-                ),
+                "body": _CALLER_FOOTER_COMMENT,
             },
             {
                 "id": 2,
                 "html_url": "https://example.test/c/2",
                 "created_at": since.isoformat().replace("+00:00", "Z"),
                 "user": {"login": "copilot-swe-agent[bot]"},
-                "body": (
-                    "### TL;DR\n## Remediation\nFrom workflow: PR Actions Detective\n"
-                ),
+                "body": _CALLER_FOOTER_COMMENT,
             },
         ]
         monkeypatch.setattr(harness, "_list_issue_comments", lambda *_a, **_k: comments)
@@ -505,7 +708,10 @@ class TestHarnessHelpers:
         since = harness._utc_now().replace(microsecond=0)
         caller = {
             "jobs": [
-                {"name": "run-obs-aw-workflow-run", "conclusion": "success"},
+                {
+                    "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
+                    "conclusion": "success",
+                },
             ]
         }
         monkeypatch.setattr(
@@ -549,7 +755,10 @@ class TestHarnessHelpers:
         since = harness._utc_now().replace(microsecond=0)
         caller = {
             "jobs": [
-                {"name": "run-obs-aw-workflow-run", "conclusion": "success"},
+                {
+                    "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
+                    "conclusion": "success",
+                },
             ]
         }
         monkeypatch.setattr(
@@ -914,7 +1123,7 @@ class TestOracleFailClosed:
         }
         err = oracle.case_expectations_schema_error("live", generic_only)
         assert err is not None
-        assert "From workflow: PR Actions Detective" in err
+        assert "From workflow: Observability Agentic Workflow — Workflow Run" in err
         false_dashboard = {**_LIVE_CASE_EXPECTATIONS, "dashboard_enabled": False}
         err = oracle.case_expectations_schema_error("live", false_dashboard)
         assert err is not None
@@ -983,4 +1192,7 @@ class TestFailWorkflowArtifacts:
         assert cfg["e2e_pr"]["branch"] == harness.FIXTURE_BRANCH
         assert cfg["e2e_pr"]["label"] == harness.FIXTURE_LABEL
         assert cfg["fail_workflow_file"] == "e2e-pr-actions-detective-fail.yml"
-        assert "From workflow: PR Actions Detective" in cfg["agent_comment_markers"]
+        assert (
+            "From workflow: Observability Agentic Workflow — Workflow Run"
+            in cfg["agent_comment_markers"]
+        )

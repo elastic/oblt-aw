@@ -137,6 +137,10 @@ class TestAutodocCreatePrWrapperLockWiring:
         assert RESOLVE_JOB in needs, (
             f"{FIX_JOB} must need {RESOLVE_JOB} so needs.*.outputs resolve at runtime"
         )
+        assert "prepare-fix-instructions" not in wrapper["jobs"], (
+            "create-pr must read the audit issue via MCP; do not inject issue "
+            "bodies through prepare-fix-instructions / additional-instructions"
+        )
         assert (
             with_block.get("additional-instructions")
             == "${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}"
@@ -169,10 +173,27 @@ class TestAutodocCreatePrWrapperLockWiring:
 
 
 class TestCreatePrSafeOutputPolicy:
+    def test_source_overrides_min_integrity_none_for_bot_audit_issues(self) -> None:
+        source = SOURCE_PATH.read_text(encoding="utf-8")
+        assert "min-integrity: none" in source, (
+            "create-pr-from-issue must set tools.github.min-integrity: none so "
+            "github-actions[bot] audit issues are readable (DIFC tags them "
+            "none:public despite trusted-users; temporary until DIFC honors "
+            "trusted-users for bot-authored issues)"
+        )
+        assert "Trusted autodoc audit issue handoff" not in source
+        assert "prepare-fix-instructions" not in source
+
     def test_compiled_lock_ready_for_review_docs_allowlist_and_excludes(self) -> None:
         assert LOCK_PATH.is_file(), f"missing compiled lock {LOCK_PATH}"
         assert SOURCE_PATH.is_file(), f"missing source {SOURCE_PATH}"
-        cfg = _first_safe_outputs_config(LOCK_PATH.read_text(encoding="utf-8"))
+        lock_text = LOCK_PATH.read_text(encoding="utf-8")
+        assert "GH_AW_GITHUB_MIN_INTEGRITY: 'none'" in lock_text, (
+            "compiled lock must set GH_AW_GITHUB_MIN_INTEGRITY to none "
+            "(create-pr must read github-actions[bot] audit issues via MCP)"
+        )
+        assert "Trusted autodoc audit issue handoff" not in lock_text
+        cfg = _first_safe_outputs_config(lock_text)
         create_pr = cfg.get("create_pull_request") or {}
         assert isinstance(create_pr, dict)
         assert create_pr.get("draft") is False, (

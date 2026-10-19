@@ -62,6 +62,13 @@ permissions:
 tools:
   github:
     toolsets: [repos, issues, pull_requests, search, actions]
+    # Temporary override of obs-defaults `approved`: DIFC currently tags
+    # github-actions[bot] audit issues as `none:public` (see DIFC_FILTERED
+    # integrity_tags) even when trusted-users lists that bot, so create-pr
+    # cannot read the target issue body under min-integrity: approved.
+    # Keep the normal architecture (agent reads #N via MCP). Remove this once
+    # DIFC honors trusted-users for bot-authored issues.
+    min-integrity: none
   bash: true
   web-fetch:
 strict: false
