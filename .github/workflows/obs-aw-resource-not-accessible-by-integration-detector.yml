@@ -31,7 +31,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     outputs:
       workflows: ${{ steps.list.outputs.workflows }}
     steps:
