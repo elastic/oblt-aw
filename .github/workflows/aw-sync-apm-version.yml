@@ -27,7 +27,7 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
           token: ${{ github.token }}
-
+          persist-credentials: false
       - name: Sync .apm.version from apm-cli pin
         run: |
           set -euo pipefail

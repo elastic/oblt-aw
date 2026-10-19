@@ -54,7 +54,7 @@ jobs:
           sparse-checkout: |
             scripts/docs/issue-menu
           sparse-checkout-cone-mode: true
-
+          persist-credentials: false
       - name: Create or update AI menu comment
         uses: actions/github-script@v9
         with:
@@ -91,7 +91,7 @@ jobs:
           sparse-checkout: |
             scripts/docs/issue-menu
           sparse-checkout-cone-mode: true
-
+          persist-credentials: false
       - name: Parse AI menu transition
         id: evaluate
         uses: actions/github-script@v9
@@ -126,7 +126,7 @@ jobs:
           sparse-checkout: |
             scripts/docs/issue-menu
           sparse-checkout-cone-mode: true
-
+          persist-credentials: false
       - name: Refresh AI menu status
         uses: actions/github-script@v9
         env:
@@ -217,7 +217,7 @@ jobs:
           sparse-checkout: |
             scripts/docs/issue-menu
           sparse-checkout-cone-mode: true
-
+          persist-credentials: false
       - name: Refresh AI menu status
         uses: actions/github-script@v9
         env:
@@ -251,7 +251,7 @@ jobs:
           sparse-checkout: |
             scripts/docs/issue-menu
           sparse-checkout-cone-mode: true
-
+          persist-credentials: false
       - name: Refresh AI menu status
         uses: actions/github-script@v9
         env:

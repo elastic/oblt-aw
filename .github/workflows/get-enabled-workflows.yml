@@ -43,7 +43,7 @@ jobs:
             scripts/common.py
             requirements-runtime.txt
           sparse-checkout-cone-mode: false
-
+          persist-credentials: false
       - name: Setup Python
         uses: actions/setup-python@v7
         with:

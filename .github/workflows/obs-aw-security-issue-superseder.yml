@@ -51,7 +51,7 @@ jobs:
           sparse-checkout: |
             scripts/obs/supersede-security-issues.sh
           sparse-checkout-cone-mode: false
-
+          persist-credentials: false
       - name: Create ephemeral GitHub token (configured policy)
         id: create-token-explicit
         if: inputs.shared-token-policy != ''
