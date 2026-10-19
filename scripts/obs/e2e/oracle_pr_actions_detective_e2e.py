@@ -27,9 +27,11 @@ from typing import Any
 WORKFLOW_ID = "obs:pr-actions-detective"
 CANONICAL_FIXTURE_BRANCH = "e2e/pr-actions-detective"
 CANONICAL_FIXTURE_LABEL = "e2e:pr-actions-detective"
-# Exact leaf or namespaced display name ending in this suffix.
-CANONICAL_WORKFLOW_RUN_JOB_SUFFIX = " / run-obs-aw-workflow-run"
-CANONICAL_WORKFLOW_RUN_JOB_EXACT = "run-obs-aw-workflow-run"
+# Nested detective conclusion leaf on the workflow_run caller (harness lockstep).
+# Parent ``run-obs-aw-workflow-run`` alone never authorizes success.
+CANONICAL_WORKFLOW_RUN_CONCLUSION_LEAF_SUFFIX = (
+    " / pr-actions-detective / pr-actions-detective / conclusion"
+)
 
 
 def _load_json(path: Path) -> Any:
@@ -500,9 +502,8 @@ def _evaluate_live(
             ).lower()
             matched_job = str(workflow_run_trigger.get("matched_job_name") or "")
             matched_l = matched_job.lower()
-            leaf_ok = (not expected) or (
-                matched_l == CANONICAL_WORKFLOW_RUN_JOB_EXACT
-                or matched_l.endswith(CANONICAL_WORKFLOW_RUN_JOB_SUFFIX.lower())
+            leaf_ok = (not expected) or matched_l.endswith(
+                CANONICAL_WORKFLOW_RUN_CONCLUSION_LEAF_SUFFIX.lower()
             )
             named_ok = actual is True and job_conclusion == "success"
             _check(

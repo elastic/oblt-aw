@@ -62,6 +62,13 @@ permissions:
 tools:
   github:
     toolsets: [repos, issues, pull_requests, search, actions]
+    # Override obs-defaults `approved`: gh-aw MCP DIFC currently tags
+    # github-actions[bot] audit issues as `none:public` (see DIFC_FILTERED
+    # integrity_tags) even when trusted-users lists that bot, so create-pr
+    # cannot read the target issue body under min-integrity: approved.
+    # This workflow only implements a caller-supplied issue number (autodoc
+    # audit → fix) with a docs-only allowed-files allowlist.
+    min-integrity: none
   bash: true
   web-fetch:
 strict: false

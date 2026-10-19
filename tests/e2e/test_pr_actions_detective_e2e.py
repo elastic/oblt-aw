@@ -36,6 +36,9 @@ _NEGATIVE_CASE_TRIGGER = {
     "fail_workflow_conclusion": "failure",
     "fail_workflow_event": "pull_request",
 }
+_CANONICAL_ROUTE_CONCLUSION_JOB = (
+    "run-obs-aw-workflow-run / pr-actions-detective / pr-actions-detective / conclusion"
+)
 
 
 def _synthetic_live_outcome(
@@ -68,7 +71,7 @@ def _synthetic_live_outcome(
             "run_seen": True,
             "job_executed": True,
             "job_conclusion": "success",
-            "matched_job_name": "run-obs-aw-workflow-run",
+            "matched_job_name": _CANONICAL_ROUTE_CONCLUSION_JOB,
             "url": "https://example.test/run",
         },
         "agent_comment": {"id": 1} if agent_invoked else None,
@@ -171,14 +174,15 @@ class TestHarnessHelpers:
             fail_head_sha="expected-sha",
         )
 
-    def test_workflow_run_job_executed_requires_named_job(self) -> None:
+    def test_workflow_run_job_executed_requires_conclusion_leaf(self) -> None:
         assert not harness.workflow_run_job_executed(
             {
                 "jobs": [{"name": "unrelated", "conclusion": "success"}],
                 "conclusion": "success",
             }
         )
-        assert harness.workflow_run_job_executed(
+        # Parent reusable-call success alone must not authorize the gate.
+        assert not harness.workflow_run_job_executed(
             {
                 "jobs": [
                     {
@@ -188,26 +192,42 @@ class TestHarnessHelpers:
                 ]
             }
         )
-        assert harness.workflow_run_matched_job_name(
+        assert harness.workflow_run_job_executed(
             {
                 "jobs": [
                     {
-                        "name": "Observability Agentic Workflow — Workflow Run / "
-                        "run-obs-aw-workflow-run",
+                        "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
                         "conclusion": "success",
                     }
                 ]
             }
-        ) == ("Observability Agentic Workflow — Workflow Run / run-obs-aw-workflow-run")
-        assert not harness.workflow_run_job_executed(
-            {
-                "jobs": [
-                    {
-                        "name": "run-obs-aw-workflow-run-helper",
-                        "conclusion": "success",
-                    }
-                ]
-            }
+        )
+        assert (
+            harness.workflow_run_matched_job_name(
+                {
+                    "jobs": [
+                        {
+                            "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
+                            "conclusion": "success",
+                        }
+                    ]
+                }
+            )
+            == _CANONICAL_ROUTE_CONCLUSION_JOB
+        )
+        # Parent skip is observable but does not count as executed.
+        assert (
+            harness.workflow_run_job_conclusion(
+                {
+                    "jobs": [
+                        {
+                            "name": "run-obs-aw-workflow-run",
+                            "conclusion": "skipped",
+                        }
+                    ]
+                }
+            )
+            == "skipped"
         )
         assert not harness.workflow_run_job_executed(
             {
@@ -218,6 +238,64 @@ class TestHarnessHelpers:
                     }
                 ]
             }
+        )
+        assert not harness.workflow_run_job_executed(
+            {
+                "jobs": [
+                    {
+                        "name": (
+                            "run-obs-aw-workflow-run / run-aw-prelude / "
+                            "evaluate-workflow-gates"
+                        ),
+                        "conclusion": "success",
+                    }
+                ]
+            }
+        )
+
+    def test_run_correlates_via_fixture_pr_comment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            harness,
+            "_list_issue_comments",
+            lambda *_a, **_k: [
+                {
+                    "user": {"login": "github-actions[bot]"},
+                    "body": (
+                        "Evidence: https://github.com/elastic/oblt-aw/actions/"
+                        "runs/42\n"
+                        "From workflow: Observability Agentic Workflow — "
+                        "Workflow Run "
+                        "(https://github.com/elastic/oblt-aw/actions/runs/99)"
+                    ),
+                }
+            ],
+        )
+        assert harness._run_correlates_to_fail_run(
+            {
+                "databaseId": 99,
+                "headSha": "main-tip",
+                "displayTitle": "Observability Agentic Workflow — Workflow Run",
+                "url": "https://github.com/elastic/oblt-aw/actions/runs/99",
+            },
+            fail_run_id=42,
+            fail_head_sha="pr-head",
+            repo="elastic/oblt-aw",
+            fixture_pr_number=2399,
+        )
+        # Wrong route run id in the comment bind → no correlation.
+        assert not harness._run_correlates_to_fail_run(
+            {
+                "databaseId": 100,
+                "headSha": "main-tip",
+                "displayTitle": "Observability Agentic Workflow — Workflow Run",
+                "url": "https://github.com/elastic/oblt-aw/actions/runs/100",
+            },
+            fail_run_id=42,
+            fail_head_sha="pr-head",
+            repo="elastic/oblt-aw",
+            fixture_pr_number=2399,
         )
 
     def test_wait_for_new_run_rejects_time_only_uncorrelated(
@@ -255,7 +333,7 @@ class TestHarnessHelpers:
                 "headSha": "other",
                 "jobs": [
                     {
-                        "name": "run-obs-aw-workflow-run",
+                        "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
                         "conclusion": "success",
                     }
                 ],
@@ -307,7 +385,7 @@ class TestHarnessHelpers:
                 "headSha": "expected-sha",
                 "jobs": [
                     {
-                        "name": "run-obs-aw-workflow-run",
+                        "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
                         "conclusion": "success",
                     }
                 ],
@@ -505,7 +583,10 @@ class TestHarnessHelpers:
         since = harness._utc_now().replace(microsecond=0)
         caller = {
             "jobs": [
-                {"name": "run-obs-aw-workflow-run", "conclusion": "success"},
+                {
+                    "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
+                    "conclusion": "success",
+                },
             ]
         }
         monkeypatch.setattr(
@@ -549,7 +630,10 @@ class TestHarnessHelpers:
         since = harness._utc_now().replace(microsecond=0)
         caller = {
             "jobs": [
-                {"name": "run-obs-aw-workflow-run", "conclusion": "success"},
+                {
+                    "name": _CANONICAL_ROUTE_CONCLUSION_JOB,
+                    "conclusion": "success",
+                },
             ]
         }
         monkeypatch.setattr(
