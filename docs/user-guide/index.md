@@ -19,6 +19,7 @@ Procedures for developers and target repository owners who use OBLT Agentic Work
 |------|--------|
 | Onboard a repository that is not registered yet | [Onboard a repository](onboard-a-repository.md) |
 | Enable or disable an agentic workflow from the Control Plane dashboard | [Enable or disable an agentic workflow](enable-a-new-workflow.md) |
+| Opt in or opt out of Automerge dependency collections from the Control Plane dashboard | [Opt in or opt out of Automerge dependency collections](opt-in-opt-out.md) |
 | Define local AI assets (`apm.yml` / `x-oblt-aw`) in a target repository | [Define local AI assets](local-ai-assets.md) |
 | Choose which dependency collections Automerge covers | [Choose Automerge dependency collections](automerge-services.md) |
 | See what agentic workflows do and when they run | [Agentic workflow catalog by outcome](../knowledge-base/agentic-workflows/by-outcome.md) |
