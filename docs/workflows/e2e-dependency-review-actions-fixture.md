@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions |
-| Source | [`.github/workflows/e2e-dependency-review-actions-fixture.yml`](../../.github/workflows/e2e-dependency-review-actions-fixture.yml) |
+| Source | [`.github/workflows/e2e-dependency-review-actions-fixture.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-dependency-review-actions-fixture.yml) |
 | Trigger | Pull requests changing this workflow file |
 
 ## Purpose
@@ -22,6 +22,6 @@ No inputs, outputs, or secrets are declared. The workflow and job request only `
 
 ## Sources
 
-- [Fixture workflow](../../.github/workflows/e2e-dependency-review-actions-fixture.yml)
+- [Fixture workflow](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-dependency-review-actions-fixture.yml)
 - [Dependency-review E2E](e2e-dependency-review.md)
 - [Dependency-review route](obs-aw-dependency-review.md)

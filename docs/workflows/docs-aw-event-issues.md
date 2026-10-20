@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions reusable workflow |
-| Source | [`.github/workflows/docs-aw-event-issues.yml`](../../.github/workflows/docs-aw-event-issues.yml) |
+| Source | [`.github/workflows/docs-aw-event-issues.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-event-issues.yml) |
 | Trigger | `workflow_call`, invoked by the Docs issues client template |
 
 ## Purpose
@@ -28,7 +28,7 @@ No inputs or outputs are declared. Workflow-level permissions are `contents: rea
 
 ## Sources
 
-- [Event orchestrator](../../.github/workflows/docs-aw-event-issues.yml)
+- [Event orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-event-issues.yml)
 - [Docs issue menu](docs-aw-ai-menu.md)
 - [Docs client templates](docs-aw-client-template.md)
 - [Dashboard audit](aw-dashboard-audit.md)

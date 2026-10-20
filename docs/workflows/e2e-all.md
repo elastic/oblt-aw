@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions |
-| Source | [`.github/workflows/e2e-all.yml`](../../.github/workflows/e2e-all.yml) |
+| Source | [`.github/workflows/e2e-all.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml) |
 | Trigger | `workflow_dispatch` or `workflow_call` |
 
 ## Purpose
@@ -26,9 +26,9 @@ After the dispatch validation succeeds (or is skipped for workflow calls), the w
 
 ## Sources
 
-- [Orchestrator](../../.github/workflows/e2e-all.yml)
+- [Orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml)
 - [Release promotion](aw-release-promote.md)
-- [Checkout-ref validator](../../scripts/aw_e2e_validate_checkout_ref.py)
+- [Checkout-ref validator](https://github.com/elastic/oblt-aw/blob/main/scripts/aw_e2e_validate_checkout_ref.py)
 - [Automerge VM images E2E](e2e-automerge-vm-images.md)
 - [Dependency review E2E](e2e-dependency-review.md)
 - [ESTC Buildkite detective E2E](e2e-estc-pr-buildkite-detective.md)

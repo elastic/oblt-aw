@@ -5,8 +5,8 @@
 | | |
 | --- | --- |
 | Platform | GitHub Agentic Workflows |
-| Authored source | [`.github/workflows/gh-aw-dependency-review.md`](../../.github/workflows/gh-aw-dependency-review.md) |
-| Generated lock | [`.github/workflows/gh-aw-dependency-review.lock.yml`](../../.github/workflows/gh-aw-dependency-review.lock.yml) |
+| Authored source | [`.github/workflows/gh-aw-dependency-review.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.md) |
+| Generated lock | [`.github/workflows/gh-aw-dependency-review.lock.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.lock.yml) |
 | Invocation | Reusable workflow source; compiled implementation is called by the dependency-review route |
 
 ## Purpose
@@ -31,7 +31,7 @@ Edit the `.md` source, then run `make compile-aw-check` to regenerate and verify
 
 ## Sources
 
-- [Authored workflow source](../../.github/workflows/gh-aw-dependency-review.md)
-- [Generated lock](../../.github/workflows/gh-aw-dependency-review.lock.yml)
+- [Authored workflow source](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.md)
+- [Generated lock](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.lock.yml)
 - [Observability dependency-review documentation](obs-aw-dependency-review.md)
-- [Shared workflow fragments](../../.github/workflows/gh-aw-fragments/)
+- [Shared workflow fragments](https://github.com/elastic/oblt-aw/tree/main/.github/workflows/gh-aw-fragments)

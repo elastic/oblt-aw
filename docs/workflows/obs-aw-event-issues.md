@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions reusable workflow |
-| Source | [`.github/workflows/obs-aw-event-issues.yml`](../../.github/workflows/obs-aw-event-issues.yml) |
+| Source | [`.github/workflows/obs-aw-event-issues.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-issues.yml) |
 | Trigger | `workflow_call`, invoked by the Observability issues client template |
 
 ## Purpose
@@ -35,7 +35,7 @@ No inputs or outputs are declared. Top-level permissions are `contents: read`; t
 
 ## Sources
 
-- [Event orchestrator](../../.github/workflows/obs-aw-event-issues.yml)
+- [Event orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-issues.yml)
 - [Observability client templates](obs-aw-client-template.md)
 - [Shared prelude](aw-prelude.md)
 - [Security category detectors](obs-aw-security-detector.md)

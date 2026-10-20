@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions reusable workflow |
-| Source | [`.github/workflows/obs-aw-event-status.yml`](../../.github/workflows/obs-aw-event-status.yml) |
+| Source | [`.github/workflows/obs-aw-event-status.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-status.yml) |
 | Trigger | `workflow_call` from the Observability status client template |
 
 ## Purpose
@@ -22,7 +22,7 @@ The workflow-call contract requires `BUILDKITE_API_TOKEN`. Top-level permissions
 
 ## Sources
 
-- [Event orchestrator](../../.github/workflows/obs-aw-event-status.yml)
+- [Event orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-status.yml)
 - [ESTC PR Buildkite Detective](obs-aw-estc-pr-buildkite-detective.md)
 - [Status client template](obs-aw-client-template.md)
 - [Shared prelude](aw-prelude.md)

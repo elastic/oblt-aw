@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions reusable workflow |
-| Source | [`.github/workflows/docs-aw-event-issue-comment.yml`](../../.github/workflows/docs-aw-event-issue-comment.yml) |
+| Source | [`.github/workflows/docs-aw-event-issue-comment.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-event-issue-comment.yml) |
 | Trigger | `workflow_call`, invoked by the Docs issue-comment client template |
 
 ## Purpose
@@ -29,7 +29,7 @@ No public inputs or outputs are declared. Job-level permissions are granted to e
 
 ## Sources
 
-- [Event orchestrator](../../.github/workflows/docs-aw-event-issue-comment.yml)
+- [Event orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-event-issue-comment.yml)
 - [Docs issue menu](docs-aw-ai-menu.md)
 - [Docs PR menu](docs-aw-pr-ai-menu.md)
 - [Docs client templates](docs-aw-client-template.md)

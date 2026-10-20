@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions reusable workflow |
-| Source | [`.github/workflows/obs-aw-event-issue-comment.yml`](../../.github/workflows/obs-aw-event-issue-comment.yml) |
+| Source | [`.github/workflows/obs-aw-event-issue-comment.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-issue-comment.yml) |
 | Trigger | `workflow_call`, invoked by the Observability issue-comment client template |
 
 ## Purpose
@@ -29,7 +29,7 @@ No inputs or outputs are declared. Top-level permissions are `contents: read`; c
 
 ## Sources
 
-- [Event orchestrator](../../.github/workflows/obs-aw-event-issue-comment.yml)
+- [Event orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-issue-comment.yml)
 - [Issue fixer](obs-aw-issue-fixer.md)
 - [Mention in issue](obs-aw-mention-in-issue.md)
 - [Observability client templates](obs-aw-client-template.md)

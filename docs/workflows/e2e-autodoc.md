@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions |
-| Source | [`.github/workflows/e2e-autodoc.yml`](../../.github/workflows/e2e-autodoc.yml) |
+| Source | [`.github/workflows/e2e-autodoc.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-autodoc.yml) |
 | Trigger | `workflow_dispatch` or `workflow_call` |
 
 ## Purpose
@@ -24,9 +24,9 @@ Optional `checkout-ref` defaults to `main`. No outputs or repository secrets are
 
 ## Sources
 
-- [E2E workflow](../../.github/workflows/e2e-autodoc.yml)
-- [Harness](../../scripts/obs/e2e/autodoc_e2e_harness.py)
-- [Oracle](../../scripts/obs/e2e/oracle_autodoc_e2e.py)
+- [E2E workflow](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-autodoc.yml)
+- [Harness](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/e2e/autodoc_e2e_harness.py)
+- [Oracle](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/e2e/oracle_autodoc_e2e.py)
 - [Autodoc route](obs-aw-autodoc.md)
 - [Schedule dispatcher](e2e-trigger-obs-aw-schedule.md)
-- [Test fixtures](../../testdata/agentic/autodoc/)
+- [Test fixtures](https://github.com/elastic/oblt-aw/tree/main/testdata/agentic/autodoc)

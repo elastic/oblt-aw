@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions reusable workflow |
-| Source | [`.github/workflows/obs-aw-event-workflow-run.yml`](../../.github/workflows/obs-aw-event-workflow-run.yml) |
+| Source | [`.github/workflows/obs-aw-event-workflow-run.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-workflow-run.yml) |
 | Trigger | `workflow_call`, invoked by the Observability workflow-run client template |
 
 ## Purpose
@@ -22,7 +22,7 @@ No inputs, outputs, or secrets are declared. Workflow-level permissions are `con
 
 ## Sources
 
-- [Event orchestrator](../../.github/workflows/obs-aw-event-workflow-run.yml)
+- [Event orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-workflow-run.yml)
 - [PR Actions Detective](obs-aw-pr-actions-detective.md)
 - [Workflow-run client template](obs-aw-client-template.md)
 - [Shared prelude](aw-prelude.md)

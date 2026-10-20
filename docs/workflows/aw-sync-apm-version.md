@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions |
-| Source | [`.github/workflows/aw-sync-apm-version.yml`](../../.github/workflows/aw-sync-apm-version.yml) |
+| Source | [`.github/workflows/aw-sync-apm-version.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-sync-apm-version.yml) |
 | Trigger | Pull requests changing `.apm-cli-pin/requirements.txt` or `.apm.version`; manual dispatch |
 
 ## Purpose
@@ -22,5 +22,5 @@ There are no workflow inputs, outputs, or secrets. Workflow permissions default 
 
 ## Sources
 
-- [Workflow](../../.github/workflows/aw-sync-apm-version.yml)
+- [Workflow](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-sync-apm-version.yml)
 - [Agentic asset resolver](aw-resolve-agentic-assets.md)

@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions |
-| Source | [`.github/workflows/codex-preview-cleanup.yml`](../../.github/workflows/codex-preview-cleanup.yml) |
+| Source | [`.github/workflows/codex-preview-cleanup.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/codex-preview-cleanup.yml) |
 | Trigger | `pull_request_target` when a pull request is closed |
 
 ## Purpose
@@ -26,5 +26,5 @@ The cleanup implementation is maintained in `elastic/docs-actions` and is not ch
 
 ## Sources
 
-- [Cleanup caller](../../.github/workflows/codex-preview-cleanup.yml)
+- [Cleanup caller](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/codex-preview-cleanup.yml)
 - [Codex preview caller](codex-preview.md)

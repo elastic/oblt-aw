@@ -5,8 +5,8 @@
 | | |
 | --- | --- |
 | Platform | GitHub Agentic Workflows |
-| Authored source | [`.github/workflows/gh-aw-docs-patrol.md`](../../.github/workflows/gh-aw-docs-patrol.md) |
-| Generated lock | [`.github/workflows/gh-aw-docs-patrol.lock.yml`](../../.github/workflows/gh-aw-docs-patrol.lock.yml) |
+| Authored source | [`.github/workflows/gh-aw-docs-patrol.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-docs-patrol.md) |
+| Generated lock | [`.github/workflows/gh-aw-docs-patrol.lock.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-docs-patrol.lock.yml) |
 | Invocation | `workflow_call`; called by the autodoc route |
 
 ## Purpose
@@ -29,8 +29,8 @@ The `.md` file is the authored gh-aw source; the `.lock.yml` is generated. Edit 
 
 ## Sources
 
-- [Authored workflow source](../../.github/workflows/gh-aw-docs-patrol.md)
-- [Generated lock](../../.github/workflows/gh-aw-docs-patrol.lock.yml)
+- [Authored workflow source](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-docs-patrol.md)
+- [Generated lock](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-docs-patrol.lock.yml)
 - [Autodoc route](obs-aw-autodoc.md)
 - [Autodoc E2E](e2e-autodoc.md)
-- [Shared workflow fragments](../../.github/workflows/gh-aw-fragments/)
+- [Shared workflow fragments](https://github.com/elastic/oblt-aw/tree/main/.github/workflows/gh-aw-fragments)

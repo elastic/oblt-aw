@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions |
-| Source | [`.github/workflows/e2e-pr-actions-detective.yml`](../../.github/workflows/e2e-pr-actions-detective.yml) |
+| Source | [`.github/workflows/e2e-pr-actions-detective.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-pr-actions-detective.yml) |
 | Trigger | `workflow_dispatch` or `workflow_call` |
 
 ## Purpose
@@ -24,9 +24,9 @@ Optional `checkout-ref` defaults to `main`. The job can write contents, pull req
 
 ## Sources
 
-- [E2E workflow](../../.github/workflows/e2e-pr-actions-detective.yml)
-- [Harness](../../scripts/obs/e2e/pr_actions_detective_e2e_harness.py)
-- [Oracle](../../scripts/obs/e2e/oracle_pr_actions_detective_e2e.py)
+- [E2E workflow](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-pr-actions-detective.yml)
+- [Harness](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/e2e/pr_actions_detective_e2e_harness.py)
+- [Oracle](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/e2e/oracle_pr_actions_detective_e2e.py)
 - [Intentional-failure workflow](e2e-pr-actions-detective-fail.md)
 - [Workflow-run event route](obs-aw-event-workflow-run.md)
-- [Test fixtures](../../testdata/agentic/pr-actions-detective/)
+- [Test fixtures](https://github.com/elastic/oblt-aw/tree/main/testdata/agentic/pr-actions-detective)

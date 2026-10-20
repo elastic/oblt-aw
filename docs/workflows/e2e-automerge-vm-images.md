@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions |
-| Source | [`.github/workflows/e2e-automerge-vm-images.yml`](../../.github/workflows/e2e-automerge-vm-images.yml) |
+| Source | [`.github/workflows/e2e-automerge-vm-images.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-automerge-vm-images.yml) |
 | Trigger | `workflow_dispatch` or `workflow_call` |
 
 ## Purpose
@@ -24,9 +24,9 @@ Optional `checkout-ref` defaults to `main`. The job requests content and pull-re
 
 ## Sources
 
-- [E2E workflow](../../.github/workflows/e2e-automerge-vm-images.yml)
-- [Harness](../../scripts/obs/e2e/automerge_vm_images_e2e_harness.py)
-- [Oracle](../../scripts/obs/e2e/oracle_automerge_vm_images_e2e.py)
-- [Buildkite fixture pipeline](../../.buildkite/pipeline.e2e-automerge-vm-images.yml)
+- [E2E workflow](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-automerge-vm-images.yml)
+- [Harness](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/e2e/automerge_vm_images_e2e_harness.py)
+- [Oracle](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/e2e/oracle_automerge_vm_images_e2e.py)
+- [Buildkite fixture pipeline](https://github.com/elastic/oblt-aw/blob/main/.buildkite/pipeline.e2e-automerge-vm-images.yml)
 - [Automerge route](obs-aw-automerge.md)
-- [Test fixtures](../../testdata/agentic/automerge-vm-images/)
+- [Test fixtures](https://github.com/elastic/oblt-aw/tree/main/testdata/agentic/automerge-vm-images)

@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions reusable workflow |
-| Source | [`.github/workflows/docs-aw-event-workflow-run.yml`](../../.github/workflows/docs-aw-event-workflow-run.yml) |
+| Source | [`.github/workflows/docs-aw-event-workflow-run.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-event-workflow-run.yml) |
 | Trigger | `workflow_call`, invoked by the Docs workflow-run client template |
 
 ## Purpose
@@ -24,7 +24,7 @@ No inputs, outputs, or secrets are declared. The route job can read checks, writ
 
 ## Sources
 
-- [Event orchestrator](../../.github/workflows/docs-aw-event-workflow-run.yml)
+- [Event orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-event-workflow-run.yml)
 - [PR menu](docs-aw-pr-ai-menu.md)
 - [Collector](docs-aw-pr-ai-menu-collect.md)
 - [Docs client templates](docs-aw-client-template.md)

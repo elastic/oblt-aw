@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions |
-| Source | [`.github/workflows/e2e-pr-actions-detective-fail.yml`](../../.github/workflows/e2e-pr-actions-detective-fail.yml) |
+| Source | [`.github/workflows/e2e-pr-actions-detective-fail.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-pr-actions-detective-fail.yml) |
 | Trigger | Pull request events: `opened`, `synchronize`, `reopened`, and `labeled`; path-filtered to the E2E bait file |
 
 ## Purpose
@@ -22,6 +22,6 @@ No inputs, outputs, or secrets are declared. The workflow requests only `content
 
 ## Sources
 
-- [Intentional-failure workflow](../../.github/workflows/e2e-pr-actions-detective-fail.yml)
+- [Intentional-failure workflow](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-pr-actions-detective-fail.yml)
 - [PR Actions Detective E2E](e2e-pr-actions-detective.md)
-- [Fixture data](../../testdata/agentic/pr-actions-detective/)
+- [Fixture data](https://github.com/elastic/oblt-aw/tree/main/testdata/agentic/pr-actions-detective)

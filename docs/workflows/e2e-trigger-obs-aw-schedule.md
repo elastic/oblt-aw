@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions |
-| Source | [`.github/workflows/e2e-trigger-obs-aw-schedule.yml`](../../.github/workflows/e2e-trigger-obs-aw-schedule.yml) |
+| Source | [`.github/workflows/e2e-trigger-obs-aw-schedule.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-trigger-obs-aw-schedule.yml) |
 | Trigger | Manual `workflow_dispatch` only |
 
 ## Purpose
@@ -22,7 +22,7 @@ The `run-obs-aw-schedule` job calls `obs-aw-event-schedule.yml` with `schedule-p
 
 ## Sources
 
-- [E2E schedule dispatcher](../../.github/workflows/e2e-trigger-obs-aw-schedule.yml)
+- [E2E schedule dispatcher](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-trigger-obs-aw-schedule.yml)
 - [Schedule event orchestrator](obs-aw-event-schedule.md)
 - [Autodoc E2E](e2e-autodoc.md)
 - [Daily schedule client template](obs-aw-client-template.md)

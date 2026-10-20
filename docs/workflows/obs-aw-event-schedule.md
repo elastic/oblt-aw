@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions reusable workflow |
-| Source | [`.github/workflows/obs-aw-event-schedule.yml`](../../.github/workflows/obs-aw-event-schedule.yml) |
+| Source | [`.github/workflows/obs-aw-event-schedule.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-schedule.yml) |
 | Trigger | `workflow_call` from daily/frequent schedule clients or the control-plane E2E dispatcher |
 
 ## Purpose
@@ -24,7 +24,7 @@ Inputs: `schedule-profile` (`daily` or `frequent`) and boolean `e2e-autodoc-mode
 
 ## Sources
 
-- [Event orchestrator](../../.github/workflows/obs-aw-event-schedule.yml)
+- [Event orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-schedule.yml)
 - [Daily schedule client template](obs-aw-client-template.md)
 - [Autodoc](obs-aw-autodoc.md)
 - [Security category detectors](obs-aw-security-detector.md)

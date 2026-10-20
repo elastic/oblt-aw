@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions reusable workflow |
-| Source | [`.github/workflows/docs-aw-pr-ai-menu-collect.yml`](../../.github/workflows/docs-aw-pr-ai-menu-collect.yml) |
+| Source | [`.github/workflows/docs-aw-pr-ai-menu-collect.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-pr-ai-menu-collect.yml) |
 | Trigger | `workflow_call` from the Docs pull-request event orchestrator |
 
 ## Purpose
@@ -22,7 +22,7 @@ The `workflow_call` contract requires `shared-proceed`, the allowed PR/issue aut
 
 ## Sources
 
-- [Collector workflow](../../.github/workflows/docs-aw-pr-ai-menu-collect.yml)
+- [Collector workflow](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-pr-ai-menu-collect.yml)
 - [Pull-request event orchestrator](docs-aw-event-pull-request.md)
 - [Workflow-run consumer](docs-aw-event-workflow-run.md)
 - [PR AI menu](docs-aw-pr-ai-menu.md)

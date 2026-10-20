@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions reusable workflow |
-| Source | [`.github/workflows/obs-aw-event-pull-request.yml`](../../.github/workflows/obs-aw-event-pull-request.yml) |
+| Source | [`.github/workflows/obs-aw-event-pull-request.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-pull-request.yml) |
 | Trigger | `workflow_call`, invoked by the Observability pull-request client template |
 
 ## Purpose
@@ -24,7 +24,7 @@ No inputs, outputs, or secrets are declared. Top-level permissions are `contents
 
 ## Sources
 
-- [Event orchestrator](../../.github/workflows/obs-aw-event-pull-request.yml)
+- [Event orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-event-pull-request.yml)
 - [Automerge](obs-aw-automerge.md)
 - [Dependency review](obs-aw-dependency-review.md)
 - [Observability client templates](obs-aw-client-template.md)

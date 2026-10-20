@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions |
-| Source | [`.github/workflows/e2e-dependency-review.yml`](../../.github/workflows/e2e-dependency-review.yml) |
+| Source | [`.github/workflows/e2e-dependency-review.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-dependency-review.yml) |
 | Trigger | `workflow_dispatch` or `workflow_call` |
 
 ## Purpose
@@ -24,9 +24,9 @@ Optional `checkout-ref` defaults to `main`. The job requests content and pull-re
 
 ## Sources
 
-- [E2E workflow](../../.github/workflows/e2e-dependency-review.yml)
-- [Harness](../../scripts/obs/e2e/dependency_review_e2e_harness.py)
-- [Oracle](../../scripts/obs/e2e/oracle_dependency_review_e2e.py)
+- [E2E workflow](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-dependency-review.yml)
+- [Harness](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/e2e/dependency_review_e2e_harness.py)
+- [Oracle](https://github.com/elastic/oblt-aw/blob/main/scripts/obs/e2e/oracle_dependency_review_e2e.py)
 - [Fixture workflow](e2e-dependency-review-actions-fixture.md)
 - [Dependency-review route](obs-aw-dependency-review.md)
-- [Test fixtures](../../testdata/agentic/dependency-review/)
+- [Test fixtures](https://github.com/elastic/oblt-aw/tree/main/testdata/agentic/dependency-review)

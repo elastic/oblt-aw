@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions |
-| Source | [`.github/workflows/codex-preview.yml`](../../.github/workflows/codex-preview.yml) |
+| Source | [`.github/workflows/codex-preview.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/codex-preview.yml) |
 | Trigger | Push to `main` or pull request with changes under `docs/**`; manual dispatch |
 
 ## Purpose
@@ -26,5 +26,5 @@ The called reusable workflow is maintained in `elastic/docs-actions`, not checke
 
 ## Sources
 
-- [Caller workflow](../../.github/workflows/codex-preview.yml)
+- [Caller workflow](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/codex-preview.yml)
 - [Codex preview cleanup caller](codex-preview-cleanup.md)

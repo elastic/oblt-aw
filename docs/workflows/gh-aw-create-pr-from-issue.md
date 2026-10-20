@@ -5,8 +5,8 @@
 | | |
 | --- | --- |
 | Platform | GitHub Agentic Workflows |
-| Authored source | [`.github/workflows/gh-aw-create-pr-from-issue.md`](../../.github/workflows/gh-aw-create-pr-from-issue.md) |
-| Generated lock | [`.github/workflows/gh-aw-create-pr-from-issue.lock.yml`](../../.github/workflows/gh-aw-create-pr-from-issue.lock.yml) |
+| Authored source | [`.github/workflows/gh-aw-create-pr-from-issue.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-create-pr-from-issue.md) |
+| Generated lock | [`.github/workflows/gh-aw-create-pr-from-issue.lock.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-create-pr-from-issue.lock.yml) |
 | Invocation | `workflow_call` with a required target issue number |
 
 ## Purpose
@@ -29,6 +29,6 @@ Edit the `.md` source, then regenerate and verify the lock with `make compile-aw
 
 ## Sources
 
-- [Authored workflow source](../../.github/workflows/gh-aw-create-pr-from-issue.md)
-- [Generated lock](../../.github/workflows/gh-aw-create-pr-from-issue.lock.yml)
-- [Shared workflow fragments](../../.github/workflows/gh-aw-fragments/)
+- [Authored workflow source](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-create-pr-from-issue.md)
+- [Generated lock](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-create-pr-from-issue.lock.yml)
+- [Shared workflow fragments](https://github.com/elastic/oblt-aw/tree/main/.github/workflows/gh-aw-fragments)

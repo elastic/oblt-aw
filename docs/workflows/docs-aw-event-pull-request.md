@@ -5,7 +5,7 @@
 | | |
 | --- | --- |
 | Platform | GitHub Actions reusable workflow |
-| Source | [`.github/workflows/docs-aw-event-pull-request.yml`](../../.github/workflows/docs-aw-event-pull-request.yml) |
+| Source | [`.github/workflows/docs-aw-event-pull-request.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-event-pull-request.yml) |
 | Trigger | `workflow_call`, invoked by the Docs pull-request client template |
 
 ## Purpose
@@ -26,7 +26,7 @@ No inputs or outputs are declared on this wrapper. The collector receives the sh
 
 ## Sources
 
-- [Event orchestrator](../../.github/workflows/docs-aw-event-pull-request.yml)
+- [Event orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/docs-aw-event-pull-request.yml)
 - [Collector](docs-aw-pr-ai-menu-collect.md)
 - [PR menu consumer](docs-aw-pr-ai-menu.md)
 - [Docs client templates](docs-aw-client-template.md)
