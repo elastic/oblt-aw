@@ -226,7 +226,7 @@ jobs:
         Keep output minimal.
 
   # Fail closed: approve job success alone is not enough — require a real APPROVED review
-  # for the current head (COMMENT-only "eligible" must not reach pascalgn).
+  # for the live head (COMMENT-only "eligible" must not reach pascalgn).
   assert-approved-review:
     needs:
       - verify
@@ -244,6 +244,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    outputs:
+      head_sha: ${{ steps.assert.outputs.head_sha }}
+      reason: ${{ steps.assert.outputs.reason }}
     steps:
       - name: Checkout elastic/oblt-aw (approval assert)
         uses: actions/checkout@v7
@@ -257,19 +260,49 @@ jobs:
             scripts/obs/assert_automerge_approved_review.sh
           sparse-checkout-cone-mode: false
 
-      - name: Require non-author APPROVED review for head SHA
+      - name: Require non-author APPROVED review for live head SHA
+        id: assert
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           # shellcheck source=../../../scripts/obs/assert_automerge_approved_review.sh
           source _oblt-aw/scripts/obs/assert_automerge_approved_review.sh
-          automerge_assert_pr_has_approved_review \
-            "${REPO}" "${PR_NUMBER}" "${PR_AUTHOR}" "${HEAD_SHA}"
+          live_sha="$(automerge_fetch_pr_head_sha "${REPO}" "${PR_NUMBER}")" || {
+            echo "reason=verify_failed" >> "${GITHUB_OUTPUT}"
+            echo "head_sha=${EVENT_HEAD_SHA}" >> "${GITHUB_OUTPUT}"
+            exit 1
+          }
+          echo "head_sha=${live_sha}" >> "${GITHUB_OUTPUT}"
+          if [[ "${live_sha}" != "${EVENT_HEAD_SHA}" ]]; then
+            echo "reason=stale_head" >> "${GITHUB_OUTPUT}"
+            echo "PR head moved since the workflow event (live=${live_sha} event=${EVENT_HEAD_SHA}); failing closed." >&2
+            exit 1
+          fi
+          set +e
+          assert_out="$(automerge_assert_pr_has_approved_review \
+            "${REPO}" "${PR_NUMBER}" "${PR_AUTHOR}" "${live_sha}" 2>&1)"
+          assert_rc=$?
+          set -e
+          printf '%s\n' "${assert_out}"
+          reason="$(printf '%s\n' "${assert_out}" | sed -n 's/^ASSERT_REASON=//p' | tail -n 1)"
+          if [[ -z "${reason}" ]]; then
+            if [[ "${assert_rc}" -eq 2 ]]; then
+              reason=missing_approval
+            elif [[ "${assert_rc}" -eq 0 ]]; then
+              reason=ok
+            else
+              reason=verify_failed
+            fi
+          fi
+          echo "reason=${reason}" >> "${GITHUB_OUTPUT}"
+          if [[ "${assert_rc}" -ne 0 ]]; then
+            exit 1
+          fi
 
   # When shared-token-policy is set, merge as the Vault app (ephemeral token) so repo
   # pull_request_bypassers for that app can skip CODEOWNERS. Otherwise use GITHUB_TOKEN.
@@ -298,7 +331,32 @@ jobs:
       id-token: write
     outputs:
       merge_result: ${{ steps.merge-pull-request.outputs.mergeResult }}
+      head_sha: ${{ needs.assert-approved-review.outputs.head_sha }}
     steps:
+      - name: Checkout elastic/oblt-aw (head SHA guard)
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          ref: main
+          path: _oblt-aw
+          fetch-depth: 1
+          token: ${{ github.token }}
+          sparse-checkout: |
+            scripts/obs/assert_automerge_approved_review.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Reject stale PR head before merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ASSERTED_SHA: ${{ needs.assert-approved-review.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          # shellcheck source=../../../scripts/obs/assert_automerge_approved_review.sh
+          source _oblt-aw/scripts/obs/assert_automerge_approved_review.sh
+          automerge_require_pr_head_sha "${REPO}" "${PR_NUMBER}" "${ASSERTED_SHA}"
+
       - name: Create ephemeral GitHub token (configured policy)
         id: create-token-explicit
         if: ${{ inputs.shared-token-policy != '' }}
@@ -325,7 +383,7 @@ jobs:
   # When pascalgn did not merge, one Vault REST squash-merge (bypass actor when policy set).
   # Pending checks → soft-succeed so arm-for-deferred-merge can mark the PR; other errors fail.
   rest-merge:
-    needs: [automerge]
+    needs: [automerge, assert-approved-review]
     if: >-
       always() &&
       (needs.automerge.outputs.merge_result == 'merge_failed' ||
@@ -348,6 +406,7 @@ jobs:
           fetch-depth: 1
           token: ${{ github.token }}
           sparse-checkout: |
+            scripts/obs/assert_automerge_approved_review.sh
             scripts/obs/automerge_armed_lib.sh
           sparse-checkout-cone-mode: false
 
@@ -364,11 +423,14 @@ jobs:
           GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ needs.assert-approved-review.outputs.head_sha }}
         run: |
           set -euo pipefail
+          # shellcheck source=../../../scripts/obs/assert_automerge_approved_review.sh
+          source _oblt-aw/scripts/obs/assert_automerge_approved_review.sh
           # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
           source _oblt-aw/scripts/obs/automerge_armed_lib.sh
+          automerge_require_pr_head_sha "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}"
           if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
             -f merge_method=squash \
             -f sha="${HEAD_SHA}" 2>&1)"; then
@@ -400,7 +462,7 @@ jobs:
 
   # After rest-merge soft-succeeds on pending checks, upsert the SHA-bound armed comment.
   arm-for-deferred-merge:
-    needs: [rest-merge]
+    needs: [rest-merge, assert-approved-review]
     if: >-
       always() &&
       needs.rest-merge.result == 'success' &&
@@ -431,7 +493,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ needs.assert-approved-review.outputs.head_sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           SHARED_TOKEN_POLICY: ${{ inputs.shared-token-policy }}
         run: |
@@ -482,8 +544,9 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ needs.assert-approved-review.outputs.head_sha || github.event.pull_request.head.sha }}
           ASSERT_RESULT: ${{ needs.assert-approved-review.result }}
+          ASSERT_REASON: ${{ needs.assert-approved-review.outputs.reason }}
           MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
           REST_RESULT: ${{ needs.rest-merge.result }}
           REST_MERGED: ${{ needs.rest-merge.outputs.merged }}
@@ -519,9 +582,21 @@ jobs:
           }
 
           missing_approve_detail="Missing APPROVE review: automerge requires a non-author GitHub review with state APPROVED for the current head (COMMENT-only eligibility is not enough). Re-run after the approve step submits event=APPROVE, or ask a maintainer to approve and merge manually."
+          verify_failed_detail="Could not verify APPROVE review (checkout, API, or head-SHA lookup failed). Check the linked workflow run; do not assume approval is missing."
+          stale_head_detail="PR head moved since this workflow event; approval was not re-checked for the new head. Re-run automerge on the current head, or ask a maintainer to merge manually."
 
           if [ "${ASSERT_RESULT}" = "failure" ]; then
-            fail_with_comment "${missing_approve_detail}"
+            case "${ASSERT_REASON}" in
+              missing_approval)
+                fail_with_comment "${missing_approve_detail}"
+                ;;
+              stale_head)
+                fail_with_comment "${stale_head_detail}"
+                ;;
+              *)
+                fail_with_comment "${verify_failed_detail}"
+                ;;
+            esac
           fi
 
           if [ "${MERGE_RESULT}" = "merged" ]; then
@@ -565,7 +640,9 @@ jobs:
 
           # pascalgn skipped (e.g. missing approvals) — do not blame rules/checks.
           if [ "${MERGE_RESULT}" = "skipped" ]; then
-            reviews_json="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" --paginate)" || reviews_json='[]'
+            if ! reviews_json="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" --paginate)"; then
+              fail_with_comment "${verify_failed_detail}"
+            fi
             if ! automerge_reviews_have_non_author_approval \
               "${reviews_json}" "${PR_AUTHOR}" "${HEAD_SHA}"; then
               fail_with_comment "${missing_approve_detail}"
