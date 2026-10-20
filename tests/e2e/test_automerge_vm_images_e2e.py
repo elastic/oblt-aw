@@ -364,6 +364,23 @@ def test_oracle_fails_closed_when_only_approve_job_executed() -> None:
     )
 
 
+def test_oracle_fails_closed_on_comment_only_approve_review() -> None:
+    """COMMENT-only eligibility must not satisfy approve_review_present (needs APPROVED)."""
+    report = _evaluate(
+        _synthetic_live_outcome(
+            approving_review={
+                "id": 9,
+                "user": "github-actions[bot]",
+                "state": "COMMENTED",
+            }
+        )
+    )
+    assert report["pass"] is False
+    assert any(
+        c["id"] == "approve_review_present" and not c["pass"] for c in report["checks"]
+    )
+
+
 def test_oracle_fails_closed_on_automerge_without_named_conclusion() -> None:
     report = _evaluate(
         _synthetic_live_outcome(
