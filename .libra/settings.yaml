@@ -1,0 +1,19 @@
+version: 1
+enabled: true
+# Soft pilot: only review PRs labeled libra-review. Remove required_labels to review every PR.
+required_labels:
+  - libra-review
+review_drafts: false
+skip_labels:
+  - libra-skip
+draft_bypass_labels:
+  - libra-review-draft
+paths:
+  exclude:
+    - '.github/workflows/*.lock.yml'
+publication:
+  # Drop P4 wording/naming/comment-only notes; matches the high-signal Copilot policy.
+  publish_min_severity: P3
+  block_min_severity: P1
+  verify_min_severity: P1
+  allow_partial_coverage: false
