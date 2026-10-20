@@ -72,6 +72,7 @@ jobs:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           repository: elastic/oblt-aw
           ref: main
           path: oblt-aw-scripts
@@ -111,6 +112,7 @@ jobs:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           repository: elastic/oblt-aw
           ref: main
           path: oblt-aw-scripts
@@ -146,6 +148,7 @@ jobs:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           repository: elastic/oblt-aw
           ref: main
           path: oblt-aw-scripts
@@ -211,6 +214,7 @@ jobs:
       - name: Checkout oblt-aw for Docs PR AI menu scripts
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           repository: elastic/oblt-aw
           ref: main
           path: oblt-aw-scripts

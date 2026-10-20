@@ -42,6 +42,7 @@ jobs:
       - name: Checkout source repository
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Detect relevant file changes
@@ -104,6 +105,7 @@ jobs:
       - name: Checkout source repository
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           path: source
 
       - name: Create ephemeral GitHub token
@@ -115,6 +117,7 @@ jobs:
       - name: Checkout target repository
         uses: actions/checkout@v7
         with:
+          persist-credentials: false
           repository: ${{ matrix.target.repository }}
           token: ${{ steps.create-token.outputs.token }}
           path: target
@@ -343,7 +346,8 @@ jobs:
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v7
-
+        with:
+          persist-credentials: false
       - name: Download all PR result artifacts
         uses: actions/download-artifact@v8
         with:
