@@ -57,18 +57,39 @@ toc:
   - folder: workflows
     children:
       - hidden: ./index.md
+      - hidden: ./agentics-maintenance.md
       - hidden: ./aw-dashboard-audit.md
       - hidden: ./aw-prelude.md
       - hidden: ./aw-release-promote.md
       - hidden: ./aw-release-rollback.md
       - hidden: ./aw-resolve-agentic-assets.md
+      - hidden: ./aw-sync-apm-version.md
       - hidden: ./ci.md
+      - hidden: ./codex-preview-cleanup.md
+      - hidden: ./codex-preview.md
       - hidden: ./compiler-upgrade.md
       - hidden: ./distribute-client-workflow.md
       - hidden: ./docs-aw-ai-menu.md
       - hidden: ./docs-aw-client-template.md
+      - hidden: ./docs-aw-event-issue-comment.md
+      - hidden: ./docs-aw-event-issues.md
+      - hidden: ./docs-aw-event-pull-request.md
+      - hidden: ./docs-aw-event-workflow-run.md
       - hidden: ./docs-aw-pr-ai-menu.md
+      - hidden: ./docs-aw-pr-ai-menu-collect.md
+      - hidden: ./e2e-all.md
+      - hidden: ./e2e-autodoc.md
+      - hidden: ./e2e-automerge-vm-images.md
+      - hidden: ./e2e-dependency-review-actions-fixture.md
+      - hidden: ./e2e-dependency-review.md
+      - hidden: ./e2e-estc-pr-buildkite-detective.md
+      - hidden: ./e2e-pr-actions-detective-fail.md
+      - hidden: ./e2e-pr-actions-detective.md
+      - hidden: ./e2e-trigger-obs-aw-schedule.md
       - hidden: ./get-enabled-workflows.md
+      - hidden: ./gh-aw-create-pr-from-issue.md
+      - hidden: ./gh-aw-dependency-review.md
+      - hidden: ./gh-aw-docs-patrol.md
       - hidden: ./gh-aw-onboard-repository.md
       - hidden: ./load-allowed-authors.md
       - hidden: ./obs-aw-agent-suggestions.md
@@ -80,6 +101,12 @@ toc:
       - hidden: ./obs-aw-dependency-review.md
       - hidden: ./obs-aw-duplicate-issue-detector.md
       - hidden: ./obs-aw-estc-pr-buildkite-detective.md
+      - hidden: ./obs-aw-event-issue-comment.md
+      - hidden: ./obs-aw-event-issues.md
+      - hidden: ./obs-aw-event-pull-request.md
+      - hidden: ./obs-aw-event-schedule.md
+      - hidden: ./obs-aw-event-status.md
+      - hidden: ./obs-aw-event-workflow-run.md
       - hidden: ./obs-aw-issue-fixer.md
       - hidden: ./obs-aw-issue-triage.md
       - hidden: ./obs-aw-mention-in-issue.md
