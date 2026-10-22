@@ -1,5 +1,4 @@
--# Buildkite fixture pipeline: Automerge VM images E2E
-+# Buildkite fixture pipeline: Automerge VM images E2E
+# Buildkite fixture pipeline: Automerge VM images E2E
 
 ## At a glance
 
