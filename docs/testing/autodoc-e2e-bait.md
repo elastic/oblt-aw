@@ -17,6 +17,15 @@ Intentional incomplete documentation page used by the live `obs:autodoc` E2E har
 
 Do **not** complete this page in product docs on `main`; that would remove the gap the E2E asserts. Fix PRs from live E2E are closed without merge.
 
+## Expected audit contract
+
+The E2E audit issue is expected to report exactly this fixture and should continue to prove these invariants:
+
+- Fixture remains `docs/testing/fixtures/e2e-autodoc-bait.md`.
+- Marker remains `E2E_AUTODOC_BAIT_MARKER`.
+- The fixture keeps the intentional unchecked list items (the gap signal under test).
+- Cleanup closes the generated issue/PR while the fixture remains on the default branch.
+
 ## Related
 
 - Harness docs: [autodoc-e2e](autodoc-e2e.md)

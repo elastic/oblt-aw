@@ -6,7 +6,7 @@ This page is the **live E2E fixture** for `obs:autodoc`.
 
 ## Status
 
-Incomplete on purpose. Do **not** treat this as finished product documentation.
+Incomplete on purpose. Do **not** treat this as finished product documentation. The unchecked items below are deliberate E2E assertions and must stay unchecked on `main`.
 
 ## Missing content (intentional)
 
