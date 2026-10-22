@@ -1,5 +1,4 @@
--# Buildkite pipeline: `oblt-aw-e2e-estc-fail`
-+# Buildkite pipeline: `oblt-aw-e2e-estc-fail`
+# Buildkite pipeline: `oblt-aw-e2e-estc-fail`
 
 ## At a glance
 
