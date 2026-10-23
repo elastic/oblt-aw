@@ -22,8 +22,11 @@ updates:
     directory: "/"
     # gh aw compile outputs — do not hand-edit; refresh via make compile-aw-check
     # / gh aw update-actions.
+    # E2E *fixture* workflows hold harness-owned seed pins; Dependabot must not
+    # rewrite them (that turns live pin-bump E2E into accidental downgrades).
     exclude-paths:
       - "**/*.lock.yml"
+      - ".github/workflows/**/*fixture*.yml"
       - ".github/workflows/agentics-maintenance.yml"
     schedule:
       interval: "weekly"
