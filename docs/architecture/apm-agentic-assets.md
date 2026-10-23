@@ -10,7 +10,7 @@ Keys under `x-oblt-aw.<org-key>.workflows` must match the `id` field in that org
 
 ## Structure
 
-`x-oblt-aw` is nested by **org key** (same names as `config/<org-key>/` in the framework, e.g. `obs`, `docs`):
+`x-oblt-aw` is nested by **org key** (same names as `config/<org-key>/` in the framework, e.g. `obs`, `docs`, `security`):
 
 | Path | Requirement | Behavior |
 |------|-------------|----------|

@@ -40,7 +40,7 @@ When you open a GitHub issue or pull request, a schedule fires, or another match
 
 In simplified form:
 
-1. Clients (`trigger-<org-key>-aw-*.yml`) are **installed** using [automated distribution](operations/distribute-client-workflow.md) ([Observability client template](workflows/obs-aw-client-template.md), [Docs client template](workflows/docs-aw-client-template.md)).
+1. Clients (`trigger-<org-key>-aw-*.yml`) are **installed** using [automated distribution](operations/distribute-client-workflow.md) ([Observability](workflows/obs-aw-client-template.md), [Docs](workflows/docs-aw-client-template.md), [Security](workflows/security-aw-client-template.md)).
 2. On a matching event, the client calls [elastic/oblt-aw](https://github.com/elastic/oblt-aw).
 3. [Prelude](workflows/aw-prelude.md) checks the [Control Plane dashboard](operations/control-plane-dashboard.md).
 4. If the Control Plane dashboard allows it, the matching route runs the pinned implementation for that agentic workflow: usually a `gh-aw-*` lock (in this repo or upstream), sometimes a Docs Actions reusable, or a deterministic framework workflow with no model.

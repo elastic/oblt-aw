@@ -4,7 +4,7 @@
 
 This document extends the current OBLT AW framework model so multiple Elastic internal organizations (product lines or programs) can **collaborate in one catalog repository**, each owning **distinct agentic workflows**, **separate distribution targets**, and **clear ownership** inside a **single** consumer-facing Control Plane dashboard.
 
-**Implemented layout:** Per-org [workflow-registry.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json), [active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json), [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json), and [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json) (Observability) under `config/<org-key>/` only — **no JSON files directly under `config/`** (only subdirectories such as `config/obs/`, `config/docs/`, or reserved `config/schema/`), hard-coded Control Plane dashboard label `oblt-aw/dashboard`, title `[oblt-aw] Control Plane Dashboard`, and checkbox markers `<!-- oblt-aw:<org-key>:<workflow-id> -->` (see [sync_control_plane_dashboard.py](https://github.com/elastic/oblt-aw/blob/main/scripts/sync_control_plane_dashboard.py), [get_enabled_workflows.py](https://github.com/elastic/oblt-aw/blob/main/scripts/get_enabled_workflows.py)).
+**Implemented layout:** Per-org [workflow-registry.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/workflow-registry.json), [active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json), [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json), and [allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json) (Observability) under `config/<org-key>/` only — **no JSON files directly under `config/`** (only subdirectories such as `config/obs/`, `config/docs/`, `config/security/`, or reserved `config/schema/`), hard-coded Control Plane dashboard label `oblt-aw/dashboard`, title `[oblt-aw] Control Plane Dashboard`, and checkbox markers `<!-- oblt-aw:<org-key>:<workflow-id> -->` (see [sync_control_plane_dashboard.py](https://github.com/elastic/oblt-aw/blob/main/scripts/sync_control_plane_dashboard.py), [get_enabled_workflows.py](https://github.com/elastic/oblt-aw/blob/main/scripts/get_enabled_workflows.py)).
 
 **Goal:** Parameterize by **organization key** (from **`config/<org-key>/`** folder names — e.g. `config/obs/`) so other groups can add registries and repo lists. **One open Control Plane dashboard issue per consumer repository** lists every workflow, **grouped by org**. Checklist markers **always include the org** so parsing and user inspection stay unambiguous.
 
@@ -20,13 +20,13 @@ This document extends the current OBLT AW framework model so multiple Elastic in
 | **Visible ownership** | Control Plane dashboard sections and tables make **which org owns which workflow** obvious (e.g. `### Observability (obs)` then workflows for that org). |
 | **Separated distribution** | Each org keeps its own **active-repositories.json** (who receives the client workflow and Control Plane dashboard sync). **Sync** merges all org registries when updating the **single** Control Plane dashboard for repos in the union of those lists (or per policy: only orgs that target that repo). |
 | **Common core** | Shared Python and reusable workflows live at **repository root** (`scripts/`, `.github/workflows/`); org-specific **data** lives only under `config/<org-key>/`. |
-| **Sync on change** | Path filters and automation can still scope to `config/<org-key>/**` (e.g. `config/obs/**`, `config/docs/**`) so unrelated orgs do not fan out unnecessary work. |
+| **Sync on change** | Path filters and automation can still scope to `config/<org-key>/**` (e.g. `config/obs/**`, `config/docs/**`, `config/security/**`) so unrelated orgs do not fan out unnecessary work. |
 
 ---
 
 ## 2. Organization key and checklist markers
 
-- **`org-key`:** Taken **only** from the folder name **`config/<org-key>/`** (DNS-label style, e.g. `obs`, `docs`, `platform`). Implementation discovers orgs as **direct subdirectories of `config/`** that contain org data (see §3). **Reserve** names like `schema` for non-org assets under `config/` so they are not mistaken for an org key. **Note:** an org key **`docs`** maps to **`config/docs/`** (JSON config); that path is **not** the repository’s documentation tree at **`docs/`** (Markdown) at repo root.
+- **`org-key`:** Taken **only** from the folder name **`config/<org-key>/`** (DNS-label style, e.g. `obs`, `docs`, `security`). Implementation discovers orgs as **direct subdirectories of `config/`** that contain org data (see §3). **Reserve** names like `schema` for non-org assets under `config/` so they are not mistaken for an org key. **Note:** an org key **`docs`** maps to **`config/docs/`** (JSON config); that path is **not** the repository’s documentation tree at **`docs/`** (Markdown) at repo root. Org key **`security`** is not the Observability registry workflow id `obs:security`.
 
 **Checkbox comment format (mandatory):** Include **org** and **workflow id**, with a stable product-scoped prefix so one parser can handle all lines:
 
@@ -55,7 +55,10 @@ config/
   obs/                                      # org-key = "obs" (folder name under config/)
     workflow-registry.json                  # workflows[] + optional top-level section_title for Control Plane dashboard
     active-repositories.json                # { "repositories": [ "owner/repo", ... ] }
-  docs/                                     # optional minimal second org (tests / section-merge); org-key "docs"
+  docs/                                     # docs org; org-key "docs"
+    workflow-registry.json
+    active-repositories.json
+  security/                                 # security org; org-key "security" (empty registry until routes land)
     workflow-registry.json
     active-repositories.json
   <other-org-key>/
@@ -83,6 +86,8 @@ scripts/
 
 .github/workflows/
   obs-aw-*.yml                               # Reusable agentic workflows — see §4
+  docs-aw-*.yml
+  security-aw-*.yml
   sync-control-plane-dashboard.yml
   distribute-client-workflow.yml
   ...
@@ -96,7 +101,7 @@ scripts/
 
 - **Keep existing flat names** such as `obs-aw-dependency-review.yml`, `obs-aw-agent-suggestions.yml`, etc., at **`.github/workflows/`** (same as today).
 - **Do not move reusable workflows into subfolders:** GitHub requires reusable workflows to live **directly** under `.github/workflows/` — **subdirectories are not supported** for reusable workflows ([Reuse workflows — limitations](https://docs.github.com/en/actions/using-workflows/reusing-workflows#creating-a-reusable-workflow)).
-- If you need clearer grouping without breaking `uses:` paths, rely on **naming prefixes** (org key is already the `obs-aw-` / `docs-aw-` prefix) or **documentation**, not nested directories for callable workflows.
+- If you need clearer grouping without breaking `uses:` paths, rely on **naming prefixes** (org key is already the `obs-aw-` / `docs-aw-` / `security-aw-` prefix) or **documentation**, not nested directories for callable workflows.
 
 ---
 

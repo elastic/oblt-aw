@@ -26,7 +26,8 @@ body:
       label: Organization key
       description: Which organization key in elastic/oblt-aw (`config/<org-key>/`) this repository joins.
       options:
-        - obs
         - docs
+        - obs
+        - security
     validations:
       required: true
