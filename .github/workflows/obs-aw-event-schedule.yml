@@ -173,6 +173,7 @@ jobs:
       contents: read
       id-token: write
       issues: write
+      pull-requests: read
       copilot-requests: write
     uses: ./.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml
     with:
