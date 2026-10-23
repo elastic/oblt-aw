@@ -38,7 +38,10 @@ Permissions:
 - `actions: read`
 - `contents: read`
 - `issues: write`
+- `pull-requests: read`
 - `copilot-requests: write`
+
+The `pull-requests: read` scope is required on both the reusable detector workflow and caller paths (for example `obs-aw-event-schedule.yml`) that invoke it.
 
 ## API / Interface
 

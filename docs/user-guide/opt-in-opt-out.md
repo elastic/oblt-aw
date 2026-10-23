@@ -32,17 +32,24 @@ To disable one update type while keeping Automerge on:
 1. Open the Control Plane dashboard issue.
 2. Leave the **Automerge** parent checked.
 3. Uncheck the specific collection checkbox you want to disable.
+4. Reply on the audit comment with a short deactivation reason.
 
 To disable all Automerge behavior:
 
 1. Open the Control Plane dashboard issue.
 2. Uncheck the **Automerge** parent checkbox.
+3. Reply on the audit comment with a short deactivation reason.
+
+For deactivation reason and audit behavior details, see [Control Plane dashboard — user instructions: Disabling an agentic workflow](../operations/control-plane-dashboard.md#disabling-an-agentic-workflow).
 
 ## What to expect after changing checkboxes
 
 - GitHub saves checkbox edits immediately on the issue.
-- A dashboard audit comment records the change.
+- Enabling or disabling checkboxes posts a dashboard audit comment.
+- Disable actions request a short deactivation reason and mention `@elastic/observablt-ci`; reply on the issue so the reason is recorded.
 - Changes take effect on the next client workflow run; checkbox edits do not start Automerge immediately.
+
+See also [Control Plane dashboard — user instructions: Audit trail](../operations/control-plane-dashboard.md#audit-trail).
 
 ## Related guides
 
