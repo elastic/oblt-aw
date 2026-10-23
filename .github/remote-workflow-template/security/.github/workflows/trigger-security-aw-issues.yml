@@ -1,0 +1,18 @@
+name: Security Agentic Workflow — Issues
+
+# Distributed to repositories in config/security/active-repositories.json.
+
+on:
+  issues:
+    types: [opened, edited]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run-security-aw-issues:
+    permissions:
+      contents: read
+      issues: write
+    uses: elastic/oblt-aw/.github/workflows/security-aw-event-issues.yml@main # ratchet:exclude
