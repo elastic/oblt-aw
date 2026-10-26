@@ -157,6 +157,24 @@ This migration is already implemented in this repository:
 
 ---
 
+## 10. Adding a new org key (implementation checklist)
+
+Use this when scaffolding another `config/<org-key>/` (same shape as `obs`, `docs`, `security`):
+
+| Step | What to change |
+|------|----------------|
+| Config | `config/<org-key>/workflow-registry.json` + `active-repositories.json` (both files required for discovery) |
+| Clients | `.github/remote-workflow-template/<org-key>/.github/workflows/trigger-<org-key>-aw-*.yml` |
+| Orchestrators | `.github/workflows/<org-key>-aw-event-*.yml` (dashboard-audit-only is fine until routes exist) |
+| CODEOWNERS | Rules for config, remote templates, `<org-key>-aw-*`, and `trigger-<org-key>-aw-*` |
+| Onboard / docs | Issue form, onboard prompt, and docs that enumerate org keys |
+| Prelude routes | `scripts/validate_aw_workflow_prelude.py` **derives** `<org-key>-aw-*` route prefixes from discovered org dirs — do **not** hard-code org names in that script |
+| Unit tests | `tests/unit/test_validate_aw_workflow_prelude.py` parametrizes `shared-proceed` route cases over discovered org keys — adding the config dir pulls the new prefix into coverage |
+
+Validate with `python scripts/validate_aw_workflow_prelude.py` and `pytest tests/unit/test_validate_aw_workflow_prelude.py`.
+
+---
+
 ## References
 
 - [OBLT AW Architecture Overview](./overview.md)

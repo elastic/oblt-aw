@@ -17,8 +17,13 @@
 """
 Validate local *-aw-* route workflows and registry coherence.
 
-Route reusables (obs-aw-*, docs-aw-*) receive shared event context from
-*-aw-event-* orchestrators and declare workflow_call input shared-proceed.
+Route reusables (`<org-key>-aw-*`) receive shared event context from
+`*-aw-event-*` orchestrators and declare workflow_call input shared-proceed.
+
+The route filename prefix set is derived from discovered org keys under
+``config/<org-key>/`` (see :func:`common.discover_org_keys_sorted`). Adding a
+new org directory automatically includes ``<org-key>-aw-*`` in route validation;
+do not hard-code org prefixes here.
 
 In-repo agentic primitives (`gh-aw-*`, `*.lock.yml`) are excluded from subject
 discovery so they are not required in workflow-registry.json.
@@ -29,14 +34,15 @@ from __future__ import annotations
 import pathlib
 import re
 import sys
+from collections.abc import Sequence
 
+from common import discover_org_keys_sorted
 from workflow_registry import validate_registry_against_workflows
 
 WORKFLOWS_DIR = pathlib.Path(".github/workflows")
 CONFIG_DIR = pathlib.Path("config")
 AW_WORKFLOW_PATTERN = re.compile(r".+-aw-.+\.ya?ml$")
 EVENT_ORCHESTRATOR_PATTERN = re.compile(r".+-aw-event-.+\.ya?ml$")
-ROUTE_PATTERN = re.compile(r"^(?:docs|obs|security)-aw-.+\.ya?ml$")
 PRELUDE_USES = re.compile(
     r"uses:\s*\./\.github/workflows/aw-prelude\.ya?ml\b",
     re.MULTILINE,
@@ -46,6 +52,20 @@ SHARED_PROCEED_INPUT = re.compile(r"^\s+shared-proceed:\s*$", re.MULTILINE)
 SHARED_PROCEED_JOB_IF = re.compile(r"inputs\.shared-proceed")
 JOB_HEADER = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$", re.MULTILINE)
 JOB_IF_LINE = re.compile(r"^    if:\s*(.*)$", re.MULTILINE)
+
+
+def build_route_pattern(org_keys: Sequence[str]) -> re.Pattern[str]:
+    """Compile ``^(?:org|…)-aw-.+\\.ya?ml$`` from org keys (sorted, escaped)."""
+    keys = sorted({key for key in org_keys if key})
+    if not keys:
+        raise ValueError("route pattern requires at least one org key")
+    alternatives = "|".join(re.escape(key) for key in keys)
+    return re.compile(rf"^(?:{alternatives})-aw-.+\.ya?ml$")
+
+
+def route_pattern(config_dir: pathlib.Path | None = None) -> re.Pattern[str]:
+    """Route reusable basename pattern for org keys under ``config_dir``."""
+    return build_route_pattern(discover_org_keys_sorted(config_dir or CONFIG_DIR))
 
 
 def list_subject_workflows() -> list[pathlib.Path]:
@@ -138,8 +158,10 @@ def validate_route(path: pathlib.Path) -> list[str]:
     return errors
 
 
-def validate_workflow(path: pathlib.Path) -> list[str]:
-    if ROUTE_PATTERN.match(path.name):
+def validate_workflow(
+    path: pathlib.Path, *, config_dir: pathlib.Path | None = None
+) -> list[str]:
+    if route_pattern(config_dir).match(path.name):
         return validate_route(path)
     return []
 
@@ -150,7 +172,8 @@ def validate_registry_for_subjects(subject_workflow_names: set[str]) -> list[str
         WORKFLOWS_DIR,
         subject_workflow_names,
     )
-    routes = {name for name in subject_workflow_names if ROUTE_PATTERN.match(name)}
+    pattern = route_pattern()
+    routes = {name for name in subject_workflow_names if pattern.match(name)}
     filtered: list[str] = []
     for err in errors:
         path_name = err.split(":", 1)[0].split("/")[-1]

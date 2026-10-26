@@ -77,6 +77,7 @@ The repo guidance in `.cursor/rules/fail-closed-e2e-gates.mdc` is the baseline: 
 
 - Ensure shared prelude gating and allow lists still match the intended signals.
 - Treat `.github/workflows/aw-prelude.yml` and `scripts/validate_aw_workflow_prelude.py` as the naming/routing contract for shared prelude behavior; mismatches there are blockers.
+- When a PR adds a new `config/<org-key>/`, confirm route prelude coverage stays discovery-driven (no hard-coded org list in the validator) and that `tests/unit/test_validate_aw_workflow_prelude.py` still parametrizes over discovered org keys (see `AGENTS.md` **Adding a new org key**).
 - Validate that route wrappers and org-specific client workflows align with the naming conventions documented in `AGENTS.md` and `docs/workflows/README.md`.
 - Check that workflow enablement/registry changes match the repo's documented control-plane model.
 
