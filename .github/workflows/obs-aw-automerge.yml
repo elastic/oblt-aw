@@ -630,7 +630,8 @@ jobs:
             exit 0
           fi
 
-          # Primary merge skipped (e.g. label/eligibility) — do not blame rules/checks.
+          # Primary merge skipped (e.g. merge-ready label removed after verify) —
+          # do not merge/arm; soft-succeed when an APPROVED review still exists.
           if [ "${MERGE_RESULT}" = "skipped" ]; then
             if ! reviews_json="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" --paginate)"; then
               fail_with_comment "${verify_failed_detail}"
@@ -639,7 +640,8 @@ jobs:
               "${reviews_json}" "${PR_AUTHOR}" "${HEAD_SHA}"; then
               fail_with_comment "${missing_approve_detail}"
             fi
-            fail_with_comment "Automerge skipped without merging (mergeResult=skipped). Check the linked workflow run for details, or ask a maintainer to merge this pull request manually."
+            echo "Automerge skipped (mergeResult=skipped); not merging or arming."
+            exit 0
           fi
 
           fail_with_comment "A repository rule or required check is still blocking the merge. Check the linked workflow run for details, or ask a maintainer to merge this pull request manually."

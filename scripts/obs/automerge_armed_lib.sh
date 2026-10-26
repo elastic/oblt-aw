@@ -18,6 +18,7 @@
 # Source this file; do not execute it directly.
 
 AUTOMERGE_ARMED_BOT='github-actions[bot]'
+AUTOMERGE_MERGE_READY_LABEL='oblt-aw/ai/merge-ready'
 # HTML comment marker always includes the approved head SHA, e.g.
 # <!-- obs-aw-automerge:armed sha=0123…abcdef -->
 
@@ -43,9 +44,22 @@ automerge_merge_error_is_already_merged_message() {
   printf '%s' "${msg}" | grep -qiE 'already been merged'
 }
 
+# True when the live PR still carries the merge-ready opt-in label.
+automerge_pr_has_merge_ready_label() {
+  local repo="${1:?repo required}"
+  local pr_number="${2:?pr number required}"
+  local labels_json
+  labels_json="$(gh api "repos/${repo}/pulls/${pr_number}" --jq '[.labels[].name]')" || {
+    echo "Failed to list labels for ${repo}#${pr_number}." >&2
+    return 1
+  }
+  printf '%s' "${labels_json}" | jq -e --arg label "${AUTOMERGE_MERGE_READY_LABEL}" \
+    'index($label) != null' >/dev/null
+}
+
 # Squash-merge via REST bound to expected_sha (fail closed if live head differs).
-# Prints MERGE_RESULT=merged|not_ready|merge_failed on stdout for workflow wiring.
-# Exit 0 when the result is classified (including merge_failed / not_ready soft paths);
+# Prints MERGE_RESULT=merged|not_ready|merge_failed|skipped on stdout for workflow wiring.
+# Exit 0 when the result is classified (including merge_failed / not_ready / skipped);
 # exit 1 only when head drift or a non-open non-MERGED PR blocks classification.
 # Requires automerge_require_pr_head_sha from assert_automerge_approved_review.sh.
 automerge_squash_merge_at_sha() {
@@ -58,6 +72,13 @@ automerge_squash_merge_at_sha() {
   if ! automerge_require_pr_head_sha "${repo}" "${pr_number}" "${expected_sha}"; then
     echo "MERGE_RESULT=merge_failed"
     return 1
+  fi
+
+  # Re-check live opt-in: maintainers may remove merge-ready after verify/approve.
+  if ! automerge_pr_has_merge_ready_label "${repo}" "${pr_number}"; then
+    echo "MERGE_RESULT=skipped"
+    echo "Missing label ${AUTOMERGE_MERGE_READY_LABEL} on ${repo}#${pr_number}; skipping merge." >&2
+    return 0
   fi
 
   if merge_out="$(gh api --method PUT "repos/${repo}/pulls/${pr_number}/merge" \

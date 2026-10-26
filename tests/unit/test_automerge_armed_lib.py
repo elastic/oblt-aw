@@ -211,28 +211,63 @@ def test_find_bot_armed_comment_id_empty_when_sha_absent() -> None:
     assert result.stdout.strip() == ""
 
 
-def test_squash_merge_at_sha_binds_expected_sha(tmp_path: pathlib.Path) -> None:
-    """Merge PUT must include -f sha=<asserted>; head drift before merge fails closed."""
-    env = _install_fake_gh(
-        tmp_path,
-        f"""\
-        #!/usr/bin/env bash
-        set -euo pipefail
-        if [[ "$*" == *"--jq"* ]]; then
-          printf '%s\\n' {_VALID_SHA}
-          exit 0
-        fi
+_MERGE_READY_LABELS_JQ = '["oblt-aw/ai/merge-ready"]'
+_EMPTY_LABELS_JQ = "[]"
+
+
+def _fake_gh_squash_script(
+    *,
+    head_sha: str,
+    labels_json: str = _MERGE_READY_LABELS_JQ,
+    allow_merge: bool = True,
+    merge_body: str = "",
+    merge_exit: int = 0,
+) -> str:
+    """Stub gh for head SHA, labels, and optional merge PUT."""
+    if allow_merge:
+        merge_block = f"""\
         if [[ "$*" == *"pulls/"*"/merge"* ]]; then
-          if [[ "$*" != *"sha={_VALID_SHA}"* ]]; then
+          if [[ "$*" != *"sha={head_sha}"* ]]; then
             echo "merge must bind asserted sha; got: $*" >&2
             exit 2
+          fi
+          if [[ {merge_exit} -ne 0 ]]; then
+            echo {shlex.quote(merge_body or "merge failed")} >&2
+            exit {merge_exit}
           fi
           echo '{{"merged":true}}'
           exit 0
         fi
+        """
+    else:
+        merge_block = """\
+        if [[ "$*" == *"pulls/"*"/merge"* ]]; then
+          echo "merge must not run: $*" >&2
+          exit 99
+        fi
+        """
+    return f"""\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        if [[ "$*" == *"--jq"* && "$*" == *".head.sha"* ]]; then
+          printf '%s\\n' {head_sha}
+          exit 0
+        fi
+        if [[ "$*" == *"--jq"* && "$*" == *".labels"* ]]; then
+          printf '%s\\n' {shlex.quote(labels_json)}
+          exit 0
+        fi
+        {merge_block}
         echo "unexpected gh args: $*" >&2
         exit 99
-        """,
+        """
+
+
+def test_squash_merge_at_sha_binds_expected_sha(tmp_path: pathlib.Path) -> None:
+    """Merge PUT must include -f sha=<asserted>; head drift before merge fails closed."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(head_sha=_VALID_SHA, merge_body="", merge_exit=0),
     )
     result = _bash_merge(
         f"automerge_squash_merge_at_sha owner/repo 1 {_VALID_SHA}",
@@ -245,16 +280,7 @@ def test_squash_merge_at_sha_binds_expected_sha(tmp_path: pathlib.Path) -> None:
 def test_squash_merge_at_sha_rejects_head_drift(tmp_path: pathlib.Path) -> None:
     env = _install_fake_gh(
         tmp_path,
-        f"""\
-        #!/usr/bin/env bash
-        set -euo pipefail
-        if [[ "$*" == *"--jq"* ]]; then
-          printf '%s\\n' {_OTHER_SHA_HEAD}
-          exit 0
-        fi
-        echo "merge must not run after drift: $*" >&2
-        exit 99
-        """,
+        _fake_gh_squash_script(head_sha=_OTHER_SHA_HEAD, allow_merge=False),
     )
     result = _bash_merge(
         f"automerge_squash_merge_at_sha owner/repo 1 {_VALID_SHA}",
@@ -270,20 +296,11 @@ def test_squash_merge_at_sha_pending_checks_is_not_ready(
 ) -> None:
     env = _install_fake_gh(
         tmp_path,
-        f"""\
-        #!/usr/bin/env bash
-        set -euo pipefail
-        if [[ "$*" == *"--jq"* ]]; then
-          printf '%s\\n' {_VALID_SHA}
-          exit 0
-        fi
-        if [[ "$*" == *"pulls/"*"/merge"* ]]; then
-          echo 'required status check "ci" is pending' >&2
-          exit 1
-        fi
-        echo "unexpected gh args: $*" >&2
-        exit 99
-        """,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            merge_body='required status check "ci" is pending',
+            merge_exit=1,
+        ),
     )
     result = _bash_merge(
         f"automerge_squash_merge_at_sha owner/repo 1 {_VALID_SHA}",
@@ -291,3 +308,24 @@ def test_squash_merge_at_sha_pending_checks_is_not_ready(
     )
     assert result.returncode == 0, result.stderr
     assert "MERGE_RESULT=not_ready" in result.stdout
+
+
+def test_squash_merge_at_sha_skips_when_merge_ready_label_removed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Unchanged head without merge-ready must not merge or arm."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            labels_json=_EMPTY_LABELS_JQ,
+            allow_merge=False,
+        ),
+    )
+    result = _bash_merge(
+        f"automerge_squash_merge_at_sha owner/repo 1 {_VALID_SHA}",
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=skipped" in result.stdout
+    assert "Missing label" in result.stderr
