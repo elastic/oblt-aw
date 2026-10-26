@@ -11,14 +11,14 @@ For the user-facing Automerge dependency collection catalogue, see [Automerge de
 
 Routed workflow sources:
 
-- `.github/workflows/obs-aw-automerge.yml` — PR path (`verify`, `check-dependency-collection`, `approve`, `automerge`, `rest-merge`, `arm-for-deferred-merge`, `report-automerge-outcome`)
+- `.github/workflows/obs-aw-automerge.yml` — PR path (`verify`, `check-dependency-collection`, `approve`, `assert-approved-review`, `automerge`, `rest-merge`, `arm-for-deferred-merge`, `report-automerge-outcome`)
 - `.github/workflows/obs-aw-automerge-deferred.yml` — frequent schedule profile (`discover`, matrix `merge`)
 
 **Approve (PR path):** Nested `gh-aw-mention-in-pr` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]`. When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review. Author allow list is **only** [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json).
 
 **Merge strategy (CI-duration independent):**
 
-1. **PR path** tries a short squash-merge (`automerge` / pascalgn), then one Vault REST attempt (`rest-merge`).
+1. **PR path** tries a SHA-bound REST squash-merge (`automerge`), then one more Vault REST attempt (`rest-merge`).
 2. If checks are still pending → `arm-for-deferred-merge` upserts the bot-authored armed comment (`<!-- obs-aw-automerge:armed sha=<head> -->`). Outcome success = merged, armed, or soft-succeed on `not_ready`.
 3. **Frequent schedule profile** (client cron every 15 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` and (when configured) ruleset Integration `bypass_actors` apply (honored only on direct REST merge as that app — not by async `--auto` / merge-queue completion).
 
@@ -61,7 +61,9 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 | Enabled collections | Only collections enabled on the Control Plane dashboard (`obs:automerge:<collection-id>` sub-feature checkboxes under Automerge) proceed to `approve` and `automerge`. The parent `obs:automerge` checkbox must also be enabled. |
 | Skipped PRs | When classification fails or the collection is not enabled on the Control Plane dashboard, the job posts or updates a single PR comment (marker `obs-aw-automerge:dependency-collection-gate`) and downstream jobs do not run. |
 
-**`approve` job:** Nested `gh-aw-mention-in-pr` uses author-aware `github-token-policy` (Vault only for `github-actions[bot]` authors; otherwise `GITHUB_TOKEN`). For repos with “Require review from Code Owners”, add the Vault app to classic branch-protection `pull_request_bypassers` and merge as that app (see [obs-aw-automerge.md](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens)).
+**`approve` job:** Nested `gh-aw-mention-in-pr` uses author-aware `github-token-policy` (Vault only for `github-actions[bot]` authors; otherwise `GITHUB_TOKEN`). Eligible success must submit a review with `event=APPROVE` (not COMMENT). **`assert-approved-review`** then checks the live head (rejects stale event SHAs), requires a non-author whose latest decisive review is `APPROVED`, and exposes `reason` so outcome comments do not mislabel API failures as missing approval. For repos with “Require review from Code Owners”, add the Vault app to classic branch-protection `pull_request_bypassers` and merge as that app (see [obs-aw-automerge.md](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens)).
+
+**`assert-approved-review` job:** Fail-closed check that a non-author `APPROVED` review exists for the current head before `automerge` runs. COMMENT-only eligibility fails here with an explicit missing-APPROVE outcome comment.
 
 **Deferred discover** (`scripts/obs/discover_armed_automerge_prs.sh`): requires armed marker from the PR path so approve has already run before the deferred merge.
 
