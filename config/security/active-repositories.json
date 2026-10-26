@@ -1,3 +1,10 @@
 {
-  "repositories": []
+  "repositories": [
+    {
+      "repository": "elastic/endpoint-dev",
+      "pin-class": "production",
+      "workflow-token-policy": "token-policy-ff26bb5c6087",
+      "ai-assets-token-policy": ""
+    }
+  ]
 }
