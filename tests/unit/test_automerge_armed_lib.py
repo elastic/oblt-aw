@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 import shlex
 import subprocess
+import textwrap
 
 import pytest
 
-SCRIPT = (
-    pathlib.Path(__file__).resolve().parents[2]
-    / "scripts"
-    / "obs"
-    / "automerge_armed_lib.sh"
-)
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts" / "obs" / "automerge_armed_lib.sh"
+ASSERT_SCRIPT = ROOT / "scripts" / "obs" / "assert_automerge_approved_review.sh"
 
 _VALID_SHA = "0123456789abcdef0123456789abcdef01234567"
+_OTHER_SHA_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 
 def _bash(function_call: str) -> subprocess.CompletedProcess[str]:
@@ -25,6 +25,32 @@ def _bash(function_call: str) -> subprocess.CompletedProcess[str]:
         text=True,
         check=False,
     )
+
+
+def _bash_merge(
+    function_call: str, *, env: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
+    """Source assert + armed helpers (squash merge needs require_pr_head_sha)."""
+    return subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'source "{ASSERT_SCRIPT}" && source "{SCRIPT}" && {function_call}',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+
+
+def _install_fake_gh(tmp_path: pathlib.Path, script: str) -> dict[str, str]:
+    gh_path = tmp_path / "gh"
+    gh_path.write_text(textwrap.dedent(script), encoding="utf-8")
+    gh_path.chmod(0o755)
+    env = os.environ.copy()
+    env["PATH"] = f"{tmp_path}{os.pathsep}{env['PATH']}"
+    return env
 
 
 def _call(function: str, *args: str) -> subprocess.CompletedProcess[str]:
@@ -117,7 +143,7 @@ def test_armed_marker_line_rejects_invalid_sha(sha: str) -> None:
     assert "expected 40-hex sha" in result.stderr
 
 
-_OTHER_SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+_OTHER_SHA = _OTHER_SHA_HEAD
 _BOT = "github-actions[bot]"
 
 
@@ -183,3 +209,85 @@ def test_find_bot_armed_comment_id_empty_when_sha_absent() -> None:
     )
     assert result.returncode == 0
     assert result.stdout.strip() == ""
+
+
+def test_squash_merge_at_sha_binds_expected_sha(tmp_path: pathlib.Path) -> None:
+    """Merge PUT must include -f sha=<asserted>; head drift before merge fails closed."""
+    env = _install_fake_gh(
+        tmp_path,
+        f"""\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        if [[ "$*" == *"--jq"* ]]; then
+          printf '%s\\n' {_VALID_SHA}
+          exit 0
+        fi
+        if [[ "$*" == *"pulls/"*"/merge"* ]]; then
+          if [[ "$*" != *"sha={_VALID_SHA}"* ]]; then
+            echo "merge must bind asserted sha; got: $*" >&2
+            exit 2
+          fi
+          echo '{{"merged":true}}'
+          exit 0
+        fi
+        echo "unexpected gh args: $*" >&2
+        exit 99
+        """,
+    )
+    result = _bash_merge(
+        f"automerge_squash_merge_at_sha owner/repo 1 {_VALID_SHA}",
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=merged" in result.stdout
+
+
+def test_squash_merge_at_sha_rejects_head_drift(tmp_path: pathlib.Path) -> None:
+    env = _install_fake_gh(
+        tmp_path,
+        f"""\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        if [[ "$*" == *"--jq"* ]]; then
+          printf '%s\\n' {_OTHER_SHA_HEAD}
+          exit 0
+        fi
+        echo "merge must not run after drift: $*" >&2
+        exit 99
+        """,
+    )
+    result = _bash_merge(
+        f"automerge_squash_merge_at_sha owner/repo 1 {_VALID_SHA}",
+        env=env,
+    )
+    assert result.returncode == 1
+    assert "MERGE_RESULT=merge_failed" in result.stdout
+    assert "PR head moved" in result.stderr
+
+
+def test_squash_merge_at_sha_pending_checks_is_not_ready(
+    tmp_path: pathlib.Path,
+) -> None:
+    env = _install_fake_gh(
+        tmp_path,
+        f"""\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        if [[ "$*" == *"--jq"* ]]; then
+          printf '%s\\n' {_VALID_SHA}
+          exit 0
+        fi
+        if [[ "$*" == *"pulls/"*"/merge"* ]]; then
+          echo 'required status check "ci" is pending' >&2
+          exit 1
+        fi
+        echo "unexpected gh args: $*" >&2
+        exit 99
+        """,
+    )
+    result = _bash_merge(
+        f"automerge_squash_merge_at_sha owner/repo 1 {_VALID_SHA}",
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=not_ready" in result.stdout

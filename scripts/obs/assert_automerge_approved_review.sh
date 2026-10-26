@@ -68,11 +68,14 @@ automerge_reviews_have_non_author_approval() {
     echo "automerge_reviews_have_non_author_approval: expected 40-hex sha, got: ${head_sha}" >&2
     return 1
   fi
-  match="$(printf '%s' "${reviews_json}" | jq -r \
+  # gh api --paginate emits one JSON array per page; slurp+add before grouping
+  # so APPROVED on page N and CHANGES_REQUESTED on page N+1 resolve correctly.
+  match="$(printf '%s' "${reviews_json}" | jq -sr \
     --arg author "${author_login}" \
     --arg sha "${head_sha}" \
     '
-    [.[]
+    (add // [])
+    | [.[]
       | select((.user.login // "") != $author)
       | select((.commit_id // "") == $sha)
       | . + {state_u: ((.state // "") | ascii_upcase)}

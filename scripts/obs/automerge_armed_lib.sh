@@ -43,6 +43,56 @@ automerge_merge_error_is_already_merged_message() {
   printf '%s' "${msg}" | grep -qiE 'already been merged'
 }
 
+# Squash-merge via REST bound to expected_sha (fail closed if live head differs).
+# Prints MERGE_RESULT=merged|not_ready|merge_failed on stdout for workflow wiring.
+# Exit 0 when the result is classified (including merge_failed / not_ready soft paths);
+# exit 1 only when head drift or a non-open non-MERGED PR blocks classification.
+# Requires automerge_require_pr_head_sha from assert_automerge_approved_review.sh.
+automerge_squash_merge_at_sha() {
+  local repo="${1:?repo required}"
+  local pr_number="${2:?pr number required}"
+  local expected_sha="${3:?expected sha required}"
+  local merge_out
+  local pr_state
+
+  if ! automerge_require_pr_head_sha "${repo}" "${pr_number}" "${expected_sha}"; then
+    echo "MERGE_RESULT=merge_failed"
+    return 1
+  fi
+
+  if merge_out="$(gh api --method PUT "repos/${repo}/pulls/${pr_number}/merge" \
+    -f merge_method=squash \
+    -f sha="${expected_sha}" 2>&1)"; then
+    echo "MERGE_RESULT=merged"
+    echo "Merged via REST API at ${expected_sha}."
+    return 0
+  fi
+
+  echo "REST merge error: ${merge_out}" >&2
+  if automerge_merge_error_is_already_merged_message "${merge_out}"; then
+    echo "MERGE_RESULT=merged"
+    return 0
+  fi
+  if printf '%s' "${merge_out}" | grep -qiE 'pull request is not open'; then
+    pr_state="$(gh pr view "${pr_number}" --repo "${repo}" --json state -q .state)"
+    if [[ "${pr_state}" == "MERGED" ]]; then
+      echo "MERGE_RESULT=merged"
+      return 0
+    fi
+    echo "MERGE_RESULT=merge_failed"
+    echo "PR not open and not MERGED (state=${pr_state}); failing." >&2
+    return 1
+  fi
+  if automerge_merge_error_is_pending_checks "${merge_out}"; then
+    echo "MERGE_RESULT=not_ready"
+    echo "REST merge blocked by pending checks."
+    return 0
+  fi
+  echo "MERGE_RESULT=merge_failed"
+  echo "REST merge failed with a non-retryable error." >&2
+  return 0
+}
+
 # List issue comments as JSON (paginated). Fails closed on API errors.
 automerge_list_issue_comments() {
   local repo="${1:?}"

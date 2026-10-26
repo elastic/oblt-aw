@@ -18,7 +18,7 @@ Routed workflow sources:
 
 **Merge strategy (CI-duration independent):**
 
-1. **PR path** tries a short squash-merge (`automerge` / pascalgn), then one Vault REST attempt (`rest-merge`).
+1. **PR path** tries a SHA-bound REST squash-merge (`automerge`), then one more Vault REST attempt (`rest-merge`).
 2. If checks are still pending → `arm-for-deferred-merge` upserts the bot-authored armed comment (`<!-- obs-aw-automerge:armed sha=<head> -->`). Outcome success = merged, armed, or soft-succeed on `not_ready`.
 3. **Frequent schedule profile** (client cron every 15 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` and (when configured) ruleset Integration `bypass_actors` apply (honored only on direct REST merge as that app — not by async `--auto` / merge-queue completion).
 

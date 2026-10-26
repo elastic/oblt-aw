@@ -239,6 +239,50 @@ def test_assert_wrapper_api_error_is_verify_failed(tmp_path: pathlib.Path) -> No
     assert "Failed to list reviews" in result.stderr
 
 
+def test_assert_wrapper_cross_page_revocation_is_missing_approval(
+    tmp_path: pathlib.Path,
+) -> None:
+    """gh --paginate emits one array per page; revocation on a later page must win."""
+    page1 = json.dumps([_review(state="APPROVED", login=_APPROVER, review_id=1)])
+    page2 = json.dumps(
+        [_review(state="CHANGES_REQUESTED", login=_APPROVER, review_id=2)]
+    )
+    env = _install_fake_gh(
+        tmp_path,
+        f"""\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        if [[ "${{1:-}}" == "api" && "${{2:-}}" == *"/reviews" ]]; then
+          printf '%s\\n' {shlex.quote(page1)}
+          printf '%s\\n' {shlex.quote(page2)}
+          exit 0
+        fi
+        echo "unexpected gh args: $*" >&2
+        exit 99
+        """,
+    )
+    result = _bash(
+        f"automerge_assert_pr_has_approved_review owner/repo 1 "
+        f"{shlex.quote(_AUTHOR)} {_HEAD}",
+        env=env,
+    )
+    assert result.returncode == 2, result.stdout
+    assert "ASSERT_REASON=missing_approval" in result.stdout
+
+
+def test_reviews_predicate_slurps_paginated_arrays() -> None:
+    page1 = json.dumps([_review(state="APPROVED", login=_APPROVER, review_id=1)])
+    page2 = json.dumps(
+        [_review(state="CHANGES_REQUESTED", login=_APPROVER, review_id=2)]
+    )
+    paginated = f"{page1}\n{page2}\n"
+    result = _bash(
+        f"automerge_reviews_have_non_author_approval {shlex.quote(paginated)} "
+        f"{shlex.quote(_AUTHOR)} {shlex.quote(_HEAD)}"
+    )
+    assert result.returncode == 1, result.stdout
+
+
 def test_require_pr_head_sha_rejects_drift(tmp_path: pathlib.Path) -> None:
     env = _install_fake_gh(
         tmp_path,
