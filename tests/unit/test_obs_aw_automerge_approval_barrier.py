@@ -104,7 +104,12 @@ def test_merge_jobs_propagate_merge_time_assert_reason() -> None:
         if "Report outcome" in (s.get("name") or "")
     )
     assert "MERGE_ASSERT_REASON" in report_env
-    assert "merge_assert_reason" in report_env["MERGE_ASSERT_REASON"]
+    merge_assert_expr = report_env["MERGE_ASSERT_REASON"]
+    assert "merge_assert_reason" in merge_assert_expr
+    # Fallback reason must win when present (primary ok must not mask it).
+    rest_pos = merge_assert_expr.find("needs.rest-merge.outputs.merge_assert_reason")
+    auto_pos = merge_assert_expr.find("needs.automerge.outputs.merge_assert_reason")
+    assert rest_pos != -1 and auto_pos != -1 and rest_pos < auto_pos
     report_run = next(
         s.get("run") or ""
         for s in (report.get("steps") or [])

@@ -552,7 +552,9 @@ jobs:
           ASSERT_RESULT: ${{ needs.assert-approved-review.result }}
           ASSERT_REASON: ${{ needs.assert-approved-review.outputs.reason }}
           MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
-          MERGE_ASSERT_REASON: ${{ needs.automerge.outputs.merge_assert_reason || needs.rest-merge.outputs.merge_assert_reason }}
+          # Prefer rest-merge reason when present so primary not_ready/ok cannot
+          # mask a later missing_approval or verify_failed from the fallback.
+          MERGE_ASSERT_REASON: ${{ needs.rest-merge.outputs.merge_assert_reason || needs.automerge.outputs.merge_assert_reason }}
           REST_RESULT: ${{ needs.rest-merge.result }}
           REST_MERGED: ${{ needs.rest-merge.outputs.merged }}
           ARM_RESULT: ${{ needs.arm-for-deferred-merge.result }}
