@@ -30,7 +30,7 @@ There is **no** `workflow_dispatch` path: the agent requires the triggering issu
 
 Behavior:
 
-1. Parse **repository** (`elastic/<repo>`) and **org key** (`obs` / `docs`) from the issue.
+1. Read the triggering issue via GitHub MCP and parse **repository** (`elastic/<repo>`) and **org key** (`docs` / `obs` / `security`) from the body. Source sets `tools.github.min-integrity: none` (temporary DIFC workaround so human-authored onboard issues are readable under the default `approved` floor).
 2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps, appendix).
 3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones (especially secrets after full registry-doc discovery). Stop with **exact PR URLs** only when the inventory is complete.
 4. Open up to four **normal (non-draft)** PRs (separate concerns); do not merge them. Discover secrets from **every** org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines — do **not** filter by `default_enabled`; then resolve shared modules in the secrets checkout. PR bodies must be valid Markdown (real newlines).
