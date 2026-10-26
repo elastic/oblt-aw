@@ -49,10 +49,12 @@ def test_primary_merge_is_sha_bound_rest_not_pascalgn() -> None:
     assert "uses" not in merge
     run = merge.get("run") or ""
     assert "automerge_squash_merge_at_sha" in run
+    assert '"${PR_AUTHOR}"' in run or "${PR_AUTHOR}" in run
     env = merge.get("env") or {}
     assert env.get("ASSERTED_SHA") == (
         "${{ needs.assert-approved-review.outputs.head_sha }}"
     )
+    assert env.get("PR_AUTHOR") == ("${{ github.event.pull_request.user.login }}")
 
 
 def test_rest_merge_binds_asserted_head_sha() -> None:
@@ -65,5 +67,7 @@ def test_rest_merge_binds_asserted_head_sha() -> None:
     assert env.get("HEAD_SHA") == (
         "${{ needs.assert-approved-review.outputs.head_sha }}"
     )
+    assert env.get("PR_AUTHOR") == ("${{ github.event.pull_request.user.login }}")
     run = merge_steps[0].get("run") or ""
     assert "automerge_squash_merge_at_sha" in run
+    assert "${PR_AUTHOR}" in run

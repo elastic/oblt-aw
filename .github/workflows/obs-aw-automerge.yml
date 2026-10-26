@@ -358,6 +358,7 @@ jobs:
           GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           ASSERTED_SHA: ${{ needs.assert-approved-review.outputs.head_sha }}
         run: |
           set -euo pipefail
@@ -367,7 +368,7 @@ jobs:
           source _oblt-aw/scripts/obs/automerge_armed_lib.sh
           set +e
           merge_out="$(automerge_squash_merge_at_sha \
-            "${REPO}" "${PR_NUMBER}" "${ASSERTED_SHA}" 2>&1)"
+            "${REPO}" "${PR_NUMBER}" "${ASSERTED_SHA}" "${PR_AUTHOR}" 2>&1)"
           merge_rc=$?
           set -e
           printf '%s\n' "${merge_out}"
@@ -426,6 +427,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.create-token-explicit.outputs.token || secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ needs.assert-approved-review.outputs.head_sha }}
         run: |
@@ -436,7 +438,7 @@ jobs:
           source _oblt-aw/scripts/obs/automerge_armed_lib.sh
           set +e
           merge_out="$(automerge_squash_merge_at_sha \
-            "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}" 2>&1)"
+            "${REPO}" "${PR_NUMBER}" "${HEAD_SHA}" "${PR_AUTHOR}" 2>&1)"
           set -e
           printf '%s\n' "${merge_out}"
           result="$(printf '%s\n' "${merge_out}" | sed -n 's/^MERGE_RESULT=//p' | tail -n 1)"

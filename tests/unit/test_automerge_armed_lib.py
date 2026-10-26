@@ -213,17 +213,44 @@ def test_find_bot_armed_comment_id_empty_when_sha_absent() -> None:
 
 _MERGE_READY_LABELS_JQ = '["oblt-aw/ai/merge-ready"]'
 _EMPTY_LABELS_JQ = "[]"
+_PR_AUTHOR = "github-actions[bot]"
+_APPROVER = "elastic-vault-github-plugin-prod[bot]"
+
+
+def _approved_reviews_json(*, head_sha: str = _VALID_SHA) -> str:
+    return (
+        "["
+        f'{{"id":1,"state":"APPROVED","user":{{"login":"{_APPROVER}"}},'
+        f'"commit_id":"{head_sha}"}}'
+        "]"
+    )
+
+
+def _dismissed_after_approved_reviews_json(*, head_sha: str = _VALID_SHA) -> str:
+    return (
+        "["
+        f'{{"id":1,"state":"APPROVED","user":{{"login":"{_APPROVER}"}},'
+        f'"commit_id":"{head_sha}"}},'
+        f'{{"id":2,"state":"DISMISSED","user":{{"login":"{_APPROVER}"}},'
+        f'"commit_id":"{head_sha}"}}'
+        "]"
+    )
 
 
 def _fake_gh_squash_script(
     *,
     head_sha: str,
-    labels_json: str = _MERGE_READY_LABELS_JQ,
+    labels_json: str | None = _MERGE_READY_LABELS_JQ,
+    labels_exit: int = 0,
+    reviews_json: str | None = None,
+    reviews_exit: int = 0,
     allow_merge: bool = True,
     merge_body: str = "",
     merge_exit: int = 0,
 ) -> str:
-    """Stub gh for head SHA, labels, and optional merge PUT."""
+    """Stub gh for head SHA, labels, reviews, and optional merge PUT."""
+    if reviews_json is None:
+        reviews_json = _approved_reviews_json(head_sha=head_sha)
     if allow_merge:
         merge_block = f"""\
         if [[ "$*" == *"pulls/"*"/merge"* ]]; then
@@ -246,6 +273,26 @@ def _fake_gh_squash_script(
           exit 99
         fi
         """
+    labels_block = f"""\
+        if [[ "$*" == *"--jq"* && "$*" == *".labels"* ]]; then
+          if [[ {labels_exit} -ne 0 ]]; then
+            echo "label api boom" >&2
+            exit {labels_exit}
+          fi
+          printf '%s\\n' {shlex.quote(labels_json or "[]")}
+          exit 0
+        fi
+        """
+    reviews_block = f"""\
+        if [[ "${{1:-}}" == "api" && "${{2:-}}" == *"/reviews"* ]]; then
+          if [[ {reviews_exit} -ne 0 ]]; then
+            echo "reviews api boom" >&2
+            exit {reviews_exit}
+          fi
+          printf '%s\\n' {shlex.quote(reviews_json)}
+          exit 0
+        fi
+        """
     return f"""\
         #!/usr/bin/env bash
         set -euo pipefail
@@ -253,14 +300,16 @@ def _fake_gh_squash_script(
           printf '%s\\n' {head_sha}
           exit 0
         fi
-        if [[ "$*" == *"--jq"* && "$*" == *".labels"* ]]; then
-          printf '%s\\n' {shlex.quote(labels_json)}
-          exit 0
-        fi
+        {labels_block}
+        {reviews_block}
         {merge_block}
         echo "unexpected gh args: $*" >&2
         exit 99
         """
+
+
+def _squash(sha: str = _VALID_SHA) -> str:
+    return f"automerge_squash_merge_at_sha owner/repo 1 {sha} {shlex.quote(_PR_AUTHOR)}"
 
 
 def test_squash_merge_at_sha_binds_expected_sha(tmp_path: pathlib.Path) -> None:
@@ -269,10 +318,7 @@ def test_squash_merge_at_sha_binds_expected_sha(tmp_path: pathlib.Path) -> None:
         tmp_path,
         _fake_gh_squash_script(head_sha=_VALID_SHA, merge_body="", merge_exit=0),
     )
-    result = _bash_merge(
-        f"automerge_squash_merge_at_sha owner/repo 1 {_VALID_SHA}",
-        env=env,
-    )
+    result = _bash_merge(_squash(), env=env)
     assert result.returncode == 0, result.stderr
     assert "MERGE_RESULT=merged" in result.stdout
 
@@ -282,10 +328,7 @@ def test_squash_merge_at_sha_rejects_head_drift(tmp_path: pathlib.Path) -> None:
         tmp_path,
         _fake_gh_squash_script(head_sha=_OTHER_SHA_HEAD, allow_merge=False),
     )
-    result = _bash_merge(
-        f"automerge_squash_merge_at_sha owner/repo 1 {_VALID_SHA}",
-        env=env,
-    )
+    result = _bash_merge(_squash(), env=env)
     assert result.returncode == 1
     assert "MERGE_RESULT=merge_failed" in result.stdout
     assert "PR head moved" in result.stderr
@@ -302,10 +345,7 @@ def test_squash_merge_at_sha_pending_checks_is_not_ready(
             merge_exit=1,
         ),
     )
-    result = _bash_merge(
-        f"automerge_squash_merge_at_sha owner/repo 1 {_VALID_SHA}",
-        env=env,
-    )
+    result = _bash_merge(_squash(), env=env)
     assert result.returncode == 0, result.stderr
     assert "MERGE_RESULT=not_ready" in result.stdout
 
@@ -322,10 +362,43 @@ def test_squash_merge_at_sha_skips_when_merge_ready_label_removed(
             allow_merge=False,
         ),
     )
-    result = _bash_merge(
-        f"automerge_squash_merge_at_sha owner/repo 1 {_VALID_SHA}",
-        env=env,
-    )
+    result = _bash_merge(_squash(), env=env)
     assert result.returncode == 0, result.stderr
     assert "MERGE_RESULT=skipped" in result.stdout
     assert "Missing label" in result.stderr
+
+
+def test_squash_merge_at_sha_label_api_error_is_merge_failed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Label lookup errors must not soft-skip as intentional opt-out."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            labels_exit=1,
+            allow_merge=False,
+        ),
+    )
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 1
+    assert "MERGE_RESULT=merge_failed" in result.stdout
+    assert "Could not verify" in result.stderr
+
+
+def test_squash_merge_at_sha_fails_when_approval_dismissed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Dismissal between assert and merge must fail closed before REST PUT."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            reviews_json=_dismissed_after_approved_reviews_json(),
+            allow_merge=False,
+        ),
+    )
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 1
+    assert "MERGE_RESULT=merge_failed" in result.stdout
+    assert "Approval no longer present" in result.stderr
