@@ -55,6 +55,12 @@ tools:
     # Prefer OIDC create-token output, then MCP/secret fallbacks (gh-aw >= v0.89.21).
     github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
     toolsets: [repos, issues, pull_requests, search, actions]
+    # Temporary override of obs-defaults `approved`: DIFC tags human-authored
+    # onboard issues as `none:public`, so issue_read under min-integrity: approved
+    # filters the body the agent must parse. Same workaround as
+    # gh-aw-create-pr-from-issue. Remove once DIFC integrity tags allow approved
+    # reads for write-gated issue authors.
+    min-integrity: none
     allowed-repos:
       - "elastic/oblt-aw"
       - "elastic/catalog-info"
@@ -96,7 +102,7 @@ You are **not** a consumer catalog workflow: do not touch `workflow-registry.jso
 
 ## Inputs (from the issue)
 
-Parse the issue body (sanitized context) and extract exactly:
+Read the triggering issue via GitHub MCP using the **issue-number** from `<github-context>` (the prompt does not embed the issue body). From that issue body, extract exactly:
 
 1. **Repository** — must match `elastic/<repo>` (slug under the `elastic` org).
 2. **Organization key** — must be an existing directory under `config/` in this repository (today: `docs`, `obs`, or `security`).
