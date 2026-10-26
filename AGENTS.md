@@ -14,7 +14,7 @@
 
 ## Client entrypoint changes
 
-Use **[`.github/remote-workflow-template/`](.github/remote-workflow-template/)** as the source for distributed client workflows (per org subtree, for example `obs/.github/workflows/trigger-obs-aw-<workflow-id>.yml`, `docs/.github/workflows/trigger-docs-aw-*.yml`). Distribute installs those files into active repositories, including this control-plane repo when listed in `active-repositories.json` (pilot / `@main` early detection). See [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md), [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
+Use **[`.github/remote-workflow-template/`](.github/remote-workflow-template/)** as the source for distributed client workflows (per org subtree, for example `obs/.github/workflows/trigger-obs-aw-<workflow-id>.yml`, `docs/.github/workflows/trigger-docs-aw-*.yml`, `security/.github/workflows/trigger-security-aw-*.yml`). Distribute installs those files into active repositories, including this control-plane repo when listed in `active-repositories.json` (pilot / `@main` early detection). See [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md), [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md), [docs/workflows/security-aw-client-template.md](docs/workflows/security-aw-client-template.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Do not hand-edit installed `.github/workflows/trigger-*-aw-*.yml` copies; do not reintroduce a monolithic `oblt-aw.yml` or `oblt-aw-ingress.yml`.
 
@@ -42,8 +42,24 @@ Before commit/push on harness, oracle, E2E tests, or related workflows: **`pre-c
 - Shared dashboard audit: `.github/workflows/aw-dashboard-audit.yml` (no org prefix; always-on from org event orchestrators, not prelude-gated).
 - Observability route reusables: `.github/workflows/obs-aw-<workflow-id>.yml` (declare `shared-proceed`; prelude runs in `obs-aw-event-*` orchestrators). Workflows that invoke `gh-aw-*` must call `aw-resolve-agentic-assets.yml` per agent job (`scripts/validate_aw_workflow_resolve_agentic_assets.py`).
 - Docs route reusables: `.github/workflows/docs-aw-*.yml` (same `shared-proceed` contract; prelude runs in `docs-aw-event-*` orchestrators).
-- Enforced by `scripts/validate_aw_workflow_prelude.py` in CI (excludes in-repo `gh-aw-*` / `*.lock.yml` primitives from registry subject discovery).
+- Security route reusables: `.github/workflows/security-aw-*.yml` (same contract when routes exist; scaffold event orchestrators may run dashboard audit without prelude until a non-empty route list exists).
+- Enforced by `scripts/validate_aw_workflow_prelude.py` in CI (excludes in-repo `gh-aw-*` / `*.lock.yml` primitives from registry subject discovery). Route filename prefixes come from **discovered** `config/<org-key>/` dirs via `route_pattern()` — do not hard-code org keys in that script.
 - Some Observability-owned agentic primitives live in-repo as `gh-aw-*.md` + generated `gh-aw-*.lock.yml` (pilot: `gh-aw-estc-pr-buildkite-detective`). Edit the source `.md`, then run `make compile-aw-check` from the repo root to regenerate and verify the matching lock file in `.github/workflows/`; do not hand-edit the lock. Shared compile imports live under `.github/workflows/gh-aw-fragments/` (fleet defaults: `gh-aw-fragments/obs-defaults.md` for model, failure reporting, trusted users).
 - After workflow markdown changes (`.md` under `.github/workflows/`), run `make compile-aw-check`.
 - Do not add `.lock.yml` files to `.gitignore`.
 - Other upstream lock files in `elastic/ai-github-actions` / `elastic/docs-actions` keep the `gh-aw-*` prefix until migrated.
+
+## Adding a new org key (mandatory checklist)
+
+When introducing `config/<org-key>/` (and `<org-key>-aw-*` naming), complete **all** of the following in the same change set:
+
+1. **Config** — `config/<org-key>/workflow-registry.json` + `active-repositories.json` (both required for discovery).
+2. **Clients** — `.github/remote-workflow-template/<org-key>/.github/workflows/trigger-<org-key>-aw-*.yml`.
+3. **Orchestrators** — `.github/workflows/<org-key>-aw-event-*.yml` (dashboard-audit-only is OK until routes exist; skip `aw-prelude` when the route list is empty).
+4. **CODEOWNERS** — path rules for `config/<org-key>/`, remote templates, `<org-key>-aw-*`, and `trigger-<org-key>-aw-*`.
+5. **Onboard / docs** — issue form org dropdown, onboard agent prompt, and docs that list org keys.
+6. **Prelude validator** — `scripts/validate_aw_workflow_prelude.py` builds the route prefix set from discovered org keys; adding the config dir is enough for `<org-key>-aw-*` to be treated as routes. **Do not** reintroduce a hard-coded org list in that script.
+7. **Tests** — `tests/unit/test_validate_aw_workflow_prelude.py` parametrizes route `shared-proceed` cases over `discover_org_keys_sorted(config)`. After adding an org, run that module and confirm the new key is included (no separate hard-coded org list in the tests either).
+8. **Validate** — `pre-commit run --files <touched-paths>`; `python scripts/validate_aw_workflow_prelude.py`; focused pytest for the prelude tests.
+
+See [docs/architecture/multi-org-agentic-workflows.md](docs/architecture/multi-org-agentic-workflows.md) §10.

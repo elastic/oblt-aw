@@ -33,7 +33,7 @@ Technical registration detail for maintainers and agents: [Registering resources
 
 2. **Fill only two fields**
    - **Repository** — `elastic/<repo>` (example: `elastic/my-repo`).
-   - **Organization key** — `obs` or `docs` (matches a `config/<org-key>/` folder in `elastic/oblt-aw`).
+   - **Organization key** — `docs`, `obs`, or `security` (matches a `config/<org-key>/` folder in `elastic/oblt-aw`).
 
    ```text
    Repository:        elastic/my-repo

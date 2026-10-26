@@ -48,14 +48,15 @@ Here are some of the most important features of the **oblt-aw** framework:
 
 ## Open for every Elastic organization
 
-Not Observability-only. Each org owns `config/<org-key>/`; [distribution](docs/operations/distribute-client-workflow.md) and Control Plane dashboard sync stay scoped to that org; consumers still get one shared Control Plane dashboard grouped by org. Observability leads; docs already has a second org footprint. Details: [multi-org design](docs/architecture/multi-org-agentic-workflows.md).
+Not Observability-only. Each org owns `config/<org-key>/`; [distribution](docs/operations/distribute-client-workflow.md) and Control Plane dashboard sync stay scoped to that org; consumers still get one shared Control Plane dashboard grouped by org. Observability leads; docs and security have additional org footprints. Details: [multi-org design](docs/architecture/multi-org-agentic-workflows.md).
 
 ## Quick Start
 
 Target repositories install event-scoped client templates from this repository (for example `trigger-obs-aw-pull-request.yml`, `trigger-obs-aw-issues.yml`). Each event client calls an `obs-aw-event-*` orchestrator that runs shared Control Plane dashboard gating via [aw-prelude.yml](.github/workflows/aw-prelude.yml) and passes `shared-proceed` (plus allow-list fields) into each route reusable.
 
+- Docs templates: [.github/remote-workflow-template/docs/.github/workflows/](.github/remote-workflow-template/docs/.github/workflows/) — see [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md)
 - Observability templates: [.github/remote-workflow-template/obs/.github/workflows/](.github/remote-workflow-template/obs/.github/workflows/) — see [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md)
-- Docs templates: [.github/remote-workflow-template/docs/.github/workflows/](.github/remote-workflow-template/docs/.github/workflows/) (`trigger-docs-aw-issues.yml`, `trigger-docs-aw-issue-comment.yml`, `trigger-docs-aw-pull-request.yml`, `trigger-docs-aw-workflow-run.yml`)
+- Security templates: [.github/remote-workflow-template/security/.github/workflows/](.github/remote-workflow-template/security/.github/workflows/) — see [docs/workflows/security-aw-client-template.md](docs/workflows/security-aw-client-template.md)
 
 Executable workflows live under [.github/workflows/](.github/workflows/); their docs live under [docs/workflows/](docs/workflows/).
 

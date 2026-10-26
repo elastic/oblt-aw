@@ -99,7 +99,7 @@ You are **not** a consumer catalog workflow: do not touch `workflow-registry.jso
 Parse the issue body (sanitized context) and extract exactly:
 
 1. **Repository** — must match `elastic/<repo>` (slug under the `elastic` org).
-2. **Organization key** — must be an existing directory under `config/` in this repository (today: `obs` or `docs`).
+2. **Organization key** — must be an existing directory under `config/` in this repository (today: `docs`, `obs`, or `security`).
 
 If either value is missing, invalid, or the repository is already listed in `config/<org-key>/active-repositories.json`, call `add-comment` with a clear explanation and stop (use `noop` if no further action is possible).
 

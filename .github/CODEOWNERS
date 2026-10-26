@@ -14,3 +14,10 @@
 /.github/remote-workflow-template/docs/ @elastic/obs-docs
 /.github/workflows/docs-aw-* @elastic/obs-docs
 /.github/workflows/trigger-docs-aw-* @elastic/obs-docs
+
+# Security org
+/config/security/ @elastic/elastic-endpoint
+/scripts/security/ @elastic/elastic-endpoint
+/.github/remote-workflow-template/security/ @elastic/elastic-endpoint
+/.github/workflows/security-aw-* @elastic/elastic-endpoint
+/.github/workflows/trigger-security-aw-* @elastic/elastic-endpoint
