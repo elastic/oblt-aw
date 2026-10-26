@@ -71,3 +71,44 @@ def test_rest_merge_binds_asserted_head_sha() -> None:
     run = merge_steps[0].get("run") or ""
     assert "automerge_squash_merge_at_sha" in run
     assert "${PR_AUTHOR}" in run
+
+
+def test_merge_jobs_propagate_merge_time_assert_reason() -> None:
+    """Approval lost after the initial assert must not be reported as a rules failure."""
+    jobs = _load_workflow()
+    automerge = jobs["automerge"]
+    outputs = automerge.get("outputs") or {}
+    assert outputs.get("merge_assert_reason") == (
+        "${{ steps.merge-pull-request.outputs.assertReason }}"
+    )
+    merge_run = next(
+        s.get("run") or ""
+        for s in (automerge.get("steps") or [])
+        if s.get("id") == "merge-pull-request"
+    )
+    assert "assertReason=${assert_reason}" in merge_run
+
+    rest = jobs["rest-merge"]
+    rest_if = rest.get("if") or ""
+    assert "merge_assert_reason != 'missing_approval'" in rest_if
+    assert "merge_assert_reason != 'verify_failed'" in rest_if
+    rest_outputs = rest.get("outputs") or {}
+    assert rest_outputs.get("merge_assert_reason") == (
+        "${{ steps.merge.outputs.assertReason }}"
+    )
+
+    report = jobs["report-automerge-outcome"]
+    report_env = next(
+        (s.get("env") or {})
+        for s in (report.get("steps") or [])
+        if "Report outcome" in (s.get("name") or "")
+    )
+    assert "MERGE_ASSERT_REASON" in report_env
+    assert "merge_assert_reason" in report_env["MERGE_ASSERT_REASON"]
+    report_run = next(
+        s.get("run") or ""
+        for s in (report.get("steps") or [])
+        if "Report outcome" in (s.get("name") or "")
+    )
+    assert "fail_on_assert_reason" in report_run
+    assert "MERGE_ASSERT_REASON" in report_run

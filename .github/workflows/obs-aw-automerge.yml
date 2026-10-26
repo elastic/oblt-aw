@@ -330,6 +330,7 @@ jobs:
       id-token: write
     outputs:
       merge_result: ${{ steps.merge-pull-request.outputs.mergeResult }}
+      merge_assert_reason: ${{ steps.merge-pull-request.outputs.assertReason }}
       head_sha: ${{ needs.assert-approved-review.outputs.head_sha }}
     steps:
       - name: Checkout elastic/oblt-aw (SHA-bound merge helpers)
@@ -373,6 +374,7 @@ jobs:
           set -e
           printf '%s\n' "${merge_out}"
           result="$(printf '%s\n' "${merge_out}" | sed -n 's/^MERGE_RESULT=//p' | tail -n 1)"
+          assert_reason="$(printf '%s\n' "${merge_out}" | sed -n 's/^ASSERT_REASON=//p' | tail -n 1)"
           if [[ -z "${result}" ]]; then
             if [[ "${merge_rc}" -eq 0 ]]; then
               result=merged
@@ -381,18 +383,23 @@ jobs:
             fi
           fi
           echo "mergeResult=${result}" >> "${GITHUB_OUTPUT}"
+          echo "assertReason=${assert_reason}" >> "${GITHUB_OUTPUT}"
           if [[ "${merge_rc}" -ne 0 ]]; then
             exit 1
           fi
 
   # When primary SHA-bound merge did not land, one more Vault REST attempt.
+  # Skip when merge-time revalidation already proved approval missing / unverifiable
+  # (retry would only re-emit the same reason and confuse outcome messaging).
   # Pending checks → soft-succeed so arm-for-deferred-merge can mark the PR; other errors fail.
   rest-merge:
     needs: [automerge, assert-approved-review]
     if: >-
       always() &&
       (needs.automerge.outputs.merge_result == 'merge_failed' ||
-       needs.automerge.outputs.merge_result == 'not_ready')
+       needs.automerge.outputs.merge_result == 'not_ready') &&
+      needs.automerge.outputs.merge_assert_reason != 'missing_approval' &&
+      needs.automerge.outputs.merge_assert_reason != 'verify_failed'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -401,6 +408,7 @@ jobs:
       id-token: write
     outputs:
       merged: ${{ steps.merge.outputs.merged }}
+      merge_assert_reason: ${{ steps.merge.outputs.assertReason }}
     steps:
       - name: Checkout elastic/oblt-aw (REST error helpers)
         uses: actions/checkout@v7
@@ -442,6 +450,8 @@ jobs:
           set -e
           printf '%s\n' "${merge_out}"
           result="$(printf '%s\n' "${merge_out}" | sed -n 's/^MERGE_RESULT=//p' | tail -n 1)"
+          assert_reason="$(printf '%s\n' "${merge_out}" | sed -n 's/^ASSERT_REASON=//p' | tail -n 1)"
+          echo "assertReason=${assert_reason}" >> "${GITHUB_OUTPUT}"
           if [[ "${result}" == "merged" ]]; then
             echo "merged=true" >> "${GITHUB_OUTPUT}"
             exit 0
@@ -542,6 +552,7 @@ jobs:
           ASSERT_RESULT: ${{ needs.assert-approved-review.result }}
           ASSERT_REASON: ${{ needs.assert-approved-review.outputs.reason }}
           MERGE_RESULT: ${{ needs.automerge.outputs.merge_result }}
+          MERGE_ASSERT_REASON: ${{ needs.automerge.outputs.merge_assert_reason || needs.rest-merge.outputs.merge_assert_reason }}
           REST_RESULT: ${{ needs.rest-merge.result }}
           REST_MERGED: ${{ needs.rest-merge.outputs.merged }}
           ARM_RESULT: ${{ needs.arm-for-deferred-merge.result }}
@@ -579,18 +590,25 @@ jobs:
           verify_failed_detail="Could not verify APPROVE review (checkout, API, or head-SHA lookup failed). Check the linked workflow run; do not assume approval is missing."
           stale_head_detail="PR head moved since this workflow event; approval was not re-checked for the new head. Re-run automerge on the current head, or ask a maintainer to merge manually."
 
-          if [ "${ASSERT_RESULT}" = "failure" ]; then
-            case "${ASSERT_REASON}" in
+          fail_on_assert_reason() {
+            case "${1:-}" in
               missing_approval)
                 fail_with_comment "${missing_approve_detail}"
                 ;;
               stale_head)
                 fail_with_comment "${stale_head_detail}"
                 ;;
-              *)
+              verify_failed)
                 fail_with_comment "${verify_failed_detail}"
                 ;;
+              *)
+                return 1
+                ;;
             esac
+          }
+
+          if [ "${ASSERT_RESULT}" = "failure" ]; then
+            fail_on_assert_reason "${ASSERT_REASON}" || fail_with_comment "${verify_failed_detail}"
           fi
 
           if [ "${MERGE_RESULT}" = "merged" ]; then
@@ -613,6 +631,12 @@ jobs:
           if [ "${ARM_RESULT}" = "success" ] && [ "${ARMED}" = "true" ]; then
             echo "PR armed for deferred merge when required checks succeed."
             exit 0
+          fi
+
+          # Merge-time revalidation (approval dismissed / review API failed after
+          # assert-approved-review) — do not blame repository rules or required checks.
+          if fail_on_assert_reason "${MERGE_ASSERT_REASON:-}"; then
+            :
           fi
 
           # Permanent REST failure (CODEOWNERS, rules, etc.) — do not soft-succeed.

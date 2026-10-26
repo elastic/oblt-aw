@@ -401,4 +401,5 @@ def test_squash_merge_at_sha_fails_when_approval_dismissed(
     result = _bash_merge(_squash(), env=env)
     assert result.returncode == 1
     assert "MERGE_RESULT=merge_failed" in result.stdout
+    assert "ASSERT_REASON=missing_approval" in result.stdout
     assert "Approval no longer present" in result.stderr
