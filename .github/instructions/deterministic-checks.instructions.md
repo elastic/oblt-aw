@@ -24,6 +24,7 @@ Do not repeat failures or diagnostics reported by these enforced checks:
 - `validate_aw_workflow_resolve_agentic_assets.py` checks agentic asset resolver wiring.
 - `validate_aw_workflow_report_failure_as_issue.py` checks failure-reporting configuration.
 - `validate_aw_workflow_permissions.py` checks reusable-workflow caller permissions.
+- `validate_docs_toc.py` checks every publishable `docs/**/*.md` page is listed in `docs/docset.yml` toc (Codex preview gate).
 - `make compile-aw-check` checks gh-aw generated lock files against their Markdown sources.
 - `npm test` runs the TypeScript unit tests.
 - OpenSSF Scorecard reports repository security posture.

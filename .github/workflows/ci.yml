@@ -90,6 +90,9 @@ jobs:
       - name: Validate obs-aw-* callers set report-failure-as-issue false
         run: python scripts/validate_aw_workflow_report_failure_as_issue.py
 
+      - name: Validate docs Markdown pages are listed in docset.yml toc
+        run: python scripts/validate_docs_toc.py
+
       - name: Validate reusable-workflow caller permissions
         env:
           GITHUB_TOKEN: ${{ github.token }}
