@@ -138,8 +138,8 @@ Manual maintainers may still use draft PRs for early review; the agent path does
      Check in the catalog-info checkout:
 
      1. Does `resources/github/engineering/obs/<repo>.yaml` exist? If yes, the weekly sync already covers the repo — skip this substep.
-     2. Else, does `resources/github-token-policies/token-policy-observability-github-settings.yaml` already list `spec.implementation.spec.repository: elastic/<repo>`? If yes, skip.
-     3. Otherwise: add `'<repo>'` to `always_include_repos` in that sync script, run `python .github/scripts/update-token-policy-obs-repositories/update_token_policy.py`, and include the regenerated selector in the **same** catalog PR when possible. Do **not** hand-edit only the YAML selector — the next weekly sync would drop the entry. Do **not** invent a fake RRE under `obs/` for a security- or docs-owned repository.
+     2. Else, is `'<repo>'` already in `always_include_repos` in that sync script **and** does `token-policy-observability-github-settings.yaml` already list `spec.implementation.spec.repository: elastic/<repo>`? If both are true, skip.
+     3. Otherwise: add `'<repo>'` to `always_include_repos` if missing, run `python .github/scripts/update-token-policy-obs-repositories/update_token_policy.py`, and include the regenerated selector in the **same** catalog PR when possible. Do **not** hand-edit only the YAML selector — the next weekly sync would drop the entry. Do **not** invent a fake RRE under `obs/` for a security- or docs-owned repository.
 
 3. **Merge the `elastic/catalog-info` change** — Complete review and merge (or otherwise land) the token policy **and** any settings-selector / `always_include_repos` updates on the branch **`elastic/catalog-info`** uses for production so vault and OIDC configuration are **active** before you merge **`elastic/oblt-aw`** `main` in step 4.
 
