@@ -133,7 +133,7 @@ class TestAutomergeAutoapproveWrapperLockWiring:
 
 
 def test_hardcoded_bots_match_allowed_pr_authors() -> None:
-    """Source on.bots / trusted-users must stay aligned with allowed_pr_authors.json."""
+    """Source bots / trusted-users / prompt list must match allowed_pr_authors.json."""
     source = SOURCE_PATH.read_text(encoding="utf-8")
     allow = json.loads(ALLOWED_PR_AUTHORS.read_text(encoding="utf-8"))
     assert isinstance(allow, list) and allow
@@ -156,6 +156,18 @@ def test_hardcoded_bots_match_allowed_pr_authors() -> None:
     ]
     assert trusted == allow, (
         f"trusted-users {trusted!r} != allowed_pr_authors {allow!r}"
+    )
+
+    # Prompt-body bullets are what the agent compares authors against (not on.bots).
+    prompt_body = source.split("---", 2)[-1]
+    section = re.search(
+        r"(?ms)^## Author allow list\n(.*?)(?=^## )",
+        prompt_body,
+    )
+    assert section is not None, "expected ## Author allow list in prompt body"
+    prompt_authors = re.findall(r"^- `([^`]+)`$", section.group(1), flags=re.MULTILINE)
+    assert prompt_authors == allow, (
+        f"prompt author bullets {prompt_authors!r} != allowed_pr_authors {allow!r}"
     )
 
 
