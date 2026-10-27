@@ -159,9 +159,9 @@ Required so `elastic/observability-github-settings` can mint an ephemeral token 
 In `repos/catalog-info`:
 
 1. If `resources/github/engineering/obs/<repo>.yaml` exists → already covered by the weekly obs sync; skip.
-2. Else if `resources/github-token-policies/token-policy-observability-github-settings.yaml` already contains `spec.implementation.spec.repository: elastic/<repo>` → skip.
+2. Else if `'<repo>'` is listed in `always_include_repos` in `.github/scripts/update-token-policy-obs-repositories/update_token_policy.py` **and** `resources/github-token-policies/token-policy-observability-github-settings.yaml` already contains `spec.implementation.spec.repository: elastic/<repo>` → skip.
 3. Else:
-   - Add `'<repo>'` to `always_include_repos` in `.github/scripts/update-token-policy-obs-repositories/update_token_policy.py`.
+   - Add `'<repo>'` to `always_include_repos` in `.github/scripts/update-token-policy-obs-repositories/update_token_policy.py` if it is missing.
    - Run `python .github/scripts/update-token-policy-obs-repositories/update_token_policy.py`.
    - Prefer folding that diff into the **same** catalog PR as the consumer TokenPolicy (`temporary_id` `aw_catalog`).
    - On retry, if an open catalog PR already exists without this fix, open a **follow-up** catalog PR (`temporary_id` `aw_catalog_settings`; title mentioning observability-github-settings token policy). Never hand-edit only the YAML selector; never invent an `obs/` RRE for a non-obs-owned repository.
