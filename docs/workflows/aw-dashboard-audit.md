@@ -49,6 +49,7 @@ Audit comments include an HTML marker such as:
 |-----|----------------|---------------------|----------------------------|
 | obs | `trigger-obs-aw-issues.yml` (`edited`) | `obs-aw-event-issues.yml` → `dashboard-audit` | `obs-aw-event-issue-comment.yml` → `dashboard-audit-reason` |
 | docs | `trigger-docs-aw-issues.yml` (`edited`) | `docs-aw-event-issues.yml` → `dashboard-audit` | `docs-aw-event-issue-comment.yml` → `dashboard-audit-reason` (client job gated to Control Plane dashboard `created`; prelude skipped on `created`) |
+| security | `trigger-security-aw-issues.yml` (`edited`) | `security-aw-event-issues.yml` → `dashboard-audit` | `security-aw-event-issue-comment.yml` → `dashboard-audit-reason` |
 
 Script: [scripts/dashboard_audit.py](https://github.com/elastic/oblt-aw/blob/main/scripts/dashboard_audit.py)
 
