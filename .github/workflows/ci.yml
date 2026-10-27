@@ -101,14 +101,55 @@ jobs:
     if: needs.ci-gate.outputs.skip != 'true'
     runs-on: ubuntu-slim
     timeout-minutes: 10
+    # write: same-repo PRs may push regenerated locks (Copilot Autofix often
+    # edits Markdown without recompiling). Forks stay fail-closed.
     permissions:
-      contents: read
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
 
-      - name: Recompile gh-aw workflows and fail on generated drift
-        run: make compile-aw-check
+      - name: Recompile gh-aw workflows
+        run: make compile-aw
+
+      - name: Commit regenerated lock files on same-repo PRs
+        env:
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          set -euo pipefail
+          dirty="$(
+            git status --porcelain --untracked-files=all -- \
+              ':(glob).github/workflows/*.lock.yml' \
+              ':(glob).github/workflows/**/*.lock.yml' || true
+          )"
+          if [ -z "${dirty}" ]; then
+            echo "Lock files already match sources."
+            exit 0
+          fi
+          if [ "${SAME_REPO}" != "true" ]; then
+            echo "::error::gh-aw lock files drifted on a fork PR. Run make compile-aw locally and commit the .lock.yml files."
+            printf '%s\n' "${dirty}"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Pathspecs match Makefile compile-aw-check.
+          git add -- \
+            ':(glob).github/workflows/*.lock.yml' \
+            ':(glob).github/workflows/**/*.lock.yml'
+          git commit -m "Regenerate gh-aw lock files after source drift."
+          git push
+
+      - name: Verify lock files match sources
+        run: |
+          set -euo pipefail
+          test -z "$(
+            git status --porcelain --untracked-files=all -- \
+              ':(glob).github/workflows/*.lock.yml' \
+              ':(glob).github/workflows/**/*.lock.yml'
+          )"
 
   typescript-tests:
     name: TypeScript tests

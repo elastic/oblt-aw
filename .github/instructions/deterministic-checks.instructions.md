@@ -24,6 +24,6 @@ Do not repeat failures or diagnostics reported by these enforced checks:
 - `validate_aw_workflow_resolve_agentic_assets.py` checks agentic asset resolver wiring.
 - `validate_aw_workflow_report_failure_as_issue.py` checks failure-reporting configuration.
 - `validate_aw_workflow_permissions.py` checks reusable-workflow caller permissions.
-- `make compile-aw-check` checks gh-aw generated lock files against their Markdown sources.
+- `make compile-aw-check` / the `compile-aw` pre-commit hook check gh-aw generated lock files against their Markdown sources (same-repo CI may auto-commit regenerated locks).
 - `npm test` runs the TypeScript unit tests.
 - OpenSSF Scorecard reports repository security posture.
