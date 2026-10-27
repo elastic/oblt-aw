@@ -26,11 +26,6 @@ on:
         type: string
         required: false
         default: ""
-      setup-commands:
-        description: "Shell commands to run before the agent starts (dependency install, build, etc.)"
-        type: string
-        required: false
-        default: ""
       github-token-policy:
         description: "Elastic TokenPolicy id for create-token. When set, mint an OIDC ephemeral token so the review is submitted as the Vault app. Leave empty to use GITHUB_TOKEN."
         type: string
@@ -79,14 +74,8 @@ safe-outputs:
   github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 strict: false
 timeout-minutes: 30
-steps:
-  - name: Repo-specific setup
-    if: ${{ inputs.setup-commands != '' }}
-    env:
-      SETUP_COMMANDS: ${{ inputs.setup-commands }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: eval "$SETUP_COMMANDS"
+# Approve skips consumer APM shell setup: only PR metadata via MCP is required.
+# Do not eval install/build commands outside the agent sandbox with id-token: write.
 ---
 
 # Automerge autoapprove
@@ -131,3 +120,5 @@ When all gates are true, you MUST call `submit_pull_request_review` with `event=
 Do not use `event=COMMENT` to report eligibility success; COMMENT is not an approval.
 If any gate is false, do not approve, do not request changes, and do not submit a review that claims eligibility.
 Keep output minimal. Do not leave inline review comments. Do not push code. Do not merge.
+
+${{ inputs.additional-instructions }}

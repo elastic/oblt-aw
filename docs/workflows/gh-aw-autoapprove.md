@@ -21,7 +21,7 @@ The automerge wrapper runs `verify` and dependency-collection first, resolves co
 
 ## Inputs, outputs, and access
 
-`workflow_call` accepts optional `additional-instructions`, `setup-commands`, and `github-token-policy`; optional secret `GH_AW_GITHUB_TOKEN` is also declared. When `github-token-policy` is set, the lock mints an OIDC ephemeral token so the review is submitted as the Vault app (needed when the PR author is `github-actions[bot]` to avoid self-APPROVE). Empty policy uses `GITHUB_TOKEN` / `github-actions[bot]`.
+`workflow_call` accepts optional `additional-instructions` and `github-token-policy`; optional secret `GH_AW_GITHUB_TOKEN` is also declared. Resolved APM additional instructions are appended to the authored prompt. The lock does **not** accept `setup-commands` — approve only needs PR metadata, so consumer setup (for example `npm ci`) is not eval'd outside the agent sandbox while the job holds `id-token: write`. When `github-token-policy` is set, the lock mints an OIDC ephemeral token so the review is submitted as the Vault app (needed when the PR author is `github-actions[bot]` to avoid self-APPROVE). Empty policy uses `GITHUB_TOKEN` / `github-actions[bot]`.
 
 Allowed roles are admin, maintainer, and write. Bot actors match [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json).
 

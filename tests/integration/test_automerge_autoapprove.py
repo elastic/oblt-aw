@@ -91,11 +91,6 @@ class TestAutomergeAutoapproveWrapperLockWiring:
             with_block.get("additional-instructions")
             == "${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}"
         )
-        assert (
-            with_block.get("setup-commands")
-            == "${{ join(fromJSON(needs.resolve-apm-assets.outputs."
-            "resolved-setup-commands-json), fromJSON('\"\\n\"')) }}"
-        )
         assert with_block.get("github-token-policy") == (
             "${{ github.event.pull_request.user.login == 'github-actions[bot]' "
             "&& inputs.shared-token-policy || '' }}"
@@ -104,6 +99,7 @@ class TestAutomergeAutoapproveWrapperLockWiring:
             "allowed-bot-users",
             "prompt",
             "report-failure-as-issue",
+            "setup-commands",
         ):
             assert dropped not in with_block, (
                 f"{AGENT_JOB} must not pass simplified-away input {dropped!r}"
@@ -112,7 +108,6 @@ class TestAutomergeAutoapproveWrapperLockWiring:
         lock_inputs = _lock_workflow_call_inputs(lock)
         for key in (
             "additional-instructions",
-            "setup-commands",
             "github-token-policy",
         ):
             assert key in lock_inputs, (
@@ -124,6 +119,7 @@ class TestAutomergeAutoapproveWrapperLockWiring:
             "model",
             "prompt",
             "report-failure-as-issue",
+            "setup-commands",
         ):
             assert dropped not in lock_inputs, (
                 f"{LOCK_BASENAME} must not expose simplified-away input {dropped!r}"
@@ -175,6 +171,29 @@ def test_autoapprove_prompt_requires_approve_not_comment() -> None:
     assert "oblt-aw/ai/merge-ready" in source
     assert "check-run" in source.lower() or "commit status" in source.lower()
     assert "autoapprove only" in source.lower() or "autoapprove" in source.lower()
+
+
+def test_additional_instructions_reach_authored_prompt() -> None:
+    """Consumer APM instructions must be interpolated into the prompt body."""
+    source = SOURCE_PATH.read_text(encoding="utf-8")
+    # Frontmatter declares the input; prompt body must consume it (not dead wire-up).
+    assert "additional-instructions:" in source
+    assert "${{ inputs.additional-instructions }}" in source
+    prompt_body = source.split("---", 2)[-1]
+    assert "${{ inputs.additional-instructions }}" in prompt_body
+    assert "      setup-commands:" not in source
+    assert 'eval "$SETUP_COMMANDS"' not in source
+    assert "Repo-specific setup" not in source
+
+
+def test_lock_prompt_embeds_additional_instructions_expression() -> None:
+    """Compiled lock must carry the additional-instructions expression into the prompt."""
+    lock_text = LOCK_PATH.read_text(encoding="utf-8")
+    assert "inputs.additional-instructions" in lock_text
+    # Lock must not declare or run consumer setup for approve.
+    assert "      setup-commands:" not in lock_text
+    assert "Repo-specific setup" not in lock_text
+    assert 'eval "$SETUP_COMMANDS"' not in lock_text
 
 
 def test_lock_and_source_exist() -> None:

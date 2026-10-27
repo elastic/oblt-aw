@@ -198,8 +198,7 @@ jobs:
     uses: ./.github/workflows/gh-aw-autoapprove.lock.yml
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
-      # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.
-      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), fromJSON('"\n"')) }}
+      # Do not forward resolved-setup-commands-json: approve only needs PR metadata.
       # Empty → GITHUB_TOKEN; non-empty only when author is github-actions[bot] (avoid self-APPROVE).
       github-token-policy: ${{ github.event.pull_request.user.login == 'github-actions[bot]' && inputs.shared-token-policy || '' }}
       # Bots + allow list are hardcoded on the in-repo lock. Failure-issue suppression from obs-defaults.
