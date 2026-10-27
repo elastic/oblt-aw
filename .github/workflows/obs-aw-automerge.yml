@@ -25,7 +25,8 @@ on:
         description: Normalized JSON array of compound workflow ids from aw-prelude.
         required: true
         type: string
-# Nested GH-AW approve omits github-token-policy (lock default → GITHUB_TOKEN).
+# Nested GH-AW autoapprove: empty github-token-policy → GITHUB_TOKEN for most
+# authors; Vault only when author is github-actions[bot] (avoid self-APPROVE).
 # Merge jobs mint OIDC ephemeral tokens when shared-token-policy is non-empty.
 permissions:
   contents: read
@@ -177,8 +178,7 @@ jobs:
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       workflow-basename: obs-aw-automerge.yml
-      platform-additional-instructions: |
-        Target pull request number: ${{ github.event.pull_request.number }}.
+      # Approve gates live in gh-aw-autoapprove.md. Resolve only merges consumer APM fragments.
 
   approve:
     needs: [verify, check-dependency-collection, resolve-apm-assets]
@@ -188,42 +188,21 @@ jobs:
       needs.check-dependency-collection.outputs.allowed == 'true'
     permissions:
       actions: read
-      contents: write
-      discussions: write
+      contents: read
       issues: write
       pull-requests: write
       copilot-requests: write
       # Callee lock always declares id-token: write (mint is skipped when policy is empty).
       id-token: write
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-mention-in-pr.lock.yml@main
+    # Relative so client @v0 / control-plane tip pins inherit the release train.
+    uses: ./.github/workflows/gh-aw-autoapprove.lock.yml
     with:
-      allowed-bot-users: ${{ inputs.shared-allowed-pr-authors-csv }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.
+      setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), fromJSON('"\n"')) }}
       # Empty → GITHUB_TOKEN; non-empty only when author is github-actions[bot] (avoid self-APPROVE).
       github-token-policy: ${{ github.event.pull_request.user.login == 'github-actions[bot]' && inputs.shared-token-policy || '' }}
-      report-failure-as-issue: false
-      prompt: |
-        For pull request #${{ github.event.pull_request.number }}: evaluate automerge eligibility.
-
-        This PR already passed automerge validation in the workflow (GITHUB_TOKEN) for author, label, draft/fork/ref, and dependency collection `${{ needs.check-dependency-collection.outputs.collection-id }}` (file-path classification; no extra repo labels).
-        Do not call check-run or commit status APIs. Required checks are enforced by GitHub at merge time (PR path and deferred merge path).
-
-        Author allow list (single source of truth — do not invent other names):
-        - Canonical list (from config/obs/allowed_pr_authors.json): `${{ inputs.shared-allowed-pr-authors-csv }}`
-        - Webhook/REST login for this PR: `${{ github.event.pull_request.user.login }}`
-        - Before comparing any author string to that list, normalize GraphQL `app/<slug>` to `<slug>[bot]` (gh ≥ 2.50 `gh pr view` / pr.json often use the app/ form). Prefer the webhook/REST login above for the author gate.
-
-        Approve the PR only when all of these gates are true:
-        - Normalized PR author is in the canonical allow list above
-        - PR has label `oblt-aw/ai/merge-ready`
-        - PR is not draft
-        - PR is not from a fork (head repo equals base repo)
-        - Head ref is different from base ref
-
-        When all gates are true, you MUST call submit_pull_request_review with event=APPROVE.
-        Do not use event=COMMENT to report eligibility success; COMMENT is not an approval.
-        If any gate is false, do not approve, do not request changes, and do not submit a review that claims eligibility.
-        Keep output minimal.
+      # Bots + allow list are hardcoded on the in-repo lock. Failure-issue suppression from obs-defaults.
 
   # Fail closed: approve job success alone is not enough — require a real APPROVED review
   # for the live head (COMMENT-only "eligible" must not reach merge).
