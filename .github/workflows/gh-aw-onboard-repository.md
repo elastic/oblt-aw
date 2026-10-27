@@ -83,7 +83,8 @@ safe-outputs:
     target: "triggering"
   create-pull-request:
     draft: false
-    max: 4
+    # 5: catalog (+ optional settings-selector gap-fill), registration, settings, secrets
+    max: 5
     auto-close-issue: false
     title-prefix: "[oblt-aw][onboard] "
     allowed-repos:
@@ -118,6 +119,7 @@ Map each matching open PR to one inventory concern by repository (and title):
 | Concern | Allowlisted repo | Typical title contains |
 |---------|------------------|------------------------|
 | catalog | `elastic/catalog-info` | `Add token policy` |
+| catalog-settings-selector | `elastic/catalog-info` | `observability-github-settings token policy` / `always_include` |
 | registration | `elastic/oblt-aw` | `Register` / `active repositories` |
 | settings | `elastic/observability-github-settings` | `branch protection` |
 | secrets | `elastic/observability-github-secrets` | `secret` / secrets provision |
@@ -125,8 +127,8 @@ Map each matching open PR to one inventory concern by repository (and title):
 Then:
 
 1. **Never duplicate** — do not open a second PR for a concern that already has an open matching onboard PR. Do not invent `pulls?q=` search links.
-2. **Gap-fill missing concerns** — run [Consumer secrets](#consumer-secrets) (and any other missing inventory steps). If discovery is non-empty and there is **no** open secrets onboard PR for this repository, open that secrets PR. Open other missing always-required concerns the same way when absent.
-3. **Stop only when complete** — if every required inventory concern is already covered by open PRs (and secrets is either open or correctly skipped as “none” after full discovery), call `add-comment` with **exact PR URLs**, merge order, and stop.
+2. **Gap-fill missing concerns** — run [Consumer secrets](#consumer-secrets) and [Settings token-policy selector](#settings-token-policy-selector-catalog). If discovery is non-empty and there is **no** open secrets onboard PR for this repository, open that secrets PR. If step **2e** is required and the open catalog PR did not include `always_include_repos` / the regenerated settings selector, open a follow-up catalog PR (`temporary_id` `aw_catalog_settings`). Open other missing always-required concerns the same way when absent.
+3. **Stop only when complete** — if every required inventory concern is already covered by open PRs (and secrets is either open or correctly skipped as “none” after full discovery; and the settings selector is covered when required), call `add-comment` with **exact PR URLs**, merge order, and stop.
 4. Re-applying the `oblt-aw/onboard/repository` label is the supported retry; treat prior open onboard PRs as the source of truth for concerns they already cover until they merge or close.
 
 ## Authoritative procedure (read and follow — do not invent)
@@ -150,6 +152,20 @@ Before deciding whether to open a secrets PR (do **not** hardcode secret names):
 
 Follow `docs/onboarding/registering-a-repository.md` (**Consumer secrets discovery**) in full.
 
+### Settings token-policy selector (catalog)
+
+Required so `elastic/observability-github-settings` can mint an ephemeral token with `administration` on the consumer. Follow registering-resources step **2e**.
+
+In `repos/catalog-info`:
+
+1. If `resources/github/engineering/obs/<repo>.yaml` exists → already covered by the weekly obs sync; skip.
+2. Else if `'<repo>'` is listed in `always_include_repos` in `.github/scripts/update-token-policy-obs-repositories/update_token_policy.py` **and** `resources/github-token-policies/token-policy-observability-github-settings.yaml` already contains `spec.implementation.spec.repository: elastic/<repo>` → skip.
+3. Else:
+   - Add `'<repo>'` to `always_include_repos` in `.github/scripts/update-token-policy-obs-repositories/update_token_policy.py` if it is missing.
+   - Run `python .github/scripts/update-token-policy-obs-repositories/update_token_policy.py`.
+   - Prefer folding that diff into the **same** catalog PR as the consumer TokenPolicy (`temporary_id` `aw_catalog`).
+   - On retry, if an open catalog PR already exists without this fix, open a **follow-up** catalog PR (`temporary_id` `aw_catalog_settings`; title mentioning observability-github-settings token policy). Never hand-edit only the YAML selector; never invent an `obs/` RRE for a non-obs-owned repository.
+
 ### Markdown format (comments and PR bodies)
 
 Pass **real newlines** in every safe-output text field that GitHub renders as Markdown:
@@ -161,13 +177,13 @@ Never put the two-character sequence `\` + `n` in those fields; never collapse a
 
 ### Issue comment
 
-On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_obltaw`, `aw_settings`, `aw_secrets` as needed). Link newly opened PRs with those `#aw_…` ids so safe-outputs rewrite them to exact PR URLs. For already-open PRs, use real `https://github.com/<owner>/<repo>/pull/<n>` URLs from search / `gh pr list`.
+On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_catalog_settings`, `aw_obltaw`, `aw_settings`, `aw_secrets` as needed). Link newly opened PRs with those `#aw_…` ids so safe-outputs rewrite them to exact PR URLs. For already-open PRs, use real `https://github.com/<owner>/<repo>/pull/<n>` URLs from search / `gh pr list`.
 
 **Content to include** in the issue comment (wording and heading text may vary):
 
 - Parsed repository and organization key
-- Checklist of opened or skipped PRs (one entry per inventory concern)
-- Merge order (catalog-info before `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows)
+- Checklist of opened or skipped PRs (one entry per inventory concern, including catalog settings-selector when required)
+- Merge order (catalog-info — including settings-selector when present — before `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows)
 - That merges are **manual**
 - Pointer to `docs/user-guide/onboard-a-repository.md` for post-merge dashboard enablement
 

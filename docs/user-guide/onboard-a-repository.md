@@ -46,7 +46,7 @@ Technical registration detail for maintainers and agents: [Registering resources
 
    | Order | Repository | What it changes |
    |------:|------------|-----------------|
-   | 1 | `elastic/catalog-info` | TokenPolicy for client `create-token` |
+   | 1 | `elastic/catalog-info` | TokenPolicy for client `create-token`. If the repo is not under the observability github-repository tree, the same concern also adds it to the settings Terraform token-policy selector (`always_include_repos`) so branch-protection CI can mint an admin token. |
    | 2 | `elastic/oblt-aw` | Entry in `config/<org-key>/active-repositories.json` |
    | 3 | `elastic/observability-github-settings` | Vault app in classic BP `pull_request_bypassers` (and merge-queue ruleset `bypass_actors` when present) |
    | 4 | `elastic/observability-github-secrets` | When org agentic workflow docs’ **Prerequisites** (or **API / Interface**) require consumer secrets; otherwise the agent notes “none” |
@@ -60,7 +60,7 @@ Technical registration detail for maintainers and agents: [Registering resources
      C4 --> C5[consumer CODEOWNERS]
    ```
 
-5. **Merge manually in order** — Humans merge. Merge the **catalog-info** TokenPolicy PR **before** the **oblt-aw** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed agentic workflows in production. Merge the consumer **CODEOWNERS** PR before or with the first distribute trigger-client PR so code-owner review can clear trigger-only workflow changes. Auto-merge of these PRs is **out of scope** for now.
+5. **Merge manually in order** — Humans merge. Merge the **catalog-info** PR(s) (consumer TokenPolicy and, when present, the settings-selector / `always_include_repos` change) **before** the **oblt-aw** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed agentic workflows in production. Merge the consumer **CODEOWNERS** PR before or with the first distribute trigger-client PR so code-owner review can clear trigger-only workflow changes. Auto-merge of these PRs is **out of scope** for now.
 
 6. **After the oblt-aw registration PR merges to `main`** — Existing automation opens an agentic workflows triggers PR in your repository (`trigger-obs-aw-*.yml` or docs equivalents) via [distribute-client-workflow](../operations/distribute-client-workflow.md), and creates a **Control Plane dashboard** issue via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
 
@@ -93,4 +93,5 @@ Full fixes live under [Troubleshooting](../troubleshooting/index.md). Quick link
 
 - **No agent comment / no PRs** (or retry after a partial run) — [Onboard agent no comment or PRs](../troubleshooting/common-problems/onboard-agent-no-comment-or-prs.md)
 - **Registration merged too early** — [Registration before catalog TokenPolicy](../troubleshooting/common-problems/registration-before-catalog-token-policy.md)
+- **Settings branch-protection PR fails token administration check** — [Settings token-policy selector missing](../troubleshooting/common-problems/settings-token-policy-selector-missing.md)
 - **No install PR or Control Plane dashboard** — [Missing client template or Control Plane dashboard](../troubleshooting/common-problems/missing-client-template-or-dashboard.md)

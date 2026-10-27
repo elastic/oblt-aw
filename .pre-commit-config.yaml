@@ -57,6 +57,16 @@ repos:
         # Repo-wide scan; run even when no staged files match hook filters
         always_run: true
 
+  # ── gh-aw lock regeneration (Markdown sources → *.lock.yml) ─────────────────
+  - repo: local
+    hooks:
+      - id: compile-aw
+        name: Regenerate gh-aw lock files when sources change
+        entry: bash scripts/pre_commit_compile_aw.sh
+        language: system
+        pass_filenames: false
+        files: ^\.github/workflows/(gh-aw-.*\.md|gh-aw-fragments/.*\.md|compiler-upgrade\.md|obs-aw-compiler-upgrade\.md)$
+
   # ── General file hygiene ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

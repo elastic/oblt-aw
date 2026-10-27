@@ -38,6 +38,7 @@ toc:
           - file: missing-client-template-or-dashboard.md
           - file: onboard-agent-no-comment-or-prs.md
           - file: registration-before-catalog-token-policy.md
+          - file: settings-token-policy-selector-missing.md
           - file: workflows-skipped-or-not-running.md
   - folder: knowledge-base
     children:

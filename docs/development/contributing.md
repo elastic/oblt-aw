@@ -118,6 +118,7 @@ The following hooks run on commit (and in CI via the pre-commit job):
 | mypy            | `scripts/**/*.py`        | Python type-checking (strict)    |
 | update-license-files | Scripts, shell, TypeScript tests, NOTICE | Apache 2.0 headers, NOTICE sync |
 | pre-commit-hooks| Various                  | Trailing whitespace, EOF, etc.   |
+| local           | compile-aw               | Regenerate gh-aw `*.lock.yml` when Markdown sources are staged |
 
 ## CI Workflow
 

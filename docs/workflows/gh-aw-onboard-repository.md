@@ -32,8 +32,8 @@ Behavior:
 
 1. Read the triggering issue via GitHub MCP and parse **repository** (`elastic/<repo>`) and **org key** (`docs` / `obs` / `security`) from the body. Source sets `tools.github.min-integrity: none` (temporary DIFC workaround so human-authored onboard issues are readable under the default `approved` floor).
 2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps, appendix).
-3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones (especially secrets after full registry-doc discovery). Stop with **exact PR URLs** only when the inventory is complete.
-4. Open up to four **normal (non-draft)** PRs (separate concerns); do not merge them. Discover secrets from **every** org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines — do **not** filter by `default_enabled`; then resolve shared modules in the secrets checkout. PR bodies must be valid Markdown (real newlines).
+3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones (especially secrets after full registry-doc discovery, and catalog settings-selector / `always_include_repos` when the repo is outside `resources/github/engineering/obs/`). Stop with **exact PR URLs** only when the inventory is complete.
+4. Open up to five **normal (non-draft)** PRs (separate concerns; catalog may split into consumer TokenPolicy + settings-selector gap-fill); do not merge them. Discover secrets from **every** org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines — do **not** filter by `default_enabled`; then resolve shared modules in the secrets checkout. PR bodies must be valid Markdown (real newlines).
 5. Comment with required content (parsed inputs, PR checklist, merge order, user-guide pointer) in **valid Markdown** — real newlines; full PR URLs or `#aw_…` rewrite. Heading wording is not fixed.
 
 User-facing steps: [Onboard a repository](../user-guide/onboard-a-repository.md).
@@ -48,7 +48,7 @@ Permissions (source intent; lock expands job-level scopes):
 Safe outputs:
 
 - `add-comment` (issue)
-- `create-pull-request` with `draft: false`, `max: 4`, `auto-close-issue: false`, allowlisted repos above
+- `create-pull-request` with `draft: false`, `max: 5`, `auto-close-issue: false`, allowlisted repos above
 
 ## Related exclusions
 
