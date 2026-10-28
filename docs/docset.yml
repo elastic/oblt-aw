@@ -26,6 +26,7 @@ toc:
       - file: add-a-new-agentic-workflow.md
       - file: change-maturity-level.md
       - file: configure-a-github-secret.md
+      - file: opt-in-common-services.md
       - file: use-gh-ephemeral-tokens.md
   - folder: troubleshooting
     children:
@@ -87,6 +88,7 @@ toc:
       - hidden: ./e2e-pr-actions-detective.md
       - hidden: ./e2e-trigger-obs-aw-schedule.md
       - hidden: ./get-enabled-workflows.md
+      - hidden: ./gh-aw-autoapprove.md
       - hidden: ./gh-aw-create-pr-from-issue.md
       - hidden: ./gh-aw-dependency-review.md
       - hidden: ./gh-aw-docs-patrol.md

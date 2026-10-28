@@ -11,7 +11,7 @@ applies_to: {}
 ## Source of truth
 
 - Editable Markdown lives under `docs/` in [elastic/oblt-aw](https://github.com/elastic/oblt-aw).
-- Navigation and build config: [`docs/docset.yml`](../docset.yml).
+- Navigation and build config: [`docs/docset.yml`](../docset.yml). Every new publishable `docs/**/*.md` page must be listed under `toc:` (use `hidden:` for workflow/reference pages). CI runs `scripts/validate_docs_toc.py` so Codex preview does not fail on a missing toc entry.
 - Live site (after registration): `https://codex.elastic.dev/r/oblt-aw/`
 
 Observability Robots may link here with Docs v3 cross-links (`oblt-aw://…`) from [elastic/observability-robots](https://github.com/elastic/observability-robots) without copying this tree.
