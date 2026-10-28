@@ -87,6 +87,7 @@ toc:
       - hidden: ./e2e-pr-actions-detective.md
       - hidden: ./e2e-trigger-obs-aw-schedule.md
       - hidden: ./get-enabled-workflows.md
+      - hidden: ./gh-aw-autoapprove.md
       - hidden: ./gh-aw-create-pr-from-issue.md
       - hidden: ./gh-aw-dependency-review.md
       - hidden: ./gh-aw-docs-patrol.md
