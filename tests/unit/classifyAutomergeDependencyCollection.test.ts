@@ -529,6 +529,31 @@ test('enabledAutomergeCollectionIds returns empty when parent disabled', () => {
   assert.deepEqual(enabledAutomergeCollectionIds(enabled), []);
 });
 
+test('enabledAutomergeCollectionIds accepts non-obs org parents', () => {
+  const enabled = [
+    'docs:automerge',
+    'docs:automerge:github-actions',
+    'docs:automerge:pre-commit',
+  ];
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled).sort(), [
+    'github-actions',
+    'pre-commit',
+  ]);
+});
+
+test('enabledAutomergeCollectionIds unions collections across orgs', () => {
+  const enabled = [
+    'docs:automerge',
+    'docs:automerge:github-actions',
+    'obs:automerge',
+    'obs:automerge:terraform',
+  ];
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled).sort(), [
+    'github-actions',
+    'terraform',
+  ]);
+});
+
 test('parseEnabledWorkflowsJson handles invalid input', () => {
   assert.deepEqual(parseEnabledWorkflowsJson(''), []);
   assert.deepEqual(parseEnabledWorkflowsJson('not-json'), []);

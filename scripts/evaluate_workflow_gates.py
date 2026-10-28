@@ -66,9 +66,13 @@ def evaluate_gates(
                 f"control-plane workflow {basename!r} is not listed in any "
                 f"workflow-registry.json inner_workflows (known: {known})"
             )
-        compound_id = index[basename].compound_id
-        allowed = _proceed_for_compound_id(
-            effective_raw, enabled_workflows_json, compound_id
+        # Shared common services list the same basename under multiple orgs;
+        # proceed when any matching org:workflow-id (or sub-feature) is enabled.
+        allowed = any(
+            _proceed_for_compound_id(
+                effective_raw, enabled_workflows_json, entry.compound_id
+            )
+            for entry in index[basename]
         )
         proceed_by_workflow[basename] = "true" if allowed else "false"
     return proceed_by_workflow

@@ -26,7 +26,7 @@ This document extends the current OBLT AW framework model so multiple Elastic in
 
 ## 2. Organization key and checklist markers
 
-- **`org-key`:** Taken **only** from the folder name **`config/<org-key>/`** (DNS-label style, e.g. `obs`, `docs`, `security`). Implementation discovers orgs as **direct subdirectories of `config/`** that contain org data (see §3). **Reserve** names like `schema` for non-org assets under `config/` so they are not mistaken for an org key. **Note:** an org key **`docs`** maps to **`config/docs/`** (JSON config); that path is **not** the repository’s documentation tree at **`docs/`** (Markdown) at repo root. Org key **`security`** is not the Observability registry workflow id `obs:security`.
+- **`org-key`:** Taken **only** from the folder name **`config/<org-key>/`** (DNS-label style, e.g. `obs`, `docs`, `security`). Implementation discovers orgs as **direct subdirectories of `config/`** that contain org data (see §3). **Reserve** names like `schema` and `common` for non-org assets under `config/` so they are not mistaken for an org key. **Note:** an org key **`docs`** maps to **`config/docs/`** (JSON config); that path is **not** the repository’s documentation tree at **`docs/`** (Markdown) at repo root. Org key **`security`** is not the Observability registry workflow id `obs:security`.
 
 **Checkbox comment format (mandatory):** Include **org** and **workflow id**, with a stable product-scoped prefix so one parser can handle all lines:
 
@@ -64,6 +64,8 @@ config/
   <other-org-key>/
     workflow-registry.json
     active-repositories.json
+  common/                                   # reserved: shared service definitions (not an org)
+    services.json
   # Optional: JSON Schema under config/schema/ (must not collide with org-key discovery rules)
 
 scripts/
@@ -172,6 +174,34 @@ Use this when scaffolding another `config/<org-key>/` (same shape as `obs`, `doc
 | Unit tests | `tests/unit/test_validate_aw_workflow_prelude.py` parametrizes `shared-proceed` route cases over discovered org keys — adding the config dir pulls the new prefix into coverage |
 
 Validate with `python scripts/validate_aw_workflow_prelude.py` and `pytest tests/unit/test_validate_aw_workflow_prelude.py`.
+
+---
+
+## 11. Common services (shared definitions, per-org catalogs)
+
+Some agentic capabilities are useful to more than one org. The control plane keeps **one definition** and lets each org **opt into its own catalog**. There is **no** Common dashboard section and **no** `common:workflow-id` gating id.
+
+| Piece | Behavior |
+|-------|----------|
+| **Catalog** | `config/common/services.json` — reserved path (not an org). Each service is a normal workflow object (`id`, `name`, `inner_workflows`, optional `sub_features`, …). |
+| **Opt-in** | Org `workflow-registry.json` lists `"include_common": ["dependency-review", "automerge", …]`. Sync expands those ids into that org’s section only. |
+| **Dashboard** | Included services appear under `### … (obs)`, `### … (docs)`, etc., with markers `<!-- oblt-aw:<org-key>:<workflow-id> -->`. |
+| **Gating** | Compound ids stay per org (`docs:dependency-review`, `obs:automerge:github-actions`). Enabling in one org does not enable another. |
+| **Implementation** | Shared services keep reusable workflows under the owning prefix (pilot: `obs-aw-dependency-review.yml`, `obs-aw-automerge.yml`, …). Other orgs call those reusables from their `*-aw-event-*` orchestrators. |
+| **Index** | The same basename may map to multiple `org:workflow-id` entries when every listing shares the same workflow id (intentional share). Conflicting mappings still fail closed. Prelude proceeds if **any** matching compound id is enabled. |
+| **Ownership** | `config/common/` CODEOWNERS: `@elastic/observablt-ci`. Route implementation files stay under the implementing org’s CODEOWNERS paths. |
+
+**Pilot:** `dependency-review` and `automerge` live in `config/common/services.json`. Observability opts in via `include_common` and already wires `obs-aw-event-*` plus remote triggers. Other orgs opt in in **their own PRs** (registry + event orchestrators + remote triggers). CI runs `scripts/validate_common_service_opt_in.py` so an incomplete opt-in fails closed.
+
+**Operator guide:** [Opt in or out of agentic workflows from other orgs](../admin-guide/opt-in-common-services.md).
+
+**Publishing a common service (owning org):**
+
+1. Add the workflow object to `config/common/services.json` (implementation already exists as `<owner>-aw-*`).
+2. Include it from the owning org’s `include_common` if that org should offer it too.
+3. Keep owning-org event orchestrators and triggers green under `validate_common_service_opt_in.py`.
+
+**Opting into a common service (consuming org):** do all of the following in the **same** PR — see the admin guide.
 
 ---
 

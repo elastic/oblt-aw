@@ -23,6 +23,7 @@ Do not repeat failures or diagnostics reported by these enforced checks:
 - `validate_aw_workflow_prelude.py` checks workflow prelude wiring.
 - `validate_aw_workflow_resolve_agentic_assets.py` checks agentic asset resolver wiring.
 - `validate_aw_workflow_report_failure_as_issue.py` checks failure-reporting configuration.
+- `validate_common_service_opt_in.py` checks `include_common` event orchestrator and remote trigger wiring.
 - `validate_aw_workflow_permissions.py` checks reusable-workflow caller permissions.
 - `make compile-aw-check` checks gh-aw generated lock files against their Markdown sources.
 - `npm test` runs the TypeScript unit tests.

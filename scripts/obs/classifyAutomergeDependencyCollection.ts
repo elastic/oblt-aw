@@ -19,7 +19,9 @@ const fs = require('node:fs');
 const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
 
 const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate -->';
+/** @deprecated Prefer detecting any ``<org>:automerge`` parent from the enabled list. */
 const AUTOMERGE_PARENT_COMPOUND_ID = 'obs:automerge';
+const AUTOMERGE_PARENT_RE = /^([a-z0-9-]+):automerge$/;
 const AUTOMERGE_SERVICES_GUIDE_URL =
   'https://codex.elastic.dev/r/oblt-aw/user-guide/automerge-services';
 const OPT_IN_OPT_OUT_GUIDE_URL =
@@ -87,14 +89,35 @@ function parseEnabledWorkflowsJson(raw) {
   }
 }
 
-function enabledAutomergeCollectionIds(enabledWorkflows, orgKey = 'obs') {
-  if (!enabledWorkflows.includes(AUTOMERGE_PARENT_COMPOUND_ID)) {
+/**
+ * Collect enabled automerge collection ids from any org that has
+ * ``<org>:automerge`` checked (common services appear per-org on the dashboard).
+ * @param {string[]} enabledWorkflows
+ * @param {string} [orgKey] When set, only that org's parent/collections are used.
+ * @returns {string[]}
+ */
+function enabledAutomergeCollectionIds(enabledWorkflows, orgKey) {
+  const parents =
+    typeof orgKey === 'string' && orgKey
+      ? enabledWorkflows.filter((id) => id === `${orgKey}:automerge`)
+      : enabledWorkflows.filter((id) => AUTOMERGE_PARENT_RE.test(id));
+  if (parents.length === 0) {
     return [];
   }
-  const prefix = `${orgKey}:automerge:`;
-  return enabledWorkflows
-    .filter((id) => id.startsWith(prefix))
-    .map((id) => id.slice(prefix.length));
+  const collectionIds = [];
+  for (const parent of parents) {
+    const match = AUTOMERGE_PARENT_RE.exec(parent);
+    if (!match) {
+      continue;
+    }
+    const prefix = `${match[1]}:automerge:`;
+    for (const id of enabledWorkflows) {
+      if (id.startsWith(prefix)) {
+        collectionIds.push(id.slice(prefix.length));
+      }
+    }
+  }
+  return [...new Set(collectionIds)];
 }
 
 function collectionMatchesAllFiles(collection, files) {

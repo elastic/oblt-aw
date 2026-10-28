@@ -86,6 +86,53 @@ def test_unknown_workflow_raises(config_dir: pathlib.Path) -> None:
         )
 
 
+def test_shared_basename_proceeds_for_any_org_enablement(
+    tmp_path: pathlib.Path,
+) -> None:
+    config = tmp_path / "config"
+    common = config / "common"
+    common.mkdir(parents=True)
+    (common / "services.json").write_text(
+        json.dumps(
+            {
+                "services": [
+                    {
+                        "id": "dependency-review",
+                        "inner_workflows": ["obs-aw-dependency-review.yml"],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    for org in ("docs", "obs"):
+        org_dir = config / org
+        org_dir.mkdir()
+        (org_dir / "workflow-registry.json").write_text(
+            json.dumps({"include_common": ["dependency-review"], "workflows": []}),
+            encoding="utf-8",
+        )
+        (org_dir / "active-repositories.json").write_text(
+            json.dumps({"repositories": []}), encoding="utf-8"
+        )
+
+    result = evaluate_gates(
+        config,
+        ["obs-aw-dependency-review.yml"],
+        effective_raw="checked",
+        enabled_workflows_json=json.dumps(["docs:dependency-review"]),
+    )
+    assert result["obs-aw-dependency-review.yml"] == "true"
+
+    result_obs = evaluate_gates(
+        config,
+        ["obs-aw-dependency-review.yml"],
+        effective_raw="checked",
+        enabled_workflows_json=json.dumps(["obs:dependency-review"]),
+    )
+    assert result_obs["obs-aw-dependency-review.yml"] == "true"
+
+
 def test_sub_feature_workflow_requires_parent_and_child(
     config_dir: pathlib.Path,
 ) -> None:

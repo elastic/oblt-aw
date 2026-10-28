@@ -90,6 +90,9 @@ jobs:
       - name: Validate obs-aw-* callers set report-failure-as-issue false
         run: python scripts/validate_aw_workflow_report_failure_as_issue.py
 
+      - name: Validate include_common opt-in wiring
+        run: python scripts/validate_common_service_opt_in.py
+
       - name: Validate reusable-workflow caller permissions
         env:
           GITHUB_TOKEN: ${{ github.token }}

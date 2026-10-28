@@ -15,9 +15,10 @@
 # under the License.
 
 """
-Validate obs-aw-* callers set report-failure-as-issue: false on gh-aw locks.
+Validate org route callers set report-failure-as-issue: false on gh-aw locks.
 
-Locks that do not expose the workflow_call input are listed in
+Applies to discovered ``<org-key>-aw-*`` route reusables (not only obs). Locks
+that do not expose the workflow_call input are listed in
 LOCKS_WITHOUT_REPORT_FAILURE_INPUT and skipped.
 """
 
@@ -27,11 +28,15 @@ import pathlib
 import re
 import sys
 
-from validate_aw_workflow_prelude import list_subject_workflows
+from validate_aw_workflow_prelude import list_subject_workflows, route_pattern
 
 # Basename of the lock / reusable workflow (no path, no @ref).
 LOCKS_WITHOUT_REPORT_FAILURE_INPUT: frozenset[str] = frozenset(
     {
+        # Docs-actions locks (no report-failure-as-issue workflow_call input).
+        "gh-aw-docs-review.lock.yml",
+        "gh-aw-issue-scope.lock.yml",
+        "gh-aw-issue-triage.lock.yml",
         # No report-failure-as-issue workflow_call input (findings via create_issue).
         "gh-aw-log-searching-agent.lock.yml",
         # In-repo locks: failure reporting baked via obs-defaults; no caller input.
@@ -51,7 +56,6 @@ REPORT_FAILURE_FALSE = re.compile(
     r"^\s+report-failure-as-issue:\s*false\s*(?:#.*)?$",
     re.MULTILINE,
 )
-OBS_AW_ROUTE = re.compile(r"^obs-aw-.+\.ya?ml$")
 
 
 def _lock_basename(uses_ref: str) -> str:
@@ -94,8 +98,8 @@ def _job_blocks(text: str) -> list[tuple[str, str]]:
     return blocks
 
 
-def validate_workflow(path: pathlib.Path) -> list[str]:
-    if not OBS_AW_ROUTE.match(path.name):
+def validate_workflow(path: pathlib.Path, route_re: re.Pattern[str]) -> list[str]:
+    if not route_re.match(path.name):
         return []
 
     text = path.read_text(encoding="utf-8")
@@ -126,13 +130,14 @@ def validate_workflow(path: pathlib.Path) -> list[str]:
 
 def main() -> int:
     errors: list[str] = []
-    subjects = [p for p in list_subject_workflows() if OBS_AW_ROUTE.match(p.name)]
+    route_re = route_pattern()
+    subjects = [p for p in list_subject_workflows() if route_re.match(p.name)]
     if not subjects:
-        print("No obs-aw-* workflows found to validate.", file=sys.stderr)
+        print("No <org>-aw-* route workflows found to validate.", file=sys.stderr)
         return 1
 
     for path in subjects:
-        errors.extend(validate_workflow(path))
+        errors.extend(validate_workflow(path, route_re))
 
     if errors:
         print("report-failure-as-issue enforcement failed:", file=sys.stderr)
@@ -146,7 +151,7 @@ def main() -> int:
         if GH_AW_USES_LINE.search(path.read_text(encoding="utf-8"))
     )
     print(
-        f"Validated {len(subjects)} obs-aw-* workflow(s); "
+        f"Validated {len(subjects)} <org>-aw-* route workflow(s); "
         f"{checked} invoke gh-aw-* with report-failure-as-issue: false "
         "(or an exempt lock without that input)."
     )
