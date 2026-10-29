@@ -140,5 +140,155 @@ def test_passes_when_orchestrator_and_trigger_present(
     )
 
 
+def test_schedule_daily_alone_fails_when_frequent_required(
+    tmp_path: pathlib.Path,
+) -> None:
+    config = tmp_path / "config"
+    workflows = tmp_path / "workflows"
+    remote = tmp_path / "remote"
+    common = config / "common"
+    common.mkdir(parents=True)
+    (common / "services.json").write_text(
+        json.dumps(
+            {
+                "services": [
+                    {
+                        "id": "automerge",
+                        "inner_workflows": [
+                            "obs-aw-automerge.yml",
+                            "obs-aw-automerge-deferred.yml",
+                        ],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    _write_org(config, "obs", include_common=["automerge"])
+    workflows.mkdir()
+    (workflows / "obs-aw-event-schedule.yml").write_text(
+        """\
+on:
+  workflow_call:
+jobs:
+  run-aw-prelude:
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflows: >-
+        ${{ inputs.schedule-profile == 'frequent'
+            && '["obs-aw-automerge-deferred.yml"]'
+            || '["obs-aw-agent-suggestions.yml"]' }}
+  deferred:
+    uses: ./.github/workflows/obs-aw-automerge-deferred.yml
+""",
+        encoding="utf-8",
+    )
+    (workflows / "obs-aw-event-pull-request.yml").write_text(
+        """\
+on:
+  workflow_call:
+jobs:
+  run-aw-prelude:
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflows: '["obs-aw-automerge.yml"]'
+  automerge:
+    uses: ./.github/workflows/obs-aw-automerge.yml
+""",
+        encoding="utf-8",
+    )
+    trigger_dir = remote / "obs" / ".github" / "workflows"
+    trigger_dir.mkdir(parents=True)
+    (trigger_dir / "trigger-obs-aw-pull-request.yml").write_text(
+        "name: PR\non:\n  pull_request:\n", encoding="utf-8"
+    )
+    (trigger_dir / "trigger-obs-aw-schedule-daily.yml").write_text(
+        "name: Daily\non:\n  schedule:\n", encoding="utf-8"
+    )
+    errors = validator.validate_org_common_opt_in(
+        config / "obs",
+        config,
+        workflows_dir=workflows,
+        remote_root=remote,
+    )
+    assert any("schedule-frequent" in err for err in errors)
+
+
+def test_schedule_frequent_trigger_satisfies_deferred(
+    tmp_path: pathlib.Path,
+) -> None:
+    config = tmp_path / "config"
+    workflows = tmp_path / "workflows"
+    remote = tmp_path / "remote"
+    common = config / "common"
+    common.mkdir(parents=True)
+    (common / "services.json").write_text(
+        json.dumps(
+            {
+                "services": [
+                    {
+                        "id": "automerge",
+                        "inner_workflows": [
+                            "obs-aw-automerge.yml",
+                            "obs-aw-automerge-deferred.yml",
+                        ],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    _write_org(config, "obs", include_common=["automerge"])
+    workflows.mkdir()
+    (workflows / "obs-aw-event-schedule.yml").write_text(
+        """\
+on:
+  workflow_call:
+jobs:
+  run-aw-prelude:
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflows: >-
+        ${{ inputs.schedule-profile == 'frequent'
+            && '["obs-aw-automerge-deferred.yml"]'
+            || '["obs-aw-agent-suggestions.yml"]' }}
+  deferred:
+    uses: ./.github/workflows/obs-aw-automerge-deferred.yml
+""",
+        encoding="utf-8",
+    )
+    (workflows / "obs-aw-event-pull-request.yml").write_text(
+        """\
+on:
+  workflow_call:
+jobs:
+  run-aw-prelude:
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      control-plane-workflows: '["obs-aw-automerge.yml"]'
+  automerge:
+    uses: ./.github/workflows/obs-aw-automerge.yml
+""",
+        encoding="utf-8",
+    )
+    trigger_dir = remote / "obs" / ".github" / "workflows"
+    trigger_dir.mkdir(parents=True)
+    (trigger_dir / "trigger-obs-aw-pull-request.yml").write_text(
+        "name: PR\non:\n  pull_request:\n", encoding="utf-8"
+    )
+    (trigger_dir / "trigger-obs-aw-schedule-frequent.yml").write_text(
+        "name: Frequent\non:\n  schedule:\n", encoding="utf-8"
+    )
+    assert (
+        validator.validate_org_common_opt_in(
+            config / "obs",
+            config,
+            workflows_dir=workflows,
+            remote_root=remote,
+        )
+        == []
+    )
+
+
 def test_main_passes_on_checked_in_repo() -> None:
     assert validator.main() == 0

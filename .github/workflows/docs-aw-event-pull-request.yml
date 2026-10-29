@@ -14,6 +14,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
+      org-key: docs
       control-plane-workflows: '["docs-aw-pr-ai-menu-collect.yml"]'
       load-allowed-authors: true
 

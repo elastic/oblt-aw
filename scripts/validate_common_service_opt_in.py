@@ -123,12 +123,70 @@ def _remote_triggers(org_key: str, remote_root: pathlib.Path) -> list[pathlib.Pa
 def _has_trigger_for_suffix(
     org_key: str, trigger_suffix: str, remote_root: pathlib.Path
 ) -> bool:
+    """Return True when a remote trigger matches the event/profile suffix.
+
+    For non-schedule events, ``pull-request`` matches ``trigger-<org>-aw-pull-request``
+    and profiled variants (``…-pull-request-foo``). For schedule, pass a concrete
+    profile suffix such as ``schedule-frequent`` or ``schedule-daily`` so a daily
+    trigger cannot satisfy a frequent-only requirement.
+    """
     prefix = f"trigger-{org_key}-aw-{trigger_suffix}"
     for path in _remote_triggers(org_key, remote_root):
         stem = path.name.rsplit(".", 1)[0]
         if stem == prefix or stem.startswith(f"{prefix}-"):
             return True
     return False
+
+
+_SCHEDULE_PROFILE_JSON = re.compile(
+    r"schedule-profile\s*==\s*'(?P<profile>frequent|daily)'"
+    r".*?&&\s*'(?P<json>\[[^\]]*\])'",
+    re.DOTALL,
+)
+_SCHEDULE_DAILY_FALLBACK_JSON = re.compile(
+    r"schedule-profile\s*==\s*'frequent'.*?\|\|\s*'(?P<json>\[[^\]]*\])'",
+    re.DOTALL,
+)
+
+
+def _basenames_from_json_array_literal(literal: str) -> set[str]:
+    try:
+        parsed = json.loads(literal)
+    except json.JSONDecodeError:
+        return set()
+    if not isinstance(parsed, list):
+        return set()
+    return {item for item in parsed if isinstance(item, str) and item}
+
+
+def _schedule_trigger_suffixes_for_basenames(
+    orchestrator_text: str, required_basenames: set[str]
+) -> set[str]:
+    """Map included basenames to ``schedule-daily`` / ``schedule-frequent`` stems."""
+    frequent: set[str] = set()
+    daily: set[str] = set()
+    for match in _SCHEDULE_PROFILE_JSON.finditer(orchestrator_text):
+        names = _basenames_from_json_array_literal(match.group("json"))
+        if match.group("profile") == "frequent":
+            frequent |= names
+        else:
+            daily |= names
+    for match in _SCHEDULE_DAILY_FALLBACK_JSON.finditer(orchestrator_text):
+        daily |= _basenames_from_json_array_literal(match.group("json"))
+
+    suffixes: set[str] = set()
+    if required_basenames & frequent:
+        suffixes.add("schedule-frequent")
+    if required_basenames & daily:
+        suffixes.add("schedule-daily")
+    # Basename listed in schedule orchestrator outside profile ternary: require both.
+    listed = _basenames_in_control_plane_workflows(
+        orchestrator_text
+    ) | _basenames_used_by_jobs(orchestrator_text)
+    unclassified = (required_basenames & listed) - frequent - daily
+    if unclassified:
+        suffixes.update({"schedule-daily", "schedule-frequent"})
+    return suffixes
 
 
 def validate_org_common_opt_in(
@@ -215,13 +273,22 @@ def validate_org_common_opt_in(
         suffix = _trigger_suffix_for_orchestrator(path)
         if suffix is None:
             continue
-        if not _has_trigger_for_suffix(org_key, suffix, remote_root):
-            errors.append(
-                f"{org_key}: orchestrator {path.name} wires included common "
-                f"services but remote template is missing "
-                f"trigger-{org_key}-aw-{suffix}*.yml under "
-                f"{remote_root / org_key}"
-            )
+        text = path.read_text(encoding="utf-8")
+        if suffix == "schedule":
+            needed = _schedule_trigger_suffixes_for_basenames(text, required_basenames)
+            if not needed:
+                # Opaque schedule wiring: fail closed on both cadence lanes.
+                needed = {"schedule-daily", "schedule-frequent"}
+        else:
+            needed = {suffix}
+        for trigger_suffix in sorted(needed):
+            if not _has_trigger_for_suffix(org_key, trigger_suffix, remote_root):
+                errors.append(
+                    f"{org_key}: orchestrator {path.name} wires included common "
+                    f"services but remote template is missing "
+                    f"trigger-{org_key}-aw-{trigger_suffix}*.yml under "
+                    f"{remote_root / org_key}"
+                )
 
     return errors
 

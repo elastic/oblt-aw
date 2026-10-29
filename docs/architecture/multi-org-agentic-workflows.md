@@ -188,7 +188,7 @@ Some agentic capabilities are useful to more than one org. The control plane kee
 | **Dashboard** | Included services appear under `### … (obs)`, `### … (docs)`, etc., with markers `<!-- oblt-aw:<org-key>:<workflow-id> -->`. |
 | **Gating** | Compound ids stay per org (`docs:dependency-review`, `obs:automerge:github-actions`). Enabling in one org does not enable another. |
 | **Implementation** | Shared services keep reusable workflows under the owning prefix (pilot: `obs-aw-dependency-review.yml`, `obs-aw-automerge.yml`, …). Other orgs call those reusables from their `*-aw-event-*` orchestrators. |
-| **Index** | The same basename may map to multiple `org:workflow-id` entries when every listing shares the same workflow id (intentional share). Conflicting mappings still fail closed. Prelude proceeds if **any** matching compound id is enabled. |
+| **Index** | The same basename may map to multiple `org:workflow-id` entries when every listing shares the same workflow id (intentional share). Conflicting mappings still fail closed. Prelude takes `org-key` and proceeds only for **that** org’s compound id; asset resolve accepts the same consuming `org-key` for shared basenames. |
 | **Ownership** | `config/common/` CODEOWNERS: `@elastic/observablt-ci`. Route implementation files stay under the implementing org’s CODEOWNERS paths. |
 
 **Pilot:** `dependency-review` and `automerge` live in `config/common/services.json`. Observability opts in via `include_common` and already wires `obs-aw-event-*` plus remote triggers. Other orgs opt in in **their own PRs** (registry + event orchestrators + remote triggers). CI runs `scripts/validate_common_service_opt_in.py` so an incomplete opt-in fails closed.

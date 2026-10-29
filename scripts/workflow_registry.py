@@ -465,7 +465,12 @@ def prefer_index_entry(
     entries: tuple[ControlPlaneWorkflowIndexEntry, ...],
     workflow_basename: str,
 ) -> ControlPlaneWorkflowIndexEntry:
-    """Pick the implementation-org entry when present; else lowest org_key."""
+    """Pick the implementation-org entry when present; else lowest org_key.
+
+    Prefer :func:`resolve_compound_id` with an explicit ``org_key`` when the
+    invoking (consuming) org is known — shared common basenames must not
+    silently resolve to the implementation org.
+    """
     if not entries:
         raise ValueError(f"no index entries for {workflow_basename!r}")
     impl = implementation_org_key_from_basename(workflow_basename)
@@ -476,7 +481,12 @@ def prefer_index_entry(
     return min(entries, key=lambda item: item.org_key)
 
 
-def resolve_compound_id(config_dir: Path, workflow_basename: str) -> str:
+def resolve_compound_id(
+    config_dir: Path,
+    workflow_basename: str,
+    *,
+    org_key: str | None = None,
+) -> str:
     index = build_control_plane_workflow_index(config_dir)
     entries = index.get(workflow_basename)
     if entries is None:
@@ -484,6 +494,15 @@ def resolve_compound_id(config_dir: Path, workflow_basename: str) -> str:
         raise ValueError(
             f"workflow basename {workflow_basename!r} is not listed in any "
             f"workflow-registry.json inner_workflows (known: {known})"
+        )
+    if org_key is not None:
+        for entry in entries:
+            if entry.org_key == org_key:
+                return entry.compound_id
+        labeled = ", ".join(sorted({entry.org_key for entry in entries})) or "(none)"
+        raise ValueError(
+            f"workflow basename {workflow_basename!r} is not listed for org "
+            f"{org_key!r} (present under: {labeled})"
         )
     return prefer_index_entry(entries, workflow_basename).compound_id
 

@@ -57,6 +57,7 @@ def test_no_workflows_when_no_dashboard(config_dir: pathlib.Path) -> None:
         ["obs-aw-automerge.yml", "obs-aw-dependency-review.yml"],
         effective_raw="",
         enabled_workflows_json="[]",
+        org_key="obs",
     )
     assert result == {
         "obs-aw-automerge.yml": "false",
@@ -71,6 +72,7 @@ def test_selective_enablement(config_dir: pathlib.Path) -> None:
         ["obs-aw-automerge.yml", "obs-aw-dependency-review.yml"],
         effective_raw="checked",
         enabled_workflows_json=enabled,
+        org_key="obs",
     )
     assert result["obs-aw-automerge.yml"] == "true"
     assert result["obs-aw-dependency-review.yml"] == "false"
@@ -83,10 +85,11 @@ def test_unknown_workflow_raises(config_dir: pathlib.Path) -> None:
             ["obs-aw-unknown.yml"],
             effective_raw="",
             enabled_workflows_json="[]",
+            org_key="obs",
         )
 
 
-def test_shared_basename_proceeds_for_any_org_enablement(
+def test_shared_basename_scoped_to_invoking_org(
     tmp_path: pathlib.Path,
 ) -> None:
     config = tmp_path / "config"
@@ -116,21 +119,33 @@ def test_shared_basename_proceeds_for_any_org_enablement(
             json.dumps({"repositories": []}), encoding="utf-8"
         )
 
-    result = evaluate_gates(
-        config,
-        ["obs-aw-dependency-review.yml"],
-        effective_raw="checked",
-        enabled_workflows_json=json.dumps(["docs:dependency-review"]),
-    )
-    assert result["obs-aw-dependency-review.yml"] == "true"
-
+    # Docs checkbox must not enable the Obs orchestrator for the shared basename.
     result_obs = evaluate_gates(
         config,
         ["obs-aw-dependency-review.yml"],
         effective_raw="checked",
-        enabled_workflows_json=json.dumps(["obs:dependency-review"]),
+        enabled_workflows_json=json.dumps(["docs:dependency-review"]),
+        org_key="obs",
     )
-    assert result_obs["obs-aw-dependency-review.yml"] == "true"
+    assert result_obs["obs-aw-dependency-review.yml"] == "false"
+
+    result_docs = evaluate_gates(
+        config,
+        ["obs-aw-dependency-review.yml"],
+        effective_raw="checked",
+        enabled_workflows_json=json.dumps(["docs:dependency-review"]),
+        org_key="docs",
+    )
+    assert result_docs["obs-aw-dependency-review.yml"] == "true"
+
+    result_obs_enabled = evaluate_gates(
+        config,
+        ["obs-aw-dependency-review.yml"],
+        effective_raw="checked",
+        enabled_workflows_json=json.dumps(["obs:dependency-review"]),
+        org_key="obs",
+    )
+    assert result_obs_enabled["obs-aw-dependency-review.yml"] == "true"
 
 
 def test_sub_feature_workflow_requires_parent_and_child(
@@ -161,6 +176,7 @@ def test_sub_feature_workflow_requires_parent_and_child(
         ["obs-aw-security-injection-detector.yml"],
         effective_raw="checked",
         enabled_workflows_json=enabled,
+        org_key="obs",
     )
     assert result["obs-aw-security-injection-detector.yml"] == "true"
 
@@ -170,5 +186,6 @@ def test_sub_feature_workflow_requires_parent_and_child(
         ["obs-aw-security-injection-detector.yml"],
         effective_raw="checked",
         enabled_workflows_json=child_only,
+        org_key="obs",
     )
     assert result_child_only["obs-aw-security-injection-detector.yml"] == "false"

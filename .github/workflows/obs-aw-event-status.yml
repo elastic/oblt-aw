@@ -18,6 +18,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
+      org-key: obs
       control-plane-workflows: >-
         ["obs-aw-estc-pr-buildkite-detective.yml"]
       load-allowed-authors: true

@@ -37,7 +37,32 @@ def test_skips_docs_actions_locks_without_input(tmp_path: pathlib.Path) -> None:
         encoding="utf-8",
     )
     assert validator.validate_workflow(path, ROUTE_RE) == []
-    assert "gh-aw-issue-triage.lock.yml" in validator.LOCKS_WITHOUT_REPORT_FAILURE_INPUT
+    assert (
+        "gh-aw-issue-triage.lock.yml"
+        in validator.DOCS_ACTIONS_LOCKS_WITHOUT_REPORT_FAILURE_INPUT
+    )
+    assert (
+        "gh-aw-issue-triage.lock.yml"
+        not in validator.LOCKS_WITHOUT_REPORT_FAILURE_INPUT
+    )
+
+
+def test_requires_report_failure_for_ai_github_actions_issue_triage(
+    tmp_path: pathlib.Path,
+) -> None:
+    path = tmp_path / "obs-aw-issue-triage.yml"
+    path.write_text(
+        "name: Issue Triage\non:\n  workflow_call:\njobs:\n"
+        "  agent:\n"
+        "    uses: elastic/ai-github-actions/.github/workflows/"
+        "gh-aw-issue-triage.lock.yml@main\n"
+        "    with:\n"
+        "      additional-instructions: hi\n",
+        encoding="utf-8",
+    )
+    errors = validator.validate_workflow(path, ROUTE_RE)
+    assert len(errors) == 1
+    assert "report-failure-as-issue: false" in errors[0]
 
 
 def test_rejects_missing_report_failure_override(tmp_path: pathlib.Path) -> None:

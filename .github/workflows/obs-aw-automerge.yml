@@ -6,6 +6,12 @@ on:
         description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
+      shared-org-key:
+        description: >-
+          Consuming org key for dashboard/APM identity (obs today; docs/security
+          when those orgs opt into this common service).
+        required: true
+        type: string
       shared-allowed-pr-authors-json:
         required: true
         type: string
@@ -178,6 +184,7 @@ jobs:
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       workflow-basename: obs-aw-automerge.yml
+      org-key: ${{ inputs.shared-org-key }}
       # Approve gates live in gh-aw-autoapprove.md. Resolve only merges consumer APM fragments.
 
   approve:

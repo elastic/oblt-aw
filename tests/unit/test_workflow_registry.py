@@ -203,6 +203,12 @@ class TestCommonServicesInclude:
             wr.resolve_compound_id(tmp_path, "obs-aw-dependency-review.yml")
             == "obs:dependency-review"
         )
+        assert (
+            wr.resolve_compound_id(
+                tmp_path, "obs-aw-dependency-review.yml", org_key="docs"
+            )
+            == "docs:dependency-review"
+        )
 
     def test_conflicting_workflow_ids_still_fail(self, tmp_path: pathlib.Path) -> None:
         _write_org(

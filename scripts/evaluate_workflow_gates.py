@@ -56,6 +56,8 @@ def evaluate_gates(
     control_plane_workflows: list[str],
     effective_raw: str,
     enabled_workflows_json: str,
+    *,
+    org_key: str,
 ) -> dict[str, str]:
     index = build_control_plane_workflow_index(config_dir)
     proceed_by_workflow: dict[str, str] = {}
@@ -66,13 +68,24 @@ def evaluate_gates(
                 f"control-plane workflow {basename!r} is not listed in any "
                 f"workflow-registry.json inner_workflows (known: {known})"
             )
-        # Shared common services list the same basename under multiple orgs;
-        # proceed when any matching org:workflow-id (or sub-feature) is enabled.
+        # Shared common services list the same basename under multiple orgs.
+        # Evaluate only the invoking org's compound id so one org's checkbox
+        # cannot enable another org's orchestrator for the same basename.
+        org_entries = [entry for entry in index[basename] if entry.org_key == org_key]
+        if not org_entries:
+            labeled = (
+                ", ".join(sorted({entry.org_key for entry in index[basename]}))
+                or "(none)"
+            )
+            raise ValueError(
+                f"control-plane workflow {basename!r} is not listed for org "
+                f"{org_key!r} (present under: {labeled})"
+            )
         allowed = any(
             _proceed_for_compound_id(
                 effective_raw, enabled_workflows_json, entry.compound_id
             )
-            for entry in index[basename]
+            for entry in org_entries
         )
         proceed_by_workflow[basename] = "true" if allowed else "false"
     return proceed_by_workflow
@@ -103,6 +116,11 @@ def main() -> int:
         default="[]",
         help="Normalized JSON array of compound org:workflow-id strings",
     )
+    parser.add_argument(
+        "--org-key",
+        required=True,
+        help="Invoking org key (config/<org-key>/); gates only that org's compound ids",
+    )
     args = parser.parse_args()
 
     try:
@@ -122,6 +140,9 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+    if not isinstance(args.org_key, str) or not args.org_key.strip():
+        print("--org-key must be a non-empty string", file=sys.stderr)
+        return 1
 
     try:
         proceed_by_workflow = evaluate_gates(
@@ -129,6 +150,7 @@ def main() -> int:
             workflows,
             args.effective_raw,
             args.enabled_workflows,
+            org_key=args.org_key.strip(),
         )
     except (ValueError, TypeError) as exc:
         print(str(exc), file=sys.stderr)

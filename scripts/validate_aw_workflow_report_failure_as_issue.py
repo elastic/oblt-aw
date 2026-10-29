@@ -33,10 +33,6 @@ from validate_aw_workflow_prelude import list_subject_workflows, route_pattern
 # Basename of the lock / reusable workflow (no path, no @ref).
 LOCKS_WITHOUT_REPORT_FAILURE_INPUT: frozenset[str] = frozenset(
     {
-        # Docs-actions locks (no report-failure-as-issue workflow_call input).
-        "gh-aw-docs-review.lock.yml",
-        "gh-aw-issue-scope.lock.yml",
-        "gh-aw-issue-triage.lock.yml",
         # No report-failure-as-issue workflow_call input (findings via create_issue).
         "gh-aw-log-searching-agent.lock.yml",
         # In-repo locks: failure reporting baked via obs-defaults; no caller input.
@@ -48,6 +44,17 @@ LOCKS_WITHOUT_REPORT_FAILURE_INPUT: frozenset[str] = frozenset(
         "gh-aw-pr-actions-detective.lock.yml",
     }
 )
+
+# Docs-actions locks share basenames with elastic/ai-github-actions; exempt only
+# when the uses: ref is under elastic/docs-actions/.
+DOCS_ACTIONS_LOCKS_WITHOUT_REPORT_FAILURE_INPUT: frozenset[str] = frozenset(
+    {
+        "gh-aw-docs-review.lock.yml",
+        "gh-aw-issue-scope.lock.yml",
+        "gh-aw-issue-triage.lock.yml",
+    }
+)
+DOCS_ACTIONS_USES_PREFIX = "elastic/docs-actions/"
 
 GH_AW_USES_LINE = re.compile(
     r"^\s+uses:\s*(?P<ref>\S+/gh-aw-[A-Za-z0-9-]+(?:\.lock)?\.ya?ml)(?:@\S+)?\s*$",
@@ -61,6 +68,16 @@ REPORT_FAILURE_FALSE = re.compile(
 
 def _lock_basename(uses_ref: str) -> str:
     return uses_ref.rsplit("/", 1)[-1]
+
+
+def _lock_exempt_from_report_failure(uses_ref: str) -> bool:
+    basename = _lock_basename(uses_ref)
+    if basename in LOCKS_WITHOUT_REPORT_FAILURE_INPUT:
+        return True
+    return (
+        basename in DOCS_ACTIONS_LOCKS_WITHOUT_REPORT_FAILURE_INPUT
+        and DOCS_ACTIONS_USES_PREFIX in uses_ref
+    )
 
 
 def _job_blocks(text: str) -> list[tuple[str, str]]:
@@ -115,8 +132,9 @@ def validate_workflow(path: pathlib.Path, route_re: re.Pattern[str]) -> list[str
         if uses_match is None:
             continue
 
-        basename = _lock_basename(uses_match.group("ref"))
-        if basename in LOCKS_WITHOUT_REPORT_FAILURE_INPUT:
+        uses_ref = uses_match.group("ref")
+        basename = _lock_basename(uses_ref)
+        if _lock_exempt_from_report_failure(uses_ref):
             continue
 
         if not REPORT_FAILURE_FALSE.search(body):

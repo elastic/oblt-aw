@@ -30,6 +30,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
+      org-key: obs
       control-plane-workflows: >-
         ${{ inputs.schedule-profile == 'frequent'
             && '["obs-aw-automerge-deferred.yml"]'
