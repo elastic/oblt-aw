@@ -29,7 +29,7 @@ Do all of these in **one** pull request for the consuming org. CI runs [`scripts
    ```json
    {
      "section_title": "Documentation",
-     "include_common": ["automerge", "dependency-review"],
+     "include_common": ["automerge", "dependency-review", "estc-pr-buildkite-detective"],
      "workflows": []
    }
    ```
@@ -38,7 +38,7 @@ Do all of these in **one** pull request for the consuming org. CI runs [`scripts
    - `run-aw-prelude` passes `org-key: <org-key>` and lists every basename under `control-plane-workflows`, and
    - a job `uses: ./.github/workflows/<basename>` (the owning org’s reusable) with `shared-proceed`, `shared-org-key: <org-key>` (for routes that resolve APM assets), and the usual prelude outputs.
 
-   Example: dependency-review and automerge need the pull-request orchestrator; automerge-deferred needs the schedule (frequent) orchestrator. CI rejects a daily-only schedule trigger when deferred automerge is included.
+   Example: dependency-review and automerge need the pull-request orchestrator; automerge-deferred needs the schedule (frequent) orchestrator; estc-pr-buildkite-detective needs the status orchestrator. CI rejects a daily-only schedule trigger when deferred automerge is included.
 
 3. **Remote triggers** — Under `.github/remote-workflow-template/<org-key>/.github/workflows/`, ensure a `trigger-<org-key>-aw-<event>*.yml` exists for each event family those orchestrators cover (for example `trigger-docs-aw-pull-request.yml`, `trigger-docs-aw-schedule-frequent.yml`). Edit only the remote-template tree; distribute installs consumer copies.
 

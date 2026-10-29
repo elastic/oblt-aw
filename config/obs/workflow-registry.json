@@ -2,7 +2,8 @@
   "section_title": "Observability",
   "include_common": [
     "automerge",
-    "dependency-review"
+    "dependency-review",
+    "estc-pr-buildkite-detective"
   ],
   "workflows": [
     {
@@ -133,17 +134,6 @@
         "obs-aw-resource-not-accessible-by-integration-detector.yml",
         "obs-aw-resource-not-accessible-by-integration-fixer.yml",
         "obs-aw-resource-not-accessible-by-integration-triage.yml"
-      ]
-    },
-    {
-      "id": "estc-pr-buildkite-detective",
-      "name": "PR Buildkite Detective",
-      "description": "Analyzes Buildkite CI failures for a PR when a Buildkite status check fails; posts a diagnostic comment on the pull request.",
-      "maturity": "stable",
-      "default_enabled": false,
-      "docs": "docs/workflows/obs-aw-estc-pr-buildkite-detective.md",
-      "inner_workflows": [
-        "obs-aw-estc-pr-buildkite-detective.yml"
       ]
     },
     {

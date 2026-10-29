@@ -90,6 +90,17 @@
       "inner_workflows": [
         "obs-aw-dependency-review.yml"
       ]
+    },
+    {
+      "id": "estc-pr-buildkite-detective",
+      "name": "PR Buildkite Detective",
+      "description": "Analyzes Buildkite CI failures for a PR when a Buildkite status check fails; posts a diagnostic comment on the pull request.",
+      "maturity": "stable",
+      "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-estc-pr-buildkite-detective.md",
+      "inner_workflows": [
+        "obs-aw-estc-pr-buildkite-detective.yml"
+      ]
     }
   ]
 }

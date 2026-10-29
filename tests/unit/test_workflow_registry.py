@@ -237,16 +237,26 @@ class TestCommonServicesInclude:
     def test_checked_in_common_pilot_services(self) -> None:
         config_dir = pathlib.Path(__file__).parent.parent.parent / "config"
         common = wr.load_common_services(config_dir)
-        assert set(common) >= {"automerge", "dependency-review"}
+        assert set(common) >= {
+            "automerge",
+            "dependency-review",
+            "estc-pr-buildkite-detective",
+        }
         index = wr.build_control_plane_workflow_index(config_dir)
         dr = index["obs-aw-dependency-review.yml"]
         assert {e.org_key for e in dr} == {"obs"}
         assert wr.resolve_compound_id(config_dir, "obs-aw-dependency-review.yml") == (
             "obs:dependency-review"
         )
+        estc = index["obs-aw-estc-pr-buildkite-detective.yml"]
+        assert {e.org_key for e in estc} == {"obs"}
+        assert wr.resolve_compound_id(
+            config_dir, "obs-aw-estc-pr-buildkite-detective.yml"
+        ) == ("obs:estc-pr-buildkite-detective")
         obs_ids = {
             entry.workflow_id
             for entry in wr.parse_registry_entries(config_dir / "obs", config_dir)
         }
         assert "automerge" in obs_ids
         assert "dependency-review" in obs_ids
+        assert "estc-pr-buildkite-detective" in obs_ids
