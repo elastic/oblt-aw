@@ -90,10 +90,11 @@ function parseEnabledWorkflowsJson(raw) {
 }
 
 /**
- * Collect enabled automerge collection ids from any org that has
- * ``<org>:automerge`` checked (common services appear per-org on the dashboard).
+ * Collect enabled automerge collection ids for dashboard-checked parents.
+ * Without ``orgKey``, unions every ``<org>:automerge`` parent (legacy @v0).
+ * With ``orgKey``, only that consuming org's parent and collections count.
  * @param {string[]} enabledWorkflows
- * @param {string} [orgKey] When set, only that org's parent/collections are used.
+ * @param {string} [orgKey] Consuming org key; omit only for released callers.
  * @returns {string[]}
  */
 function enabledAutomergeCollectionIds(enabledWorkflows, orgKey) {

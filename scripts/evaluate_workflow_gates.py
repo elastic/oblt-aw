@@ -30,7 +30,11 @@ import sys
 from pathlib import Path
 
 from common import write_outputs
-from workflow_registry import build_control_plane_workflow_index
+from workflow_registry import (
+    ControlPlaneWorkflowIndexEntry,
+    build_control_plane_workflow_index,
+    prefer_index_entry,
+)
 
 
 def _proceed_for_compound_id(
@@ -57,7 +61,7 @@ def evaluate_gates(
     effective_raw: str,
     enabled_workflows_json: str,
     *,
-    org_key: str,
+    org_key: str | None = None,
 ) -> dict[str, str]:
     index = build_control_plane_workflow_index(config_dir)
     proceed_by_workflow: dict[str, str] = {}
@@ -69,18 +73,25 @@ def evaluate_gates(
                 f"workflow-registry.json inner_workflows (known: {known})"
             )
         # Shared common services list the same basename under multiple orgs.
-        # Evaluate only the invoking org's compound id so one org's checkbox
-        # cannot enable another org's orchestrator for the same basename.
-        org_entries = [entry for entry in index[basename] if entry.org_key == org_key]
-        if not org_entries:
-            labeled = (
-                ", ".join(sorted({entry.org_key for entry in index[basename]}))
-                or "(none)"
+        # When org_key is set (tip aw-prelude), evaluate only that org's
+        # compound id. When omitted (released @v0 prelude + tip scripts),
+        # prefer the implementation-org entry so callers keep working.
+        org_entries: tuple[ControlPlaneWorkflowIndexEntry, ...]
+        if org_key is None:
+            org_entries = (prefer_index_entry(index[basename], basename),)
+        else:
+            org_entries = tuple(
+                entry for entry in index[basename] if entry.org_key == org_key
             )
-            raise ValueError(
-                f"control-plane workflow {basename!r} is not listed for org "
-                f"{org_key!r} (present under: {labeled})"
-            )
+            if not org_entries:
+                labeled = (
+                    ", ".join(sorted({entry.org_key for entry in index[basename]}))
+                    or "(none)"
+                )
+                raise ValueError(
+                    f"control-plane workflow {basename!r} is not listed for org "
+                    f"{org_key!r} (present under: {labeled})"
+                )
         allowed = any(
             _proceed_for_compound_id(
                 effective_raw, enabled_workflows_json, entry.compound_id
@@ -118,8 +129,12 @@ def main() -> int:
     )
     parser.add_argument(
         "--org-key",
-        required=True,
-        help="Invoking org key (config/<org-key>/); gates only that org's compound ids",
+        default="",
+        help=(
+            "Invoking org key (config/<org-key>/); gates only that org's "
+            "compound ids. Optional for released @v0 preludes that omit it "
+            "(falls back to the implementation-org index entry)."
+        ),
     )
     args = parser.parse_args()
 
@@ -140,9 +155,11 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    if not isinstance(args.org_key, str) or not args.org_key.strip():
-        print("--org-key must be a non-empty string", file=sys.stderr)
-        return 1
+    org_key = args.org_key.strip() if isinstance(args.org_key, str) else ""
+    if not org_key:
+        org_key_arg: str | None = None
+    else:
+        org_key_arg = org_key
 
     try:
         proceed_by_workflow = evaluate_gates(
@@ -150,7 +167,7 @@ def main() -> int:
             workflows,
             args.effective_raw,
             args.enabled_workflows,
-            org_key=args.org_key.strip(),
+            org_key=org_key_arg,
         )
     except (ValueError, TypeError) as exc:
         print(str(exc), file=sys.stderr)

@@ -89,9 +89,7 @@ def test_unknown_workflow_raises(config_dir: pathlib.Path) -> None:
         )
 
 
-def test_shared_basename_scoped_to_invoking_org(
-    tmp_path: pathlib.Path,
-) -> None:
+def _shared_dependency_review_config(tmp_path: pathlib.Path) -> pathlib.Path:
     config = tmp_path / "config"
     common = config / "common"
     common.mkdir(parents=True)
@@ -118,6 +116,13 @@ def test_shared_basename_scoped_to_invoking_org(
         (org_dir / "active-repositories.json").write_text(
             json.dumps({"repositories": []}), encoding="utf-8"
         )
+    return config
+
+
+def test_shared_basename_scoped_to_invoking_org(
+    tmp_path: pathlib.Path,
+) -> None:
+    config = _shared_dependency_review_config(tmp_path)
 
     # Docs checkbox must not enable the Obs orchestrator for the shared basename.
     result_obs = evaluate_gates(
@@ -146,6 +151,30 @@ def test_shared_basename_scoped_to_invoking_org(
         org_key="obs",
     )
     assert result_obs_enabled["obs-aw-dependency-review.yml"] == "true"
+
+
+def test_omitted_org_key_prefers_implementation_org(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Released @v0 preludes omit --org-key; tip scripts must keep working."""
+    config = _shared_dependency_review_config(tmp_path)
+
+    # Docs-only checkbox must not proceed via the obs-aw-* implementation entry.
+    result_docs_only = evaluate_gates(
+        config,
+        ["obs-aw-dependency-review.yml"],
+        effective_raw="checked",
+        enabled_workflows_json=json.dumps(["docs:dependency-review"]),
+    )
+    assert result_docs_only["obs-aw-dependency-review.yml"] == "false"
+
+    result_obs = evaluate_gates(
+        config,
+        ["obs-aw-dependency-review.yml"],
+        effective_raw="checked",
+        enabled_workflows_json=json.dumps(["obs:dependency-review"]),
+    )
+    assert result_obs["obs-aw-dependency-review.yml"] == "true"
 
 
 def test_sub_feature_workflow_requires_parent_and_child(

@@ -148,6 +148,7 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           ENABLED_WORKFLOWS_JSON: ${{ inputs.shared-enabled-workflows }}
+          ORG_KEY: ${{ inputs.shared-org-key }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -164,6 +165,7 @@ jobs:
               prNumber,
               core,
               enabledWorkflowsJson: process.env.ENABLED_WORKFLOWS_JSON || '[]',
+              orgKey: process.env.ORG_KEY || '',
             });
             core.setOutput('allowed', allowed ? 'true' : 'false');
             core.setOutput('collection-id', collectionId || '');

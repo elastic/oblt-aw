@@ -554,6 +554,38 @@ test('enabledAutomergeCollectionIds unions collections across orgs', () => {
   ]);
 });
 
+test('enabledAutomergeCollectionIds scopes to consuming org when orgKey set', () => {
+  const enabled = [
+    'docs:automerge',
+    'docs:automerge:python-dependencies',
+    'obs:automerge',
+    'obs:automerge:terraform',
+  ];
+  assert.deepEqual(
+    enabledAutomergeCollectionIds(enabled, 'obs').sort(),
+    ['terraform']
+  );
+  assert.deepEqual(
+    enabledAutomergeCollectionIds(enabled, 'docs').sort(),
+    ['python-dependencies']
+  );
+  // Docs-only collection must not authorize the Obs consumer.
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled, 'obs'), [
+    'terraform',
+  ]);
+  assert.deepEqual(
+    enabledAutomergeCollectionIds(
+      [
+        'docs:automerge',
+        'docs:automerge:python-dependencies',
+        'obs:automerge',
+      ],
+      'obs'
+    ),
+    []
+  );
+});
+
 test('parseEnabledWorkflowsJson handles invalid input', () => {
   assert.deepEqual(parseEnabledWorkflowsJson(''), []);
   assert.deepEqual(parseEnabledWorkflowsJson('not-json'), []);

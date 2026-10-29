@@ -85,6 +85,7 @@ module.exports.run = async function run({
   prNumber,
   core,
   enabledWorkflowsJson = '[]',
+  orgKey = '',
 }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
@@ -97,7 +98,12 @@ module.exports.run = async function run({
   const config = loadCollectionsConfig();
   const collections = config.collections || [];
   const enabledWorkflows = parseEnabledWorkflowsJson(enabledWorkflowsJson);
-  const enabledCollectionIds = enabledAutomergeCollectionIds(enabledWorkflows);
+  // orgKey scopes collections to the consuming org (tip callers). Released
+  // @v0 paths omit it and keep the legacy union across orgs.
+  const enabledCollectionIds = enabledAutomergeCollectionIds(
+    enabledWorkflows,
+    typeof orgKey === 'string' && orgKey.trim() ? orgKey.trim() : undefined
+  );
 
   const changedFiles = await listPullRequestFilePaths(
     github,
