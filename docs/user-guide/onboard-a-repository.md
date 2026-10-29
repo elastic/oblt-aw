@@ -50,7 +50,7 @@ Technical registration detail for maintainers and agents: [Registering resources
    | 2 | `elastic/oblt-aw` | Entry in `config/<org-key>/active-repositories.json` |
    | 3 | `elastic/observability-github-settings` | Vault app in classic BP `pull_request_bypassers` (and merge-queue ruleset `bypass_actors` when present) |
    | 4 | `elastic/observability-github-secrets` | When org agentic workflow docs’ **Prerequisites** (or **API / Interface**) require consumer secrets; otherwise the agent notes “none” |
-   | 5 | `elastic/<repo>` (consumer) | Add or update `.github/CODEOWNERS` for distributed trigger clients: `/.github/workflows/trigger-obs-aw-* @elastic/observablt-ci` (obs) or `/.github/workflows/trigger-docs-aw-* @elastic/obs-docs` (docs) |
+   | 5 | `elastic/<repo>` (consumer) | Add or update `.github/CODEOWNERS` for distributed trigger clients: `/.github/workflows/trigger-<org-key>-aw-* @elastic/<owning-team>` (match the org’s owners in this control plane’s [CODEOWNERS](https://github.com/elastic/oblt-aw/blob/main/.github/CODEOWNERS)) |
 
    ```mermaid
    flowchart LR
@@ -62,7 +62,7 @@ Technical registration detail for maintainers and agents: [Registering resources
 
 5. **Merge manually in order** — Humans merge. Merge the **catalog-info** TokenPolicy PR **before** the **oblt-aw** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed agentic workflows in production. Merge the consumer **CODEOWNERS** PR before or with the first distribute trigger-client PR so code-owner review can clear trigger-only workflow changes. Auto-merge of these PRs is **out of scope** for now.
 
-6. **After the oblt-aw registration PR merges to `main`** — Existing automation opens an agentic workflows triggers PR in your repository (`trigger-obs-aw-*.yml` or docs equivalents) via [distribute-client-workflow](../operations/distribute-client-workflow.md), and creates a **Control Plane dashboard** issue via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
+6. **After the oblt-aw registration PR merges to `main`** — Existing automation opens an agentic workflows triggers PR in your repository (`trigger-<org-key>-aw-*.yml`) via [distribute-client-workflow](../operations/distribute-client-workflow.md), and creates a **Control Plane dashboard** issue via [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md).
 
    If the consumer `CODEOWNERS` PR from step 4 is still open, merge it before or with this trigger-client PR. Then merge the agentic workflows triggers PR. Confirm the Control Plane dashboard issue exists (title `[oblt-aw] Control Plane Dashboard`, GitHub label `oblt-aw/dashboard`). Sync pins it by default, so it usually appears at the top of the Issues list. If it is not pinned (for example when the repository already has three pinned issues), search with `label:oblt-aw/dashboard`.
 

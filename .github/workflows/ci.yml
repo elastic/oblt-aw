@@ -96,6 +96,9 @@ jobs:
       - name: Validate docs Markdown pages are listed in docset.yml toc
         run: python scripts/validate_docs_toc.py
 
+      - name: Validate docs relative Markdown fragment links
+        run: python scripts/validate_docs_fragment_links.py
+
       - name: Validate reusable-workflow caller permissions
         env:
           GITHUB_TOKEN: ${{ github.token }}

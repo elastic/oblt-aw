@@ -68,6 +68,6 @@ Dashboard sync drops the checkboxes for repos that still list the org. Existing 
 
 ## See also
 
-- Architecture: [Multi-org agentic workflows §11](../architecture/multi-org-agentic-workflows.md#11-common-services-shared-definitions-per-org-catalogs)
+- Architecture: [Multi-org agentic workflows §11](../architecture/multi-org-agentic-workflows.md#common-services)
 - [Add a new agentic workflow](add-a-new-agentic-workflow.md) — publishing a brand-new owned workflow
 - [Enable or disable an agentic workflow](../user-guide/enable-a-new-workflow.md) — consumer dashboard toggles

@@ -177,7 +177,7 @@ Validate with `python scripts/validate_aw_workflow_prelude.py` and `pytest tests
 
 ---
 
-## 11. Common services (shared definitions, per-org catalogs)
+## 11. Common services (shared definitions, per-org catalogs) [common-services]
 
 Some agentic capabilities are useful to more than one org. The control plane keeps **one definition** and lets each org **opt into its own catalog**. There is **no** Common dashboard section and **no** `common:workflow-id` gating id.
 
