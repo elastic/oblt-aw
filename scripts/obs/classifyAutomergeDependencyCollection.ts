@@ -19,9 +19,9 @@ const fs = require('node:fs');
 const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
 
 const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate -->';
-/** @deprecated Prefer detecting any ``<org>:automerge`` parent from the enabled list. */
+/** @deprecated Prefer ``enabledAutomergeCollectionIds`` with an explicit consuming org. */
 const AUTOMERGE_PARENT_COMPOUND_ID = 'obs:automerge';
-const AUTOMERGE_PARENT_RE = /^([a-z0-9-]+):automerge$/;
+const DEFAULT_AUTOMERGE_ORG_KEY = 'obs';
 const AUTOMERGE_SERVICES_GUIDE_URL =
   'https://codex.elastic.dev/r/oblt-aw/user-guide/automerge-services';
 const OPT_IN_OPT_OUT_GUIDE_URL =
@@ -90,35 +90,31 @@ function parseEnabledWorkflowsJson(raw) {
 }
 
 /**
- * Collect enabled automerge collection ids for dashboard-checked parents.
- * Without ``orgKey``, unions every ``<org>:automerge`` parent (legacy @v0).
- * With ``orgKey``, only that consuming org's parent and collections count.
+ * Collect enabled automerge collection ids for the consuming org's parent.
+ * Omitted or blank ``orgKey`` defaults to ``obs`` so released ``@v0`` jobs that
+ * load tip scripts from ``main`` keep the previous Obs-only scope.
+ * Tip callers pass the consuming org (``shared-org-key``).
  * @param {string[]} enabledWorkflows
- * @param {string} [orgKey] Consuming org key; omit only for released callers.
+ * @param {string} [orgKey] Consuming org key.
  * @returns {string[]}
  */
 function enabledAutomergeCollectionIds(enabledWorkflows, orgKey) {
-  const parents =
-    typeof orgKey === 'string' && orgKey
-      ? enabledWorkflows.filter((id) => id === `${orgKey}:automerge`)
-      : enabledWorkflows.filter((id) => AUTOMERGE_PARENT_RE.test(id));
-  if (parents.length === 0) {
+  const scopedOrg =
+    typeof orgKey === 'string' && orgKey.trim()
+      ? orgKey.trim()
+      : DEFAULT_AUTOMERGE_ORG_KEY;
+  const parentId = `${scopedOrg}:automerge`;
+  if (!enabledWorkflows.includes(parentId)) {
     return [];
   }
-  const collectionIds = [];
-  for (const parent of parents) {
-    const match = AUTOMERGE_PARENT_RE.exec(parent);
-    if (!match) {
-      continue;
-    }
-    const prefix = `${match[1]}:automerge:`;
-    for (const id of enabledWorkflows) {
-      if (id.startsWith(prefix)) {
-        collectionIds.push(id.slice(prefix.length));
-      }
-    }
-  }
-  return [...new Set(collectionIds)];
+  const prefix = `${scopedOrg}:automerge:`;
+  return [
+    ...new Set(
+      enabledWorkflows
+        .filter((id) => id.startsWith(prefix))
+        .map((id) => id.slice(prefix.length))
+    ),
+  ];
 }
 
 function collectionMatchesAllFiles(collection, files) {

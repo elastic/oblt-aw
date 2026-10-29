@@ -535,23 +535,39 @@ test('enabledAutomergeCollectionIds accepts non-obs org parents', () => {
     'docs:automerge:github-actions',
     'docs:automerge:pre-commit',
   ];
-  assert.deepEqual(enabledAutomergeCollectionIds(enabled).sort(), [
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled, 'docs').sort(), [
     'github-actions',
     'pre-commit',
   ]);
 });
 
-test('enabledAutomergeCollectionIds unions collections across orgs', () => {
+test('enabledAutomergeCollectionIds defaults blank orgKey to obs for released callers', () => {
   const enabled = [
     'docs:automerge',
     'docs:automerge:github-actions',
+    'docs:automerge:python-dependencies',
     'obs:automerge',
     'obs:automerge:terraform',
   ];
+  // Released @v0 loads tip scripts from main and omits orgKey — Obs scope only.
   assert.deepEqual(enabledAutomergeCollectionIds(enabled).sort(), [
-    'github-actions',
     'terraform',
   ]);
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled, '').sort(), [
+    'terraform',
+  ]);
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled, '   ').sort(), [
+    'terraform',
+  ]);
+  // Docs-only python must not authorize the released Obs route.
+  assert.deepEqual(
+    classifyChangedFiles(
+      ['pyproject.toml'],
+      COLLECTIONS,
+      enabledAutomergeCollectionIds(enabled)
+    ),
+    { status: 'disabled', collectionId: 'python-dependencies' }
+  );
 });
 
 test('enabledAutomergeCollectionIds scopes to consuming org when orgKey set', () => {
