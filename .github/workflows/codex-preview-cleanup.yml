@@ -6,7 +6,7 @@ name: docs-cleanup
 # No paths filter: a PR may create a preview then drop docs/** before close;
 # the reusable cleanup workflow no-ops when no matching deployment exists.
 on:
-  pull_request_target:
+  pull_request:
     types:
       - closed
 
