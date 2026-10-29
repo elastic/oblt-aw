@@ -81,6 +81,8 @@ Shared framework jobs use **kebab-case, action-oriented** ids with domain contex
 - [Resource Not Accessible fixer](obs-aw-resource-not-accessible-by-integration-fixer.md)
 - [Resource Not Accessible triage](obs-aw-resource-not-accessible-by-integration-triage.md)
 - [Security client templates](security-aw-client-template.md)
+- [Security dependency review](security-aw-dependency-review.md)
+- [Security PR Buildkite detective](security-aw-estc-pr-buildkite-detective.md)
 - [Security detector](obs-aw-security-detector.md)
 - [Security fixer](obs-aw-security-fixer.md)
 - [Security issue superseder](obs-aw-security-issue-superseder.md)

@@ -1,4 +1,23 @@
 {
   "section_title": "Security",
-  "workflows": []
+  "workflows": [
+    {
+      "id": "estc-pr-buildkite-detective",
+      "name": "PR Buildkite Detective",
+      "description": "Analyzes Buildkite CI failures for a PR when a Buildkite status check fails; posts a diagnostic comment on the pull request.",
+      "maturity": "early-adoption",
+      "default_enabled": false,
+      "docs": "docs/workflows/security-aw-estc-pr-buildkite-detective.md",
+      "inner_workflows": ["security-aw-estc-pr-buildkite-detective.yml"]
+    },
+    {
+      "id": "dependency-review",
+      "name": "Dependency Review",
+      "description": "Analyzes dependency-update PRs from bots, applies merge-ready labels when criteria are met.",
+      "maturity": "early-adoption",
+      "default_enabled": false,
+      "docs": "docs/workflows/security-aw-dependency-review.md",
+      "inner_workflows": ["security-aw-dependency-review.yml"]
+    }
+  ]
 }

@@ -120,6 +120,8 @@ toc:
       - hidden: ./obs-aw-security-issue-superseder.md
       - hidden: ./obs-aw-security-triage.md
       - hidden: ./security-aw-client-template.md
+      - hidden: ./security-aw-dependency-review.md
+      - hidden: ./security-aw-estc-pr-buildkite-detective.md
       - hidden: ./security-scanning-ruleset.md
       - hidden: ./sync-control-plane-dashboard.md
   - folder: architecture
