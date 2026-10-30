@@ -2,8 +2,11 @@
 Integration checks for the Security org routes.
 
 Covers security:estc-pr-buildkite-detective and security:dependency-review.
-Proves registry ↔ wrapper ↔ orchestrator ↔ client template ↔ lock input wiring
-and aw-resolve-agentic-assets against frozen consumer fixtures. Does not invoke
+Both routes are shared common services (config/common/services.json) that the
+Security org opts into with ``include_common``. They run through the shared
+``obs-aw-*`` wrappers with ``org-key: security``. Proves registry ↔ wrapper ↔
+orchestrator ↔ client template ↔ lock input wiring and aw-resolve-agentic-assets
+against frozen consumer fixtures. Does not invoke
 a live model or mint tokens.
 """
 
@@ -21,6 +24,8 @@ _root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_root / "scripts"))
 
 import agentic_assets_resolver as resolver
+from validate_common_service_opt_in import validate_org_common_opt_in
+from workflow_registry import expand_org_workflow_dicts, resolve_compound_id
 
 ORG_KEY = "security"
 RESOLVE_JOB = "resolve-apm-assets"
@@ -50,7 +55,7 @@ class Route:
 ROUTES = (
     Route(
         workflow_id="estc-pr-buildkite-detective",
-        wrapper="security-aw-estc-pr-buildkite-detective.yml",
+        wrapper="obs-aw-estc-pr-buildkite-detective.yml",
         lock="gh-aw-estc-pr-buildkite-detective.lock.yml",
         orchestrator="security-aw-event-status.yml",
         client_template="trigger-security-aw-status.yml",
@@ -59,7 +64,7 @@ ROUTES = (
     ),
     Route(
         workflow_id="dependency-review",
-        wrapper="security-aw-dependency-review.yml",
+        wrapper="obs-aw-dependency-review.yml",
         lock="gh-aw-dependency-review.lock.yml",
         orchestrator="security-aw-event-pull-request.yml",
         client_template="trigger-security-aw-pull-request.yml",
@@ -98,19 +103,43 @@ def _platform_instructions(route: Route) -> str:
 
 
 class TestRegistry:
-    @route_param
-    def test_registry_entry_points_at_existing_files(self, route: Route) -> None:
+    def test_security_registry_opts_into_common_services(self) -> None:
         registry = json.loads(
             (_root / "config" / ORG_KEY / "workflow-registry.json").read_text(
                 encoding="utf-8"
             )
         )
-        entries = {w["id"]: w for w in registry["workflows"]}
+        assert registry["include_common"] == sorted(r.workflow_id for r in ROUTES)
+        assert registry["workflows"] == [], (
+            "shared services must not be copied into local workflows"
+        )
+
+    @route_param
+    def test_expanded_entry_points_at_existing_files(self, route: Route) -> None:
+        entries = {
+            e["id"]: e
+            for e in expand_org_workflow_dicts(
+                _root / "config" / ORG_KEY, _root / "config"
+            )
+        }
         entry = entries[route.workflow_id]
         assert entry["default_enabled"] is False
         assert entry["inner_workflows"] == [route.wrapper]
         assert (_root / entry["docs"]).is_file()
         assert (WORKFLOWS_DIR / route.wrapper).is_file()
+
+    @route_param
+    def test_gate_resolves_to_security_compound_id(self, route: Route) -> None:
+        assert (
+            resolve_compound_id(_root / "config", route.wrapper, org_key=ORG_KEY)
+            == f"{ORG_KEY}:{route.workflow_id}"
+        )
+
+    def test_opt_in_wiring_validates(self) -> None:
+        assert (
+            validate_org_common_opt_in(_root / "config" / ORG_KEY, _root / "config")
+            == []
+        )
 
 
 class TestWrapperLockWiring:
@@ -120,6 +149,7 @@ class TestWrapperLockWiring:
         resolve_job = wrapper["jobs"][RESOLVE_JOB]
         assert resolve_job["uses"].endswith("aw-resolve-agentic-assets.yml")
         assert resolve_job["with"]["workflow-basename"] == route.wrapper
+        assert resolve_job["with"]["org-key"] == "${{ inputs.shared-org-key }}"
 
     @route_param
     def test_agent_job_passes_resolve_outputs_to_lock_inputs(
@@ -167,18 +197,20 @@ class TestWrapperLockWiring:
         assert inputs["shared-proceed"]["required"] is True
 
     def test_dependency_review_inputs_are_slim(self) -> None:
-        wrapper = _load_yaml(WORKFLOWS_DIR / "security-aw-dependency-review.yml")
+        wrapper = _load_yaml(WORKFLOWS_DIR / "obs-aw-dependency-review.yml")
         inputs = _on_block(wrapper)["workflow_call"]["inputs"]
-        assert set(inputs) == {"shared-proceed", "shared-token-policy"}
+        assert set(inputs) == {
+            "shared-org-key",
+            "shared-proceed",
+            "shared-token-policy",
+        }
         agent = wrapper["jobs"]["dependency-review"]
         assert (
             agent["with"]["github-token-policy"] == "${{ inputs.shared-token-policy }}"
         )
 
     def test_buildkite_secret_is_required_and_forwarded(self) -> None:
-        wrapper = _load_yaml(
-            WORKFLOWS_DIR / "security-aw-estc-pr-buildkite-detective.yml"
-        )
+        wrapper = _load_yaml(WORKFLOWS_DIR / "obs-aw-estc-pr-buildkite-detective.yml")
         secrets = _on_block(wrapper)["workflow_call"]["secrets"]
         assert secrets["BUILDKITE_API_TOKEN"]["required"] is True
         agent = wrapper["jobs"]["estc-pr-buildkite-detective"]
@@ -194,6 +226,7 @@ class TestOrchestrator:
         prelude = orch["jobs"]["run-aw-prelude"]
         assert prelude["uses"] == "./.github/workflows/aw-prelude.yml"
         assert json.loads(prelude["with"]["control-plane-workflows"]) == [route.wrapper]
+        assert prelude["with"]["org-key"] == ORG_KEY
 
         job = orch["jobs"][route.workflow_id]
         assert job["uses"] == f"./.github/workflows/{route.wrapper}"
@@ -204,6 +237,7 @@ class TestOrchestrator:
         )
         assert f"{proceed} == 'true'" in job["if"]
         assert job["with"]["shared-proceed"] == "${{ " + proceed + " }}"
+        assert job["with"]["shared-org-key"] == ORG_KEY
 
     @route_param
     def test_caller_permissions_cover_callee(self, route: Route) -> None:
