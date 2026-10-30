@@ -93,6 +93,9 @@ jobs:
       - name: Validate docs Markdown pages are listed in docset.yml toc
         run: python scripts/validate_docs_toc.py
 
+      - name: Validate GH-AW bots lists match allowed_pr_authors.json
+        run: python scripts/sync_allowed_pr_authors_bots.py --check
+
       - name: Validate reusable-workflow caller permissions
         env:
           GITHUB_TOKEN: ${{ github.token }}

@@ -16,7 +16,7 @@
 GH_AW_VERSION := $(shell tr -d '[:space:]' < .aw-compiler-version)
 GH_AW_BIN := $(HOME)/.local/share/gh/extensions/gh-aw/gh-aw
 
-.PHONY: update-license update-license-check compile-aw compile-aw-check install-aw
+.PHONY: update-license update-license-check compile-aw compile-aw-check install-aw sync-allowed-pr-authors sync-allowed-pr-authors-check
 
 ## Update license headers and NOTICE.txt
 update-license:
@@ -38,3 +38,11 @@ compile-aw: install-aw
 ## Recompile every gh-aw workflow and fail if the generated lock files drift from the source.
 compile-aw-check: install-aw compile-aw
 	test -z "$$(git status --porcelain --untracked-files=all -- ':(glob).github/workflows/*.lock.yml' ':(glob).github/workflows/**/*.lock.yml')"
+
+## Rewrite on.bots / trusted-users / autoapprove prompt bullets from allowed_pr_authors.json.
+sync-allowed-pr-authors:
+	python3 scripts/sync_allowed_pr_authors_bots.py
+
+## Fail when GH-AW bot lists drift from config/obs/allowed_pr_authors.json.
+sync-allowed-pr-authors-check:
+	python3 scripts/sync_allowed_pr_authors_bots.py --check

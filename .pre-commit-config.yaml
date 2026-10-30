@@ -56,6 +56,12 @@ repos:
         pass_filenames: false
         # Repo-wide scan; run even when no staged files match hook filters
         always_run: true
+      - id: sync-allowed-pr-authors-bots
+        name: Sync allowed_pr_authors into GH-AW bots lists
+        entry: python3 scripts/sync_allowed_pr_authors_bots.py
+        language: system
+        pass_filenames: false
+        files: ^(config/obs/allowed_pr_authors\.json|\.github/workflows/gh-aw-autoapprove\.md|\.github/workflows/gh-aw-dependency-review\.md|scripts/sync_allowed_pr_authors_bots\.py)$
 
   # ── General file hygiene ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks

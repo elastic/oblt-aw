@@ -6,7 +6,7 @@ Source file: [.github/workflows/load-allowed-authors.yml](https://github.com/ela
 
 This reusable workflow reads [config/obs/allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) and [config/obs/allowed_issue_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_issue_authors.json) from `elastic/oblt-aw` and exposes both allow lists as workflow outputs.
 
-Ingress uses the **PR** outputs to gate PR-only workflows by author login (for example `obs-aw-event-pull-request` `contains(fromJSON(...), user.login)` checks). Dependency-review bots are hardcoded on the in-repo `gh-aw-dependency-review` lock to match [config/obs/allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json); the wrapper no longer passes `allowed-bot-users`. Ingress uses **`allowed_issue_authors_csv`** for specialized GH-AW issue wrappers (security and resource-not-accessible triage/fixer), not for generic `obs-aw-issue-triage` / `obs-aw-issue-fixer`.
+Ingress uses the **PR** outputs to gate PR-only workflows by author login (for example `obs-aw-event-pull-request` `contains(fromJSON(...), user.login)` checks). In-repo locks (`gh-aw-dependency-review`, `gh-aw-autoapprove`) sync `on.bots` / related lists from [config/obs/allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) via `make sync-allowed-pr-authors`; wrappers do not pass `allowed-bot-users`. Ingress uses **`allowed_issue_authors_csv`** for specialized GH-AW issue wrappers (security and resource-not-accessible triage/fixer), not for generic `obs-aw-issue-triage` / `obs-aw-issue-fixer`.
 
 ## Usage
 
@@ -29,7 +29,7 @@ The reusable workflow job id is `load-oblt-aw-bot-allow-lists` (workflow filenam
 | Output | Type | Meaning |
 |--------|------|---------|
 | `allowed_pr_authors_json` | JSON array string | Compact JSON array of allowed PR author logins, used by ingress `contains(fromJSON(...), github.event.pull_request.user.login)` checks |
-| `allowed_pr_authors_csv` | string | Same PR logins comma-separated for workflows that still accept CSV allow-list inputs (for example automerge) |
+| `allowed_pr_authors_csv` | string | Same PR logins comma-separated for routes that still accept CSV allow-list inputs (compatibility until remaining upstream locks migrate) |
 | `allowed_issue_authors_json` | JSON array string | Compact JSON array of allowed logins for issue-scoped `allowed-bot-users` (optional use by callers) |
 | `allowed_issue_authors_csv` | string | Issue allow list comma-separated for `allowed-bot-users` on issue triage/fixer paths |
 

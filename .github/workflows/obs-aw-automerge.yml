@@ -201,7 +201,7 @@ jobs:
       # Do not forward resolved-setup-commands-json: approve only needs PR metadata.
       # Empty → GITHUB_TOKEN; non-empty only when author is github-actions[bot] (avoid self-APPROVE).
       github-token-policy: ${{ github.event.pull_request.user.login == 'github-actions[bot]' && inputs.shared-token-policy || '' }}
-      # Bots + allow list are hardcoded on the in-repo lock. Failure-issue suppression from obs-defaults.
+      # Bots + allow list are synced onto the lock from allowed_pr_authors.json.
 
   # Fail closed: approve job success alone is not enough — require a real APPROVED review
   # for the live head (COMMENT-only "eligible" must not reach merge).
