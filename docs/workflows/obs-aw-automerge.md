@@ -98,8 +98,8 @@ bypass_actors {
 | Input | Purpose |
 |-------|---------|
 | `shared-proceed` | Route gate from `aw-prelude`; this workflow runs only when the value is `'true'`. |
-| `shared-allowed-pr-authors-json` | JSON allow-list of PR authors from prelude/config used by shared validation logic. |
-| `shared-allowed-pr-authors-csv` | CSV form of the PR-author allow-list for workflows/scripts that consume CSV inputs. |
+| `shared-allowed-pr-authors-json` | Required for shared caller compatibility; not consumed by this workflow. Validation reads `config/obs/allowed_pr_authors.json` directly. |
+| `shared-allowed-pr-authors-csv` | Required for shared caller compatibility; not consumed by this workflow. |
 | `shared-allowed-issue-authors-json` | JSON allow-list of issue authors from prelude/config for shared caller compatibility. |
 | `shared-allowed-issue-authors-csv` | CSV form of the issue-author allow-list for shared caller compatibility. |
 | `shared-token-policy` | Token policy propagated from prelude; empty means `GITHUB_TOKEN`, non-empty enables OIDC minting for Vault app identity where supported. |
