@@ -34,6 +34,7 @@ install-aw:
 compile-aw: install-aw
 	$(GH_AW_BIN) compile --purge
 	python3 scripts/wire_ephemeral_token.py
+	python3 scripts/patch_aw_checkout_labeled.py
 
 ## Recompile every gh-aw workflow and fail if the generated lock files drift from the source.
 compile-aw-check: install-aw compile-aw
