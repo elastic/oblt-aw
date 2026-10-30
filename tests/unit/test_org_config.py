@@ -30,14 +30,15 @@ class TestDiscoverOrgConfigDirs:
         keys = common.discover_org_keys_sorted(tmp_path)
         assert keys == ["docs", "obs"]
 
-    def test_skips_reserved_schema(self, tmp_path: pathlib.Path) -> None:
-        (tmp_path / "schema").mkdir()
-        (tmp_path / "schema" / "workflow-registry.json").write_text(
-            "{}", encoding="utf-8"
-        )
-        (tmp_path / "schema" / "active-repositories.json").write_text(
-            '{"repositories":[]}', encoding="utf-8"
-        )
+    def test_skips_reserved_schema_and_common(self, tmp_path: pathlib.Path) -> None:
+        for reserved in ("schema", "common"):
+            (tmp_path / reserved).mkdir()
+            (tmp_path / reserved / "workflow-registry.json").write_text(
+                "{}", encoding="utf-8"
+            )
+            (tmp_path / reserved / "active-repositories.json").write_text(
+                '{"repositories":[]}', encoding="utf-8"
+            )
         (tmp_path / "obs").mkdir()
         (tmp_path / "obs" / "workflow-registry.json").write_text(
             '{"workflows":[]}', encoding="utf-8"
@@ -46,6 +47,7 @@ class TestDiscoverOrgConfigDirs:
             '{"repositories":[]}', encoding="utf-8"
         )
         assert common.discover_org_keys_sorted(tmp_path) == ["obs"]
+        assert "common" in common.RESERVED_CONFIG_DIR_NAMES
 
 
 class TestMergeActiveRepositories:

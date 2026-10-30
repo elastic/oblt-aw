@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/distribute-client-workflow.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/distribute-client-workflow.yml)
 
-This workflow distributes or removes client files from each org’s subtree under [.github/remote-workflow-template/](https://github.com/elastic/oblt-aw/tree/main/.github/remote-workflow-template) across repositories listed in that org’s `config/<org-key>/active-repositories.json` (for example [config/obs/active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json)). A repository may belong to multiple orgs; destination paths are deduplicated (first org in sorted order wins on collision).
+This workflow distributes or removes client files from each org’s subtree under [.github/remote-workflow-template/](https://github.com/elastic/oblt-aw/tree/main/.github/remote-workflow-template) across repositories listed in that org’s `config/<org-key>/active-repositories.json` (for example [config/obs/active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json)). A repository may belong to multiple orgs; destination paths are deduplicated when sources match. If two orgs would install different sources at the same destination path, prepare **fails closed** (explicit conflict) instead of silently picking one.
 
 ## Prerequisites
 

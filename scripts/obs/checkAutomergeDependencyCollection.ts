@@ -85,6 +85,7 @@ module.exports.run = async function run({
   prNumber,
   core,
   enabledWorkflowsJson = '[]',
+  orgKey = '',
 }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
@@ -97,7 +98,12 @@ module.exports.run = async function run({
   const config = loadCollectionsConfig();
   const collections = config.collections || [];
   const enabledWorkflows = parseEnabledWorkflowsJson(enabledWorkflowsJson);
-  const enabledCollectionIds = enabledAutomergeCollectionIds(enabledWorkflows);
+  // Tip callers pass shared-org-key. Released @v0 paths omit it; the helper
+  // defaults blank/omitted keys to obs (same scope as main before multi-org).
+  const enabledCollectionIds = enabledAutomergeCollectionIds(
+    enabledWorkflows,
+    typeof orgKey === 'string' ? orgKey : undefined
+  );
 
   const changedFiles = await listPullRequestFilePaths(
     github,
