@@ -1,0 +1,4 @@
+[
+  "export ESTC_FIXTURE=1",
+  "./scripts/estc-fixture-setup.sh"
+]

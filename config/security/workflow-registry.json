@@ -1,4 +1,5 @@
 {
   "section_title": "Security",
+  "include_common": ["dependency-review", "estc-pr-buildkite-detective"],
   "workflows": []
 }
