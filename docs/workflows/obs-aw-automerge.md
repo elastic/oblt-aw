@@ -52,7 +52,7 @@ Jobs:
 | Workflow (default) | `contents: read` |
 | `verify` | `actions: read`, `contents: read`, `pull-requests: read` (validate script reads the PR) |
 | `check-dependency-collection` | `contents: read`, `pull-requests: write` (list PR files, post or remove gate comment) |
-| `approve` | `actions: read`, `contents: read`, `issues: write`, `pull-requests: write`, `id-token: write` (GH-AW autoapprove; OIDC mint when `github-token-policy` is set for `github-actions[bot]` authors) |
+| `approve` | `actions: read`, `contents: read`, `issues: write`, `pull-requests: write`, `copilot-requests: write`, `id-token: write` (GH-AW autoapprove; OIDC mint when `github-token-policy` is set for `github-actions[bot]` authors) |
 | `assert-approved-review` | `contents: read`, `pull-requests: read` (list reviews; fail closed without `APPROVED`) |
 | `automerge` | `contents: write`, `pull-requests: write`, `id-token: write` (OIDC mint when policy set; SHA-bound REST squash-merge) |
 | `rest-merge` | `contents: write`, `pull-requests: write`, `id-token: write` (OIDC mint when policy set; REST squash-merge) |
@@ -93,6 +93,18 @@ bypass_actors {
 
 ## API / Interface
 
-`workflow_call` contract:
+`workflow_call` contract (all inputs are required `string` values):
+
+| Input | Purpose |
+|-------|---------|
+| `shared-proceed` | Route gate from `aw-prelude`; this workflow runs only when the value is `'true'`. |
+| `shared-allowed-pr-authors-json` | Required for shared caller compatibility; not consumed by this workflow. Validation reads `config/obs/allowed_pr_authors.json` directly. |
+| `shared-allowed-pr-authors-csv` | Required for shared caller compatibility; not consumed by this workflow. |
+| `shared-allowed-issue-authors-json` | JSON allow-list of issue authors from prelude/config for shared caller compatibility. |
+| `shared-allowed-issue-authors-csv` | CSV form of the issue-author allow-list for shared caller compatibility. |
+| `shared-token-policy` | Token policy propagated from prelude; empty means `GITHUB_TOKEN`, non-empty enables OIDC minting for Vault app identity where supported. |
+| `shared-enabled-workflows` | Normalized JSON array of enabled workflow IDs from prelude; used by dependency-collection gating. |
+
+This workflow does not declare `workflow_call` secrets.
 
 See sibling [obs-aw-automerge-deferred.md](obs-aw-automerge-deferred.md) for the deferred merge path.
