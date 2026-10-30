@@ -71,13 +71,17 @@ Do **not** hardcode secret names in this onboarding guide. Required long-lived c
 Discovery procedure (agents and maintainers):
 
 1. Read `config/<org-key>/workflow-registry.json`.
-2. For every entry with a `docs:` path under this repository, **open that markdown file** and collect required consumer repository secret names:
+2. Build the **effective** workflow list for that org (same expansion sync uses):
+   - For each id in top-level `include_common` (when present), look up that service in `config/common/services.json` and take its object (including `docs`).
+   - Then append every local `workflows` entry.
+   - Do **not** read only the local `workflows` array — shared services such as `estc-pr-buildkite-detective` live under `include_common` and would be skipped.
+3. For every effective entry with a `docs:` path under this repository, **open that markdown file** and collect required consumer repository secret names:
    - Read **Prerequisites** first. When the doc says consumers provision or map a specific secret name (for example provision `BUILDKITE_LOGS_API_TOKEN`), use that consumer-facing name.
    - If Prerequisites only names the wrapper secret (or is silent) and **API / Interface** lists a required `Secret:`, use that name.
-   - Union across **all** registry workflows for that org. Do **not** filter by `default_enabled`, “onboarding defaults”, maturity, or expected Control Plane dashboard opt-in. Skip missing docs paths or docs with no required secrets.
-3. For each unique secret name, resolve the shared module in the checked-out `repos/observability-github-secrets` tree: search `conf/shared/**/*.tf` for that quoted name, or use the README Create Secret table (`secret=` query). The module path is relative to `conf/shared` (for example `buildkite/logs.tf` for `./cli secret -s`). Fail closed if a name cannot be resolved — do not invent modules.
-4. If the union is empty **after** opening every registry docs path, skip the secrets PR and record “none”. Do not record “none” because only default-enabled workflows were inspected or docs files were not opened.
-5. If non-empty, open or update `conf/resources/<repo>/` (and `docs/<repo>.md`) so the project depends on each resolved shared module (scaffold with `./cli scaffold` / `./cli secret` when practical; otherwise mirror neighboring manifests). Never invent Vault paths or secret values.
+   - Union across **all** effective workflows for that org. Do **not** filter by `default_enabled`, “onboarding defaults”, maturity, or expected Control Plane dashboard opt-in. Skip missing docs paths or docs with no required secrets.
+4. For each unique secret name, resolve the shared module in the checked-out `repos/observability-github-secrets` tree: search `conf/shared/**/*.tf` for that quoted name, or use the README Create Secret table (`secret=` query). The module path is relative to `conf/shared` (for example `buildkite/logs.tf` for `./cli secret -s`). Fail closed if a name cannot be resolved — do not invent modules.
+5. If the union is empty **after** opening every effective docs path, skip the secrets PR and record “none”. Do not record “none” because only default-enabled workflows were inspected, `include_common` was ignored, or docs files were not opened.
+6. If non-empty, open or update `conf/resources/<repo>/` (and `docs/<repo>.md`) so the project depends on each resolved shared module (scaffold with `./cli scaffold` / `./cli secret` when practical; otherwise mirror neighboring manifests). Never invent Vault paths or secret values.
 
 Example: [obs-aw-estc-pr-buildkite-detective](../workflows/obs-aw-estc-pr-buildkite-detective.md) **Prerequisites** requires consumer secret `BUILDKITE_LOGS_API_TOKEN`.
 
