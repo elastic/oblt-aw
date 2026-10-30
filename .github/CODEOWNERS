@@ -1,6 +1,9 @@
 # Default owners for everything in the repo.
 * @elastic/observablt-ci
 
+# Shared common services catalog (definitions only; not a product org)
+/config/common/ @elastic/observablt-ci
+
 # Observability (obs) org
 /config/obs/ @elastic/observablt-ci
 /scripts/obs/ @elastic/observablt-ci

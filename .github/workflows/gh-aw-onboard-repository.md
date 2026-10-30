@@ -143,10 +143,14 @@ Edit the checked-out trees named in the Automation contract (`repos/catalog-info
 Before deciding whether to open a secrets PR (do **not** hardcode secret names):
 
 1. Read `config/<org-key>/workflow-registry.json`.
-2. For **every** entry with a `docs:` path, **open that markdown file** and collect consumer-facing secret names from **Prerequisites** first (when the doc says consumers provision/map a name). Fall back to required `Secret:` lines under **API / Interface**.
-3. **Union across all registry workflows.** Do **not** filter by `default_enabled`, `enabled_by_default`, “onboarding defaults”, maturity, or whether a workflow is likely to be toggled on later. A secrets PR provisions for the org catalog; dashboard opt-in is separate.
-4. In `repos/observability-github-secrets`, resolve each name to a `conf/shared` module (`*.tf` search or README Create Secret table). Fail closed if unresolved — do not invent modules or skip unresolved names.
-5. Non-empty set → scaffold or update `conf/resources/<repo>/` (+ `docs/<repo>.md`) and open one secrets PR (`temporary_id` `aw_secrets`). Empty set **only after** the full-union steps above → skip and record “none” in the checklist. Never write “none” because you only inspected default-enabled entries or did not open the docs files.
+2. Build the **effective** workflow list for that org:
+   - For each id in top-level `include_common` (when present), look up that service in `config/common/services.json` and take its object (including `docs`).
+   - Then append every local `workflows` entry.
+   - Do **not** read only the local `workflows` array — shared services such as `estc-pr-buildkite-detective` live under `include_common` and would be skipped.
+3. For **every** effective entry with a `docs:` path, **open that markdown file** and collect consumer-facing secret names from **Prerequisites** first (when the doc says consumers provision/map a name). Fall back to required `Secret:` lines under **API / Interface**.
+4. **Union across all effective workflows.** Do **not** filter by `default_enabled`, `enabled_by_default`, “onboarding defaults”, maturity, or whether a workflow is likely to be toggled on later. A secrets PR provisions for the org catalog; dashboard opt-in is separate.
+5. In `repos/observability-github-secrets`, resolve each name to a `conf/shared` module (`*.tf` search or README Create Secret table). Fail closed if unresolved — do not invent modules or skip unresolved names.
+6. Non-empty set → scaffold or update `conf/resources/<repo>/` (+ `docs/<repo>.md`) and open one secrets PR (`temporary_id` `aw_secrets`). Empty set **only after** the full-union steps above → skip and record “none” in the checklist. Never write “none” because you only inspected default-enabled entries, ignored `include_common`, or did not open the docs files.
 
 Follow `docs/onboarding/registering-a-repository.md` (**Consumer secrets discovery**) in full.
 

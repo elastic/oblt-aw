@@ -19,7 +19,9 @@ const fs = require('node:fs');
 const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
 
 const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate -->';
+/** @deprecated Prefer ``enabledAutomergeCollectionIds`` with an explicit consuming org. */
 const AUTOMERGE_PARENT_COMPOUND_ID = 'obs:automerge';
+const DEFAULT_AUTOMERGE_ORG_KEY = 'obs';
 const AUTOMERGE_SERVICES_GUIDE_URL =
   'https://codex.elastic.dev/r/oblt-aw/user-guide/automerge-services';
 const OPT_IN_OPT_OUT_GUIDE_URL =
@@ -87,14 +89,32 @@ function parseEnabledWorkflowsJson(raw) {
   }
 }
 
-function enabledAutomergeCollectionIds(enabledWorkflows, orgKey = 'obs') {
-  if (!enabledWorkflows.includes(AUTOMERGE_PARENT_COMPOUND_ID)) {
+/**
+ * Collect enabled automerge collection ids for the consuming org's parent.
+ * Omitted or blank ``orgKey`` defaults to ``obs`` so released ``@v0`` jobs that
+ * load tip scripts from ``main`` keep the previous Obs-only scope.
+ * Tip callers pass the consuming org (``shared-org-key``).
+ * @param {string[]} enabledWorkflows
+ * @param {string} [orgKey] Consuming org key.
+ * @returns {string[]}
+ */
+function enabledAutomergeCollectionIds(enabledWorkflows, orgKey) {
+  const scopedOrg =
+    typeof orgKey === 'string' && orgKey.trim()
+      ? orgKey.trim()
+      : DEFAULT_AUTOMERGE_ORG_KEY;
+  const parentId = `${scopedOrg}:automerge`;
+  if (!enabledWorkflows.includes(parentId)) {
     return [];
   }
-  const prefix = `${orgKey}:automerge:`;
-  return enabledWorkflows
-    .filter((id) => id.startsWith(prefix))
-    .map((id) => id.slice(prefix.length));
+  const prefix = `${scopedOrg}:automerge:`;
+  return [
+    ...new Set(
+      enabledWorkflows
+        .filter((id) => id.startsWith(prefix))
+        .map((id) => id.slice(prefix.length))
+    ),
+  ];
 }
 
 function collectionMatchesAllFiles(collection, files) {

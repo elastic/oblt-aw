@@ -18,6 +18,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
+      org-key: obs
       control-plane-workflows: >-
         ["obs-aw-automerge.yml","obs-aw-dependency-review.yml"]
       load-allowed-authors: true
@@ -57,6 +58,7 @@ jobs:
       copilot-requests: write
     uses: ./.github/workflows/obs-aw-automerge.yml
     with:
+      shared-org-key: obs
       shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge.yml'] }}
       shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
       shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
@@ -92,5 +94,6 @@ jobs:
       copilot-requests: write
     uses: ./.github/workflows/obs-aw-dependency-review.yml
     with:
+      shared-org-key: obs
       shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-dependency-review.yml'] }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}

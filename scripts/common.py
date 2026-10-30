@@ -37,8 +37,9 @@ from pathlib import Path
 # Default org for legacy two-part markers ``<!-- oblt-aw:<workflow-id> -->``.
 LEGACY_DEFAULT_ORG_KEY = "obs"
 
-# Subdirectories of ``config/`` that are never org roots (JSON Schema, etc.).
-RESERVED_CONFIG_DIR_NAMES: frozenset[str] = frozenset({"schema"})
+# Subdirectories of ``config/`` that are never org roots (JSON Schema, shared
+# service catalog, etc.).
+RESERVED_CONFIG_DIR_NAMES: frozenset[str] = frozenset({"common", "schema"})
 
 CONTROL_PLANE_REPOSITORY = "elastic/oblt-aw"
 PIN_CLASS_DEVELOPMENT = "development"

@@ -13,6 +13,14 @@ on:
           inner-workflow asset blocks.
         required: true
         type: string
+      org-key:
+        description: >-
+          Consuming org key for shared common basenames (for example docs when
+          Docs opts into obs-aw-dependency-review). Empty falls back to the
+          implementation-org preference from the basename prefix.
+        required: false
+        type: string
+        default: ""
       platform-additional-instructions:
         description: >-
           Control-plane baseline additional-instructions for this agent invocation.
@@ -108,7 +116,17 @@ jobs:
         id: registry
         env:
           WORKFLOW_BASENAME: ${{ inputs.workflow-basename }}
-        run: python _oblt-aw/scripts/resolve_control_plane_workflow_id.py "${WORKFLOW_BASENAME}" --config-dir _oblt-aw/config
+          ORG_KEY: ${{ inputs.org-key }}
+        run: |
+          set -euo pipefail
+          args=(
+            "${WORKFLOW_BASENAME}"
+            --config-dir _oblt-aw/config
+          )
+          if [ -n "${ORG_KEY}" ]; then
+            args+=(--org-key "${ORG_KEY}")
+          fi
+          python _oblt-aw/scripts/resolve_control_plane_workflow_id.py "${args[@]}"
 
       - name: Detect apm manifest
         id: detect
