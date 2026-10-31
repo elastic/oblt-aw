@@ -79,7 +79,8 @@ Permissions:
 
 Wrapper `workflow_call` contract:
 
-- Inputs: `shared-proceed`, `shared-token-policy` (allow-list inputs were dropped from the wrapper after bots were hardcoded on the lock).
+- Inputs: `shared-proceed`, required `shared-org-key`, and `shared-token-policy` (allow-list inputs were dropped from the wrapper after bots were hardcoded on the lock).
+- `shared-org-key` is forwarded to `aw-resolve-agentic-assets` as `org-key` to resolve org-scoped identity and asset wiring.
 
 Lock inputs passed by the wrapper:
 
