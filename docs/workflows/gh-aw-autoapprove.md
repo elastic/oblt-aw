@@ -43,6 +43,8 @@ Leave upstream `gh-aw-mention-in-pr` in `elastic/ai-github-actions` for other co
 
 Edit the `.md` source, then run `make compile-aw-check` to regenerate and verify the lock. Do not hand-edit the generated lock.
 
+`make compile-aw` runs `scripts/patch_aw_checkout_labeled.py` after compile. That script injects a step into the lock that adds `labeled` to the setup action’s same-repo bot checkout allowlist before **Checkout PR branch**. Automerge wakes when a GitHub App applies `oblt-aw/ai/merge-ready`; without this patch, App actors get collaborator permission `none` and checkout fails ([github/gh-aw#71151](https://github.com/github/gh-aw/issues/71151)). Upstream documented that gap as intentional ([github/gh-aw#72074](https://github.com/github/gh-aw/pull/72074)). Remove the post-compile script when upstream trusts `labeled` the same way as `opened` / `synchronize`.
+
 ## Sources
 
 - [Authored workflow source](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-autoapprove.md)
