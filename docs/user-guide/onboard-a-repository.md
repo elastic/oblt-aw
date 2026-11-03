@@ -46,7 +46,7 @@ Technical registration detail for maintainers and agents: [Registering resources
 
    | Order | Repository | What it changes |
    |------:|------------|-----------------|
-   | 1 | `elastic/catalog-info` | TokenPolicy for client `create-token` |
+   | 1 | `elastic/catalog-info` | TokenPolicy for client `create-token`, **and** add the repository to the framework sync/distribute TokenPolicy allowlists (`token-policy-8b60ba56dd3f` / `token-policy-63405ab45244`) |
    | 2 | `elastic/oblt-aw` | Entry in `config/<org-key>/active-repositories.json` |
    | 3 | `elastic/observability-github-settings` | Vault app in classic BP `pull_request_bypassers` (and merge-queue ruleset `bypass_actors` when present) |
    | 4 | `elastic/observability-github-secrets` | When org agentic workflow docs’ **Prerequisites** (or **API / Interface**) require consumer secrets; otherwise the agent notes “none” |
