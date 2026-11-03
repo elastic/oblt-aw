@@ -174,14 +174,23 @@ def default_section_heading(org_key: str) -> str:
     return org_key.replace("-", " ").title()
 
 
-def load_org_registry_section(org_dir: Path) -> tuple[str, str, list[dict[str, Any]]]:
-    """Return (org_key, section_heading, workflows) from one org directory."""
+def load_org_registry_section(
+    org_dir: Path, config_dir: Path | None = None
+) -> tuple[str, str, list[dict[str, Any]]]:
+    """Return (org_key, section_heading, workflows) from one org directory.
+
+    Expands ``include_common`` so shared services appear under this org's section
+    (not a separate Common section).
+    """
+    from workflow_registry import expand_org_workflow_dicts
+
     org_key = org_dir.name
     raw = json.loads((org_dir / "workflow-registry.json").read_text(encoding="utf-8"))
     heading = (raw.get("section_title") or "").strip() or default_section_heading(
         org_key
     )
-    workflows = raw.get("workflows", [])
+    root = config_dir if config_dir is not None else org_dir.parent
+    workflows = expand_org_workflow_dicts(org_dir, root)
     return org_key, heading, workflows
 
 
@@ -490,7 +499,7 @@ def main() -> int:
 
     org_sections: list[tuple[str, str, list[dict[str, Any]]]] = []
     for od in org_dirs:
-        org_sections.append(load_org_registry_section(od))
+        org_sections.append(load_org_registry_section(od, config_dir))
     if not any(wfs for _, _, wfs in org_sections):
         logger.warning("No workflows in org registries for %s", args.repo)
 

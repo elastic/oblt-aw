@@ -46,10 +46,21 @@ def main() -> int:
         default=Path("config"),
         help="Config root containing per-org workflow-registry.json trees",
     )
+    parser.add_argument(
+        "--org-key",
+        default="",
+        help=(
+            "Consuming org key for shared common basenames "
+            "(config/<org-key>/). When empty, prefer the implementation org."
+        ),
+    )
     args = parser.parse_args()
 
+    org_key = args.org_key.strip() or None
     try:
-        compound_id = resolve_compound_id(args.config_dir, args.workflow_basename)
+        compound_id = resolve_compound_id(
+            args.config_dir, args.workflow_basename, org_key=org_key
+        )
     except (ValueError, TypeError) as exc:
         print(str(exc), file=sys.stderr)
         return 1

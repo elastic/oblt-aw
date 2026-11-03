@@ -157,5 +157,106 @@ class TestValidateRegistryAgainstWorkflows:
 class TestValidateAutomergeSubFeatures:
     def test_checked_in_obs_automerge_sub_features_match_collections(self) -> None:
         config_dir = pathlib.Path(__file__).parent.parent.parent / "config"
-        entries = wr.parse_registry_entries(config_dir / "obs")
+        entries = wr.parse_registry_entries(config_dir / "obs", config_dir)
         wr.validate_automerge_sub_features(config_dir, entries)
+
+
+class TestCommonServicesInclude:
+    def test_shared_basename_allowed_across_orgs(self, tmp_path: pathlib.Path) -> None:
+        common = tmp_path / "common"
+        common.mkdir()
+        (common / "services.json").write_text(
+            json.dumps(
+                {
+                    "services": [
+                        {
+                            "id": "dependency-review",
+                            "name": "Dependency Review",
+                            "inner_workflows": ["obs-aw-dependency-review.yml"],
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        for org in ("docs", "obs"):
+            _write_org(
+                tmp_path,
+                org,
+                [],
+            )
+            registry = {
+                "include_common": ["dependency-review"],
+                "workflows": [],
+            }
+            (tmp_path / org / "workflow-registry.json").write_text(
+                json.dumps(registry), encoding="utf-8"
+            )
+
+        index = wr.build_control_plane_workflow_index(tmp_path)
+        entries = index["obs-aw-dependency-review.yml"]
+        assert {e.compound_id for e in entries} == {
+            "docs:dependency-review",
+            "obs:dependency-review",
+        }
+        assert (
+            wr.resolve_compound_id(tmp_path, "obs-aw-dependency-review.yml")
+            == "obs:dependency-review"
+        )
+        assert (
+            wr.resolve_compound_id(
+                tmp_path, "obs-aw-dependency-review.yml", org_key="docs"
+            )
+            == "docs:dependency-review"
+        )
+
+    def test_conflicting_workflow_ids_still_fail(self, tmp_path: pathlib.Path) -> None:
+        _write_org(
+            tmp_path,
+            "obs",
+            [
+                {
+                    "id": "dependency-review",
+                    "inner_workflows": ["obs-aw-dependency-review.yml"],
+                }
+            ],
+        )
+        _write_org(
+            tmp_path,
+            "docs",
+            [
+                {
+                    "id": "other",
+                    "inner_workflows": ["obs-aw-dependency-review.yml"],
+                }
+            ],
+        )
+        with pytest.raises(ValueError, match="listed under both"):
+            wr.build_control_plane_workflow_index(tmp_path)
+
+    def test_checked_in_common_pilot_services(self) -> None:
+        config_dir = pathlib.Path(__file__).parent.parent.parent / "config"
+        common = wr.load_common_services(config_dir)
+        assert set(common) >= {
+            "automerge",
+            "dependency-review",
+            "estc-pr-buildkite-detective",
+        }
+        index = wr.build_control_plane_workflow_index(config_dir)
+        dr = index["obs-aw-dependency-review.yml"]
+        assert {e.org_key for e in dr} == {"obs"}
+        assert wr.resolve_compound_id(config_dir, "obs-aw-dependency-review.yml") == (
+            "obs:dependency-review"
+        )
+        estc = index["obs-aw-estc-pr-buildkite-detective.yml"]
+        assert {e.org_key for e in estc} == {"obs"}
+        assert wr.resolve_compound_id(
+            config_dir, "obs-aw-estc-pr-buildkite-detective.yml"
+        ) == ("obs:estc-pr-buildkite-detective")
+        obs_ids = {
+            entry.workflow_id
+            for entry in wr.parse_registry_entries(config_dir / "obs", config_dir)
+        }
+        assert "automerge" in obs_ids
+        assert "dependency-review" in obs_ids
+        assert "estc-pr-buildkite-detective" in obs_ids

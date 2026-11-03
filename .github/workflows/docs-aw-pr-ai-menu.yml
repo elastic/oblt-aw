@@ -187,6 +187,7 @@ jobs:
       actions: read
       contents: read
       copilot-requests: write
+      id-token: write
       issues: write
       pull-requests: write
     uses: elastic/docs-actions/.github/workflows/gh-aw-docs-review.lock.yml@v1

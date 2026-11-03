@@ -31,6 +31,12 @@ on:
         description: Normalized JSON array of compound workflow ids from aw-prelude.
         required: true
         type: string
+      shared-org-key:
+        description: >-
+          Consuming org key for dashboard collection checks (obs today;
+          docs/security when those orgs opt into this common service).
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -130,6 +136,7 @@ jobs:
           PR_NUMBER: ${{ matrix.pr_number }}
           SHARED_TOKEN_POLICY: ${{ inputs.shared-token-policy }}
           ENABLED_WORKFLOWS_JSON: ${{ inputs.shared-enabled-workflows }}
+          ORG_KEY: ${{ inputs.shared-org-key }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -161,6 +168,7 @@ jobs:
               prNumber,
               core,
               enabledWorkflowsJson: process.env.ENABLED_WORKFLOWS_JSON || '[]',
+              orgKey: process.env.ORG_KEY || '',
             });
             if (!allowed) {
               core.info(`PR #${prNumber}: collection gate denied; skipping merge.`);

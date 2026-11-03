@@ -6,10 +6,12 @@ on:
       - main
     paths:
       - .github/workflows/sync-control-plane-dashboard.yml
+      - config/common/services.json
       - config/**/active-repositories.json
       - config/**/workflow-registry.json
       - scripts/common.py
       - scripts/sync_control_plane_dashboard.py
+      - scripts/workflow_registry.py
   workflow_dispatch:
     inputs:
       force-sync-defaults:

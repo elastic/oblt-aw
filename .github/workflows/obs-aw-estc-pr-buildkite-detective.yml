@@ -7,6 +7,12 @@ on:
         description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
+      shared-org-key:
+        description: >-
+          Consuming org key for dashboard/APM identity (obs today; docs/security
+          when those orgs opt into this common service).
+        required: true
+        type: string
     secrets:
       BUILDKITE_API_TOKEN:
         required: true
@@ -50,6 +56,7 @@ jobs:
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       workflow-basename: obs-aw-estc-pr-buildkite-detective.yml
+      org-key: ${{ inputs.shared-org-key }}
       platform-additional-instructions: |
         If a step fails, check if the failure is reported as a GitHub issue labeled `flaky-test`. Reference the GitHub issue if so.
 

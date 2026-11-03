@@ -21,7 +21,7 @@ See [docs/development/contributing.md](docs/development/contributing.md) for:
 
 ## Client entrypoint workflows (`trigger-obs-aw-*.yml`)
 
-Edit only the distributed client templates under [`.github/remote-workflow-template/`](.github/remote-workflow-template/) (for example [`.github/remote-workflow-template/obs/.github/workflows/`](.github/remote-workflow-template/obs/.github/workflows/) for Observability and [`.github/remote-workflow-template/docs/.github/workflows/`](.github/remote-workflow-template/docs/.github/workflows/) for Docs). See [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md) and [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md).
+Edit only the distributed client templates under [`.github/remote-workflow-template/`](.github/remote-workflow-template/) (for example [`.github/remote-workflow-template/obs/.github/workflows/`](.github/remote-workflow-template/obs/.github/workflows/) for Observability, [`.github/remote-workflow-template/docs/.github/workflows/`](.github/remote-workflow-template/docs/.github/workflows/) for Docs, and [`.github/remote-workflow-template/security/.github/workflows/`](.github/remote-workflow-template/security/.github/workflows/) for Security). See [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md), [docs/workflows/docs-aw-client-template.md](docs/workflows/docs-aw-client-template.md), and [docs/workflows/security-aw-client-template.md](docs/workflows/security-aw-client-template.md).
 
 Details: [docs/workflows/obs-aw-client-template.md](docs/workflows/obs-aw-client-template.md).
 

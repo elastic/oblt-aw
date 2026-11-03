@@ -13,6 +13,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
+      org-key: obs
       control-plane-workflows: >-
         ["obs-aw-issue-triage.yml","obs-aw-duplicate-issue-detector.yml","obs-aw-security-issue-superseder.yml","obs-aw-security-triage.yml","obs-aw-security-fixer.yml","obs-aw-resource-not-accessible-by-integration-triage.yml","obs-aw-resource-not-accessible-by-integration-fixer.yml"]
       load-allowed-authors: true

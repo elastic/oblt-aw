@@ -1,0 +1,28 @@
+---
+description: Checklist when adding a new org key under config/<org-key>/
+globs:
+  - config/*/workflow-registry.json
+  - config/*/active-repositories.json
+  - .github/remote-workflow-template/**/*
+  - scripts/validate_aw_workflow_prelude.py
+  - tests/unit/test_validate_aw_workflow_prelude.py
+alwaysApply: false
+---
+
+# New org key — do not skip prelude route coverage
+
+When adding or scaffolding a new `config/<org-key>/` (or `<org-key>-aw-*` workflows), follow **`AGENTS.md` → Adding a new org key** and [docs/architecture/multi-org-agentic-workflows.md](../../docs/architecture/multi-org-agentic-workflows.md) §10.
+
+## Non-negotiable for the prelude validator
+
+- `scripts/validate_aw_workflow_prelude.py` must **derive** route prefixes from `discover_org_keys_sorted(config)` — never reintroduce a hard-coded `(?:obs|docs|…)` org list.
+- `tests/unit/test_validate_aw_workflow_prelude.py` must keep **parametrized** `shared-proceed` cases over discovered org keys so a new org is covered automatically once its config dir exists.
+- Event orchestrators (`*-aw-event-*`) stay excluded from subject discovery; dashboard-audit-only scaffolds without prelude are OK until routes exist.
+
+## Minimal validation
+
+```bash
+python scripts/validate_aw_workflow_prelude.py
+pytest tests/unit/test_validate_aw_workflow_prelude.py
+pre-commit run --files <touched-paths>
+```

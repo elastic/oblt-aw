@@ -21,7 +21,7 @@ flowchart LR
 
 ### Agentic workflow
 
-A registered automation unit in an org’s `workflow-registry.json` (compound id `org-key:workflow-id`). Consumers enable it from the Control Plane dashboard; when gated on, a client trigger runs the matching framework route (`obs-aw-*` / `docs-aw-*`).
+A registered automation unit in an org’s `workflow-registry.json` (compound id `org-key:workflow-id`). Consumers enable it from the Control Plane dashboard; when gated on, a client trigger runs the matching framework route (`obs-aw-*` / `docs-aw-*` / `security-aw-*`).
 
 See [Enable or disable an agentic workflow](user-guide/enable-a-new-workflow.md), [Workflow catalog by outcome](knowledge-base/agentic-workflows/by-outcome.md).
 
@@ -82,7 +82,7 @@ See [Define local AI assets](user-guide/local-ai-assets.md), [APM agentic assets
 
 ### Org key
 
-Directory name under `config/<org-key>/` (for example `obs`, `docs`). Owns that org’s registry, active repositories, and allow lists. Appears in compound ids and Control Plane dashboard sections.
+Directory name under `config/<org-key>/` (for example `obs`, `docs`, `security`). Owns that org’s registry, active repositories, and allow lists. Appears in compound ids and Control Plane dashboard sections.
 
 See [Multi-org design](architecture/multi-org-agentic-workflows.md).
 

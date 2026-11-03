@@ -1,0 +1,23 @@
+name: Security Agentic Workflow — Issue Comment
+
+# Distributed to repositories in config/security/active-repositories.json.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  # created: dashboard deactivation-reason only (no routes yet).
+  run-security-aw-issue-comment:
+    if: >-
+      github.event.action == 'created' &&
+      github.event.issue.pull_request == null &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/dashboard')
+    permissions:
+      contents: read
+      issues: write
+    uses: elastic/oblt-aw/.github/workflows/security-aw-event-issue-comment.yml@main # ratchet:exclude
