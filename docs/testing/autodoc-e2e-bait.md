@@ -17,6 +17,14 @@ Intentional incomplete documentation page used by the live `obs:autodoc` E2E har
 
 Do **not** complete this page in product docs on `main`; that would remove the gap the E2E asserts. Fix PRs from live E2E are closed without merge.
 
+## Expected E2E audit output
+
+- An open issue with `[oblt-aw][autodoc]` in the title (the harness selects the newest matching issue for correlation).
+- Issue body includes:
+  - `E2E_AUTODOC_BAIT_MARKER`
+  - bait fixture reference (`docs/testing/fixtures/e2e-autodoc-bait.md` or `e2e-autodoc-bait.md`)
+- If the fix stage opens a PR (`docs: Documentation analysis and improvement`), close that PR without merging.
+
 ## Related
 
 - Harness docs: [autodoc-e2e](autodoc-e2e.md)
