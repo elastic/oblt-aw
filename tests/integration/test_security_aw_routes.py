@@ -24,6 +24,7 @@ _root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_root / "scripts"))
 
 import agentic_assets_resolver as resolver
+from evaluate_workflow_gates import evaluate_gates
 from validate_common_service_opt_in import validate_org_common_opt_in
 from workflow_registry import expand_org_workflow_dicts, resolve_compound_id
 
@@ -254,6 +255,13 @@ class TestOrchestrator:
                         f"{route.wrapper}:{job_name}"
                     )
 
+    def test_dependency_review_forwards_token_policy_from_prelude(self) -> None:
+        orch = _load_yaml(WORKFLOWS_DIR / "security-aw-event-pull-request.yml")
+        job = orch["jobs"]["dependency-review"]
+        assert job["with"]["shared-token-policy"] == (
+            "${{ needs.run-aw-prelude.outputs.token-policy }}"
+        )
+
     def test_pull_request_route_is_limited_to_allowed_authors(self) -> None:
         orch = _load_yaml(WORKFLOWS_DIR / "security-aw-event-pull-request.yml")
         cond = orch["jobs"]["dependency-review"]["if"]
@@ -266,6 +274,43 @@ class TestOrchestrator:
         cond = orch["jobs"]["estc-pr-buildkite-detective"]["if"]
         assert "github.event.state == 'failure'" in cond
         assert "contains(github.event.context, 'buildkite')" in cond
+
+
+class TestDispatchGate:
+    """Behavioural proof of the prelude gate the orchestrator `if:` relies on.
+
+    The author and event filters are GitHub expressions with no local evaluator;
+    they are covered structurally in TestOrchestrator.
+    """
+
+    @staticmethod
+    def _proceed(route: Route, enabled: list[str], raw: str = "checked") -> str:
+        result = evaluate_gates(
+            _root / "config",
+            [route.wrapper],
+            effective_raw=raw,
+            enabled_workflows_json=json.dumps(enabled),
+            org_key=ORG_KEY,
+        )
+        return result[route.wrapper]
+
+    @route_param
+    def test_security_checkbox_enables_route(self, route: Route) -> None:
+        assert self._proceed(route, [f"{ORG_KEY}:{route.workflow_id}"]) == "true"
+
+    @route_param
+    def test_disabled_route_is_skipped(self, route: Route) -> None:
+        assert self._proceed(route, []) == "false"
+        assert self._proceed(route, [], raw="") == "false"
+
+    @route_param
+    def test_obs_only_checkbox_does_not_enable_security(self, route: Route) -> None:
+        assert self._proceed(route, [f"obs:{route.workflow_id}"]) == "false"
+
+    @route_param
+    def test_other_security_route_does_not_enable_this_one(self, route: Route) -> None:
+        other = next(r for r in ROUTES if r is not route)
+        assert self._proceed(route, [f"{ORG_KEY}:{other.workflow_id}"]) == "false"
 
 
 class TestClientTemplate:
@@ -334,6 +379,7 @@ class TestResolveFixtures:
         assert layers["org-key"] == ORG_KEY == expected_layers["org-key"]
         assert layers["workflow-id"] == expected_layers["workflow-id"]
         assert layers["workflow-basename"] == route.wrapper
+        assert layers["workflow-basename"] == expected_layers["workflow-basename"]
         assert layers["layers"] == expected_layers["layers"]
 
     @route_param

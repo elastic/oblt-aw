@@ -1,7 +1,7 @@
 {
   "org-key": "security",
   "workflow-id": "dependency-review",
-  "workflow-basename": "security-aw-dependency-review.yml",
+  "workflow-basename": "obs-aw-dependency-review.yml",
   "layers": [
     {
       "layer": "control-plane-common",

@@ -1,7 +1,7 @@
 {
   "org-key": "security",
   "workflow-id": "estc-pr-buildkite-detective",
-  "workflow-basename": "security-aw-estc-pr-buildkite-detective.yml",
+  "workflow-basename": "obs-aw-estc-pr-buildkite-detective.yml",
   "layers": [
     {
       "layer": "control-plane-common",
