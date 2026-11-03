@@ -1,0 +1,23 @@
+name: Security Agentic Workflow — Status
+
+on:
+  status:
+
+permissions:
+  contents: read
+
+jobs:
+  run-security-aw-status:
+    if: >-
+      github.event.state == 'failure' &&
+      contains(github.event.context, 'buildkite')
+    permissions:
+      actions: read
+      contents: read
+      copilot-requests: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    uses: elastic/oblt-aw/.github/workflows/security-aw-event-status.yml@main # ratchet:exclude
+    secrets:
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_LOGS_API_TOKEN }}
