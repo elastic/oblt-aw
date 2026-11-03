@@ -98,6 +98,7 @@ bypass_actors {
 | Input | Purpose |
 |-------|---------|
 | `shared-proceed` | Route gate from `aw-prelude`; this workflow runs only when the value is `'true'`. |
+| `shared-org-key` | Consuming org key (`obs` for the current Observability caller); used for dependency-collection gating and dashboard/APM identity during agentic asset resolution. |
 | `shared-allowed-pr-authors-json` | Required for shared caller compatibility; not consumed by this workflow. Validation reads `config/obs/allowed_pr_authors.json` directly. |
 | `shared-allowed-pr-authors-csv` | Required for shared caller compatibility; not consumed by this workflow. |
 | `shared-allowed-issue-authors-json` | JSON allow-list of issue authors from prelude/config for shared caller compatibility. |
