@@ -20,7 +20,7 @@ Common verified causes:
 
 ## Fix
 
-1. Confirm `id-token: write` on the client entrypoint — [Observability client template](../../workflows/obs-aw-client-template.md) or [Docs client template](../../workflows/docs-aw-client-template.md).
+1. Confirm `id-token: write` on the client entrypoint — [Observability](../../workflows/obs-aw-client-template.md), [Docs](../../workflows/docs-aw-client-template.md), or [Security](../../workflows/security-aw-client-template.md) client template.
 
    ```yaml
    jobs:

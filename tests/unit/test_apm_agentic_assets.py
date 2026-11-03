@@ -457,3 +457,39 @@ x-oblt-aw:
         assert "parent-security" not in fixer["additional_instructions"]
         assert triage["asset_source"] == "workflow"
         assert "parent-security" in triage["additional_instructions"]
+
+
+class TestLoadRegistryWorkflowIds:
+    def test_include_common_ids_are_known(self, tmp_path: pathlib.Path) -> None:
+        config = tmp_path / "config"
+        common = config / "common"
+        common.mkdir(parents=True)
+        (common / "services.json").write_text(
+            '{"services":[{"id":"dependency-review","inner_workflows":'
+            '["obs-aw-dependency-review.yml"]}]}',
+            encoding="utf-8",
+        )
+        obs = config / "obs"
+        obs.mkdir()
+        (obs / "workflow-registry.json").write_text(
+            '{"include_common":["dependency-review"],"workflows":'
+            '[{"id":"autodoc","inner_workflows":["obs-aw-autodoc.yml"]}]}',
+            encoding="utf-8",
+        )
+        (obs / "active-repositories.json").write_text(
+            '{"repositories":[]}', encoding="utf-8"
+        )
+        aaa.KNOWN_REGISTRY_IDS = None
+        known = aaa.load_registry_workflow_ids(config, "obs")
+        assert "dependency-review" in known
+        assert "autodoc" in known
+        aaa.validate_workflow_id("dependency-review", "obs", config_dir=config)
+
+    def test_checked_in_obs_include_common_ids(self) -> None:
+        aaa.KNOWN_REGISTRY_IDS = None
+        config = _root / "config"
+        known = aaa.load_registry_workflow_ids(config, "obs")
+        assert "automerge" in known
+        assert "dependency-review" in known
+        aaa.validate_workflow_id("automerge", "obs", config_dir=config)
+        aaa.validate_workflow_id("dependency-review", "obs", config_dir=config)

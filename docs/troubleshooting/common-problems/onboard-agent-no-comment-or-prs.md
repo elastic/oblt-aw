@@ -14,6 +14,8 @@ You opened an onboard issue in `elastic/oblt-aw`, but there is no agent checklis
 
 GitHub only applies the form label when the issue creator has push access on `elastic/oblt-aw`. Without write access, the label never sticks and `gh-aw-onboard-repository` does not start. Cross-repo PR creation also needs the agent TokenPolicy / minted token.
 
+If the agent comments that the issue body was filtered by integrity policy, the run used a lock still on `min-integrity: approved` (DIFC tags human onboard issues as `none:public`). That override lives in `gh-aw-onboard-repository` source; after it merges, re-apply the onboard label to retry.
+
 ## Fix
 
 1. Confirm you have **write** (or higher) on `elastic/oblt-aw` and that the issue has label `oblt-aw/onboard/repository`.

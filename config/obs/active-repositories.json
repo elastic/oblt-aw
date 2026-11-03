@@ -137,6 +137,12 @@
       "ai-assets-token-policy": ""
     },
     {
+      "repository": "elastic/opentelemetry-lib",
+      "pin-class": "production",
+      "workflow-token-policy": "token-policy-99cc5257fff0",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/observability-catalog",
       "pin-class": "production",
       "workflow-token-policy": "token-policy-b9e1a2856692",

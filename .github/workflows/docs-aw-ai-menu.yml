@@ -161,6 +161,7 @@ jobs:
       contents: read
       copilot-requests: write
       discussions: write
+      id-token: write
       issues: write
       pull-requests: write
     uses: elastic/docs-actions/.github/workflows/gh-aw-issue-triage.lock.yml@v1
@@ -189,6 +190,7 @@ jobs:
       contents: read
       copilot-requests: write
       discussions: write
+      id-token: write
       issues: write
       pull-requests: write
     uses: elastic/docs-actions/.github/workflows/gh-aw-issue-scope.lock.yml@v1

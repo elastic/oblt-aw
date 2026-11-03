@@ -14,7 +14,7 @@ Shared framework jobs use **kebab-case, action-oriented** ids with domain contex
 
 | Pattern | Example job ids |
 |---------|-----------------|
-| Consumer entrypoint | `run-obs-aw-pull-request`, `run-docs-aw-issues` |
+| Consumer entrypoint | `run-docs-aw-issues`, `run-obs-aw-pull-request`, `run-security-aw-issues` |
 | Event orchestrator prelude | `run-aw-prelude` |
 | Control Plane dashboard read | `read-oblt-aw-dashboard` |
 | Allow-list load | `load-oblt-aw-bot-allow-lists` |
@@ -80,6 +80,7 @@ Shared framework jobs use **kebab-case, action-oriented** ids with domain contex
 - [Resource Not Accessible detector](obs-aw-resource-not-accessible-by-integration-detector.md)
 - [Resource Not Accessible fixer](obs-aw-resource-not-accessible-by-integration-fixer.md)
 - [Resource Not Accessible triage](obs-aw-resource-not-accessible-by-integration-triage.md)
+- [Security client templates](security-aw-client-template.md)
 - [Security detector](obs-aw-security-detector.md)
 - [Security fixer](obs-aw-security-fixer.md)
 - [Security issue superseder](obs-aw-security-issue-superseder.md)

@@ -6,6 +6,12 @@ on:
         description: Dashboard gate for this route from aw-prelude.
         required: true
         type: string
+      shared-org-key:
+        description: >-
+          Consuming org key for dashboard/APM identity (obs today; docs/security
+          when those orgs opt into this common service).
+        required: true
+        type: string
       shared-token-policy:
         required: true
         type: string
@@ -23,6 +29,7 @@ jobs:
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       workflow-basename: obs-aw-dependency-review.yml
+      org-key: ${{ inputs.shared-org-key }}
       # Prompt body (noop / CVE / merge-ready / GitHub-read) lives in
       # gh-aw-dependency-review.md. Resolve only merges consumer APM fragments.
 

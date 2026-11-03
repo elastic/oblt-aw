@@ -19,6 +19,7 @@ The reusable workflow job id is `resolve-agentic-assets`. Route wrappers typical
 | Input | Type | Default | Purpose |
 |-------|------|---------|---------|
 | `workflow-basename` | string | (required) | Basename of the calling wrapper; used to resolve org key and registry workflow id for `x-oblt-aw.<org-key>.workflows.<id>` selection |
+| `org-key` | string | `""` | Consuming org for shared common basenames (for example `docs` when Docs opts into `obs-aw-dependency-review`). Empty falls back to the implementation-org preference from the basename prefix |
 | `platform-additional-instructions` | string | `""` | Framework baseline text for this agent invocation (prepended before repo APM instructions) |
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
 | `install-apm-packages` | boolean | `true` | Run [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI and runs `apm install`) |
@@ -57,6 +58,7 @@ jobs:
   run-aw-prelude:
     uses: ./.github/workflows/aw-prelude.yml
     with:
+      org-key: obs
       control-plane-workflows: '["obs-aw-example.yml"]'
 
   # ... optional intermediate jobs (verify, discover, menu scripts, etc.) ...

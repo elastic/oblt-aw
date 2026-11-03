@@ -1,0 +1,22 @@
+name: Security Agentic Workflow — Issues Event
+
+# Event-scoped orchestrator: Control Plane dashboard audit only until
+# Security registers routes under config/security/workflow-registry.json.
+# Do not call aw-prelude here — it requires a non-empty control-plane-workflows list.
+on:
+  workflow_call:
+permissions:
+  contents: read
+
+jobs:
+  dashboard-audit:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'edited' &&
+      contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/dashboard')
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/aw-dashboard-audit.yml
+    with:
+      mode: checkbox-delta
