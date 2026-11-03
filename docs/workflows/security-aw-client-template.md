@@ -27,9 +27,10 @@ Template source stays `@main`. Distribute substitutes the production moving majo
 
 ## Configuration
 
-Top-level permissions on every client template:
+Top-level permissions by client template:
 
-- `contents: read`
+- `trigger-security-aw-issues.yml`: `contents: read`
+- `trigger-security-aw-issue-comment.yml`: `contents: read`, `issues: read`
 
 | Client template | Entrypoint job id | Job permissions |
 |-----------------|-------------------|-----------------|
