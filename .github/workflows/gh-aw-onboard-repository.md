@@ -117,7 +117,7 @@ Map each matching open PR to one inventory concern by repository (and title):
 
 | Concern | Allowlisted repo | Typical title contains |
 |---------|------------------|------------------------|
-| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy **and** framework sync/distribute selectors) |
+| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy; for non-Obs repos also `always_include_repos.txt` + framework selectors) |
 | registration | `elastic/oblt-aw` | `Register` / `active repositories` |
 | settings | `elastic/observability-github-settings` | `branch protection` |
 | secrets | `elastic/observability-github-secrets` | `secret` / secrets provision |
@@ -138,7 +138,7 @@ Then:
 
 Edit the checked-out trees named in the Automation contract (`repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and this repository root for `elastic/oblt-aw`).
 
-In the catalog concern PR, always: (1) add the consumer TokenPolicy for `trigger-<org>-aw-*.yml@*`, and (2) append `elastic/<repo>` to the sorted `permissionset.selector` lists in `repos/catalog-info/resources/github-token-policies/token-policy-oblt-aw-sync-control-plane-dashboard.yaml` and `token-policy-oblt-aw-distribute-client-workflow.yaml`. Do not skip (2) for Security or Docs orgs — sync and distribute mint with those fixed policies, not the consumer client policy.
+In the catalog concern PR: (1) add the consumer TokenPolicy for `trigger-<org>-aw-*.yml@*`. (2) Framework allowlists (deterministic): if `repos/catalog-info/resources/github/engineering/obs/<repo>.yaml` is missing, append the slug to `repos/catalog-info/.github/scripts/update-token-policy-obs-repositories/always_include_repos.txt` (sorted) when absent, then run the updater script (or append sorted selector rows) so both `token-policy-oblt-aw-sync-control-plane-dashboard.yaml` and `token-policy-oblt-aw-distribute-client-workflow.yaml` list `elastic/<repo>`. If the Obs Backstage file exists, skip `always_include` but confirm the selectors already cover the repo (or will via the Obs scan). Never rely on a later weekly job or on `active-repositories.json` alone for allowlist membership.
 
 ### Consumer secrets
 
