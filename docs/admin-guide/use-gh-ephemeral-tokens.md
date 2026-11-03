@@ -60,7 +60,7 @@ Some framework workflows use explicit policy ids in YAML (not copied into consum
 | [distribute-client-workflow](../workflows/distribute-client-workflow.md) | `token-policy-63405ab45244` |
 | [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) | `token-policy-8b60ba56dd3f` |
 
-Their `permissionset.selector` lists in `elastic/catalog-info` must include every registered consumer (`config/*/active-repositories.json`). Onboard appends the new repo in the catalog PR; weekly `update-token-policy-obs-repositories` in catalog-info rewrites those two policies from the active-repositories union. See [Registering resources](../onboarding/registering-a-repository.md) (inventory order 1, step **2e**).
+Their `permissionset.selector` lists in `elastic/catalog-info` must include every registered consumer (`config/*/active-repositories.json`). Onboard appends the new repo in the catalog PR; weekly `update-token-policy-obs-repositories` in catalog-info keeps the Observability Backstage allowlist and adds any active-repositories entries that are missing. See [Registering resources](../onboarding/registering-a-repository.md) (inventory order 1, step **2e**).
 
 ## Example: workflow without repository secrets
 

@@ -141,7 +141,7 @@ Manual maintainers may still use draft PRs for early review; the agent path does
      - `resources/github-token-policies/token-policy-oblt-aw-sync-control-plane-dashboard.yaml` (`token-policy-8b60ba56dd3f` — used by [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md))
      - `resources/github-token-policies/token-policy-oblt-aw-distribute-client-workflow.yaml` (`token-policy-63405ab45244` — used by [distribute-client-workflow](../operations/distribute-client-workflow.md))
 
-     These framework policies are **not** the consumer client policy from **a–d**. Sync and distribute always mint with those fixed ids from `elastic/oblt-aw`. Without the new repo on both selectors, private consumers (including non-Observability orgs such as Security) get HTTP 404 from the GitHub API after registration merges. Weekly automation in `elastic/catalog-info` (`update-token-policy-obs-repositories`) rewrites those two selectors from the union of `elastic/oblt-aw` `config/*/active-repositories.json`; the onboard catalog PR still must add the repo so the first post-merge sync/distribute runs succeed before that job runs.
+     These framework policies are **not** the consumer client policy from **a–d**. Sync and distribute always mint with those fixed ids from `elastic/oblt-aw`. Without the new repo on both selectors, private consumers (including non-Observability orgs such as Security) get HTTP 404 from the GitHub API after registration merges. Weekly automation in `elastic/catalog-info` (`update-token-policy-obs-repositories`) keeps the Observability Backstage selector set and **adds** any `config/*/active-repositories.json` entries that are missing; the onboard catalog PR still must add the repo so the first post-merge sync/distribute runs succeed before that job runs.
 
 3. **Merge the `elastic/catalog-info` change** — Complete review and merge (or otherwise land) the token policy on the branch **`elastic/catalog-info`** uses for production so vault and OIDC configuration are **active** before you merge **`elastic/oblt-aw`** `main` in step 4.
 
@@ -260,7 +260,7 @@ Draft placeholder for `additional_permissions` (not valid YAML until substituted
           {{agentic-workflows-permissions}}
 ```
 
-**Framework token policy ids** configured in `elastic/oblt-aw` workflow YAML (not consumer copy-paste). Onboard must keep their `permissionset.selector` lists aligned with registered consumers (step **2e**). Catalog-info automation (`update-token-policy-obs-repositories`) also rewrites the distribute and sync selectors from the union of `config/*/active-repositories.json`:
+**Framework token policy ids** configured in `elastic/oblt-aw` workflow YAML (not consumer copy-paste). Onboard must keep their `permissionset.selector` lists aligned with registered consumers (step **2e**). Catalog-info automation (`update-token-policy-obs-repositories`) keeps the Observability Backstage set for distribute/sync and adds any missing `config/*/active-repositories.json` entries:
 
 | Workflow / context | `token-policy-…` id (explicit in YAML in this repo) |
 |--------------------|-------------------------------------------------------|
