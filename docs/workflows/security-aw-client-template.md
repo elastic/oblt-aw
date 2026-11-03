@@ -16,7 +16,7 @@ This org key (`security`) is not the Observability registry id `obs:security` (d
 uses: elastic/oblt-aw/.github/workflows/security-aw-event-issues.yml@main
 ```
 
-Template source stays `@main`. Distribute substitutes the production moving major for `pin-class: production` installs after the first promote; `development` installs keep `@main` (see [release-model](../operations/release-model.md)).
+Template source stays `@main`. Distribute substitutes the production moving major for `pin-class: production` installs after the first promote; `development` installs keep `@main` (see [release-model](../operations/release-model.md)). Do not let Renovate pin-digest or bump these `uses:` lines — when Renovate is enabled in a consumer, ignore `.github/workflows/trigger-*-aw-*.yml` (see [Registering resources — step 5b](../onboarding/registering-a-repository.md#steps)).
 
 ### Template index
 

@@ -171,7 +171,9 @@ On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_
 
 - Parsed repository and organization key
 - Checklist of opened or skipped PRs (one entry per inventory concern)
-- Merge order (catalog-info before `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows)
+- Explicit **human** checklist item for the consumer `CODEOWNERS` PR (registering step **5a**)
+- Explicit **human** checklist item for the consumer Renovate ignore **when Renovate is enabled** (registering step **5b**: disable updates for `.github/workflows/trigger-*-aw-*.yml`)
+- Merge order (catalog-info before `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows; consumer CODEOWNERS and Renovate ignore before or with distribute)
 - That merges are **manual**
 - Pointer to `docs/user-guide/onboard-a-repository.md` for post-merge dashboard enablement
 
