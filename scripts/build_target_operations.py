@@ -246,9 +246,18 @@ def main() -> int:
                     else list_org_template_files(org)
                 )
             for entry in cache[org]:
-                if entry["dst"] in seen_dst:
+                dst = entry["dst"]
+                if dst in seen_dst:
+                    prior = next(item for item in out if item["dst"] == dst)
+                    if prior.get("src") != entry.get("src"):
+                        raise SystemExit(
+                            f"Conflicting distribute destination {dst!r}: "
+                            f"{prior.get('src')!r} vs {entry.get('src')!r} "
+                            f"(orgs for this repo: {orgs}). Declare a single "
+                            "source or align template contents."
+                        )
                     continue
-                seen_dst.add(entry["dst"])
+                seen_dst.add(dst)
                 out.append(entry)
         return out
 

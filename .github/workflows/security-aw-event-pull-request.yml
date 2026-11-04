@@ -1,0 +1,39 @@
+name: Security Agentic Workflow — Pull Request Event
+
+# Event-scoped orchestrator: one shared prelude chain for all pull_request routes.
+on:
+  workflow_call:
+permissions:
+  contents: read
+
+jobs:
+  run-aw-prelude:
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/aw-prelude.yml
+    with:
+      org-key: security
+      control-plane-workflows: >-
+        ["obs-aw-dependency-review.yml"]
+      load-allowed-authors: true
+
+  dependency-review:
+    needs: run-aw-prelude
+    if: >-
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-dependency-review.yml'] == 'true' &&
+      github.event_name == 'pull_request' &&
+      contains(fromJSON('["opened","synchronize","reopened"]'), github.event.action) &&
+      contains(fromJSON(needs.run-aw-prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+    uses: ./.github/workflows/obs-aw-dependency-review.yml
+    with:
+      shared-org-key: security
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-dependency-review.yml'] }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}

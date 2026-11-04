@@ -30,6 +30,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
+      org-key: obs
       control-plane-workflows: >-
         ${{ inputs.schedule-profile == 'frequent'
             && '["obs-aw-automerge-deferred.yml"]'
@@ -198,6 +199,7 @@ jobs:
     uses: ./.github/workflows/obs-aw-automerge-deferred.yml
     with:
       shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge-deferred.yml'] }}
+      shared-org-key: obs
       shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
       shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
       shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}

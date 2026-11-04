@@ -1,0 +1,19 @@
+name: Security Agentic Workflow — Pull Request
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  run-security-aw-pull-request:
+    permissions:
+      actions: read
+      contents: read
+      copilot-requests: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    uses: elastic/oblt-aw/.github/workflows/security-aw-event-pull-request.yml@main # ratchet:exclude

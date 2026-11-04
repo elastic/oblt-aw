@@ -529,6 +529,79 @@ test('enabledAutomergeCollectionIds returns empty when parent disabled', () => {
   assert.deepEqual(enabledAutomergeCollectionIds(enabled), []);
 });
 
+test('enabledAutomergeCollectionIds accepts non-obs org parents', () => {
+  const enabled = [
+    'docs:automerge',
+    'docs:automerge:github-actions',
+    'docs:automerge:pre-commit',
+  ];
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled, 'docs').sort(), [
+    'github-actions',
+    'pre-commit',
+  ]);
+});
+
+test('enabledAutomergeCollectionIds defaults blank orgKey to obs for released callers', () => {
+  const enabled = [
+    'docs:automerge',
+    'docs:automerge:github-actions',
+    'docs:automerge:python-dependencies',
+    'obs:automerge',
+    'obs:automerge:terraform',
+  ];
+  // Released @v0 loads tip scripts from main and omits orgKey — Obs scope only.
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled).sort(), [
+    'terraform',
+  ]);
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled, '').sort(), [
+    'terraform',
+  ]);
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled, '   ').sort(), [
+    'terraform',
+  ]);
+  // Docs-only python must not authorize the released Obs route.
+  assert.deepEqual(
+    classifyChangedFiles(
+      ['pyproject.toml'],
+      COLLECTIONS,
+      enabledAutomergeCollectionIds(enabled)
+    ),
+    { status: 'disabled', collectionId: 'python-dependencies' }
+  );
+});
+
+test('enabledAutomergeCollectionIds scopes to consuming org when orgKey set', () => {
+  const enabled = [
+    'docs:automerge',
+    'docs:automerge:python-dependencies',
+    'obs:automerge',
+    'obs:automerge:terraform',
+  ];
+  assert.deepEqual(
+    enabledAutomergeCollectionIds(enabled, 'obs').sort(),
+    ['terraform']
+  );
+  assert.deepEqual(
+    enabledAutomergeCollectionIds(enabled, 'docs').sort(),
+    ['python-dependencies']
+  );
+  // Docs-only collection must not authorize the Obs consumer.
+  assert.deepEqual(enabledAutomergeCollectionIds(enabled, 'obs'), [
+    'terraform',
+  ]);
+  assert.deepEqual(
+    enabledAutomergeCollectionIds(
+      [
+        'docs:automerge',
+        'docs:automerge:python-dependencies',
+        'obs:automerge',
+      ],
+      'obs'
+    ),
+    []
+  );
+});
+
 test('parseEnabledWorkflowsJson handles invalid input', () => {
   assert.deepEqual(parseEnabledWorkflowsJson(''), []);
   assert.deepEqual(parseEnabledWorkflowsJson('not-json'), []);

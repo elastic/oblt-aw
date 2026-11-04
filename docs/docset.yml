@@ -26,6 +26,7 @@ toc:
       - file: add-a-new-agentic-workflow.md
       - file: change-maturity-level.md
       - file: configure-a-github-secret.md
+      - file: opt-in-common-services.md
       - file: use-gh-ephemeral-tokens.md
   - folder: troubleshooting
     children:

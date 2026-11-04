@@ -41,7 +41,6 @@ Precedence within the org block for the running ``org-key``:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -85,7 +84,7 @@ def load_apm_manifest(repo_root: Path) -> tuple[dict[str, Any] | None, bool]:
 
 
 def load_registry_workflow_ids(config_dir: Path, org_key: str) -> frozenset[str]:
-    """Load workflow ids from ``config/<org-key>/workflow-registry.json``."""
+    """Load workflow ids for an org, including ``include_common`` expansions."""
     global KNOWN_REGISTRY_IDS
     if KNOWN_REGISTRY_IDS is None:
         KNOWN_REGISTRY_IDS = {}
@@ -95,20 +94,18 @@ def load_registry_workflow_ids(config_dir: Path, org_key: str) -> frozenset[str]
     if cached is not None:
         return cached
 
-    path = config_dir / org_key / "workflow-registry.json"
-    if not path.is_file():
+    from workflow_registry import expand_org_workflow_dicts
+
+    org_dir = config_dir / org_key
+    if not (org_dir / "workflow-registry.json").is_file():
         known: frozenset[str] = frozenset()
     else:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        workflows = data.get("workflows", [])
-        if not isinstance(workflows, list):
-            known = frozenset()
-        else:
-            ids: set[str] = set()
-            for entry in workflows:
-                if isinstance(entry, dict) and isinstance(entry.get("id"), str):
-                    ids.add(entry["id"])
-            known = frozenset(ids)
+        ids: set[str] = set()
+        for entry in expand_org_workflow_dicts(org_dir, config_dir):
+            workflow_id = entry.get("id")
+            if isinstance(workflow_id, str) and workflow_id:
+                ids.add(workflow_id)
+        known = frozenset(ids)
 
     KNOWN_REGISTRY_IDS[cache_key] = known
     return known

@@ -134,7 +134,11 @@ class TestDependencyReviewWrapperLockWiring:
         inputs = (
             _workflow_on_block(wrapper).get("workflow_call", {}).get("inputs") or {}
         )
-        assert set(inputs) == {"shared-proceed", "shared-token-policy"}
+        assert set(inputs) == {
+            "shared-org-key",
+            "shared-proceed",
+            "shared-token-policy",
+        }
 
     def test_wrapper_does_not_invoke_agent_engine_inline(self) -> None:
         wrapper = _load_yaml(WRAPPER_PATH)
