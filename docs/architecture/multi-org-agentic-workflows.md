@@ -58,7 +58,7 @@ config/
   docs/                                     # docs org; org-key "docs"
     workflow-registry.json
     active-repositories.json
-  security/                                 # security org; org-key "security" (empty registry until routes land)
+  security/                                 # security org; org-key "security" (shared-service include_common with active pull_request/status routes)
     workflow-registry.json
     active-repositories.json
   <other-org-key>/
