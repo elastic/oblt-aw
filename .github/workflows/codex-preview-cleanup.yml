@@ -6,7 +6,7 @@ name: docs-cleanup
 # No paths filter: a PR may create a preview then drop docs/** before close;
 # the reusable cleanup workflow no-ops when no matching deployment exists.
 on:
-  pull_request_target:
+  pull_request:
     types:
       - closed
 
@@ -15,6 +15,8 @@ permissions:
 
 jobs:
   cleanup:
+    # Previews only exist for same-repo PRs (the preview deploy is skipped for forks), nothing to clean for the rest.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: none
       deployments: write
