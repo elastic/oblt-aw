@@ -117,7 +117,7 @@ Map each matching open PR to one inventory concern by repository (and title):
 
 | Concern | Allowlisted repo | Typical title contains |
 |---------|------------------|------------------------|
-| catalog | `elastic/catalog-info` | `Add token policy` |
+| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy; for non-Obs repos also `ALWAYS_INCLUDE_REPOS` + framework selectors) |
 | registration | `elastic/oblt-aw` | `Register` / `active repositories` |
 | settings | `elastic/observability-github-settings` | `branch protection` |
 | secrets | `elastic/observability-github-secrets` | `secret` / secrets provision |
@@ -133,10 +133,12 @@ Then:
 
 **Read and follow** these docs in the workspace. They are the technical contract. Do **not** invent parallel steps.
 
-1. `docs/onboarding/registering-a-repository.md` — especially **Pull request inventory**, **Consumer secrets discovery**, **Automation contract**, **Steps**, and the TokenPolicy appendix.
+1. `docs/onboarding/registering-a-repository.md` — especially **Pull request inventory**, **Consumer secrets discovery**, **Automation contract**, **Steps** (including step **2e** framework sync/distribute allowlists), and the TokenPolicy appendix.
 2. `docs/user-guide/onboard-a-repository.md` — post-merge human steps (dashboard enablement) to cite in the issue comment.
 
 Edit the checked-out trees named in the Automation contract (`repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and this repository root for `elastic/oblt-aw`).
+
+In the catalog concern PR: (1) add the consumer TokenPolicy for `trigger-<org>-aw-*.yml@*`. (2) Framework allowlists (deterministic): if `repos/catalog-info/resources/github/engineering/obs/<repo>.yaml` is missing, add the slug to `ALWAYS_INCLUDE_REPOS` in `repos/catalog-info/.github/scripts/update-token-policy-obs-repositories/update_token_policy.py` when absent, then run the updater script (or append sorted selector rows) so both `token-policy-oblt-aw-sync-control-plane-dashboard.yaml` and `token-policy-oblt-aw-distribute-client-workflow.yaml` list `elastic/<repo>`. If the Obs Backstage file exists, skip `ALWAYS_INCLUDE_REPOS` but confirm the selectors already cover the repo (or will via the Obs scan). Never rely on a later weekly job or on `active-repositories.json` alone for allowlist membership.
 
 ### Consumer secrets
 
