@@ -23,7 +23,7 @@ The automerge wrapper runs `verify` and dependency-collection first, resolves co
 
 `workflow_call` accepts optional `additional-instructions` and `github-token-policy`; optional secret `GH_AW_GITHUB_TOKEN` is also declared. Resolved APM additional instructions are appended to the authored prompt. The lock does **not** accept `setup-commands` — approve only needs PR metadata, so consumer setup (for example `npm ci`) is not eval'd outside the agent sandbox while the job holds `id-token: write`. When `github-token-policy` is set, the lock mints an OIDC ephemeral token so the review is submitted as the Vault app (needed when the PR author is `github-actions[bot]` to avoid self-APPROVE). Empty policy uses `GITHUB_TOKEN` / `github-actions[bot]`.
 
-Allowed roles are admin, maintainer, and write. Bot actors match [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json).
+Allowed roles are admin, maintainer, and write. Bot actors, `trusted-users`, and the prompt author list are synced from [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) (GH-AW needs a static `on.bots` list; it cannot take that list from a `workflow_call` input). Run `make sync-allowed-pr-authors` after editing the JSON.
 
 Permissions are `copilot-requests: write`, `actions: read`, `contents: read`, `issues: read`, `pull-requests: read`, and `id-token: write`. The only intended safe output is `submit-pull-request-review`.
 
@@ -41,7 +41,7 @@ Leave upstream `gh-aw-mention-in-pr` in `elastic/ai-github-actions` for other co
 
 ## Operational notes
 
-Edit the `.md` source, then run `make compile-aw-check` to regenerate and verify the lock. Do not hand-edit the generated lock.
+Edit `config/obs/allowed_pr_authors.json` for the allow list, then `make sync-allowed-pr-authors` (or rely on the pre-commit hook) before `make compile-aw-check`. Edit other prompt/gate text in the `.md` source, then compile. Do not hand-edit the generated lock.
 
 `make compile-aw` runs `scripts/patch_aw_checkout_labeled.py` after compile. That script injects a step into the lock that adds `labeled` to the setup action’s same-repo bot checkout allowlist before **Checkout PR branch**. Automerge wakes when a GitHub App applies `oblt-aw/ai/merge-ready`; without this patch, App actors get collaborator permission `none` and checkout fails ([github/gh-aw#71151](https://github.com/github/gh-aw/issues/71151)). Upstream documented that gap as intentional ([github/gh-aw#72074](https://github.com/github/gh-aw/pull/72074)). Remove the post-compile script when upstream trusts `labeled` the same way as `opened` / `synchronize`.
 

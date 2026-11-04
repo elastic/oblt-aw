@@ -35,7 +35,7 @@ on:
       GH_AW_GITHUB_TOKEN:
         required: false
   roles: [admin, maintainer, write]
-  # Hardcoded to config/obs/allowed_pr_authors.json (GH-AW cannot declare on.bots in fragments).
+  # BEGIN synced-from:config/obs/allowed_pr_authors.json:bots
   bots:
     - "dependabot[bot]"
     - "renovate[bot]"
@@ -45,6 +45,7 @@ on:
     - "elastic-vault-github-plugin-prod[bot]"
     - "github-actions[bot]"
     - "mergify[bot]"
+  # END synced-from:config/obs/allowed_pr_authors.json:bots
 concurrency:
   group: ${{ github.workflow }}-autoapprove-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -63,8 +64,9 @@ tools:
   github:
     # Prefer OIDC create-token output, then MCP/secret fallbacks (gh-aw >= v0.89.21).
     github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-    # Override obs-defaults trusted-users so bot authors in on.bots are trusted.
+    # BEGIN synced-from:config/obs/allowed_pr_authors.json:trusted-users
     trusted-users: "dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-renovate-prod[bot],elastic-vault-github-plugin-prod[bot],github-actions[bot],mergify[bot]"
+    # END synced-from:config/obs/allowed_pr_authors.json:trusted-users
     toolsets: [repos, issues, pull_requests, search, actions]
   bash: true
   web-fetch:
