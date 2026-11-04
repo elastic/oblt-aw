@@ -37,7 +37,7 @@ Edit the GH-AW source [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`]
 | Model, failure-issue suppression (`report-failure-as-issue` / `report-failed-jobs` false; `noop` / `missing-tool` / `missing-data` / `report-incomplete` do not create issues), and GitHub `trusted-users` via [`.github/workflows/gh-aw-fragments/obs-defaults.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md) | `additional-instructions` (from `aw-resolve-agentic-assets`) |
 | Comment footer via [`.github/workflows/gh-aw-fragments/messages-footer.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/messages-footer.md) (What is this? → [oblt-aw README](https://github.com/elastic/oblt-aw/blob/main/README.md)) | `setup-commands` (joined from consumer `apm.yml` when non-empty) |
 | Bot actors hardcoded on the source (`github-actions[bot]`, `buildkite-limited-access[bot]`) — GH-AW does not allow `on.bots` in shared fragments | |
-| Wrapper exposes only `shared-proceed` (+ Buildkite secret) | |
+| Wrapper exposes `shared-proceed`, `shared-org-key`, and the Buildkite secret | |
 
 Shared compile imports for this workflow also include the other files under [`.github/workflows/gh-aw-fragments/`](https://github.com/elastic/oblt-aw/tree/main/.github/workflows/gh-aw-fragments).
 
@@ -58,6 +58,7 @@ Conclusion and safe-outputs jobs request `pull-requests: write` only (no `issues
 Wrapper `workflow_call` contract:
 
 - Input: `shared-proceed` (`required: true`)
+- Input: `shared-org-key` (`required: true`) — consuming org for APM / dashboard identity
 - Secret: `BUILDKITE_API_TOKEN` (`required: true`)
 
 Lock inputs passed by the wrapper:

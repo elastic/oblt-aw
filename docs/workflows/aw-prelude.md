@@ -27,6 +27,7 @@ Event orchestrators invoke this workflow as job `run-aw-prelude`.
 | Input | Type | Default | Purpose |
 |-------|------|---------|---------|
 | `control-plane-workflows` | string | (required) | JSON array of framework workflow basenames to evaluate (for example `["obs-aw-automerge.yml","obs-aw-dependency-review.yml"]`) |
+| `org-key` | string | (required) | Invoking org key (`config/<org-key>/`). Gates evaluate only that org’s compound ids (shared common basenames do not proceed from another org’s checkbox) |
 | `load-allowed-authors` | boolean | `false` | When true, loads PR and issue bot allow lists on `pull_request` / `issues` events |
 
 ### Outputs
@@ -43,7 +44,7 @@ Event orchestrators invoke this workflow as job `run-aw-prelude`.
 ### Gating rule
 
 - `effective-raw` empty → no listed routes proceed
-- Otherwise each route proceeds only when its registry-resolved compound id is in `enabled-workflows`
+- Otherwise each route proceeds only when the invoking org’s registry-resolved compound id is in `enabled-workflows`
 
 ## References
 

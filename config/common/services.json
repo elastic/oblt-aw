@@ -1,0 +1,106 @@
+{
+  "services": [
+    {
+      "id": "automerge",
+      "name": "Automerge",
+      "description": "Arms and completes squash-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready: PR path validates/approves and arms when checks are pending; the frequent schedule profile merges via Vault REST when required checks are green.",
+      "maturity": "stable",
+      "default_enabled": false,
+      "docs": "docs/user-guide/automerge-services.md",
+      "inner_workflows": [
+        "obs-aw-automerge-deferred.yml",
+        "obs-aw-automerge.yml"
+      ],
+      "sub_features": [
+        {
+          "id": "apm-cli",
+          "name": "APM CLI version",
+          "description": "Auto-merge for APM CLI pin updates (.apm.version / .apm-cli-pin).",
+          "default_enabled": false
+        },
+        {
+          "id": "github-actions",
+          "name": "GitHub Actions bumps",
+          "description": "Auto-merge for GitHub Actions and composite action version bumps.",
+          "default_enabled": true
+        },
+        {
+          "id": "pre-commit",
+          "name": "pre-commit hook updates",
+          "description": "Auto-merge for pre-commit hook dependency updates.",
+          "default_enabled": true
+        },
+        {
+          "id": "python-dependencies",
+          "name": "Python dependencies",
+          "description": "Auto-merge for Python package and lockfile updates.",
+          "default_enabled": false
+        },
+        {
+          "id": "go-dependencies",
+          "name": "Go dependencies",
+          "description": "Auto-merge for Go module and sum updates.",
+          "default_enabled": false
+        },
+        {
+          "id": "update-beats",
+          "name": "Update beats",
+          "description": "Auto-merge for elastic-agent update-beats PRs (NOTICE, go modules, beats submodule).",
+          "default_enabled": false
+        },
+        {
+          "id": "node-dependencies",
+          "name": "Node dependencies",
+          "description": "Auto-merge for npm/yarn/pnpm manifest, lockfile, and JS bundled dist updates.",
+          "default_enabled": false
+        },
+        {
+          "id": "terraform",
+          "name": "Terraform / OpenTofu",
+          "description": "Auto-merge for Terraform, OpenTofu, and Terragrunt dependency updates.",
+          "default_enabled": true
+        },
+        {
+          "id": "open-policy-agent",
+          "name": "Open Policy Agent",
+          "description": "Auto-merge for OPA policy and version file updates.",
+          "default_enabled": true
+        },
+        {
+          "id": "vm-images",
+          "name": "VM / container images",
+          "description": "Auto-merge for CI runner or container image pin updates.",
+          "default_enabled": false
+        },
+        {
+          "id": "package-version",
+          "name": "Package version",
+          "description": "Auto-merge for .package-version bump automation.",
+          "default_enabled": false
+        }
+      ]
+    },
+    {
+      "id": "dependency-review",
+      "name": "Dependency Review",
+      "description": "Analyzes dependency-update PRs from bots, applies merge-ready labels when criteria are met.",
+      "maturity": "stable",
+      "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-dependency-review.md",
+      "inner_workflows": [
+        "obs-aw-dependency-review.yml"
+      ]
+    },
+    {
+      "id": "estc-pr-buildkite-detective",
+      "name": "PR Buildkite Detective",
+      "description": "Analyzes Buildkite CI failures for a PR when a Buildkite status check fails; posts a diagnostic comment on the pull request.",
+      "maturity": "stable",
+      "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-estc-pr-buildkite-detective.md",
+      "inner_workflows": [
+        "obs-aw-estc-pr-buildkite-detective.yml"
+      ]
+    }
+  ]
+}

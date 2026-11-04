@@ -12,6 +12,13 @@ on:
           ["obs-aw-automerge.yml","obs-aw-dependency-review.yml"]).
         required: true
         type: string
+      org-key:
+        description: >-
+          Invoking org key (config/<org-key>/). Gates evaluate only that org's
+          compound ids so a shared common basename cannot proceed from another
+          org's dashboard checkbox.
+        required: true
+        type: string
       load-allowed-authors:
         description: Load PR and issue allow lists from elastic/oblt-aw config
         required: false
@@ -113,13 +120,15 @@ jobs:
           CONTROL_PLANE_WORKFLOWS: ${{ inputs.control-plane-workflows }}
           EFFECTIVE_RAW: ${{ needs.read-oblt-aw-dashboard.outputs.effective-raw }}
           ENABLED_WORKFLOWS: ${{ needs.read-oblt-aw-dashboard.outputs.enabled-workflows }}
+          ORG_KEY: ${{ inputs.org-key }}
         run: |
           set -euo pipefail
           python _oblt-aw/scripts/evaluate_workflow_gates.py \
             --config-dir "${CONFIG_DIR}" \
             --control-plane-workflows "${CONTROL_PLANE_WORKFLOWS}" \
             --effective-raw "${EFFECTIVE_RAW}" \
-            --enabled-workflows "${ENABLED_WORKFLOWS}"
+            --enabled-workflows "${ENABLED_WORKFLOWS}" \
+            --org-key "${ORG_KEY}"
 
       - name: Pack allow-list outputs
         id: pack

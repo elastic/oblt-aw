@@ -13,6 +13,7 @@ jobs:
       issues: read
     uses: ./.github/workflows/aw-prelude.yml
     with:
+      org-key: obs
       control-plane-workflows: >-
         ["obs-aw-issue-fixer.yml","obs-aw-mention-in-issue.yml"]
       load-allowed-authors: false

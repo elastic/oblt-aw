@@ -688,6 +688,49 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_TOKEN: ${{ github.token }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
+      - name: Patch checkout trust for labeled bot PRs
+        # oblt-aw:patch-aw-checkout-labeled — temporary until github/gh-aw#71151 covers labeled
+        run: |
+          set -euo pipefail
+          file="${RUNNER_TEMP}/gh-aw/actions/checkout_pr_branch.cjs"
+          if [[ ! -f "$file" ]]; then
+            echo "::error::checkout_pr_branch.cjs missing at $file (setup action destination changed?)"
+            exit 1
+          fi
+          export OBLT_AW_CHECKOUT_PR_BRANCH_CJS="$file"
+          python3 <<'PY'
+          from pathlib import Path
+          import os
+          import re
+          import sys
+
+          path = Path(os.environ["OBLT_AW_CHECKOUT_PR_BRANCH_CJS"])
+          text = path.read_text(encoding="utf-8")
+          old = 'const TRUSTED_BOT_PR_ACTIONS = ["opened", "synchronize", "ready_for_review", "reopened"];'
+          new = 'const TRUSTED_BOT_PR_ACTIONS = ["opened", "synchronize", "ready_for_review", "reopened", "labeled"];'
+          if old in text:
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+              print("Patched TRUSTED_BOT_PR_ACTIONS to include labeled")
+              sys.exit(0)
+          # Upstream already trusts labeled (or a prior patch ran).
+          if re.search(
+              r"TRUSTED_BOT_PR_ACTIONS\s*=\s*\[[^\]]*\blabeled\b",
+              text,
+          ):
+              print("labeled already in TRUSTED_BOT_PR_ACTIONS; skipping patch")
+              sys.exit(0)
+          print(
+              "::error::TRUSTED_BOT_PR_ACTIONS marker not found or changed in "
+              f"{path}",
+              file=sys.stderr,
+          )
+          print(
+              "::error::Update scripts/patch_aw_checkout_labeled.py for the "
+              "new gh-aw setup action shape",
+              file=sys.stderr,
+          )
+          sys.exit(1)
+          PY
       - name: Checkout PR branch
         id: checkout-pr
         if: |

@@ -117,7 +117,7 @@ Map each matching open PR to one inventory concern by repository (and title):
 
 | Concern | Allowlisted repo | Typical title contains |
 |---------|------------------|------------------------|
-| catalog | `elastic/catalog-info` | `Add token policy` |
+| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy; for non-Obs repos also `ALWAYS_INCLUDE_REPOS` + framework selectors) |
 | registration | `elastic/oblt-aw` | `Register` / `active repositories` |
 | settings | `elastic/observability-github-settings` | `branch protection` |
 | secrets | `elastic/observability-github-secrets` | `secret` / secrets provision |
@@ -133,20 +133,26 @@ Then:
 
 **Read and follow** these docs in the workspace. They are the technical contract. Do **not** invent parallel steps.
 
-1. `docs/onboarding/registering-a-repository.md` — especially **Pull request inventory**, **Consumer secrets discovery**, **Automation contract**, **Steps**, and the TokenPolicy appendix.
+1. `docs/onboarding/registering-a-repository.md` — especially **Pull request inventory**, **Consumer secrets discovery**, **Automation contract**, **Steps** (including step **2e** framework sync/distribute allowlists), and the TokenPolicy appendix.
 2. `docs/user-guide/onboard-a-repository.md` — post-merge human steps (dashboard enablement) to cite in the issue comment.
 
 Edit the checked-out trees named in the Automation contract (`repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and this repository root for `elastic/oblt-aw`).
+
+In the catalog concern PR: (1) add the consumer TokenPolicy for `trigger-<org>-aw-*.yml@*`. (2) Framework allowlists (deterministic): if `repos/catalog-info/resources/github/engineering/obs/<repo>.yaml` is missing, add the slug to `ALWAYS_INCLUDE_REPOS` in `repos/catalog-info/.github/scripts/update-token-policy-obs-repositories/update_token_policy.py` when absent, then run the updater script (or append sorted selector rows) so both `token-policy-oblt-aw-sync-control-plane-dashboard.yaml` and `token-policy-oblt-aw-distribute-client-workflow.yaml` list `elastic/<repo>`. If the Obs Backstage file exists, skip `ALWAYS_INCLUDE_REPOS` but confirm the selectors already cover the repo (or will via the Obs scan). Never rely on a later weekly job or on `active-repositories.json` alone for allowlist membership.
 
 ### Consumer secrets
 
 Before deciding whether to open a secrets PR (do **not** hardcode secret names):
 
 1. Read `config/<org-key>/workflow-registry.json`.
-2. For **every** entry with a `docs:` path, **open that markdown file** and collect consumer-facing secret names from **Prerequisites** first (when the doc says consumers provision/map a name). Fall back to required `Secret:` lines under **API / Interface**.
-3. **Union across all registry workflows.** Do **not** filter by `default_enabled`, `enabled_by_default`, “onboarding defaults”, maturity, or whether a workflow is likely to be toggled on later. A secrets PR provisions for the org catalog; dashboard opt-in is separate.
-4. In `repos/observability-github-secrets`, resolve each name to a `conf/shared` module (`*.tf` search or README Create Secret table). Fail closed if unresolved — do not invent modules or skip unresolved names.
-5. Non-empty set → scaffold or update `conf/resources/<repo>/` (+ `docs/<repo>.md`) and open one secrets PR (`temporary_id` `aw_secrets`). Empty set **only after** the full-union steps above → skip and record “none” in the checklist. Never write “none” because you only inspected default-enabled entries or did not open the docs files.
+2. Build the **effective** workflow list for that org:
+   - For each id in top-level `include_common` (when present), look up that service in `config/common/services.json` and take its object (including `docs`).
+   - Then append every local `workflows` entry.
+   - Do **not** read only the local `workflows` array — shared services such as `estc-pr-buildkite-detective` live under `include_common` and would be skipped.
+3. For **every** effective entry with a `docs:` path, **open that markdown file** and collect consumer-facing secret names from **Prerequisites** first (when the doc says consumers provision/map a name). Fall back to required `Secret:` lines under **API / Interface**.
+4. **Union across all effective workflows.** Do **not** filter by `default_enabled`, `enabled_by_default`, “onboarding defaults”, maturity, or whether a workflow is likely to be toggled on later. A secrets PR provisions for the org catalog; dashboard opt-in is separate.
+5. In `repos/observability-github-secrets`, resolve each name to a `conf/shared` module (`*.tf` search or README Create Secret table). Fail closed if unresolved — do not invent modules or skip unresolved names.
+6. Non-empty set → scaffold or update `conf/resources/<repo>/` (+ `docs/<repo>.md`) and open one secrets PR (`temporary_id` `aw_secrets`). Empty set **only after** the full-union steps above → skip and record “none” in the checklist. Never write “none” because you only inspected default-enabled entries, ignored `include_common`, or did not open the docs files.
 
 Follow `docs/onboarding/registering-a-repository.md` (**Consumer secrets discovery**) in full.
 
@@ -167,7 +173,9 @@ On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_
 
 - Parsed repository and organization key
 - Checklist of opened or skipped PRs (one entry per inventory concern)
-- Merge order (catalog-info before `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows)
+- Explicit **human** checklist item for the consumer `CODEOWNERS` PR (registering step **5a**)
+- Explicit **human** checklist item for the consumer Renovate ignore **when Renovate is enabled** (registering step **5b**: disable updates for `.github/workflows/trigger-*-aw-*.yml`)
+- Merge order (catalog-info before `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows; consumer CODEOWNERS and Renovate ignore before or with distribute)
 - That merges are **manual**
 - Pointer to `docs/user-guide/onboard-a-repository.md` for post-merge dashboard enablement
 
