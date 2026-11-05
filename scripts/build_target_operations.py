@@ -21,6 +21,7 @@ import sys
 
 from client_workflow_pin import load_release_pointers, resolve_control_plane_pin
 from common import (
+    CONTROL_PLANE_ORG_KEY_ALIASES,
     PR_ACTIONS_DETECTIVE_TRIGGER_DST,
     discover_repo_org_assignments,
     merge_repository_pin_classes_from_org_trees,
@@ -32,7 +33,7 @@ from common import (
 
 REMOTE_TEMPLATE_DIR = pathlib.Path(".github/remote-workflow-template")
 ZERO_SHA = "0000000000000000000000000000000000000000"
-# Keep in lockstep with distribute-client-workflow.yml on.push.paths (except the
+# Keep in lockstep with distribute-client-workflow-*.yml on.push.paths (except the
 # workflow file itself) and the changed-files filter.
 RELEVANT_DIFF_PATHS = (
     "config",
@@ -199,10 +200,39 @@ def should_run_distribution(
     return has_relevant_git_changes(base_ref)
 
 
+def resolve_entrypoint_org_keys(org_key: str, available: set[str]) -> list[str]:
+    """Config org-keys handled by one distribute/sync control-plane entrypoint."""
+    if org_key not in available and org_key not in CONTROL_PLANE_ORG_KEY_ALIASES:
+        raise SystemExit(
+            f"Unknown org-key {org_key!r}; known: {sorted(available) or '(none)'}"
+        )
+    keys = {org_key}
+    keys.update(
+        alias
+        for alias in CONTROL_PLANE_ORG_KEY_ALIASES.get(org_key, ())
+        if alias in available
+    )
+    return sorted(keys)
+
+
+def filter_assignments_to_org_keys(
+    assignments: dict[str, list[str]], org_keys: list[str]
+) -> dict[str, list[str]]:
+    """Keep only repos that belong to at least one of ``org_keys``; drop other orgs."""
+    key_set = set(org_keys)
+    filtered: dict[str, list[str]] = {}
+    for repo, orgs in assignments.items():
+        kept = [org for org in orgs if org in key_set]
+        if kept:
+            filtered[repo] = kept
+    return filtered
+
+
 def main() -> int:
     changed_files_count = int(os.getenv("CHANGED_FILES_COUNT", "0"))
     force_distribution = parse_bool(os.getenv("FORCE_DISTRIBUTION", "false"))
     base_ref = os.getenv("BASE_REF", "").strip()
+    org_key = os.getenv("ORG_KEY", "").strip()
     git_relevant = has_relevant_git_changes(base_ref)
 
     if not should_run_distribution(changed_files_count, force_distribution, base_ref):
@@ -230,6 +260,22 @@ def main() -> int:
     pointers = load_release_pointers()
 
     previous_assignments = read_previous_repo_org_assignments(base_ref)
+
+    if org_key:
+        available = {org for orgs in current_assignments.values() for org in orgs} | {
+            org for orgs in previous_assignments.values() for org in orgs
+        }
+        # Also accept org keys that exist on disk but have an empty repo list.
+        for child in config_dir.iterdir() if config_dir.is_dir() else []:
+            if child.is_dir() and (child / "active-repositories.json").is_file():
+                available.add(child.name)
+        entrypoint_keys = resolve_entrypoint_org_keys(org_key, available)
+        current_assignments = filter_assignments_to_org_keys(
+            current_assignments, entrypoint_keys
+        )
+        previous_assignments = filter_assignments_to_org_keys(
+            previous_assignments, entrypoint_keys
+        )
 
     current_files_by_org: dict[str, list[dict[str, str]]] = {}
     previous_files_by_org: dict[str, list[dict[str, str]]] = {}

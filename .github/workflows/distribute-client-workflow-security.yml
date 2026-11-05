@@ -1,0 +1,78 @@
+name: Distribute Client Workflow (security)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - config/**/active-repositories.json
+      - config/release-pointers.json
+      - .github/remote-workflow-template/**
+      - .github/workflows/distribute-client-workflow-security.yml
+      - .github/workflows/distribute-client-workflow-impl.yml
+      - scripts/build_target_operations.py
+      - scripts/client_workflow_pin.py
+      - scripts/common.py
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Force distribution even when no relevant files changed
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+
+concurrency:
+  group: distribute-client-workflow-security-entrypoint
+  cancel-in-progress: false
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed-files-count: ${{ steps.changed-files.outputs.count || 0 }}
+      base-ref: ${{ steps.meta.outputs.base-ref }}
+      force: ${{ steps.meta.outputs.force }}
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve dispatch inputs
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "force=${{ github.event.inputs.force || 'false' }}" >> "$GITHUB_OUTPUT"
+            echo "base-ref=" >> "$GITHUB_OUTPUT"
+          else
+            echo "force=false" >> "$GITHUB_OUTPUT"
+            echo "base-ref=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect relevant file changes
+        id: changed-files
+        if: ${{ github.event_name == 'push' }}
+        uses: elastic/oblt-actions/github/changed-files@v1
+        with:
+          base-ref: ${{ github.event.before }}
+          ref: ${{ github.sha }}
+          filter: '["config/**/active-repositories.json","config/release-pointers.json",".github/remote-workflow-template/**","scripts/build_target_operations.py","scripts/client_workflow_pin.py","scripts/common.py"]'
+
+  distribute:
+    needs: detect-changes
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/distribute-client-workflow-impl.yml
+    with:
+      org-key: security
+      token-policy: token-policy-63c1b5b6691c
+      force: ${{ needs.detect-changes.outputs.force == 'true' }}
+      changed-files-count: ${{ needs.detect-changes.outputs.changed-files-count }}
+      base-ref: ${{ needs.detect-changes.outputs.base-ref }}

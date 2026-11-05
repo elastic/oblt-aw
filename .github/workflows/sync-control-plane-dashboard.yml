@@ -1,103 +1,49 @@
 name: Sync Control Plane Dashboard
 
+# Deprecated monolith entrypoint. Org-scoped workflows own OIDC TokenPolicies:
+#   sync-control-plane-dashboard-obs.yml
+#   sync-control-plane-dashboard-security.yml
+# This workflow only fans out workflow_dispatch / push to those entrypoints via
+# GitHub's workflow_call into shared job logic is intentionally not used here for minting.
+
 on:
   push:
     branches:
       - main
     paths:
       - .github/workflows/sync-control-plane-dashboard.yml
-      - config/common/services.json
-      - config/**/active-repositories.json
-      - config/**/workflow-registry.json
-      - scripts/common.py
-      - scripts/sync_control_plane_dashboard.py
-      - scripts/workflow_registry.py
   workflow_dispatch:
     inputs:
       force-sync-defaults:
         description: >-
-          Reset every dashboard checkbox to the current registry default_enabled
-          value (overwrites user-edited checkbox state on all target repositories).
+          Unused on the legacy entrypoint; run sync-control-plane-dashboard-obs or
+          sync-control-plane-dashboard-security instead.
         type: boolean
         default: false
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
-  group: sync-control-plane-dashboard
+  group: sync-control-plane-dashboard-legacy
   cancel-in-progress: false
 
 jobs:
-  prepare-repos:
+  redirect:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    outputs:
-      repos: ${{ steps.matrix.outputs.repos }}
-      has_repos: ${{ steps.matrix.outputs.has_repos }}
-      repos_count: ${{ steps.matrix.outputs.repos_count }}
     steps:
-      - name: Checkout source repository
-        uses: actions/checkout@v7
-
-      - name: Setup Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.14"
-          cache: pip
-          cache-dependency-path: requirements-runtime.txt
-
-      - name: Build repos matrix
-        id: matrix
-        run: python scripts/build_repos_matrix.py
-
-      - name: Write repos summary
-        env:
-          REPOS_COUNT: ${{ steps.matrix.outputs.repos_count }}
+      - name: Point operators at org-scoped sync workflows
         run: |
           {
-            echo "## Sync target summary"
-            echo ""
-            echo "- Repositories to sync: ${REPOS_COUNT}"
+            echo "## Deprecated entrypoint"
+            echo
+            echo "Use these workflows instead (unique workflow_ref per Backstage org):"
+            echo
+            echo "- \`sync-control-plane-dashboard-obs.yml\`"
+            echo "- \`sync-control-plane-dashboard-security.yml\`"
+            echo
+            echo "This legacy workflow no longer mints tokens or syncs dashboards."
           } >> "$GITHUB_STEP_SUMMARY"
-
-  sync-dashboard:
-    needs: prepare-repos
-    if: ${{ needs.prepare-repos.outputs.has_repos == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.prepare-repos.outputs.repos) }}
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout source repository
-        uses: actions/checkout@v7
-
-      - name: Create ephemeral GitHub token
-        id: create-token
-        uses: elastic/oblt-actions/github/create-token@v1
-        with:
-          token-policy: token-policy-8b60ba56dd3f
-
-      - name: Setup Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.14"
-          cache: pip
-          cache-dependency-path: requirements-runtime.txt
-
-      - name: Sync dashboard for ${{ matrix.repository }}
-        env:
-          GH_TOKEN: ${{ steps.create-token.outputs.token }}
-          TARGET_REPO: ${{ matrix.repository }}
-          FORCE_SYNC_DEFAULTS: ${{ github.event_name == 'workflow_dispatch' && inputs.force-sync-defaults && 'true' || 'false' }}
-        run: |
-          args=(--repo "$TARGET_REPO")
-          if [ "$FORCE_SYNC_DEFAULTS" = "true" ]; then
-            args+=(--force-sync-defaults)
-          fi
-          python scripts/sync_control_plane_dashboard.py "${args[@]}"
+          echo "::notice::Legacy sync-control-plane-dashboard.yml is a no-op; use org-scoped sync workflows."
