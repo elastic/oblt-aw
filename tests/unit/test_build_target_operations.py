@@ -840,3 +840,29 @@ class TestMain:
         assert ".github/workflows/trigger-obs-aw-workflow-run.yml" in {
             f["dst"] for f in install_obs["files"]
         }
+
+    def test_org_key_fails_when_obs_allowlist_missing_trigger(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """Obs-scoped install must not clear a configured allowlist when the trigger is gone."""
+        self._setup_env(
+            monkeypatch,
+            tmp_path,
+            changed_files_count=1,
+            repos=[
+                {
+                    "repository": "elastic/foo",
+                    "pin-class": "production",
+                    "workflow-token-policy": "",
+                    "ai-assets-token-policy": "",
+                    "pr-actions-detective-workflows": ["CI"],
+                }
+            ],
+        )
+        # Default _setup_env templates omit trigger-obs-aw-workflow-run.yml.
+        monkeypatch.setenv("ORG_KEY", "obs")
+        with pytest.raises(
+            SystemExit,
+            match="pr-actions-detective-workflows is non-empty but .* missing",
+        ):
+            bto.main()

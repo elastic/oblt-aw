@@ -329,10 +329,21 @@ def main() -> int:
         files, remove_files = apply_pr_actions_detective_trigger_gate(
             files, remove_files, allowlist
         )
-        # Entrypoint-scoped installs (e.g. security) may see a cross-org allowlist
+        # Security (and other non-obs) entrypoints may see a cross-org allowlist
         # without owning the obs detective trigger. Clear it so the workflow does
         # not fail a missing-trigger check or rewrite an obs-owned file.
+        # When this scoped assignment includes obs and monitoring is configured,
+        # a missing trigger is a planner error — clearing would skip validation
+        # and can delete or omit detective coverage silently.
         if not any(entry["dst"] == PR_ACTIONS_DETECTIVE_TRIGGER_DST for entry in files):
+            if allowlist and "obs" in current_assignments[repo]:
+                raise SystemExit(
+                    f"{repo}: pr-actions-detective-workflows is non-empty but "
+                    f"{PR_ACTIONS_DETECTIVE_TRIGGER_DST} is missing from the "
+                    f"entrypoint file set (orgs: {current_assignments[repo]}). "
+                    "Restore the obs detective trigger template or clear the "
+                    "allowlist."
+                )
             allowlist = []
         pin_class = pin_classes[repo]
         operations.append(
