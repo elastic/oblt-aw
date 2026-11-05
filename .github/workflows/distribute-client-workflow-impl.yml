@@ -244,7 +244,7 @@ jobs:
           token: ${{ steps.create-token.outputs.token }}
           path: target
           sign-commits: true
-          branch: oblt-aw/sync-client-workflow
+          branch: oblt-aw/sync-client-workflow-${{ inputs.org-key }}
           labels: ${{ steps.pr-labels.outputs.labels }}
           commit-message: Sync agentic workflow files from elastic/oblt-aw
           title: Sync agentic workflow files from elastic/oblt-aw
@@ -283,7 +283,7 @@ jobs:
           token: ${{ steps.create-token.outputs.token }}
           path: target
           sign-commits: true
-          branch: oblt-aw/remove-client-workflow
+          branch: oblt-aw/remove-client-workflow-${{ inputs.org-key }}
           labels: ${{ steps.pr-labels.outputs.labels }}
           commit-message: Remove agentic workflow files managed by elastic/oblt-aw
           title: Remove agentic workflow files managed by elastic/oblt-aw

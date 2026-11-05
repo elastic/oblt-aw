@@ -581,3 +581,153 @@ class TestMain:
         assert ".github/workflows/oblt-aw.yml" in install["remove_files"]
         dsts = {f["dst"] for f in install["files"]}
         assert ".github/workflows/trigger-obs-aw-pull-request.yml" in dsts
+
+    def test_org_key_filters_install_and_remove_targets(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """ORG_KEY scopes installs/removes; docs aliases into obs; security stays separate."""
+        output_file = self._setup_env(
+            monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/obs-only"]
+        )
+        # Add docs + security org trees and templates.
+        for org, repo in (
+            ("docs", "elastic/docs-only"),
+            ("security", "elastic/sec-only"),
+        ):
+            org_dir = tmp_path / "config" / org
+            org_dir.mkdir(parents=True, exist_ok=True)
+            (org_dir / "workflow-registry.json").write_text(
+                json.dumps({"workflows": []})
+            )
+            (org_dir / "active-repositories.json").write_text(
+                json.dumps(
+                    {
+                        "repositories": [
+                            {
+                                "repository": repo,
+                                "pin-class": "production",
+                                "workflow-token-policy": "",
+                                "ai-assets-token-policy": "",
+                            }
+                        ]
+                    }
+                )
+            )
+            tmpl = (
+                tmp_path
+                / ".github"
+                / "remote-workflow-template"
+                / org
+                / ".github"
+                / "workflows"
+            )
+            tmpl.mkdir(parents=True, exist_ok=True)
+            (tmpl / f"trigger-{org}-aw-pull-request.yml").write_text("name: client\n")
+
+        monkeypatch.setattr(
+            bto,
+            "read_previous_repo_org_assignments",
+            lambda _: {
+                "elastic/obs-only": ["obs"],
+                "elastic/docs-only": ["docs"],
+                "elastic/sec-only": ["security"],
+                "elastic/gone-obs": ["obs"],
+                "elastic/gone-sec": ["security"],
+            },
+        )
+
+        def fake_list_at_ref(org_key: str, ref: str) -> list[dict[str, str]]:
+            return [
+                {
+                    "src": f".github/remote-workflow-template/{org_key}/.github/workflows/old.yml",
+                    "dst": f".github/workflows/old-{org_key}.yml",
+                }
+            ]
+
+        monkeypatch.setattr(bto, "list_org_template_files_at_ref", fake_list_at_ref)
+        monkeypatch.setenv("ORG_KEY", "obs")
+        assert bto.main() == 0
+        targets = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in output_file.read_text().splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        by_repo = {t["repository"]: t for t in targets}
+        assert set(by_repo) == {
+            "elastic/docs-only",
+            "elastic/gone-obs",
+            "elastic/obs-only",
+        }
+        assert by_repo["elastic/obs-only"]["operation"] == "install"
+        assert by_repo["elastic/docs-only"]["operation"] == "install"
+        assert by_repo["elastic/gone-obs"]["operation"] == "remove"
+        assert "elastic/sec-only" not in by_repo
+        assert "elastic/gone-sec" not in by_repo
+
+        output_file.write_text("")
+        monkeypatch.setenv("ORG_KEY", "security")
+        assert bto.main() == 0
+        targets_sec = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in output_file.read_text().splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        by_repo_sec = {t["repository"]: t for t in targets_sec}
+        assert set(by_repo_sec) == {"elastic/gone-sec", "elastic/sec-only"}
+        assert by_repo_sec["elastic/sec-only"]["operation"] == "install"
+        assert by_repo_sec["elastic/gone-sec"]["operation"] == "remove"
+
+    def test_org_key_still_rejects_cross_org_destination_conflicts(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """Complete org membership is validated before ORG_KEY filtering."""
+        self._setup_env(
+            monkeypatch, tmp_path, changed_files_count=1, repos=["elastic/shared"]
+        )
+        sec = tmp_path / "config" / "security"
+        sec.mkdir(parents=True, exist_ok=True)
+        (sec / "workflow-registry.json").write_text(json.dumps({"workflows": []}))
+        (sec / "active-repositories.json").write_text(
+            json.dumps(
+                {
+                    "repositories": [
+                        {
+                            "repository": "elastic/shared",
+                            "pin-class": "production",
+                            "workflow-token-policy": "",
+                            "ai-assets-token-policy": "",
+                        }
+                    ]
+                }
+            )
+        )
+        # Same destination from two orgs with different sources → conflict.
+        for org in ("obs", "security"):
+            tmpl = (
+                tmp_path
+                / ".github"
+                / "remote-workflow-template"
+                / org
+                / ".github"
+                / "workflows"
+            )
+            tmpl.mkdir(parents=True, exist_ok=True)
+            (tmpl / "shared.yml").write_text(f"name: {org}\n")
+
+        monkeypatch.setattr(
+            bto,
+            "list_org_template_files",
+            lambda org_key: [
+                {
+                    "src": f".github/remote-workflow-template/{org_key}/.github/workflows/shared.yml",
+                    "dst": ".github/workflows/shared.yml",
+                }
+            ],
+        )
+        monkeypatch.setenv("ORG_KEY", "obs")
+        with pytest.raises(SystemExit, match="Conflicting distribute destination"):
+            bto.main()

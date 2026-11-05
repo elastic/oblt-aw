@@ -261,22 +261,6 @@ def main() -> int:
 
     previous_assignments = read_previous_repo_org_assignments(base_ref)
 
-    if org_key:
-        available = {org for orgs in current_assignments.values() for org in orgs} | {
-            org for orgs in previous_assignments.values() for org in orgs
-        }
-        # Also accept org keys that exist on disk but have an empty repo list.
-        for child in config_dir.iterdir() if config_dir.is_dir() else []:
-            if child.is_dir() and (child / "active-repositories.json").is_file():
-                available.add(child.name)
-        entrypoint_keys = resolve_entrypoint_org_keys(org_key, available)
-        current_assignments = filter_assignments_to_org_keys(
-            current_assignments, entrypoint_keys
-        )
-        previous_assignments = filter_assignments_to_org_keys(
-            previous_assignments, entrypoint_keys
-        )
-
     current_files_by_org: dict[str, list[dict[str, str]]] = {}
     previous_files_by_org: dict[str, list[dict[str, str]]] = {}
 
@@ -309,6 +293,28 @@ def main() -> int:
 
     def dst_paths(files: list[dict[str, str]]) -> set[str]:
         return {entry["dst"] for entry in files}
+
+    # Validate destination conflicts against each repo's complete org membership
+    # before narrowing to this entrypoint. Filtering first would skip the check.
+    for repo in sorted(current_assignments):
+        files_for_orgs(current_assignments[repo], at_base_ref=False)
+    for repo in sorted(previous_assignments):
+        files_for_orgs(previous_assignments[repo], at_base_ref=True)
+
+    if org_key:
+        available = {org for orgs in current_assignments.values() for org in orgs} | {
+            org for orgs in previous_assignments.values() for org in orgs
+        }
+        for child in config_dir.iterdir() if config_dir.is_dir() else []:
+            if child.is_dir() and (child / "active-repositories.json").is_file():
+                available.add(child.name)
+        entrypoint_keys = resolve_entrypoint_org_keys(org_key, available)
+        current_assignments = filter_assignments_to_org_keys(
+            current_assignments, entrypoint_keys
+        )
+        previous_assignments = filter_assignments_to_org_keys(
+            previous_assignments, entrypoint_keys
+        )
 
     operations: list[dict[str, object]] = []
 
