@@ -23,8 +23,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
-  actions: read
 
 concurrency:
   group: distribute-client-workflow-security-entrypoint
@@ -34,6 +32,8 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       changed-files-count: ${{ steps.changed-files.outputs.count || 0 }}
       base-ref: ${{ steps.meta.outputs.base-ref }}

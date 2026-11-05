@@ -23,7 +23,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 concurrency:
   group: sync-control-plane-dashboard-legacy
