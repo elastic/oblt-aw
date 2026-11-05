@@ -427,6 +427,14 @@ def lookup_repository_token_policy(config_dir: Path, repository: str) -> str:
     return lookup_repository_workflow_token_policy(config_dir, repository)
 
 
+# Temporary: fold these config org-keys into the named control-plane entrypoint until
+# each has its own TokenPolicy + workflow path (Backstage org label must match).
+# ``docs`` → ``obs`` because ``elastic/opentelemetry`` is still Backstage ``org: obs``.
+CONTROL_PLANE_ORG_KEY_ALIASES: dict[str, tuple[str, ...]] = {
+    "obs": ("docs",),
+}
+
+
 def discover_org_config_dirs(config_dir: Path) -> list[Path]:
     """
     Return sorted org root directories under ``config_dir`` (direct children only).

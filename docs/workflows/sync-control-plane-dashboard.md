@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source file: [.github/workflows/sync-control-plane-dashboard.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard.yml)
+Source files: [.github/workflows/sync-control-plane-dashboard-obs.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard-obs.yml) and [sync-control-plane-dashboard-security.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard-security.yml) (one `workflow_ref` / TokenPolicy per Backstage org).
 
 This workflow creates or updates the **single** Control Plane dashboard issue in each repository listed in the union of org `config/<org-key>/active-repositories.json` files (for example [config/obs/active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json)). The Control Plane dashboard lists workflows **per org** with maturity badges and opt-in checkboxes.
 
@@ -81,7 +81,7 @@ Permissions:
 
 Concurrency:
 
-- group: `sync-control-plane-dashboard`
+- group: `sync-control-plane-dashboard-obs` / `sync-control-plane-dashboard-security`
 - `cancel-in-progress: false`
 
 ## References

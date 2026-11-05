@@ -21,6 +21,7 @@ import sys
 
 from client_workflow_pin import load_release_pointers, resolve_control_plane_pin
 from common import (
+    CONTROL_PLANE_ORG_KEY_ALIASES,
     PR_ACTIONS_DETECTIVE_TRIGGER_DST,
     discover_repo_org_assignments,
     merge_repository_pin_classes_from_org_trees,
@@ -32,7 +33,7 @@ from common import (
 
 REMOTE_TEMPLATE_DIR = pathlib.Path(".github/remote-workflow-template")
 ZERO_SHA = "0000000000000000000000000000000000000000"
-# Keep in lockstep with distribute-client-workflow.yml on.push.paths (except the
+# Keep in lockstep with distribute-client-workflow-*.yml on.push.paths (except the
 # workflow file itself) and the changed-files filter.
 RELEVANT_DIFF_PATHS = (
     "config",
@@ -199,10 +200,39 @@ def should_run_distribution(
     return has_relevant_git_changes(base_ref)
 
 
+def resolve_entrypoint_org_keys(org_key: str, available: set[str]) -> list[str]:
+    """Config org-keys handled by one distribute/sync control-plane entrypoint."""
+    if org_key not in available and org_key not in CONTROL_PLANE_ORG_KEY_ALIASES:
+        raise SystemExit(
+            f"Unknown org-key {org_key!r}; known: {sorted(available) or '(none)'}"
+        )
+    keys = {org_key}
+    keys.update(
+        alias
+        for alias in CONTROL_PLANE_ORG_KEY_ALIASES.get(org_key, ())
+        if alias in available
+    )
+    return sorted(keys)
+
+
+def filter_assignments_to_org_keys(
+    assignments: dict[str, list[str]], org_keys: list[str]
+) -> dict[str, list[str]]:
+    """Keep only repos that belong to at least one of ``org_keys``; drop other orgs."""
+    key_set = set(org_keys)
+    filtered: dict[str, list[str]] = {}
+    for repo, orgs in assignments.items():
+        kept = [org for org in orgs if org in key_set]
+        if kept:
+            filtered[repo] = kept
+    return filtered
+
+
 def main() -> int:
     changed_files_count = int(os.getenv("CHANGED_FILES_COUNT", "0"))
     force_distribution = parse_bool(os.getenv("FORCE_DISTRIBUTION", "false"))
     base_ref = os.getenv("BASE_REF", "").strip()
+    org_key = os.getenv("ORG_KEY", "").strip()
     git_relevant = has_relevant_git_changes(base_ref)
 
     if not should_run_distribution(changed_files_count, force_distribution, base_ref):
@@ -264,6 +294,28 @@ def main() -> int:
     def dst_paths(files: list[dict[str, str]]) -> set[str]:
         return {entry["dst"] for entry in files}
 
+    # Validate destination conflicts against each repo's complete org membership
+    # before narrowing to this entrypoint. Filtering first would skip the check.
+    for repo in sorted(current_assignments):
+        files_for_orgs(current_assignments[repo], at_base_ref=False)
+    for repo in sorted(previous_assignments):
+        files_for_orgs(previous_assignments[repo], at_base_ref=True)
+
+    if org_key:
+        available = {org for orgs in current_assignments.values() for org in orgs} | {
+            org for orgs in previous_assignments.values() for org in orgs
+        }
+        for child in config_dir.iterdir() if config_dir.is_dir() else []:
+            if child.is_dir() and (child / "active-repositories.json").is_file():
+                available.add(child.name)
+        entrypoint_keys = resolve_entrypoint_org_keys(org_key, available)
+        current_assignments = filter_assignments_to_org_keys(
+            current_assignments, entrypoint_keys
+        )
+        previous_assignments = filter_assignments_to_org_keys(
+            previous_assignments, entrypoint_keys
+        )
+
     operations: list[dict[str, object]] = []
 
     for repo in sorted(current_assignments):
@@ -277,6 +329,22 @@ def main() -> int:
         files, remove_files = apply_pr_actions_detective_trigger_gate(
             files, remove_files, allowlist
         )
+        # Security (and other non-obs) entrypoints may see a cross-org allowlist
+        # without owning the obs detective trigger. Clear it so the workflow does
+        # not fail a missing-trigger check or rewrite an obs-owned file.
+        # When this scoped assignment includes obs and monitoring is configured,
+        # a missing trigger is a planner error — clearing would skip validation
+        # and can delete or omit detective coverage silently.
+        if not any(entry["dst"] == PR_ACTIONS_DETECTIVE_TRIGGER_DST for entry in files):
+            if allowlist and "obs" in current_assignments[repo]:
+                raise SystemExit(
+                    f"{repo}: pr-actions-detective-workflows is non-empty but "
+                    f"{PR_ACTIONS_DETECTIVE_TRIGGER_DST} is missing from the "
+                    f"entrypoint file set (orgs: {current_assignments[repo]}). "
+                    "Restore the obs detective trigger template or clear the "
+                    "allowlist."
+                )
+            allowlist = []
         pin_class = pin_classes[repo]
         operations.append(
             {
