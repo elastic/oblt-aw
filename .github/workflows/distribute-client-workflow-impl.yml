@@ -141,13 +141,23 @@ jobs:
       - name: Render PR Actions Detective workflow allowlist
         if: ${{ matrix.target.operation == 'install' }}
         env:
+          FILES_JSON: ${{ toJSON(matrix.target.files) }}
           WORKFLOWS_JSON: ${{ toJSON(matrix.target.pr-actions-detective-workflows) }}
+          TRIGGER_DST: .github/workflows/trigger-obs-aw-workflow-run.yml
           TRIGGER_PATH: ${{ github.workspace }}/target/.github/workflows/trigger-obs-aw-workflow-run.yml
           PYTHONPATH: ${{ github.workspace }}/source/scripts
         run: |
           set -euo pipefail
           if [ "$(jq 'length' <<< "$WORKFLOWS_JSON")" -eq 0 ]; then
             echo "empty pr-actions-detective-workflows; skip render (removal handles stale file)"
+            exit 0
+          fi
+          # Only the entrypoint that installs the trigger may render it (obs).
+          # Security/docs-only file sets keep a cross-org allowlist off the wire
+          # via the planner; this gate still refuses to rewrite a foreign trigger.
+          if ! printf '%s' "$FILES_JSON" | jq -e --arg dst "$TRIGGER_DST" \
+            'map(.dst) | index($dst) != null' >/dev/null; then
+            echo "trigger not in this entrypoint's file set; skip detective render"
             exit 0
           fi
           if [ ! -f "$TRIGGER_PATH" ]; then

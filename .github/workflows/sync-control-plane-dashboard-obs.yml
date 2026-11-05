@@ -70,6 +70,11 @@ jobs:
     if: ${{ needs.prepare-repos.outputs.has_repos == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Shared with sync-control-plane-dashboard-security so dual-org consumers
+    # cannot race the non-atomic dashboard find/create in parallel.
+    concurrency:
+      group: sync-control-plane-dashboard-${{ matrix.repository }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:

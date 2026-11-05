@@ -731,3 +731,112 @@ class TestMain:
         monkeypatch.setenv("ORG_KEY", "obs")
         with pytest.raises(SystemExit, match="Conflicting distribute destination"):
             bto.main()
+
+    def test_org_key_clears_detective_allowlist_without_trigger(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        """Security entrypoint must not carry an obs detective allowlist."""
+        output_file = self._setup_env(
+            monkeypatch,
+            tmp_path,
+            changed_files_count=1,
+            repos=[
+                {
+                    "repository": "elastic/shared",
+                    "pin-class": "production",
+                    "workflow-token-policy": "",
+                    "ai-assets-token-policy": "",
+                    "pr-actions-detective-workflows": ["CI"],
+                }
+            ],
+        )
+        (tmp_path / "config" / "obs" / "active-repositories.json").write_text(
+            json.dumps(
+                {
+                    "repositories": [
+                        {
+                            "repository": "elastic/shared",
+                            "pin-class": "production",
+                            "workflow-token-policy": "",
+                            "ai-assets-token-policy": "",
+                            "pr-actions-detective-workflows": ["CI"],
+                        }
+                    ]
+                }
+            )
+        )
+        sec = tmp_path / "config" / "security"
+        sec.mkdir(parents=True, exist_ok=True)
+        (sec / "workflow-registry.json").write_text(json.dumps({"workflows": []}))
+        (sec / "active-repositories.json").write_text(
+            json.dumps(
+                {
+                    "repositories": [
+                        {
+                            "repository": "elastic/shared",
+                            "pin-class": "production",
+                            "workflow-token-policy": "",
+                            "ai-assets-token-policy": "",
+                        }
+                    ]
+                }
+            )
+        )
+        obs_tmpl = (
+            tmp_path
+            / ".github"
+            / "remote-workflow-template"
+            / "obs"
+            / ".github"
+            / "workflows"
+        )
+        (obs_tmpl / "trigger-obs-aw-workflow-run.yml").write_text(
+            'workflows: ["__OBLT_AW_PR_ACTIONS_DETECTIVE_WORKFLOWS__"]\n'
+        )
+        sec_tmpl = (
+            tmp_path
+            / ".github"
+            / "remote-workflow-template"
+            / "security"
+            / ".github"
+            / "workflows"
+        )
+        sec_tmpl.mkdir(parents=True, exist_ok=True)
+        (sec_tmpl / "trigger-security-aw-pull-request.yml").write_text(
+            "name: security\n"
+        )
+
+        monkeypatch.setenv("ORG_KEY", "security")
+        assert bto.main() == 0
+        targets_sec = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in output_file.read_text().splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        install_sec = next(
+            t for t in targets_sec if t["repository"] == "elastic/shared"
+        )
+        assert install_sec["pr-actions-detective-workflows"] == []
+        assert ".github/workflows/trigger-obs-aw-workflow-run.yml" not in {
+            f["dst"] for f in install_sec["files"]
+        }
+
+        output_file.write_text("")
+        monkeypatch.setenv("ORG_KEY", "obs")
+        assert bto.main() == 0
+        targets_obs = json.loads(
+            next(
+                line.split("=", 1)[1]
+                for line in output_file.read_text().splitlines()
+                if line.startswith("targets=")
+            )
+        )
+        install_obs = next(
+            t for t in targets_obs if t["repository"] == "elastic/shared"
+        )
+        assert install_obs["pr-actions-detective-workflows"] == ["CI"]
+        assert ".github/workflows/trigger-obs-aw-workflow-run.yml" in {
+            f["dst"] for f in install_obs["files"]
+        }

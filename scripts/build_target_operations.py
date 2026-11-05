@@ -329,6 +329,11 @@ def main() -> int:
         files, remove_files = apply_pr_actions_detective_trigger_gate(
             files, remove_files, allowlist
         )
+        # Entrypoint-scoped installs (e.g. security) may see a cross-org allowlist
+        # without owning the obs detective trigger. Clear it so the workflow does
+        # not fail a missing-trigger check or rewrite an obs-owned file.
+        if not any(entry["dst"] == PR_ACTIONS_DETECTIVE_TRIGGER_DST for entry in files):
+            allowlist = []
         pin_class = pin_classes[repo]
         operations.append(
             {
