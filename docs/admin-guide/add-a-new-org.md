@@ -26,7 +26,7 @@ flowchart TD
 
 ### 1. Scaffold the org in `elastic/oblt-aw`
 
-Complete the mandatory checklist in [AGENTS.md — Adding a new org key](https://github.com/elastic/oblt-aw/blob/main/AGENTS.md) and [multi-org design §10](../architecture/multi-org-agentic-workflows.md#10-adding-a-new-org-key-implementation-checklist) in **one** change set:
+Complete the mandatory checklist in [AGENTS.md — Adding a new org key](https://github.com/elastic/oblt-aw/blob/main/AGENTS.md) and [multi-org design §10](../architecture/multi-org-agentic-workflows.md#adding-a-new-org-key) in **one** change set:
 
 | Step | What to change |
 |------|----------------|
@@ -146,7 +146,7 @@ After the org scaffold exists, register repositories with [Registering resources
 
 - [AGENTS.md — Adding a new org key](https://github.com/elastic/oblt-aw/blob/main/AGENTS.md)
 - [distribute-client-workflow](../operations/distribute-client-workflow.md)
-- [Multi-organization agentic workflows §10](../architecture/multi-org-agentic-workflows.md#10-adding-a-new-org-key-implementation-checklist)
+- [Multi-organization agentic workflows §10](../architecture/multi-org-agentic-workflows.md#adding-a-new-org-key)
 - [observability-github-settings CONTRIBUTING](https://github.com/elastic/observability-github-settings/blob/main/CONTRIBUTING.md#organization-layout) — `resources/<org>/…` and `orgs.json`
 - [Registering resources](../onboarding/registering-a-repository.md) — one consumer repository
 - [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md)
