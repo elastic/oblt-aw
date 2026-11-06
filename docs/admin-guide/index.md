@@ -1,12 +1,12 @@
 ---
 navigation_title: Admin guide
-description: Maintain the oblt-aw framework — add workflows, change maturity, configure secrets, ephemeral tokens, and promote or roll back releases.
+description: Maintain the oblt-aw framework — add orgs and workflows, change maturity, configure secrets, ephemeral tokens, and promote or roll back releases.
 applies_to: {}
 ---
 
 # Admin guide
 
-Procedures for **framework maintainers** — people who change [`elastic/oblt-aw`](https://github.com/elastic/oblt-aw) or related agentic assets (new workflows, maturity, secrets, ephemeral tokens, promote and rollback). This is not the GitHub Admin role on a target repository.
+Procedures for **framework maintainers** — people who change [`elastic/oblt-aw`](https://github.com/elastic/oblt-aw) or related agentic assets (new orgs, workflows, maturity, secrets, ephemeral tokens, promote and rollback). This is not the GitHub Admin role on a target repository.
 
 Target repository owners who only enable or disable existing workflows should use the [User guide](../user-guide/index.md).
 
@@ -21,6 +21,7 @@ flowchart LR
 
 | Goal | Guide |
 |------|--------|
+| Add a new org key (`config/<org-key>/`) | [Add a new org key](add-a-new-org.md) |
 | Change maturity or Control Plane dashboard sync behavior | [Change maturity level](change-maturity-level.md) |
 | Contribute to `elastic/oblt-aw` (local setup, pre-commit) | [Contributing](../development/contributing.md) |
 | Decide if a repository secret is required vs ephemeral tokens | [Configure a GitHub secret](configure-a-github-secret.md) |
