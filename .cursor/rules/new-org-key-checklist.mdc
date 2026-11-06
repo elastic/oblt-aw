@@ -11,7 +11,7 @@ alwaysApply: false
 
 # New org key — do not skip prelude route coverage
 
-When adding or scaffolding a new `config/<org-key>/` (or `<org-key>-aw-*` workflows), follow **`AGENTS.md` → Adding a new org key** and [docs/architecture/multi-org-agentic-workflows.md](../../docs/architecture/multi-org-agentic-workflows.md) §10.
+When adding or scaffolding a new `config/<org-key>/` (or `<org-key>-aw-*` workflows), follow **`AGENTS.md` → Adding a new org key**, the maintainer runbook [docs/admin-guide/add-a-new-org.md](../../docs/admin-guide/add-a-new-org.md), and [docs/architecture/multi-org-agentic-workflows.md](../../docs/architecture/multi-org-agentic-workflows.md) §10.
 
 ## Non-negotiable for the prelude validator
 

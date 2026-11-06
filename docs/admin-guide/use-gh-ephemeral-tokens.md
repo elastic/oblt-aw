@@ -53,14 +53,27 @@ Full procedure and YAML template: [Registering resources](../onboarding/register
 
 ## Framework fixed policies
 
-Some framework workflows use explicit policy ids in YAML (not copied into consumer repos):
+Some framework workflows use explicit policy ids in YAML (not copied into consumer repos). Role names are `token-policy-` plus the first 12 hex chars of SHA-256 over the **workflow path only** (no `@ref`).
+
+**Legacy shared entrypoints** (still present on `main` until org-scoped wrappers fully replace them):
 
 | Workflow | Policy id (in this repo) |
 |----------|--------------------------|
 | [distribute-client-workflow](../workflows/distribute-client-workflow.md) | `token-policy-63405ab45244` |
 | [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) | `token-policy-8b60ba56dd3f` |
 
-Their `permissionset.selector` lists in `elastic/catalog-info` must include every registered consumer. Onboard validates Observability Backstage coverage (`resources/github/engineering/obs/<repo>.yaml`); when missing, it adds the slug to `ALWAYS_INCLUDE_REPOS` in `update_token_policy.py` and refreshes the selectors in the same catalog PR. Weekly `update-token-policy-obs-repositories` rebuilds from Obs Backstage plus that set — it does not read `active-repositories.json`. See [Registering resources](../onboarding/registering-a-repository.md) (inventory order 1, step **2e**).
+**Per-org entrypoints** (required so catalog-info selectors and pr-approval stay within one Backstage org). Example role names for the obs/security split:
+
+| Workflow path | Policy id |
+|---------------|-----------|
+| `distribute-client-workflow-obs.yml` | `token-policy-b30d4481761c` |
+| `sync-control-plane-dashboard-obs.yml` | `token-policy-a95a5021fec0` |
+| `distribute-client-workflow-security.yml` | `token-policy-63c1b5b6691c` |
+| `sync-control-plane-dashboard-security.yml` | `token-policy-16edac196fcc` |
+
+When adding another org, create matching entrypoints and catalog TokenPolicies — see [Add a new org key](add-a-new-org.md). Companion entrypoint PR: [oblt-aw#2491](https://github.com/elastic/oblt-aw/pull/2491).
+
+Their `permissionset.selector` lists in `elastic/catalog-info` must cover the repositories that org’s sync/distribute jobs touch. Control-plane key `docs` still uses the **`obs`** policies and engineering tree until Backstage labels match. Until [oblt-aw#2491](https://github.com/elastic/oblt-aw/pull/2491) replaces the shared entrypoints on `main`, keep new private consumers on the legacy shared policy selectors as well (see [Registering resources](../onboarding/registering-a-repository.md) step **2e**). Weekly `update-token-policy-obs-repositories` rebuilds selectors from `resources/github/engineering/<org>/` (one PR per org via `--org`) and does not read `active-repositories.json`. See [Registering resources](../onboarding/registering-a-repository.md) and [Add a new org key](add-a-new-org.md).
 
 ## Example: workflow without repository secrets
 
@@ -78,7 +91,8 @@ See [create-token or OIDC failures](../troubleshooting/common-problems/create-to
 
 ## See also
 
-- [Registering resources](../onboarding/registering-a-repository.md)
-- [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md) — `ai-assets-token-policy` and APM installs
+- [Add a new org key](add-a-new-org.md) — org-scoped sync/distribute TokenPolicies
 - [aw-prelude](../workflows/aw-prelude.md) — `token-policy` output
+- [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md) — `ai-assets-token-policy` and APM installs
 - [Configure a GitHub secret](configure-a-github-secret.md) — when long-lived secrets are still required
+- [Registering resources](../onboarding/registering-a-repository.md)

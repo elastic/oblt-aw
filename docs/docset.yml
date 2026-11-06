@@ -24,6 +24,7 @@ toc:
     children:
       - file: index.md
       - file: add-a-new-agentic-workflow.md
+      - file: add-a-new-org.md
       - file: change-maturity-level.md
       - file: configure-a-github-secret.md
       - file: opt-in-common-services.md

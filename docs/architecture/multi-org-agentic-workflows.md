@@ -159,9 +159,9 @@ This migration is already implemented in this repository:
 
 ---
 
-## 10. Adding a new org key (implementation checklist)
+## 10. Adding a new org key (implementation checklist) [adding-a-new-org-key]
 
-Use this when scaffolding another `config/<org-key>/` (same shape as `obs`, `docs`, `security`):
+Use this when scaffolding another `config/<org-key>/` (same shape as `obs`, `docs`, `security`). Full maintainer runbook (including catalog-info TokenPolicies and org-scoped sync/distribute): [Add a new org key](../admin-guide/add-a-new-org.md).
 
 | Step | What to change |
 |------|----------------|
