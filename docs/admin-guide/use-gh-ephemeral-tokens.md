@@ -73,7 +73,7 @@ Some framework workflows use explicit policy ids in YAML (not copied into consum
 
 When adding another org, create matching entrypoints and catalog TokenPolicies — see [Add a new org key](add-a-new-org.md). Companion entrypoint PR: [oblt-aw#2491](https://github.com/elastic/oblt-aw/pull/2491).
 
-Their `permissionset.selector` lists in `elastic/catalog-info` must cover the repositories that org’s sync/distribute jobs touch. Weekly `update-token-policy-obs-repositories` rebuilds selectors from `resources/github/engineering/<org>/` (one PR per org via `--org`) and does not read `active-repositories.json`. See [Registering resources](../onboarding/registering-a-repository.md) and [Add a new org key](add-a-new-org.md).
+Their `permissionset.selector` lists in `elastic/catalog-info` must cover the repositories that org’s sync/distribute jobs touch. Control-plane key `docs` still uses the **`obs`** policies and engineering tree until Backstage labels match. Until [oblt-aw#2491](https://github.com/elastic/oblt-aw/pull/2491) replaces the shared entrypoints on `main`, keep new private consumers on the legacy shared policy selectors as well (see [Registering resources](../onboarding/registering-a-repository.md) step **2e**). Weekly `update-token-policy-obs-repositories` rebuilds selectors from `resources/github/engineering/<org>/` (one PR per org via `--org`) and does not read `active-repositories.json`. See [Registering resources](../onboarding/registering-a-repository.md) and [Add a new org key](add-a-new-org.md).
 
 ## Example: workflow without repository secrets
 

@@ -128,10 +128,12 @@ From `elastic/catalog-info` (local check of role names):
 
 Merge order that keeps minting and approval sane:
 
-1. Org-scoped entrypoints in `oblt-aw` (or the same train as catalog, if policies already point at those paths).
-2. Catalog TokenPolicies for that org (separate PR from other orgs), including the settings apply policy when the org is new to settings IaC.
+1. Catalog TokenPolicies for that org (separate PR from other orgs), including the settings apply policy when the org is new to settings IaC — Vault roles must exist **before** org-scoped entrypoints mint.
+2. Org-scoped entrypoints in `oblt-aw` (merge only after those catalog policies are active on the production catalog branch).
 3. `orgs.json` + first `resources/<org-key>/…` stacks in observability-github-settings.
 4. Updater matrix entry for the org once the sync/distribute policy files are on `main`.
+
+Do not enable an org-scoped sync/distribute wrapper that already has active repositories (or that triggers on its own workflow path) until its catalog role can mint successfully.
 
 ### 7. First consumers
 
@@ -139,7 +141,7 @@ After the org scaffold exists, register repositories with [Registering resources
 
 ## Notes and deferrals
 
-- **Docs org** — Same sync/distribute TokenPolicy pattern applies when Backstage labels for `config/docs` consumers are aligned. Until then, treat docs fleet TokenPolicies as deferred (same callout as the obs/security catalog split).
+- **Docs org** — Control-plane key `docs` still maps to Backstage / fleet suffix **`obs`** until consumer `metadata.labels.org` is `docs` (same temporary mapping as [oblt-aw#2491](https://github.com/elastic/oblt-aw/pull/2491)). Do not invent `-docs` sync/distribute TokenPolicies or `resources/github/engineering/docs/` for current docs consumers; use the Obs engineering tree and obs-suffixed policies. Full Docs-only fleet policies stay deferred until labels align.
 - **Shared common workflows** — Opting an org into `config/common` is a separate admin step: [Opt in or out of agentic workflows from other orgs](opt-in-common-services.md).
 
 ## See also
