@@ -25,28 +25,79 @@ to GITHUB_OUTPUT:
 - has_repos: "true" or "false"
 - repos_count: number of repositories
 
+When ``--org-key`` (or ``ORG_KEY``) is set, only that org tree is included, plus any temporary
+alias org keys folded into that entrypoint (see ``CONTROL_PLANE_ORG_KEY_ALIASES``).
+
 Related issue: https://github.com/elastic/observability-robots/issues/3732
 """
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 from common import (
+    CONTROL_PLANE_ORG_KEY_ALIASES,
+    discover_org_keys_sorted,
     merge_active_repositories_from_org_trees,
     merge_repository_workflow_token_policies_from_org_trees,
+    parse_repositories,
     write_outputs,
 )
 
 
-def main() -> int:
+def resolve_org_keys_for_entrypoint(org_key: str, config_dir: Path) -> list[str]:
+    """Return sorted config org-keys handled by a control-plane entrypoint."""
+    known = set(discover_org_keys_sorted(config_dir))
+    if org_key not in known and org_key not in CONTROL_PLANE_ORG_KEY_ALIASES:
+        raise SystemExit(
+            f"Unknown org-key {org_key!r}; known: {sorted(known) or '(none)'}"
+        )
+    keys = {org_key}
+    keys.update(
+        alias
+        for alias in CONTROL_PLANE_ORG_KEY_ALIASES.get(org_key, ())
+        if alias in known
+    )
+    return sorted(keys)
+
+
+def repositories_for_org_keys(config_dir: Path, org_keys: list[str]) -> list[str]:
+    """Union of active repositories for the given org-keys only."""
+    merged: set[str] = set()
+    for key in org_keys:
+        path = config_dir / key / "active-repositories.json"
+        if not path.is_file():
+            raise SystemExit(f"Missing active-repositories.json for org-key {key!r}")
+        merged.update(parse_repositories(path.read_text(encoding="utf-8")))
+    return sorted(merged)
+
+
+def main(argv: list[str] | None = None) -> int:
     """Entry point."""
+    parser = argparse.ArgumentParser(
+        description="Build active-repositories matrix for sync workflows"
+    )
+    parser.add_argument(
+        "--org-key",
+        default=os.environ.get("ORG_KEY", "").strip(),
+        help="Limit matrix to this control-plane org entrypoint (and aliases)",
+    )
+    args = parser.parse_args(argv)
+
     root = Path(__file__).resolve().parent.parent
     config_dir = root / "config"
-    repos = merge_active_repositories_from_org_trees(config_dir)
     token_policies = merge_repository_workflow_token_policies_from_org_trees(config_dir)
+
+    if args.org_key:
+        org_keys = resolve_org_keys_for_entrypoint(args.org_key, config_dir)
+        repos = repositories_for_org_keys(config_dir, org_keys)
+    else:
+        repos = merge_active_repositories_from_org_trees(config_dir)
+
     matrix = [
         {
             "repository": repo,

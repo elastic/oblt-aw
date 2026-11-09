@@ -57,8 +57,10 @@ Some framework workflows use explicit policy ids in YAML (not copied into consum
 
 | Workflow | Policy id (in this repo) |
 |----------|--------------------------|
-| [distribute-client-workflow](../workflows/distribute-client-workflow.md) | `token-policy-63405ab45244` |
-| [sync-control-plane-dashboard](../workflows/sync-control-plane-dashboard.md) | `token-policy-8b60ba56dd3f` |
+| [distribute-client-workflow-obs](../workflows/distribute-client-workflow.md) | `token-policy-b30d4481761c` |
+| [distribute-client-workflow-security](../workflows/distribute-client-workflow.md) | `token-policy-63c1b5b6691c` |
+| [sync-control-plane-dashboard-obs](../workflows/sync-control-plane-dashboard.md) | `token-policy-a95a5021fec0` |
+| [sync-control-plane-dashboard-security](../workflows/sync-control-plane-dashboard.md) | `token-policy-16edac196fcc` |
 
 Their `permissionset.selector` lists in `elastic/catalog-info` must include every registered consumer. Onboard validates Observability Backstage coverage (`resources/github/engineering/obs/<repo>.yaml`); when missing, it adds the slug to `ALWAYS_INCLUDE_REPOS` in `update_token_policy.py` and refreshes the selectors in the same catalog PR. Weekly `update-token-policy-obs-repositories` rebuilds from Obs Backstage plus that set — it does not read `active-repositories.json`. See [Registering resources](../onboarding/registering-a-repository.md) (inventory order 1, step **2e**).
 

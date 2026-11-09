@@ -1,21 +1,19 @@
 name: Distribute Client Workflow
 
+# Deprecated monolith entrypoint. Org-scoped workflows own OIDC TokenPolicies:
+#   distribute-client-workflow-obs.yml
+#   distribute-client-workflow-security.yml
+
 on:
   push:
     branches:
       - main
     paths:
-      - config/**/active-repositories.json
-      - config/release-pointers.json
-      - .github/remote-workflow-template/**
       - .github/workflows/distribute-client-workflow.yml
-      - scripts/build_target_operations.py
-      - scripts/client_workflow_pin.py
-      - scripts/common.py
   workflow_dispatch:
     inputs:
       force:
-        description: Force distribution even when no relevant files changed
+        description: Unused on the legacy entrypoint; run org-scoped distribute workflows instead
         required: false
         default: false
         type: boolean
@@ -24,332 +22,24 @@ permissions:
   contents: read
 
 concurrency:
-  group: distribute-client-workflow
+  group: distribute-client-workflow-legacy
   cancel-in-progress: false
 
 jobs:
-  prepare-targets:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      targets: ${{ steps.targets.outputs.targets }}
-      has_targets: ${{ steps.targets.outputs.has_targets }}
-      relevant_git_changes: ${{ steps.targets.outputs.relevant_git_changes }}
-      install_count: ${{ steps.targets.outputs.install_count }}
-      remove_count: ${{ steps.targets.outputs.remove_count }}
-      total_count: ${{ steps.targets.outputs.total_count }}
-    steps:
-      - name: Checkout source repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Detect relevant file changes
-        id: changed-files
-        if: ${{ github.event_name == 'push' }}
-        uses: elastic/oblt-actions/github/changed-files@v1
-        with:
-          base-ref: ${{ github.event.before }}
-          ref: ${{ github.sha }}
-          filter: '["config/**/active-repositories.json","config/release-pointers.json",".github/remote-workflow-template/**","scripts/build_target_operations.py","scripts/client_workflow_pin.py","scripts/common.py"]'
-
-      - name: Setup Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.14"
-          cache: pip
-          cache-dependency-path: requirements-runtime.txt
-
-      - name: Build target operations matrix
-        id: targets
-        env:
-          CHANGED_FILES_COUNT: ${{ steps.changed-files.outputs.count || 0 }}
-          BASE_REF: ${{ github.event.before }}
-          FORCE_DISTRIBUTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force || 'false' }}
-        run: python scripts/build_target_operations.py
-
-      - name: Write target operations summary
-        env:
-          INSTALL_COUNT: ${{ steps.targets.outputs.install_count }}
-          REMOVE_COUNT: ${{ steps.targets.outputs.remove_count }}
-          TOTAL_COUNT: ${{ steps.targets.outputs.total_count }}
-          CHANGED_FILES_COUNT: ${{ steps.changed-files.outputs.count || 0 }}
-          RELEVANT_GIT_CHANGES: ${{ steps.targets.outputs.relevant_git_changes || 'false' }}
-          FORCE_DISTRIBUTION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force || 'false' }}
-        run: |
-          {
-            echo "## Distribution target summary"
-            echo
-            echo "- Relevant changed files (changed-files action): ${CHANGED_FILES_COUNT}"
-            echo "- Relevant git diff (config + templates): ${RELEVANT_GIT_CHANGES}"
-            echo "- Force distribution: ${FORCE_DISTRIBUTION}"
-            echo "- Install/update targets: ${INSTALL_COUNT}"
-            echo "- Removal targets: ${REMOVE_COUNT}"
-            echo "- Total target operations: ${TOTAL_COUNT}"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  create-prs:
-    needs: prepare-targets
-    if: ${{ needs.prepare-targets.outputs.has_targets == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      id-token: write
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        target: ${{ fromJSON(needs.prepare-targets.outputs.targets) }}
-    steps:
-      - name: Checkout source repository
-        uses: actions/checkout@v7
-        with:
-          path: source
-
-      - name: Create ephemeral GitHub token
-        id: create-token
-        uses: elastic/oblt-actions/github/create-token@v1
-        with:
-          token-policy: token-policy-63405ab45244
-
-      - name: Checkout target repository
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ matrix.target.repository }}
-          token: ${{ steps.create-token.outputs.token }}
-          path: target
-
-      - name: Sync client files into target repository
-        if: ${{ matrix.target.operation == 'install' }}
-        env:
-          FILES_JSON: ${{ toJSON(matrix.target.files) }}
-          CONTROL_PLANE_PIN: ${{ matrix.target.control-plane-pin }}
-          TARGET_ROOT: ${{ github.workspace }}/target
-        run: |
-          set -euo pipefail
-
-          printf '%s' "$FILES_JSON" | jq -c '.[]' | while IFS= read -r entry; do
-            src="$GITHUB_WORKSPACE/source/$(printf '%s' "$entry" | jq -r '.src')"
-            dst="$GITHUB_WORKSPACE/target/$(printf '%s' "$entry" | jq -r '.dst')"
-            mkdir -p "$(dirname "$dst")"
-            cp "$src" "$dst"
-          done
-
-          python3 "$GITHUB_WORKSPACE/source/scripts/client_workflow_pin.py"
-
-      - name: Render PR Actions Detective workflow allowlist
-        if: ${{ matrix.target.operation == 'install' }}
-        env:
-          WORKFLOWS_JSON: ${{ toJSON(matrix.target.pr-actions-detective-workflows) }}
-          TRIGGER_PATH: ${{ github.workspace }}/target/.github/workflows/trigger-obs-aw-workflow-run.yml
-          PYTHONPATH: ${{ github.workspace }}/source/scripts
-        run: |
-          set -euo pipefail
-          if [ "$(jq 'length' <<< "$WORKFLOWS_JSON")" -eq 0 ]; then
-            echo "empty pr-actions-detective-workflows; skip render (removal handles stale file)"
-            exit 0
-          fi
-          if [ ! -f "$TRIGGER_PATH" ]; then
-            echo "::error::trigger-obs-aw-workflow-run.yml missing while pr-actions-detective-workflows is non-empty; refuse silent skip"
-            exit 1
-          fi
-          python3 "${GITHUB_WORKSPACE}/source/scripts/render_pr_actions_detective_trigger.py" \
-            --path "$TRIGGER_PATH" \
-            --workflows-json "$WORKFLOWS_JSON"
-
-      - name: Remove obsolete client files from target repository
-        if: ${{ matrix.target.operation == 'install' }}
-        env:
-          REMOVE_FILES_JSON: ${{ toJSON(matrix.target.remove_files) }}
-        run: |
-          set -euo pipefail
-
-          printf '%s' "$REMOVE_FILES_JSON" | jq -r '.[]' | while IFS= read -r dst; do
-            rm -f "$GITHUB_WORKSPACE/target/$dst"
-          done
-
-      - name: Remove client files from target repository
-        if: ${{ matrix.target.operation == 'remove' }}
-        env:
-          FILES_JSON: ${{ toJSON(matrix.target.files) }}
-        run: |
-          set -euo pipefail
-
-          printf '%s' "$FILES_JSON" | jq -c '.[]' | while IFS= read -r entry; do
-            dst="$GITHUB_WORKSPACE/target/$(printf '%s' "$entry" | jq -r '.dst')"
-            rm -f "$dst"
-          done
-
-      - name: Render installed files list
-        if: ${{ matrix.target.operation == 'install' }}
-        id: files-md-install
-        env:
-          FILES_JSON: ${{ toJSON(matrix.target.files) }}
-        run: |
-          set -euo pipefail
-          {
-            echo 'list<<FILES_EOF'
-            printf '%s' "$FILES_JSON" | jq -r '.[] | "- `\(.dst)` (from `\(.src)`)"'
-            echo 'FILES_EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Render removed obsolete files list
-        if: ${{ matrix.target.operation == 'install' }}
-        id: files-md-install-remove
-        env:
-          REMOVE_FILES_JSON: ${{ toJSON(matrix.target.remove_files) }}
-        run: |
-          set -euo pipefail
-          {
-            echo 'list<<FILES_EOF'
-            count="$(printf '%s' "$REMOVE_FILES_JSON" | jq 'length')"
-            if [[ "$count" -eq 0 ]]; then
-              echo '_None._'
-            else
-              printf '%s' "$REMOVE_FILES_JSON" | jq -r '.[] | "- `\(.)`"'
-            fi
-            echo 'FILES_EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Resolve PR labels for target repository
-        id: pr-labels
-        env:
-          GH_TOKEN: ${{ steps.create-token.outputs.token }}
-          TARGET_REPOSITORY: ${{ matrix.target.repository }}
-        run: |
-          set -euo pipefail
-          # Always apply control-plane labels. Add optional labels only when the
-          # target repo already defines them (do not create labels).
-          # Optional prepend order: alphabetical (backport-active-all, skip-changelog).
-          labels='oblt-aw/ai/merge-ready'
-          if gh api "repos/${TARGET_REPOSITORY}/labels/changelog:ci" --jq .name >/dev/null 2>&1; then
-            labels="changelog:ci,${labels}"
-          fi
-          if gh api "repos/${TARGET_REPOSITORY}/labels/skip-changelog" --jq .name >/dev/null 2>&1; then
-            labels="skip-changelog,${labels}"
-          fi
-          if gh api "repos/${TARGET_REPOSITORY}/labels/backport-active-all" --jq .name >/dev/null 2>&1; then
-            labels="backport-active-all,${labels}"
-          fi
-          echo "labels=${labels}" >> "$GITHUB_OUTPUT"
-
-      - name: Create or update installation PR in target repository
-        if: ${{ matrix.target.operation == 'install' }}
-        id: cpr
-        env:
-          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
-        with:
-          token: ${{ steps.create-token.outputs.token }}
-          path: target
-          sign-commits: true
-          branch: oblt-aw/sync-client-workflow
-          labels: ${{ steps.pr-labels.outputs.labels }}
-          commit-message: Sync agentic workflow files from elastic/oblt-aw
-          title: Sync agentic workflow files from elastic/oblt-aw
-          body: |
-            This PR installs/updates files managed remotely by elastic/oblt-aw.
-
-            Files synced:
-            ${{ steps.files-md-install.outputs.list }}
-
-            Files removed (no longer in the template tree):
-            ${{ steps.files-md-install-remove.outputs.list }}
-
-            ---
-            Created by [workflow run](${{ env.JOB_URL }})
-
-      - name: Render removed files list
-        if: ${{ matrix.target.operation == 'remove' }}
-        id: files-md-remove
-        env:
-          FILES_JSON: ${{ toJSON(matrix.target.files) }}
-        run: |
-          set -euo pipefail
-          {
-            echo 'list<<FILES_EOF'
-            printf '%s' "$FILES_JSON" | jq -r '.[] | "- `\(.dst)`"'
-            echo 'FILES_EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Create or update removal PR in target repository
-        if: ${{ matrix.target.operation == 'remove' }}
-        id: cpr-remove
-        env:
-          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
-        with:
-          token: ${{ steps.create-token.outputs.token }}
-          path: target
-          sign-commits: true
-          branch: oblt-aw/remove-client-workflow
-          labels: ${{ steps.pr-labels.outputs.labels }}
-          commit-message: Remove agentic workflow files managed by elastic/oblt-aw
-          title: Remove agentic workflow files managed by elastic/oblt-aw
-          body: |
-            This PR removes files managed remotely by elastic/oblt-aw because the repository is no longer admitted by any org.
-
-            Files removed:
-            ${{ steps.files-md-remove.outputs.list }}
-
-            ---
-            Created by [workflow run](${{ env.JOB_URL }})
-
-      - name: Verify PR commit signatures
-        env:
-          TARGET_REPOSITORY: ${{ matrix.target.repository }}
-          OPERATION: ${{ matrix.target.operation == 'install' && steps.cpr.outputs.pull-request-operation || steps.cpr-remove.outputs.pull-request-operation }}
-          COMMITS_VERIFIED: ${{ matrix.target.operation == 'install' && steps.cpr.outputs.pull-request-commits-verified || steps.cpr-remove.outputs.pull-request-commits-verified }}
-        run: |
-          if [[ "$OPERATION" == "created" || "$OPERATION" == "updated" ]]; then
-            if [[ "$COMMITS_VERIFIED" != "true" ]]; then
-              echo "PR commits were not verified for $TARGET_REPOSITORY." >&2
-              exit 1
-            fi
-          fi
-
-      - name: Record PR result
-        if: always()
-        env:
-          TARGET_REPOSITORY: ${{ matrix.target.repository }}
-          PULL_REQUEST_URL_INSTALL: ${{ steps.cpr.outputs.pull-request-url }}
-          PULL_REQUEST_OPERATION_INSTALL: ${{ steps.cpr.outputs.pull-request-operation }}
-          PULL_REQUEST_URL_REMOVE: ${{ steps.cpr-remove.outputs.pull-request-url }}
-          PULL_REQUEST_OPERATION_REMOVE: ${{ steps.cpr-remove.outputs.pull-request-operation }}
-          JOB_INDEX: ${{ strategy.job-index }}
-        run: |
-          set -euo pipefail
-
-          if [[ -n "$PULL_REQUEST_URL_INSTALL" ]]; then
-            printf '%s|%s|%s\n' "$TARGET_REPOSITORY" "$PULL_REQUEST_OPERATION_INSTALL" "$PULL_REQUEST_URL_INSTALL"
-          elif [[ -n "$PULL_REQUEST_URL_REMOVE" ]]; then
-            printf '%s|%s|%s\n' "$TARGET_REPOSITORY" "$PULL_REQUEST_OPERATION_REMOVE" "$PULL_REQUEST_URL_REMOVE"
-          else
-            printf '%s|skipped|-\n' "$TARGET_REPOSITORY"
-          fi > "pr-result-${JOB_INDEX}.txt"
-
-      - name: Upload PR result artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: pr-result-${{ strategy.job-index }}
-          path: pr-result-${{ strategy.job-index }}.txt
-
-  summarize:
-    needs: create-prs
-    if: ${{ always() && needs.create-prs.result != 'skipped' }}
+  redirect:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout source repository
-        uses: actions/checkout@v7
-
-      - name: Download all PR result artifacts
-        uses: actions/download-artifact@v8
-        with:
-          pattern: pr-result-*
-          merge-multiple: true
-          path: pr-results
-
-      - name: Emit consolidated annotation and summary
-        run: bash scripts/summarize_pr_results.sh
+      - name: Point operators at org-scoped distribute workflows
+        run: |
+          {
+            echo "## Deprecated entrypoint"
+            echo
+            echo "Use these workflows instead (unique workflow_ref per Backstage org):"
+            echo
+            echo "- \`distribute-client-workflow-obs.yml\`"
+            echo "- \`distribute-client-workflow-security.yml\`"
+            echo
+            echo "This legacy workflow no longer mints tokens or opens distribute PRs."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::Legacy distribute-client-workflow.yml is a no-op; use org-scoped distribute workflows."
