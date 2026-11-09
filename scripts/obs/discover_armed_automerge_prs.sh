@@ -20,9 +20,11 @@
 #
 # Required env:
 #   GITHUB_REPOSITORY, GITHUB_OUTPUT, GH_TOKEN
-#   OBLT_AW_ROOT — checkout of elastic/oblt-aw (scripts + requirements already used)
-#   ORG_KEY — consuming org key for apm.yml resolve (default obs)
 # Optional:
+#   OBLT_AW_ROOT — checkout of elastic/oblt-aw with resolve_automerge_policy_cli.py.
+#     When unset or the resolver is missing (legacy @v0 sparse fetch of this script
+#     alone), discover falls back to merge-ready-only label filtering.
+#   ORG_KEY — consuming org key for apm.yml resolve (default obs)
 #   AUTOMERGE_DISCOVER_MAX_CANDIDATES (default 100)
 #   GITHUB_RUN_NUMBER — rotates the eligible batch across ticks
 #   POLICY_CACHE_DIR — directory for per-base-SHA policy cache
@@ -30,18 +32,24 @@ set -euo pipefail
 
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 OUT="${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
-OBLT_AW_ROOT="${OBLT_AW_ROOT:?OBLT_AW_ROOT is required}"
 ORG_KEY="${ORG_KEY:-obs}"
 MAX_CANDIDATES="${AUTOMERGE_DISCOVER_MAX_CANDIDATES:-100}"
 RUN_NUMBER="${GITHUB_RUN_NUMBER:-0}"
 POLICY_CACHE_DIR="${POLICY_CACHE_DIR:-${RUNNER_TEMP:-/tmp}/automerge-policy-by-base}"
+OBLT_AW_ROOT="${OBLT_AW_ROOT:-}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=automerge_armed_lib.sh
 # shellcheck disable=SC1091 # sourced via SCRIPT_DIR; file lives next to this script
 source "${SCRIPT_DIR}/automerge_armed_lib.sh"
 
-mkdir -p "${POLICY_CACHE_DIR}"
+LEGACY_MERGE_READY_ONLY=false
+if [[ -z "${OBLT_AW_ROOT}" || ! -f "${OBLT_AW_ROOT}/scripts/resolve_automerge_policy_cli.py" ]]; then
+  LEGACY_MERGE_READY_ONLY=true
+  echo "Discover: OBLT_AW_ROOT/resolver unavailable; using merge-ready-only legacy path." >&2
+else
+  mkdir -p "${POLICY_CACHE_DIR}"
+fi
 
 # Resolve trigger-labels JSON for a trusted PR base SHA (cached on disk).
 # Prints a JSON string array to stdout.
@@ -103,17 +111,22 @@ while IFS=$'\t' read -r pr_number head_sha; do
     continue
   fi
 
-  base_sha="$(gh api "repos/${REPO}/pulls/${pr_number}" --jq '.base.sha')" || {
-    echo "Failed to resolve base.sha for ${REPO}#${pr_number}; aborting discover." >&2
-    exit 1
-  }
-  if [[ -z "${base_sha}" || "${base_sha}" == "null" ]]; then
-    echo "Empty base.sha for ${REPO}#${pr_number}; aborting discover." >&2
-    exit 1
+  if [[ "${LEGACY_MERGE_READY_ONLY}" == "true" ]]; then
+    # Self-contained path for @v0 callers that only sparse-fetch this script.
+    unset AUTOMERGE_TRIGGER_LABELS_JSON || true
+    base_sha="legacy"
+  else
+    base_sha="$(gh api "repos/${REPO}/pulls/${pr_number}" --jq '.base.sha')" || {
+      echo "Failed to resolve base.sha for ${REPO}#${pr_number}; aborting discover." >&2
+      exit 1
+    }
+    if [[ -z "${base_sha}" || "${base_sha}" == "null" ]]; then
+      echo "Empty base.sha for ${REPO}#${pr_number}; aborting discover." >&2
+      exit 1
+    fi
+    AUTOMERGE_TRIGGER_LABELS_JSON="$(automerge_discover_triggers_for_base_sha "${base_sha}")"
+    export AUTOMERGE_TRIGGER_LABELS_JSON
   fi
-
-  AUTOMERGE_TRIGGER_LABELS_JSON="$(automerge_discover_triggers_for_base_sha "${base_sha}")"
-  export AUTOMERGE_TRIGGER_LABELS_JSON
 
   # Drop opted-out / label-stripped PRs before the matrix cap so they cannot
   # monopolize every schedule batch.
