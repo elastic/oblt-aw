@@ -98,6 +98,16 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
+      - name: Checkout consumer repository (apm.yml for automerge policy)
+        uses: actions/checkout@v7
+        with:
+          path: _consumer
+          fetch-depth: 1
+          sparse-checkout: |
+            apm.yml
+            apm.yaml
+          sparse-checkout-cone-mode: false
+
       - name: Checkout elastic/oblt-aw (gate helpers)
         uses: actions/checkout@v7
         with:
@@ -109,14 +119,37 @@ jobs:
           sparse-checkout: |
             config/obs/allowed_pr_authors.json
             config/obs/automerge-dependency-collections.json
+            requirements-runtime.txt
+            scripts/apm_agentic_assets.py
+            scripts/common.py
+            scripts/obs/automergePolicy.ts
             scripts/obs/automerge_armed_lib.sh
             scripts/obs/checkAutomergeDependencyCollection.ts
             scripts/obs/classifyAutomergeDependencyCollection.ts
             scripts/obs/lib/matchPathGlob.ts
             scripts/obs/validateAutomergePr.ts
+            scripts/resolve_automerge_policy_cli.py
             package.json
             package-lock.json
           sparse-checkout-cone-mode: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: _oblt-aw/requirements-runtime.txt
+
+      - name: Install Python dependencies for policy resolve
+        run: pip install -r _oblt-aw/requirements-runtime.txt
+
+      - name: Resolve consumer automerge policy
+        id: policy
+        env:
+          REPO_ROOT: ${{ github.workspace }}/_consumer
+          ORG_KEY: ${{ inputs.shared-org-key }}
+          PYTHONPATH: ${{ github.workspace }}/_oblt-aw/scripts
+        run: python _oblt-aw/scripts/resolve_automerge_policy_cli.py
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -137,6 +170,7 @@ jobs:
           SHARED_TOKEN_POLICY: ${{ inputs.shared-token-policy }}
           ENABLED_WORKFLOWS_JSON: ${{ inputs.shared-enabled-workflows }}
           ORG_KEY: ${{ inputs.shared-org-key }}
+          AUTOMERGE_POLICY_JSON: ${{ steps.policy.outputs.automerge-policy-json }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -154,6 +188,7 @@ jobs:
               prNumber,
               core,
               sharedTokenPolicy: process.env.SHARED_TOKEN_POLICY || '',
+              policyJson: process.env.AUTOMERGE_POLICY_JSON || '',
             });
             if (!ok) {
               core.info(`PR #${prNumber}: verify gate failed; skipping merge.`);

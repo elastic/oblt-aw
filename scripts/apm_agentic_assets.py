@@ -502,3 +502,166 @@ def resolve_apm_assets(
         "setup_commands": setup_commands,
         "instruction_layers": layers,
     }
+
+
+MERGE_READY_LABEL = "oblt-aw/ai/merge-ready"
+AUTOMERGE_WORKFLOW_ID = "automerge"
+
+
+def _as_string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        text = item.strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        out.append(text)
+    return out
+
+
+def default_automerge_policy() -> dict[str, Any]:
+    """Control-plane defaults when consumer policy is omitted."""
+    return {
+        "trigger-labels": [MERGE_READY_LABEL],
+        "forks": {
+            "mode": "disabled",
+            "author-associations": [],
+        },
+        "authors": {
+            "mode": "allow-list",
+            "allow-list": [],
+            "author-associations": [],
+        },
+    }
+
+
+def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
+    """
+    Normalize ``workflows.automerge.policy`` (kebab-case).
+
+    ``oblt-aw/ai/merge-ready`` is always present in ``trigger-labels``.
+    """
+    base = default_automerge_policy()
+    if not isinstance(raw, dict):
+        return base
+
+    extra_labels = _as_string_list(raw.get("trigger-labels"))
+    trigger_labels = list(dict.fromkeys([MERGE_READY_LABEL, *extra_labels]))
+
+    forks_raw = raw.get("forks")
+    forks_mode = "disabled"
+    forks_associations: list[str] = []
+    if isinstance(forks_raw, dict):
+        mode = forks_raw.get("mode")
+        if mode in ("disabled", "author-association"):
+            forks_mode = mode
+        forks_associations = _as_string_list(forks_raw.get("author-associations"))
+
+    authors_raw = raw.get("authors")
+    authors_mode = "allow-list"
+    authors_allow_list: list[str] = []
+    authors_associations: list[str] = []
+    if isinstance(authors_raw, dict):
+        mode = authors_raw.get("mode")
+        if mode in ("allow-list", "author-association"):
+            authors_mode = mode
+        authors_allow_list = _as_string_list(authors_raw.get("allow-list"))
+        authors_associations = _as_string_list(authors_raw.get("author-associations"))
+
+    return {
+        "trigger-labels": trigger_labels,
+        "forks": {
+            "mode": forks_mode,
+            "author-associations": forks_associations,
+        },
+        "authors": {
+            "mode": authors_mode,
+            "allow-list": authors_allow_list,
+            "author-associations": authors_associations,
+        },
+    }
+
+
+def extract_automerge_policy_raw(
+    org_extension: dict[str, Any] | None,
+) -> Any:
+    """Return the raw ``workflows.automerge.policy`` mapping, or None."""
+    if not isinstance(org_extension, dict):
+        return None
+    workflows = org_extension.get("workflows")
+    if not isinstance(workflows, dict):
+        return None
+    automerge = workflows.get(AUTOMERGE_WORKFLOW_ID)
+    if not isinstance(automerge, dict):
+        return None
+    return automerge.get("policy")
+
+
+def resolve_automerge_policy(
+    *,
+    repo_root: Path,
+    org_key: str,
+) -> dict[str, Any]:
+    """
+    Resolve effective automerge policy for ``org_key`` from consumer ``apm.yml``.
+
+    Missing manifest / extension / policy yields control-plane defaults.
+    """
+    manifest, present = load_apm_manifest(repo_root)
+    if not present or manifest is None:
+        return default_automerge_policy()
+
+    extension = manifest.get(OBLT_AW_EXTENSION_KEY)
+    if not isinstance(extension, dict):
+        return default_automerge_policy()
+
+    org_extension = extract_org_extension(extension, org_key)
+    if org_extension is None:
+        return default_automerge_policy()
+
+    return normalize_automerge_policy(extract_automerge_policy_raw(org_extension))
+
+
+def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
+    """Markdown block injected into autoapprove additional-instructions."""
+    labels = ", ".join(f"`{name}`" for name in policy.get("trigger-labels") or [])
+    forks = policy.get("forks") or {}
+    authors = policy.get("authors") or {}
+    forks_assoc = (
+        ", ".join(f"`{name}`" for name in forks.get("author-associations") or [])
+        or "_(none)_"
+    )
+    authors_assoc = (
+        ", ".join(f"`{name}`" for name in authors.get("author-associations") or [])
+        or "_(none)_"
+    )
+    allow_list = (
+        ", ".join(f"`{name}`" for name in authors.get("allow-list") or [])
+        or "_(none beyond control-plane bots)_"
+    )
+
+    return "\n".join(
+        [
+            "## Effective Automerge Policy",
+            "",
+            "Re-check gates using this consumer policy (control-plane verify already",
+            "applied the same rules). Control-plane bots from",
+            "`config/obs/allowed_pr_authors.json` are always allowed authors.",
+            f"`{MERGE_READY_LABEL}` is always a valid trigger label.",
+            "",
+            f"- **Trigger labels**: {labels}",
+            f"- **Authors mode**: `{authors.get('mode', 'allow-list')}`",
+            f"- **Authors allow-list extras**: {allow_list}",
+            f"- **Authors associations**: {authors_assoc}",
+            f"- **Forks mode**: `{forks.get('mode', 'disabled')}`",
+            f"- **Forks associations**: {forks_assoc}",
+            "",
+            "Approve only when the PR matches this policy, is not draft, and head",
+            "ref differs from base ref.",
+        ]
+    )

@@ -46,8 +46,14 @@ jobs:
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge.yml'] == 'true' &&
       github.event_name == 'pull_request' &&
       contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action) &&
-      contains(fromJSON(needs.run-aw-prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login) &&
-      contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready')
+      (
+        contains(fromJSON(needs.run-aw-prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login) ||
+        contains(fromJSON('["MEMBER","OWNER"]'), github.event.pull_request.author_association)
+      ) &&
+      (
+        contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready') ||
+        github.event.action == 'labeled'
+      )
     permissions:
       actions: read
       contents: write

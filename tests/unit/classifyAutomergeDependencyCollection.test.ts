@@ -620,3 +620,83 @@ test('buildGateCommentBody includes disabled collection and enabled list', () =>
   assert.match(body, /codex\.elastic\.dev\/r\/oblt-aw\/user-guide\/automerge-services/);
   assert.match(body, /codex\.elastic\.dev\/r\/oblt-aw\/user-guide\/opt-in-opt-out/);
 });
+
+test('classifyChangedFiles prefers specific collection over all-files', () => {
+  const {
+    GENERIC_COLLECTION_ID,
+  } = require('../../scripts/obs/classifyAutomergeDependencyCollection.ts');
+  const collections = [
+    {
+      id: GENERIC_COLLECTION_ID,
+      'file-glob': ['**/*'],
+    },
+    {
+      id: 'github-actions',
+      'file-glob': ['.github/workflows/**'],
+    },
+  ];
+  const enabled = [
+    'obs:automerge',
+    `obs:automerge:${GENERIC_COLLECTION_ID}`,
+    'obs:automerge:github-actions',
+  ];
+  const outcome = classifyChangedFiles(
+    ['.github/workflows/ci.yml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'github-actions',
+  });
+});
+
+test('classifyChangedFiles allows all-files when only the catch-all matches', () => {
+  const {
+    GENERIC_COLLECTION_ID,
+  } = require('../../scripts/obs/classifyAutomergeDependencyCollection.ts');
+  const collections = [
+    {
+      id: GENERIC_COLLECTION_ID,
+      'file-glob': ['**/*'],
+    },
+    {
+      id: 'github-actions',
+      'file-glob': ['.github/workflows/**'],
+    },
+  ];
+  const enabled = [
+    'obs:automerge',
+    `obs:automerge:${GENERIC_COLLECTION_ID}`,
+  ];
+  const outcome = classifyChangedFiles(
+    ['docs/README.md'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: GENERIC_COLLECTION_ID,
+  });
+});
+
+test('classifyChangedFiles reports disabled all-files when catch-all matches but off', () => {
+  const {
+    GENERIC_COLLECTION_ID,
+  } = require('../../scripts/obs/classifyAutomergeDependencyCollection.ts');
+  const collections = [
+    {
+      id: GENERIC_COLLECTION_ID,
+      'file-glob': ['**/*'],
+    },
+  ];
+  const outcome = classifyChangedFiles(
+    ['Makefile'],
+    collections,
+    enabledAutomergeCollectionIds(['obs:automerge'])
+  );
+  assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: GENERIC_COLLECTION_ID,
+  });
+});

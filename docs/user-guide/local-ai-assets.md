@@ -26,6 +26,7 @@ Under `x-oblt-aw.<org-key>`, each org block needs a `common` section. Optional `
 | Local Markdown fragments | `<org-key>.fragments` + `additional-instructions-fragments` | Ordered fragment files, then inline instructions |
 | Setup shell | `setup-commands` and optional `setup-commands-file` | Runs in the consumer checkout before the agent engine |
 | Workflow inputs | other keys under `inputs` | Overrides platform inputs per key (for example `lookback-window` for autodoc) |
+| Automerge policy | `workflows.automerge.policy` | Extra trigger labels, author mode, and fork mode for Automerge verify/approve (see [Automerge services](automerge-services.md#consumer-policy-apmyml)) |
 | APM packages | top-level `dependencies.apm` | Installed with `apm install` when `apm.yml` is present |
 
 ## Steps

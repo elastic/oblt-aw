@@ -14,14 +14,14 @@
 // under the License.
 
 /**
- * Validates the triggering pull request for automerge (author allow list, merge-ready
- * label, draft/fork/ref rules, and non-empty shared-token-policy when the author is
+ * Validates the triggering pull request for automerge (author policy, trigger
+ * labels, draft/fork/ref rules, and non-empty shared-token-policy when the author is
  * github-actions[bot] so approve can use Vault instead of self-APPROVE). Required status
  * checks are enforced by GitHub when auto-merge is enabled, not here.
  *
- * Allowed authors are defined only in `config/obs/allowed_pr_authors.json` (Observability
- * control-plane). Prelude loads that file into CSV/JSON for ingress and
- * `allowed-bot-users`; do not duplicate the list in workflow prompts.
+ * Control-plane bot logins live in `config/obs/allowed_pr_authors.json`. Consumer
+ * `apm.yml` may extend authors, forks, and trigger labels via
+ * `x-oblt-aw.<org>.workflows.automerge.policy` (see automergePolicy.ts).
  *
  * GraphQL/`gh pr view` (gh ≥ 2.50) may return `app/<slug>` for GitHub Apps while REST
  * and webhooks return `<slug>[bot]`. Matching always normalizes `app/<slug>` →
@@ -30,7 +30,16 @@
 const path = require('node:path');
 const fs = require('node:fs');
 
-const MERGE_READY_LABEL = 'oblt-aw/ai/merge-ready';
+const {
+  MERGE_READY_LABEL,
+  defaultAutomergePolicy,
+  normalizeAutomergePolicy,
+  parseAutomergePolicyJson,
+  hasTriggerLabel,
+  isAuthorAllowedByPolicy,
+  isForkAllowedByPolicy,
+} = require('./automergePolicy.ts');
+
 const GITHUB_ACTIONS_BOT = 'github-actions[bot]';
 
 const ALLOWED_PR_AUTHORS = new Set(
@@ -64,6 +73,9 @@ function isAllowedPrAuthor(login) {
 
 module.exports.normalizePrAuthorLogin = normalizePrAuthorLogin;
 module.exports.isAllowedPrAuthor = isAllowedPrAuthor;
+module.exports.MERGE_READY_LABEL = MERGE_READY_LABEL;
+module.exports.defaultAutomergePolicy = defaultAutomergePolicy;
+module.exports.normalizeAutomergePolicy = normalizeAutomergePolicy;
 
 module.exports.run = async function run({
   github,
@@ -71,6 +83,8 @@ module.exports.run = async function run({
   prNumber,
   core,
   sharedTokenPolicy = '',
+  policy = undefined,
+  policyJson = '',
 }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
@@ -80,6 +94,11 @@ module.exports.run = async function run({
     return { ok: false };
   }
 
+  const effectivePolicy =
+    policy && typeof policy === 'object'
+      ? normalizeAutomergePolicy(policy)
+      : parseAutomergePolicyJson(policyJson);
+
   const { data: pr } = await github.rest.pulls.get({
     owner,
     repo,
@@ -88,11 +107,20 @@ module.exports.run = async function run({
 
   const authorRaw = pr.user?.login || '';
   const author = normalizePrAuthorLogin(authorRaw);
-  if (!ALLOWED_PR_AUTHORS.has(author)) {
+  const authorAssociation = String(pr.author_association || '');
+  const isControlPlaneBot = ALLOWED_PR_AUTHORS.has(author);
+
+  if (
+    !isAuthorAllowedByPolicy(effectivePolicy, {
+      normalizedLogin: author,
+      authorAssociation,
+      isControlPlaneBot,
+    })
+  ) {
     core.info(
       `PR #${prNumber}: author '${authorRaw}'` +
         (author !== authorRaw ? ` (normalized '${author}')` : '') +
-        ' is not in the automerge allow list'
+        ` association='${authorAssociation}' is not allowed by automerge policy`
     );
     return { ok: false };
   }
@@ -106,8 +134,10 @@ module.exports.run = async function run({
   }
 
   const labelNames = (pr.labels || []).map((l) => l.name);
-  if (!labelNames.includes(MERGE_READY_LABEL)) {
-    core.info(`PR #${prNumber}: missing label '${MERGE_READY_LABEL}'`);
+  if (!hasTriggerLabel(effectivePolicy, labelNames)) {
+    core.info(
+      `PR #${prNumber}: missing trigger label (need one of: ${effectivePolicy.triggerLabels.join(', ')})`
+    );
     return { ok: false };
   }
 
@@ -118,8 +148,16 @@ module.exports.run = async function run({
 
   const headFull = pr.head?.repo?.full_name || '';
   const baseFull = pr.base?.repo?.full_name || '';
-  if (headFull !== baseFull) {
-    core.info(`PR #${prNumber}: fork PRs are excluded`);
+  if (
+    !isForkAllowedByPolicy(effectivePolicy, {
+      headFull,
+      baseFull,
+      authorAssociation,
+    })
+  ) {
+    core.info(
+      `PR #${prNumber}: fork PRs are excluded by automerge policy (forks.mode=${effectivePolicy.forks.mode})`
+    );
     return { ok: false };
   }
 

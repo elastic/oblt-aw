@@ -3,7 +3,7 @@
     {
       "id": "automerge",
       "name": "Automerge",
-      "description": "Arms and completes squash-merge for allowed bot PRs (same authors as dependency-review) with oblt-aw/ai/merge-ready: PR path validates/approves and arms when checks are pending; the frequent schedule profile merges via Vault REST when required checks are green.",
+      "description": "Arms and completes squash-merge for allowed bot or policy-gated PRs with an effective trigger label (oblt-aw/ai/merge-ready always; extras via consumer apm.yml): PR path validates/approves and arms when checks are pending; the frequent schedule profile merges via Vault REST when required checks are green.",
       "maturity": "stable",
       "default_enabled": false,
       "docs": "docs/user-guide/automerge-services.md",
@@ -12,6 +12,12 @@
         "obs-aw-automerge.yml"
       ],
       "sub_features": [
+        {
+          "id": "all-files",
+          "name": "All files (non-dependency)",
+          "description": "Auto-merge for any changed files when consumer automerge policy and trigger labels allow (opt-in; prefer specific collections when they also match).",
+          "default_enabled": false
+        },
         {
           "id": "apm-cli",
           "name": "APM CLI version",

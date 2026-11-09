@@ -89,9 +89,9 @@ Approve pull request #${{ github.event.pull_request.number }} in ${{ github.repo
 
 This PR already passed automerge validation in the control-plane wrapper (`verify` and dependency collection) for author, label, draft/fork/ref, and collection allow. Re-check the gates below before approving. Do not call check-run or commit status APIs. Required checks are enforced by GitHub at merge time.
 
-## Author allow list
+## Author allow list (control-plane bots)
 
-Canonical list (from `config/obs/allowed_pr_authors.json` — do not invent other names):
+Canonical bot list (from `config/obs/allowed_pr_authors.json` — do not invent other names). These logins are always allowed; consumer policy may allow additional authors:
 
 - `dependabot[bot]`
 - `renovate[bot]`
@@ -108,11 +108,13 @@ Read the PR author via GitHub MCP (`pull_request_read` or equivalent). Prefer th
 
 Approve the PR only when **all** of these are true:
 
-- Normalized PR author is in the canonical allow list above
-- PR has label `oblt-aw/ai/merge-ready`
+- Author matches the Effective Automerge Policy below (control-plane bots always pass; otherwise follow authors mode)
+- PR has at least one Effective Automerge Policy trigger label (`oblt-aw/ai/merge-ready` is always valid)
 - PR is not draft
-- PR is not from a fork (head repo equals base repo)
+- Fork policy passes (same-repo, or forks.mode `author-association` with a matching `author_association`)
 - Head ref is different from base ref
+
+When additional-instructions include an **Effective Automerge Policy** section, that section is authoritative for labels, authors extras, and forks. If it is missing, fall back to: author in the canonical bot list above, label `oblt-aw/ai/merge-ready`, and same-repo only (no forks).
 
 ## Actions
 

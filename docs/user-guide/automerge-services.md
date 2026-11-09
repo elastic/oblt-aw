@@ -5,9 +5,11 @@
 Automerge has two layers:
 
 1. **Parent toggle:** turns Automerge on for the repository.
-2. **Dependency collection checkboxes:** choose which dependency collections Automerge may merge.
+2. **Collection checkboxes:** choose which file collections Automerge may merge (dependency collections plus an optional catch-all).
 
 This lets a team say: “We trust Automerge for these update types, but not for the rest.”
+
+For non-dependency PRs (for example risk-labeled human or Nightshift work), enable the **All files (non-dependency)** collection (`all-files`, off by default) and set consumer policy in `apm.yml` under `x-oblt-aw.<org>.workflows.automerge.policy`. Control Plane only turns features on or off; labels, authors, and fork rules stay in the consumer repo.
 
 :::{image} ../images/control-plane-dashboard-checkboxes.png
 :alt: Automerge parent checkbox with nested dependency collection checkboxes on the Control Plane dashboard
@@ -36,6 +38,7 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 
 | Collection | What it covers | Representative files | Why enable it |
 |------------|----------------|----------------------|---------------|
+| All files (non-dependency) | Any changed paths when consumer automerge policy allows | `**/*` | Opt-in catch-all for risk-labeled or otherwise policy-gated PRs outside dependency bots; prefer a specific collection when both match |
 | APM CLI version | APM CLI pin updates for agent package install | `.apm.version`, `**/.apm.version`, `.apm-cli-pin/requirements.txt` | Keep the framework APM CLI pin current when Dependabot bumps `apm-cli` |
 | GitHub Actions bumps | Version updates for GitHub Actions and composite actions | `.github/workflows/**`, `.github/actions/**`, `**/action.yml`, `**/action.yaml` | Keep CI actions current without hand-merging routine bumps |
 | pre-commit hook updates | Dependency updates for pre-commit hooks | `.pre-commit-config.yaml` | Keep local and CI hook versions moving with low review overhead |
@@ -65,8 +68,44 @@ Collection ids and globs are defined in [`config/obs/automerge-dependency-collec
 
 On the Control Plane dashboard, that collection appears as an indented checkbox under Automerge (`obs:automerge:github-actions`).
 
+## Consumer policy (`apm.yml`)
+
+Optional under `x-oblt-aw.<org>.workflows.automerge.policy`:
+
+```yaml
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      automerge:
+        policy:
+          trigger-labels:
+            - nightshift:risk-low
+          forks:
+            mode: author-association   # or: disabled (default)
+            author-associations:
+              - MEMBER
+              - OWNER
+          authors:
+            mode: author-association   # or: allow-list (default)
+            allow-list: []             # used when mode is allow-list
+            author-associations:
+              - MEMBER
+              - OWNER
+```
+
+- **Trigger labels:** `oblt-aw/ai/merge-ready` is always effective. Listed labels are added; omitting merge-ready does not remove it. Who applies the label (Dependency Review, Nightshift shadow-mode, or a maintainer) is up to the repository.
+- **Authors:** Control-plane bots in [`allowed_pr_authors.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) are always allowed. `allow-list` adds logins; `author-association` allows non-bot authors whose GitHub `author_association` matches.
+- **Forks:** Default `disabled` keeps same-repo only. `author-association` allows forks when association matches (for example Elastic employee forks with `MEMBER` / `OWNER`).
+- **Defaults when `policy` is omitted:** merge-ready only, forks disabled, authors allow-list with no extras (today’s bot path).
+- **CODEOWNERS / merge queue:** Automerge still squash-merges over REST as the Vault app when `shared-token-policy` is set (bypass classic BP / rulesets). It does not enqueue into a merge queue.
+
+See also [Local AI assets](local-ai-assets.md) and [Automerge routing](../routing/automerge-routing.md).
+
 ## Choosing what to enable
 
 - Start with the **parent Automerge toggle**.
-- Enable only the dependency collections that match your repository.
+- Enable only the collections that match your repository.
+- Leave **All files (non-dependency)** disabled until you have consumer policy and a trusted label path.
 - If you are unsure, leave a collection disabled until you are comfortable with the risk.

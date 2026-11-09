@@ -245,3 +245,117 @@ test('validateAutomergePr rejects github-actions[bot] when shared-token-policy i
   assert.equal(r.ok, false);
   assert.match(infoMessages.join('\n'), /shared-token-policy/);
 });
+
+test('validateAutomergePr allows custom trigger label from policy', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({
+          data: basePr({
+            labels: [{ name: 'nightshift:risk-low' }],
+          }),
+        }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 20,
+    core,
+    policy: {
+      'trigger-labels': ['nightshift:risk-low'],
+    },
+  });
+  assert.equal(r.ok, true);
+});
+
+test('validateAutomergePr allows MEMBER fork when forks.mode is author-association', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({
+          data: basePr({
+            author_association: 'MEMBER',
+            head: { sha: 'a', repo: { full_name: 'alice/r' }, ref: 'feat' },
+            base: { repo: { full_name: 'elastic/r' }, ref: 'main' },
+          }),
+        }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 21,
+    core,
+    policy: {
+      forks: {
+        mode: 'author-association',
+        'author-associations': ['MEMBER', 'OWNER'],
+      },
+    },
+  });
+  assert.equal(r.ok, true);
+});
+
+test('validateAutomergePr allows MEMBER author when authors.mode is author-association', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({
+          data: basePr({
+            user: { login: 'elastic-engineer' },
+            author_association: 'MEMBER',
+          }),
+        }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 22,
+    core,
+    policy: {
+      authors: {
+        mode: 'author-association',
+        'author-associations': ['MEMBER', 'OWNER'],
+      },
+    },
+  });
+  assert.equal(r.ok, true);
+});
+
+test('validateAutomergePr still rejects untrusted fork under author-association policy', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: {
+        get: async () => ({
+          data: basePr({
+            author_association: 'NONE',
+            head: { sha: 'a', repo: { full_name: 'outsider/r' }, ref: 'feat' },
+            base: { repo: { full_name: 'elastic/r' }, ref: 'main' },
+          }),
+        }),
+      },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 23,
+    core,
+    policy: {
+      forks: {
+        mode: 'author-association',
+        'author-associations': ['MEMBER', 'OWNER'],
+      },
+    },
+  });
+  assert.equal(r.ok, false);
+});

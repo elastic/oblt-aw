@@ -22,6 +22,8 @@ const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate --
 /** @deprecated Prefer ``enabledAutomergeCollectionIds`` with an explicit consuming org. */
 const AUTOMERGE_PARENT_COMPOUND_ID = 'obs:automerge';
 const DEFAULT_AUTOMERGE_ORG_KEY = 'obs';
+/** Catch-all collection; never preferred over a more specific match. */
+const GENERIC_COLLECTION_ID = 'all-files';
 const AUTOMERGE_SERVICES_GUIDE_URL =
   'https://codex.elastic.dev/r/oblt-aw/user-guide/automerge-services';
 const OPT_IN_OPT_OUT_GUIDE_URL =
@@ -150,6 +152,18 @@ function preferNonSupersetCollections(matched) {
   });
 }
 
+/**
+ * When both the generic catch-all and at least one specific collection match,
+ * keep only the specific matches so existing collections are not skipped as
+ * ambiguous after ``all-files`` is enabled.
+ * @param {DependencyCollection[]} matched
+ * @returns {DependencyCollection[]}
+ */
+function preferSpecificOverGeneric(matched) {
+  const specific = matched.filter((c) => c.id !== GENERIC_COLLECTION_ID);
+  return specific.length > 0 ? specific : matched;
+}
+
 function classifyChangedFiles(files, collections, enabledCollectionIds) {
   const changed = [...new Set(files.map((f) => f.trim()).filter(Boolean))];
   const enabledSet = new Set(enabledCollectionIds);
@@ -157,8 +171,10 @@ function classifyChangedFiles(files, collections, enabledCollectionIds) {
     return { status: 'unclassified', collectionId: null };
   }
 
-  const matched = preferNonSupersetCollections(
-    collections.filter((c) => collectionMatchesAllFiles(c, changed))
+  const matched = preferSpecificOverGeneric(
+    preferNonSupersetCollections(
+      collections.filter((c) => collectionMatchesAllFiles(c, changed))
+    )
   );
 
   if (matched.length === 0) {
@@ -228,9 +244,11 @@ function buildGateCommentBody(outcome, changedFiles, enabledCollectionIds) {
 module.exports = {
   GATE_COMMENT_MARKER,
   AUTOMERGE_PARENT_COMPOUND_ID,
+  GENERIC_COLLECTION_ID,
   loadCollectionsConfig,
   parseEnabledWorkflowsJson,
   enabledAutomergeCollectionIds,
   classifyChangedFiles,
+  preferSpecificOverGeneric,
   buildGateCommentBody,
 };
