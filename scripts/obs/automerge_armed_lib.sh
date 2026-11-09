@@ -80,10 +80,12 @@ automerge_pr_has_merge_ready_label() {
     return 1
   }
   triggers_json="$(automerge_effective_trigger_labels_json)"
+  # Bind each trigger before piping into $labels — otherwise `|` rebinds `.` to the
+  # labels array and `index(.)` matches the array itself (false positive).
   present="$(jq -rn --argjson labels "${labels_json}" --argjson triggers "${triggers_json}" \
     'if ($labels | type) != "array" or ($triggers | type) != "array" then
        error("expected label arrays")
-     elif any($triggers[]; ($labels | index(.) != null)) then "true"
+     elif any($triggers[]; . as $t | ($labels | index($t) != null)) then "true"
      else "false"
      end')" || {
     echo "Failed to parse labels for ${repo}#${pr_number}." >&2

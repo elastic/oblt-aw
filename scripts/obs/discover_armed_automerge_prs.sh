@@ -21,6 +21,9 @@ set -euo pipefail
 
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 OUT="${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
+# Cap matrix size (GitHub Actions matrix max is 256). Extra armed PRs wait for
+# the next frequent-schedule tick.
+MAX_CANDIDATES="${AUTOMERGE_DISCOVER_MAX_CANDIDATES:-100}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=automerge_armed_lib.sh
@@ -28,13 +31,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/automerge_armed_lib.sh"
 
 candidates='[]'
+scanned=0
+truncated=0
 while IFS=$'\t' read -r pr_number head_sha; do
   [[ -n "${pr_number}" && -n "${head_sha}" ]] || continue
+  scanned=$((scanned + 1))
   comments_json="$(automerge_list_issue_comments "${REPO}" "${pr_number}")" || {
     echo "Failed to list comments for PR #${pr_number}; aborting discover." >&2
     exit 1
   }
   if automerge_comments_armed_for_sha "${comments_json}" "${head_sha}"; then
+    candidate_count="$(jq 'length' <<<"${candidates}")"
+    if [[ "${candidate_count}" -ge "${MAX_CANDIDATES}" ]]; then
+      truncated=$((truncated + 1))
+      echo "PR #${pr_number}: armed but held for a later tick (matrix cap ${MAX_CANDIDATES})"
+      continue
+    fi
     candidates="$(jq -c --arg n "${pr_number}" --arg s "${head_sha}" \
       '. + [{pr_number: $n, head_sha: $s}]' <<<"${candidates}")"
     echo "PR #${pr_number}: deferred candidate (head ${head_sha})"
@@ -42,9 +54,9 @@ while IFS=$'\t' read -r pr_number head_sha; do
     echo "PR #${pr_number}: deferred skip (not armed for head ${head_sha})"
   fi
 done < <(
-  gh pr list --repo "${REPO}" --state open --limit 100 \
-    --json number,headRefOid \
-    --jq '.[] | select(.headRefOid != null and .headRefOid != "") | "\(.number)\t\(.headRefOid)"'
+  # Paginate every open PR — do not stop at the first page (label filter removed).
+  gh api --paginate "repos/${REPO}/pulls?state=open&per_page=100" \
+    --jq '.[] | select(.head.sha != null and .head.sha != "") | "\(.number)\t\(.head.sha)"'
 )
 
 {
@@ -58,4 +70,7 @@ done < <(
   fi
 } >>"${OUT}"
 
-echo "Automerge deferred: $(jq 'length' <<<"${candidates}") armed PR(s) for schedule"
+echo "Automerge deferred: scanned ${scanned} open PR(s); $(jq 'length' <<<"${candidates}") armed candidate(s) for schedule"
+if [[ "${truncated}" -gt 0 ]]; then
+  echo "Automerge deferred: ${truncated} additional armed PR(s) capped for later schedule ticks (max ${MAX_CANDIDATES})." >&2
+fi
