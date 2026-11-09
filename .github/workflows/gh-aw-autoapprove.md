@@ -89,7 +89,7 @@ Approve pull request #${{ github.event.pull_request.number }} in ${{ github.repo
 
 This PR already passed automerge validation in the control-plane wrapper (`verify` and dependency collection) for author, label, draft/fork/ref, and collection allow. Re-check the gates below before approving. Do not call check-run or commit status APIs. Required checks are enforced by GitHub at merge time.
 
-## Author allow list (control-plane bots)
+## Author allow list
 
 Canonical bot list (from `config/obs/allowed_pr_authors.json` — do not invent other names). These logins are always allowed; consumer policy may allow additional authors:
 

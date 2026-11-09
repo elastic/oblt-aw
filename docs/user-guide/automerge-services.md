@@ -68,7 +68,7 @@ Collection ids and globs are defined in [`config/obs/automerge-dependency-collec
 
 On the Control Plane dashboard, that collection appears as an indented checkbox under Automerge (`obs:automerge:github-actions`).
 
-## Consumer policy (`apm.yml`)
+## Consumer policy (`apm.yml`) [consumer-policy-apmyml]
 
 Optional under `x-oblt-aw.<org>.workflows.automerge.policy`:
 
