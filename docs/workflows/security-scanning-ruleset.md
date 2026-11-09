@@ -152,6 +152,8 @@ The table below documents how each rule ID is currently represented in the detec
 
 **Description**: A job or step has access to repository secrets or `GITHUB_TOKEN` write scopes when the job only needs read-only operations; or secrets declared at workflow level when only one job requires them (broader blast radius).
 
+**Required remediation pattern**: Replace `secrets: inherit` on reusable-workflow calls with explicit `secrets:` allowlists that match the callee `on.workflow_call.secrets` contract. Pass only the named secrets required by that callee.
+
 **Note**: Overlaps with SEC-041; SEC-022 emphasizes **secret** exposure surface, SEC-041 emphasizes **permissions** syntax.
 
 ---
