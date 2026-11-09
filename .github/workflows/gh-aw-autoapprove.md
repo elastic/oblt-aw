@@ -35,7 +35,7 @@ on:
       GH_AW_GITHUB_TOKEN:
         required: false
   roles: [admin, maintainer, write]
-  # Hardcoded to config/obs/allowed_pr_authors.json (GH-AW cannot declare on.bots in fragments).
+  # BEGIN synced-from:config/obs/allowed_pr_authors.json:bots
   bots:
     - "dependabot[bot]"
     - "renovate[bot]"
@@ -45,6 +45,7 @@ on:
     - "elastic-vault-github-plugin-prod[bot]"
     - "github-actions[bot]"
     - "mergify[bot]"
+  # END synced-from:config/obs/allowed_pr_authors.json:bots
 concurrency:
   group: ${{ github.workflow }}-autoapprove-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -63,8 +64,9 @@ tools:
   github:
     # Prefer OIDC create-token output, then MCP/secret fallbacks (gh-aw >= v0.89.21).
     github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-    # Override obs-defaults trusted-users so bot authors in on.bots are trusted.
+    # BEGIN synced-from:config/obs/allowed_pr_authors.json:trusted-users
     trusted-users: "dependabot[bot],renovate[bot],Dependabot,Renovate,elastic-renovate-prod[bot],elastic-vault-github-plugin-prod[bot],github-actions[bot],mergify[bot]"
+    # END synced-from:config/obs/allowed_pr_authors.json:trusted-users
     toolsets: [repos, issues, pull_requests, search, actions]
   bash: true
   web-fetch:
@@ -91,7 +93,7 @@ This PR already passed automerge validation in the control-plane wrapper (`verif
 
 ## Author allow list
 
-Canonical bot list (from `config/obs/allowed_pr_authors.json` — do not invent other names). These logins are always allowed; consumer policy may allow additional authors:
+Canonical list (from `config/obs/allowed_pr_authors.json` — do not invent other names):
 
 - `dependabot[bot]`
 - `renovate[bot]`
@@ -101,6 +103,8 @@ Canonical bot list (from `config/obs/allowed_pr_authors.json` — do not invent 
 - `elastic-vault-github-plugin-prod[bot]`
 - `github-actions[bot]`
 - `mergify[bot]`
+
+These control-plane bots are always allowed; consumer policy may allow additional authors.
 
 Read the PR author via GitHub MCP (`pull_request_read` or equivalent). Prefer the REST login form. Before comparing any author string to that list, normalize GraphQL `app/<slug>` to `<slug>[bot]` (gh ≥ 2.50 `gh pr view` / pr.json often use the app/ form). Do not use `github.actor` alone — on `labeled` events the actor may be the labeler, not the PR author.
 

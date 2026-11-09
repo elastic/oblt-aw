@@ -13,7 +13,7 @@ Instruction ownership for this import: **Merge**. Noop / CVE / merge-ready / Git
 ## Prerequisites
 
 - Triggered via `workflow_call` from the pull_request event orchestrator (`obs-aw-event-pull-request.yml` ← client `trigger-obs-aw-pull-request.yml`).
-- Allow list for the route `if:` condition still comes from prelude / [config/obs/allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json). Bot actors accepted by the lock are hardcoded to that same list on the GH-AW source.
+- Allow list for the route `if:` condition still comes from prelude / [config/obs/allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json). Bot actors accepted by the lock are synced from that same file onto the GH-AW source (`make sync-allowed-pr-authors`).
 
 ## Usage
 

@@ -19,9 +19,10 @@
  * github-actions[bot] so approve can use Vault instead of self-APPROVE). Required status
  * checks are enforced by GitHub when auto-merge is enabled, not here.
  *
- * Control-plane bot logins live in `config/obs/allowed_pr_authors.json`. Consumer
- * `apm.yml` may extend authors, forks, and trigger labels via
- * `x-oblt-aw.<org>.workflows.automerge.policy` (see automergePolicy.ts).
+ * Control-plane bot logins live in `config/obs/allowed_pr_authors.json`, which Prelude
+ * loads for ingress and `scripts/sync_allowed_pr_authors_bots.py` syncs onto static GH-AW
+ * `on.bots` / prompt copies. Consumer `apm.yml` may extend authors, forks, and trigger
+ * labels via `x-oblt-aw.<org>.workflows.automerge.policy` (see automergePolicy.ts).
  *
  * GraphQL/`gh pr view` (gh ≥ 2.50) may return `app/<slug>` for GitHub Apps while REST
  * and webhooks return `<slug>[bot]`. Matching always normalizes `app/<slug>` →
