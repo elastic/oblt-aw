@@ -32,7 +32,8 @@ on:
         required: true
         type: string
 # Nested GH-AW autoapprove: empty github-token-policy → GITHUB_TOKEN for most
-# authors; Vault only when author is github-actions[bot] (avoid self-APPROVE).
+# authors; Vault when author is github-actions[bot] (avoid self-APPROVE) or the
+# PR is from a fork (pull_request GITHUB_TOKEN is read-only for fork PRs).
 # Merge jobs mint OIDC ephemeral tokens when shared-token-policy is non-empty.
 permissions:
   contents: read
@@ -49,10 +50,13 @@ jobs:
       pull-requests: read
     outputs:
       proceed: ${{ steps.validate.outputs.proceed }}
+      trigger-labels-json: ${{ steps.validate.outputs.trigger-labels-json }}
     steps:
       - name: Checkout consumer repository (apm.yml for automerge policy)
         uses: actions/checkout@v7
         with:
+          # Trusted base revision only — never read authorization policy from the PR head.
+          ref: ${{ github.event.pull_request.base.sha }}
           path: _consumer
           fetch-depth: 1
           sparse-checkout: |
@@ -126,7 +130,7 @@ jobs:
             rq('tsx/cjs/api').register();
             const { run } = rq('./scripts/obs/validateAutomergePr.ts');
             const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            const { ok } = await run({
+            const { ok, triggerLabels } = await run({
               github,
               context,
               prNumber,
@@ -135,6 +139,10 @@ jobs:
               policyJson: process.env.AUTOMERGE_POLICY_JSON || '',
             });
             core.setOutput('proceed', ok ? 'true' : 'false');
+            core.setOutput(
+              'trigger-labels-json',
+              JSON.stringify(Array.isArray(triggerLabels) ? triggerLabels : [])
+            );
 
   # Classify dependency updates by changed file paths (no extra labels in consumer repos).
   # Posts a single PR comment when the collection is inactive, ambiguous, or unclassified.
@@ -222,6 +230,8 @@ jobs:
     with:
       workflow-basename: obs-aw-automerge.yml
       org-key: ${{ inputs.shared-org-key }}
+      # Same trusted base as verify — do not resolve approve policy from PR head.
+      consumer-ref: ${{ github.event.pull_request.base.sha }}
       # Approve gates live in gh-aw-autoapprove.md. Resolve only merges consumer APM fragments.
 
   approve:
@@ -243,8 +253,8 @@ jobs:
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
       # Do not forward resolved-setup-commands-json: approve only needs PR metadata.
-      # Empty → GITHUB_TOKEN; non-empty only when author is github-actions[bot] (avoid self-APPROVE).
-      github-token-policy: ${{ github.event.pull_request.user.login == 'github-actions[bot]' && inputs.shared-token-policy || '' }}
+      # Empty → GITHUB_TOKEN; Vault when github-actions[bot] (self-APPROVE) or fork (read-only token).
+      github-token-policy: ${{ (github.event.pull_request.user.login == 'github-actions[bot]' || github.event.pull_request.head.repo.full_name != github.repository) && inputs.shared-token-policy || '' }}
       # Bots + allow list are synced onto the lock from allowed_pr_authors.json.
 
   # Fail closed: approve job success alone is not enough — require a real APPROVED review
@@ -383,6 +393,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           ASSERTED_SHA: ${{ needs.assert-approved-review.outputs.head_sha }}
+          AUTOMERGE_TRIGGER_LABELS_JSON: ${{ needs.verify.outputs.trigger-labels-json }}
         run: |
           set -euo pipefail
           # shellcheck source=../../../scripts/obs/assert_automerge_approved_review.sh
@@ -415,7 +426,7 @@ jobs:
   # (retry would only re-emit the same reason and confuse outcome messaging).
   # Pending checks → soft-succeed so arm-for-deferred-merge can mark the PR; other errors fail.
   rest-merge:
-    needs: [automerge, assert-approved-review]
+    needs: [verify, automerge, assert-approved-review]
     if: >-
       always() &&
       (needs.automerge.outputs.merge_result == 'merge_failed' ||
@@ -460,6 +471,7 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ needs.assert-approved-review.outputs.head_sha }}
+          AUTOMERGE_TRIGGER_LABELS_JSON: ${{ needs.verify.outputs.trigger-labels-json }}
         run: |
           set -euo pipefail
           # shellcheck source=../../../scripts/obs/assert_automerge_approved_review.sh

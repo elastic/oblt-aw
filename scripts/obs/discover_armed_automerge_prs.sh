@@ -14,12 +14,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# List open merge-ready PRs with a bot-authored armed marker for the current head SHA.
+# List open PRs with a bot-authored armed marker for the current head SHA.
+# Label filtering happens in the merge matrix (consumer trigger-label policy).
 # Writes GitHub Actions outputs: candidates (JSON array), has-candidates (true|false).
 set -euo pipefail
 
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
-LABEL='oblt-aw/ai/merge-ready'
 OUT="${GITHUB_OUTPUT:?GITHUB_OUTPUT is required}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,7 +42,7 @@ while IFS=$'\t' read -r pr_number head_sha; do
     echo "PR #${pr_number}: deferred skip (not armed for head ${head_sha})"
   fi
 done < <(
-  gh pr list --repo "${REPO}" --state open --label "${LABEL}" --limit 100 \
+  gh pr list --repo "${REPO}" --state open --limit 100 \
     --json number,headRefOid \
     --jq '.[] | select(.headRefOid != null and .headRefOid != "") | "\(.number)\t\(.headRefOid)"'
 )
@@ -58,4 +58,4 @@ done < <(
   fi
 } >>"${OUT}"
 
-echo "Automerge deferred: $(jq 'length' <<<"${candidates}") armed merge-ready PR(s) for schedule"
+echo "Automerge deferred: $(jq 'length' <<<"${candidates}") armed PR(s) for schedule"

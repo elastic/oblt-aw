@@ -23,6 +23,7 @@ The reusable workflow job id is `resolve-agentic-assets`. Route wrappers typical
 | `platform-additional-instructions` | string | `""` | Framework baseline text for this agent invocation (prepended before repo APM instructions) |
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
 | `install-apm-packages` | boolean | `true` | Run [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI and runs `apm install`) |
+| `consumer-ref` | string | `""` | Optional git ref/SHA for the consumer checkout. Automerge passes `pull_request.base.sha` so authorize/approve policy is not read from the PR head. Empty keeps the default `actions/checkout` ref for the event |
 
 The APM CLI version comes from the framework pin in [`.apm.version`](https://github.com/elastic/oblt-aw/blob/main/.apm.version) (sparse-checked out with the resolver). Dependabot updates the matching PyPI pin in [`.apm-cli-pin/requirements.txt`](https://github.com/elastic/oblt-aw/blob/main/.apm-cli-pin/requirements.txt); [`.github/workflows/aw-sync-apm-version.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-sync-apm-version.yml) copies that version into `.apm.version`.
 

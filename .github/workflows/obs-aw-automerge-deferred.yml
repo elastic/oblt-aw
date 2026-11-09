@@ -2,9 +2,10 @@ name: Automerge deferred (schedule)
 
 # Deferred merge for armed automerge PRs via Vault REST squash-merge on the frequent
 # schedule profile (trigger-obs-aw-schedule-frequent.yml → obs-aw-event-schedule).
-# Lists open armed merge-ready PRs only — does not listen to status, check_run,
-# or check_suite (those would multiply CI cost). GitHub's merge API still
-# enforces every required check (Actions + Buildkite).
+# Lists open armed PRs only — does not listen to status, check_run, or
+# check_suite (those would multiply CI cost). Trigger-label / author / fork
+# gates re-run in the merge matrix via consumer apm.yml policy. GitHub's merge
+# API still enforces every required check (Actions + Buildkite).
 on:
   workflow_call:
     inputs:
@@ -65,7 +66,7 @@ jobs:
             scripts/obs/discover_armed_automerge_prs.sh
           sparse-checkout-cone-mode: false
 
-      - name: Find armed merge-ready candidate(s)
+      - name: Find armed candidate(s)
         id: find
         env:
           GH_TOKEN: ${{ github.token }}
@@ -98,9 +99,26 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
+      - name: Resolve PR base SHA for trusted apm.yml
+        id: pr-base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ matrix.pr_number }}
+        run: |
+          set -euo pipefail
+          base_sha="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.base.sha')"
+          if [[ -z "${base_sha}" || "${base_sha}" == "null" ]]; then
+            echo "Failed to resolve base.sha for ${REPO}#${PR_NUMBER}" >&2
+            exit 1
+          fi
+          echo "sha=${base_sha}" >> "${GITHUB_OUTPUT}"
+
       - name: Checkout consumer repository (apm.yml for automerge policy)
         uses: actions/checkout@v7
         with:
+          # Trusted base revision only — never read authorization policy from the PR head.
+          ref: ${{ steps.pr-base.outputs.sha }}
           path: _consumer
           fetch-depth: 1
           sparse-checkout: |
@@ -182,7 +200,7 @@ jobs:
 
             const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
             const { run: validate } = rq('./scripts/obs/validateAutomergePr.ts');
-            const { ok } = await validate({
+            const { ok, triggerLabels } = await validate({
               github,
               context,
               prNumber,
@@ -190,6 +208,10 @@ jobs:
               sharedTokenPolicy: process.env.SHARED_TOKEN_POLICY || '',
               policyJson: process.env.AUTOMERGE_POLICY_JSON || '',
             });
+            core.setOutput(
+              'trigger-labels-json',
+              JSON.stringify(Array.isArray(triggerLabels) ? triggerLabels : [])
+            );
             if (!ok) {
               core.info(`PR #${prNumber}: verify gate failed; skipping merge.`);
               core.setOutput('proceed', 'false');
@@ -219,10 +241,21 @@ jobs:
           PR_NUMBER: ${{ matrix.pr_number }}
           HEAD_SHA: ${{ matrix.head_sha }}
           REPO: ${{ github.repository }}
+          AUTOMERGE_TRIGGER_LABELS_JSON: ${{ steps.gates.outputs.trigger-labels-json }}
         run: |
           set -euo pipefail
           # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
           source _oblt-aw/scripts/obs/automerge_armed_lib.sh
+          label_rc=0
+          automerge_pr_has_merge_ready_label "${REPO}" "${PR_NUMBER}" || label_rc=$?
+          if [[ "${label_rc}" -eq 2 ]]; then
+            echo "PR #${PR_NUMBER}: missing automerge trigger label; skipping merge."
+            exit 0
+          fi
+          if [[ "${label_rc}" -ne 0 ]]; then
+            echo "PR #${PR_NUMBER}: could not verify automerge trigger labels; failing closed." >&2
+            exit 1
+          fi
           if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
             -f merge_method=squash \
             -f sha="${HEAD_SHA}" 2>&1)"; then

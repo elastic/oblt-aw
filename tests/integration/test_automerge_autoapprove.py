@@ -92,7 +92,8 @@ class TestAutomergeAutoapproveWrapperLockWiring:
             == "${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}"
         )
         assert with_block.get("github-token-policy") == (
-            "${{ github.event.pull_request.user.login == 'github-actions[bot]' "
+            "${{ (github.event.pull_request.user.login == 'github-actions[bot]' "
+            "|| github.event.pull_request.head.repo.full_name != github.repository) "
             "&& inputs.shared-token-policy || '' }}"
         )
         for dropped in (

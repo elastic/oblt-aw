@@ -365,7 +365,28 @@ def test_squash_merge_at_sha_skips_when_merge_ready_label_removed(
     result = _bash_merge(_squash(), env=env)
     assert result.returncode == 0, result.stderr
     assert "MERGE_RESULT=skipped" in result.stdout
-    assert "Missing label" in result.stderr
+    assert "Missing automerge trigger label" in result.stderr
+
+
+def test_squash_merge_at_sha_accepts_configured_trigger_label(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Policy extras in AUTOMERGE_TRIGGER_LABELS_JSON satisfy the live label gate."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            labels_json='["nightshift:risk-low"]',
+            merge_body="",
+            merge_exit=0,
+        ),
+    )
+    env["AUTOMERGE_TRIGGER_LABELS_JSON"] = (
+        '["nightshift:risk-low","oblt-aw/ai/merge-ready"]'
+    )
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=merged" in result.stdout
 
 
 def test_squash_merge_at_sha_label_api_error_is_merge_failed(
