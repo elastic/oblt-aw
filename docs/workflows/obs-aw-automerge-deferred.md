@@ -18,7 +18,7 @@ Deferred merge path for [obs-aw-automerge.yml](obs-aw-automerge.md). Finds open 
 
 Jobs:
 
-- `discover`: resolve consumer trigger-label policy, paginate open PRs, keep those with an armed marker **and** an effective trigger label, then take a rotating matrix batch (default 100). Opted-out armed PRs are dropped before the cap. No-op when none match.
+- `discover`: paginate open PRs, keep those with an armed marker **and** an effective trigger label from each PR’s **base SHA** `apm.yml` policy (cached by SHA), then take a rotating matrix batch (default 100). Opted-out armed PRs are dropped before the cap. No-op when none match.
 - `merge` (matrix per candidate): `validateAutomergePr.ts`, collection gate, then Vault (or `GITHUB_TOKEN`) REST squash-merge via `gh api` pinned to head SHA. Soft-succeed only for explicit pending-check or already-merged responses; generic `not mergeable` and other failures fail that matrix cell.
 
 ## Configuration

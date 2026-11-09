@@ -53,17 +53,6 @@ jobs:
       candidates: ${{ steps.find.outputs.candidates }}
       has-candidates: ${{ steps.find.outputs.has-candidates }}
     steps:
-      - name: Checkout consumer repository (apm.yml for discover trigger labels)
-        uses: actions/checkout@v7
-        with:
-          # Schedule/dispatch runs on the default branch tip (trusted for discover).
-          path: _consumer
-          fetch-depth: 1
-          sparse-checkout: |
-            apm.yml
-            apm.yaml
-          sparse-checkout-cone-mode: false
-
       - name: Checkout elastic/oblt-aw (discover helper)
         uses: actions/checkout@v7
         with:
@@ -91,27 +80,19 @@ jobs:
       - name: Install Python dependencies for policy resolve
         run: pip install -r _oblt-aw/requirements-runtime.txt
 
-      - name: Resolve consumer automerge policy
-        id: policy
-        env:
-          REPO_ROOT: ${{ github.workspace }}/_consumer
-          ORG_KEY: ${{ inputs.shared-org-key }}
-          PYTHONPATH: ${{ github.workspace }}/_oblt-aw/scripts
-        run: python _oblt-aw/scripts/resolve_automerge_policy_cli.py
-
       - name: Find armed candidate(s)
         id: find
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
-          AUTOMERGE_POLICY_JSON: ${{ steps.policy.outputs.automerge-policy-json }}
+          OBLT_AW_ROOT: ${{ github.workspace }}/_oblt-aw
+          ORG_KEY: ${{ inputs.shared-org-key }}
+          POLICY_CACHE_DIR: ${{ runner.temp }}/automerge-policy-by-base
         run: |
           set -euo pipefail
-          # Prefer trigger-labels from resolved policy JSON (kebab-case).
-          triggers="$(printf '%s' "${AUTOMERGE_POLICY_JSON}" \
-            | jq -c '."trigger-labels" // ["oblt-aw/ai/merge-ready"]')"
-          export AUTOMERGE_TRIGGER_LABELS_JSON="${triggers}"
+          # Discover resolves each PR's trusted base-SHA apm.yml policy (cached by SHA)
+          # before trigger-label filtering and the matrix cap.
           bash _oblt-aw/scripts/obs/discover_armed_automerge_prs.sh
 
   merge:

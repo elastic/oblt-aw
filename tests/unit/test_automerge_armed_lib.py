@@ -445,3 +445,23 @@ def test_squash_merge_at_sha_fails_when_approval_dismissed(
     assert "MERGE_RESULT=merge_failed" in result.stdout
     assert "ASSERT_REASON=missing_approval" in result.stdout
     assert "Approval no longer present" in result.stderr
+
+
+def test_effective_trigger_labels_defaults_under_nounset() -> None:
+    """Empty AUTOMERGE_TRIGGER_LABELS_JSON must not abort under set -u."""
+    env = os.environ.copy()
+    env.pop("AUTOMERGE_TRIGGER_LABELS_JSON", None)
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'set -u; source "{SCRIPT}"; automerge_effective_trigger_labels_json',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "oblt-aw/ai/merge-ready" in result.stdout
+    assert "unbound variable" not in result.stderr

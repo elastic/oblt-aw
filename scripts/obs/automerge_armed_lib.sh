@@ -50,7 +50,8 @@ automerge_merge_error_is_already_merged_message() {
 # Effective trigger labels for live merge opt-in (merge-ready always included).
 automerge_effective_trigger_labels_json() {
   local raw="${AUTOMERGE_TRIGGER_LABELS_JSON:-}"
-  local parsed
+  # Must initialize under `set -u`: an empty policy env leaves `parsed` unset.
+  local parsed=""
   if [[ -n "${raw}" ]]; then
     parsed="$(printf '%s' "${raw}" | jq -c \
       --arg merge "${AUTOMERGE_MERGE_READY_LABEL}" \
