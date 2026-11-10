@@ -1,10 +1,12 @@
-# Workflow: `distribute-client-workflow.yml`
+# Workflow: `distribute-client-workflow` entrypoints
 
 ## Overview
 
-Source file: [.github/workflows/distribute-client-workflow.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/distribute-client-workflow.yml)
+Active source files: [.github/workflows/distribute-client-workflow-obs.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/distribute-client-workflow-obs.yml) and [.github/workflows/distribute-client-workflow-security.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/distribute-client-workflow-security.yml).
 
-This workflow creates PRs across target repositories to install, update, or remove the per-org template file set (for example `.github/workflows/trigger-obs-aw-*.yml`, `.github/workflows/trigger-docs-aw-*.yml`, and any other paths under each org’s `.github/remote-workflow-template/<org-key>/` tree).
+Legacy compatibility stub: [.github/workflows/distribute-client-workflow.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/distribute-client-workflow.yml) is a redirect/no-op entrypoint and does not mint tokens or open distribution PRs.
+
+The active org-scoped workflows create PRs across target repositories to install, update, or remove the per-org template file set (for example `.github/workflows/trigger-obs-aw-*.yml`, `.github/workflows/trigger-docs-aw-*.yml`, and any other paths under each org’s `.github/remote-workflow-template/<org-key>/` tree).
 
 ## Prerequisites
 
@@ -12,13 +14,14 @@ This workflow creates PRs across target repositories to install, update, or remo
   - `config/**/active-repositories.json` (per-org repo lists; example [config/obs/active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json))
   - `config/release-pointers.json` (production pin retarget after promote)
   - [.github/remote-workflow-template/](https://github.com/elastic/oblt-aw/tree/main/.github/remote-workflow-template) (per-org subtrees such as `obs/`, `docs/`)
+  - `.github/workflows/distribute-client-workflow-obs.yml`, `.github/workflows/distribute-client-workflow-security.yml`, `.github/workflows/distribute-client-workflow-impl.yml`
   - `scripts/build_target_operations.py`, `scripts/client_workflow_pin.py`, `scripts/common.py` (target matrix and pin rewrite)
 - Or manually triggered with `workflow_dispatch`.
 - The minted token must be a GitHub App bot token with contents and pull-request write access in each target repository. Both PR actions use built-in bot commit signing (`sign-commits: true`), not GPG secrets. A created or updated PR fails its matrix leg unless the action reports its commits as verified; skipped operations are unaffected.
 
 ## Usage
 
-Main jobs:
+Main shared implementation jobs (called by both org entrypoints):
 
 - `prepare-targets`
 - `create-prs`
@@ -52,10 +55,11 @@ Top-level permissions:
 
 - `contents: read`
 
-Concurrency:
+Entry-point concurrency groups:
 
-- group `distribute-client-workflow`
-- `cancel-in-progress: false`
+- `distribute-client-workflow-obs-entrypoint`
+- `distribute-client-workflow-security-entrypoint`
+- Legacy stub: `distribute-client-workflow-legacy`
 
 ## References
 

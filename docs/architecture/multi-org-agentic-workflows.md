@@ -90,8 +90,12 @@ scripts/
   obs-aw-*.yml                               # Reusable agentic workflows — see §4
   docs-aw-*.yml
   security-aw-*.yml
-  sync-control-plane-dashboard.yml
-  distribute-client-workflow.yml
+  sync-control-plane-dashboard-obs.yml       # Active org-scoped entrypoint
+  sync-control-plane-dashboard-security.yml  # Active org-scoped entrypoint
+  distribute-client-workflow-obs.yml         # Active org-scoped entrypoint
+  distribute-client-workflow-security.yml    # Active org-scoped entrypoint
+  sync-control-plane-dashboard.yml           # Legacy redirect/no-op compatibility stub
+  distribute-client-workflow.yml             # Legacy redirect/no-op compatibility stub
   ...
 ```
 
