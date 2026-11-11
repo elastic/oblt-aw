@@ -113,6 +113,7 @@ toc:
       - hidden: ./obs-aw-issue-triage.md
       - hidden: ./obs-aw-mention-in-issue.md
       - hidden: ./obs-aw-pr-actions-detective.md
+      - hidden: ./obs-aw-repo-scheduled.md
       - hidden: ./obs-aw-resource-not-accessible-by-integration-detector.md
       - hidden: ./obs-aw-resource-not-accessible-by-integration-fixer.md
       - hidden: ./obs-aw-resource-not-accessible-by-integration-triage.md
@@ -146,6 +147,7 @@ toc:
       - hidden: ./automerge-routing.md
       - hidden: ./dependency-review-routing.md
       - hidden: ./issue-fixer-routing.md
+      - hidden: ./repo-scheduled-routing.md
       - hidden: ./resource-not-accessible-by-integration-routing.md
       - hidden: ./security-routing.md
   - folder: onboarding

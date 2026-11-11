@@ -42,6 +42,7 @@ LOCKS_WITHOUT_REPORT_FAILURE_INPUT: frozenset[str] = frozenset(
         "gh-aw-docs-patrol.lock.yml",
         "gh-aw-estc-pr-buildkite-detective.lock.yml",
         "gh-aw-pr-actions-detective.lock.yml",
+        "gh-aw-repo-scheduled.lock.yml",
     }
 )
 

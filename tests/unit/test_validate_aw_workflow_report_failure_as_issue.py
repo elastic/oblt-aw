@@ -127,6 +127,23 @@ def test_skips_in_repo_dependency_review_lock(tmp_path: pathlib.Path) -> None:
     )
 
 
+def test_skips_in_repo_scheduled_lock(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "obs-aw-repo-scheduled.yml"
+    path.write_text(
+        "name: Repo Scheduled\non:\n  workflow_call:\njobs:\n"
+        "  run-automation:\n"
+        "    uses: ./.github/workflows/gh-aw-repo-scheduled.lock.yml\n"
+        "    with:\n"
+        "      automation-id: sample\n"
+        "      instruction-path: .github/ai/scheduled/sample.md\n",
+        encoding="utf-8",
+    )
+    assert validator.validate_workflow(path, ROUTE_RE) == []
+    assert (
+        "gh-aw-repo-scheduled.lock.yml" in validator.LOCKS_WITHOUT_REPORT_FAILURE_INPUT
+    )
+
+
 def test_main_passes_on_repo_workflows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
