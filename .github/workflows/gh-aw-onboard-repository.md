@@ -117,7 +117,7 @@ Map each matching open PR to one inventory concern by repository (and title):
 
 | Concern | Allowlisted repo | Typical title contains |
 |---------|------------------|------------------------|
-| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy + mapped org-scoped sync/distribute selectors; legacy shared selectors until org entrypoints replace them) |
+| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy + mapped org-scoped sync/distribute selectors) |
 | registration | `elastic/oblt-aw` | `Register` / `active repositories` |
 | settings | `elastic/observability-github-settings` | `branch protection` |
 | secrets | `elastic/observability-github-secrets` | `secret` / secrets provision |
@@ -138,7 +138,7 @@ Then:
 
 Edit the checked-out trees named in the Automation contract (`repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and this repository root for `elastic/oblt-aw`).
 
-In the catalog concern PR: (1) add the consumer TokenPolicy for `trigger-<org>-aw-*.yml@*`. (2) Framework allowlists (deterministic): map the registration org-key to the control-plane policy suffix — `obs`→`obs`, `security`→`security`, `docs`→`obs` (temporary until Backstage `org: docs`). Ensure the consumer’s github-repository RRE lives under the matching `resources/github/engineering/<backstage-org>/` tree, then ensure both `token-policy-oblt-aw-sync-control-plane-dashboard-<suffix>.yaml` and `token-policy-oblt-aw-distribute-client-workflow-<suffix>.yaml` list `elastic/<repo>` (run the updater with `--org <suffix>` or append sorted selector rows). Do **not** invent `-docs` framework policies. Until org-scoped sync/distribute entrypoints replace the shared workflows on `main`, also keep `elastic/<repo>` on the legacy unsuffixed sync/distribute selectors; use `ALWAYS_INCLUDE_REPOS` only for that legacy Obs scan when the mapped Backstage tree would not cover the repo. After those entrypoints land, drop `ALWAYS_INCLUDE_REPOS` and legacy-only coverage. Never rely on a later weekly job or on `active-repositories.json` alone for allowlist membership.
+In the catalog concern PR: (1) add the consumer TokenPolicy for `trigger-<org>-aw-*.yml@*`. (2) Framework allowlists (deterministic): map the registration org-key to the control-plane policy suffix — `obs`→`obs`, `security`→`security`, `docs`→`obs` (temporary until Backstage `org: docs`). Ensure the consumer’s github-repository RRE lives under the matching `resources/github/engineering/<backstage-org>/` tree, then run `python .github/scripts/update-token-policy-obs-repositories/update_token_policy.py --org <suffix>` (or append sorted selector rows) so both `token-policy-oblt-aw-sync-control-plane-dashboard-<suffix>.yaml` and `token-policy-oblt-aw-distribute-client-workflow-<suffix>.yaml` list `elastic/<repo>`. Do **not** invent `-docs` framework policies or use `ALWAYS_INCLUDE_REPOS`. Never rely on a later weekly job or on `active-repositories.json` alone for allowlist membership.
 
 ### Consumer secrets
 

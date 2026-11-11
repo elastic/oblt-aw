@@ -2,9 +2,11 @@
 
 ## Overview
 
-Source file: [.github/workflows/sync-control-plane-dashboard.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard.yml)
+Source files: [.github/workflows/sync-control-plane-dashboard-obs.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard-obs.yml) and [sync-control-plane-dashboard-security.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard-security.yml) (one `workflow_ref` / TokenPolicy per Backstage org).
 
 This workflow creates or updates the **single** Control Plane dashboard issue in each repository listed in the union of org `config/<org-key>/active-repositories.json` files (for example [config/obs/active-repositories.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/active-repositories.json)). The Control Plane dashboard lists workflows **per org** with maturity badges and opt-in checkboxes.
+
+Legacy compatibility stub: [.github/workflows/sync-control-plane-dashboard.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard.yml) is a redirect/no-op entrypoint and does not mint tokens or sync dashboards.
 
 ## Prerequisites
 
@@ -18,10 +20,14 @@ This workflow creates or updates the **single** Control Plane dashboard issue in
 Triggers:
 
 - `push` to `main` when any of these paths change:
-  - [.github/workflows/sync-control-plane-dashboard.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard.yml)
+  - [.github/workflows/sync-control-plane-dashboard-obs.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard-obs.yml)
+  - [.github/workflows/sync-control-plane-dashboard-security.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/sync-control-plane-dashboard-security.yml)
+  - `config/common/services.json`
   - `config/**/active-repositories.json` and `config/**/workflow-registry.json` (per-org trees)
   - `scripts/common.py` (checkbox markers and parsing used in the issue body)
+  - `scripts/build_repos_matrix.py` (target repo matrix builder)
   - `scripts/sync_control_plane_dashboard.py` (dashboard body builder)
+  - `scripts/workflow_registry.py` (registry loading/merge logic)
 - `workflow_dispatch` with optional input `force-sync-defaults` (boolean, default `false`)
 
 *Note: Editing the Control Plane dashboard issue does not trigger this sync workflow. Runtime opt-in/opt-out is still read by the ingress (`get-enabled-workflows`). Checkbox edits on the Control Plane dashboard do trigger the shared [aw-dashboard-audit](aw-dashboard-audit.md) path via consumer `issues.edited` routing. Sync-driven checkbox resets (including `force-sync-defaults`) also post audit comments from this script with a fixed automation reason.*
@@ -81,7 +87,7 @@ Permissions:
 
 Concurrency:
 
-- group: `sync-control-plane-dashboard`
+- group: `sync-control-plane-dashboard-obs` / `sync-control-plane-dashboard-security`
 - `cancel-in-progress: false`
 
 ## References

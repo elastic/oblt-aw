@@ -256,7 +256,7 @@ class TestMain:
         brm_test = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(brm_test)
 
-        rc = brm_test.main()
+        rc = brm_test.main([])
         assert rc == 0
         content = output_file.read_text()
         assert "repos=[]" in content
@@ -293,7 +293,7 @@ class TestMain:
         brm_test = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(brm_test)
 
-        rc = brm_test.main()
+        rc = brm_test.main([])
         assert rc == 0
         content = output_file.read_text()
         assert "has_repos=true" in content
@@ -352,7 +352,7 @@ class TestMain:
         brm_test = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(brm_test)
 
-        assert brm_test.main() == 0
+        assert brm_test.main([]) == 0
         repos_line = next(
             line
             for line in output_file.read_text().splitlines()
@@ -365,3 +365,55 @@ class TestMain:
                 "workflow-token-policy": "token-policy-custom",
             }
         ]
+
+
+class TestOrgKeyFilter:
+    def test_org_key_limits_matrix_and_folds_docs_alias(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+    ) -> None:
+        import importlib.util
+
+        output_file = tmp_path / "github_output"
+        output_file.touch()
+        monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
+        (tmp_path / "scripts").mkdir(parents=True)
+        root = pathlib.Path(__file__).resolve().parents[2]
+        (tmp_path / "scripts" / "build_repos_matrix.py").write_text(
+            (root / "scripts" / "build_repos_matrix.py").read_text()
+        )
+        (tmp_path / "scripts" / "common.py").write_text(
+            (root / "scripts" / "common.py").read_text()
+        )
+        for org, repos in (
+            ("obs", ["elastic/obs-repo"]),
+            ("docs", ["elastic/docs-repo"]),
+            ("security", ["elastic/sec-repo"]),
+        ):
+            org_dir = tmp_path / "config" / org
+            org_dir.mkdir(parents=True)
+            (org_dir / "workflow-registry.json").write_text(
+                json.dumps({"workflows": []})
+            )
+            (org_dir / "active-repositories.json").write_text(
+                json.dumps({"repositories": repos})
+            )
+
+        spec = importlib.util.spec_from_file_location(
+            "brm_test",
+            tmp_path / "scripts" / "build_repos_matrix.py",
+        )
+        assert spec and spec.loader
+        brm_test = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(brm_test)
+
+        assert brm_test.main(["--org-key", "obs"]) == 0
+        repos_line = next(
+            line
+            for line in output_file.read_text().splitlines()
+            if line.startswith("repos=")
+        )
+        matrix = json.loads(repos_line.split("=", 1)[1])
+        assert {m["repository"] for m in matrix} == {
+            "elastic/docs-repo",
+            "elastic/obs-repo",
+        }

@@ -14,7 +14,7 @@ Routed workflow sources:
 - `.github/workflows/obs-aw-automerge.yml` — PR path (`verify`, `check-dependency-collection`, `approve`, `assert-approved-review`, `automerge`, `rest-merge`, `arm-for-deferred-merge`, `report-automerge-outcome`)
 - `.github/workflows/obs-aw-automerge-deferred.yml` — frequent schedule profile (`discover`, matrix `merge`)
 
-**Approve (PR path):** Nested in-repo `gh-aw-autoapprove` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]`. When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review. Author allow list is **only** [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) (hardcoded on the autoapprove source).
+**Approve (PR path):** Nested in-repo `gh-aw-autoapprove` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]`. When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review. Author allow list is **only** [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) (synced onto the autoapprove source with `make sync-allowed-pr-authors`; not from `shared-allowed-pr-authors-*`).
 
 **Merge strategy (CI-duration independent):**
 

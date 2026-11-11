@@ -49,9 +49,9 @@ In `elastic/oblt-aw`, add (or wire) org-scoped wrappers, for example:
 - `.github/workflows/distribute-client-workflow-<org-key>.yml`
 - `.github/workflows/sync-control-plane-dashboard-<org-key>.yml`
 
-Each entrypoint must use a distinct path so OIDC / Vault can bind a unique role. Companion work for the obs/security split: [oblt-aw#2491](https://github.com/elastic/oblt-aw/pull/2491).
+Each entrypoint must use a distinct path so OIDC / Vault can bind a unique role. The obs/security split already lands as `*-obs.yml` / `*-security.yml`; unsuffixed `distribute-client-workflow.yml` / `sync-control-plane-dashboard.yml` are legacy fan-out stubs and must not mint.
 
-Keep the thin shared orchestrators (`distribute-client-workflow.yml`, `sync-control-plane-dashboard.yml`) only if they still dispatch into the org-scoped jobs; do not reintroduce a single TokenPolicy that selects every org’s repositories.
+Do not reintroduce a single TokenPolicy that selects every org’s repositories.
 
 ### 3. Register catalog-info TokenPolicies (one PR per org)
 
@@ -141,7 +141,7 @@ After the org scaffold exists, register repositories with [Registering resources
 
 ## Notes and deferrals
 
-- **Docs org** — Control-plane key `docs` still maps to Backstage / fleet suffix **`obs`** until consumer `metadata.labels.org` is `docs` (same temporary mapping as [oblt-aw#2491](https://github.com/elastic/oblt-aw/pull/2491)). Do not invent `-docs` sync/distribute TokenPolicies or `resources/github/engineering/docs/` for current docs consumers; use the Obs engineering tree and obs-suffixed policies. Full Docs-only fleet policies stay deferred until labels align.
+- **Docs org** — Control-plane key `docs` still maps to Backstage / fleet suffix **`obs`** until consumer `metadata.labels.org` is `docs`. Do not invent `-docs` sync/distribute TokenPolicies or `resources/github/engineering/docs/` for current docs consumers; use the Obs engineering tree and obs-suffixed policies. Full Docs-only fleet policies stay deferred until labels align.
 - **Shared common workflows** — Opting an org into `config/common` is a separate admin step: [Opt in or out of agentic workflows from other orgs](opt-in-common-services.md).
 
 ## See also

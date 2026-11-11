@@ -6,11 +6,11 @@
 | --- | --- |
 | Platform | GitHub Actions |
 | Source | [`.github/workflows/codex-preview-cleanup.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/codex-preview-cleanup.yml) |
-| Trigger | `pull_request_target` when a pull request is closed |
+| Trigger | `pull_request` with `types: [closed]` |
 
 ## Purpose
 
-Removes Codex preview deployments after a pull request closes. The workflow comments explain why it has no `docs/**` path filter: the pull request may have created a preview and then removed documentation changes before it closes. The reusable cleanup workflow no-ops when no matching deployment exists.
+Removes Codex preview deployments after a same-repo pull request closes. The `cleanup` job is guarded with `if: github.event.pull_request.head.repo.full_name == github.repository`, so fork pull-request close events are intentionally skipped because preview deploys are not created for forks. The workflow comments explain why it has no `docs/**` path filter: the pull request may have created a preview and then removed documentation changes before it closes. The reusable cleanup workflow no-ops when no matching deployment exists.
 
 ## Execution flow
 

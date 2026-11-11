@@ -20,8 +20,9 @@
  * checks are enforced by GitHub when auto-merge is enabled, not here.
  *
  * Allowed authors are defined only in `config/obs/allowed_pr_authors.json` (Observability
- * control-plane). Prelude loads that file into CSV/JSON for ingress and
- * `allowed-bot-users`; do not duplicate the list in workflow prompts.
+ * control-plane). Prelude loads that file into CSV/JSON for ingress. In-repo GH-AW
+ * sources sync static `on.bots` / prompt copies from the same JSON
+ * (`scripts/sync_allowed_pr_authors_bots.py`); do not hand-edit those copies.
  *
  * GraphQL/`gh pr view` (gh ≥ 2.50) may return `app/<slug>` for GitHub Apps while REST
  * and webhooks return `<slug>[bot]`. Matching always normalizes `app/<slug>` →
