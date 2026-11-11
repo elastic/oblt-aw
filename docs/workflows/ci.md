@@ -32,6 +32,7 @@ The `pre-commit` job uses [elastic/oblt-actions/pre-commit@v1](https://github.co
 - **Python**: ruff + ruff-format on Python files repo-wide; mypy (strict) on `scripts/`
 - **License**: Apache 2.0 headers and NOTICE sync ([scripts/update_license_files.py](https://github.com/elastic/oblt-aw/blob/main/scripts/update_license_files.py); excludes `*.yml` / `*.yaml`)
 - **General**: trailing whitespace, EOF, YAML/JSON checks, merge conflict detection, line endings
+- **gh-aw locks**: `compile-aw` regenerates `*.lock.yml` when staged files match `gh-aw-*.md`, `gh-aw-fragments/**`, or the compiler-upgrade Markdown sources ([scripts/pre_commit_compile_aw.sh](https://github.com/elastic/oblt-aw/blob/main/scripts/pre_commit_compile_aw.sh))
 - **Action pinning**: Enforced by workflow design (trusted actions use tags; untrusted use SHA). Ratchet is not used because sethvargo/ratchet lacks `.pre-commit-hooks.yaml` and our policy uses tags for trusted namespaces.
 
 On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
@@ -54,7 +55,7 @@ On PRs, pre-commit runs only on changed files (`--from-ref` / `--to-ref`).
 
 ## gh-aw drift
 
-- `gh-aw-drift` always runs on non-fixture PRs (`make compile-aw-check`).
+- `gh-aw-drift` always runs on non-fixture PRs (`make compile-aw-check`) and fails closed on drift. Contributors must run `make compile-aw` locally and commit regenerated `*.lock.yml` files (the `compile-aw` pre-commit hook also regenerates locks when matching Markdown sources are staged).
 - Live lock provenance is gated at promote time via [`e2e-all.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml) from [`aw-release-promote.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-release-promote.yml) — see [release-model](../operations/release-model.md).
 
 ## Scorecard

@@ -31,9 +31,9 @@ There is **no** `workflow_dispatch` path: the agent requires the triggering issu
 Behavior:
 
 1. Read the triggering issue via GitHub MCP and parse **repository** (`elastic/<repo>`) and **org key** (`docs` / `obs` / `security`) from the body. Source sets `tools.github.min-integrity: none` (temporary DIFC workaround so human-authored onboard issues are readable under the default `approved` floor).
-2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps including **2e** framework sync/distribute allowlists, appendix).
-3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones (especially secrets after full registry-doc discovery). Stop with **exact PR URLs** only when the inventory is complete.
-4. Open up to four **normal (non-draft)** PRs (separate concerns); do not merge them. The catalog PR must add the consumer TokenPolicy and apply step **2e** (mapped Backstage RRE / org-scoped sync/distribute selectors — `docs`→`obs` temporary; settings stacks under `resources/<org-key>/…`). Discover secrets from **every** org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines — do **not** filter by `default_enabled`; then resolve shared modules in the secrets checkout. PR bodies must be valid Markdown (real newlines).
+2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps including **2e** org-scoped sync/distribute **and** settings allowlists, appendix).
+3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones (especially secrets after full registry-doc discovery, and catalog step **2e** when sync/distribute or `token-policy-observability-github-settings-<suffix>` coverage is missing). Stop with **exact PR URLs** only when the inventory is complete.
+4. Open up to five **normal (non-draft)** PRs (separate concerns; catalog may split into consumer TokenPolicy + allowlist gap-fill); do not merge them. The catalog PR must add the consumer TokenPolicy and apply step **2e** (mapped org-scoped sync/distribute **and** settings selectors; extend any pinned settings `repos` allowlist when present). Settings bypasser stacks use `resources/<settings-org>/branch-protections/<repo>/`. Discover secrets from **every** org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines — do **not** filter by `default_enabled`; then resolve shared modules in the secrets checkout. PR bodies must be valid Markdown (real newlines).
 5. Comment with required content (parsed inputs, PR checklist, merge order, user-guide pointer) in **valid Markdown** — real newlines; full PR URLs or `#aw_…` rewrite. Heading wording is not fixed.
 
 User-facing steps: [Onboard a repository](../user-guide/onboard-a-repository.md).
@@ -48,7 +48,7 @@ Permissions (source intent; lock expands job-level scopes):
 Safe outputs:
 
 - `add-comment` (issue)
-- `create-pull-request` with `draft: false`, `max: 4`, `auto-close-issue: false`, allowlisted repos above
+- `create-pull-request` with `draft: false`, `max: 5`, `auto-close-issue: false`, allowlisted repos above
 
 ## Related exclusions
 
