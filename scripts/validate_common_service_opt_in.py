@@ -139,13 +139,13 @@ def _has_trigger_for_suffix(
 
 
 _SCHEDULE_PROFILE_JSON = re.compile(
-    r"schedule-profile\s*==\s*'(?P<profile>frequent|daily)'"
-    r".*?&&\s*'(?P<json>\[[^\]]*\])'",
+    r"schedule-profile\s*==\s*'(?P<profile>frequent|daily|weekly)'"
+    r"\s*&&\s*'(?P<json>\[[^\]]*\])'",
     re.DOTALL,
 )
-_SCHEDULE_DAILY_FALLBACK_JSON = re.compile(
-    r"schedule-profile\s*==\s*'frequent'.*?\|\|\s*'(?P<json>\[[^\]]*\])'",
-    re.DOTALL,
+# Final else branch of the schedule-profile expression (daily list today).
+_SCHEDULE_ELSE_JSON = re.compile(
+    r"\|\|\s*'(?P<json>\[[^\]]*\])'",
 )
 
 
@@ -162,28 +162,35 @@ def _basenames_from_json_array_literal(literal: str) -> set[str]:
 def _schedule_trigger_suffixes_for_basenames(
     orchestrator_text: str, required_basenames: set[str]
 ) -> set[str]:
-    """Map included basenames to ``schedule-daily`` / ``schedule-frequent`` stems."""
-    frequent: set[str] = set()
-    daily: set[str] = set()
+    """Map included basenames to schedule client stems (daily/frequent/weekly)."""
+    by_profile: dict[str, set[str]] = {
+        "daily": set(),
+        "frequent": set(),
+        "weekly": set(),
+    }
     for match in _SCHEDULE_PROFILE_JSON.finditer(orchestrator_text):
         names = _basenames_from_json_array_literal(match.group("json"))
-        if match.group("profile") == "frequent":
-            frequent |= names
-        else:
-            daily |= names
-    for match in _SCHEDULE_DAILY_FALLBACK_JSON.finditer(orchestrator_text):
-        daily |= _basenames_from_json_array_literal(match.group("json"))
+        by_profile[match.group("profile")] |= names
+    # Last || '[...]' in the expression is the default (daily) branch.
+    else_matches = list(_SCHEDULE_ELSE_JSON.finditer(orchestrator_text))
+    if else_matches:
+        by_profile["daily"] |= _basenames_from_json_array_literal(
+            else_matches[-1].group("json")
+        )
 
     suffixes: set[str] = set()
-    if required_basenames & frequent:
+    if required_basenames & by_profile["frequent"]:
         suffixes.add("schedule-frequent")
-    if required_basenames & daily:
+    if required_basenames & by_profile["daily"]:
         suffixes.add("schedule-daily")
-    # Basename listed in schedule orchestrator outside profile ternary: require both.
+    if required_basenames & by_profile["weekly"]:
+        suffixes.add("schedule-weekly")
+    # Basename listed in schedule orchestrator outside profile branches.
     listed = _basenames_in_control_plane_workflows(
         orchestrator_text
     ) | _basenames_used_by_jobs(orchestrator_text)
-    unclassified = (required_basenames & listed) - frequent - daily
+    classified = by_profile["daily"] | by_profile["frequent"] | by_profile["weekly"]
+    unclassified = (required_basenames & listed) - classified
     if unclassified:
         suffixes.update({"schedule-daily", "schedule-frequent"})
     return suffixes

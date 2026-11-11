@@ -77,6 +77,7 @@ Shared framework jobs use **kebab-case, action-oriented** ids with domain contex
 - [Release promote](aw-release-promote.md)
 - [Release rollback](aw-release-rollback.md)
 - [Resolve agentic assets](aw-resolve-agentic-assets.md)
+- [Repo scheduled](obs-aw-repo-scheduled.md)
 - [Resource Not Accessible detector](obs-aw-resource-not-accessible-by-integration-detector.md)
 - [Resource Not Accessible fixer](obs-aw-resource-not-accessible-by-integration-fixer.md)
 - [Resource Not Accessible triage](obs-aw-resource-not-accessible-by-integration-triage.md)

@@ -1,0 +1,123 @@
+name: Repo Scheduled
+
+# Generic scheduled AW. Consumers add instruction files under
+# .github/ai/scheduled/ (frontmatter: schedule-profiles, optional capabilities).
+# Control Plane dashboard gate is shared-proceed; discovery is fail-closed.
+on:
+  workflow_call:
+    inputs:
+      shared-proceed:
+        description: Dashboard gate for this route from aw-prelude.
+        required: true
+        type: string
+      shared-allowed-pr-authors-json:
+        required: true
+        type: string
+      shared-allowed-pr-authors-csv:
+        required: true
+        type: string
+      shared-allowed-issue-authors-json:
+        required: true
+        type: string
+      shared-allowed-issue-authors-csv:
+        required: true
+        type: string
+      shared-token-policy:
+        required: true
+        type: string
+      schedule-profile:
+        description: Wake profile from the schedule client (daily, frequent, or weekly).
+        required: true
+        type: string
+    secrets:
+      BUILDKITE_API_TOKEN:
+        required: false
+permissions:
+  contents: read
+
+jobs:
+  discover-automations:
+    if: inputs.shared-proceed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      has-matches: ${{ steps.discover.outputs.has-matches }}
+      automations-matrix-json: ${{ steps.discover.outputs.automations-matrix-json }}
+    steps:
+      - name: Checkout consumer repository
+        uses: actions/checkout@v7
+
+      - name: Checkout oblt-aw discovery scripts
+        uses: actions/checkout@v7
+        with:
+          repository: elastic/oblt-aw
+          # Prefer the SHA of this reusable so feature-branch / pin refs work
+          # before scripts land on main (aw-resolve still pins main today).
+          ref: ${{ github.workflow_sha || 'main' }}
+          path: _oblt-aw
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts
+            requirements-runtime.txt
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: _oblt-aw/requirements-runtime.txt
+
+      - name: Install runtime dependencies
+        run: python -m pip install -r _oblt-aw/requirements-runtime.txt
+
+      - name: Discover scheduled instruction files
+        id: discover
+        env:
+          BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/_oblt-aw/scripts
+        run: |
+          set -euo pipefail
+          python _oblt-aw/scripts/repo_scheduled_instructions.py \
+            --repo-root "${GITHUB_WORKSPACE}" \
+            --schedule-profile "${{ inputs.schedule-profile }}"
+
+  resolve-apm-assets:
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      needs.discover-automations.outputs.has-matches == 'true'
+    needs: [discover-automations]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/aw-resolve-agentic-assets.yml
+    with:
+      workflow-basename: obs-aw-repo-scheduled.yml
+      platform-additional-instructions: |
+        You are running one consumer-defined scheduled automation (obs:repo-scheduled).
+        Read and follow `/tmp/gh-aw/repo-scheduled-instructions.md` (consumer instruction body).
+        Prefer noop when nothing is actionable. Call a safe-output tool before finishing.
+        Use Buildkite MCP only when that file requires Buildkite data and buildkite-logs applies.
+
+  run-automation:
+    if: >-
+      inputs.shared-proceed == 'true' &&
+      needs.discover-automations.outputs.has-matches == 'true'
+    needs: [discover-automations, resolve-apm-assets]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover-automations.outputs.automations-matrix-json) }}
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+    uses: ./.github/workflows/gh-aw-repo-scheduled.lock.yml
+    with:
+      automation-id: ${{ matrix.id }}
+      instruction-path: ${{ matrix.path }}
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+    secrets:
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}

@@ -25,7 +25,7 @@ flowchart TB
     C_PR["trigger-obs-aw-pull-request.yml\non: pull_request"]
     C_ISS["trigger-obs-aw-issues.yml\non: issues, workflow_dispatch"]
     C_COM["trigger-obs-aw-issue-comment.yml\non: issue_comment"]
-    C_SCH["trigger-obs-aw-schedule-daily.yml\ntrigger-obs-aw-schedule-frequent.yml\ntrigger-obs-aw-status.yml\ntrigger-obs-aw-workflow-run.yml"]
+    C_SCH["trigger-obs-aw-schedule-daily.yml\ntrigger-obs-aw-schedule-frequent.yml\ntrigger-obs-aw-schedule-weekly.yml\ntrigger-obs-aw-status.yml\ntrigger-obs-aw-workflow-run.yml"]
     DASH["Issue: [oblt-aw] Control Plane Dashboard"]
     EVT --> C_PR
     EVT --> C_ISS
@@ -60,8 +60,9 @@ Full platform view (distribution, Control Plane dashboard sync, before/after ing
 | `trigger-obs-aw-pull-request.yml` | `pull_request` (opened, synchronize, reopened, labeled) | `obs-aw-event-pull-request.yml` → automerge, dependency-review |
 | `trigger-obs-aw-issues.yml` | `issues` (opened, labeled, edited), `workflow_dispatch` | `obs-aw-event-issues.yml` → dashboard-audit (edited + `oblt-aw/dashboard`), issue-triage, duplicate-issue-detector, security superseder/triage/fixer, resource triage/fixer |
 | `trigger-obs-aw-issue-comment.yml` | `issue_comment` created | `obs-aw-event-issue-comment.yml` → dashboard-audit-reason (`oblt-aw/dashboard`), issue-fixer, mention-in-issue |
-| `trigger-obs-aw-schedule-daily.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `obs-aw-event-schedule.yml` (`schedule-profile: daily`) → agent-suggestions, autodoc, security category detectors, resource-not-accessible detector |
-| `trigger-obs-aw-schedule-frequent.yml` | `schedule` (every 15 minutes), `workflow_dispatch` | `obs-aw-event-schedule.yml` (`schedule-profile: frequent`) → automerge-deferred |
+| `trigger-obs-aw-schedule-daily.yml` | `schedule` (daily 06:00 UTC), `workflow_dispatch` | `obs-aw-event-schedule.yml` (`schedule-profile: daily`) → agent-suggestions, autodoc, security category detectors, resource-not-accessible detector, repo-scheduled |
+| `trigger-obs-aw-schedule-frequent.yml` | `schedule` (every 15 minutes), `workflow_dispatch` | `obs-aw-event-schedule.yml` (`schedule-profile: frequent`) → automerge-deferred, repo-scheduled |
+| `trigger-obs-aw-schedule-weekly.yml` | `schedule` (Monday 06:00 UTC), `workflow_dispatch` | `obs-aw-event-schedule.yml` (`schedule-profile: weekly`) → repo-scheduled |
 | `trigger-obs-aw-status.yml` | `status` (Buildkite failure → ESTC) | `obs-aw-event-status.yml` → estc-pr-buildkite-detective |
 | `trigger-obs-aw-workflow-run.yml` | `workflow_run` completed for names in `pr-actions-detective-workflows` (installed only when that allowlist is non-empty); job `if` requires failure + associated PRs | `obs-aw-event-workflow-run.yml` → pr-actions-detective |
 
@@ -88,6 +89,7 @@ Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull
 | `trigger-obs-aw-issue-comment.yml` | `run-obs-aw-issue-comment` | `actions: read`, `contents: write`, `copilot-requests: write`, `discussions: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-schedule-daily.yml` | `run-obs-aw-schedule-daily` | `actions: read`, `contents: write`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-schedule-frequent.yml` | `run-obs-aw-schedule-frequent` | `actions: read`, `contents: write`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
+| `trigger-obs-aw-schedule-weekly.yml` | `run-obs-aw-schedule-weekly` | `actions: read`, `contents: write`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-status.yml` | `run-obs-aw-status` | `actions: read`, `contents: read`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 | `trigger-obs-aw-workflow-run.yml` | `run-obs-aw-workflow-run` | `actions: read`, `contents: read`, `copilot-requests: write`, `id-token: write`, `issues: write`, `pull-requests: write` |
 
@@ -95,13 +97,13 @@ Job-level permissions on the client entrypoint job (for example `run-obs-aw-pull
 
 | Secret | Templates |
 |--------|-----------|
-| `BUILDKITE_LOGS_API_TOKEN` → `BUILDKITE_API_TOKEN` | `trigger-obs-aw-status.yml` only |
+| `BUILDKITE_LOGS_API_TOKEN` → `BUILDKITE_API_TOKEN` | `trigger-obs-aw-status.yml`; schedule daily/frequent/weekly (optional, for `obs:repo-scheduled` `buildkite-logs`) |
 
 Consumer-facing names for onboarding come from each workflow doc’s **Prerequisites** (with **API / Interface** as wrapper-contract fallback), not this table. See [Consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery) and [obs-aw-estc-pr-buildkite-detective](obs-aw-estc-pr-buildkite-detective.md).
 
 ## Migration from `trigger-oblt-aw-*` client templates
 
-1. Merge distribution PRs that replace `trigger-oblt-aw-*.yml` with `trigger-obs-aw-*.yml` (same event-scoped set: pull-request, issues, issue-comment, schedule-daily, schedule-frequent, status, workflow-run).
+1. Merge distribution PRs that replace `trigger-oblt-aw-*.yml` with `trigger-obs-aw-*.yml` (same event-scoped set: pull-request, issues, issue-comment, schedule-daily, schedule-frequent, schedule-weekly, status, workflow-run).
 2. Distribution removes client paths that are no longer in the template tree (including retired `trigger-oblt-aw-*.yml`).
 3. Update Backstage `workflow_ref` / token policies to `elastic/<repo>/.github/workflows/trigger-obs-aw-*.yml@*` (ref wildcard required for backport branches).
 
