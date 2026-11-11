@@ -39,6 +39,21 @@ def _full_canary_env() -> dict[str, str]:
     }
 
 
+class TestCanaryInventory:
+    def test_endpoint_is_fixture_config_not_secret(self) -> None:
+        assert "E2E_OTLP_CANARY_ENDPOINT" not in scan.env_secret_names()
+        assert "E2E_OTLP_CANARY_ENDPOINT" not in scan.REQUIRED_CANARY_ENV_NAMES
+
+    def test_endpoint_absent_from_text_is_not_a_leak(self) -> None:
+        # Endpoint URL may remain after redact; requiring it absent would
+        # false-fail the gate. Credential canaries still must be absent.
+        result = scan.scan_text(
+            f"OTEL_EXPORTER_OTLP_ENDPOINT: {CANARY_ENDPOINT}\n",
+            env=_full_canary_env(),
+        )
+        assert result["secret_leak_detected"] is False
+
+
 class TestScanText:
     def test_detects_canary_headers(self) -> None:
         result = scan.scan_text(

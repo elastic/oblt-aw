@@ -39,6 +39,8 @@ _ENV_VALUE_MIN_LEN = 12
 # Env names aligned with GH-AW redact_secrets / OTEL lock env surfaces.
 # E2E_OTLP_CANARY_* cover gh-aw#68811 extraction shapes (ApiKey, Basic-auth
 # decoded password, multi-endpoint ALL_HEADERS, percent-encoded headers).
+# E2E_OTLP_CANARY_ENDPOINT is fixture config only (URL, not a credential) and
+# is intentionally omitted from secret / required-canary inventories.
 # Keep alphabetical.
 _ENV_SECRET_NAMES: tuple[str, ...] = (
     "BUILDKITE_API_TOKEN",
@@ -48,7 +50,6 @@ _ENV_SECRET_NAMES: tuple[str, ...] = (
     "E2E_OTLP_CANARY_BASIC_DECODED",
     "E2E_OTLP_CANARY_BASIC_HEADERS",
     "E2E_OTLP_CANARY_BASIC_PASSWORD",
-    "E2E_OTLP_CANARY_ENDPOINT",
     "E2E_OTLP_CANARY_HEADERS",
     "E2E_OTLP_CANARY_PERCENT_HEADERS",
     "GH_AW_DEFAULT_OTLP_ENDPOINT",
@@ -69,7 +70,6 @@ REQUIRED_CANARY_ENV_NAMES: tuple[str, ...] = (
     "E2E_OTLP_CANARY_BASIC_DECODED",
     "E2E_OTLP_CANARY_BASIC_HEADERS",
     "E2E_OTLP_CANARY_BASIC_PASSWORD",
-    "E2E_OTLP_CANARY_ENDPOINT",
     "E2E_OTLP_CANARY_HEADERS",
     "E2E_OTLP_CANARY_PERCENT_HEADERS",
 )
