@@ -62,4 +62,4 @@ When introducing `config/<org-key>/` (and `<org-key>-aw-*` naming), complete **a
 7. **Tests** — `tests/unit/test_validate_aw_workflow_prelude.py` parametrizes route `shared-proceed` cases over `discover_org_keys_sorted(config)`. After adding an org, run that module and confirm the new key is included (no separate hard-coded org list in the tests either).
 8. **Validate** — `pre-commit run --files <touched-paths>`; `python scripts/validate_aw_workflow_prelude.py`; focused pytest for the prelude tests.
 
-See [docs/architecture/multi-org-agentic-workflows.md](docs/architecture/multi-org-agentic-workflows.md) §10.
+Maintainer runbook (catalog-info TokenPolicies, org-scoped sync/distribute, one PR per org): [docs/admin-guide/add-a-new-org.md](docs/admin-guide/add-a-new-org.md). Checklist detail: [docs/architecture/multi-org-agentic-workflows.md](docs/architecture/multi-org-agentic-workflows.md) §10.

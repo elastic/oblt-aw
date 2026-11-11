@@ -53,7 +53,9 @@ Full procedure and YAML template: [Registering resources](../onboarding/register
 
 ## Framework fixed policies
 
-Some framework workflows use explicit policy ids in YAML (not copied into consumer repos):
+Some framework workflows use explicit policy ids in YAML (not copied into consumer repos). Role names are `token-policy-` plus the first 12 hex chars of SHA-256 over the **workflow path only** (no `@ref`).
+
+**Per-org entrypoints** (required so catalog-info selectors and pr-approval stay within one Backstage org). Unsuffixed `distribute-client-workflow.yml` / `sync-control-plane-dashboard.yml` are legacy fan-out stubs and do not mint:
 
 | Workflow | Policy id (in this repo) |
 |----------|--------------------------|
@@ -62,7 +64,9 @@ Some framework workflows use explicit policy ids in YAML (not copied into consum
 | [sync-control-plane-dashboard-obs](../workflows/sync-control-plane-dashboard.md) | `token-policy-a95a5021fec0` |
 | [sync-control-plane-dashboard-security](../workflows/sync-control-plane-dashboard.md) | `token-policy-16edac196fcc` |
 
-Their `permissionset.selector` lists in `elastic/catalog-info` must include every registered consumer. Onboard validates Observability Backstage coverage (`resources/github/engineering/obs/<repo>.yaml`); when missing, it adds the slug to `ALWAYS_INCLUDE_REPOS` in `update_token_policy.py` and refreshes the selectors in the same catalog PR. Weekly `update-token-policy-obs-repositories` rebuilds from Obs Backstage plus that set — it does not read `active-repositories.json`. See [Registering resources](../onboarding/registering-a-repository.md) (inventory order 1, step **2e**).
+When adding another org, create matching entrypoints and catalog TokenPolicies — see [Add a new org key](add-a-new-org.md).
+
+Their `permissionset.selector` lists in `elastic/catalog-info` must cover the repositories that org’s sync/distribute jobs touch. Control-plane key `docs` still uses the **`obs`** policies and engineering tree until Backstage labels match. Weekly `update-token-policy-obs-repositories` rebuilds selectors from `resources/github/engineering/<org>/` (one PR per org via `--org`) and does not read `active-repositories.json`. See [Registering resources](../onboarding/registering-a-repository.md) and [Add a new org key](add-a-new-org.md).
 
 ## Example: workflow without repository secrets
 
@@ -80,7 +84,8 @@ See [create-token or OIDC failures](../troubleshooting/common-problems/create-to
 
 ## See also
 
-- [Registering resources](../onboarding/registering-a-repository.md)
-- [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md) — `ai-assets-token-policy` and APM installs
+- [Add a new org key](add-a-new-org.md) — org-scoped sync/distribute TokenPolicies
 - [aw-prelude](../workflows/aw-prelude.md) — `token-policy` output
+- [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md) — `ai-assets-token-policy` and APM installs
 - [Configure a GitHub secret](configure-a-github-secret.md) — when long-lived secrets are still required
+- [Registering resources](../onboarding/registering-a-repository.md)

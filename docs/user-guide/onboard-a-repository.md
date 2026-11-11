@@ -48,7 +48,7 @@ Technical registration detail for maintainers and agents: [Registering resources
    |------:|------------|-----------------|
    | 1 | `elastic/catalog-info` | TokenPolicy for client `create-token`, plus the mapped org-scoped sync/distribute allowlists (`obs` or `security`; `docs` maps to `obs`) |
    | 2 | `elastic/oblt-aw` | Entry in `config/<org-key>/active-repositories.json` |
-   | 3 | `elastic/observability-github-settings` | Vault app in classic BP `pull_request_bypassers` (and merge-queue ruleset `bypass_actors` when present) |
+   | 3 | `elastic/observability-github-settings` | Vault app in classic BP `pull_request_bypassers` under `resources/<org-key>/branch-protections/<repo>/` (and merge-queue ruleset `bypass_actors` when present) |
    | 4 | `elastic/observability-github-secrets` | When org agentic workflow docs’ **Prerequisites** (or **API / Interface**) require consumer secrets; otherwise the agent notes “none” |
    | 5 | `elastic/<repo>` (consumer) | Add or update `.github/CODEOWNERS` for distributed trigger clients: `/.github/workflows/trigger-<org-key>-aw-* @elastic/<owning-team>` (match the org’s owners in this control plane’s [CODEOWNERS](https://github.com/elastic/oblt-aw/blob/main/.github/CODEOWNERS)) |
    | 6 | `elastic/<repo>` (consumer) | **When Renovate is enabled:** add a Renovate `packageRules` entry that disables updates for `.github/workflows/trigger-*-aw-*.yml` (see step 5 below and [Registering resources — step 5b](../onboarding/registering-a-repository.md#steps)) |
