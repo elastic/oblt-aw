@@ -17,5 +17,8 @@ pnpm-debug.log*
 # Test artifacts
 coverage/
 
+# E2E-vendored action checkouts (resolved from .aw-compiler-version)
+.e2e-vendor/
+
 # macOS
 .DS_Store

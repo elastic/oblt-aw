@@ -1,0 +1,18 @@
+# Gitleaks config for the secret-leak agent-artifact E2E.
+# Extends defaults and adds OTLP Authorization shapes from the H1 / gh-aw#68811.
+title = "oblt-aw e2e secret-leak artifacts"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "otlp-authorization-apikey"
+description = "OTLP Authorization ApiKey header credential"
+regex = '''(?i)Authorization\s*[:=]\s*ApiKey\s+[A-Za-z0-9_\-]+:[A-Za-z0-9_\-]+'''
+keywords = ["apikey", "authorization", "otlp"]
+
+[[rules]]
+id = "otlp-authorization-basic"
+description = "OTLP Authorization Basic header credential"
+regex = '''(?i)Authorization\s*[:=]\s*Basic\s+[A-Za-z0-9+/]{20,}={0,2}'''
+keywords = ["authorization", "basic", "otlp"]
