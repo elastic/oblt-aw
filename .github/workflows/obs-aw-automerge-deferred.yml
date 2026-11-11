@@ -2,9 +2,10 @@ name: Automerge deferred (schedule)
 
 # Deferred merge for armed automerge PRs via Vault REST squash-merge on the frequent
 # schedule profile (trigger-obs-aw-schedule-frequent.yml → obs-aw-event-schedule).
-# Lists open armed merge-ready PRs only — does not listen to status, check_run,
-# or check_suite (those would multiply CI cost). GitHub's merge API still
-# enforces every required check (Actions + Buildkite).
+# Lists open armed PRs only — does not listen to status, check_run, or
+# check_suite (those would multiply CI cost). Trigger-label / author / fork
+# gates re-run in the merge matrix via consumer apm.yml policy. GitHub's merge
+# API still enforces every required check (Actions + Buildkite).
 on:
   workflow_call:
     inputs:
@@ -61,17 +62,37 @@ jobs:
           fetch-depth: 1
           token: ${{ github.token }}
           sparse-checkout: |
+            requirements-runtime.txt
+            scripts/apm_agentic_assets.py
+            scripts/common.py
             scripts/obs/automerge_armed_lib.sh
             scripts/obs/discover_armed_automerge_prs.sh
+            scripts/resolve_automerge_policy_cli.py
           sparse-checkout-cone-mode: false
 
-      - name: Find armed merge-ready candidate(s)
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: _oblt-aw/requirements-runtime.txt
+
+      - name: Install Python dependencies for policy resolve
+        run: pip install -r _oblt-aw/requirements-runtime.txt
+
+      - name: Find armed candidate(s)
         id: find
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+          OBLT_AW_ROOT: ${{ github.workspace }}/_oblt-aw
+          ORG_KEY: ${{ inputs.shared-org-key }}
+          POLICY_CACHE_DIR: ${{ runner.temp }}/automerge-policy-by-base
         run: |
           set -euo pipefail
+          # Discover resolves each PR's trusted base-SHA apm.yml policy (cached by SHA)
+          # before trigger-label filtering and the matrix cap.
           bash _oblt-aw/scripts/obs/discover_armed_automerge_prs.sh
 
   merge:
@@ -98,6 +119,33 @@ jobs:
         with:
           token-policy: ${{ inputs.shared-token-policy }}
 
+      - name: Resolve PR base SHA for trusted apm.yml
+        id: pr-base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ matrix.pr_number }}
+        run: |
+          set -euo pipefail
+          base_sha="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.base.sha')"
+          if [[ -z "${base_sha}" || "${base_sha}" == "null" ]]; then
+            echo "Failed to resolve base.sha for ${REPO}#${PR_NUMBER}" >&2
+            exit 1
+          fi
+          echo "sha=${base_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout consumer repository (apm.yml for automerge policy)
+        uses: actions/checkout@v7
+        with:
+          # Trusted base revision only — never read authorization policy from the PR head.
+          ref: ${{ steps.pr-base.outputs.sha }}
+          path: _consumer
+          fetch-depth: 1
+          sparse-checkout: |
+            apm.yml
+            apm.yaml
+          sparse-checkout-cone-mode: false
+
       - name: Checkout elastic/oblt-aw (gate helpers)
         uses: actions/checkout@v7
         with:
@@ -109,14 +157,37 @@ jobs:
           sparse-checkout: |
             config/obs/allowed_pr_authors.json
             config/obs/automerge-dependency-collections.json
+            requirements-runtime.txt
+            scripts/apm_agentic_assets.py
+            scripts/common.py
+            scripts/obs/automergePolicy.ts
             scripts/obs/automerge_armed_lib.sh
             scripts/obs/checkAutomergeDependencyCollection.ts
             scripts/obs/classifyAutomergeDependencyCollection.ts
             scripts/obs/lib/matchPathGlob.ts
             scripts/obs/validateAutomergePr.ts
+            scripts/resolve_automerge_policy_cli.py
             package.json
             package-lock.json
           sparse-checkout-cone-mode: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: _oblt-aw/requirements-runtime.txt
+
+      - name: Install Python dependencies for policy resolve
+        run: pip install -r _oblt-aw/requirements-runtime.txt
+
+      - name: Resolve consumer automerge policy
+        id: policy
+        env:
+          REPO_ROOT: ${{ github.workspace }}/_consumer
+          ORG_KEY: ${{ inputs.shared-org-key }}
+          PYTHONPATH: ${{ github.workspace }}/_oblt-aw/scripts
+        run: python _oblt-aw/scripts/resolve_automerge_policy_cli.py
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -137,6 +208,7 @@ jobs:
           SHARED_TOKEN_POLICY: ${{ inputs.shared-token-policy }}
           ENABLED_WORKFLOWS_JSON: ${{ inputs.shared-enabled-workflows }}
           ORG_KEY: ${{ inputs.shared-org-key }}
+          AUTOMERGE_POLICY_JSON: ${{ steps.policy.outputs.automerge-policy-json }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -148,13 +220,18 @@ jobs:
 
             const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
             const { run: validate } = rq('./scripts/obs/validateAutomergePr.ts');
-            const { ok } = await validate({
+            const { ok, triggerLabels } = await validate({
               github,
               context,
               prNumber,
               core,
               sharedTokenPolicy: process.env.SHARED_TOKEN_POLICY || '',
+              policyJson: process.env.AUTOMERGE_POLICY_JSON || '',
             });
+            core.setOutput(
+              'trigger-labels-json',
+              JSON.stringify(Array.isArray(triggerLabels) ? triggerLabels : [])
+            );
             if (!ok) {
               core.info(`PR #${prNumber}: verify gate failed; skipping merge.`);
               core.setOutput('proceed', 'false');
@@ -184,10 +261,21 @@ jobs:
           PR_NUMBER: ${{ matrix.pr_number }}
           HEAD_SHA: ${{ matrix.head_sha }}
           REPO: ${{ github.repository }}
+          AUTOMERGE_TRIGGER_LABELS_JSON: ${{ steps.gates.outputs.trigger-labels-json }}
         run: |
           set -euo pipefail
           # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
           source _oblt-aw/scripts/obs/automerge_armed_lib.sh
+          label_rc=0
+          automerge_pr_has_merge_ready_label "${REPO}" "${PR_NUMBER}" || label_rc=$?
+          if [[ "${label_rc}" -eq 2 ]]; then
+            echo "PR #${PR_NUMBER}: missing automerge trigger label; skipping merge."
+            exit 0
+          fi
+          if [[ "${label_rc}" -ne 0 ]]; then
+            echo "PR #${PR_NUMBER}: could not verify automerge trigger labels; failing closed." >&2
+            exit 1
+          fi
           if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
             -f merge_method=squash \
             -f sha="${HEAD_SHA}" 2>&1)"; then

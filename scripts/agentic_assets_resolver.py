@@ -28,7 +28,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from apm_agentic_assets import resolve_apm_assets
+from apm_agentic_assets import (
+    AUTOMERGE_WORKFLOW_ID,
+    format_automerge_policy_instructions,
+    parent_registry_workflow_id,
+    resolve_apm_assets,
+    resolve_automerge_policy,
+)
 from autodocignore import resolve_autodocignore_instructions
 from instruction_fragments import compose_control_plane_fragments
 
@@ -38,6 +44,7 @@ def append_consumer_instructions(
     *,
     repo_root: Path,
     workflow_id: str,
+    org_key: str = "obs",
 ) -> tuple[str, list[str]]:
     """
     Append consumer-repo instructions that are not sourced from apm.yml.
@@ -54,6 +61,11 @@ def append_consumer_instructions(
     if autodocignore:
         parts.append(autodocignore)
         auto_sources.append("autodocignore")
+
+    if parent_registry_workflow_id(workflow_id) == AUTOMERGE_WORKFLOW_ID:
+        policy = resolve_automerge_policy(repo_root=repo_root, org_key=org_key)
+        parts.append(format_automerge_policy_instructions(policy))
+        auto_sources.append("automerge-policy")
 
     return "\n\n".join(parts), auto_sources
 
@@ -105,6 +117,7 @@ def resolve_agentic_assets(
         combined,
         repo_root=repo_root,
         workflow_id=workflow_id,
+        org_key=org_key,
     )
 
     layers: list[dict[str, Any]] = list(cp_layers)
@@ -118,4 +131,8 @@ def resolve_agentic_assets(
         "workflow-basename": workflow_basename,
         "layers": layers,
     }
+    if parent_registry_workflow_id(workflow_id) == AUTOMERGE_WORKFLOW_ID:
+        resolved["automerge_policy"] = resolve_automerge_policy(
+            repo_root=repo_root, org_key=org_key
+        )
     return resolved

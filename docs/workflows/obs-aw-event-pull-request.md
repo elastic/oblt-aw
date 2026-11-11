@@ -14,7 +14,7 @@ Routes pull-request events through one shared prelude to automerge and dependenc
 
 ## Execution flow
 
-`run-aw-prelude` evaluates both route gates and loads the allowed PR-author lists. The `automerge` job runs for eligible `opened`, `synchronize`, `reopened`, or `labeled` events from allow-listed authors when the `oblt-aw/ai/merge-ready` label is present. It excludes the ESTC, PR Actions Detective, and dependency-review E2E fixture branches. The `dependency-review` job runs for eligible `opened`, `synchronize`, or `reopened` events and excludes the ESTC and PR Actions Detective fixtures; the dependency-review fixture is intentionally not excluded from this route.
+`run-aw-prelude` evaluates both route gates and loads the allowed PR-author lists. The `automerge` job runs for `opened`, `synchronize`, `reopened`, or `labeled` when prelude allows the route; author, fork, and trigger-label gates run inside `obs-aw-automerge` verify against consumer `apm.yml`. It excludes the ESTC, PR Actions Detective, and dependency-review E2E fixture branches. The `dependency-review` job runs for eligible `opened`, `synchronize`, or `reopened` events and excludes the ESTC and PR Actions Detective fixtures; the dependency-review fixture is intentionally not excluded from this route.
 
 Both routes also require their respective `proceed-by-workflow` gate and call the corresponding reusable workflow with shared author lists and token policy.
 

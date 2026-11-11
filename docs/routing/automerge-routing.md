@@ -14,13 +14,13 @@ Routed workflow sources:
 - `.github/workflows/obs-aw-automerge.yml` — PR path (`verify`, `check-dependency-collection`, `approve`, `assert-approved-review`, `automerge`, `rest-merge`, `arm-for-deferred-merge`, `report-automerge-outcome`)
 - `.github/workflows/obs-aw-automerge-deferred.yml` — frequent schedule profile (`discover`, matrix `merge`)
 
-**Approve (PR path):** Nested in-repo `gh-aw-autoapprove` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]`. When the author is `github-actions[bot]`, pass `shared-token-policy` so Vault submits the review. Author allow list is **only** [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) (synced onto the autoapprove source with `make sync-allowed-pr-authors`; not from `shared-allowed-pr-authors-*`).
+**Approve (PR path):** Nested in-repo `gh-aw-autoapprove` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]`. Pass `shared-token-policy` (Vault) when the author is `github-actions[bot]` or the PR is from a fork (`pull_request` `GITHUB_TOKEN` is read-only for forks). Control-plane bot logins come from [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) and are synced onto the autoapprove source with `make sync-allowed-pr-authors`; consumer `apm.yml` policy may extend authors, forks, and trigger labels, but not through `shared-allowed-pr-authors-*` inputs.
 
 **Merge strategy (CI-duration independent):**
 
 1. **PR path** tries a SHA-bound REST squash-merge (`automerge`), then one more Vault REST attempt (`rest-merge`).
 2. If checks are still pending → `arm-for-deferred-merge` upserts the bot-authored armed comment (`<!-- obs-aw-automerge:armed sha=<head> -->`). Outcome success = merged, armed, or soft-succeed on `not_ready`.
-3. **Frequent schedule profile** (client cron every 15 minutes) lists all open armed merge-ready PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` and (when configured) ruleset Integration `bypass_actors` apply (honored only on direct REST merge as that app — not by async `--auto` / merge-queue completion).
+3. **Frequent schedule profile** (client cron every 15 minutes) lists all open armed PRs and retries REST merge as the Vault app so classic `pull_request_bypassers` and (when configured) ruleset Integration `bypass_actors` apply (honored only on direct REST merge as that app — not by async `--auto` / merge-queue completion). Trigger labels are re-checked from consumer policy before merge.
 
 Required checks are enforced by GitHub’s merge API on every attempt — this automation only chooses **when** to wake up. There is **no** Buildkite status-success route for automerge (status stays ESTC-failure only).
 
@@ -31,13 +31,13 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 ### `pull_request` events
 
 - `github.event.action` is one of `opened`, `synchronize`, `reopened`, `labeled`
-- Author is in the same allow list as dependency-review
-- PR has label `oblt-aw/ai/merge-ready` at event time
+- Ingress stays wide (prelude + action + E2E skips only). Author, fork, and trigger-label gates run in verify against consumer `apm.yml` policy
+- Verify fail-closes on that policy (defaults = bot allow-list + merge-ready + same-repo) and reads `apm.yml` from the PR base SHA
 
 ### `schedule` / `workflow_dispatch` (deferred merge)
 
 - Client cron or manual dispatch of `trigger-obs-aw-schedule-frequent.yml` (`schedule-profile: frequent`)
-- Open PRs with `oblt-aw/ai/merge-ready` **and** a `github-actions[bot]` armed marker whose SHA matches the current head
+- Open PRs with a `github-actions[bot]` armed marker whose SHA matches the current head (label filter happens in the merge matrix)
 - No-op when none are armed (discover exits without matrix work)
 
 ## Mandatory requirements evaluated at runtime
@@ -46,22 +46,22 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 
 | Requirement | Details |
 |---------------|---------|
-| Author | Same allow list as dependency-review ([allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json)); GraphQL `app/<slug>` is normalized to `<slug>[bot]` before matching |
+| Author | Control-plane bots ([allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json)) always allowed; consumer `workflows.automerge.policy.authors` may use `allow-list` extras or `author-association`. GraphQL `app/<slug>` is normalized to `<slug>[bot]` before matching |
 | Token policy | Non-empty `shared-token-policy` required when author is `github-actions[bot]` |
-| Label | `oblt-aw/ai/merge-ready` must be present on the PR |
+| Label | At least one effective trigger label (`oblt-aw/ai/merge-ready` always; plus optional `policy.trigger-labels`) |
 | PR state | Not a draft |
-| Branch origin | Upstream branch (head repo equals base repo — not a fork) |
+| Branch origin | Default same-repo only; `policy.forks.mode: author-association` allows forks when `author_association` matches |
 | Refs | Head ref ≠ base ref |
 
 **Collection gate** (`scripts/obs/checkAutomergeDependencyCollection.ts`):
 
 | Requirement | Details |
 |---------------|---------|
-| Classification | Changed file paths on the PR are matched against [config/obs/automerge-dependency-collections.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/automerge-dependency-collections.json) (`file-glob` per collection). No extra labels are required in consumer repositories. |
-| Enabled collections | Only collections enabled on the Control Plane dashboard (`obs:automerge:<collection-id>` sub-feature checkboxes under Automerge) proceed to `approve` and `automerge`. The parent `obs:automerge` checkbox must also be enabled. |
+| Classification | Changed file paths on the PR are matched against [config/obs/automerge-dependency-collections.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/automerge-dependency-collections.json) (`file-glob` per collection). When both a specific collection and `all-files` match, the specific collection wins. |
+| Enabled collections | Only collections enabled on the Control Plane dashboard (`obs:automerge:<collection-id>` sub-feature checkboxes under Automerge) proceed to `approve` and `automerge`. The parent `obs:automerge` checkbox must also be enabled. `all-files` defaults to off. |
 | Skipped PRs | When classification fails or the collection is not enabled on the Control Plane dashboard, the job posts or updates a single PR comment (marker `obs-aw-automerge:dependency-collection-gate`) and downstream jobs do not run. |
 
-**`approve` job:** Nested `gh-aw-autoapprove` uses author-aware `github-token-policy` (Vault only for `github-actions[bot]` authors; otherwise `GITHUB_TOKEN`). Eligible success must submit a review with `event=APPROVE` (not COMMENT). **`assert-approved-review`** then checks the live head (rejects stale event SHAs), requires a non-author whose latest decisive review is `APPROVED`, and exposes `reason` so outcome comments do not mislabel API failures as missing approval. For repos with “Require review from Code Owners”, add the Vault app to classic branch-protection `pull_request_bypassers` and merge as that app (see [obs-aw-automerge.md](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens)).
+**`approve` job:** Nested `gh-aw-autoapprove` uses author-aware `github-token-policy` (Vault for `github-actions[bot]` authors and fork PRs; otherwise `GITHUB_TOKEN`). Eligible success must submit a review with `event=APPROVE` (not COMMENT). **`assert-approved-review`** then checks the live head (rejects stale event SHAs), requires a non-author whose latest decisive review is `APPROVED`, and exposes `reason` so outcome comments do not mislabel API failures as missing approval. For repos with “Require review from Code Owners”, add the Vault app to classic branch-protection `pull_request_bypassers` and merge as that app (see [obs-aw-automerge.md](../workflows/obs-aw-automerge.md#codeowners-and-ephemeral-tokens)).
 
 **`assert-approved-review` job:** Fail-closed check that a non-author `APPROVED` review exists for the current head before `automerge` runs. COMMENT-only eligibility fails here with an explicit missing-APPROVE outcome comment.
 

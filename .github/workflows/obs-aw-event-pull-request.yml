@@ -23,6 +23,7 @@ jobs:
         ["obs-aw-automerge.yml","obs-aw-dependency-review.yml"]
       load-allowed-authors: true
 
+  # Author / fork / trigger-label gates live in obs-aw-automerge verify (apm.yml policy).
   automerge:
     needs: run-aw-prelude
     if: >-
@@ -45,9 +46,7 @@ jobs:
       ) &&
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-automerge.yml'] == 'true' &&
       github.event_name == 'pull_request' &&
-      contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action) &&
-      contains(fromJSON(needs.run-aw-prelude.outputs.allowed-pr-authors-json), github.event.pull_request.user.login) &&
-      contains(join(github.event.pull_request.labels.*.name, ','), 'oblt-aw/ai/merge-ready')
+      contains(fromJSON('["opened","synchronize","reopened","labeled"]'), github.event.action)
     permissions:
       actions: read
       contents: write

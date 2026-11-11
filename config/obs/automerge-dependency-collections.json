@@ -3,6 +3,11 @@
   "policy": "deny-unclassified",
   "collections": [
     {
+      "id": "all-files",
+      "description": "Catch-all for non-dependency PRs when Automerge policy and merge-ready (or repo trigger labels) allow",
+      "file-glob": ["**/*"]
+    },
+    {
       "id": "apm-cli",
       "description": "APM CLI version pin updates (.apm.version / .apm-cli-pin)",
       "file-glob": [

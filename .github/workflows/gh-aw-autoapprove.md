@@ -104,17 +104,21 @@ Canonical list (from `config/obs/allowed_pr_authors.json` — do not invent othe
 - `github-actions[bot]`
 - `mergify[bot]`
 
+These control-plane bots are always allowed; consumer policy may allow additional authors.
+
 Read the PR author via GitHub MCP (`pull_request_read` or equivalent). Prefer the REST login form. Before comparing any author string to that list, normalize GraphQL `app/<slug>` to `<slug>[bot]` (gh ≥ 2.50 `gh pr view` / pr.json often use the app/ form). Do not use `github.actor` alone — on `labeled` events the actor may be the labeler, not the PR author.
 
 ## Approve gates
 
 Approve the PR only when **all** of these are true:
 
-- Normalized PR author is in the canonical allow list above
-- PR has label `oblt-aw/ai/merge-ready`
+- Author matches the Effective Automerge Policy below (control-plane bots always pass; otherwise follow authors mode)
+- PR has at least one Effective Automerge Policy trigger label (`oblt-aw/ai/merge-ready` is always valid)
 - PR is not draft
-- PR is not from a fork (head repo equals base repo)
+- Fork policy passes (same-repo, or forks.mode `author-association` with a matching `author_association`)
 - Head ref is different from base ref
+
+When additional-instructions include an **Effective Automerge Policy** section, that section is authoritative for labels, authors extras, and forks. If it is missing, fall back to: author in the canonical bot list above, label `oblt-aw/ai/merge-ready`, and same-repo only (no forks).
 
 ## Actions
 

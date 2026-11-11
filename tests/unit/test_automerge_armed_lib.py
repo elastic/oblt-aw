@@ -365,7 +365,49 @@ def test_squash_merge_at_sha_skips_when_merge_ready_label_removed(
     result = _bash_merge(_squash(), env=env)
     assert result.returncode == 0, result.stderr
     assert "MERGE_RESULT=skipped" in result.stdout
-    assert "Missing label" in result.stderr
+    assert "Missing automerge trigger label" in result.stderr
+
+
+def test_squash_merge_at_sha_skips_when_only_unrelated_labels_remain(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Non-trigger labels must not satisfy the live opt-in gate (jq index rebinding)."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            labels_json='["unrelated","also-not-a-trigger"]',
+            allow_merge=False,
+        ),
+    )
+    env["AUTOMERGE_TRIGGER_LABELS_JSON"] = (
+        '["nightshift:risk-low","oblt-aw/ai/merge-ready"]'
+    )
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=skipped" in result.stdout
+    assert "Missing automerge trigger label" in result.stderr
+
+
+def test_squash_merge_at_sha_accepts_configured_trigger_label(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Policy extras in AUTOMERGE_TRIGGER_LABELS_JSON satisfy the live label gate."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            labels_json='["nightshift:risk-low"]',
+            merge_body="",
+            merge_exit=0,
+        ),
+    )
+    env["AUTOMERGE_TRIGGER_LABELS_JSON"] = (
+        '["nightshift:risk-low","oblt-aw/ai/merge-ready"]'
+    )
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=merged" in result.stdout
 
 
 def test_squash_merge_at_sha_label_api_error_is_merge_failed(
@@ -403,3 +445,23 @@ def test_squash_merge_at_sha_fails_when_approval_dismissed(
     assert "MERGE_RESULT=merge_failed" in result.stdout
     assert "ASSERT_REASON=missing_approval" in result.stdout
     assert "Approval no longer present" in result.stderr
+
+
+def test_effective_trigger_labels_defaults_under_nounset() -> None:
+    """Empty AUTOMERGE_TRIGGER_LABELS_JSON must not abort under set -u."""
+    env = os.environ.copy()
+    env.pop("AUTOMERGE_TRIGGER_LABELS_JSON", None)
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'set -u; source "{SCRIPT}"; automerge_effective_trigger_labels_json',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "oblt-aw/ai/merge-ready" in result.stdout
+    assert "unbound variable" not in result.stderr

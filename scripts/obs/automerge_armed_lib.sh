@@ -19,6 +19,9 @@
 
 AUTOMERGE_ARMED_BOT='github-actions[bot]'
 AUTOMERGE_MERGE_READY_LABEL='oblt-aw/ai/merge-ready'
+# Optional JSON array of trigger labels (from consumer automerge policy). Defaults to
+# merge-ready only when unset or invalid so older callers keep working.
+AUTOMERGE_TRIGGER_LABELS_JSON="${AUTOMERGE_TRIGGER_LABELS_JSON:-}"
 # HTML comment marker always includes the approved head SHA, e.g.
 # <!-- obs-aw-automerge:armed sha=0123…abcdef -->
 
@@ -44,20 +47,46 @@ automerge_merge_error_is_already_merged_message() {
   printf '%s' "${msg}" | grep -qiE 'already been merged'
 }
 
-# Live merge-ready label check.
-# Exit 0 — label present; 2 — confirmed absent; 1 — API/parse error (not an opt-out).
+# Effective trigger labels for live merge opt-in (merge-ready always included).
+automerge_effective_trigger_labels_json() {
+  local raw="${AUTOMERGE_TRIGGER_LABELS_JSON:-}"
+  # Must initialize under `set -u`: an empty policy env leaves `parsed` unset.
+  local parsed=""
+  if [[ -n "${raw}" ]]; then
+    parsed="$(printf '%s' "${raw}" | jq -c \
+      --arg merge "${AUTOMERGE_MERGE_READY_LABEL}" \
+      'if type == "array" then
+         ([.[] | select(type == "string" and . != "")] + [$merge]) | unique
+       else
+         [$merge]
+       end' 2>/dev/null)" || parsed=""
+  fi
+  if [[ -z "${parsed}" ]]; then
+    printf '["%s"]\n' "${AUTOMERGE_MERGE_READY_LABEL}"
+    return 0
+  fi
+  printf '%s\n' "${parsed}"
+}
+
+# Live trigger-label check (any effective policy trigger label).
+# Exit 0 — at least one present; 2 — confirmed absent; 1 — API/parse error (not an opt-out).
 automerge_pr_has_merge_ready_label() {
   local repo="${1:?repo required}"
   local pr_number="${2:?pr number required}"
   local labels_json
+  local triggers_json
   local present
   labels_json="$(gh api "repos/${repo}/pulls/${pr_number}" --jq '[.labels[].name]')" || {
     echo "Failed to list labels for ${repo}#${pr_number}." >&2
     return 1
   }
-  present="$(printf '%s' "${labels_json}" | jq -r --arg label "${AUTOMERGE_MERGE_READY_LABEL}" \
-    'if type != "array" then error("expected label name array")
-     elif index($label) != null then "true"
+  triggers_json="$(automerge_effective_trigger_labels_json)"
+  # Bind each trigger before piping into $labels — otherwise `|` rebinds `.` to the
+  # labels array and `index(.)` matches the array itself (false positive).
+  present="$(jq -rn --argjson labels "${labels_json}" --argjson triggers "${triggers_json}" \
+    'if ($labels | type) != "array" or ($triggers | type) != "array" then
+       error("expected label arrays")
+     elif any($triggers[]; . as $t | ($labels | index($t) != null)) then "true"
      else "false"
      end')" || {
     echo "Failed to parse labels for ${repo}#${pr_number}." >&2
@@ -91,17 +120,17 @@ automerge_squash_merge_at_sha() {
     return 1
   fi
 
-  # Re-check live opt-in: maintainers may remove merge-ready after verify/approve.
+  # Re-check live opt-in: maintainers may remove trigger labels after verify/approve.
   label_rc=0
   automerge_pr_has_merge_ready_label "${repo}" "${pr_number}" || label_rc=$?
   if [[ "${label_rc}" -eq 2 ]]; then
     echo "MERGE_RESULT=skipped"
-    echo "Missing label ${AUTOMERGE_MERGE_READY_LABEL} on ${repo}#${pr_number}; skipping merge." >&2
+    echo "Missing automerge trigger label on ${repo}#${pr_number}; skipping merge." >&2
     return 0
   fi
   if [[ "${label_rc}" -ne 0 ]]; then
     echo "MERGE_RESULT=merge_failed"
-    echo "Could not verify ${AUTOMERGE_MERGE_READY_LABEL} on ${repo}#${pr_number}; failing closed." >&2
+    echo "Could not verify automerge trigger labels on ${repo}#${pr_number}; failing closed." >&2
     return 1
   fi
 

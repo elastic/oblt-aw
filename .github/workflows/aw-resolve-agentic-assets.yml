@@ -40,6 +40,14 @@ on:
         required: false
         type: boolean
         default: true
+      consumer-ref:
+        description: >-
+          Optional git ref/SHA for the consumer checkout (for example pull_request
+          base.sha when authorization policy must not come from the PR head).
+          Empty keeps the default actions/checkout ref for the event.
+        required: false
+        type: string
+        default: ""
     outputs:
       apm-manifest-present:
         description: True when the consumer repository contains apm.yml or apm.yaml
@@ -86,8 +94,15 @@ jobs:
       resolved-setup-commands-json: ${{ steps.resolve.outputs.resolved-setup-commands-json }}
       resolved-instruction-layers-json: ${{ steps.resolve.outputs.resolved-instruction-layers-json }}
     steps:
-      - name: Checkout consumer repository
+      - name: Checkout consumer repository (event default ref)
+        if: inputs.consumer-ref == ''
         uses: actions/checkout@v7
+
+      - name: Checkout consumer repository (trusted ref)
+        if: inputs.consumer-ref != ''
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.consumer-ref }}
 
       - name: Checkout oblt-aw resolver scripts
         uses: actions/checkout@v7

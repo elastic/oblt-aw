@@ -128,11 +128,76 @@
           "description": "Overrides for agentic workflow inputs (kebab-case keys). Values may be scalars or *-file paths.",
           "additionalProperties": true
         },
+        "policy": {
+          "$ref": "#/$defs/automergePolicy",
+          "description": "Automerge-only consumer policy (trigger labels, authors, forks). Ignored for other workflow ids. oblt-aw/ai/merge-ready is always an effective trigger label."
+        },
         "inner-workflows": {
           "type": "object",
           "description": "Per control-plane wrapper basename assets when several wrappers share this workflow id. When the running basename matches, that block overrides the parent workflow block.",
           "additionalProperties": {
             "$ref": "#/$defs/leafAssetBlock"
+          }
+        }
+      }
+    },
+    "automergePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional automerge gates under workflows.automerge.policy. Omitted fields keep control-plane defaults.",
+      "properties": {
+        "trigger-labels": {
+          "type": "array",
+          "description": "Extra PR labels that may trigger automerge. oblt-aw/ai/merge-ready is always included and cannot be removed.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "forks": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["disabled", "author-association"],
+              "description": "disabled: same-repo only. author-association: allow forks when author_association is listed."
+            },
+            "author-associations": {
+              "type": "array",
+              "description": "GitHub author_association values (for example MEMBER, OWNER) when mode is author-association.",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "authors": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["allow-list", "author-association"],
+              "description": "allow-list: control-plane bots plus repo allow-list. author-association: control-plane bots or matching association."
+            },
+            "allow-list": {
+              "type": "array",
+              "description": "Extra author logins when mode is allow-list (control-plane bots are always allowed).",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "author-associations": {
+              "type": "array",
+              "description": "GitHub author_association values when mode is author-association.",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
           }
         }
       }

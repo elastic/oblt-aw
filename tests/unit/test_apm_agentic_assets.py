@@ -493,3 +493,46 @@ class TestLoadRegistryWorkflowIds:
         assert "dependency-review" in known
         aaa.validate_workflow_id("automerge", "obs", config_dir=config)
         aaa.validate_workflow_id("dependency-review", "obs", config_dir=config)
+
+    def test_default_automerge_policy_when_apm_missing(
+        self, repo: pathlib.Path
+    ) -> None:
+        policy = aaa.resolve_automerge_policy(repo_root=repo, org_key="obs")
+        assert policy == aaa.default_automerge_policy()
+        assert aaa.MERGE_READY_LABEL in policy["trigger-labels"]
+
+    def test_resolve_automerge_policy_from_apm(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      automerge:
+        policy:
+          trigger-labels:
+            - nightshift:risk-low
+          forks:
+            mode: author-association
+            author-associations:
+              - MEMBER
+              - OWNER
+          authors:
+            mode: author-association
+            author-associations:
+              - MEMBER
+              - OWNER
+""",
+            encoding="utf-8",
+        )
+        policy = aaa.resolve_automerge_policy(repo_root=repo, org_key="obs")
+        assert policy["trigger-labels"] == [
+            aaa.MERGE_READY_LABEL,
+            "nightshift:risk-low",
+        ]
+        assert policy["forks"]["mode"] == "author-association"
+        assert policy["authors"]["mode"] == "author-association"
+        text = aaa.format_automerge_policy_instructions(policy)
+        assert "Effective Automerge Policy" in text
+        assert "nightshift:risk-low" in text
