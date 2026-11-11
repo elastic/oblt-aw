@@ -30,6 +30,7 @@ Quarantined or missing required cases **block** production promote (fail-closed)
 | Route | Doc |
 |-------|-----|
 | Autodoc | [autodoc-e2e](../../testing/autodoc-e2e.md) |
+| Automerge all-files policy | [automerge-all-files-e2e](../../testing/automerge-all-files-e2e.md) |
 | Automerge VM images | [automerge-vm-images-e2e](../../testing/automerge-vm-images-e2e.md) |
 | Dependency review | [dependency-review-e2e](../../testing/dependency-review-e2e.md) |
 | ESTC PR Buildkite Detective | [estc-pr-buildkite-detective-e2e](../../testing/estc-pr-buildkite-detective-e2e.md) |

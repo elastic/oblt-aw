@@ -53,6 +53,26 @@ jobs:
           GITHUB_REF: ${{ github.ref }}
         run: python3 scripts/aw_e2e_validate_checkout_ref.py
 
+  e2e-automerge-all-files:
+    name: Automerge all-files policy
+    needs: [assert-trusted-dispatch]
+    if: >-
+      always() &&
+      !cancelled() &&
+      (needs.assert-trusted-dispatch.result == 'success' ||
+       needs.assert-trusted-dispatch.result == 'skipped')
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      issues: write
+      checks: read
+      id-token: write
+    uses: ./.github/workflows/e2e-automerge-all-files.yml
+    with:
+      checkout-ref: ${{ inputs.checkout-ref }}
+    secrets: inherit
+
   e2e-automerge-vm-images:
     name: Automerge vm-images
     needs: [assert-trusted-dispatch]

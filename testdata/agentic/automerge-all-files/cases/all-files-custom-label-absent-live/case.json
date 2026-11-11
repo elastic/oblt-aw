@@ -1,0 +1,25 @@
+{
+  "id": "all-files-custom-label-absent-live",
+  "mode": "live",
+  "description": "Stacked base with apm.yml custom trigger label; Vault-app marker PR never receives that label or merge-ready, so automerge must not approve or merge. Fixture is closed and deleted.",
+  "workflow_id": "obs:automerge",
+  "trigger": {
+    "require_open_pr": true,
+    "force_stacked_policy_base": true,
+    "require_allowed_pr_author": true,
+    "apply_custom_trigger_label": false,
+    "wait_automerge": false,
+    "expect_merge": false,
+    "wait_verify_skip": true
+  },
+  "expectations": {
+    "dashboard_enabled": true,
+    "custom_trigger_label_applied": false,
+    "merge_ready_label_applied": false,
+    "approve_review_present": false,
+    "automerge_job_executed": false,
+    "pr_merged": false,
+    "no_dependency_collection_gate": true,
+    "fixture_cleaned_up": true
+  }
+}

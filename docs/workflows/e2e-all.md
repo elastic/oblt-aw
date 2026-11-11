@@ -18,7 +18,7 @@ Both triggers accept optional `checkout-ref` (default `main`). A manual dispatch
 
 ## Execution flow
 
-After the dispatch validation succeeds (or is skipped for workflow calls), the workflow calls five leaf workflows: automerge VM images, dependency review, ESTC Buildkite detective, autodoc audit, and PR Actions detective. The leaves receive the same `checkout-ref` and inherited secrets. The calls can run independently after the validation job.
+After the dispatch validation succeeds (or is skipped for workflow calls), the workflow calls leaf workflows: automerge all-files policy, automerge VM images, dependency review, ESTC Buildkite detective, autodoc audit, and PR Actions detective. The leaves receive the same `checkout-ref` and inherited secrets. The calls can run independently after the validation job.
 
 ## Inputs, outputs, and access
 
@@ -29,6 +29,7 @@ After the dispatch validation succeeds (or is skipped for workflow calls), the w
 - [Orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml)
 - [Release promotion](aw-release-promote.md)
 - [Checkout-ref validator](https://github.com/elastic/oblt-aw/blob/main/scripts/aw_e2e_validate_checkout_ref.py)
+- [Automerge all-files policy E2E](e2e-automerge-all-files.md)
 - [Automerge VM images E2E](e2e-automerge-vm-images.md)
 - [Dependency review E2E](e2e-dependency-review.md)
 - [ESTC Buildkite detective E2E](e2e-estc-pr-buildkite-detective.md)
