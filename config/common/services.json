@@ -73,6 +73,12 @@
           "default_enabled": true
         },
         {
+          "id": "updatecli",
+          "name": "Updatecli compose / version",
+          "description": "Auto-merge for Updatecli compose policy catalog and .updatecli-version pin updates.",
+          "default_enabled": true
+        },
+        {
           "id": "vm-images",
           "name": "VM / container images",
           "description": "Auto-merge for CI runner or container image pin updates.",

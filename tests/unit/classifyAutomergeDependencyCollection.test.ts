@@ -16,6 +16,8 @@
 // @ts-nocheck
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   classifyChangedFiles,
@@ -36,6 +38,26 @@ const COLLECTIONS = [
 ];
 
 const ENABLED = ['obs:automerge', 'obs:automerge:github-actions'];
+
+const CATALOG_PATH = path.join(
+  __dirname,
+  '..',
+  '..',
+  'config',
+  'obs',
+  'automerge-dependency-collections.json'
+);
+
+function catalogCollection(id) {
+  const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
+  const entry = (catalog.collections || []).find((item) => item.id === id);
+  assert.ok(entry, `missing catalog collection: ${id}`);
+  assert.ok(
+    Array.isArray(entry['file-glob']) && entry['file-glob'].length > 0,
+    `catalog collection ${id} must declare file-glob`
+  );
+  return { id: entry.id, 'file-glob': entry['file-glob'] };
+}
 
 test('classifyChangedFiles allows dashboard-enabled github-actions-only PR', () => {
   const outcome = classifyChangedFiles(
@@ -169,6 +191,121 @@ test('classifyChangedFiles allows dashboard-enabled open-policy-agent collection
   assert.deepEqual(outcome, {
     status: 'allowed',
     collectionId: 'open-policy-agent',
+  });
+});
+
+test('classifyChangedFiles allows dashboard-enabled updatecli compose-only PR', () => {
+  const updatecli = catalogCollection('updatecli');
+  const collections = [
+    ...COLLECTIONS,
+    updatecli,
+    catalogCollection('terraform'),
+    catalogCollection('open-policy-agent'),
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:updatecli'];
+  const outcome = classifyChangedFiles(
+    ['updatecli-compose.yaml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'updatecli',
+  });
+
+  const nested = classifyChangedFiles(
+    ['catalog/updatecli-compose.yml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(nested, {
+    status: 'allowed',
+    collectionId: 'updatecli',
+  });
+});
+
+test('classifyChangedFiles allows dashboard-enabled updatecli version-only PR', () => {
+  const updatecli = catalogCollection('updatecli');
+  const collections = [
+    ...COLLECTIONS,
+    updatecli,
+    catalogCollection('terraform'),
+    catalogCollection('open-policy-agent'),
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:updatecli'];
+  const outcome = classifyChangedFiles(
+    ['.updatecli-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'updatecli',
+  });
+
+  const nested = classifyChangedFiles(
+    ['tools/.updatecli-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(nested, {
+    status: 'allowed',
+    collectionId: 'updatecli',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled updatecli collection', () => {
+  const collections = [...COLLECTIONS, catalogCollection('updatecli')];
+  const composeOutcome = classifyChangedFiles(
+    ['updatecli-compose.yaml'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(composeOutcome, {
+    status: 'disabled',
+    collectionId: 'updatecli',
+  });
+
+  const versionOutcome = classifyChangedFiles(
+    ['.updatecli-version'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(versionOutcome, {
+    status: 'disabled',
+    collectionId: 'updatecli',
+  });
+});
+
+test('classifyChangedFiles does not match updatecli paths via terraform or open-policy-agent', () => {
+  const collections = [
+    ...COLLECTIONS,
+    catalogCollection('terraform'),
+    catalogCollection('open-policy-agent'),
+  ];
+  const enabled = [
+    'obs:automerge',
+    'obs:automerge:terraform',
+    'obs:automerge:open-policy-agent',
+  ];
+  const composeOutcome = classifyChangedFiles(
+    ['updatecli-compose.yaml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(composeOutcome, {
+    status: 'unclassified',
+    collectionId: null,
+  });
+
+  const versionOutcome = classifyChangedFiles(
+    ['.updatecli-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(versionOutcome, {
+    status: 'unclassified',
+    collectionId: null,
   });
 });
 
