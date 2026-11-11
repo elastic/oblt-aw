@@ -1,0 +1,22 @@
+{
+  "id": "otel-headers-absent-from-agent-artifact-live",
+  "mode": "live",
+  "description": "Agent-like sandbox/firewall audit artifact must not contain OTLP canaries after GH-AW mask + redact_secrets (H1 path + gh-aw#68811 shapes: ApiKey, Basic decoded password, ALL_HEADERS, percent-encoded, disabled endpoint).",
+  "workflow_id": "obs:secret-leak-artifacts",
+  "trigger": {
+    "artifact_name": "e2e-secret-leak-agent",
+    "audit_marker": "OBLT_AW_E2E_SECRET_LEAK_AUDIT_PLANTED",
+    "canary_endpoint_env": "E2E_OTLP_CANARY_ENDPOINT",
+    "canary_headers_env": "E2E_OTLP_CANARY_HEADERS",
+    "canary_all_headers_env": "E2E_OTLP_CANARY_ALL_HEADERS",
+    "canary_basic_headers_env": "E2E_OTLP_CANARY_BASIC_HEADERS",
+    "canary_percent_headers_env": "E2E_OTLP_CANARY_PERCENT_HEADERS"
+  },
+  "expectations": {
+    "artifact_downloaded": true,
+    "audit_marker_verified": true,
+    "gitleaks_clean": true,
+    "require_canary_env": true,
+    "secret_leak_absent": true
+  }
+}

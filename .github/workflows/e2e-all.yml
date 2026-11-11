@@ -151,3 +151,19 @@ jobs:
     with:
       checkout-ref: ${{ inputs.checkout-ref }}
     secrets: inherit
+
+  e2e-secret-leak-artifacts:
+    name: Secret leak artifacts
+    needs: [assert-trusted-dispatch]
+    if: >-
+      always() &&
+      !cancelled() &&
+      (needs.assert-trusted-dispatch.result == 'success' ||
+       needs.assert-trusted-dispatch.result == 'skipped')
+    permissions:
+      actions: write
+      contents: read
+    uses: ./.github/workflows/e2e-secret-leak-artifacts.yml
+    with:
+      checkout-ref: ${{ inputs.checkout-ref }}
+    secrets: inherit
