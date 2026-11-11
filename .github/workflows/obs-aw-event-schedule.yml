@@ -1,15 +1,16 @@
 name: Observability Agentic Workflow — Schedule Event
 
 # Event-scoped orchestrator: one shared prelude chain for all schedule/workflow_dispatch routes.
-# Clients pass schedule-profile=daily (default) or frequent so cadence-specific
+# Clients pass schedule-profile=daily (default), frequent, or weekly so cadence-specific
 # routes share this file (separate client crons; GitHub does not expose which fired).
 on:
   workflow_call:
     inputs:
       schedule-profile:
         description: >-
-          daily = autodoc/security/agent-suggestions/resource detector;
-          frequent = high-cadence routes (automerge-deferred today).
+          daily = autodoc/security/agent-suggestions/resource detector/repo-scheduled;
+          frequent = automerge-deferred + repo-scheduled;
+          weekly = repo-scheduled only.
         required: false
         type: string
         default: daily
@@ -20,6 +21,12 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      BUILDKITE_API_TOKEN:
+        description: >-
+          Optional Buildkite token for obs:repo-scheduled buildkite-logs
+          (consumer BUILDKITE_LOGS_API_TOKEN).
+        required: false
 permissions:
   contents: read
 
@@ -33,8 +40,10 @@ jobs:
       org-key: obs
       control-plane-workflows: >-
         ${{ inputs.schedule-profile == 'frequent'
-            && '["obs-aw-automerge-deferred.yml"]'
-            || '["obs-aw-agent-suggestions.yml","obs-aw-autodoc.yml","obs-aw-security-injection-detector.yml","obs-aw-security-supply-chain-detector.yml","obs-aw-security-secrets-detector.yml","obs-aw-security-least-privilege-detector.yml","obs-aw-resource-not-accessible-by-integration-detector.yml"]' }}
+            && '["obs-aw-automerge-deferred.yml","obs-aw-repo-scheduled.yml"]'
+            || inputs.schedule-profile == 'weekly'
+            && '["obs-aw-repo-scheduled.yml"]'
+            || '["obs-aw-agent-suggestions.yml","obs-aw-autodoc.yml","obs-aw-security-injection-detector.yml","obs-aw-security-supply-chain-detector.yml","obs-aw-security-secrets-detector.yml","obs-aw-security-least-privilege-detector.yml","obs-aw-resource-not-accessible-by-integration-detector.yml","obs-aw-repo-scheduled.yml"]' }}
       load-allowed-authors: ${{ inputs.schedule-profile == 'frequent' }}
 
   agent-suggestions:
@@ -206,3 +215,28 @@ jobs:
       shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
       shared-enabled-workflows: ${{ needs.run-aw-prelude.outputs.enabled-workflows }}
+
+  repo-scheduled:
+    needs: run-aw-prelude
+    if: >-
+      contains(fromJSON('["daily","frequent","weekly"]'), inputs.schedule-profile) &&
+      fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-repo-scheduled.yml'] == 'true' &&
+      contains(fromJSON('["schedule","workflow_dispatch"]'), github.event_name)
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: write
+      copilot-requests: write
+    uses: ./.github/workflows/obs-aw-repo-scheduled.yml
+    with:
+      shared-proceed: ${{ fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-repo-scheduled.yml'] }}
+      shared-allowed-pr-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-json }}
+      shared-allowed-pr-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-pr-authors-csv }}
+      shared-allowed-issue-authors-json: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-json }}
+      shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
+      shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
+      schedule-profile: ${{ inputs.schedule-profile }}
+    secrets:
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}

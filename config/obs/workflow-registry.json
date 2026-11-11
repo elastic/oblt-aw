@@ -146,6 +146,17 @@
       "inner_workflows": [
         "obs-aw-pr-actions-detective.yml"
       ]
+    },
+    {
+      "id": "repo-scheduled",
+      "name": "Repo Scheduled",
+      "description": "Runs consumer-defined scheduled automations from instruction files under .github/ai/scheduled/ (lanes daily/frequent/weekly; optional buildkite-logs capability).",
+      "maturity": "experimental",
+      "default_enabled": false,
+      "docs": "docs/workflows/obs-aw-repo-scheduled.md",
+      "inner_workflows": [
+        "obs-aw-repo-scheduled.yml"
+      ]
     }
   ]
 }
