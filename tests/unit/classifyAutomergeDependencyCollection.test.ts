@@ -16,6 +16,8 @@
 // @ts-nocheck
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   classifyChangedFiles,
@@ -36,6 +38,26 @@ const COLLECTIONS = [
 ];
 
 const ENABLED = ['obs:automerge', 'obs:automerge:github-actions'];
+
+const CATALOG_PATH = path.join(
+  __dirname,
+  '..',
+  '..',
+  'config',
+  'obs',
+  'automerge-dependency-collections.json'
+);
+
+function catalogCollection(id) {
+  const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
+  const entry = (catalog.collections || []).find((item) => item.id === id);
+  assert.ok(entry, `missing catalog collection: ${id}`);
+  assert.ok(
+    Array.isArray(entry['file-glob']) && entry['file-glob'].length > 0,
+    `catalog collection ${id} must declare file-glob`
+  );
+  return { id: entry.id, 'file-glob': entry['file-glob'] };
+}
 
 test('classifyChangedFiles allows dashboard-enabled github-actions-only PR', () => {
   const outcome = classifyChangedFiles(
@@ -172,39 +194,13 @@ test('classifyChangedFiles allows dashboard-enabled open-policy-agent collection
   });
 });
 
-const UPDATECLI_GLOBS = [
-  'updatecli-compose.yaml',
-  'updatecli-compose.yml',
-  '**/updatecli-compose.yaml',
-  '**/updatecli-compose.yml',
-  '.updatecli-version',
-  '**/.updatecli-version',
-];
-
-const TERRAFORM_GLOBS = [
-  '**/*.tf',
-  '**/*.tfvars',
-  '**/*.tfvars.json',
-  '**/.terraform.lock.hcl',
-  '**/terragrunt.hcl',
-  '**/.opentofu-version',
-  '**/.terraform-version',
-  '**/.terragrunt-version',
-];
-
-const OPA_GLOBS = [
-  '**/*.rego',
-  '**/.opa-version',
-  '**/opa.yaml',
-  '**/opa.yml',
-];
-
 test('classifyChangedFiles allows dashboard-enabled updatecli compose-only PR', () => {
+  const updatecli = catalogCollection('updatecli');
   const collections = [
     ...COLLECTIONS,
-    { id: 'updatecli', 'file-glob': UPDATECLI_GLOBS },
-    { id: 'terraform', 'file-glob': TERRAFORM_GLOBS },
-    { id: 'open-policy-agent', 'file-glob': OPA_GLOBS },
+    updatecli,
+    catalogCollection('terraform'),
+    catalogCollection('open-policy-agent'),
   ];
   const enabled = ['obs:automerge', 'obs:automerge:updatecli'];
   const outcome = classifyChangedFiles(
@@ -229,11 +225,12 @@ test('classifyChangedFiles allows dashboard-enabled updatecli compose-only PR', 
 });
 
 test('classifyChangedFiles allows dashboard-enabled updatecli version-only PR', () => {
+  const updatecli = catalogCollection('updatecli');
   const collections = [
     ...COLLECTIONS,
-    { id: 'updatecli', 'file-glob': UPDATECLI_GLOBS },
-    { id: 'terraform', 'file-glob': TERRAFORM_GLOBS },
-    { id: 'open-policy-agent', 'file-glob': OPA_GLOBS },
+    updatecli,
+    catalogCollection('terraform'),
+    catalogCollection('open-policy-agent'),
   ];
   const enabled = ['obs:automerge', 'obs:automerge:updatecli'];
   const outcome = classifyChangedFiles(
@@ -258,10 +255,7 @@ test('classifyChangedFiles allows dashboard-enabled updatecli version-only PR', 
 });
 
 test('classifyChangedFiles rejects dashboard-disabled updatecli collection', () => {
-  const collections = [
-    ...COLLECTIONS,
-    { id: 'updatecli', 'file-glob': UPDATECLI_GLOBS },
-  ];
+  const collections = [...COLLECTIONS, catalogCollection('updatecli')];
   const composeOutcome = classifyChangedFiles(
     ['updatecli-compose.yaml'],
     collections,
@@ -286,8 +280,8 @@ test('classifyChangedFiles rejects dashboard-disabled updatecli collection', () 
 test('classifyChangedFiles does not match updatecli paths via terraform or open-policy-agent', () => {
   const collections = [
     ...COLLECTIONS,
-    { id: 'terraform', 'file-glob': TERRAFORM_GLOBS },
-    { id: 'open-policy-agent', 'file-glob': OPA_GLOBS },
+    catalogCollection('terraform'),
+    catalogCollection('open-policy-agent'),
   ];
   const enabled = [
     'obs:automerge',
