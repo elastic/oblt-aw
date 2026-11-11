@@ -185,6 +185,7 @@ Classify by **changed paths** and **what the diff bumps**. Prefer these path fam
 - `pyproject.toml`, `requirements*.txt`, `Pipfile*`, `poetry.lock`, `uv.lock` (and `**/` variants) → **Python**
 - `**/*.tf`, `**/*.tfvars`, `**/.terraform.lock.hcl`, `**/terragrunt.hcl`, version pin files for Terraform/OpenTofu/Terragrunt → **Terraform**
 - `**/*.rego`, `**/.opa-version`, `**/opa.yaml`, `**/opa.yml` → **Open Policy Agent**
+- `updatecli-compose.yaml`, `updatecli-compose.yml`, `**/updatecli-compose.yaml`, `**/updatecli-compose.yml`, `.updatecli-version`, `**/.updatecli-version` → **Updatecli**
 - `.package-version`, `**/.package-version` → **package-version**
 - `.buildkite/**`, `**/Dockerfile`, `**/Dockerfile.*`, `**/docker-compose.yml`, `**/docker-compose.yaml`, `testing/environments/snapshot.yml` → **CI / container / snapshot image pins** when the diff bumps runner, container, or snapshot **image** identifiers or env pins. There is **no** separate “Buildkite plugin” dependency collection: do **not** map every `.buildkite/**` change to “Buildkite plugin.” If a `.buildkite/` diff bumps a plugin SHA/tag instead of an image pin, still treat it as an in-scope version bump; label the ecosystem **other** (or note “Buildkite plugin pin” as the bump type in the analysis) and continue — do **not** noop.
 - `pom.xml`, `build.gradle`, `build.gradle.kts`, `gradle.lockfile` → **Java/Kotlin (Maven/Gradle)**

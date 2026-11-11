@@ -107,6 +107,18 @@
       ]
     },
     {
+      "id": "updatecli",
+      "description": "Updatecli compose policy catalog and tool version pin updates",
+      "file-glob": [
+        "updatecli-compose.yaml",
+        "updatecli-compose.yml",
+        "**/updatecli-compose.yaml",
+        "**/updatecli-compose.yml",
+        ".updatecli-version",
+        "**/.updatecli-version"
+      ]
+    },
+    {
       "id": "vm-images",
       "description": "CI runner, container, or testing snapshot environment image pin updates",
       "file-glob": [

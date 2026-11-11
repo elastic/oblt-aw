@@ -172,6 +172,149 @@ test('classifyChangedFiles allows dashboard-enabled open-policy-agent collection
   });
 });
 
+const UPDATECLI_GLOBS = [
+  'updatecli-compose.yaml',
+  'updatecli-compose.yml',
+  '**/updatecli-compose.yaml',
+  '**/updatecli-compose.yml',
+  '.updatecli-version',
+  '**/.updatecli-version',
+];
+
+const TERRAFORM_GLOBS = [
+  '**/*.tf',
+  '**/*.tfvars',
+  '**/*.tfvars.json',
+  '**/.terraform.lock.hcl',
+  '**/terragrunt.hcl',
+  '**/.opentofu-version',
+  '**/.terraform-version',
+  '**/.terragrunt-version',
+];
+
+const OPA_GLOBS = [
+  '**/*.rego',
+  '**/.opa-version',
+  '**/opa.yaml',
+  '**/opa.yml',
+];
+
+test('classifyChangedFiles allows dashboard-enabled updatecli compose-only PR', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'updatecli', 'file-glob': UPDATECLI_GLOBS },
+    { id: 'terraform', 'file-glob': TERRAFORM_GLOBS },
+    { id: 'open-policy-agent', 'file-glob': OPA_GLOBS },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:updatecli'];
+  const outcome = classifyChangedFiles(
+    ['updatecli-compose.yaml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'updatecli',
+  });
+
+  const nested = classifyChangedFiles(
+    ['catalog/updatecli-compose.yml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(nested, {
+    status: 'allowed',
+    collectionId: 'updatecli',
+  });
+});
+
+test('classifyChangedFiles allows dashboard-enabled updatecli version-only PR', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'updatecli', 'file-glob': UPDATECLI_GLOBS },
+    { id: 'terraform', 'file-glob': TERRAFORM_GLOBS },
+    { id: 'open-policy-agent', 'file-glob': OPA_GLOBS },
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:updatecli'];
+  const outcome = classifyChangedFiles(
+    ['.updatecli-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'updatecli',
+  });
+
+  const nested = classifyChangedFiles(
+    ['tools/.updatecli-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(nested, {
+    status: 'allowed',
+    collectionId: 'updatecli',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled updatecli collection', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'updatecli', 'file-glob': UPDATECLI_GLOBS },
+  ];
+  const composeOutcome = classifyChangedFiles(
+    ['updatecli-compose.yaml'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(composeOutcome, {
+    status: 'disabled',
+    collectionId: 'updatecli',
+  });
+
+  const versionOutcome = classifyChangedFiles(
+    ['.updatecli-version'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(versionOutcome, {
+    status: 'disabled',
+    collectionId: 'updatecli',
+  });
+});
+
+test('classifyChangedFiles does not match updatecli paths via terraform or open-policy-agent', () => {
+  const collections = [
+    ...COLLECTIONS,
+    { id: 'terraform', 'file-glob': TERRAFORM_GLOBS },
+    { id: 'open-policy-agent', 'file-glob': OPA_GLOBS },
+  ];
+  const enabled = [
+    'obs:automerge',
+    'obs:automerge:terraform',
+    'obs:automerge:open-policy-agent',
+  ];
+  const composeOutcome = classifyChangedFiles(
+    ['updatecli-compose.yaml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(composeOutcome, {
+    status: 'unclassified',
+    collectionId: null,
+  });
+
+  const versionOutcome = classifyChangedFiles(
+    ['.updatecli-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(versionOutcome, {
+    status: 'unclassified',
+    collectionId: null,
+  });
+});
+
 const NODE_DEPENDENCY_GLOBS = [
   'package.json',
   'package-lock.json',
