@@ -317,6 +317,37 @@ class TestBuildkiteMcpOptional:
         assert '"required": false' in text[idx : idx + 800]
 
 
+class TestE2EModeMaterializeAndBait:
+    def test_materialize_step_bakes_e2e_flag_into_instructions_file(self) -> None:
+        text = (ROOT / ".github" / "workflows" / "gh-aw-repo-scheduled.md").read_text(
+            encoding="utf-8"
+        )
+        assert "ADDITIONAL_INSTRUCTIONS: ${{ inputs.additional-instructions }}" in text
+        assert 'E2E_MODE_TOKEN = "E2E_REPO_SCHEDULED_MODE=true"' in text
+        assert (
+            'E2E_PLATFORM_WAKE_SENTINEL = "PLATFORM_E2E_REPO_SCHEDULED_WAKE=1"' in text
+        )
+        assert "## Platform E2E wake (authoritative)" in text
+        assert "Do not call `noop`" in text
+        assert "PLATFORM_E2E_REPO_SCHEDULED_WAKE=1" in text
+        assert "except" in text.lower() and "E2E_REPO_SCHEDULED_MODE=true" in text
+        # Agent gate must not treat bare mode token in instructions.md as enough.
+        assert (
+            "E2E_REPO_SCHEDULED_MODE=true` appears in `/tmp/gh-aw/repo-scheduled-instructions.md`"
+            not in text
+        )
+
+    def test_bait_checks_materialized_file_before_production_noop(self) -> None:
+        text = harness.bait_content()
+        e2e_idx = text.index("## E2E wakes")
+        prod_idx = text.index("## Production wakes")
+        assert e2e_idx < prod_idx
+        assert "materialized instructions file" in text
+        assert "platform-injected" in text
+        assert "E2E_REPO_SCHEDULED_MODE=true" not in text
+        assert "PLATFORM_E2E_REPO_SCHEDULED_WAKE=1" not in text
+
+
 class TestHarnessHelpers:
     def test_bait_content_requires_marker(self, tmp_path: pathlib.Path) -> None:
         path = tmp_path / "bait.md"
