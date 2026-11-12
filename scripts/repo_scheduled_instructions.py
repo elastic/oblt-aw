@@ -47,6 +47,8 @@ KNOWN_SCHEDULE_PROFILES = frozenset({"daily", "frequent", "weekly"})
 KNOWN_CAPABILITIES: dict[str, str] = {
     "buildkite-logs": "BUILDKITE_API_TOKEN",
 }
+E2E_BAIT_AUTOMATION_ID = "e2e-repo-scheduled-bait"
+E2E_BAIT_PATH = ".github/ai/scheduled/e2e-repo-scheduled-bait.md"
 
 _FRONTMATTER_RE = re.compile(
     r"\A---\s*\n(.*?)\n---\s*\n?(.*)\Z",
@@ -409,6 +411,26 @@ def matrix_payload(automations: list[ScheduledAutomation]) -> dict[str, Any]:
     }
 
 
+def filter_e2e_bait_only(
+    matching: list[ScheduledAutomation],
+    *,
+    bait_id: str = E2E_BAIT_AUTOMATION_ID,
+    bait_path: str = E2E_BAIT_PATH,
+) -> list[ScheduledAutomation]:
+    """Keep only the canonical E2E bait automation; fail if it is absent."""
+    kept = [
+        item
+        for item in matching
+        if item.automation_id == bait_id and item.path == bait_path
+    ]
+    if not kept:
+        raise ValueError(
+            "e2e-bait-only: canonical bait automation not discovered "
+            f"(id={bait_id!r} path={bait_path!r})"
+        )
+    return kept
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -427,6 +449,14 @@ def main() -> int:
         required=True,
         help="Current wake profile: daily, frequent, or weekly",
     )
+    parser.add_argument(
+        "--e2e-bait-only",
+        action="store_true",
+        help=(
+            "Keep only the canonical E2E bait automation "
+            f"({E2E_BAIT_AUTOMATION_ID} @ {E2E_BAIT_PATH}); fail if absent"
+        ),
+    )
     args = parser.parse_args()
 
     try:
@@ -440,34 +470,50 @@ def main() -> int:
             print(f"::error::{err}", file=sys.stderr)
         return 1
 
-    for blocked in result.blocked:
+    matching = result.matching
+    if args.e2e_bait_only:
+        try:
+            matching = filter_e2e_bait_only(matching)
+        except ValueError as exc:
+            print(f"::error::{exc}", file=sys.stderr)
+            return 1
+
+    relevant_blocked = result.blocked
+    if args.e2e_bait_only:
+        relevant_blocked = [
+            item
+            for item in result.blocked
+            if item.get("id") == E2E_BAIT_AUTOMATION_ID
+            or item.get("path") == E2E_BAIT_PATH
+        ]
+
+    for blocked in relevant_blocked:
         print(
             f"::error::repo-scheduled automation {blocked['id']} blocked: "
             f"{blocked['reason']}",
             file=sys.stderr,
         )
 
-    payload = matrix_payload(result.matching)
-    has_matches = "true" if result.matching else "false"
-    has_blocked = "true" if result.blocked else "false"
+    payload = matrix_payload(matching)
     write_outputs(
         {
-            "has-matches": has_matches,
-            "has-blocked": has_blocked,
+            "has-matches": "true" if matching else "false",
+            "has-blocked": "true" if relevant_blocked else "false",
             "automations-matrix-json": json.dumps(payload, separators=(",", ":")),
             "blocked-automations-json": json.dumps(
-                result.blocked, separators=(",", ":")
+                relevant_blocked, separators=(",", ":")
             ),
-            "match-count": str(len(result.matching)),
-            "blocked-count": str(len(result.blocked)),
+            "match-count": str(len(matching)),
+            "blocked-count": str(len(relevant_blocked)),
         }
     )
     print(
         f"repo-scheduled: profile={args.schedule_profile!r} "
-        f"matches={len(result.matching)} blocked={len(result.blocked)}"
+        f"matches={len(matching)} blocked={len(relevant_blocked)}"
+        + (" e2e-bait-only=true" if args.e2e_bait_only else "")
     )
     # Fail closed when capability secrets are missing for requested automations.
-    if result.blocked:
+    if relevant_blocked:
         return 1
     return 0
 

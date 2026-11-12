@@ -88,6 +88,7 @@ toc:
       - hidden: ./e2e-estc-pr-buildkite-detective.md
       - hidden: ./e2e-pr-actions-detective-fail.md
       - hidden: ./e2e-pr-actions-detective.md
+      - hidden: ./e2e-repo-scheduled.md
       - hidden: ./e2e-trigger-obs-aw-schedule.md
       - hidden: ./get-enabled-workflows.md
       - hidden: ./gh-aw-autoapprove.md
@@ -170,4 +171,5 @@ toc:
       - hidden: ./dependency-review-e2e.md
       - hidden: ./estc-pr-buildkite-detective-e2e.md
       - hidden: ./pr-actions-detective-e2e.md
+      - hidden: ./repo-scheduled-e2e.md
   - file: glossary.md

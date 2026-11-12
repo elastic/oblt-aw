@@ -132,6 +132,23 @@ jobs:
       checkout-ref: ${{ inputs.checkout-ref }}
     secrets: inherit
 
+  e2e-repo-scheduled:
+    name: Repo scheduled
+    needs: [assert-trusted-dispatch]
+    if: >-
+      always() &&
+      !cancelled() &&
+      (needs.assert-trusted-dispatch.result == 'success' ||
+       needs.assert-trusted-dispatch.result == 'skipped')
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+    uses: ./.github/workflows/e2e-repo-scheduled.yml
+    with:
+      checkout-ref: ${{ inputs.checkout-ref }}
+    secrets: inherit
+
   e2e-pr-actions-detective:
     name: PR Actions Detective
     needs: [assert-trusted-dispatch]
