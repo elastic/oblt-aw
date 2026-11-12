@@ -384,7 +384,18 @@ def wait_for_correlated_schedule_run(
                     if schedule_agent_job_executed(
                         detail_cast, automation_id=automation_id
                     ):
-                        return detail_cast, None
+                        agent_conclusion = repo_scheduled_agent_job_conclusion(
+                            detail_cast, automation_id=automation_id
+                        )
+                        if agent_conclusion == "success":
+                            return detail_cast, None
+                        reason = (
+                            f"repo-scheduled agent leaf {automation_id!r} concluded "
+                            f"{agent_conclusion!r} (url={url}). "
+                            "Failing closed instead of waiting for an issue that "
+                            "cannot appear after agent startup/run failure."
+                        )
+                        return detail_cast, reason
                     conclusion = (
                         str(detail_cast.get("conclusion") or "").strip() or "unknown"
                     )

@@ -63,10 +63,13 @@ tools:
 # Buildkite MCP is compiled into this generic AW for the buildkite-logs capability.
 # Schedule clients forward BUILDKITE_LOGS_API_TOKEN as optional BUILDKITE_API_TOKEN.
 # Automations that do not request buildkite-logs must not call these tools.
+# required: false — token is optional; missing/invalid creds must not block agent
+# startup (E2E bait and non-buildkite-logs automations only need safe-outputs).
 mcp-servers:
   buildkite:
     type: http
     url: "https://mcp.buildkite.com/direct"
+    required: false
     headers:
       Authorization: "Bearer ${{ secrets.BUILDKITE_API_TOKEN }}"
     allowed:
