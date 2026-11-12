@@ -103,7 +103,6 @@ toc:
       - hidden: ./obs-aw-automerge-deferred.md
       - hidden: ./obs-aw-automerge.md
       - hidden: ./obs-aw-client-template.md
-      - hidden: ./obs-aw-compiler-upgrade.md
       - hidden: ./obs-aw-dependency-review.md
       - hidden: ./obs-aw-duplicate-issue-detector.md
       - hidden: ./obs-aw-estc-pr-buildkite-detective.md
