@@ -339,39 +339,17 @@ def _secret_present(env: dict[str, str], capability: str) -> bool:
     return bool(env.get(env_name, "").strip())
 
 
-def evaluate_for_profile(
-    repo_root: Path,
-    schedule_profile: str,
+def gate_automations_by_capabilities(
+    automations: list[ScheduledAutomation],
     *,
     env: dict[str, str] | None = None,
-) -> DiscoveryResult:
-    """Select automations for ``schedule_profile`` and apply capability secret gates."""
-    profile = schedule_profile.strip()
-    if profile not in KNOWN_SCHEDULE_PROFILES:
-        known = ", ".join(sorted(KNOWN_SCHEDULE_PROFILES))
-        raise ValueError(f"unknown schedule-profile {profile!r}; known: {known}")
-
+) -> tuple[list[ScheduledAutomation], list[dict[str, str]]]:
+    """Split automations into runnable vs capability-secret blocked."""
     env_map = dict(env) if env is not None else dict(os.environ)
     matching: list[ScheduledAutomation] = []
     blocked: list[dict[str, str]] = []
-    errors: list[str] = []
-
-    try:
-        automations = discover_automations(repo_root)
-    except (ValueError, TypeError) as exc:
-        return DiscoveryResult(matching=[], blocked=[], errors=[str(exc)])
-
-    seen_ids: set[str] = set()
     for automation in automations:
         location = automation.path or "apm.yml#instructions"
-        if automation.automation_id in seen_ids:
-            errors.append(
-                f"duplicate automation id {automation.automation_id!r} ({location})"
-            )
-            continue
-        seen_ids.add(automation.automation_id)
-        if profile not in automation.schedule_profiles:
-            continue
         missing = [
             cap for cap in automation.capabilities if not _secret_present(env_map, cap)
         ]
@@ -392,7 +370,44 @@ def evaluate_for_profile(
             )
             continue
         matching.append(automation)
+    return matching, blocked
 
+
+def evaluate_for_profile(
+    repo_root: Path,
+    schedule_profile: str,
+    *,
+    env: dict[str, str] | None = None,
+) -> DiscoveryResult:
+    """Select automations for ``schedule_profile`` and apply capability secret gates."""
+    profile = schedule_profile.strip()
+    if profile not in KNOWN_SCHEDULE_PROFILES:
+        known = ", ".join(sorted(KNOWN_SCHEDULE_PROFILES))
+        raise ValueError(f"unknown schedule-profile {profile!r}; known: {known}")
+
+    env_map = dict(env) if env is not None else dict(os.environ)
+    errors: list[str] = []
+
+    try:
+        automations = discover_automations(repo_root)
+    except (ValueError, TypeError) as exc:
+        return DiscoveryResult(matching=[], blocked=[], errors=[str(exc)])
+
+    seen_ids: set[str] = set()
+    candidates: list[ScheduledAutomation] = []
+    for automation in automations:
+        location = automation.path or "apm.yml#instructions"
+        if automation.automation_id in seen_ids:
+            errors.append(
+                f"duplicate automation id {automation.automation_id!r} ({location})"
+            )
+            continue
+        seen_ids.add(automation.automation_id)
+        if profile not in automation.schedule_profiles:
+            continue
+        candidates.append(automation)
+
+    matching, blocked = gate_automations_by_capabilities(candidates, env=env_map)
     return DiscoveryResult(matching=matching, blocked=blocked, errors=errors)
 
 
@@ -411,24 +426,103 @@ def matrix_payload(automations: list[ScheduledAutomation]) -> dict[str, Any]:
     }
 
 
+def load_checked_in_e2e_bait(
+    repo_root: Path,
+    *,
+    bait_id: str = E2E_BAIT_AUTOMATION_ID,
+    bait_path: str = E2E_BAIT_PATH,
+) -> ScheduledAutomation:
+    """Load the checked-in E2E bait instruction file (no ``apm.yml`` required).
+
+    Live E2E mode uses this so the control plane does not need a permanent
+    root ``apm.yml`` solely to declare the bait (same idea as automerge-all-files
+    keeping policy under ``testdata/`` rather than on ``main``).
+    """
+    source = "e2e-bait-only checked-in bait"
+    rel = _reject_path_escape(bait_path, source=source)
+    resolved = _resolve_contained_file(repo_root, rel, source=source)
+    meta, _body = parse_instruction_file(resolved)
+    meta_source = rel.as_posix()
+
+    automation_id = meta.get("id")
+    if automation_id is None:
+        automation_id = bait_id
+    if not isinstance(automation_id, str) or not automation_id.strip():
+        raise ValueError(f"{meta_source}: id must be a non-empty string when set")
+    automation_id = automation_id.strip()
+    if automation_id != bait_id:
+        raise ValueError(
+            f"{meta_source}: id must be {bait_id!r} for e2e-bait-only "
+            f"(got {automation_id!r})"
+        )
+
+    profiles = _as_str_list(
+        meta.get("schedule-profiles"),
+        field="schedule-profiles",
+        source=meta_source,
+    )
+    if not profiles:
+        raise ValueError(
+            f"{meta_source}: schedule-profiles is required and must be non-empty"
+        )
+    _validate_profiles(profiles, source=meta_source)
+
+    capabilities = _as_str_list(
+        meta.get("capabilities"),
+        field="capabilities",
+        source=meta_source,
+    )
+    _validate_capabilities(capabilities, source=meta_source)
+
+    return ScheduledAutomation(
+        automation_id=automation_id,
+        path=rel.as_posix(),
+        schedule_profiles=tuple(profiles),
+        capabilities=tuple(capabilities),
+        instructions="",
+    )
+
+
 def filter_e2e_bait_only(
     matching: list[ScheduledAutomation],
     *,
     bait_id: str = E2E_BAIT_AUTOMATION_ID,
     bait_path: str = E2E_BAIT_PATH,
 ) -> list[ScheduledAutomation]:
-    """Keep only the canonical E2E bait automation; fail if it is absent."""
-    kept = [
+    """Keep only the canonical E2E bait automation from ``matching`` (may be empty)."""
+    return [
         item
         for item in matching
         if item.automation_id == bait_id and item.path == bait_path
     ]
-    if not kept:
+
+
+def resolve_e2e_bait_only(
+    repo_root: Path,
+    matching: list[ScheduledAutomation],
+    *,
+    schedule_profile: str,
+    bait_id: str = E2E_BAIT_AUTOMATION_ID,
+    bait_path: str = E2E_BAIT_PATH,
+) -> list[ScheduledAutomation]:
+    """Return the E2E bait from APM matches, or inject the checked-in bait file.
+
+    Fails only when the checked-in bait path is missing or invalid — not when
+    ``apm.yml`` omits the bait (control plane has no permanent root apm.yml).
+    Injected bait must list ``schedule_profile`` in its frontmatter.
+    """
+    profile = schedule_profile.strip()
+    kept = filter_e2e_bait_only(matching, bait_id=bait_id, bait_path=bait_path)
+    if kept:
+        return kept
+    bait = load_checked_in_e2e_bait(repo_root, bait_id=bait_id, bait_path=bait_path)
+    if profile not in bait.schedule_profiles:
         raise ValueError(
-            "e2e-bait-only: canonical bait automation not discovered "
-            f"(id={bait_id!r} path={bait_path!r})"
+            "e2e-bait-only: checked-in bait "
+            f"{bait_path!r} does not include schedule-profile {profile!r} "
+            f"(has {list(bait.schedule_profiles)!r})"
         )
-    return kept
+    return [bait]
 
 
 def main() -> int:
@@ -454,7 +548,8 @@ def main() -> int:
         action="store_true",
         help=(
             "Keep only the canonical E2E bait automation "
-            f"({E2E_BAIT_AUTOMATION_ID} @ {E2E_BAIT_PATH}); fail if absent"
+            f"({E2E_BAIT_AUTOMATION_ID} @ {E2E_BAIT_PATH}); inject the "
+            "checked-in bait file when apm.yml does not list it"
         ),
     )
     args = parser.parse_args()
@@ -471,21 +566,20 @@ def main() -> int:
         return 1
 
     matching = result.matching
-    if args.e2e_bait_only:
-        try:
-            matching = filter_e2e_bait_only(matching)
-        except ValueError as exc:
-            print(f"::error::{exc}", file=sys.stderr)
-            return 1
-
     relevant_blocked = result.blocked
     if args.e2e_bait_only:
-        relevant_blocked = [
-            item
-            for item in result.blocked
-            if item.get("id") == E2E_BAIT_AUTOMATION_ID
-            or item.get("path") == E2E_BAIT_PATH
-        ]
+        try:
+            matching = resolve_e2e_bait_only(
+                args.repo_root,
+                matching,
+                schedule_profile=args.schedule_profile,
+            )
+        except (TypeError, ValueError) as exc:
+            print(f"::error::{exc}", file=sys.stderr)
+            return 1
+        # Injected bait never entered evaluate_for_profile gates — apply the same
+        # capability-secret check before emitting has-matches.
+        matching, relevant_blocked = gate_automations_by_capabilities(matching)
 
     for blocked in relevant_blocked:
         print(

@@ -33,6 +33,7 @@ WORKFLOW_ID = "obs:repo-scheduled"
 # Caller job id in obs-aw-repo-scheduled.yml; matrix form appends (automation-id).
 CANONICAL_AGENT_JOB_SEGMENT = "run-automation"
 CANONICAL_AGENT_LEAF_SUFFIX = "agent"
+CANONICAL_DISCOVER_JOB_SUFFIX = "discover-automations"
 DEFAULT_AUTOMATION_ID = "e2e-repo-scheduled-bait"
 
 _LIVE_EXPECTATION_KEYS = (
@@ -71,6 +72,13 @@ def schedule_agent_job_name_matches(
     leaf_job = before.split(" / ")[-1]
     auto = automation_id.strip().lower()
     return leaf_job == f"{CANONICAL_AGENT_JOB_SEGMENT} ({auto})"
+
+
+def schedule_discover_job_name_matches(job_name: str | None) -> bool:
+    """True when ``job_name`` is the repo-scheduled discover-automations leaf."""
+    lowered = str(job_name or "").strip().lower()
+    suffix = CANONICAL_DISCOVER_JOB_SUFFIX
+    return lowered == suffix or lowered.endswith(f" / {suffix}")
 
 
 def _load_json(path: Path) -> Any:
@@ -291,6 +299,25 @@ def evaluate_outcome(
                     automation_id=automation_id,
                 ),
                 f"job_name={schedule.get('job_name')!r}",
+            )
+        else:
+            # Empty-discovery / no-op: require named discover success — not only
+            # "no agent leaf" (failed/cancelled/skipped discover must not green).
+            discover_name = str(schedule.get("discover_job_name") or "")
+            discover_conclusion = str(
+                schedule.get("discover_job_conclusion") or ""
+            ).lower()
+            _check(
+                checks,
+                "discover_job_name",
+                schedule_discover_job_name_matches(discover_name),
+                f"discover_job_name={schedule.get('discover_job_name')!r}",
+            )
+            _check(
+                checks,
+                "discover_job_success",
+                discover_conclusion == "success",
+                f"discover_job_conclusion={schedule.get('discover_job_conclusion')!r}",
             )
     except TypeError as exc:
         _check(checks, "schedule_job_executed", False, str(exc))
