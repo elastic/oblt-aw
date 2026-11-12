@@ -152,12 +152,11 @@ jobs:
       checkout-ref: ${{ inputs.checkout-ref }}
     secrets: inherit
 
-  # After autodoc: both leaf harnesses dispatch e2e-trigger-obs-aw-schedule.yml.
-  # Running them in parallel cancelled overlapping autodoc jobs and left
-  # repo-scheduled waiters polling for ~2h after discover/agent never ran.
+  # Parallel with e2e-autodoc: both dispatch e2e-trigger-obs-aw-schedule.yml.
+  # Isolation is e2e-invocation-id on docs-patrol concurrency (cancel-in-progress).
   e2e-repo-scheduled:
     name: Repo scheduled
-    needs: [assert-trusted-dispatch, e2e-autodoc]
+    needs: [assert-trusted-dispatch]
     if: >-
       always() &&
       !cancelled() &&
