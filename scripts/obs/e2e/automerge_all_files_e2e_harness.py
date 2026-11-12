@@ -564,15 +564,16 @@ def run_live_case(
     merged = False
     cleanup_result: dict[str, Any] | None = None
 
-    # Fail closed: reject every required-true live flag before remote mutation.
-    required_true = (
-        ("require_open_pr", True),
-        ("force_stacked_policy_base", True),
-        ("require_allowed_pr_author", True),
+    # Fail closed: required flags default false when omitted so a missing key
+    # cannot authorize remote mutation.
+    required_true_keys = (
+        "require_open_pr",
+        "force_stacked_policy_base",
+        "require_allowed_pr_author",
     )
-    for key, default in required_true:
+    for key in required_true_keys:
         try:
-            value = am_vm._trigger_bool(trigger, key, default=default)
+            value = am_vm._trigger_bool(trigger, key, default=False)
         except TypeError as exc:
             return _blocked(
                 workflow_id=workflow_id,

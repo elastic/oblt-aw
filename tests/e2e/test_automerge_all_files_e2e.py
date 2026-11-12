@@ -368,3 +368,48 @@ def test_case_trigger_schema_requires_bool_keys(key: str) -> None:
     trigger = dict(case["trigger"])
     trigger[key] = "true"
     assert oracle.case_trigger_schema_error(trigger) is not None
+
+
+@pytest.mark.parametrize(
+    ("key", "mode"),
+    [
+        ("require_open_pr", "omit"),
+        ("require_open_pr", "false"),
+        ("force_stacked_policy_base", "omit"),
+        ("force_stacked_policy_base", "false"),
+        ("require_allowed_pr_author", "omit"),
+        ("require_allowed_pr_author", "false"),
+    ],
+)
+def test_run_live_blocks_required_flag_before_remote_mutation(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    key: str,
+    mode: str,
+) -> None:
+    case = _case(HAPPY_CASE_ID)
+    trigger = dict(case["trigger"])
+    if mode == "omit":
+        trigger.pop(key)
+    else:
+        trigger[key] = False
+    case_dir = tmp_path / "case"
+    case_dir.mkdir()
+    (case_dir / "case.json").write_text(
+        json.dumps({**case, "trigger": trigger}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    cfg = harness.load_e2e_config(
+        ROOT / "config" / "obs" / "e2e-automerge-all-files.json"
+    )
+
+    def _boom(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("remote API must not be called")
+
+    monkeypatch.setattr(harness.am_vm, "dashboard_enables_all", _boom)
+    monkeypatch.setattr(harness, "create_stacked_policy_fixture", _boom)
+
+    outcome = harness.run_live_case(case_dir, cfg, run_url="https://example.test/run")
+    assert outcome["blocked"] is True
+    assert key in str(outcome.get("block_reason") or "")
+    assert outcome.get("pr_number") is None
