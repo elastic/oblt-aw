@@ -30,7 +30,8 @@ jobs:
   e2e:
     name: Automerge all-files E2E (${{ matrix.case_id }})
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # Above sequential poll budgets (route + approve + merge can exceed 2h).
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:

@@ -221,6 +221,47 @@ def test_oracle_approve_is_not_merge_substitute() -> None:
     assert "automerge_job_executed" in failed
 
 
+def test_oracle_happy_requires_approve_job_not_only_review() -> None:
+    outcome = _happy_outcome(
+        automerge={
+            "run_seen": True,
+            "job_executed": True,
+            "approve_job_executed": False,
+            "job_conclusion": "success",
+            "matched_job_name": "run-obs-aw-pull-request / automerge / automerge",
+        }
+    )
+    report = _evaluate(outcome, case_id=HAPPY_CASE_ID)
+    assert report["pass"] is False
+    failed = {item["id"] for item in report["checks"] if not item["pass"]}
+    assert "approve_review_present" in failed
+
+
+def test_oracle_negative_rejects_failed_merge_leaf_evidence() -> None:
+    outcome = _negative_outcome(
+        automerge={
+            "run_seen": True,
+            "job_executed": False,
+            "approve_job_executed": False,
+            "job_conclusion": "failure",
+            "matched_job_name": "run-obs-aw-pull-request / automerge / automerge",
+        }
+    )
+    report = _evaluate(outcome, case_id=NEGATIVE_CASE_ID)
+    assert report["pass"] is False
+    failed = {item["id"] for item in report["checks"] if not item["pass"]}
+    assert "automerge_job_executed" in failed
+
+
+def test_oracle_requires_explicit_merge_merged_boolean() -> None:
+    outcome = _negative_outcome()
+    outcome["merge"] = {}
+    report = _evaluate(outcome, case_id=NEGATIVE_CASE_ID)
+    assert report["pass"] is False
+    failed = {item["id"] for item in report["checks"] if not item["pass"]}
+    assert "pr_merged" in failed
+
+
 def test_oracle_rejects_wrong_custom_label_name_when_applied() -> None:
     outcome = _happy_outcome(
         custom_trigger_label={"name": "nightshift:risk-low", "applied": True}

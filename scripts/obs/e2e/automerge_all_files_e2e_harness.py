@@ -78,10 +78,11 @@ def required_dashboard_ids(cfg: dict[str, Any]) -> list[str]:
 
 
 def checkout_sha() -> str:
-    """SHA under test (E2E checkout), not the default-branch tip."""
-    env_sha = (os.environ.get("GITHUB_SHA") or "").strip()
-    if env_sha:
-        return env_sha
+    """SHA of the workspace checked out by the E2E job.
+
+    Prefer ``git rev-parse HEAD`` so a ``checkout-ref`` that differs from the
+    workflow event ``GITHUB_SHA`` still seeds fixtures from the tree under test.
+    """
     return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
 
 
@@ -374,40 +375,53 @@ def create_stacked_policy_fixture(
         raise RuntimeError(
             f"gh pr create failed: {(create.stderr or create.stdout or '').strip()}"
         )
-    pr_number = estc._pr_number_from_gh_output(create.stdout or create_out)
-    if pr_number is None:
-        raise RuntimeError(f"Could not parse PR number from gh pr create: {create_out}")
+    pr_number: int | None = None
+    try:
+        pr_number = estc._pr_number_from_gh_output(create.stdout or create_out)
+        if pr_number is None:
+            raise RuntimeError(
+                f"Could not parse PR number from gh pr create: {create_out}"
+            )
 
-    pr = estc.gh_json(
-        [
-            "pr",
-            "view",
-            str(pr_number),
-            "--repo",
+        pr = estc.gh_json(
+            [
+                "pr",
+                "view",
+                str(pr_number),
+                "--repo",
+                repo,
+                "--json",
+                "number,url,headRefName,headRefOid,baseRefName,labels,state",
+            ]
+        )
+        author_login = am_vm.rest_pr_author_login(repo, pr_number)
+        return {
+            "number": int(pr["number"]),
+            "url": pr.get("url"),
+            "headRefName": pr.get("headRefName") or head_branch,
+            "headRefOid": pr.get("headRefOid") or marker_sha,
+            "baseRefName": pr.get("baseRefName") or base_branch,
+            "author_login": author_login,
+            "labels": [
+                lbl.get("name") for lbl in (pr.get("labels") or []) if lbl.get("name")
+            ],
+            "branch": head_branch,
+            "base_branch": base_branch,
+            "commit_sha": marker_sha,
+            "policy_commit_sha": policy_sha,
+            "marker_path": marker_path,
+            "custom_trigger_label": custom_label,
+            "fixture_label": label,
+        }
+    except Exception:
+        cleanup_stacked_fixture(
             repo,
-            "--json",
-            "number,url,headRefName,headRefOid,baseRefName,labels,state",
-        ]
-    )
-    author_login = am_vm.rest_pr_author_login(repo, pr_number)
-    return {
-        "number": int(pr["number"]),
-        "url": pr.get("url"),
-        "headRefName": pr.get("headRefName") or head_branch,
-        "headRefOid": pr.get("headRefOid") or marker_sha,
-        "baseRefName": pr.get("baseRefName") or base_branch,
-        "author_login": author_login,
-        "labels": [
-            lbl.get("name") for lbl in (pr.get("labels") or []) if lbl.get("name")
-        ],
-        "branch": head_branch,
-        "base_branch": base_branch,
-        "commit_sha": marker_sha,
-        "policy_commit_sha": policy_sha,
-        "marker_path": marker_path,
-        "custom_trigger_label": custom_label,
-        "fixture_label": label,
-    }
+            pr_number=pr_number,
+            head_branch=head_branch,
+            base_branch=base_branch,
+            merged=False,
+        )
+        raise
 
 
 def cleanup_stacked_fixture(
@@ -588,6 +602,47 @@ def run_live_case(
     expect_merge = am_vm._trigger_bool(trigger, "expect_merge", default=False)
     wait_verify_skip = am_vm._trigger_bool(trigger, "wait_verify_skip", default=False)
 
+    # Fail closed: reject inconsistent trigger combos before remote mutation.
+    if apply_custom != expect_merge or wait_automerge != expect_merge:
+        return _blocked(
+            workflow_id=workflow_id,
+            case_id=case_id,
+            reason=(
+                "Live E2E requires apply_custom_trigger_label and wait_automerge "
+                "to match expect_merge before remote mutation "
+                f"(apply_custom={apply_custom}, wait_automerge={wait_automerge}, "
+                f"expect_merge={expect_merge})."
+            ),
+            run_url=run_url,
+            expectations=expectations,
+            trigger=trigger,
+        )
+    if expect_merge:
+        if not (apply_custom and wait_automerge):
+            return _blocked(
+                workflow_id=workflow_id,
+                case_id=case_id,
+                reason=(
+                    "Happy-path live E2E requires apply_custom_trigger_label=true "
+                    "and wait_automerge=true when expect_merge=true."
+                ),
+                run_url=run_url,
+                expectations=expectations,
+                trigger=trigger,
+            )
+    elif not wait_verify_skip:
+        return _blocked(
+            workflow_id=workflow_id,
+            case_id=case_id,
+            reason=(
+                "Negative live E2E requires wait_verify_skip=true so a verify "
+                "attempt is observed before asserting no automerge."
+            ),
+            run_url=run_url,
+            expectations=expectations,
+            trigger=trigger,
+        )
+
     try:
         dashboard_ok, missing = am_vm.dashboard_enables_all(repo, dash_ids)
         if expectations.get("dashboard_enabled") and not dashboard_ok:
@@ -721,6 +776,27 @@ def run_live_case(
                     f"within timeout for PR #{pr_info['number']} "
                     "(negative case needs a verify attempt)."
                 )
+            verify_match = am_vm._job_match_by_exact_or_suffix(
+                route_run,
+                endswith_suffixes=(" / automerge / verify",),
+            )
+            if verify_match is None:
+                raise RuntimeError(
+                    f"Negative case PR #{pr_info['number']}: completed "
+                    f"{workflow_file} run had no non-skipped automerge verify "
+                    "job (prelude/route skip is not evidence of label rejection)."
+                )
+            merge_leaf_early = am_vm._job_match_by_exact_or_suffix(
+                route_run,
+                exact_names=("automerge",),
+                endswith_suffixes=(AUTOMERGE_MERGE_LEAF_SUFFIX,),
+            )
+            if merge_leaf_early is not None:
+                raise RuntimeError(
+                    f"Negative case PR #{pr_info['number']} saw automerge merge "
+                    f"leaf {merge_leaf_early[0]!r} "
+                    f"(conclusion={merge_leaf_early[1]!r}) on the verify run."
+                )
             known_run_ids.add(int(route_run["databaseId"]))
             # Settle briefly so a late labeled automerge cannot sneak past.
             settle_deadline = time.time() + negative_settle
@@ -789,10 +865,16 @@ def run_live_case(
                 raise RuntimeError(
                     f"Negative case PR #{pr_info['number']} unexpectedly merged."
                 )
-            if am_vm.automerge_job_executed(am_run):
+            merge_leaf_late = am_vm._job_match_by_exact_or_suffix(
+                am_run,
+                exact_names=("automerge",),
+                endswith_suffixes=(AUTOMERGE_MERGE_LEAF_SUFFIX,),
+            )
+            if merge_leaf_late is not None or am_vm.automerge_job_executed(am_run):
                 raise RuntimeError(
-                    f"Negative case saw successful automerge merge leaf on "
-                    f"PR #{pr_info['number']}."
+                    f"Negative case saw automerge merge leaf on "
+                    f"PR #{pr_info['number']} "
+                    f"(match={merge_leaf_late!r})."
                 )
 
         if not apply_custom:

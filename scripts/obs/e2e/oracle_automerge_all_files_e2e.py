@@ -459,11 +459,19 @@ def _evaluate_live(
             if isinstance(review, dict):
                 review_state = str(review.get("state") or "")
             state_ok = present and review_state.upper() == "APPROVED"
+            approve_job = False
+            try:
+                approve_job = _as_bool(am.get("approve_job_executed"))
+            except TypeError:
+                approve_job = False
+            # Happy path: require autoapprove leaf evidence, not a human APPROVED.
+            ok = (state_ok and approve_job) if expected else (not state_ok)
             _check(
                 checks,
                 "approve_review_present",
-                state_ok == expected,
-                f"expected={expected} review={review!r}",
+                ok,
+                f"expected={expected} review={review!r} "
+                f"approve_job_executed={am.get('approve_job_executed')!r}",
             )
         except TypeError as exc:
             _check(checks, "approve_review_present", False, str(exc))
@@ -473,14 +481,30 @@ def _evaluate_live(
             actual = _as_bool(am.get("job_executed"))
             job_conclusion = am.get("job_conclusion")
             matched_job = str(am.get("matched_job_name") or "")
-            leaf_ok = (not expected) or matched_job.lower().endswith(
+            leaf_ok = matched_job.lower().endswith(
                 CANONICAL_AUTOMERGE_JOB_SUFFIX.lower()
             )
-            named_ok = actual and job_conclusion == "success"
+            conclusion_norm = str(job_conclusion or "").lower()
+            if expected:
+                named_ok = actual and conclusion_norm == "success" and leaf_ok
+            else:
+                # Fail closed: any non-skipped merge-leaf evidence fails negative.
+                leaf_seen = (
+                    bool(matched_job)
+                    or actual
+                    or conclusion_norm
+                    in {
+                        "success",
+                        "failure",
+                        "cancelled",
+                        "timed_out",
+                    }
+                )
+                named_ok = not leaf_seen
             _check(
                 checks,
                 "automerge_job_executed",
-                named_ok == expected and leaf_ok,
+                named_ok,
                 f"expected={expected} job_executed={actual} "
                 f"job_conclusion={job_conclusion!r} "
                 f"matched_job_name={matched_job!r} "
@@ -491,13 +515,21 @@ def _evaluate_live(
 
         try:
             expected = _as_bool(expectations["pr_merged"])
-            merged = _as_bool(merge.get("merged")) if "merged" in merge else False
-            _check(
-                checks,
-                "pr_merged",
-                merged == expected,
-                f"expected={expected} merged={merged} merge={merge!r}",
-            )
+            if "merged" not in merge:
+                _check(
+                    checks,
+                    "pr_merged",
+                    False,
+                    f"expected={expected} merge.merged missing merge={merge!r}",
+                )
+            else:
+                merged = _as_bool(merge["merged"])
+                _check(
+                    checks,
+                    "pr_merged",
+                    merged == expected,
+                    f"expected={expected} merged={merged} merge={merge!r}",
+                )
         except TypeError as exc:
             _check(checks, "pr_merged", False, str(exc))
 

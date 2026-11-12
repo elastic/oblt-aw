@@ -81,6 +81,7 @@ toc:
       - hidden: ./docs-aw-pr-ai-menu-collect.md
       - hidden: ./e2e-all.md
       - hidden: ./e2e-autodoc.md
+      - hidden: ./e2e-automerge-all-files.md
       - hidden: ./e2e-automerge-vm-images.md
       - hidden: ./e2e-dependency-review-actions-fixture.md
       - hidden: ./e2e-dependency-review.md
@@ -165,6 +166,7 @@ toc:
       - hidden: ./index.md
       - hidden: ./autodoc-e2e-bait.md
       - hidden: ./autodoc-e2e.md
+      - hidden: ./automerge-all-files-e2e.md
       - hidden: ./automerge-vm-images-e2e.md
       - hidden: ./dependency-review-e2e.md
       - hidden: ./estc-pr-buildkite-detective-e2e.md
