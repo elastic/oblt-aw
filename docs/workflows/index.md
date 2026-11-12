@@ -62,6 +62,7 @@ Shared framework jobs use **kebab-case, action-oriented** ids with domain contex
 - [E2E Observability schedule dispatcher](e2e-trigger-obs-aw-schedule.md)
 - [E2E PR Actions detective](e2e-pr-actions-detective.md)
 - [E2E PR Actions detective intentional failure](e2e-pr-actions-detective-fail.md)
+- [E2E repo scheduled](e2e-repo-scheduled.md)
 - [Issue Fixer](obs-aw-issue-fixer.md)
 - [Issue Triage](obs-aw-issue-triage.md)
 - [Mention in Issue](obs-aw-mention-in-issue.md)

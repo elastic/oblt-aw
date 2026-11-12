@@ -40,6 +40,7 @@ toc:
           - file: missing-client-template-or-dashboard.md
           - file: onboard-agent-no-comment-or-prs.md
           - file: registration-before-catalog-token-policy.md
+          - file: settings-token-policy-selector-missing.md
           - file: workflows-skipped-or-not-running.md
   - folder: knowledge-base
     children:
@@ -88,6 +89,7 @@ toc:
       - hidden: ./e2e-estc-pr-buildkite-detective.md
       - hidden: ./e2e-pr-actions-detective-fail.md
       - hidden: ./e2e-pr-actions-detective.md
+      - hidden: ./e2e-repo-scheduled.md
       - hidden: ./e2e-trigger-obs-aw-schedule.md
       - hidden: ./get-enabled-workflows.md
       - hidden: ./gh-aw-autoapprove.md
@@ -171,4 +173,5 @@ toc:
       - hidden: ./dependency-review-e2e.md
       - hidden: ./estc-pr-buildkite-detective-e2e.md
       - hidden: ./pr-actions-detective-e2e.md
+      - hidden: ./repo-scheduled-e2e.md
   - file: glossary.md

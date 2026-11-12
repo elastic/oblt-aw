@@ -1,7 +1,9 @@
 name: Repo Scheduled
 
-# Generic scheduled AW. Consumers add instruction files under
-# .github/ai/scheduled/ (frontmatter: schedule-profiles, optional capabilities).
+# Generic scheduled AW. Consumers declare automations in apm.yml under
+# x-oblt-aw.obs.workflows.repo-scheduled.automations (instructions-file or
+# inline instructions; recommended path .github/oblt-aw/scheduled/;
+# schedule-profiles / capabilities / id in APM and/or frontmatter; APM wins).
 # Control Plane dashboard gate is shared-proceed; discovery is fail-closed.
 on:
   workflow_call:
@@ -29,6 +31,20 @@ on:
         description: Wake profile from the schedule client (daily, frequent, or weekly).
         required: true
         type: string
+      e2e-repo-scheduled-mode:
+        description: >-
+          When true, platform text forces the checked-in E2E bait automation
+          to create a marker issue (false for normal schedule/manual runs).
+        required: false
+        type: boolean
+        default: false
+      e2e-invocation-id:
+        description: >-
+          Optional correlation token for live E2E (embedded in agent guidance
+          and issue bodies when e2e-repo-scheduled-mode is true).
+        required: false
+        type: string
+        default: ""
     secrets:
       BUILDKITE_API_TOKEN:
         required: false
@@ -72,16 +88,21 @@ jobs:
       - name: Install runtime dependencies
         run: python -m pip install -r _oblt-aw/requirements-runtime.txt
 
-      - name: Discover scheduled instruction files
+      - name: Discover scheduled automations from apm.yml
         id: discover
         env:
           BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}
           PYTHONPATH: ${{ github.workspace }}/_oblt-aw/scripts
         run: |
           set -euo pipefail
+          extra=()
+          if [ "${{ inputs.e2e-repo-scheduled-mode }}" = "true" ]; then
+            extra+=(--e2e-bait-only)
+          fi
           python _oblt-aw/scripts/repo_scheduled_instructions.py \
             --repo-root "${GITHUB_WORKSPACE}" \
-            --schedule-profile "${{ inputs.schedule-profile }}"
+            --schedule-profile "${{ inputs.schedule-profile }}" \
+            "${extra[@]}"
 
   resolve-apm-assets:
     if: >-
@@ -94,13 +115,11 @@ jobs:
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       workflow-basename: obs-aw-repo-scheduled.yml
-      platform-additional-instructions: |
-        You are running one consumer-defined scheduled automation (obs:repo-scheduled).
-        Read and follow `/tmp/gh-aw/repo-scheduled-instructions.md` (consumer instruction body).
-        Prefer noop when nothing is actionable. Call a safe-output tool before finishing.
-        Use Buildkite MCP only when that file requires Buildkite data and buildkite-logs applies.
+      # E2E mode is fixed platform text (not free-form). Keep production text when false.
+      platform-additional-instructions: ${{ inputs.e2e-repo-scheduled-mode && format('E2E_REPO_SCHEDULED_MODE=true. You are running the obs:repo-scheduled live E2E bait. Read `/tmp/gh-aw/repo-scheduled-instructions.md`. Create exactly one GitHub issue whose body includes `E2E_REPO_SCHEDULED_BAIT_MARKER`, cites `.github/ai/scheduled/e2e-repo-scheduled-bait.md`, and includes `E2E_INVOCATION_ID={0}`. Do not noop. Do not use Buildkite tools.', inputs.e2e-invocation-id) || 'You are running one consumer-defined scheduled automation (obs:repo-scheduled). Read and follow `/tmp/gh-aw/repo-scheduled-instructions.md` (consumer instruction body). Prefer noop when nothing is actionable. Call a safe-output tool before finishing. Use Buildkite MCP only when that file requires Buildkite data and buildkite-logs applies.' }}
 
   run-automation:
+    name: run-automation (${{ matrix.id }})
     if: >-
       inputs.shared-proceed == 'true' &&
       needs.discover-automations.outputs.has-matches == 'true'
@@ -118,6 +137,7 @@ jobs:
     with:
       automation-id: ${{ matrix.id }}
       instruction-path: ${{ matrix.path }}
+      instructions: ${{ matrix.instructions }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}

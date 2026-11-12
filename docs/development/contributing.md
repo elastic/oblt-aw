@@ -117,6 +117,7 @@ The following hooks run on commit (and in CI via the pre-commit job):
 | ruff-format     | Python files (repo-wide) | Python formatting                |
 | mypy            | `scripts/**/*.py`        | Python type-checking (strict)    |
 | update-license-files | Scripts, shell, TypeScript tests, NOTICE | Apache 2.0 headers, NOTICE sync |
+| local           | compile-aw               | Regenerate gh-aw `*.lock.yml` when Markdown sources are staged |
 | pre-commit-hooks| Various                  | Trailing whitespace, EOF, etc.   |
 
 ## CI Workflow

@@ -128,6 +128,13 @@
           "description": "Overrides for agentic workflow inputs (kebab-case keys). Values may be scalars or *-file paths.",
           "additionalProperties": true
         },
+        "automations": {
+          "type": "array",
+          "description": "repo-scheduled only: declared scheduled automations. Each entry uses instructions-file (recommended under .github/oblt-aw/scheduled/) or inline instructions; schedule-profiles and capabilities may be set here and/or in frontmatter (APM wins when both set).",
+          "items": {
+            "$ref": "#/$defs/repoScheduledAutomation"
+          }
+        },
         "policy": {
           "$ref": "#/$defs/automergePolicy",
           "description": "Automerge-only consumer policy (trigger labels, authors, forks). Ignored for other workflow ids. oblt-aw/ai/merge-ready is always an effective trigger label."
@@ -138,6 +145,77 @@
           "additionalProperties": {
             "$ref": "#/$defs/leafAssetBlock"
           }
+        }
+      }
+    },
+    "repoScheduledAutomation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One consumer-defined scheduled automation for obs:repo-scheduled. Provide instructions-file or instructions (not both).",
+      "oneOf": [
+        {
+          "required": ["instructions-file"],
+          "not": {
+            "required": ["instructions"]
+          }
+        },
+        {
+          "required": ["instructions", "id"],
+          "not": {
+            "required": ["instructions-file"]
+          }
+        }
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Automation id (required for inline instructions; otherwise defaults to instruction file stem or frontmatter id)."
+        },
+        "instructions": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Inline instruction Markdown body (optional YAML frontmatter). Mutually exclusive with instructions-file."
+        },
+        "instructions-file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative path to the instruction Markdown body. Recommended: .github/oblt-aw/scheduled/<name>.md. Mutually exclusive with instructions."
+        },
+        "schedule-profiles": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["daily", "frequent", "weekly"]
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["daily", "frequent", "weekly"]
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          ],
+          "description": "Wake lanes. Required here or in the instruction file frontmatter."
+        },
+        "capabilities": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["buildkite-logs"]
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["buildkite-logs"]
+              },
+              "uniqueItems": true
+            }
+          ],
+          "description": "Optional allowlisted capability ids (also accepted in file frontmatter)."
         }
       }
     },

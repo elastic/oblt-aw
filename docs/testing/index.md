@@ -15,3 +15,4 @@ E2E and live-harness notes for framework workflows. These pages support maintain
 - [Dependency review E2E](dependency-review-e2e.md)
 - [ESTC PR Buildkite Detective E2E](estc-pr-buildkite-detective-e2e.md)
 - [PR Actions Detective E2E](pr-actions-detective-e2e.md)
+- [Repo scheduled E2E](repo-scheduled-e2e.md)
