@@ -32,6 +32,7 @@ import re
 import subprocess
 import sys
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
@@ -83,7 +84,7 @@ def _load_json(path: Path) -> Any:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(timezone.utc)  # noqa: UP017
 
 
 def load_e2e_config(path: Path) -> dict[str, Any]:
@@ -183,12 +184,24 @@ def list_schedule_trigger_runs(
                 "--limit",
                 str(limit),
                 "--json",
-                "databaseId,status,conclusion,createdAt,event,displayTitle,url,headSha",
+                "databaseId,status,conclusion,createdAt,event,displayTitle,name,url,headSha",
             ]
         )
         or []
     )
     return cast(list[dict[str, Any]], payload)
+
+
+def _run_matches_invocation(run: dict[str, Any], invocation_id: str) -> bool:
+    """True when the schedule-trigger run title embeds the invocation id."""
+    token = (invocation_id or "").strip()
+    if not token:
+        return True
+    haystacks = (
+        str(run.get("displayTitle") or ""),
+        str(run.get("name") or ""),
+    )
+    return any(token in value for value in haystacks)
 
 
 def _is_audit_agent_leaf(name: str) -> bool:
@@ -234,13 +247,14 @@ def autodoc_audit_job_conclusion(run_detail: dict[str, Any] | None) -> str | Non
 
 
 def schedule_audit_job_executed(run_detail: dict[str, Any] | None) -> bool:
-    """True when the audit agent leaf ran (any non-skipped conclusion).
+    """True when the audit agent leaf ran (any non-skipped, non-cancelled conclusion).
 
     Success is a separate signal via ``job_conclusion`` / oracle
     ``schedule_job_success``. A failed audit must not look like "never ran".
+    Cancelled means concurrency killed the leaf — not a usable producer.
     """
     conclusion = autodoc_audit_job_conclusion(run_detail)
-    return conclusion is not None and conclusion not in ("", "skipped")
+    return conclusion is not None and conclusion not in ("", "skipped", "cancelled")
 
 
 def audit_agent_invoked(run_detail: dict[str, Any] | None) -> bool:
@@ -300,9 +314,16 @@ def wait_for_schedule_audit_run(
     timeout_seconds: int,
     interval_seconds: int,
     exclude_run_ids: set[int] | None = None,
+    invocation_id: str = "",
 ) -> dict[str, Any] | None:
-    """Wait for a completed schedule-trigger run with an executed audit leaf."""
+    """Wait for a completed schedule-trigger run for this E2E invocation.
+
+    When ``invocation_id`` is set, return that matched run once it completes
+    (including cancelled) so the harness can fail closed. Without an id, keep
+    the legacy behavior of accepting the first completed executed audit leaf.
+    """
     excluded = set(exclude_run_ids or ())
+    token = (invocation_id or "").strip()
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         for run in list_schedule_trigger_runs(repo, workflow_file):
@@ -315,6 +336,8 @@ def wait_for_schedule_audit_run(
             event = (run.get("event") or "").lower()
             if event not in ("schedule", "workflow_dispatch"):
                 continue
+            if not _run_matches_invocation(run, token):
+                continue
             while time.time() < deadline:
                 detail = estc.gh_json(
                     [
@@ -324,12 +347,15 @@ def wait_for_schedule_audit_run(
                         "--repo",
                         repo,
                         "--json",
-                        "databaseId,status,conclusion,url,jobs,createdAt,headSha,event",
+                        "databaseId,status,conclusion,url,jobs,createdAt,headSha,event,displayTitle,name",
                     ]
                 )
                 if detail.get("status") != "completed":
                     time.sleep(interval_seconds)
                     continue
+                if token:
+                    # Bound to this dispatch — caller fail-closes on cancelled.
+                    return cast(dict[str, Any], detail)
                 if schedule_audit_job_executed(detail):
                     return cast(dict[str, Any], detail)
                 # Completed without an executed audit leaf — keep polling others.
@@ -344,10 +370,16 @@ def dispatch_schedule_trigger(
     workflow_file: str,
     *,
     e2e_autodoc_mode: bool = False,
+    invocation_id: str = "",
 ) -> None:
     args = ["workflow", "run", workflow_file, "--repo", repo]
     if e2e_autodoc_mode:
         args.extend(["-f", "e2e-autodoc-mode=true"])
+    else:
+        args.extend(["-f", "e2e-autodoc-mode=false"])
+    token = (invocation_id or "").strip()
+    if token:
+        args.extend(["-f", f"e2e-invocation-id={token}"])
     estc.gh_text(args, check=True)
 
 
@@ -729,13 +761,18 @@ def run_live_case(
             int(run["databaseId"])
             for run in list_schedule_trigger_runs(repo, workflow_file)
         }
+        # Unique concurrency key for docs-patrol + run-name correlation.
+        invocation_id = uuid.uuid4().hex[:12]
         if dispatch_trigger_enabled:
             dispatch_schedule_trigger(
                 repo,
                 workflow_file,
                 e2e_autodoc_mode=bool(seed_doc_drift_bait),
+                invocation_id=invocation_id,
             )
-            estc.log_info(f"Dispatched {workflow_file} on {repo}")
+            estc.log_info(
+                f"Dispatched {workflow_file} on {repo} (invocation_id={invocation_id})"
+            )
 
         run_detail = wait_for_schedule_audit_run(
             repo,
@@ -744,17 +781,55 @@ def run_live_case(
             timeout_seconds=_seconds_left(),
             interval_seconds=interval,
             exclude_run_ids=known_run_ids,
+            invocation_id=invocation_id if dispatch_trigger_enabled else "",
         )
         if run_detail is None:
             result = _blocked(
-                f"Timed out waiting for {workflow_file} autodoc audit leaf execution",
+                f"Timed out waiting for {workflow_file} autodoc audit leaf execution "
+                f"(invocation_id={invocation_id})",
                 path_gates={"dashboard_enabled": dashboard_ok},
             )
             return result
 
         completed_run: dict[str, Any] = run_detail
         job_conclusion = autodoc_audit_job_conclusion(completed_run)
+        run_conclusion = str(completed_run.get("conclusion") or "").lower()
         agent_ok = audit_agent_invoked(completed_run)
+        if job_conclusion == "cancelled" or (
+            run_conclusion == "cancelled"
+            and not schedule_audit_job_executed(completed_run)
+        ):
+            result = _blocked(
+                "Schedule autodoc audit was cancelled before a usable agent "
+                "result (docs-patrol concurrency collision). "
+                f"invocation_id={invocation_id} run={completed_run.get('url')}",
+                path_gates={"dashboard_enabled": dashboard_ok},
+                schedule_trigger={
+                    "run_seen": True,
+                    "job_executed": False,
+                    "job_conclusion": job_conclusion or run_conclusion or "cancelled",
+                    "job_name": schedule_audit_job_name(completed_run),
+                    "url": completed_run.get("url"),
+                },
+                agent_invoked=False,
+            )
+            return result
+        if dispatch_trigger_enabled and not schedule_audit_job_executed(completed_run):
+            result = _blocked(
+                "Schedule autodoc audit leaf did not execute "
+                f"(conclusion={job_conclusion or run_conclusion!r}). "
+                f"invocation_id={invocation_id} run={completed_run.get('url')}",
+                path_gates={"dashboard_enabled": dashboard_ok},
+                schedule_trigger={
+                    "run_seen": True,
+                    "job_executed": False,
+                    "job_conclusion": job_conclusion or run_conclusion,
+                    "job_name": schedule_audit_job_name(completed_run),
+                    "url": completed_run.get("url"),
+                },
+                agent_invoked=False,
+            )
+            return result
         fix_job_conclusion = autodoc_fix_job_conclusion(completed_run)
         fix_ran = schedule_fix_job_executed(completed_run)
         fix_succeeded = fix_agent_succeeded(completed_run)

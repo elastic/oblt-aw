@@ -529,6 +529,26 @@ class TestJobNameMatching:
         assert harness.schedule_audit_job_executed(detail) is False
         assert harness.audit_agent_succeeded(detail) is False
 
+    def test_cancelled_audit_agent_is_not_executed(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "autodoc / audit / agent",
+                    "conclusion": "cancelled",
+                }
+            ]
+        }
+        assert harness.schedule_audit_job_executed(detail) is False
+        assert harness.audit_agent_invoked(detail) is False
+        assert harness.audit_agent_succeeded(detail) is False
+        assert harness.autodoc_audit_job_conclusion(detail) == "cancelled"
+
+    def test_run_matches_invocation_token(self) -> None:
+        run = {"displayTitle": "E2E schedule [abc123deadbe]", "name": "E2E schedule"}
+        assert harness._run_matches_invocation(run, "abc123deadbe") is True
+        assert harness._run_matches_invocation(run, "other") is False
+        assert harness._run_matches_invocation(run, "") is True
+
     def test_failed_fix_leaf_counts_as_executed_not_succeeded(self) -> None:
         detail = {
             "jobs": [
@@ -633,11 +653,49 @@ class TestJobNameMatching:
         result = harness.wait_for_schedule_audit_run(
             "elastic/oblt-aw",
             "e2e-trigger-obs-aw-schedule.yml",
-            since=datetime(2026, 9, 24, 8, 0, tzinfo=timezone.utc),
+            since=datetime(2026, 9, 24, 8, 0, tzinfo=timezone.utc),  # noqa: UP017
             timeout_seconds=1,
             interval_seconds=0,
         )
         assert result == detail
+
+    def test_wait_for_schedule_audit_run_returns_cancelled_when_invocation_bound(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        run = {
+            "databaseId": 456,
+            "createdAt": "2026-09-24T09:00:00Z",
+            "event": "workflow_dispatch",
+            "displayTitle": "E2E schedule [invoketoken1]",
+            "name": "E2E schedule [invoketoken1]",
+        }
+        detail = {
+            "databaseId": 456,
+            "status": "completed",
+            "conclusion": "cancelled",
+            "url": "https://example.test/runs/456",
+            "displayTitle": "E2E schedule [invoketoken1]",
+            "jobs": [
+                {
+                    "name": "autodoc / audit / agent",
+                    "conclusion": "cancelled",
+                }
+            ],
+        }
+        monkeypatch.setattr(
+            harness, "list_schedule_trigger_runs", lambda *args, **kwargs: [run]
+        )
+        monkeypatch.setattr(harness.estc, "gh_json", lambda *args, **kwargs: detail)
+        result = harness.wait_for_schedule_audit_run(
+            "elastic/oblt-aw",
+            "e2e-trigger-obs-aw-schedule.yml",
+            since=datetime(2026, 9, 24, 8, 0, tzinfo=timezone.utc),  # noqa: UP017
+            timeout_seconds=1,
+            interval_seconds=0,
+            invocation_id="invoketoken1",
+        )
+        assert result == detail
+        assert harness.schedule_audit_job_executed(detail) is False
 
 
 class TestIssueAndPrCorrelation:
