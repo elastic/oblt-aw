@@ -239,6 +239,60 @@ def test_path_escape_rejected(tmp_path: pathlib.Path) -> None:
     assert ".." in result.errors[0]
 
 
+def test_symlink_escape_rejected(tmp_path: pathlib.Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    outside = tmp_path / "outside.md"
+    outside.write_text(
+        "---\nschedule-profiles: [daily]\n---\n\nLeaked body.\n",
+        encoding="utf-8",
+    )
+    link = repo / "link.md"
+    link.symlink_to(outside)
+    _write_apm(
+        repo,
+        [
+            {
+                "instructions-file": "link.md",
+                "schedule-profiles": ["daily"],
+            }
+        ],
+    )
+    result = evaluate_for_profile(repo, "daily", env={})
+    assert result.errors
+    assert "escapes repository root" in result.errors[0]
+
+
+def test_apm_yaml_only_discovers_automations(tmp_path: pathlib.Path) -> None:
+    _write_file(
+        tmp_path,
+        "jobs/daily.md",
+        "---\nschedule-profiles: [daily]\n---\n\nDo work.\n",
+    )
+    doc = {
+        "name": "fixture",
+        "version": "1.0.0",
+        "dependencies": {"apm": [], "mcp": []},
+        "x-oblt-aw": {
+            "version": 1,
+            "obs": {
+                "common": {},
+                "workflows": {
+                    "repo-scheduled": {
+                        "automations": [
+                            {"instructions-file": "jobs/daily.md"},
+                        ],
+                    }
+                },
+            },
+        },
+    }
+    _write_file(tmp_path, "apm.yaml", yaml.safe_dump(doc, sort_keys=False))
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert [a.automation_id for a in result.matching] == ["daily"]
+    assert result.errors == []
+
+
 def test_duplicate_ids(tmp_path: pathlib.Path) -> None:
     _write_file(tmp_path, "one.md", "Body one.\n")
     _write_file(tmp_path, "two.md", "Body two.\n")

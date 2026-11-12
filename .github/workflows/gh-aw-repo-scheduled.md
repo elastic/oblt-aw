@@ -110,20 +110,39 @@ steps:
       import re
       import sys
 
-      path = pathlib.Path(os.environ["INSTRUCTION_PATH"])
-      if not path.is_file():
-          print(f"instruction file missing: {path}", file=sys.stderr)
+      declared = pathlib.Path(os.environ["INSTRUCTION_PATH"])
+      repo_root = pathlib.Path(".").resolve()
+      candidate = declared if declared.is_absolute() else repo_root / declared
+      if not candidate.exists():
+          print(f"instruction file missing: {declared}", file=sys.stderr)
           sys.exit(1)
-      text = path.read_text(encoding="utf-8")
+      resolved = candidate.resolve()
+      try:
+          resolved.relative_to(repo_root)
+      except ValueError:
+          print(
+              f"instruction file escapes repository root: {declared}",
+              file=sys.stderr,
+          )
+          sys.exit(1)
+      if not resolved.is_file():
+          print(f"instruction file is not a regular file: {declared}", file=sys.stderr)
+          sys.exit(1)
+      text = resolved.read_text(encoding="utf-8")
       match = re.match(r"\A---\s*\n.*?\n---\s*\n?(.*)\Z", text, re.DOTALL)
       body = match.group(1).strip() if match else text.strip()
       if not body:
-          print(f"instruction body empty: {path}", file=sys.stderr)
+          print(f"instruction body empty: {declared}", file=sys.stderr)
           sys.exit(1)
+      source_label = (
+          declared.as_posix()
+          if not declared.is_absolute()
+          else resolved.relative_to(repo_root).as_posix()
+      )
       out = pathlib.Path("/tmp/gh-aw/repo-scheduled-instructions.md")
       out.write_text(
           f"# Automation `{os.environ.get('AUTOMATION_ID', '')}`\n\n"
-          f"Source: `{path.as_posix()}`\n\n{body}\n",
+          f"Source: `{source_label}`\n\n{body}\n",
           encoding="utf-8",
       )
       print(f"Wrote {out} ({out.stat().st_size} bytes)")

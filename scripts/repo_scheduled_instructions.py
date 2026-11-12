@@ -36,9 +36,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml  # type: ignore[import-untyped]
+from apm_agentic_assets import load_apm_manifest
 from common import write_outputs
 
-APM_MANIFEST = Path("apm.yml")
 ORG_KEY = "obs"
 WORKFLOW_ID = "repo-scheduled"
 KNOWN_SCHEDULE_PROFILES = frozenset({"daily", "frequent", "weekly"})
@@ -146,17 +146,36 @@ def _reject_path_escape(rel: str, *, source: str) -> Path:
     return path
 
 
+def _resolve_contained_file(repo_root: Path, rel: Path, *, source: str) -> Path:
+    """Resolve ``rel`` under ``repo_root`` and reject symlink/path escapes."""
+    candidate = repo_root / rel
+    if not candidate.exists():
+        raise ValueError(f"{source}: instructions-file not found: {rel.as_posix()}")
+    resolved_root = repo_root.resolve()
+    resolved = candidate.resolve()
+    try:
+        resolved.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ValueError(
+            f"{source}: instructions-file escapes repository root: {rel.as_posix()}"
+        ) from exc
+    if not resolved.is_file():
+        raise ValueError(
+            f"{source}: instructions-file is not a regular file: {rel.as_posix()}"
+        )
+    return resolved
+
+
 def load_apm_document(repo_root: Path) -> dict[str, Any] | None:
-    """Load consumer ``apm.yml`` when present; return None when absent."""
-    path = repo_root / APM_MANIFEST
-    if not path.is_file():
+    """Load consumer ``apm.yml`` / ``apm.yaml`` when present; None when absent.
+
+    Filename precedence matches ``apm_agentic_assets.load_apm_manifest``
+    (``.yml`` before ``.yaml``).
+    """
+    data, present = load_apm_manifest(repo_root)
+    if not present:
         return None
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if raw is None:
-        return {}
-    if not isinstance(raw, dict):
-        raise TypeError(f"{path}: apm.yml must be a YAML mapping")
-    return raw
+    return data
 
 
 def read_automations_entries(apm: dict[str, Any]) -> list[dict[str, Any]]:
@@ -210,18 +229,16 @@ def load_automation_from_apm_entry(
     if not isinstance(instructions, str):
         raise TypeError(f"{source}: instructions-file must be a string")
     rel = _reject_path_escape(instructions, source=source)
-    path = repo_root / rel
-    if not path.is_file():
-        raise ValueError(f"{source}: instructions-file not found: {rel.as_posix()}")
+    resolved = _resolve_contained_file(repo_root, rel, source=source)
 
-    meta, _body = parse_instruction_file(path)
+    meta, _body = parse_instruction_file(resolved)
     file_source = rel.as_posix()
 
     automation_id = entry.get("id")
     if automation_id is None:
         automation_id = meta.get("id")
     if automation_id is None:
-        automation_id = _slug_from_stem(path.stem)
+        automation_id = _slug_from_stem(rel.stem)
     if not isinstance(automation_id, str) or not automation_id.strip():
         raise ValueError(f"{source}: id must be a non-empty string when set")
     automation_id = automation_id.strip()
@@ -268,7 +285,7 @@ def load_automation_from_apm_entry(
 
 
 def discover_automations(repo_root: Path) -> list[ScheduledAutomation]:
-    """Load automations declared in consumer ``apm.yml``."""
+    """Load automations declared in consumer ``apm.yml`` / ``apm.yaml``."""
     apm = load_apm_document(repo_root)
     if apm is None:
         return []
