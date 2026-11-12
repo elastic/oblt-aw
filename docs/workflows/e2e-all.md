@@ -18,7 +18,7 @@ Both triggers accept optional `checkout-ref` (default `main`). A manual dispatch
 
 ## Execution flow
 
-After the dispatch validation succeeds (or is skipped for workflow calls), the workflow calls the checked-in leaf E2E workflows in parallel (automerge VM images, dependency review, ESTC Buildkite detective, autodoc audit, repo scheduled, PR Actions detective, secret-leak artifacts). The leaves receive the same `checkout-ref` and inherited secrets. The calls can run independently after the validation job.
+After the dispatch validation succeeds (or is skipped for workflow calls), the workflow calls the checked-in leaf E2E workflows in parallel (automerge all-files policy, automerge VM images, dependency review, ESTC Buildkite detective, autodoc audit, repo scheduled, PR Actions detective, secret-leak artifacts). The leaves receive the same `checkout-ref` and inherited secrets. The calls can run independently after the validation job.
 
 ## Inputs, outputs, and access
 
@@ -29,9 +29,10 @@ After the dispatch validation succeeds (or is skipped for workflow calls), the w
 - [Orchestrator](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-all.yml)
 - [Release promotion](aw-release-promote.md)
 - [Checkout-ref validator](https://github.com/elastic/oblt-aw/blob/main/scripts/aw_e2e_validate_checkout_ref.py)
+- [Autodoc E2E](e2e-autodoc.md)
+- [Automerge all-files policy E2E](e2e-automerge-all-files.md)
 - [Automerge VM images E2E](e2e-automerge-vm-images.md)
 - [Dependency review E2E](e2e-dependency-review.md)
 - [ESTC Buildkite detective E2E](e2e-estc-pr-buildkite-detective.md)
-- [Autodoc E2E](e2e-autodoc.md)
-- [Repo scheduled E2E](e2e-repo-scheduled.md)
 - [PR Actions detective E2E](e2e-pr-actions-detective.md)
+- [Repo scheduled E2E](e2e-repo-scheduled.md)

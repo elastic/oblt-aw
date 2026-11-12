@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "workflow_id": "obs:automerge",
+  "consumer_repo": "elastic/oblt-aw",
+  "pull_request_trigger_workflow_file": "trigger-obs-aw-pull-request.yml",
+  "poll_timeout_seconds": 3600,
+  "poll_interval_seconds": 20,
+  "negative_settle_seconds": 180,
+  "e2e_pr": {
+    "label": "e2e:automerge-all-files",
+    "branch_prefix": "e2e/automerge-all-files/",
+    "base_branch_prefix": "e2e/automerge-all-files/base/",
+    "title_template": "[e2e][automerge-all-files] Custom trigger label fixture {run_id}",
+    "body": "Ephemeral E2E fixture PR for `obs:automerge:all-files` with consumer `apm.yml` policy on a stacked base (custom trigger label). Authored as the Vault app so pull_request workflows run without maintainer Approve-and-run."
+  },
+  "fixture_marker_path": "e2e-fixtures/automerge-all-files/marker.txt",
+  "policy_apm_path": "testdata/agentic/automerge-all-files/policy-apm.yml",
+  "required_dashboard_ids": [
+    "obs:automerge",
+    "obs:automerge:all-files"
+  ],
+  "custom_trigger_label": "e2e:automerge-all-files-ready",
+  "merge_ready_label": "oblt-aw/ai/merge-ready",
+  "dependency_collection_gate_marker": "<!-- obs-aw-automerge:dependency-collection-gate -->",
+  "automerge_outcome_gate_marker": "<!-- obs-aw-automerge:outcome-gate -->",
+  "allowed_pr_author": "elastic-vault-github-plugin-prod[bot]"
+}

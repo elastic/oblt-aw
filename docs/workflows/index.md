@@ -54,6 +54,7 @@ Shared framework jobs use **kebab-case, action-oriented** ids with domain contex
 - [Docs workflow-run event router](docs-aw-event-workflow-run.md)
 - [E2E all-workflow orchestrator](e2e-all.md)
 - [E2E autodoc audit](e2e-autodoc.md)
+- [E2E automerge all-files policy](e2e-automerge-all-files.md)
 - [E2E automerge VM images](e2e-automerge-vm-images.md)
 - [E2E dependency-review Actions fixture](e2e-dependency-review-actions-fixture.md)
 - [E2E dependency review](e2e-dependency-review.md)

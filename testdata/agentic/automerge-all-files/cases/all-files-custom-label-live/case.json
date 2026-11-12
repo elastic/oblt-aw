@@ -1,0 +1,24 @@
+{
+  "id": "all-files-custom-label-live",
+  "mode": "live",
+  "description": "Stacked base with apm.yml custom trigger label; Vault-app marker PR under all-files receives that label (not merge-ready), then automerge approves and merges into the temporary base.",
+  "workflow_id": "obs:automerge",
+  "trigger": {
+    "require_open_pr": true,
+    "force_stacked_policy_base": true,
+    "require_allowed_pr_author": true,
+    "apply_custom_trigger_label": true,
+    "wait_automerge": true,
+    "expect_merge": true
+  },
+  "expectations": {
+    "dashboard_enabled": true,
+    "custom_trigger_label_applied": true,
+    "merge_ready_label_applied": false,
+    "approve_review_present": true,
+    "automerge_job_executed": true,
+    "pr_merged": true,
+    "no_dependency_collection_gate": true,
+    "fixture_cleaned_up": true
+  }
+}
