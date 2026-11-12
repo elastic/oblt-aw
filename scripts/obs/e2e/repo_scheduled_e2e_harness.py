@@ -36,8 +36,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
+_E2E_DIR = Path(__file__).resolve().parent
+_SCRIPTS_DIR = Path(__file__).resolve().parents[2]
+for _path in (_E2E_DIR, _SCRIPTS_DIR):
+    if str(_path) not in sys.path:
+        sys.path.insert(0, str(_path))
+
 estc = cast(Any, importlib.import_module("estc_pr_buildkite_detective_e2e_harness"))
 oracle = cast(Any, importlib.import_module("oracle_repo_scheduled_e2e"))
+discovery = cast(Any, importlib.import_module("repo_scheduled_instructions"))
 
 WORKFLOW_ID = "obs:repo-scheduled"
 DEFAULT_CONFIG = Path("config/obs/e2e-repo-scheduled.json")
@@ -254,7 +261,7 @@ def agent_invoked(
     return schedule_agent_job_executed(run_detail, automation_id=automation_id)
 
 
-def wait_for_schedule_agent_run(
+def wait_for_correlated_schedule_run(
     repo: str,
     workflow_file: str,
     *,
@@ -264,8 +271,17 @@ def wait_for_schedule_agent_run(
     exclude_run_ids: set[int] | None = None,
     automation_id: str = DEFAULT_AUTOMATION_ID,
     invocation_id: str = "",
-) -> dict[str, Any] | None:
-    """Wait for a completed schedule-trigger run with an executed agent leaf."""
+    require_agent_leaf: bool = True,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Wait for the correlated schedule-trigger run to complete.
+
+    Returns ``(run_detail, None)`` on success. When ``require_agent_leaf`` is
+    true, success also requires the bait agent leaf to have executed.
+
+    Fail-closed: if the correlated run completes **without** the required
+    agent leaf, return ``(run_detail, reason)`` immediately — do not exclude
+    the run and keep polling until timeout (that hung promote E2E for ~2h).
+    """
     excluded = set(exclude_run_ids or ())
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
@@ -302,12 +318,58 @@ def wait_for_schedule_agent_run(
                 if not _run_matches_invocation(detail, invocation_id):
                     excluded.add(run_id)
                     break
-                if schedule_agent_job_executed(detail, automation_id=automation_id):
-                    return cast(dict[str, Any], detail)
-                excluded.add(run_id)
-                break
+                detail_cast = cast(dict[str, Any], detail)
+                if not require_agent_leaf:
+                    return detail_cast, None
+                if schedule_agent_job_executed(
+                    detail_cast, automation_id=automation_id
+                ):
+                    return detail_cast, None
+                conclusion = (
+                    str(detail_cast.get("conclusion") or "").strip() or "unknown"
+                )
+                url = str(detail_cast.get("url") or "").strip() or f"run_id={run_id}"
+                reason = (
+                    f"Schedule trigger run completed without repo-scheduled "
+                    f"agent leaf {automation_id!r} "
+                    f"(conclusion={conclusion!r}, url={url}). "
+                    "Failing closed instead of polling until timeout."
+                )
+                return detail_cast, reason
         time.sleep(interval_seconds)
-    return None
+    return None, None
+
+
+def wait_for_schedule_agent_run(
+    repo: str,
+    workflow_file: str,
+    *,
+    since: datetime,
+    timeout_seconds: int,
+    interval_seconds: int,
+    exclude_run_ids: set[int] | None = None,
+    automation_id: str = DEFAULT_AUTOMATION_ID,
+    invocation_id: str = "",
+) -> dict[str, Any] | None:
+    """Wait for a completed schedule-trigger run with an executed agent leaf.
+
+    Prefer ``wait_for_correlated_schedule_run`` for new call sites; this
+    wrapper preserves the old return shape for unit tests.
+    """
+    detail, fail_reason = wait_for_correlated_schedule_run(
+        repo,
+        workflow_file,
+        since=since,
+        timeout_seconds=timeout_seconds,
+        interval_seconds=interval_seconds,
+        exclude_run_ids=exclude_run_ids,
+        automation_id=automation_id,
+        invocation_id=invocation_id,
+        require_agent_leaf=True,
+    )
+    if fail_reason:
+        return None
+    return detail
 
 
 def dispatch_schedule_trigger(
@@ -585,6 +647,30 @@ def run_live_case(
             )
             estc.log_info(f"Verified checked-in bait {bait_path} on {repo}@{branch}")
 
+        expect_agent_leaf = cast(bool, expectations["schedule_job_executed"])
+        # Preflight: E2E mode must be able to resolve the checked-in bait without
+        # a permanent root apm.yml (injection path). Fail before dispatch/wait.
+        if e2e_repo_scheduled_mode:
+            try:
+                discovery.resolve_e2e_bait_only(
+                    Path("."),
+                    [],
+                    schedule_profile="daily",
+                    bait_id=automation_id,
+                    bait_path=bait_path,
+                )
+            except (TypeError, ValueError, OSError) as exc:
+                result = _blocked(
+                    f"E2E bait preflight failed before schedule dispatch: {exc}",
+                    path_gates={"dashboard_enabled": dashboard_ok},
+                    invocation_id=invocation_id,
+                )
+                return result
+            estc.log_info(
+                f"E2E bait preflight ok for {bait_path!r} "
+                f"(automation_id={automation_id!r})"
+            )
+
         known_run_ids = {
             int(run["databaseId"])
             for run in list_schedule_trigger_runs(repo, workflow_file)
@@ -601,7 +687,7 @@ def run_live_case(
                 f"(e2e_mode={e2e_repo_scheduled_mode}, invocation_id={invocation_id})"
             )
 
-        run_detail = wait_for_schedule_agent_run(
+        run_detail, wait_fail_reason = wait_for_correlated_schedule_run(
             repo,
             workflow_file,
             since=since,
@@ -610,12 +696,55 @@ def run_live_case(
             exclude_run_ids=known_run_ids,
             automation_id=automation_id,
             invocation_id=invocation_id,
+            require_agent_leaf=expect_agent_leaf,
         )
-        if run_detail is None:
+        if wait_fail_reason is not None:
+            completed_failed = run_detail or {}
             _rediscover_issue(since_time=since)
             result = _blocked(
+                wait_fail_reason,
+                path_gates={"dashboard_enabled": dashboard_ok},
+                invocation_id=invocation_id,
+                schedule_trigger={
+                    "run_seen": True,
+                    "job_executed": schedule_agent_job_executed(
+                        completed_failed, automation_id=automation_id
+                    ),
+                    "job_conclusion": repo_scheduled_agent_job_conclusion(
+                        completed_failed, automation_id=automation_id
+                    ),
+                    "job_name": schedule_agent_job_name(
+                        completed_failed, automation_id=automation_id
+                    ),
+                    "url": completed_failed.get("url"),
+                    "database_id": completed_failed.get("databaseId"),
+                    "run_conclusion": completed_failed.get("conclusion"),
+                },
+                agent_invoked=False,
+                issue=(
+                    {
+                        "number": issue.get("number"),
+                        "title": issue.get("title"),
+                        "url": issue.get("url"),
+                    }
+                    if issue is not None
+                    else None
+                ),
+            )
+            return result
+        if run_detail is None:
+            _rediscover_issue(since_time=since)
+            timeout_msg = (
                 f"Timed out waiting for {workflow_file} repo-scheduled agent leaf "
-                f"(invocation_id={invocation_id})",
+                f"(invocation_id={invocation_id})"
+                if expect_agent_leaf
+                else (
+                    f"Timed out waiting for {workflow_file} schedule trigger "
+                    f"completion (invocation_id={invocation_id})"
+                )
+            )
+            result = _blocked(
+                timeout_msg,
                 path_gates={"dashboard_enabled": dashboard_ok},
                 invocation_id=invocation_id,
                 issue=(

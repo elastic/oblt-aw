@@ -7,6 +7,9 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
+from datetime import datetime, timezone
+
+import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "obs" / "e2e"))
@@ -96,6 +99,14 @@ class TestOracleHappyPath:
                 case_id=NOOP_CASE_ID,
                 issue=None,
                 invocation_id="noopinvocat1",
+                agent_invoked=False,
+                schedule_trigger={
+                    "run_seen": True,
+                    "job_executed": False,
+                    "job_conclusion": None,
+                    "job_name": None,
+                    "url": "https://example.test/schedule",
+                },
             ),
             case_id=NOOP_CASE_ID,
         )
@@ -250,9 +261,12 @@ class TestHarnessHelpers:
     def test_checked_in_cases_load(self) -> None:
         issue_case = _live_case(LIVE_CASE_ID)
         assert issue_case["trigger"]["e2e_repo_scheduled_mode"] is True
+        assert issue_case["expectations"]["schedule_job_executed"] is True
         noop_case = _live_case(NOOP_CASE_ID)
         assert noop_case["trigger"]["e2e_repo_scheduled_mode"] is False
         assert noop_case["expectations"]["expect_issue"] is False
+        assert noop_case["expectations"]["schedule_job_executed"] is False
+        assert noop_case["expectations"]["agent_invoked"] is False
 
     def test_run_matches_invocation(self) -> None:
         assert harness._run_matches_invocation(
@@ -263,9 +277,66 @@ class TestHarnessHelpers:
         )
         assert harness._run_matches_invocation({"displayTitle": "anything"}, "")
 
+    def test_wait_fail_closed_when_correlated_run_lacks_agent_leaf(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        completed = {
+            "databaseId": 99,
+            "status": "completed",
+            "conclusion": "failure",
+            "url": "https://example.test/runs/99",
+            "createdAt": "2026-11-12T12:00:00Z",
+            "event": "workflow_dispatch",
+            "displayTitle": "E2E schedule [abc123deadbe]",
+            "name": "E2E schedule [abc123deadbe]",
+            "jobs": [
+                {
+                    "name": "repo-scheduled / discover-automations",
+                    "conclusion": "failure",
+                }
+            ],
+        }
+
+        def _fake_list(*_a: object, **_k: object) -> list:
+            return [
+                {
+                    "databaseId": 99,
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "createdAt": "2026-11-12T12:00:00Z",
+                    "event": "workflow_dispatch",
+                    "displayTitle": "E2E schedule [abc123deadbe]",
+                    "name": "E2E schedule [abc123deadbe]",
+                    "url": "https://example.test/runs/99",
+                    "headSha": "abc",
+                }
+            ]
+
+        def _fake_gh_json(args: list[str]) -> dict:
+            assert args[:2] == ["run", "view"]
+            return completed
+
+        monkeypatch.setattr(harness, "list_schedule_trigger_runs", _fake_list)
+        monkeypatch.setattr(harness.estc, "gh_json", _fake_gh_json)
+        monkeypatch.setattr(harness.time, "sleep", lambda *_a, **_k: None)
+
+        detail, reason = harness.wait_for_correlated_schedule_run(
+            "elastic/oblt-aw",
+            "e2e-trigger-obs-aw-schedule.yml",
+            since=datetime(2026, 11, 12, 11, 0, tzinfo=timezone.utc),  # noqa: UP017
+            timeout_seconds=30,
+            interval_seconds=1,
+            invocation_id="abc123deadbe",
+            require_agent_leaf=True,
+        )
+        assert detail is not None
+        assert reason is not None
+        assert "without repo-scheduled agent leaf" in reason
+        assert "Failing closed" in reason
+
 
 class TestE2EBaitDiscoveryFilter:
-    def test_filter_keeps_bait_only(self, tmp_path: pathlib.Path) -> None:
+    def test_filter_keeps_bait_only(self) -> None:
         bait = discovery.ScheduledAutomation(
             automation_id=discovery.E2E_BAIT_AUTOMATION_ID,
             path=discovery.E2E_BAIT_PATH,
@@ -283,15 +354,50 @@ class TestE2EBaitDiscoveryFilter:
             discovery.E2E_BAIT_AUTOMATION_ID
         ]
 
-    def test_filter_fails_when_bait_absent(self) -> None:
+    def test_filter_empty_when_bait_absent(self) -> None:
         other = discovery.ScheduledAutomation(
             automation_id="other-job",
             path=".github/ai/scheduled/other.md",
             schedule_profiles=("daily",),
             capabilities=(),
         )
-        try:
-            discovery.filter_e2e_bait_only([other])
-            raise AssertionError("expected ValueError")
-        except ValueError as exc:
-            assert "canonical bait" in str(exc)
+        assert discovery.filter_e2e_bait_only([other]) == []
+
+    def test_resolve_injects_checked_in_bait_when_apm_empty(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        bait_rel = discovery.E2E_BAIT_PATH
+        bait_path = tmp_path / bait_rel
+        bait_path.parent.mkdir(parents=True, exist_ok=True)
+        bait_path.write_text(
+            (
+                "---\n"
+                f"id: {discovery.E2E_BAIT_AUTOMATION_ID}\n"
+                "schedule-profiles: [daily]\n"
+                "---\n\n"
+                "<!-- E2E_REPO_SCHEDULED_BAIT_MARKER -->\n\n"
+                "body\n"
+            ),
+            encoding="utf-8",
+        )
+        resolved = discovery.resolve_e2e_bait_only(
+            tmp_path, [], schedule_profile="daily"
+        )
+        assert len(resolved) == 1
+        assert resolved[0].automation_id == discovery.E2E_BAIT_AUTOMATION_ID
+        assert resolved[0].path == bait_rel
+
+    def test_resolve_prefers_apm_match_over_inject(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        bait = discovery.ScheduledAutomation(
+            automation_id=discovery.E2E_BAIT_AUTOMATION_ID,
+            path=discovery.E2E_BAIT_PATH,
+            schedule_profiles=("daily",),
+            capabilities=(),
+            instructions="",
+        )
+        resolved = discovery.resolve_e2e_bait_only(
+            tmp_path, [bait], schedule_profile="daily"
+        )
+        assert resolved == [bait]

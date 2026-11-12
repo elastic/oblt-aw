@@ -1,0 +1,17 @@
+# Example consumer apm.yml fragment for obs:repo-scheduled (documentation /
+# unit-fixture only). Not installed on elastic/oblt-aw main.
+#
+# Live E2E does not seed this onto main. With e2e-repo-scheduled-mode=true,
+# discovery injects the checked-in bait at
+# .github/ai/scheduled/e2e-repo-scheduled-bait.md when apm.yml omits it.
+# Consumers that want production scheduled automations declare them here.
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      repo-scheduled:
+        automations:
+          - id: e2e-repo-scheduled-bait
+            instructions-file: .github/ai/scheduled/e2e-repo-scheduled-bait.md
+            schedule-profiles: [daily]

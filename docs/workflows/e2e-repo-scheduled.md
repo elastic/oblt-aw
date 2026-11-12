@@ -10,13 +10,13 @@
 
 ## Purpose
 
-Runs a live end-to-end test of `obs:repo-scheduled` in this repository. The harness checks the checked-in bait instruction, dispatches the control-plane schedule wrapper in bait mode, waits for the agent leaf and marker issue, then closes the issue. It is not part of the default PR CI gate.
+Runs a live end-to-end test of `obs:repo-scheduled` in this repository. The harness checks the checked-in bait instruction, dispatches the control-plane schedule wrapper, and for the issue case waits for the agent leaf and marker issue, then closes the issue. It is not part of the default PR CI gate. The control plane does not keep a permanent root `apm.yml` for the bait; E2E mode injects the checked-in bait file during discovery.
 
 ## Execution flow
 
-The single `e2e` job validates manual `checkout-ref` input before checking out that ref, installs Python 3.14 dependencies from `requirements-runtime.txt`, runs `scripts/obs/e2e/repo_scheduled_e2e_harness.py`, then evaluates its outcome with `oracle_repo_scheduled_e2e.py` against `testdata/agentic/repo-scheduled`. The harness step may return nonzero so the structured oracle can report the result. Failure summaries and JSON artifacts are uploaded even when a prior step fails.
+The `e2e` job matrix covers `schedule-issue-live` and `schedule-noop-live`. It validates manual `checkout-ref` input before checking out that ref, installs Python 3.14 dependencies from `requirements-runtime.txt`, runs `scripts/obs/e2e/repo_scheduled_e2e_harness.py`, then evaluates its outcome with `oracle_repo_scheduled_e2e.py` against `testdata/agentic/repo-scheduled`. The harness step may return nonzero so the structured oracle can report the result. Failure summaries and JSON artifacts are uploaded even when a prior step fails. If the correlated schedule run completes without a required agent leaf, the harness fails closed instead of polling until timeout.
 
-The workflow uses the stable case ID `schedule-issue-live`, a 180-minute timeout, and non-cancelling concurrency.
+The workflow uses a 180-minute timeout and non-cancelling concurrency (`e2e-repo-scheduled`).
 
 ## Inputs, outputs, and access
 

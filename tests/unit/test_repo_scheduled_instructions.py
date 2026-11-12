@@ -26,8 +26,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from repo_scheduled_instructions import (
+    E2E_BAIT_AUTOMATION_ID,
+    E2E_BAIT_PATH,
     evaluate_for_profile,
     matrix_payload,
+    resolve_e2e_bait_only,
 )
 
 
@@ -403,3 +406,47 @@ def test_duplicate_ids(tmp_path: pathlib.Path) -> None:
 def test_unknown_wake_profile_raises(tmp_path: pathlib.Path) -> None:
     with pytest.raises(ValueError, match="unknown schedule-profile"):
         evaluate_for_profile(tmp_path, "hourly", env={})
+
+
+def test_resolve_e2e_bait_injects_without_apm(tmp_path: pathlib.Path) -> None:
+    _write_file(
+        tmp_path,
+        E2E_BAIT_PATH,
+        textwrap.dedent(
+            f"""\
+            ---
+            id: {E2E_BAIT_AUTOMATION_ID}
+            schedule-profiles: [daily]
+            ---
+
+            <!-- E2E_REPO_SCHEDULED_BAIT_MARKER -->
+
+            E2E bait body.
+            """
+        ),
+    )
+    resolved = resolve_e2e_bait_only(tmp_path, [], schedule_profile="daily")
+    assert len(resolved) == 1
+    assert resolved[0].automation_id == E2E_BAIT_AUTOMATION_ID
+    assert resolved[0].path == E2E_BAIT_PATH
+
+
+def test_resolve_e2e_bait_requires_profile_match(tmp_path: pathlib.Path) -> None:
+    _write_file(
+        tmp_path,
+        E2E_BAIT_PATH,
+        textwrap.dedent(
+            f"""\
+            ---
+            id: {E2E_BAIT_AUTOMATION_ID}
+            schedule-profiles: [daily]
+            ---
+
+            <!-- E2E_REPO_SCHEDULED_BAIT_MARKER -->
+
+            E2E bait body.
+            """
+        ),
+    )
+    with pytest.raises(ValueError, match="does not include schedule-profile"):
+        resolve_e2e_bait_only(tmp_path, [], schedule_profile="weekly")
