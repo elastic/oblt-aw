@@ -14,7 +14,7 @@ Runs a live end-to-end test of `obs:repo-scheduled` in this repository. The harn
 
 ## Execution flow
 
-The `e2e` job matrix covers `schedule-issue-live` and `schedule-noop-live`. It validates manual `checkout-ref` input before checking out that ref, installs Python 3.14 dependencies from `requirements-runtime.txt`, runs `scripts/obs/e2e/repo_scheduled_e2e_harness.py`, then evaluates its outcome with `oracle_repo_scheduled_e2e.py` against `testdata/agentic/repo-scheduled`. The harness step may return nonzero so the structured oracle can report the result. Failure summaries and JSON artifacts are uploaded even when a prior step fails. If the correlated schedule run completes without a required agent leaf, the harness fails closed instead of polling until timeout.
+The `e2e` job matrix covers `schedule-issue-live` and `schedule-noop-live` with `max-parallel: 1` so the cases cannot race on shared bait issues. It validates manual `checkout-ref` input before checking out that ref, installs Python 3.14 dependencies from `requirements-runtime.txt`, runs `scripts/obs/e2e/repo_scheduled_e2e_harness.py`, then evaluates its outcome with `oracle_repo_scheduled_e2e.py` against `testdata/agentic/repo-scheduled`. The harness step may return nonzero so the structured oracle can report the result. Failure summaries and JSON artifacts are uploaded even when a prior step fails. If the correlated schedule run completes without a required agent leaf (issue case) or without successful `discover-automations` evidence (no-op case), the harness fails closed instead of polling until timeout.
 
 The workflow uses a 180-minute timeout and non-cancelling concurrency (`e2e-repo-scheduled`).
 

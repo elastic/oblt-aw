@@ -339,39 +339,17 @@ def _secret_present(env: dict[str, str], capability: str) -> bool:
     return bool(env.get(env_name, "").strip())
 
 
-def evaluate_for_profile(
-    repo_root: Path,
-    schedule_profile: str,
+def gate_automations_by_capabilities(
+    automations: list[ScheduledAutomation],
     *,
     env: dict[str, str] | None = None,
-) -> DiscoveryResult:
-    """Select automations for ``schedule_profile`` and apply capability secret gates."""
-    profile = schedule_profile.strip()
-    if profile not in KNOWN_SCHEDULE_PROFILES:
-        known = ", ".join(sorted(KNOWN_SCHEDULE_PROFILES))
-        raise ValueError(f"unknown schedule-profile {profile!r}; known: {known}")
-
+) -> tuple[list[ScheduledAutomation], list[dict[str, str]]]:
+    """Split automations into runnable vs capability-secret blocked."""
     env_map = dict(env) if env is not None else dict(os.environ)
     matching: list[ScheduledAutomation] = []
     blocked: list[dict[str, str]] = []
-    errors: list[str] = []
-
-    try:
-        automations = discover_automations(repo_root)
-    except (ValueError, TypeError) as exc:
-        return DiscoveryResult(matching=[], blocked=[], errors=[str(exc)])
-
-    seen_ids: set[str] = set()
     for automation in automations:
         location = automation.path or "apm.yml#instructions"
-        if automation.automation_id in seen_ids:
-            errors.append(
-                f"duplicate automation id {automation.automation_id!r} ({location})"
-            )
-            continue
-        seen_ids.add(automation.automation_id)
-        if profile not in automation.schedule_profiles:
-            continue
         missing = [
             cap for cap in automation.capabilities if not _secret_present(env_map, cap)
         ]
@@ -392,7 +370,44 @@ def evaluate_for_profile(
             )
             continue
         matching.append(automation)
+    return matching, blocked
 
+
+def evaluate_for_profile(
+    repo_root: Path,
+    schedule_profile: str,
+    *,
+    env: dict[str, str] | None = None,
+) -> DiscoveryResult:
+    """Select automations for ``schedule_profile`` and apply capability secret gates."""
+    profile = schedule_profile.strip()
+    if profile not in KNOWN_SCHEDULE_PROFILES:
+        known = ", ".join(sorted(KNOWN_SCHEDULE_PROFILES))
+        raise ValueError(f"unknown schedule-profile {profile!r}; known: {known}")
+
+    env_map = dict(env) if env is not None else dict(os.environ)
+    errors: list[str] = []
+
+    try:
+        automations = discover_automations(repo_root)
+    except (ValueError, TypeError) as exc:
+        return DiscoveryResult(matching=[], blocked=[], errors=[str(exc)])
+
+    seen_ids: set[str] = set()
+    candidates: list[ScheduledAutomation] = []
+    for automation in automations:
+        location = automation.path or "apm.yml#instructions"
+        if automation.automation_id in seen_ids:
+            errors.append(
+                f"duplicate automation id {automation.automation_id!r} ({location})"
+            )
+            continue
+        seen_ids.add(automation.automation_id)
+        if profile not in automation.schedule_profiles:
+            continue
+        candidates.append(automation)
+
+    matching, blocked = gate_automations_by_capabilities(candidates, env=env_map)
     return DiscoveryResult(matching=matching, blocked=blocked, errors=errors)
 
 
@@ -551,6 +566,7 @@ def main() -> int:
         return 1
 
     matching = result.matching
+    relevant_blocked = result.blocked
     if args.e2e_bait_only:
         try:
             matching = resolve_e2e_bait_only(
@@ -561,15 +577,9 @@ def main() -> int:
         except (TypeError, ValueError) as exc:
             print(f"::error::{exc}", file=sys.stderr)
             return 1
-
-    relevant_blocked = result.blocked
-    if args.e2e_bait_only:
-        relevant_blocked = [
-            item
-            for item in result.blocked
-            if item.get("id") == E2E_BAIT_AUTOMATION_ID
-            or item.get("path") == E2E_BAIT_PATH
-        ]
+        # Injected bait never entered evaluate_for_profile gates — apply the same
+        # capability-secret check before emitting has-matches.
+        matching, relevant_blocked = gate_automations_by_capabilities(matching)
 
     for blocked in relevant_blocked:
         print(

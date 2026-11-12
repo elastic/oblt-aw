@@ -242,6 +242,60 @@ def repo_scheduled_agent_job_conclusion(
     return None
 
 
+def discover_automations_job_name(
+    run_detail: dict[str, Any] | None,
+) -> str | None:
+    """Return the matched discover-automations job name when present."""
+    if not run_detail:
+        return None
+    for job in run_detail.get("jobs") or []:
+        name = str(job.get("name") or "")
+        if oracle.schedule_discover_job_name_matches(name):
+            return name
+    return None
+
+
+def discover_automations_job_conclusion(
+    run_detail: dict[str, Any] | None,
+) -> str | None:
+    """Return discover-automations conclusion when the named job is present."""
+    if not run_detail:
+        return None
+    for job in run_detail.get("jobs") or []:
+        name = str(job.get("name") or "")
+        if not oracle.schedule_discover_job_name_matches(name):
+            continue
+        conclusion = str(job.get("conclusion") or "").strip().lower()
+        return conclusion or None
+    return None
+
+
+def schedule_trigger_evidence(
+    run_detail: dict[str, Any] | None,
+    *,
+    automation_id: str = DEFAULT_AUTOMATION_ID,
+    include_run_conclusion: bool = False,
+) -> dict[str, Any]:
+    """Build schedule_trigger outcome fields from a completed (or partial) run."""
+    payload: dict[str, Any] = {
+        "run_seen": bool(run_detail),
+        "job_executed": schedule_agent_job_executed(
+            run_detail, automation_id=automation_id
+        ),
+        "job_conclusion": repo_scheduled_agent_job_conclusion(
+            run_detail, automation_id=automation_id
+        ),
+        "job_name": schedule_agent_job_name(run_detail, automation_id=automation_id),
+        "discover_job_name": discover_automations_job_name(run_detail),
+        "discover_job_conclusion": discover_automations_job_conclusion(run_detail),
+        "url": (run_detail or {}).get("url") if run_detail else None,
+        "database_id": (run_detail or {}).get("databaseId") if run_detail else None,
+    }
+    if include_run_conclusion and run_detail is not None:
+        payload["run_conclusion"] = run_detail.get("conclusion")
+    return payload
+
+
 def schedule_agent_job_executed(
     run_detail: dict[str, Any] | None,
     *,
@@ -275,12 +329,18 @@ def wait_for_correlated_schedule_run(
 ) -> tuple[dict[str, Any] | None, str | None]:
     """Wait for the correlated schedule-trigger run to complete.
 
-    Returns ``(run_detail, None)`` on success. When ``require_agent_leaf`` is
-    true, success also requires the bait agent leaf to have executed.
+    Returns ``(run_detail, None)`` on success.
 
-    Fail-closed: if the correlated run completes **without** the required
-    agent leaf, return ``(run_detail, reason)`` immediately — do not exclude
-    the run and keep polling until timeout (that hung promote E2E for ~2h).
+    When ``require_agent_leaf`` is true, success also requires the bait agent
+    leaf to have executed.
+
+    When ``require_agent_leaf`` is false (empty-discovery / no-op), success
+    requires the named ``discover-automations`` job to conclude ``success`` and
+    the bait agent leaf to be absent — not merely any completed correlated run.
+
+    Fail-closed: if the correlated run completes without the required evidence,
+    return ``(run_detail, reason)`` immediately — do not exclude the run and
+    keep polling until timeout (that hung promote E2E for ~2h).
     """
     excluded = set(exclude_run_ids or ())
     deadline = time.time() + timeout_seconds
@@ -319,21 +379,40 @@ def wait_for_correlated_schedule_run(
                     excluded.add(run_id)
                     break
                 detail_cast = cast(dict[str, Any], detail)
-                if not require_agent_leaf:
-                    return detail_cast, None
-                if schedule_agent_job_executed(
+                url = str(detail_cast.get("url") or "").strip() or f"run_id={run_id}"
+                if require_agent_leaf:
+                    if schedule_agent_job_executed(
+                        detail_cast, automation_id=automation_id
+                    ):
+                        return detail_cast, None
+                    conclusion = (
+                        str(detail_cast.get("conclusion") or "").strip() or "unknown"
+                    )
+                    reason = (
+                        f"Schedule trigger run completed without repo-scheduled "
+                        f"agent leaf {automation_id!r} "
+                        f"(conclusion={conclusion!r}, url={url}). "
+                        "Failing closed instead of polling until timeout."
+                    )
+                    return detail_cast, reason
+                discover_name = discover_automations_job_name(detail_cast)
+                discover_conclusion = discover_automations_job_conclusion(detail_cast)
+                agent_ran = schedule_agent_job_executed(
                     detail_cast, automation_id=automation_id
+                )
+                if (
+                    discover_name is not None
+                    and discover_conclusion == "success"
+                    and not agent_ran
                 ):
                     return detail_cast, None
-                conclusion = (
-                    str(detail_cast.get("conclusion") or "").strip() or "unknown"
-                )
-                url = str(detail_cast.get("url") or "").strip() or f"run_id={run_id}"
                 reason = (
-                    f"Schedule trigger run completed without repo-scheduled "
-                    f"agent leaf {automation_id!r} "
-                    f"(conclusion={conclusion!r}, url={url}). "
-                    "Failing closed instead of polling until timeout."
+                    "Schedule trigger run completed without successful "
+                    "discover-automations evidence for empty-discovery case "
+                    f"(discover_job_name={discover_name!r}, "
+                    f"discover_job_conclusion={discover_conclusion!r}, "
+                    f"agent_executed={agent_ran}, url={url}). "
+                    "Failing closed instead of treating any completed run as success."
                 )
                 return detail_cast, reason
         time.sleep(interval_seconds)
@@ -530,6 +609,8 @@ def run_live_case(
                 "job_executed": False,
                 "job_conclusion": None,
                 "job_name": None,
+                "discover_job_name": None,
+                "discover_job_conclusion": None,
                 "url": None,
             },
             "issue": None,
@@ -705,21 +786,11 @@ def run_live_case(
                 wait_fail_reason,
                 path_gates={"dashboard_enabled": dashboard_ok},
                 invocation_id=invocation_id,
-                schedule_trigger={
-                    "run_seen": True,
-                    "job_executed": schedule_agent_job_executed(
-                        completed_failed, automation_id=automation_id
-                    ),
-                    "job_conclusion": repo_scheduled_agent_job_conclusion(
-                        completed_failed, automation_id=automation_id
-                    ),
-                    "job_name": schedule_agent_job_name(
-                        completed_failed, automation_id=automation_id
-                    ),
-                    "url": completed_failed.get("url"),
-                    "database_id": completed_failed.get("databaseId"),
-                    "run_conclusion": completed_failed.get("conclusion"),
-                },
+                schedule_trigger=schedule_trigger_evidence(
+                    completed_failed,
+                    automation_id=automation_id,
+                    include_run_conclusion=True,
+                ),
                 agent_invoked=False,
                 issue=(
                     {
@@ -760,9 +831,6 @@ def run_live_case(
             return result
 
         completed_run: dict[str, Any] = run_detail
-        job_conclusion = repo_scheduled_agent_job_conclusion(
-            completed_run, automation_id=automation_id
-        )
         agent_ok = agent_invoked(completed_run, automation_id=automation_id)
         run_created_raw = str(completed_run.get("createdAt") or "")
         issue_since = estc._parse_gh_time(run_created_raw) if run_created_raw else since
@@ -788,17 +856,9 @@ def run_live_case(
                     f"and invocation_id={invocation_id}",
                     path_gates={"dashboard_enabled": dashboard_ok},
                     invocation_id=invocation_id,
-                    schedule_trigger={
-                        "run_seen": True,
-                        "job_executed": schedule_agent_job_executed(
-                            completed_run, automation_id=automation_id
-                        ),
-                        "job_conclusion": job_conclusion,
-                        "job_name": schedule_agent_job_name(
-                            completed_run, automation_id=automation_id
-                        ),
-                        "url": completed_run.get("url"),
-                    },
+                    schedule_trigger=schedule_trigger_evidence(
+                        completed_run, automation_id=automation_id
+                    ),
                     agent_invoked=agent_ok,
                 )
                 return result
@@ -818,18 +878,9 @@ def run_live_case(
                     f"(e2e_repo_scheduled_mode=false): {stray.get('url')}",
                     path_gates={"dashboard_enabled": dashboard_ok},
                     invocation_id=invocation_id,
-                    schedule_trigger={
-                        "run_seen": True,
-                        "job_executed": schedule_agent_job_executed(
-                            completed_run, automation_id=automation_id
-                        ),
-                        "job_conclusion": job_conclusion,
-                        "job_name": schedule_agent_job_name(
-                            completed_run, automation_id=automation_id
-                        ),
-                        "url": completed_run.get("url"),
-                        "database_id": completed_run.get("databaseId"),
-                    },
+                    schedule_trigger=schedule_trigger_evidence(
+                        completed_run, automation_id=automation_id
+                    ),
                     agent_invoked=agent_ok,
                     issue={
                         "number": stray.get("number"),
@@ -846,18 +897,9 @@ def run_live_case(
                 str(cleanup_exc),
                 path_gates={"dashboard_enabled": dashboard_ok},
                 invocation_id=invocation_id,
-                schedule_trigger={
-                    "run_seen": True,
-                    "job_executed": schedule_agent_job_executed(
-                        completed_run, automation_id=automation_id
-                    ),
-                    "job_conclusion": job_conclusion,
-                    "job_name": schedule_agent_job_name(
-                        completed_run, automation_id=automation_id
-                    ),
-                    "url": completed_run.get("url"),
-                    "database_id": completed_run.get("databaseId"),
-                },
+                schedule_trigger=schedule_trigger_evidence(
+                    completed_run, automation_id=automation_id
+                ),
                 agent_invoked=agent_ok,
                 issue=(
                     {
@@ -882,18 +924,9 @@ def run_live_case(
             "invocation_id": invocation_id,
             "path_gates": {"dashboard_enabled": dashboard_ok},
             "agent_invoked": agent_ok,
-            "schedule_trigger": {
-                "run_seen": True,
-                "job_executed": schedule_agent_job_executed(
-                    completed_run, automation_id=automation_id
-                ),
-                "job_conclusion": job_conclusion,
-                "job_name": schedule_agent_job_name(
-                    completed_run, automation_id=automation_id
-                ),
-                "url": completed_run.get("url"),
-                "database_id": completed_run.get("databaseId"),
-            },
+            "schedule_trigger": schedule_trigger_evidence(
+                completed_run, automation_id=automation_id
+            ),
             "issue": (
                 {
                     "number": issue.get("number"),

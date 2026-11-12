@@ -47,6 +47,8 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
                 "run-obs-aw-schedule / repo-scheduled / "
                 "run-automation (e2e-repo-scheduled-bait) / agent"
             ),
+            "discover_job_name": "repo-scheduled / discover-automations",
+            "discover_job_conclusion": "success",
             "url": "https://example.test/schedule",
         },
         "issue": {
@@ -105,12 +107,61 @@ class TestOracleHappyPath:
                     "job_executed": False,
                     "job_conclusion": None,
                     "job_name": None,
+                    "discover_job_name": "repo-scheduled / discover-automations",
+                    "discover_job_conclusion": "success",
                     "url": "https://example.test/schedule",
                 },
             ),
             case_id=NOOP_CASE_ID,
         )
         assert report["pass"] is True
+
+    def test_noop_missing_discover_evidence_fails(self) -> None:
+        report = _evaluate(
+            _synthetic_live_outcome(
+                case_id=NOOP_CASE_ID,
+                issue=None,
+                invocation_id="noopinvocat1",
+                agent_invoked=False,
+                schedule_trigger={
+                    "run_seen": True,
+                    "job_executed": False,
+                    "job_conclusion": None,
+                    "job_name": None,
+                    "discover_job_name": None,
+                    "discover_job_conclusion": None,
+                    "url": "https://example.test/schedule",
+                },
+            ),
+            case_id=NOOP_CASE_ID,
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "discover_job_name" in failed_ids
+        assert "discover_job_success" in failed_ids
+
+    def test_noop_failed_discover_fails(self) -> None:
+        report = _evaluate(
+            _synthetic_live_outcome(
+                case_id=NOOP_CASE_ID,
+                issue=None,
+                invocation_id="noopinvocat1",
+                agent_invoked=False,
+                schedule_trigger={
+                    "run_seen": True,
+                    "job_executed": False,
+                    "job_conclusion": None,
+                    "job_name": None,
+                    "discover_job_name": "repo-scheduled / discover-automations",
+                    "discover_job_conclusion": "failure",
+                    "url": "https://example.test/schedule",
+                },
+            ),
+            case_id=NOOP_CASE_ID,
+        )
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "discover_job_success" in failed_ids
 
     def test_missing_issue_fails(self) -> None:
         report = _evaluate(_synthetic_live_outcome(issue=None))
@@ -333,6 +384,118 @@ class TestHarnessHelpers:
         assert reason is not None
         assert "without repo-scheduled agent leaf" in reason
         assert "Failing closed" in reason
+
+    def test_wait_noop_fail_closed_when_discover_failed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        completed = {
+            "databaseId": 100,
+            "status": "completed",
+            "conclusion": "failure",
+            "url": "https://example.test/runs/100",
+            "createdAt": "2026-11-12T12:00:00Z",
+            "event": "workflow_dispatch",
+            "displayTitle": "E2E schedule [noopinvocat1]",
+            "name": "E2E schedule [noopinvocat1]",
+            "jobs": [
+                {
+                    "name": "repo-scheduled / discover-automations",
+                    "conclusion": "failure",
+                }
+            ],
+        }
+
+        def _fake_list(*_a: object, **_k: object) -> list:
+            return [
+                {
+                    "databaseId": 100,
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "createdAt": "2026-11-12T12:00:00Z",
+                    "event": "workflow_dispatch",
+                    "displayTitle": "E2E schedule [noopinvocat1]",
+                    "name": "E2E schedule [noopinvocat1]",
+                    "url": "https://example.test/runs/100",
+                    "headSha": "abc",
+                }
+            ]
+
+        def _fake_gh_json(args: list[str]) -> dict:
+            assert args[:2] == ["run", "view"]
+            return completed
+
+        monkeypatch.setattr(harness, "list_schedule_trigger_runs", _fake_list)
+        monkeypatch.setattr(harness.estc, "gh_json", _fake_gh_json)
+        monkeypatch.setattr(harness.time, "sleep", lambda *_a, **_k: None)
+
+        detail, reason = harness.wait_for_correlated_schedule_run(
+            "elastic/oblt-aw",
+            "e2e-trigger-obs-aw-schedule.yml",
+            since=datetime(2026, 11, 12, 11, 0, tzinfo=timezone.utc),  # noqa: UP017
+            timeout_seconds=30,
+            interval_seconds=1,
+            invocation_id="noopinvocat1",
+            require_agent_leaf=False,
+        )
+        assert detail is not None
+        assert reason is not None
+        assert "discover-automations evidence" in reason
+        assert "discover_job_conclusion='failure'" in reason
+
+    def test_wait_noop_accepts_successful_empty_discovery(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        completed = {
+            "databaseId": 101,
+            "status": "completed",
+            "conclusion": "success",
+            "url": "https://example.test/runs/101",
+            "createdAt": "2026-11-12T12:00:00Z",
+            "event": "workflow_dispatch",
+            "displayTitle": "E2E schedule [noopinvocat1]",
+            "name": "E2E schedule [noopinvocat1]",
+            "jobs": [
+                {
+                    "name": "repo-scheduled / discover-automations",
+                    "conclusion": "success",
+                }
+            ],
+        }
+
+        def _fake_list(*_a: object, **_k: object) -> list:
+            return [
+                {
+                    "databaseId": 101,
+                    "status": "completed",
+                    "conclusion": "success",
+                    "createdAt": "2026-11-12T12:00:00Z",
+                    "event": "workflow_dispatch",
+                    "displayTitle": "E2E schedule [noopinvocat1]",
+                    "name": "E2E schedule [noopinvocat1]",
+                    "url": "https://example.test/runs/101",
+                    "headSha": "abc",
+                }
+            ]
+
+        def _fake_gh_json(args: list[str]) -> dict:
+            assert args[:2] == ["run", "view"]
+            return completed
+
+        monkeypatch.setattr(harness, "list_schedule_trigger_runs", _fake_list)
+        monkeypatch.setattr(harness.estc, "gh_json", _fake_gh_json)
+        monkeypatch.setattr(harness.time, "sleep", lambda *_a, **_k: None)
+
+        detail, reason = harness.wait_for_correlated_schedule_run(
+            "elastic/oblt-aw",
+            "e2e-trigger-obs-aw-schedule.yml",
+            since=datetime(2026, 11, 12, 11, 0, tzinfo=timezone.utc),  # noqa: UP017
+            timeout_seconds=30,
+            interval_seconds=1,
+            invocation_id="noopinvocat1",
+            require_agent_leaf=False,
+        )
+        assert detail is not None
+        assert reason is None
 
 
 class TestE2EBaitDiscoveryFilter:

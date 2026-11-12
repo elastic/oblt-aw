@@ -29,6 +29,7 @@ from repo_scheduled_instructions import (
     E2E_BAIT_AUTOMATION_ID,
     E2E_BAIT_PATH,
     evaluate_for_profile,
+    gate_automations_by_capabilities,
     matrix_payload,
     resolve_e2e_bait_only,
 )
@@ -450,3 +451,31 @@ def test_resolve_e2e_bait_requires_profile_match(tmp_path: pathlib.Path) -> None
     )
     with pytest.raises(ValueError, match="does not include schedule-profile"):
         resolve_e2e_bait_only(tmp_path, [], schedule_profile="weekly")
+
+
+def test_injected_bait_blocked_without_capability_secret(
+    tmp_path: pathlib.Path,
+) -> None:
+    _write_file(
+        tmp_path,
+        E2E_BAIT_PATH,
+        textwrap.dedent(
+            f"""\
+            ---
+            id: {E2E_BAIT_AUTOMATION_ID}
+            schedule-profiles: [daily]
+            capabilities: [buildkite-logs]
+            ---
+
+            <!-- E2E_REPO_SCHEDULED_BAIT_MARKER -->
+
+            E2E bait body.
+            """
+        ),
+    )
+    resolved = resolve_e2e_bait_only(tmp_path, [], schedule_profile="daily")
+    matching, blocked = gate_automations_by_capabilities(resolved, env={})
+    assert matching == []
+    assert len(blocked) == 1
+    assert blocked[0]["id"] == E2E_BAIT_AUTOMATION_ID
+    assert "buildkite-logs" in blocked[0]["missing-capabilities"]

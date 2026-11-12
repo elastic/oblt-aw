@@ -108,7 +108,7 @@ Non-destructive safe-outputs on the generic AW: `create-issue`, `add-comment`, `
 
 ## E2E
 
-Live production-path validation lives under [repo-scheduled-e2e](../testing/repo-scheduled-e2e.md). Manual `workflow_dispatch` via [`.github/workflows/e2e-repo-scheduled.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-repo-scheduled.yml); not a default PR required gate. Framework-only `e2e-trigger-obs-aw-schedule.yml` input `e2e-repo-scheduled-mode` scopes discovery to the checked-in bait under `.github/ai/scheduled/e2e-repo-scheduled-bait.md` (injected when `apm.yml` does not list it; the control plane does not keep a permanent root `apm.yml` for that bait).
+Live production-path validation lives under [repo-scheduled-e2e](../testing/repo-scheduled-e2e.md). Manual `workflow_dispatch` via [`.github/workflows/e2e-repo-scheduled.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-repo-scheduled.yml); not a default PR required gate. Framework-only `e2e-trigger-obs-aw-schedule.yml` input `e2e-repo-scheduled-mode` scopes discovery to the checked-in bait under `.github/ai/scheduled/e2e-repo-scheduled-bait.md` (injected when `apm.yml` does not list it; the control plane does not keep a permanent root `apm.yml` for that bait). Injected bait still goes through the same capability-secret gate as APM-listed automations.
 
 ## References
 

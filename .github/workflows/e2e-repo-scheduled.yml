@@ -37,6 +37,8 @@ jobs:
     timeout-minutes: 180
     strategy:
       fail-fast: false
+      # Serialize so no-op's unscoped bait-issue scan cannot race issue-live.
+      max-parallel: 1
       matrix:
         case_id:
           - schedule-issue-live
