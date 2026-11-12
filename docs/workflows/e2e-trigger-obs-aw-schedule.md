@@ -19,9 +19,11 @@ The `run-obs-aw-schedule` job calls `obs-aw-event-schedule.yml` with `schedule-p
 - `e2e-autodoc-mode` (default `true`) limits autodoc to the checked-in bait file.
 - `e2e-repo-scheduled-mode` (default `false`) forces the repo-scheduled E2E bait automation.
 
+The optional string `e2e-invocation-id` (default empty) is forwarded unchanged for live-E2E correlation. When set, the workflow `run-name` appends `[<id>]` and downstream routes use the value for docs-patrol concurrency isolation and repo-scheduled run/issue correlation.
+
 ## Inputs, outputs, and access
 
-`e2e-autodoc-mode` and `e2e-repo-scheduled-mode` are optional boolean inputs. No outputs or secrets are declared. The job requests Actions read, contents write, Copilot request write, OIDC, issue write, and pull-request write permissions; workflow-level permissions are `contents: read`.
+`e2e-autodoc-mode` and `e2e-repo-scheduled-mode` are optional boolean inputs; `e2e-invocation-id` is an optional string input. No outputs or secrets are declared. The job requests Actions read, contents write, Copilot request write, OIDC, issue write, and pull-request write permissions; workflow-level permissions are `contents: read`.
 
 ## Sources
 
