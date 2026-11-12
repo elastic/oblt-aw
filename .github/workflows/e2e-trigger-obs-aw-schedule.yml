@@ -13,6 +13,13 @@ on:
         required: false
         type: boolean
         default: true
+      e2e-repo-scheduled-mode:
+        description: >-
+          When true, obs:repo-scheduled runs the checked-in E2E bait
+          automation under .github/ai/scheduled/e2e-repo-scheduled-bait.md.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,3 +39,4 @@ jobs:
       schedule-profile: daily
       # workflow_dispatch booleans arrive as strings in github.event.inputs.
       e2e-autodoc-mode: ${{ github.event.inputs.e2e-autodoc-mode == 'true' }}
+      e2e-repo-scheduled-mode: ${{ github.event.inputs.e2e-repo-scheduled-mode == 'true' }}

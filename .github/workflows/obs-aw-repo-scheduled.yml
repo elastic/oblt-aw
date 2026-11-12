@@ -29,6 +29,13 @@ on:
         description: Wake profile from the schedule client (daily, frequent, or weekly).
         required: true
         type: string
+      e2e-repo-scheduled-mode:
+        description: >-
+          When true, platform text forces the checked-in E2E bait automation
+          to create a marker issue (false for normal schedule/manual runs).
+        required: false
+        type: boolean
+        default: false
     secrets:
       BUILDKITE_API_TOKEN:
         required: false
@@ -94,11 +101,8 @@ jobs:
     uses: ./.github/workflows/aw-resolve-agentic-assets.yml
     with:
       workflow-basename: obs-aw-repo-scheduled.yml
-      platform-additional-instructions: |
-        You are running one consumer-defined scheduled automation (obs:repo-scheduled).
-        Read and follow `/tmp/gh-aw/repo-scheduled-instructions.md` (consumer instruction body).
-        Prefer noop when nothing is actionable. Call a safe-output tool before finishing.
-        Use Buildkite MCP only when that file requires Buildkite data and buildkite-logs applies.
+      # E2E mode is fixed platform text (not free-form). Keep production text when false.
+      platform-additional-instructions: ${{ inputs.e2e-repo-scheduled-mode && 'E2E_REPO_SCHEDULED_MODE=true. You are running the obs:repo-scheduled live E2E bait. Read `/tmp/gh-aw/repo-scheduled-instructions.md`. Create exactly one GitHub issue whose body includes `E2E_REPO_SCHEDULED_BAIT_MARKER` and cites `.github/ai/scheduled/e2e-repo-scheduled-bait.md`. Do not noop. Do not use Buildkite tools.' || 'You are running one consumer-defined scheduled automation (obs:repo-scheduled). Read and follow `/tmp/gh-aw/repo-scheduled-instructions.md` (consumer instruction body). Prefer noop when nothing is actionable. Call a safe-output tool before finishing. Use Buildkite MCP only when that file requires Buildkite data and buildkite-logs applies.' }}
 
   run-automation:
     if: >-

@@ -18,7 +18,7 @@ Both triggers accept optional `checkout-ref` (default `main`). A manual dispatch
 
 ## Execution flow
 
-After the dispatch validation succeeds (or is skipped for workflow calls), the workflow calls five leaf workflows: automerge VM images, dependency review, ESTC Buildkite detective, autodoc audit, and PR Actions detective. The leaves receive the same `checkout-ref` and inherited secrets. The calls can run independently after the validation job.
+After the dispatch validation succeeds (or is skipped for workflow calls), the workflow calls the checked-in leaf E2E workflows in parallel (automerge VM images, dependency review, ESTC Buildkite detective, autodoc audit, repo scheduled, PR Actions detective, secret-leak artifacts). The leaves receive the same `checkout-ref` and inherited secrets. The calls can run independently after the validation job.
 
 ## Inputs, outputs, and access
 
@@ -33,4 +33,5 @@ After the dispatch validation succeeds (or is skipped for workflow calls), the w
 - [Dependency review E2E](e2e-dependency-review.md)
 - [ESTC Buildkite detective E2E](e2e-estc-pr-buildkite-detective.md)
 - [Autodoc E2E](e2e-autodoc.md)
+- [Repo scheduled E2E](e2e-repo-scheduled.md)
 - [PR Actions detective E2E](e2e-pr-actions-detective.md)

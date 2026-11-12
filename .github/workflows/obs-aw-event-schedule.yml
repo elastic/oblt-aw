@@ -21,6 +21,13 @@ on:
         required: false
         type: boolean
         default: false
+      e2e-repo-scheduled-mode:
+        description: >-
+          When true, obs:repo-scheduled forces the checked-in E2E bait
+          automation (false for normal schedule/manual runs).
+        required: false
+        type: boolean
+        default: false
     secrets:
       BUILDKITE_API_TOKEN:
         description: >-
@@ -238,5 +245,6 @@ jobs:
       shared-allowed-issue-authors-csv: ${{ needs.run-aw-prelude.outputs.allowed-issue-authors-csv }}
       shared-token-policy: ${{ needs.run-aw-prelude.outputs.token-policy }}
       schedule-profile: ${{ inputs.schedule-profile }}
+      e2e-repo-scheduled-mode: ${{ inputs.e2e-repo-scheduled-mode }}
     secrets:
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}
