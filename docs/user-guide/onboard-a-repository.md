@@ -46,9 +46,9 @@ Technical registration detail for maintainers and agents: [Registering resources
 
    | Order | Repository | What it changes |
    |------:|------------|-----------------|
-   | 1 | `elastic/catalog-info` | TokenPolicy for client `create-token`, plus the mapped org-scoped sync/distribute allowlists (`obs` or `security`; `docs` maps to `obs`) |
+   | 1 | `elastic/catalog-info` | TokenPolicy for client `create-token`, plus mapped org-scoped sync/distribute **and** settings TokenPolicy allowlists (`obs` or `security`; `docs` maps to `obs`) |
    | 2 | `elastic/oblt-aw` | Entry in `config/<org-key>/active-repositories.json` |
-   | 3 | `elastic/observability-github-settings` | Vault app in classic BP `pull_request_bypassers` under `resources/<org-key>/branch-protections/<repo>/` (and merge-queue ruleset `bypass_actors` when present) |
+   | 3 | `elastic/observability-github-settings` | Vault app in classic BP `pull_request_bypassers` under `resources/<settings-org>/branch-protections/<repo>/` (and merge-queue ruleset `bypass_actors` when present) |
    | 4 | `elastic/observability-github-secrets` | When org agentic workflow docs’ **Prerequisites** (or **API / Interface**) require consumer secrets; otherwise the agent notes “none” |
    | 5 | `elastic/<repo>` (consumer) | Add or update `.github/CODEOWNERS` for distributed trigger clients: `/.github/workflows/trigger-<org-key>-aw-* @elastic/<owning-team>` (match the org’s owners in this control plane’s [CODEOWNERS](https://github.com/elastic/oblt-aw/blob/main/.github/CODEOWNERS)) |
    | 6 | `elastic/<repo>` (consumer) | **When Renovate is enabled:** add a Renovate `packageRules` entry that disables updates for `.github/workflows/trigger-*-aw-*.yml` (see step 5 below and [Registering resources — step 5b](../onboarding/registering-a-repository.md#steps)) |
@@ -62,7 +62,7 @@ Technical registration detail for maintainers and agents: [Registering resources
      C5 --> C6[Renovate ignore if enabled]
    ```
 
-5. **Merge manually in order** — Humans merge. Merge the **catalog-info** TokenPolicy PR **before** the **oblt-aw** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed agentic workflows in production. Merge the consumer **CODEOWNERS** PR before or with the first distribute trigger-client PR so code-owner review can clear trigger-only workflow changes. Auto-merge of these PRs is **out of scope** for now.
+5. **Merge manually in order** — Humans merge. Merge the **catalog-info** PR(s) (consumer TokenPolicy and step **2e** allowlists, including the org settings selector) **before** the **oblt-aw** registration PR. Merge settings (and secrets, if any) before relying on automerge or secret-backed agentic workflows in production. Merge the consumer **CODEOWNERS** PR before or with the first distribute trigger-client PR so code-owner review can clear trigger-only workflow changes. Auto-merge of these PRs is **out of scope** for now.
 
    **If Renovate is enabled** in your repository, also merge a small Renovate config change that ignores distributed client triggers (append to existing `packageRules` when present):
 
@@ -111,5 +111,6 @@ Full fixes live under [Troubleshooting](../troubleshooting/index.md). Quick link
 
 - **No agent comment / no PRs** (or retry after a partial run) — [Onboard agent no comment or PRs](../troubleshooting/common-problems/onboard-agent-no-comment-or-prs.md)
 - **Registration merged too early** — [Registration before catalog TokenPolicy](../troubleshooting/common-problems/registration-before-catalog-token-policy.md)
+- **Settings branch-protection PR fails token administration check** — [Settings token-policy selector missing](../troubleshooting/common-problems/settings-token-policy-selector-missing.md)
 - **No install PR or Control Plane dashboard** — [Missing client template or Control Plane dashboard](../troubleshooting/common-problems/missing-client-template-or-dashboard.md)
 - **Renovate changes `trigger-*-aw-*.yml`** — Add the Renovate `packageRules` ignore from step 5; see [Registering resources — step 5b](../onboarding/registering-a-repository.md#steps)

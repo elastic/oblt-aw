@@ -37,8 +37,10 @@ compile-aw: install-aw
 	python3 scripts/patch_aw_checkout_labeled.py
 
 ## Recompile every gh-aw workflow and fail if the generated lock files drift from the source.
+## Compare the working tree to the index only (staged lock updates that already match sources are OK).
 compile-aw-check: install-aw compile-aw
-	test -z "$$(git status --porcelain --untracked-files=all -- ':(glob).github/workflows/*.lock.yml' ':(glob).github/workflows/**/*.lock.yml')"
+	@test -z "$$(git diff --name-only -- ':(glob).github/workflows/*.lock.yml' ':(glob).github/workflows/**/*.lock.yml')"
+	@test -z "$$(git ls-files --others --exclude-standard -- '.github/workflows/*.lock.yml' '.github/workflows/**/*.lock.yml')"
 
 ## Rewrite on.bots / trusted-users / autoapprove prompt bullets from allowed_pr_authors.json.
 sync-allowed-pr-authors:

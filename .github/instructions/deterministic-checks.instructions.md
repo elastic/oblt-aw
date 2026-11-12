@@ -27,6 +27,6 @@ Do not repeat failures or diagnostics reported by these enforced checks:
 - `validate_aw_workflow_permissions.py` checks reusable-workflow caller permissions.
 - `validate_docs_fragment_links.py` checks relative `docs/**/*.md` `#fragment` links resolve to a heading (Codex preview gate; prefer custom `[anchor]` on numbered headings).
 - `validate_docs_toc.py` checks every publishable `docs/**/*.md` page is listed in `docs/docset.yml` toc (Codex preview gate).
-- `make compile-aw-check` checks gh-aw generated lock files against their Markdown sources.
+- `make compile-aw-check` / the `compile-aw` pre-commit hook check gh-aw generated lock files against their Markdown sources (stage regenerated locks with the Markdown change; CI fails closed on drift and does not auto-commit).
 - `npm test` runs the TypeScript unit tests.
 - OpenSSF Scorecard reports repository security posture.

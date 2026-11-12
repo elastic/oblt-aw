@@ -83,7 +83,8 @@ safe-outputs:
     target: "triggering"
   create-pull-request:
     draft: false
-    max: 4
+    # 5: catalog (+ optional allowlist gap-fill), registration, settings, secrets
+    max: 5
     auto-close-issue: false
     title-prefix: "[oblt-aw][onboard] "
     allowed-repos:
@@ -117,7 +118,8 @@ Map each matching open PR to one inventory concern by repository (and title):
 
 | Concern | Allowlisted repo | Typical title contains |
 |---------|------------------|------------------------|
-| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy + mapped org-scoped sync/distribute selectors) |
+| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy + mapped org-scoped sync/distribute + settings selectors) |
+| catalog-settings-selector | `elastic/catalog-info` | `observability-github-settings token policy` / settings selector / allowlist |
 | registration | `elastic/oblt-aw` | `Register` / `active repositories` |
 | settings | `elastic/observability-github-settings` | `branch protection` |
 | secrets | `elastic/observability-github-secrets` | `secret` / secrets provision |
@@ -125,20 +127,30 @@ Map each matching open PR to one inventory concern by repository (and title):
 Then:
 
 1. **Never duplicate** — do not open a second PR for a concern that already has an open matching onboard PR. Do not invent `pulls?q=` search links.
-2. **Gap-fill missing concerns** — run [Consumer secrets](#consumer-secrets) (and any other missing inventory steps). If discovery is non-empty and there is **no** open secrets onboard PR for this repository, open that secrets PR. Open other missing always-required concerns the same way when absent.
-3. **Stop only when complete** — if every required inventory concern is already covered by open PRs (and secrets is either open or correctly skipped as “none” after full discovery), call `add-comment` with **exact PR URLs**, merge order, and stop.
+2. **Gap-fill missing concerns** — run [Consumer secrets](#consumer-secrets) and [Org-scoped allowlists](#org-scoped-allowlists-catalog). If discovery is non-empty and there is **no** open secrets onboard PR for this repository, open that secrets PR. If step **2e** is required and the open catalog PR did not cover sync/distribute or `token-policy-observability-github-settings-<suffix>`, open a follow-up catalog PR (`temporary_id` `aw_catalog_settings`). Open other missing always-required concerns the same way when absent.
+3. **Stop only when complete** — if every required inventory concern is already covered by open PRs (and secrets is either open or correctly skipped as “none” after full discovery; and step **2e** selectors are covered), call `add-comment` with **exact PR URLs**, merge order, and stop.
 4. Re-applying the `oblt-aw/onboard/repository` label is the supported retry; treat prior open onboard PRs as the source of truth for concerns they already cover until they merge or close.
 
 ## Authoritative procedure (read and follow — do not invent)
 
 **Read and follow** these docs in the workspace. They are the technical contract. Do **not** invent parallel steps.
 
-1. `docs/onboarding/registering-a-repository.md` — especially **Pull request inventory**, **Consumer secrets discovery**, **Automation contract**, **Steps** (including step **2e** framework sync/distribute allowlists), and the TokenPolicy appendix.
+1. `docs/onboarding/registering-a-repository.md` — especially **Pull request inventory**, **Consumer secrets discovery**, **Automation contract**, **Steps** (including step **2e** org-scoped sync/distribute **and** settings allowlists), and the TokenPolicy appendix.
 2. `docs/user-guide/onboard-a-repository.md` — post-merge human steps (dashboard enablement) to cite in the issue comment.
 
-Edit the checked-out trees named in the Automation contract (`repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and this repository root for `elastic/oblt-aw`).
+Edit the checked-out trees named in the Automation contract (`repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and this repository root for `elastic/oblt-aw`). Settings stacks live under `resources/<settings-org>/branch-protections/<repo>/` (`docs`→`obs` until `orgs.json` has docs).
 
-In the catalog concern PR: (1) add the consumer TokenPolicy for `trigger-<org>-aw-*.yml@*`. (2) Framework allowlists (deterministic): map the registration org-key to the control-plane policy suffix — `obs`→`obs`, `security`→`security`, `docs`→`obs` (temporary until Backstage `org: docs`). Ensure the consumer’s github-repository RRE lives under the matching `resources/github/engineering/<backstage-org>/` tree, then run `python .github/scripts/update-token-policy-obs-repositories/update_token_policy.py --org <suffix>` (or append sorted selector rows) so both `token-policy-oblt-aw-sync-control-plane-dashboard-<suffix>.yaml` and `token-policy-oblt-aw-distribute-client-workflow-<suffix>.yaml` list `elastic/<repo>`. Do **not** invent `-docs` framework policies or use `ALWAYS_INCLUDE_REPOS`. Never rely on a later weekly job or on `active-repositories.json` alone for allowlist membership.
+### Org-scoped allowlists (catalog)
+
+Follow registering-resources step **2e** in full.
+
+In the catalog concern PR: (1) add the consumer TokenPolicy for `trigger-<org>-aw-*.yml@*`. (2) Map the registration org-key to the policy suffix — `obs`→`obs`, `security`→`security`, `docs`→`obs` (temporary). Ensure the consumer’s github-repository RRE lives under `resources/github/engineering/<backstage-org>/`. (3) Ensure these list `elastic/<repo>`:
+
+- `token-policy-oblt-aw-sync-control-plane-dashboard-<suffix>.yaml`
+- `token-policy-oblt-aw-distribute-client-workflow-<suffix>.yaml`
+- `token-policy-observability-github-settings-<suffix>.yaml`
+
+Run `python .github/scripts/update-token-policy-obs-repositories/update_token_policy.py --org <suffix>` (or append sorted selector rows). If the org settings policy pins a `repos` allowlist in that script, add `elastic/<repo>` to the pin and keep every existing entry, then re-run. Prefer folding into `temporary_id` `aw_catalog`; on retry use `aw_catalog_settings` when the open catalog PR lacks allowlist coverage. Do **not** invent `-docs` policies or use `ALWAYS_INCLUDE_REPOS`. Never rely on a later weekly job or on `active-repositories.json` alone.
 
 ### Consumer secrets
 
@@ -167,15 +179,15 @@ Never put the two-character sequence `\` + `n` in those fields; never collapse a
 
 ### Issue comment
 
-On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_obltaw`, `aw_settings`, `aw_secrets` as needed). Link newly opened PRs with those `#aw_…` ids so safe-outputs rewrite them to exact PR URLs. For already-open PRs, use real `https://github.com/<owner>/<repo>/pull/<n>` URLs from search / `gh pr list`.
+On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_catalog_settings`, `aw_obltaw`, `aw_settings`, `aw_secrets` as needed). Link newly opened PRs with those `#aw_…` ids so safe-outputs rewrite them to exact PR URLs. For already-open PRs, use real `https://github.com/<owner>/<repo>/pull/<n>` URLs from search / `gh pr list`.
 
 **Content to include** in the issue comment (wording and heading text may vary):
 
 - Parsed repository and organization key
-- Checklist of opened or skipped PRs (one entry per inventory concern)
+- Checklist of opened or skipped PRs (one entry per inventory concern, including catalog allowlists / settings selector when required)
 - Explicit **human** checklist item for the consumer `CODEOWNERS` PR (registering step **5a**)
 - Explicit **human** checklist item for the consumer Renovate ignore **when Renovate is enabled** (registering step **5b**: disable updates for `.github/workflows/trigger-*-aw-*.yml`)
-- Merge order (catalog-info before `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows; consumer CODEOWNERS and Renovate ignore before or with distribute)
+- Merge order (catalog-info — including step **2e** allowlists — before `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows; consumer CODEOWNERS and Renovate ignore before or with distribute)
 - That merges are **manual**
 - Pointer to `docs/user-guide/onboard-a-repository.md` for post-merge dashboard enablement
 

@@ -3,7 +3,7 @@
 ## Critical Rules (Always Applicable)
 
 1. **GOLD — pre-commit before commit / push**: follow **[`.cursor/rules/ci-precommit-before-push.mdc`](.cursor/rules/ci-precommit-before-push.mdc)**. Do not commit, push, or open/update a PR until `pre-commit run --files <touched-paths>` passes locally (same gate as CI Pre-commit, including **actionlint**). Pytest alone is not enough. Install: `pre-commit install --hook-type pre-commit --hook-type pre-push`.
-2. **After workflow markdown changes**: if you change a `.md` file under `.github/workflows/`, run `make compile-aw-check` before pushing.
+2. **After workflow markdown changes**: if you change a `.md` file under `.github/workflows/` (including `gh-aw-fragments/`), run `make compile-aw-check` before pushing. The `compile-aw` pre-commit hook regenerates locks when those sources are staged; do not land Markdown-only commits.
 3. **Do not add generated lock files to .gitignore**: never add `.lock.yml` files to `.gitignore`.
 
 ## Copilot review policy layout
