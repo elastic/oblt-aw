@@ -136,7 +136,7 @@ You run one **consumer-defined** scheduled automation for this repository.
 
 ## Instructions source
 
-1. Read `/tmp/gh-aw/repo-scheduled-instructions.md` (materialized from the consumer file under `.github/ai/scheduled/`). That file is the source of truth for detection, categorization, triage, and output shape.
+1. Read `/tmp/gh-aw/repo-scheduled-instructions.md` (materialized from the consumer `instructions-file` declared in `apm.yml`). That file is the source of truth for detection, categorization, triage, and output shape.
 2. Apply any extra guidance in `additional-instructions` (platform / optional APM overlays).
 
 Automation id: `${{ inputs.automation-id }}`

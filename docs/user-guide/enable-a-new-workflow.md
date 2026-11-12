@@ -42,7 +42,7 @@ gh issue list --repo elastic/<repo> --label oblt-aw/dashboard --state open
    :screenshot:
    :::
 
-2. **Configure secrets (if required)** — Read the agentic workflow’s doc under [docs/workflows/](../workflows/index.md) (for example `obs-aw-<name>.md`). Some agentic workflows need no repository secrets (for example [obs-aw-security-detector](../workflows/obs-aw-security-detector.md) uses ephemeral tokens only). See [Configure a GitHub secret](../admin-guide/configure-a-github-secret.md). For [Repo Scheduled](../workflows/obs-aw-repo-scheduled.md), also add instruction files under `.github/ai/scheduled/` before expecting a run.
+2. **Configure secrets (if required)** — Read the agentic workflow’s doc under [docs/workflows/](../workflows/index.md) (for example `obs-aw-<name>.md`). Some agentic workflows need no repository secrets (for example [obs-aw-security-detector](../workflows/obs-aw-security-detector.md) uses ephemeral tokens only). See [Configure a GitHub secret](../admin-guide/configure-a-github-secret.md). For [Repo Scheduled](../workflows/obs-aw-repo-scheduled.md), also declare automations under `x-oblt-aw.obs.workflows.repo-scheduled.automations` in `apm.yml` before expecting a run.
 
 3. **Check the agentic workflow on the Control Plane dashboard** — Open the Control Plane dashboard issue and check the checkbox for the agentic workflow. GitHub saves immediately on click. See [Control Plane dashboard — enabling an agentic workflow](../operations/control-plane-dashboard.md#enabling-an-agentic-workflow).
 
