@@ -32,6 +32,19 @@ from typing import Any
 _GH_TRANSIENT_HTTP_RE = re.compile(r"\bHTTP\s+50[0-4]\b", re.IGNORECASE)
 _GH_JSON_DEFAULT_RETRIES = 4
 _GH_JSON_DEFAULT_RETRY_SLEEP_SECONDS = 2.0
+# Safe-outputs / Markdown often escapes underscores in issue bodies
+# (E2E\_MARKER), which breaks naive substring checks for E2E_* tokens.
+_MD_ESCAPED_UNDERSCORE_RE = re.compile(r"\\_")
+
+
+def normalize_issue_body_for_markers(body: str) -> str:
+    """Return issue body text suitable for E2E marker / path substring checks.
+
+    GitHub issue bodies created via safe-outputs may contain Markdown-escaped
+    underscores (``\\_``). Unescape those so harness correlation against
+    ``E2E_*`` markers and ``E2E_INVOCATION_ID=…`` still works.
+    """
+    return _MD_ESCAPED_UNDERSCORE_RE.sub("_", body or "")
 
 
 def gh_json_error_is_transient(stderr: str) -> bool:

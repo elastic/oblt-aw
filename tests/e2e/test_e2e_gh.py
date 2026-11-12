@@ -106,3 +106,16 @@ class TestE2eGh:
         assert (
             estc_harness.gh_json_error_is_transient is e2e_gh.gh_json_error_is_transient
         )
+
+    def test_normalize_issue_body_unescapes_markdown_underscores(self) -> None:
+        # Bodies from safe-outputs often escape underscores for Markdown.
+        body = (
+            "E2E\\_REPO\\_SCHEDULED\\_BAIT\\_MARKER\n"
+            "E2E\\_INVOCATION\\_ID=b8f9dc58b086\n"
+            "`.github/ai/scheduled/e2e-repo-scheduled-bait.md`"
+        )
+        normalized = e2e_gh.normalize_issue_body_for_markers(body)
+        assert "E2E_REPO_SCHEDULED_BAIT_MARKER" in normalized
+        assert "E2E_INVOCATION_ID=b8f9dc58b086" in normalized
+        assert e2e_gh.normalize_issue_body_for_markers("") == ""
+        assert e2e_gh.normalize_issue_body_for_markers("plain_marker") == "plain_marker"
