@@ -424,6 +424,50 @@ def create_stacked_policy_fixture(
         raise
 
 
+# GitHub refs can briefly remain visible after a successful DELETE.
+_CLEANUP_ABSENCE_ATTEMPTS = 5
+_CLEANUP_ABSENCE_SLEEP_SECONDS = 2.0
+
+
+def _delete_fixture_branch_until_absent(
+    repo: str,
+    branch: str,
+    *,
+    errors: list[str],
+    attempts: int | None = None,
+    sleep_seconds: float | None = None,
+) -> bool:
+    """Delete ``branch`` and poll until the ref is gone.
+
+    Returns True when the branch is absent. Records an error and returns False
+    when delete fails or the ref remains after retries (never soft-succeeds).
+    """
+    max_attempts = _CLEANUP_ABSENCE_ATTEMPTS if attempts is None else attempts
+    pause_seconds = (
+        _CLEANUP_ABSENCE_SLEEP_SECONDS if sleep_seconds is None else sleep_seconds
+    )
+    for attempt in range(1, max_attempts + 1):
+        try:
+            if not dr_e2e.fixture_branch_exists(repo, branch):
+                return True
+            dr_e2e.delete_fixture_branch(repo, branch)
+        except RuntimeError as exc:
+            errors.append(str(exc))
+            return False
+        try:
+            if not dr_e2e.fixture_branch_exists(repo, branch):
+                return True
+        except RuntimeError as exc:
+            errors.append(str(exc))
+            return False
+        if attempt < max_attempts:
+            time.sleep(pause_seconds)
+    errors.append(
+        f"Fixture branch {branch!r} still present after {max_attempts} delete attempts"
+    )
+    return False
+
+
 def cleanup_stacked_fixture(
     repo: str,
     *,
@@ -440,23 +484,12 @@ def cleanup_stacked_fixture(
         except RuntimeError as exc:
             errors.append(str(exc))
             if head_branch:
-                try:
-                    dr_e2e.delete_fixture_branch(repo, head_branch)
-                except RuntimeError as nested:
-                    errors.append(str(nested))
+                _delete_fixture_branch_until_absent(repo, head_branch, errors=errors)
     elif head_branch:
-        try:
-            if dr_e2e.fixture_branch_exists(repo, head_branch):
-                dr_e2e.delete_fixture_branch(repo, head_branch)
-        except RuntimeError as exc:
-            errors.append(str(exc))
+        _delete_fixture_branch_until_absent(repo, head_branch, errors=errors)
 
     if base_branch:
-        try:
-            if dr_e2e.fixture_branch_exists(repo, base_branch):
-                dr_e2e.delete_fixture_branch(repo, base_branch)
-        except RuntimeError as exc:
-            errors.append(str(exc))
+        _delete_fixture_branch_until_absent(repo, base_branch, errors=errors)
 
     head_absent = True
     base_absent = True
@@ -466,12 +499,16 @@ def cleanup_stacked_fixture(
         except RuntimeError as exc:
             errors.append(str(exc))
             head_absent = False
+        if not head_absent and not any(head_branch in err for err in errors):
+            errors.append(f"Fixture head branch {head_branch!r} still present")
     if base_branch:
         try:
             base_absent = not dr_e2e.fixture_branch_exists(repo, base_branch)
         except RuntimeError as exc:
             errors.append(str(exc))
             base_absent = False
+        if not base_absent and not any(base_branch in err for err in errors):
+            errors.append(f"Fixture base branch {base_branch!r} still present")
 
     completed = bool(head_absent and base_absent and not errors)
     result: dict[str, Any] = {

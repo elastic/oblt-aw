@@ -297,6 +297,26 @@ class TestLeafMatcher:
         )
 
 
+class TestBuildkiteMcpOptional:
+    def test_source_marks_buildkite_mcp_not_required(self) -> None:
+        text = (ROOT / ".github" / "workflows" / "gh-aw-repo-scheduled.md").read_text(
+            encoding="utf-8"
+        )
+        idx = text.index("buildkite:")
+        # Keep Buildkite optional so missing token does not fail agent startup.
+        assert "required: false" in text[idx : idx + 400]
+
+    def test_lock_emits_buildkite_required_false(self) -> None:
+        text = (
+            ROOT / ".github" / "workflows" / "gh-aw-repo-scheduled.lock.yml"
+        ).read_text(encoding="utf-8")
+        # Prefer the gateway MCP config block over the compact manifest header.
+        marker = '"buildkite": {'
+        assert marker in text
+        idx = text.index(marker)
+        assert '"required": false' in text[idx : idx + 800]
+
+
 class TestHarnessHelpers:
     def test_bait_content_requires_marker(self, tmp_path: pathlib.Path) -> None:
         path = tmp_path / "bait.md"
@@ -384,6 +404,66 @@ class TestHarnessHelpers:
         assert reason is not None
         assert "without repo-scheduled agent leaf" in reason
         assert "Failing closed" in reason
+
+    def test_wait_fail_closed_when_agent_leaf_concludes_failure(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        completed = {
+            "databaseId": 102,
+            "status": "completed",
+            "conclusion": "failure",
+            "url": "https://example.test/runs/102",
+            "createdAt": "2026-11-12T12:00:00Z",
+            "event": "workflow_dispatch",
+            "displayTitle": "E2E schedule [abc123deadbe]",
+            "name": "E2E schedule [abc123deadbe]",
+            "jobs": [
+                {
+                    "name": (
+                        "Run schedule event orchestrator / repo-scheduled / "
+                        "run-automation (e2e-repo-scheduled-bait) / agent"
+                    ),
+                    "conclusion": "failure",
+                }
+            ],
+        }
+
+        def _fake_list(*_a: object, **_k: object) -> list:
+            return [
+                {
+                    "databaseId": 102,
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "createdAt": "2026-11-12T12:00:00Z",
+                    "event": "workflow_dispatch",
+                    "displayTitle": "E2E schedule [abc123deadbe]",
+                    "name": "E2E schedule [abc123deadbe]",
+                    "url": "https://example.test/runs/102",
+                    "headSha": "abc",
+                }
+            ]
+
+        def _fake_gh_json(args: list[str]) -> dict:
+            assert args[:2] == ["run", "view"]
+            return completed
+
+        monkeypatch.setattr(harness, "list_schedule_trigger_runs", _fake_list)
+        monkeypatch.setattr(harness.estc, "gh_json", _fake_gh_json)
+        monkeypatch.setattr(harness.time, "sleep", lambda *_a, **_k: None)
+
+        detail, reason = harness.wait_for_correlated_schedule_run(
+            "elastic/oblt-aw",
+            "e2e-trigger-obs-aw-schedule.yml",
+            since=datetime(2026, 11, 12, 11, 0, tzinfo=timezone.utc),  # noqa: UP017
+            timeout_seconds=30,
+            interval_seconds=1,
+            invocation_id="abc123deadbe",
+            require_agent_leaf=True,
+        )
+        assert detail is not None
+        assert reason is not None
+        assert "concluded 'failure'" in reason
+        assert "waiting for an issue" in reason
 
     def test_wait_noop_fail_closed_when_discover_failed(
         self, monkeypatch: pytest.MonkeyPatch
