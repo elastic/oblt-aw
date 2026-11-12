@@ -50,11 +50,19 @@ KNOWN_CAPABILITIES: dict[str, str] = {
 E2E_BAIT_AUTOMATION_ID = "e2e-repo-scheduled-bait"
 E2E_BAIT_PATH = ".github/ai/scheduled/e2e-repo-scheduled-bait.md"
 E2E_REPO_SCHEDULED_MODE_TOKEN = "E2E_REPO_SCHEDULED_MODE=true"
+# Injected only by the platform materializer — never quote this in bait prose.
+E2E_PLATFORM_WAKE_HEADING = "## Platform E2E wake (authoritative)"
+E2E_PLATFORM_WAKE_SENTINEL = "PLATFORM_E2E_REPO_SCHEDULED_WAKE=1"
 
 
 def additional_instructions_enable_e2e(additional_instructions: str) -> bool:
     """True when platform text enables the live E2E bait wake."""
     return E2E_REPO_SCHEDULED_MODE_TOKEN in (additional_instructions or "")
+
+
+def materialized_instructions_enable_e2e(instructions_markdown: str) -> bool:
+    """True when materialized instructions carry the platform-only E2E sentinel."""
+    return E2E_PLATFORM_WAKE_SENTINEL in (instructions_markdown or "")
 
 
 def build_materialized_instruction_markdown(
@@ -66,9 +74,9 @@ def build_materialized_instruction_markdown(
 ) -> str:
     """Build ``/tmp/gh-aw/repo-scheduled-instructions.md`` contents.
 
-    When E2E mode is set in ``additional_instructions``, prepend an
-    authoritative E2E wake block so the agent source-of-truth file itself
-    contains ``E2E_REPO_SCHEDULED_MODE=true`` (avoids production-noop flakes).
+    When E2E mode is set in ``additional_instructions``, prepend a
+    platform-only wake block (sentinel + heading). Consumer bait bodies must
+    not embed the sentinel; agents gate on that marker, not on fixture prose.
     """
     chunks: list[str] = [
         f"# Automation `{automation_id}`",
@@ -80,9 +88,11 @@ def build_materialized_instruction_markdown(
     if additional_instructions_enable_e2e(extra):
         chunks.extend(
             [
-                "## Platform E2E wake (authoritative)",
+                E2E_PLATFORM_WAKE_HEADING,
                 "",
-                f"`{E2E_REPO_SCHEDULED_MODE_TOKEN}` is set for this wake.",
+                f"`{E2E_PLATFORM_WAKE_SENTINEL}`",
+                "",
+                "Platform live E2E mode is enabled for this wake.",
                 "Follow the E2E wake rules below and in additional-instructions.",
                 "Create exactly one GitHub issue. Do not call `noop`.",
                 "",

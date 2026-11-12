@@ -28,12 +28,16 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from repo_scheduled_instructions import (
     E2E_BAIT_AUTOMATION_ID,
     E2E_BAIT_PATH,
+    E2E_PLATFORM_WAKE_HEADING,
+    E2E_PLATFORM_WAKE_SENTINEL,
     E2E_REPO_SCHEDULED_MODE_TOKEN,
     additional_instructions_enable_e2e,
     build_materialized_instruction_markdown,
     evaluate_for_profile,
     gate_automations_by_capabilities,
+    materialized_instructions_enable_e2e,
     matrix_payload,
+    parse_instruction_file,
     resolve_e2e_bait_only,
 )
 
@@ -503,12 +507,14 @@ def test_build_materialized_instruction_markdown_prepends_e2e_block() -> None:
             "Create exactly one GitHub issue. Do not noop."
         ),
     )
-    assert "## Platform E2E wake (authoritative)" in text
-    assert E2E_REPO_SCHEDULED_MODE_TOKEN in text
+    assert E2E_PLATFORM_WAKE_HEADING in text
+    assert E2E_PLATFORM_WAKE_SENTINEL in text
+    assert E2E_REPO_SCHEDULED_MODE_TOKEN in text  # from additional_instructions copy
+    assert materialized_instructions_enable_e2e(text)
     assert "Do not call `noop`" in text
     assert "## E2E wakes" in text
-    # Flag appears before consumer body so source-of-truth cannot miss it.
-    assert text.index(E2E_REPO_SCHEDULED_MODE_TOKEN) < text.index("## E2E wakes")
+    # Sentinel appears before consumer body so source-of-truth cannot miss it.
+    assert text.index(E2E_PLATFORM_WAKE_SENTINEL) < text.index("## E2E wakes")
 
 
 def test_build_materialized_instruction_markdown_skips_e2e_without_flag() -> None:
@@ -518,6 +524,27 @@ def test_build_materialized_instruction_markdown_skips_e2e_without_flag() -> Non
         body="Prefer noop.\n",
         additional_instructions="Prefer noop when nothing is actionable.",
     )
-    assert "## Platform E2E wake" not in text
+    assert E2E_PLATFORM_WAKE_HEADING not in text
+    assert E2E_PLATFORM_WAKE_SENTINEL not in text
     assert E2E_REPO_SCHEDULED_MODE_TOKEN not in text
+    assert not materialized_instructions_enable_e2e(text)
     assert "Prefer noop." in text
+
+
+def test_real_bait_without_platform_flag_does_not_self_arm() -> None:
+    """Fixture prose must not embed enablement tokens (Copilot gate finding)."""
+    bait_path = ROOT / E2E_BAIT_PATH
+    bait_text = bait_path.read_text(encoding="utf-8")
+    assert E2E_PLATFORM_WAKE_SENTINEL not in bait_text
+    assert E2E_REPO_SCHEDULED_MODE_TOKEN not in bait_text
+    _meta, body = parse_instruction_file(bait_path)
+    text = build_materialized_instruction_markdown(
+        automation_id=E2E_BAIT_AUTOMATION_ID,
+        source_label=E2E_BAIT_PATH,
+        body=body,
+        additional_instructions="Prefer noop when nothing is actionable.",
+    )
+    assert E2E_PLATFORM_WAKE_HEADING not in text
+    assert E2E_PLATFORM_WAKE_SENTINEL not in text
+    assert not materialized_instructions_enable_e2e(text)
+    assert "E2E_REPO_SCHEDULED_BAIT_MARKER" in text
