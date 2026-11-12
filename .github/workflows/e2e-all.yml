@@ -142,10 +142,8 @@ jobs:
        needs.assert-trusted-dispatch.result == 'skipped')
     permissions:
       actions: write
-      checks: read
       contents: read
       issues: write
-      pull-requests: write
     uses: ./.github/workflows/e2e-repo-scheduled.yml
     with:
       checkout-ref: ${{ inputs.checkout-ref }}

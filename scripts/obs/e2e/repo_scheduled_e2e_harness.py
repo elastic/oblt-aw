@@ -31,6 +31,7 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
@@ -168,12 +169,24 @@ def list_schedule_trigger_runs(
                 "--limit",
                 str(limit),
                 "--json",
-                "databaseId,status,conclusion,createdAt,event,displayTitle,url,headSha",
+                "databaseId,status,conclusion,createdAt,event,displayTitle,name,url,headSha",
             ]
         )
         or []
     )
     return cast(list[dict[str, Any]], payload)
+
+
+def _run_matches_invocation(run: dict[str, Any], invocation_id: str) -> bool:
+    """True when the schedule-trigger run title embeds the invocation id."""
+    token = (invocation_id or "").strip()
+    if not token:
+        return True
+    haystacks = (
+        str(run.get("displayTitle") or ""),
+        str(run.get("name") or ""),
+    )
+    return any(token in text for text in haystacks)
 
 
 def _is_repo_scheduled_agent_leaf(
@@ -250,6 +263,7 @@ def wait_for_schedule_agent_run(
     interval_seconds: int,
     exclude_run_ids: set[int] | None = None,
     automation_id: str = DEFAULT_AUTOMATION_ID,
+    invocation_id: str = "",
 ) -> dict[str, Any] | None:
     """Wait for a completed schedule-trigger run with an executed agent leaf."""
     excluded = set(exclude_run_ids or ())
@@ -265,6 +279,8 @@ def wait_for_schedule_agent_run(
             event = (run.get("event") or "").lower()
             if event not in ("schedule", "workflow_dispatch"):
                 continue
+            if not _run_matches_invocation(run, invocation_id):
+                continue
             while time.time() < deadline:
                 detail = estc.gh_json(
                     [
@@ -274,12 +290,18 @@ def wait_for_schedule_agent_run(
                         "--repo",
                         repo,
                         "--json",
-                        "databaseId,status,conclusion,url,jobs,createdAt,headSha,event",
+                        (
+                            "databaseId,status,conclusion,url,jobs,createdAt,"
+                            "headSha,event,displayTitle,name"
+                        ),
                     ]
                 )
                 if detail.get("status") != "completed":
                     time.sleep(interval_seconds)
                     continue
+                if not _run_matches_invocation(detail, invocation_id):
+                    excluded.add(run_id)
+                    break
                 if schedule_agent_job_executed(detail, automation_id=automation_id):
                     return cast(dict[str, Any], detail)
                 excluded.add(run_id)
@@ -293,12 +315,18 @@ def dispatch_schedule_trigger(
     workflow_file: str,
     *,
     e2e_repo_scheduled_mode: bool = False,
+    invocation_id: str = "",
 ) -> None:
     args = ["workflow", "run", workflow_file, "--repo", repo]
     # Keep autodoc collateral off for this harness; enable repo-scheduled E2E mode.
     args.extend(["-f", "e2e-autodoc-mode=false"])
     if e2e_repo_scheduled_mode:
         args.extend(["-f", "e2e-repo-scheduled-mode=true"])
+    else:
+        args.extend(["-f", "e2e-repo-scheduled-mode=false"])
+    token = (invocation_id or "").strip()
+    if token:
+        args.extend(["-f", f"e2e-invocation-id={token}"])
     estc.gh_text(args, check=True)
 
 
@@ -316,6 +344,7 @@ def find_e2e_issue(
     title_prefix: str,
     since: datetime,
     bait_path: str,
+    invocation_id: str = "",
 ) -> dict[str, Any] | None:
     """Return the newest open issue correlated to this E2E bait run."""
     issues = (
@@ -335,6 +364,7 @@ def find_e2e_issue(
         )
         or []
     )
+    token = (invocation_id or "").strip()
     matches: list[dict[str, Any]] = []
     for issue in issues:
         if not isinstance(issue, dict):
@@ -350,6 +380,8 @@ def find_e2e_issue(
             continue
         body = str(issue.get("body") or "")
         if not _issue_body_matches_bait(body, bait_path):
+            continue
+        if token and f"E2E_INVOCATION_ID={token}" not in body and token not in body:
             continue
         matches.append(issue)
     if not matches:
@@ -470,7 +502,9 @@ def run_live_case(
     expect_issue = cast(bool, expectations["expect_issue"])
     dispatch_trigger_enabled = cast(bool, trigger["dispatch_schedule_trigger"])
     seed_instruction_bait = cast(bool, trigger["seed_instruction_bait"])
+    e2e_repo_scheduled_mode = cast(bool, trigger["e2e_repo_scheduled_mode"])
     cleanup_after = cast(bool, trigger["cleanup_after"])
+    invocation_id = uuid.uuid4().hex[:12]
 
     bait_removed = False
     bait_present = False
@@ -483,11 +517,26 @@ def run_live_case(
             "bait_present": bait_present,
         }
 
-    def _perform_cleanup() -> None:
+    def _rediscover_issue(*, since_time: datetime) -> None:
+        """Find a bait-correlated issue when the waiter timed out mid-flight."""
+        nonlocal issue
+        if issue is not None:
+            return
+        issue = find_e2e_issue(
+            repo,
+            title_prefix=title_prefix,
+            since=since_time,
+            bait_path=bait_path,
+            invocation_id=invocation_id if e2e_repo_scheduled_mode else "",
+        )
+
+    def _perform_cleanup(*, since_time: datetime | None = None) -> None:
         """Close the E2E issue; leave the checked-in bait fixture in place."""
         nonlocal cleaned, bait_removed, bait_present
         if cleaned or not cleanup_after:
             return
+        if issue is None and e2e_repo_scheduled_mode:
+            _rediscover_issue(since_time=since_time or since)
         if issue is not None:
             close_issue(
                 repo,
@@ -544,9 +593,13 @@ def run_live_case(
             dispatch_schedule_trigger(
                 repo,
                 workflow_file,
-                e2e_repo_scheduled_mode=bool(seed_instruction_bait),
+                e2e_repo_scheduled_mode=e2e_repo_scheduled_mode,
+                invocation_id=invocation_id,
             )
-            estc.log_info(f"Dispatched {workflow_file} on {repo}")
+            estc.log_info(
+                f"Dispatched {workflow_file} on {repo} "
+                f"(e2e_mode={e2e_repo_scheduled_mode}, invocation_id={invocation_id})"
+            )
 
         run_detail = wait_for_schedule_agent_run(
             repo,
@@ -556,11 +609,24 @@ def run_live_case(
             interval_seconds=interval,
             exclude_run_ids=known_run_ids,
             automation_id=automation_id,
+            invocation_id=invocation_id,
         )
         if run_detail is None:
+            _rediscover_issue(since_time=since)
             result = _blocked(
-                f"Timed out waiting for {workflow_file} repo-scheduled agent leaf",
+                f"Timed out waiting for {workflow_file} repo-scheduled agent leaf "
+                f"(invocation_id={invocation_id})",
                 path_gates={"dashboard_enabled": dashboard_ok},
+                invocation_id=invocation_id,
+                issue=(
+                    {
+                        "number": issue.get("number"),
+                        "title": issue.get("title"),
+                        "url": issue.get("url"),
+                    }
+                    if issue is not None
+                    else None
+                ),
             )
             return result
 
@@ -581,6 +647,7 @@ def run_live_case(
                     title_prefix=title_prefix,
                     since=issue_since,
                     bait_path=bait_path,
+                    invocation_id=invocation_id,
                 )
                 if issue is not None:
                     break
@@ -588,8 +655,10 @@ def run_live_case(
             if issue is None:
                 result = _blocked(
                     f"Timed out waiting for open issue with title prefix "
-                    f"{title_prefix!r} and bait markers for {bait_path!r}",
+                    f"{title_prefix!r}, bait markers for {bait_path!r}, "
+                    f"and invocation_id={invocation_id}",
                     path_gates={"dashboard_enabled": dashboard_ok},
+                    invocation_id=invocation_id,
                     schedule_trigger={
                         "run_seen": True,
                         "job_executed": schedule_agent_job_executed(
@@ -604,13 +673,50 @@ def run_live_case(
                     agent_invoked=agent_ok,
                 )
                 return result
+        else:
+            # Normal wake: any new bait-marker issue is a regression (flag was false).
+            stray = find_e2e_issue(
+                repo,
+                title_prefix=title_prefix,
+                since=issue_since,
+                bait_path=bait_path,
+                invocation_id="",
+            )
+            if stray is not None:
+                issue = stray
+                result = _blocked(
+                    "Unexpected bait-correlated issue on normal-wake "
+                    f"(e2e_repo_scheduled_mode=false): {stray.get('url')}",
+                    path_gates={"dashboard_enabled": dashboard_ok},
+                    invocation_id=invocation_id,
+                    schedule_trigger={
+                        "run_seen": True,
+                        "job_executed": schedule_agent_job_executed(
+                            completed_run, automation_id=automation_id
+                        ),
+                        "job_conclusion": job_conclusion,
+                        "job_name": schedule_agent_job_name(
+                            completed_run, automation_id=automation_id
+                        ),
+                        "url": completed_run.get("url"),
+                        "database_id": completed_run.get("databaseId"),
+                    },
+                    agent_invoked=agent_ok,
+                    issue={
+                        "number": stray.get("number"),
+                        "title": stray.get("title"),
+                        "url": stray.get("url"),
+                    },
+                )
+                return result
 
         try:
-            _perform_cleanup()
+            _perform_cleanup(since_time=issue_since)
         except Exception as cleanup_exc:  # noqa: BLE001 — keep issue evidence
             result = _blocked(
                 str(cleanup_exc),
                 path_gates={"dashboard_enabled": dashboard_ok},
+                invocation_id=invocation_id,
                 schedule_trigger={
                     "run_seen": True,
                     "job_executed": schedule_agent_job_executed(
@@ -644,6 +750,7 @@ def run_live_case(
             "mode": "live",
             "blocked": False,
             "run_url": run_url,
+            "invocation_id": invocation_id,
             "path_gates": {"dashboard_enabled": dashboard_ok},
             "agent_invoked": agent_ok,
             "schedule_trigger": {
@@ -679,14 +786,20 @@ def run_live_case(
         return result
     except Exception as exc:  # noqa: BLE001 — harness must always write outcome
         estc.log_error(str(exc))
-        result = _blocked(str(exc), path_gates={"dashboard_enabled": dashboard_ok})
+        result = _blocked(
+            str(exc),
+            path_gates={"dashboard_enabled": dashboard_ok},
+            invocation_id=invocation_id,
+        )
         return result
     finally:
         if cleanup_after and not cleaned:
             try:
-                _perform_cleanup()
+                _perform_cleanup(since_time=since)
                 if result is not None:
                     result["cleanup"] = _cleanup_payload()
+                    if "invocation_id" not in result:
+                        result["invocation_id"] = invocation_id
                     write_outcome(outcome_path, result)
             except Exception as cleanup_exc:  # noqa: BLE001
                 estc.log_error(f"cleanup failed: {cleanup_exc}")
@@ -694,9 +807,11 @@ def run_live_case(
                     result["blocked"] = True
                     result["block_reason"] = f"cleanup failed: {cleanup_exc}"
                     result["cleanup"] = _cleanup_payload()
+                    result["invocation_id"] = invocation_id
                     write_outcome(outcome_path, result)
                 elif result is not None:
                     result["cleanup"] = _cleanup_payload()
+                    result["invocation_id"] = invocation_id
                     write_outcome(outcome_path, result)
 
 

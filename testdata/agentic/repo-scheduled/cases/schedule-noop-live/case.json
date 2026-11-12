@@ -1,0 +1,18 @@
+{
+  "id": "schedule-noop-live",
+  "mode": "live",
+  "description": "Normal wake: schedule/dispatch with e2e-repo-scheduled-mode=false → bait agent leaf may run/noop → assert no new bait-correlated issue.",
+  "workflow_id": "obs:repo-scheduled",
+  "trigger": {
+    "dispatch_schedule_trigger": true,
+    "seed_instruction_bait": true,
+    "e2e_repo_scheduled_mode": false,
+    "cleanup_after": true
+  },
+  "expectations": {
+    "dashboard_enabled": true,
+    "schedule_job_executed": true,
+    "agent_invoked": true,
+    "expect_issue": false
+  }
+}

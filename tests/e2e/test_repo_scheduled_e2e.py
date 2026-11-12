@@ -10,19 +10,20 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "obs" / "e2e"))
+sys.path.insert(0, str(ROOT / "scripts"))
 
 import oracle_repo_scheduled_e2e as oracle
 import repo_scheduled_e2e_harness as harness
+import repo_scheduled_instructions as discovery
 
 TESTDATA_ROOT = ROOT / "testdata" / "agentic" / "repo-scheduled"
 LIVE_CASE_ID = "schedule-issue-live"
+NOOP_CASE_ID = "schedule-noop-live"
 
 
-def _live_case() -> dict:
+def _live_case(case_id: str = LIVE_CASE_ID) -> dict:
     return json.loads(
-        (TESTDATA_ROOT / "cases" / LIVE_CASE_ID / "case.json").read_text(
-            encoding="utf-8"
-        )
+        (TESTDATA_ROOT / "cases" / case_id / "case.json").read_text(encoding="utf-8")
     )
 
 
@@ -32,6 +33,7 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
         "case_id": LIVE_CASE_ID,
         "layer": "e2e",
         "mode": "live",
+        "invocation_id": "abc123deadbe",
         "agent_invoked": True,
         "path_gates": {"dashboard_enabled": True},
         "schedule_trigger": {
@@ -68,10 +70,11 @@ def _synthetic_live_outcome(**overrides: object) -> dict:
 def _evaluate(
     outcome: dict,
     *,
+    case_id: str = LIVE_CASE_ID,
     case_expectations: dict | None = None,
     case_trigger: dict | None = None,
 ) -> dict:
-    case = _live_case()
+    case = _live_case(case_id)
     return oracle.evaluate_outcome(
         outcome,
         case_expectations=case_expectations
@@ -87,11 +90,28 @@ class TestOracleHappyPath:
         assert report["pass"] is True
         assert report["agent_invoked"] is True
 
+    def test_noop_case_happy_path_passes(self) -> None:
+        report = _evaluate(
+            _synthetic_live_outcome(
+                case_id=NOOP_CASE_ID,
+                issue=None,
+                invocation_id="noopinvocat1",
+            ),
+            case_id=NOOP_CASE_ID,
+        )
+        assert report["pass"] is True
+
     def test_missing_issue_fails(self) -> None:
         report = _evaluate(_synthetic_live_outcome(issue=None))
         assert report["pass"] is False
         failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
         assert "issue_present" in failed_ids
+
+    def test_missing_invocation_id_fails_issue_case(self) -> None:
+        report = _evaluate(_synthetic_live_outcome(invocation_id=""))
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "invocation_id_present" in failed_ids
 
     def test_overall_conclusion_does_not_substitute_for_leaf(self) -> None:
         report = _evaluate(
@@ -164,6 +184,15 @@ class TestOracleSchemaFailClosed:
         assert err is not None
         assert "dispatch_schedule_trigger" in err
 
+    def test_e2e_mode_mismatch_fails(self) -> None:
+        case = _live_case()
+        trigger = dict(case["trigger"])
+        trigger["e2e_repo_scheduled_mode"] = False
+        report = _evaluate(_synthetic_live_outcome(), case_trigger=trigger)
+        assert report["pass"] is False
+        failed_ids = {item["id"] for item in report["checks"] if not item["pass"]}
+        assert "e2e_mode_matches_expect_issue" in failed_ids
+
     def test_blocked_outcome_fails(self) -> None:
         report = _evaluate(
             {
@@ -186,8 +215,8 @@ class TestLeafMatcher:
             "run-automation (e2e-repo-scheduled-bait) / agent"
         )
 
-    def test_plain_run_automation_leaf_matches(self) -> None:
-        assert oracle.schedule_agent_job_name_matches(
+    def test_plain_run_automation_leaf_does_not_match(self) -> None:
+        assert not oracle.schedule_agent_job_name_matches(
             "repo-scheduled / run-automation / agent"
         )
 
@@ -197,6 +226,12 @@ class TestLeafMatcher:
     def test_wrong_matrix_id_does_not_match(self) -> None:
         assert not oracle.schedule_agent_job_name_matches(
             "run-automation (other-id) / agent"
+        )
+
+    def test_matrix_with_path_suffix_does_not_match(self) -> None:
+        assert not oracle.schedule_agent_job_name_matches(
+            "run-automation (e2e-repo-scheduled-bait, "
+            ".github/ai/scheduled/e2e-repo-scheduled-bait.md) / agent"
         )
 
 
@@ -212,8 +247,51 @@ class TestHarnessHelpers:
         except RuntimeError as exc:
             assert "E2E_REPO_SCHEDULED_BAIT_MARKER" in str(exc)
 
-    def test_checked_in_case_loads(self) -> None:
-        case = _live_case()
-        assert case["id"] == LIVE_CASE_ID
-        assert case["mode"] == "live"
-        assert case["workflow_id"] == "obs:repo-scheduled"
+    def test_checked_in_cases_load(self) -> None:
+        issue_case = _live_case(LIVE_CASE_ID)
+        assert issue_case["trigger"]["e2e_repo_scheduled_mode"] is True
+        noop_case = _live_case(NOOP_CASE_ID)
+        assert noop_case["trigger"]["e2e_repo_scheduled_mode"] is False
+        assert noop_case["expectations"]["expect_issue"] is False
+
+    def test_run_matches_invocation(self) -> None:
+        assert harness._run_matches_invocation(
+            {"displayTitle": "E2E schedule [abc123deadbe]"}, "abc123deadbe"
+        )
+        assert not harness._run_matches_invocation(
+            {"displayTitle": "E2E schedule [other]"}, "abc123deadbe"
+        )
+        assert harness._run_matches_invocation({"displayTitle": "anything"}, "")
+
+
+class TestE2EBaitDiscoveryFilter:
+    def test_filter_keeps_bait_only(self, tmp_path: pathlib.Path) -> None:
+        bait = discovery.ScheduledAutomation(
+            automation_id=discovery.E2E_BAIT_AUTOMATION_ID,
+            path=discovery.E2E_BAIT_PATH,
+            schedule_profiles=("daily",),
+            capabilities=(),
+        )
+        other = discovery.ScheduledAutomation(
+            automation_id="other-job",
+            path=".github/ai/scheduled/other.md",
+            schedule_profiles=("daily",),
+            capabilities=(),
+        )
+        kept = discovery.filter_e2e_bait_only([bait, other])
+        assert [item.automation_id for item in kept] == [
+            discovery.E2E_BAIT_AUTOMATION_ID
+        ]
+
+    def test_filter_fails_when_bait_absent(self) -> None:
+        other = discovery.ScheduledAutomation(
+            automation_id="other-job",
+            path=".github/ai/scheduled/other.md",
+            schedule_profiles=("daily",),
+            capabilities=(),
+        )
+        try:
+            discovery.filter_e2e_bait_only([other])
+            raise AssertionError("expected ValueError")
+        except ValueError as exc:
+            assert "canonical bait" in str(exc)

@@ -44,6 +44,7 @@ _LIVE_EXPECTATION_KEYS = (
 _LIVE_REQUIRED_TRIGGER_BOOL_KEYS = (
     "cleanup_after",
     "dispatch_schedule_trigger",
+    "e2e_repo_scheduled_mode",
     "seed_instruction_bait",
 )
 _LIVE_REQUIRED_TRIGGER_TRUE_KEYS = (
@@ -60,8 +61,8 @@ def schedule_agent_job_name_matches(
 ) -> bool:
     """True when ``job_name`` is the nested run-automation agent leaf.
 
-    Accepts caller prefixes and matrix decoration
-    ``run-automation (e2e-repo-scheduled-bait) / agent``.
+    Requires the stable matrix job name
+    ``run-automation (<automation-id>) / agent`` (with optional caller prefixes).
     """
     lowered = str(job_name or "").strip().lower()
     if not lowered.endswith(f" / {CANONICAL_AGENT_LEAF_SUFFIX}"):
@@ -69,8 +70,6 @@ def schedule_agent_job_name_matches(
     before = lowered.rsplit(f" / {CANONICAL_AGENT_LEAF_SUFFIX}", 1)[0]
     leaf_job = before.split(" / ")[-1]
     auto = automation_id.strip().lower()
-    if leaf_job == CANONICAL_AGENT_JOB_SEGMENT:
-        return True
     return leaf_job == f"{CANONICAL_AGENT_JOB_SEGMENT} ({auto})"
 
 
@@ -310,9 +309,18 @@ def evaluate_outcome(
 
     try:
         expect_issue = _as_bool(expectations["expect_issue"])
+        e2e_mode = _as_bool(trigger["e2e_repo_scheduled_mode"])
     except TypeError as exc:
         _check(checks, "expect_issue", False, str(exc))
+        expect_issue = False
+        e2e_mode = False
     else:
+        _check(
+            checks,
+            "e2e_mode_matches_expect_issue",
+            e2e_mode is expect_issue,
+            f"e2e_repo_scheduled_mode={e2e_mode} expect_issue={expect_issue}",
+        )
         if expect_issue is True:
             present = (
                 isinstance(issue, dict)
@@ -320,6 +328,13 @@ def evaluate_outcome(
                 and bool(str(issue.get("url") or "").strip())
             )
             _check(checks, "issue_present", present, f"issue={issue}")
+            invocation_id = str(outcome.get("invocation_id") or "").strip()
+            _check(
+                checks,
+                "invocation_id_present",
+                bool(invocation_id),
+                f"invocation_id={outcome.get('invocation_id')!r}",
+            )
         else:
             _check(checks, "issue_absent", issue is None, f"issue={issue}")
 

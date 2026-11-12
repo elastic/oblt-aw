@@ -6,6 +6,7 @@
   "trigger": {
     "dispatch_schedule_trigger": true,
     "seed_instruction_bait": true,
+    "e2e_repo_scheduled_mode": true,
     "cleanup_after": true
   },
   "expectations": {

@@ -30,21 +30,23 @@ concurrency:
   group: e2e-repo-scheduled
   cancel-in-progress: false
 
-env:
-  CASE_ID: schedule-issue-live
-
 jobs:
   e2e:
-    name: Repo scheduled E2E
+    name: Repo scheduled E2E (${{ matrix.case_id }})
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        case_id:
+          - schedule-issue-live
+          - schedule-noop-live
     permissions:
       contents: read
-      pull-requests: write
       actions: write
       issues: write
-      checks: read
     env:
+      CASE_ID: ${{ matrix.case_id }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - name: Checkout default branch (dispatch guard)

@@ -3,6 +3,12 @@ name: E2E — Trigger Observability schedule routes
 # Control-plane only (not distributed via remote-workflow-template).
 # Live autodoc E2E dispatches this entry so production
 # trigger-obs-aw-schedule-daily.yml (client template) stays free of E2E inputs.
+run-name: >-
+  E2E schedule${{
+    github.event.inputs.e2e-invocation-id != ''
+    && format(' [{0}]', github.event.inputs.e2e-invocation-id)
+    || ''
+  }}
 on:
   workflow_dispatch:
     inputs:
@@ -20,6 +26,12 @@ on:
         required: false
         type: boolean
         default: false
+      e2e-invocation-id:
+        description: >-
+          Optional correlation token for live E2E run selection and issue bodies.
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -40,3 +52,4 @@ jobs:
       # workflow_dispatch booleans arrive as strings in github.event.inputs.
       e2e-autodoc-mode: ${{ github.event.inputs.e2e-autodoc-mode == 'true' }}
       e2e-repo-scheduled-mode: ${{ github.event.inputs.e2e-repo-scheduled-mode == 'true' }}
+      e2e-invocation-id: ${{ github.event.inputs.e2e-invocation-id }}

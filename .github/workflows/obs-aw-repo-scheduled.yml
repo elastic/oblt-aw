@@ -36,6 +36,13 @@ on:
         required: false
         type: boolean
         default: false
+      e2e-invocation-id:
+        description: >-
+          Optional correlation token for live E2E (embedded in agent guidance
+          and issue bodies when e2e-repo-scheduled-mode is true).
+        required: false
+        type: string
+        default: ""
     secrets:
       BUILDKITE_API_TOKEN:
         required: false
@@ -86,9 +93,14 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/_oblt-aw/scripts
         run: |
           set -euo pipefail
+          extra=()
+          if [ "${{ inputs.e2e-repo-scheduled-mode }}" = "true" ]; then
+            extra+=(--e2e-bait-only)
+          fi
           python _oblt-aw/scripts/repo_scheduled_instructions.py \
             --repo-root "${GITHUB_WORKSPACE}" \
-            --schedule-profile "${{ inputs.schedule-profile }}"
+            --schedule-profile "${{ inputs.schedule-profile }}" \
+            "${extra[@]}"
 
   resolve-apm-assets:
     if: >-
@@ -102,9 +114,10 @@ jobs:
     with:
       workflow-basename: obs-aw-repo-scheduled.yml
       # E2E mode is fixed platform text (not free-form). Keep production text when false.
-      platform-additional-instructions: ${{ inputs.e2e-repo-scheduled-mode && 'E2E_REPO_SCHEDULED_MODE=true. You are running the obs:repo-scheduled live E2E bait. Read `/tmp/gh-aw/repo-scheduled-instructions.md`. Create exactly one GitHub issue whose body includes `E2E_REPO_SCHEDULED_BAIT_MARKER` and cites `.github/ai/scheduled/e2e-repo-scheduled-bait.md`. Do not noop. Do not use Buildkite tools.' || 'You are running one consumer-defined scheduled automation (obs:repo-scheduled). Read and follow `/tmp/gh-aw/repo-scheduled-instructions.md` (consumer instruction body). Prefer noop when nothing is actionable. Call a safe-output tool before finishing. Use Buildkite MCP only when that file requires Buildkite data and buildkite-logs applies.' }}
+      platform-additional-instructions: ${{ inputs.e2e-repo-scheduled-mode && format('E2E_REPO_SCHEDULED_MODE=true. You are running the obs:repo-scheduled live E2E bait. Read `/tmp/gh-aw/repo-scheduled-instructions.md`. Create exactly one GitHub issue whose body includes `E2E_REPO_SCHEDULED_BAIT_MARKER`, cites `.github/ai/scheduled/e2e-repo-scheduled-bait.md`, and includes `E2E_INVOCATION_ID={0}`. Do not noop. Do not use Buildkite tools.', inputs.e2e-invocation-id) || 'You are running one consumer-defined scheduled automation (obs:repo-scheduled). Read and follow `/tmp/gh-aw/repo-scheduled-instructions.md` (consumer instruction body). Prefer noop when nothing is actionable. Call a safe-output tool before finishing. Use Buildkite MCP only when that file requires Buildkite data and buildkite-logs applies.' }}
 
   run-automation:
+    name: run-automation (${{ matrix.id }})
     if: >-
       inputs.shared-proceed == 'true' &&
       needs.discover-automations.outputs.has-matches == 'true'

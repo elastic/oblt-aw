@@ -20,5 +20,6 @@ When `E2E_REPO_SCHEDULED_MODE=true` is present:
 1. Create exactly one GitHub issue.
 2. Put `E2E_REPO_SCHEDULED_BAIT_MARKER` in the issue body.
 3. Cite the path `.github/ai/scheduled/e2e-repo-scheduled-bait.md` in the issue body.
-4. Do not use Buildkite tools.
-5. Do not call `noop`.
+4. If platform text includes `E2E_INVOCATION_ID=<token>`, copy that exact `E2E_INVOCATION_ID=<token>` line into the issue body.
+5. Do not use Buildkite tools.
+6. Do not call `noop`.
