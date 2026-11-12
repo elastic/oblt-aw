@@ -17,91 +17,184 @@ from __future__ import annotations
 
 import pathlib
 import sys
+import textwrap
 
 import pytest
+import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from repo_scheduled_instructions import (
-    SCHEDULED_INSTRUCTIONS_DIR,
     evaluate_for_profile,
     matrix_payload,
 )
 
 
-def _write_instruction(
-    repo: pathlib.Path,
-    name: str,
-    frontmatter: str,
-    body: str = "Do the work and prefer noop when nothing is actionable.\n",
-) -> None:
-    path = repo / SCHEDULED_INSTRUCTIONS_DIR / name
+def _write_file(repo: pathlib.Path, rel: str, content: str) -> pathlib.Path:
+    path = repo / rel
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f"---\n{frontmatter}\n---\n\n{body}", encoding="utf-8")
+    path.write_text(content, encoding="utf-8")
+    return path
 
 
-def test_no_directory_means_no_matches(tmp_path: pathlib.Path) -> None:
+def _write_apm(
+    repo: pathlib.Path,
+    automations: list[dict[str, object]],
+) -> None:
+    doc = {
+        "name": "fixture",
+        "version": "1.0.0",
+        "dependencies": {"apm": [], "mcp": []},
+        "x-oblt-aw": {
+            "version": 1,
+            "obs": {
+                "common": {},
+                "workflows": {
+                    "repo-scheduled": {
+                        "automations": automations,
+                    }
+                },
+            },
+        },
+    }
+    _write_file(repo, "apm.yml", yaml.safe_dump(doc, sort_keys=False))
+
+
+def test_no_apm_means_no_matches(tmp_path: pathlib.Path) -> None:
     result = evaluate_for_profile(tmp_path, "daily", env={})
     assert result.matching == []
     assert result.blocked == []
     assert result.errors == []
 
 
-def test_profile_filter_and_matrix(tmp_path: pathlib.Path) -> None:
-    _write_instruction(
+def test_profile_filter_and_matrix_from_apm(tmp_path: pathlib.Path) -> None:
+    _write_file(
         tmp_path,
-        "build-errors.md",
-        "schedule-profiles: [daily]\ncapabilities: []",
+        "docs/ai/build-errors.md",
+        "---\nschedule-profiles: [daily]\n---\n\nDo the work.\n",
     )
-    _write_instruction(
+    _write_file(
         tmp_path,
-        "nudge.md",
-        "id: merge-nudge\nschedule-profiles: [frequent]",
+        "prompts/nudge.md",
+        "---\nid: merge-nudge\nschedule-profiles: [frequent]\n---\n\nNudge.\n",
+    )
+    _write_apm(
+        tmp_path,
+        [
+            {"instructions-file": "docs/ai/build-errors.md"},
+            {"instructions-file": "prompts/nudge.md"},
+        ],
     )
     daily = evaluate_for_profile(tmp_path, "daily", env={})
     assert [a.automation_id for a in daily.matching] == ["build-errors"]
     frequent = evaluate_for_profile(tmp_path, "frequent", env={})
     assert [a.automation_id for a in frequent.matching] == ["merge-nudge"]
     payload = matrix_payload(daily.matching)
-    assert payload["include"][0]["path"].endswith(
-        ".github/ai/scheduled/build-errors.md"
-    )
+    assert payload["include"][0]["path"] == "docs/ai/build-errors.md"
 
 
-def test_weekly_profile(tmp_path: pathlib.Path) -> None:
-    _write_instruction(
+def test_apm_schedule_profiles_and_capabilities_override_frontmatter(
+    tmp_path: pathlib.Path,
+) -> None:
+    _write_file(
         tmp_path,
-        "build-error-triage.md",
-        "schedule-profiles: [weekly]\ncapabilities: [buildkite-logs]",
+        "ai/triage.md",
+        textwrap.dedent(
+            """\
+            ---
+            id: ignored-id
+            schedule-profiles: [daily]
+            capabilities: []
+            ---
+
+            Triage builds.
+            """
+        ),
+    )
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "id": "build-error-triage",
+                "instructions-file": "ai/triage.md",
+                "schedule-profiles": ["weekly"],
+                "capabilities": ["buildkite-logs"],
+            }
+        ],
     )
     blocked = evaluate_for_profile(tmp_path, "weekly", env={})
     assert blocked.matching == []
     assert len(blocked.blocked) == 1
-    assert "BUILDKITE_API_TOKEN" in blocked.blocked[0]["reason"]
+    assert blocked.blocked[0]["id"] == "build-error-triage"
 
     ok = evaluate_for_profile(tmp_path, "weekly", env={"BUILDKITE_API_TOKEN": "token"})
     assert [a.automation_id for a in ok.matching] == ["build-error-triage"]
-    assert ok.blocked == []
+    assert ok.matching[0].capabilities == ("buildkite-logs",)
+    # APM profiles win — daily frontmatter must not match.
+    daily = evaluate_for_profile(
+        tmp_path, "daily", env={"BUILDKITE_API_TOKEN": "token"}
+    )
+    assert daily.matching == []
 
 
-def test_unknown_profile_in_frontmatter(tmp_path: pathlib.Path) -> None:
-    _write_instruction(
+def test_body_without_frontmatter_ok_when_apm_has_profiles(
+    tmp_path: pathlib.Path,
+) -> None:
+    _write_file(tmp_path, "notes/plain.md", "Just do the scheduled work.\n")
+    _write_apm(
         tmp_path,
-        "bad.md",
-        "schedule-profiles: [monthly]",
+        [
+            {
+                "id": "plain-job",
+                "instructions-file": "notes/plain.md",
+                "schedule-profiles": ["daily"],
+            }
+        ],
     )
     result = evaluate_for_profile(tmp_path, "daily", env={})
-    assert result.matching == []
+    assert [a.automation_id for a in result.matching] == ["plain-job"]
+    assert result.errors == []
+
+
+def test_missing_schedule_profiles_everywhere_fails(tmp_path: pathlib.Path) -> None:
+    _write_file(tmp_path, "notes/plain.md", "Body only.\n")
+    _write_apm(
+        tmp_path,
+        [{"instructions-file": "notes/plain.md"}],
+    )
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert result.errors
+    assert "schedule-profiles is required" in result.errors[0]
+
+
+def test_unknown_profile_in_apm(tmp_path: pathlib.Path) -> None:
+    _write_file(tmp_path, "x.md", "Body.\n")
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "instructions-file": "x.md",
+                "schedule-profiles": ["monthly"],
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "daily", env={})
     assert result.errors
     assert "unknown schedule-profiles" in result.errors[0]
 
 
-def test_unknown_capability(tmp_path: pathlib.Path) -> None:
-    _write_instruction(
+def test_unknown_capability_in_apm(tmp_path: pathlib.Path) -> None:
+    _write_file(tmp_path, "x.md", "Body.\n")
+    _write_apm(
         tmp_path,
-        "bad-cap.md",
-        "schedule-profiles: [daily]\ncapabilities: [not-a-real-cap]",
+        [
+            {
+                "instructions-file": "x.md",
+                "schedule-profiles": ["daily"],
+                "capabilities": ["not-a-real-cap"],
+            }
+        ],
     )
     result = evaluate_for_profile(tmp_path, "daily", env={})
     assert result.errors
@@ -109,33 +202,199 @@ def test_unknown_capability(tmp_path: pathlib.Path) -> None:
 
 
 def test_empty_body_rejected(tmp_path: pathlib.Path) -> None:
-    path = tmp_path / SCHEDULED_INSTRUCTIONS_DIR / "empty.md"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("---\nschedule-profiles: [daily]\n---\n\n", encoding="utf-8")
+    _write_file(tmp_path, "empty.md", "---\nschedule-profiles: [daily]\n---\n\n")
+    _write_apm(tmp_path, [{"instructions-file": "empty.md"}])
     result = evaluate_for_profile(tmp_path, "daily", env={})
     assert result.errors
     assert "empty" in result.errors[0]
 
 
-def test_missing_frontmatter_rejected(tmp_path: pathlib.Path) -> None:
-    path = tmp_path / SCHEDULED_INSTRUCTIONS_DIR / "plain.md"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("just text\n", encoding="utf-8")
+def test_missing_instructions_file_fails(tmp_path: pathlib.Path) -> None:
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "instructions-file": "missing.md",
+                "schedule-profiles": ["daily"],
+            }
+        ],
+    )
     result = evaluate_for_profile(tmp_path, "daily", env={})
     assert result.errors
-    assert "frontmatter" in result.errors[0]
+    assert "not found" in result.errors[0]
+
+
+def test_path_escape_rejected(tmp_path: pathlib.Path) -> None:
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "instructions-file": "../outside.md",
+                "schedule-profiles": ["daily"],
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert result.errors
+    assert ".." in result.errors[0]
+
+
+def test_symlink_escape_rejected(tmp_path: pathlib.Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    outside = tmp_path / "outside.md"
+    outside.write_text(
+        "---\nschedule-profiles: [daily]\n---\n\nLeaked body.\n",
+        encoding="utf-8",
+    )
+    link = repo / "link.md"
+    link.symlink_to(outside)
+    _write_apm(
+        repo,
+        [
+            {
+                "instructions-file": "link.md",
+                "schedule-profiles": ["daily"],
+            }
+        ],
+    )
+    result = evaluate_for_profile(repo, "daily", env={})
+    assert result.errors
+    assert "escapes repository root" in result.errors[0]
+
+
+def test_inline_instructions_from_apm(tmp_path: pathlib.Path) -> None:
+    inline = "Nudge idle pull requests.\n"
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "id": "weekly-nudge",
+                "schedule-profiles": ["weekly"],
+                "instructions": inline,
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "weekly", env={})
+    assert [a.automation_id for a in result.matching] == ["weekly-nudge"]
+    assert result.matching[0].path == ""
+    assert result.matching[0].instructions == inline
+    payload = matrix_payload(result.matching)
+    assert payload["include"][0]["instructions"] == inline
+    assert payload["include"][0]["path"] == ""
+
+
+def test_inline_preserves_body_thematic_breaks_after_frontmatter(
+    tmp_path: pathlib.Path,
+) -> None:
+    inline = textwrap.dedent(
+        """\
+        ---
+        schedule-profiles: [daily]
+        ---
+
+        ---
+        keep-this-constraint: true
+        ---
+
+        Do the scheduled work.
+        """
+    )
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "id": "thematic-break-body",
+                "instructions": inline,
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert [a.automation_id for a in result.matching] == ["thematic-break-body"]
+    assert result.matching[0].instructions == inline
+    assert "keep-this-constraint: true" in result.matching[0].instructions
+
+
+def test_inline_requires_id(tmp_path: pathlib.Path) -> None:
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "schedule-profiles": ["daily"],
+                "instructions": "Do the work.\n",
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert result.errors
+    assert "id is required for inline" in result.errors[0]
+
+
+def test_instructions_file_and_inline_both_rejected(tmp_path: pathlib.Path) -> None:
+    _write_file(tmp_path, ".github/oblt-aw/scheduled/x.md", "Body.\n")
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "id": "both",
+                "instructions-file": ".github/oblt-aw/scheduled/x.md",
+                "instructions": "Also inline.\n",
+                "schedule-profiles": ["daily"],
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert result.errors
+    assert "not both" in result.errors[0]
+
+
+def test_apm_yaml_only_discovers_automations(tmp_path: pathlib.Path) -> None:
+    _write_file(
+        tmp_path,
+        "jobs/daily.md",
+        "---\nschedule-profiles: [daily]\n---\n\nDo work.\n",
+    )
+    doc = {
+        "name": "fixture",
+        "version": "1.0.0",
+        "dependencies": {"apm": [], "mcp": []},
+        "x-oblt-aw": {
+            "version": 1,
+            "obs": {
+                "common": {},
+                "workflows": {
+                    "repo-scheduled": {
+                        "automations": [
+                            {"instructions-file": "jobs/daily.md"},
+                        ],
+                    }
+                },
+            },
+        },
+    }
+    _write_file(tmp_path, "apm.yaml", yaml.safe_dump(doc, sort_keys=False))
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert [a.automation_id for a in result.matching] == ["daily"]
+    assert result.errors == []
 
 
 def test_duplicate_ids(tmp_path: pathlib.Path) -> None:
-    _write_instruction(
+    _write_file(tmp_path, "one.md", "Body one.\n")
+    _write_file(tmp_path, "two.md", "Body two.\n")
+    _write_apm(
         tmp_path,
-        "one.md",
-        "id: shared\nschedule-profiles: [daily]",
-    )
-    _write_instruction(
-        tmp_path,
-        "two.md",
-        "id: shared\nschedule-profiles: [daily]",
+        [
+            {
+                "id": "shared",
+                "instructions-file": "one.md",
+                "schedule-profiles": ["daily"],
+            },
+            {
+                "id": "shared",
+                "instructions-file": "two.md",
+                "schedule-profiles": ["daily"],
+            },
+        ],
     )
     result = evaluate_for_profile(tmp_path, "daily", env={})
     assert any("duplicate automation id" in e for e in result.errors)

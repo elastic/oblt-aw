@@ -28,9 +28,15 @@ on:
         required: false
         default: ""
       instruction-path:
-        description: "Repo-relative path to the consumer instruction Markdown file"
+        description: "Repo-relative path to the consumer instruction Markdown file (empty when using inline instructions)"
         type: string
-        required: true
+        required: false
+        default: ""
+      instructions:
+        description: "Inline instruction Markdown body from apm.yml (empty when using instructions-file)"
+        type: string
+        required: false
+        default: ""
     secrets:
       BUILDKITE_API_TOKEN:
         required: false
@@ -101,6 +107,7 @@ steps:
     env:
       AUTOMATION_ID: ${{ inputs.automation-id }}
       INSTRUCTION_PATH: ${{ inputs.instruction-path }}
+      INSTRUCTIONS_INLINE: ${{ inputs.instructions }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw
@@ -110,20 +117,60 @@ steps:
       import re
       import sys
 
-      path = pathlib.Path(os.environ["INSTRUCTION_PATH"])
-      if not path.is_file():
-          print(f"instruction file missing: {path}", file=sys.stderr)
+      inline = os.environ.get("INSTRUCTIONS_INLINE", "")
+      path_raw = os.environ.get("INSTRUCTION_PATH", "").strip()
+      if inline.strip() and path_raw:
+          print(
+              "set either instruction-path or instructions, not both",
+              file=sys.stderr,
+          )
           sys.exit(1)
-      text = path.read_text(encoding="utf-8")
+      if inline.strip():
+          text = inline
+          source_label = "apm.yml#instructions"
+      elif path_raw:
+          declared = pathlib.Path(path_raw)
+          repo_root = pathlib.Path(".").resolve()
+          candidate = declared if declared.is_absolute() else repo_root / declared
+          if not candidate.exists():
+              print(f"instruction file missing: {declared}", file=sys.stderr)
+              sys.exit(1)
+          resolved = candidate.resolve()
+          try:
+              resolved.relative_to(repo_root)
+          except ValueError:
+              print(
+                  f"instruction file escapes repository root: {declared}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          if not resolved.is_file():
+              print(
+                  f"instruction file is not a regular file: {declared}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          text = resolved.read_text(encoding="utf-8")
+          source_label = (
+              declared.as_posix()
+              if not declared.is_absolute()
+              else resolved.relative_to(repo_root).as_posix()
+          )
+      else:
+          print(
+              "instruction-path or instructions is required",
+              file=sys.stderr,
+          )
+          sys.exit(1)
       match = re.match(r"\A---\s*\n.*?\n---\s*\n?(.*)\Z", text, re.DOTALL)
       body = match.group(1).strip() if match else text.strip()
       if not body:
-          print(f"instruction body empty: {path}", file=sys.stderr)
+          print(f"instruction body empty: {source_label}", file=sys.stderr)
           sys.exit(1)
       out = pathlib.Path("/tmp/gh-aw/repo-scheduled-instructions.md")
       out.write_text(
           f"# Automation `{os.environ.get('AUTOMATION_ID', '')}`\n\n"
-          f"Source: `{path.as_posix()}`\n\n{body}\n",
+          f"Source: `{source_label}`\n\n{body}\n",
           encoding="utf-8",
       )
       print(f"Wrote {out} ({out.stat().st_size} bytes)")
@@ -136,7 +183,7 @@ You run one **consumer-defined** scheduled automation for this repository.
 
 ## Instructions source
 
-1. Read `/tmp/gh-aw/repo-scheduled-instructions.md` (materialized from the consumer file under `.github/ai/scheduled/`). That file is the source of truth for detection, categorization, triage, and output shape.
+1. Read `/tmp/gh-aw/repo-scheduled-instructions.md` (materialized from the consumer `instructions-file` or inline `instructions` in `apm.yml`). That file is the source of truth for detection, categorization, triage, and output shape.
 2. Apply any extra guidance in `additional-instructions` (platform / optional APM overlays).
 
 Automation id: `${{ inputs.automation-id }}`
