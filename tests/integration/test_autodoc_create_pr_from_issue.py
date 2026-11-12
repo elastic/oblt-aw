@@ -237,6 +237,71 @@ class TestCreatePrSafeOutputPolicy:
         assert protected, "protected_files list must remain non-empty after excludes"
 
 
+class TestAutodocInvocationConcurrencyWiring:
+    """Static contract: schedule E2E invocation id reaches docs-patrol concurrency."""
+
+    def test_schedule_and_autodoc_forward_invocation_id_to_docs_patrol(self) -> None:
+        trigger = _load_yaml(
+            _root / ".github" / "workflows" / "e2e-trigger-obs-aw-schedule.yml"
+        )
+        schedule = _load_yaml(
+            _root / ".github" / "workflows" / "obs-aw-event-schedule.yml"
+        )
+        wrapper = _load_yaml(WRAPPER_PATH)
+        lock = _load_yaml(
+            _root / ".github" / "workflows" / "gh-aw-docs-patrol.lock.yml"
+        )
+
+        trigger_inputs = (
+            _workflow_on_block(trigger).get("workflow_dispatch") or {}
+        ).get("inputs") or {}
+        assert "e2e-invocation-id" in trigger_inputs
+        trigger_with = trigger["jobs"]["run-obs-aw-schedule"].get("with") or {}
+        assert (
+            trigger_with.get("e2e-invocation-id")
+            == "${{ github.event.inputs.e2e-invocation-id }}"
+        )
+
+        schedule_inputs = (_workflow_on_block(schedule).get("workflow_call") or {}).get(
+            "inputs"
+        ) or {}
+        assert "e2e-invocation-id" in schedule_inputs
+        autodoc_call = schedule["jobs"]["autodoc"].get("with") or {}
+        assert (
+            autodoc_call.get("e2e-invocation-id") == "${{ inputs.e2e-invocation-id }}"
+        )
+
+        wrapper_inputs = (_workflow_on_block(wrapper).get("workflow_call") or {}).get(
+            "inputs"
+        ) or {}
+        assert "e2e-invocation-id" in wrapper_inputs
+        audit_with = wrapper["jobs"]["audit"].get("with") or {}
+        assert audit_with.get("e2e-invocation-id") == "${{ inputs.e2e-invocation-id }}"
+        assert "gh-aw-docs-patrol.lock.yml" in str(wrapper["jobs"]["audit"]["uses"])
+
+        lock_call_inputs = (_workflow_on_block(lock).get("workflow_call") or {}).get(
+            "inputs"
+        ) or {}
+        assert "e2e-invocation-id" in lock_call_inputs
+        concurrency = lock.get("concurrency") or {}
+        group = str(concurrency.get("group") or "")
+        assert "inputs.e2e-invocation-id || 'prod'" in group, (
+            "docs-patrol must isolate concurrency by invocation id with prod fallback "
+            f"(got {group!r})"
+        )
+        assert concurrency.get("cancel-in-progress") is True
+
+    def test_distinct_invocation_ids_imply_distinct_concurrency_groups(self) -> None:
+        """Document the expression shape used for parallel E2E isolation."""
+        lock = _load_yaml(
+            _root / ".github" / "workflows" / "gh-aw-docs-patrol.lock.yml"
+        )
+        group = str((lock.get("concurrency") or {}).get("group") or "")
+        # Empty id → prod (shared cancel). Non-empty ids → distinct groups.
+        assert "|| 'prod'" in group
+        assert "e2e-invocation-id" in group
+
+
 class TestAutodocNotifyNoPr:
     def test_wrapper_notifies_on_success_without_pr(self) -> None:
         wrapper = _load_yaml(WRAPPER_PATH)

@@ -28,11 +28,21 @@ on:
         type: string
         required: false
         default: ""
+      e2e-invocation-id:
+        description: >-
+          Optional live-E2E correlation token. When set, scopes workflow
+          concurrency so parallel schedule E2E dispatches do not cancel each
+          other. Empty keeps the shared production group.
+        type: string
+        required: false
+        default: ""
   roles: [admin, maintainer, write]
   bots:
     - "github-actions[bot]"
 concurrency:
-  group: ${{ github.workflow }}-docs-patrol
+  # Production (empty id) shares one group and still cancels overlap.
+  # Live E2E passes a unique id so Autodoc + Repo scheduled can run in parallel.
+  group: ${{ github.workflow }}-docs-patrol-${{ inputs.e2e-invocation-id || 'prod' }}
   cancel-in-progress: true
 permissions:
   copilot-requests: write

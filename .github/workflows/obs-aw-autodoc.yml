@@ -28,6 +28,13 @@ on:
         required: false
         type: boolean
         default: false
+      e2e-invocation-id:
+        description: >-
+          Optional live-E2E correlation token forwarded to docs-patrol
+          concurrency so parallel schedule E2E runs do not cancel each other.
+        required: false
+        type: string
+        default: ""
 permissions:
   contents: read
 
@@ -62,6 +69,7 @@ jobs:
       # Lookback (1 day), title-prefix ([oblt-aw][autodoc]), model/bots/footer,
       # and failure-issue suppression are opinionated on the in-repo lock.
       additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
+      e2e-invocation-id: ${{ inputs.e2e-invocation-id }}
     secrets: inherit
 
   # Fix prompt lives in gh-aw-create-pr-from-issue.md; resolve still merges APM + autodocignore.

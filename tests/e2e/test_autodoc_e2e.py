@@ -529,6 +529,26 @@ class TestJobNameMatching:
         assert harness.schedule_audit_job_executed(detail) is False
         assert harness.audit_agent_succeeded(detail) is False
 
+    def test_cancelled_audit_agent_is_not_executed(self) -> None:
+        detail = {
+            "jobs": [
+                {
+                    "name": "autodoc / audit / agent",
+                    "conclusion": "cancelled",
+                }
+            ]
+        }
+        assert harness.schedule_audit_job_executed(detail) is False
+        assert harness.audit_agent_invoked(detail) is False
+        assert harness.audit_agent_succeeded(detail) is False
+        assert harness.autodoc_audit_job_conclusion(detail) == "cancelled"
+
+    def test_run_matches_invocation_token(self) -> None:
+        run = {"displayTitle": "E2E schedule [abc123deadbe]", "name": "E2E schedule"}
+        assert harness._run_matches_invocation(run, "abc123deadbe") is True
+        assert harness._run_matches_invocation(run, "other") is False
+        assert harness._run_matches_invocation(run, "") is True
+
     def test_failed_fix_leaf_counts_as_executed_not_succeeded(self) -> None:
         detail = {
             "jobs": [
@@ -633,11 +653,143 @@ class TestJobNameMatching:
         result = harness.wait_for_schedule_audit_run(
             "elastic/oblt-aw",
             "e2e-trigger-obs-aw-schedule.yml",
-            since=datetime(2026, 9, 24, 8, 0, tzinfo=timezone.utc),
+            since=datetime(2026, 9, 24, 8, 0, tzinfo=timezone.utc),  # noqa: UP017
             timeout_seconds=1,
             interval_seconds=0,
         )
         assert result == detail
+
+    def test_wait_for_schedule_audit_run_returns_cancelled_when_invocation_bound(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        run = {
+            "databaseId": 456,
+            "createdAt": "2026-09-24T09:00:00Z",
+            "event": "workflow_dispatch",
+            "displayTitle": "E2E schedule [invoketoken1]",
+            "name": "E2E schedule [invoketoken1]",
+        }
+        detail = {
+            "databaseId": 456,
+            "status": "completed",
+            "conclusion": "cancelled",
+            "url": "https://example.test/runs/456",
+            "displayTitle": "E2E schedule [invoketoken1]",
+            "jobs": [
+                {
+                    "name": "autodoc / audit / agent",
+                    "conclusion": "cancelled",
+                }
+            ],
+        }
+        monkeypatch.setattr(
+            harness, "list_schedule_trigger_runs", lambda *args, **kwargs: [run]
+        )
+        monkeypatch.setattr(harness.estc, "gh_json", lambda *args, **kwargs: detail)
+        result = harness.wait_for_schedule_audit_run(
+            "elastic/oblt-aw",
+            "e2e-trigger-obs-aw-schedule.yml",
+            since=datetime(2026, 9, 24, 8, 0, tzinfo=timezone.utc),  # noqa: UP017
+            timeout_seconds=1,
+            interval_seconds=0,
+            invocation_id="invoketoken1",
+        )
+        assert result == detail
+        assert harness.schedule_audit_job_executed(detail) is False
+
+    def test_wait_for_schedule_audit_run_ignores_unrelated_successful_sibling(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Parallel schedule E2E must bind polling to the dispatch token."""
+        sibling = {
+            "databaseId": 111,
+            "createdAt": "2026-09-24T09:00:00Z",
+            "event": "workflow_dispatch",
+            "displayTitle": "E2E schedule [othersibling]",
+            "name": "E2E schedule [othersibling]",
+        }
+        matched = {
+            "databaseId": 222,
+            "createdAt": "2026-09-24T09:00:01Z",
+            "event": "workflow_dispatch",
+            "displayTitle": "E2E schedule [mine123token]",
+            "name": "E2E schedule [mine123token]",
+        }
+        sibling_detail = {
+            "databaseId": 111,
+            "status": "completed",
+            "conclusion": "success",
+            "displayTitle": "E2E schedule [othersibling]",
+            "jobs": [
+                {
+                    "name": "autodoc / audit / agent",
+                    "conclusion": "success",
+                }
+            ],
+        }
+        matched_detail = {
+            "databaseId": 222,
+            "status": "completed",
+            "conclusion": "success",
+            "displayTitle": "E2E schedule [mine123token]",
+            "jobs": [
+                {
+                    "name": "autodoc / audit / agent",
+                    "conclusion": "success",
+                }
+            ],
+        }
+
+        def _gh_json(args: list[str], **kwargs: object) -> dict:
+            del kwargs
+            # ["run", "view", "<id>", ...]
+            run_id = int(args[2])
+            if run_id == 111:
+                return sibling_detail
+            if run_id == 222:
+                return matched_detail
+            raise AssertionError(f"unexpected run id {run_id}")
+
+        def _list_runs(*args: object, **kwargs: object) -> list[dict]:
+            del args, kwargs
+            return [sibling, matched]
+
+        monkeypatch.setattr(harness, "list_schedule_trigger_runs", _list_runs)
+        monkeypatch.setattr(harness.estc, "gh_json", _gh_json)
+
+        # Call waiter directly with token; assert sibling is skipped.
+        result = harness.wait_for_schedule_audit_run(
+            "elastic/oblt-aw",
+            "e2e-trigger-obs-aw-schedule.yml",
+            since=datetime(2026, 9, 24, 8, 0, tzinfo=timezone.utc),  # noqa: UP017
+            timeout_seconds=1,
+            interval_seconds=0,
+            invocation_id="mine123token",
+        )
+        assert result == matched_detail
+        assert result is not sibling_detail
+
+    def test_dispatch_schedule_trigger_forwards_nonempty_invocation_id(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        captured: list[list[str]] = []
+
+        def _gh_text(args: list[str], **kwargs: object) -> str:
+            del kwargs
+            captured.append(list(args))
+            return ""
+
+        monkeypatch.setattr(harness.estc, "gh_text", _gh_text)
+        harness.dispatch_schedule_trigger(
+            "elastic/oblt-aw",
+            "e2e-trigger-obs-aw-schedule.yml",
+            e2e_autodoc_mode=True,
+            invocation_id="abc123deadbe",
+        )
+        assert len(captured) == 1
+        args = captured[0]
+        assert "e2e-autodoc-mode=true" in args
+        assert "e2e-invocation-id=abc123deadbe" in args
 
 
 class TestIssueAndPrCorrelation:
