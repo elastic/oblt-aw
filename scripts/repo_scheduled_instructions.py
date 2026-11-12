@@ -257,9 +257,11 @@ def load_automation_from_apm_entry(
     else:
         if not isinstance(inline_value, str):
             raise TypeError(f"{source}: instructions must be a string")
-        meta, body = parse_instruction_text(inline_value, source=source)
+        # Keep the original Markdown in the matrix so the materializer strips
+        # frontmatter once (avoids dropping body text that starts with ---).
+        meta, _body = parse_instruction_text(inline_value, source=source)
         meta_source = f"{source} instructions"
-        instructions_payload = body
+        instructions_payload = inline_value
         default_id = None
 
     automation_id = entry.get("id")

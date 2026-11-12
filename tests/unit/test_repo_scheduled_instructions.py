@@ -264,23 +264,55 @@ def test_symlink_escape_rejected(tmp_path: pathlib.Path) -> None:
 
 
 def test_inline_instructions_from_apm(tmp_path: pathlib.Path) -> None:
+    inline = "Nudge idle pull requests.\n"
     _write_apm(
         tmp_path,
         [
             {
                 "id": "weekly-nudge",
                 "schedule-profiles": ["weekly"],
-                "instructions": "Nudge idle pull requests.\n",
+                "instructions": inline,
             }
         ],
     )
     result = evaluate_for_profile(tmp_path, "weekly", env={})
     assert [a.automation_id for a in result.matching] == ["weekly-nudge"]
     assert result.matching[0].path == ""
-    assert result.matching[0].instructions == "Nudge idle pull requests."
+    assert result.matching[0].instructions == inline
     payload = matrix_payload(result.matching)
-    assert payload["include"][0]["instructions"] == "Nudge idle pull requests."
+    assert payload["include"][0]["instructions"] == inline
     assert payload["include"][0]["path"] == ""
+
+
+def test_inline_preserves_body_thematic_breaks_after_frontmatter(
+    tmp_path: pathlib.Path,
+) -> None:
+    inline = textwrap.dedent(
+        """\
+        ---
+        schedule-profiles: [daily]
+        ---
+
+        ---
+        keep-this-constraint: true
+        ---
+
+        Do the scheduled work.
+        """
+    )
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "id": "thematic-break-body",
+                "instructions": inline,
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert [a.automation_id for a in result.matching] == ["thematic-break-body"]
+    assert result.matching[0].instructions == inline
+    assert "keep-this-constraint: true" in result.matching[0].instructions
 
 
 def test_inline_requires_id(tmp_path: pathlib.Path) -> None:

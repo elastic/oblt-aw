@@ -154,10 +154,16 @@
       "description": "One consumer-defined scheduled automation for obs:repo-scheduled. Provide instructions-file or instructions (not both).",
       "oneOf": [
         {
-          "required": ["instructions-file"]
+          "required": ["instructions-file"],
+          "not": {
+            "required": ["instructions"]
+          }
         },
         {
-          "required": ["instructions", "id"]
+          "required": ["instructions", "id"],
+          "not": {
+            "required": ["instructions-file"]
+          }
         }
       ],
       "properties": {
