@@ -43,6 +43,7 @@ for _path in (_E2E_DIR, _SCRIPTS_DIR):
         sys.path.insert(0, str(_path))
 
 estc = cast(Any, importlib.import_module("estc_pr_buildkite_detective_e2e_harness"))
+e2e_gh = cast(Any, importlib.import_module("e2e_gh"))
 oracle = cast(Any, importlib.import_module("oracle_repo_scheduled_e2e"))
 discovery = cast(Any, importlib.import_module("repo_scheduled_instructions"))
 
@@ -483,7 +484,7 @@ def dispatch_schedule_trigger(
 
 
 def _issue_body_matches_bait(body: str, bait_path: str) -> bool:
-    text = body or ""
+    text = e2e_gh.normalize_issue_body_for_markers(body)
     if E2E_REPO_SCHEDULED_BAIT_MARKER not in text:
         return False
     full_path, basename = bait_markers(bait_path)
@@ -530,7 +531,7 @@ def find_e2e_issue(
         created = estc._parse_gh_time(created_raw)
         if created < since:
             continue
-        body = str(issue.get("body") or "")
+        body = e2e_gh.normalize_issue_body_for_markers(str(issue.get("body") or ""))
         if not _issue_body_matches_bait(body, bait_path):
             continue
         if token and f"E2E_INVOCATION_ID={token}" not in body and token not in body:

@@ -379,6 +379,45 @@ class TestHarnessHelpers:
         )
         assert harness._run_matches_invocation({"displayTitle": "anything"}, "")
 
+    def test_issue_body_matches_markdown_escaped_markers(self) -> None:
+        bait = ".github/ai/scheduled/e2e-repo-scheduled-bait.md"
+        body = (
+            "Required markers:\n\n"
+            "- E2E\\_REPO\\_SCHEDULED\\_BAIT\\_MARKER\n"
+            "- Source fixture: `.github/ai/scheduled/e2e-repo-scheduled-bait.md`\n"
+            "- E2E\\_INVOCATION\\_ID=b8f9dc58b086\n"
+        )
+        assert harness._issue_body_matches_bait(body, bait)
+
+    def test_find_e2e_issue_matches_escaped_body(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = datetime(2026, 11, 12, 18, 0, 0, tzinfo=timezone.utc)  # noqa: UP017
+        body = (
+            "E2E\\_REPO\\_SCHEDULED\\_BAIT\\_MARKER\n"
+            "`.github/ai/scheduled/e2e-repo-scheduled-bait.md`\n"
+            "E2E\\_INVOCATION\\_ID=b8f9dc58b086\n"
+        )
+        issues = [
+            {
+                "number": 2551,
+                "title": "[oblt-aw][repo-scheduled] E2E bait",
+                "url": "https://example.test/issues/2551",
+                "createdAt": "2026-11-12T18:40:45Z",
+                "body": body,
+            }
+        ]
+        monkeypatch.setattr(harness.estc, "gh_json", lambda *_a, **_k: issues)
+        found = harness.find_e2e_issue(
+            "elastic/oblt-aw",
+            title_prefix="[oblt-aw][repo-scheduled]",
+            since=since,
+            bait_path=".github/ai/scheduled/e2e-repo-scheduled-bait.md",
+            invocation_id="b8f9dc58b086",
+        )
+        assert found is not None
+        assert found["number"] == 2551
+
     def test_wait_fail_closed_when_correlated_run_lacks_agent_leaf(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
