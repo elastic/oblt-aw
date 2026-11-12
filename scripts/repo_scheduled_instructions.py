@@ -17,11 +17,12 @@
 """Discover and filter consumer repo-scheduled automations from apm.yml.
 
 Consumers declare automations under
-``x-oblt-aw.obs.workflows.repo-scheduled.automations`` with an
-``instructions-file`` path. Optional ``schedule-profiles``, ``capabilities``,
-and ``id`` may live in the APM entry and/or the instruction file frontmatter
-(APM wins when both set). The framework owns cron, MCP, and secret wiring for
-allowlisted capability ids.
+``x-oblt-aw.obs.workflows.repo-scheduled.automations`` with either
+``instructions-file`` (recommended under ``.github/oblt-aw/scheduled/``) or
+inline ``instructions``. Optional ``schedule-profiles``, ``capabilities``,
+and ``id`` may live in the APM entry and/or instruction frontmatter
+(APM wins when both set). Inline entries require ``id``. The framework owns
+cron, MCP, and secret wiring for allowlisted capability ids.
 """
 
 from __future__ import annotations
@@ -55,12 +56,13 @@ _FRONTMATTER_RE = re.compile(
 
 @dataclass(frozen=True)
 class ScheduledAutomation:
-    """One consumer instruction file selected for a schedule wake."""
+    """One consumer automation selected for a schedule wake."""
 
     automation_id: str
     path: str
     schedule_profiles: tuple[str, ...]
     capabilities: tuple[str, ...]
+    instructions: str = ""
 
 
 @dataclass(frozen=True)
@@ -76,28 +78,35 @@ def _slug_from_stem(stem: str) -> str:
     return stem.strip().lower().replace("_", "-")
 
 
-def parse_instruction_file(path: Path) -> tuple[dict[str, Any], str]:
-    """Return (frontmatter mapping, body).
+def parse_instruction_text(text: str, *, source: str) -> tuple[dict[str, Any], str]:
+    """Return (frontmatter mapping, body) from Markdown text.
 
     Frontmatter is optional when metadata is supplied from apm.yml. The body
     must be non-empty either way.
     """
-    text = path.read_text(encoding="utf-8")
     match = _FRONTMATTER_RE.match(text)
     if match is None:
         body = text.strip()
         if not body:
-            raise ValueError(f"{path}: instruction body is empty")
+            raise ValueError(f"{source}: instruction body is empty")
         return {}, body
     raw = yaml.safe_load(match.group(1))
     if raw is None:
         raw = {}
     if not isinstance(raw, dict):
-        raise TypeError(f"{path}: frontmatter must be a YAML mapping")
+        raise TypeError(f"{source}: frontmatter must be a YAML mapping")
     body = match.group(2).strip()
     if not body:
-        raise ValueError(f"{path}: instruction body is empty")
+        raise ValueError(f"{source}: instruction body is empty")
     return raw, body
+
+
+def parse_instruction_file(path: Path) -> tuple[dict[str, Any], str]:
+    """Return (frontmatter mapping, body) from a Markdown file."""
+    return parse_instruction_text(
+        path.read_text(encoding="utf-8"),
+        source=path.as_posix(),
+    )
 
 
 def _as_str_list(value: Any, *, field: str, source: str) -> list[str]:
@@ -221,26 +230,50 @@ def read_automations_entries(apm: dict[str, Any]) -> list[dict[str, Any]]:
 def load_automation_from_apm_entry(
     repo_root: Path, entry: dict[str, Any], *, index: int
 ) -> ScheduledAutomation:
-    """Build one ScheduledAutomation from an APM automations[] entry + file."""
+    """Build one ScheduledAutomation from an APM automations[] entry."""
     source = f"apm.yml automations[{index}]"
-    instructions = entry.get("instructions-file")
-    if instructions is None:
-        raise ValueError(f"{source}: instructions-file is required (string)")
-    if not isinstance(instructions, str):
-        raise TypeError(f"{source}: instructions-file must be a string")
-    rel = _reject_path_escape(instructions, source=source)
-    resolved = _resolve_contained_file(repo_root, rel, source=source)
+    file_value = entry.get("instructions-file")
+    inline_value = entry.get("instructions")
+    has_file = file_value is not None
+    has_inline = inline_value is not None
+    if has_file and has_inline:
+        raise ValueError(
+            f"{source}: set either instructions-file or instructions, not both"
+        )
+    if not has_file and not has_inline:
+        raise ValueError(f"{source}: instructions-file or instructions is required")
 
-    meta, _body = parse_instruction_file(resolved)
-    file_source = rel.as_posix()
+    path = ""
+    instructions_payload = ""
+    if has_file:
+        if not isinstance(file_value, str):
+            raise TypeError(f"{source}: instructions-file must be a string")
+        rel = _reject_path_escape(file_value, source=source)
+        resolved = _resolve_contained_file(repo_root, rel, source=source)
+        meta, _body = parse_instruction_file(resolved)
+        meta_source = rel.as_posix()
+        path = rel.as_posix()
+        default_id: str | None = _slug_from_stem(rel.stem)
+    else:
+        if not isinstance(inline_value, str):
+            raise TypeError(f"{source}: instructions must be a string")
+        meta, body = parse_instruction_text(inline_value, source=source)
+        meta_source = f"{source} instructions"
+        instructions_payload = body
+        default_id = None
 
     automation_id = entry.get("id")
     if automation_id is None:
         automation_id = meta.get("id")
     if automation_id is None:
-        automation_id = _slug_from_stem(rel.stem)
+        automation_id = default_id
     if not isinstance(automation_id, str) or not automation_id.strip():
-        raise ValueError(f"{source}: id must be a non-empty string when set")
+        raise ValueError(
+            f"{source}: id is required for inline instructions "
+            "(or set a non-empty id / instructions-file stem)"
+            if has_inline
+            else f"{source}: id must be a non-empty string when set"
+        )
     automation_id = automation_id.strip()
 
     if "schedule-profiles" in entry:
@@ -253,12 +286,12 @@ def load_automation_from_apm_entry(
         profiles = _as_str_list(
             meta.get("schedule-profiles"),
             field="schedule-profiles",
-            source=file_source,
+            source=meta_source,
         )
     if not profiles:
         raise ValueError(
             f"{source}: schedule-profiles is required on the APM entry or "
-            f"in {file_source} frontmatter"
+            f"in {meta_source} frontmatter"
         )
     _validate_profiles(profiles, source=source)
 
@@ -272,15 +305,16 @@ def load_automation_from_apm_entry(
         capabilities = _as_str_list(
             meta.get("capabilities"),
             field="capabilities",
-            source=file_source,
+            source=meta_source,
         )
     _validate_capabilities(capabilities, source=source)
 
     return ScheduledAutomation(
         automation_id=automation_id,
-        path=rel.as_posix(),
+        path=path,
         schedule_profiles=tuple(profiles),
         capabilities=tuple(capabilities),
+        instructions=instructions_payload,
     )
 
 
@@ -325,10 +359,10 @@ def evaluate_for_profile(
 
     seen_ids: set[str] = set()
     for automation in automations:
+        location = automation.path or "apm.yml#instructions"
         if automation.automation_id in seen_ids:
             errors.append(
-                f"duplicate automation id {automation.automation_id!r} "
-                f"({automation.path})"
+                f"duplicate automation id {automation.automation_id!r} ({location})"
             )
             continue
         seen_ids.add(automation.automation_id)
@@ -341,7 +375,7 @@ def evaluate_for_profile(
             blocked.append(
                 {
                     "id": automation.automation_id,
-                    "path": automation.path,
+                    "path": location,
                     "missing-capabilities": ",".join(missing),
                     "reason": (
                         "requested capabilities require secrets that are not "
@@ -365,6 +399,7 @@ def matrix_payload(automations: list[ScheduledAutomation]) -> dict[str, Any]:
             {
                 "id": item.automation_id,
                 "path": item.path,
+                "instructions": item.instructions,
                 "capabilities": ",".join(item.capabilities),
             }
             for item in automations

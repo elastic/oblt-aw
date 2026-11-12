@@ -25,12 +25,14 @@ x-oblt-aw:
         inputs:
           additional-instructions: |
             Additional agent-suggestions-only instructions.
-      # Declared scheduled automations (obs:repo-scheduled). Paths are free-form;
-      # schedule-profiles / capabilities may live here and/or in the Markdown frontmatter.
+      # Declared scheduled automations (obs:repo-scheduled). Prefer
+      # .github/oblt-aw/scheduled/<name>.md; any repo-relative path or inline
+      # `instructions` (with id) also works. schedule-profiles / capabilities may
+      # live here and/or in Markdown frontmatter.
       repo-scheduled:
         automations:
           - id: build-error-triage
-            instructions-file: docs/ai/build-error-triage.md
+            instructions-file: .github/oblt-aw/scheduled/build-error-triage.md
             schedule-profiles: [weekly]
             capabilities: [buildkite-logs]
 

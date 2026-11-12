@@ -1,8 +1,9 @@
 name: Repo Scheduled
 
 # Generic scheduled AW. Consumers declare automations in apm.yml under
-# x-oblt-aw.obs.workflows.repo-scheduled.automations (instructions-file required;
-# schedule-profiles / capabilities / id in APM and/or file frontmatter; APM wins).
+# x-oblt-aw.obs.workflows.repo-scheduled.automations (instructions-file or
+# inline instructions; recommended path .github/oblt-aw/scheduled/;
+# schedule-profiles / capabilities / id in APM and/or frontmatter; APM wins).
 # Control Plane dashboard gate is shared-proceed; discovery is fail-closed.
 on:
   workflow_call:
@@ -119,6 +120,7 @@ jobs:
     with:
       automation-id: ${{ matrix.id }}
       instruction-path: ${{ matrix.path }}
+      instructions: ${{ matrix.instructions }}
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
     secrets:
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}

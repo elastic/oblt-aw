@@ -263,6 +263,59 @@ def test_symlink_escape_rejected(tmp_path: pathlib.Path) -> None:
     assert "escapes repository root" in result.errors[0]
 
 
+def test_inline_instructions_from_apm(tmp_path: pathlib.Path) -> None:
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "id": "weekly-nudge",
+                "schedule-profiles": ["weekly"],
+                "instructions": "Nudge idle pull requests.\n",
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "weekly", env={})
+    assert [a.automation_id for a in result.matching] == ["weekly-nudge"]
+    assert result.matching[0].path == ""
+    assert result.matching[0].instructions == "Nudge idle pull requests."
+    payload = matrix_payload(result.matching)
+    assert payload["include"][0]["instructions"] == "Nudge idle pull requests."
+    assert payload["include"][0]["path"] == ""
+
+
+def test_inline_requires_id(tmp_path: pathlib.Path) -> None:
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "schedule-profiles": ["daily"],
+                "instructions": "Do the work.\n",
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert result.errors
+    assert "id is required for inline" in result.errors[0]
+
+
+def test_instructions_file_and_inline_both_rejected(tmp_path: pathlib.Path) -> None:
+    _write_file(tmp_path, ".github/oblt-aw/scheduled/x.md", "Body.\n")
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "id": "both",
+                "instructions-file": ".github/oblt-aw/scheduled/x.md",
+                "instructions": "Also inline.\n",
+                "schedule-profiles": ["daily"],
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert result.errors
+    assert "not both" in result.errors[0]
+
+
 def test_apm_yaml_only_discovers_automations(tmp_path: pathlib.Path) -> None:
     _write_file(
         tmp_path,

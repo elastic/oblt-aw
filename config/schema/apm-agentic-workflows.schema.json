@@ -130,7 +130,7 @@
         },
         "automations": {
           "type": "array",
-          "description": "repo-scheduled only: declared scheduled automations. Each entry points at an instruction Markdown file; schedule-profiles and capabilities may be set here and/or in file frontmatter (APM wins when both set).",
+          "description": "repo-scheduled only: declared scheduled automations. Each entry uses instructions-file (recommended under .github/oblt-aw/scheduled/) or inline instructions; schedule-profiles and capabilities may be set here and/or in frontmatter (APM wins when both set).",
           "items": {
             "$ref": "#/$defs/repoScheduledAutomation"
           }
@@ -151,18 +151,30 @@
     "repoScheduledAutomation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["instructions-file"],
-      "description": "One consumer-defined scheduled automation for obs:repo-scheduled.",
+      "description": "One consumer-defined scheduled automation for obs:repo-scheduled. Provide instructions-file or instructions (not both).",
+      "oneOf": [
+        {
+          "required": ["instructions-file"]
+        },
+        {
+          "required": ["instructions", "id"]
+        }
+      ],
       "properties": {
         "id": {
           "type": "string",
           "minLength": 1,
-          "description": "Automation id (defaults to instruction file stem or frontmatter id)."
+          "description": "Automation id (required for inline instructions; otherwise defaults to instruction file stem or frontmatter id)."
+        },
+        "instructions": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Inline instruction Markdown body (optional YAML frontmatter). Mutually exclusive with instructions-file."
         },
         "instructions-file": {
           "type": "string",
           "minLength": 1,
-          "description": "Repo-relative path to the instruction Markdown body."
+          "description": "Repo-relative path to the instruction Markdown body. Recommended: .github/oblt-aw/scheduled/<name>.md. Mutually exclusive with instructions."
         },
         "schedule-profiles": {
           "oneOf": [

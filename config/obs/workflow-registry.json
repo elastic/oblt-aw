@@ -150,7 +150,7 @@
     {
       "id": "repo-scheduled",
       "name": "Repo Scheduled",
-      "description": "Runs consumer-defined scheduled automations declared in apm.yml (x-oblt-aw.obs.workflows.repo-scheduled.automations; lanes daily/frequent/weekly; optional buildkite-logs capability).",
+      "description": "Runs consumer-defined scheduled automations declared in apm.yml (instructions-file under .github/oblt-aw/scheduled/ recommended, or inline instructions; lanes daily/frequent/weekly; optional buildkite-logs capability).",
       "maturity": "experimental",
       "default_enabled": false,
       "docs": "docs/workflows/obs-aw-repo-scheduled.md",

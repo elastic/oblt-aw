@@ -4,7 +4,7 @@
 
 Source file: [.github/workflows/obs-aw-repo-scheduled.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-repo-scheduled.yml)
 
-Generic scheduled agentic workflow for **consumer-defined** automations. The framework owns compilation, the lock file, schedule lanes, and capability wiring. Consumers declare automations in `apm.yml`, point each entry at an instruction Markdown file, and enable the Control Plane dashboard checkbox `obs:repo-scheduled`.
+Generic scheduled agentic workflow for **consumer-defined** automations. The framework owns compilation, the lock file, schedule lanes, and capability wiring. Consumers declare automations in `apm.yml`, point each entry at an instruction Markdown file (or inline Markdown), and enable the Control Plane dashboard checkbox `obs:repo-scheduled`.
 
 ## Prerequisites
 
@@ -15,7 +15,9 @@ Generic scheduled agentic workflow for **consumer-defined** automations. The fra
 
 ## Consumer declaration (`apm.yml`)
 
-Declare automations under the Observability workflow block. Each entry requires `instructions-file`. Set `schedule-profiles` (and optional `id` / `capabilities`) on the APM entry and/or in the instruction file frontmatter. When both set a field, the APM value wins.
+Declare automations under the Observability workflow block. Each entry needs either `instructions-file` or inline `instructions` (not both). Set `schedule-profiles` (and optional `id` / `capabilities`) on the APM entry and/or in instruction frontmatter. When both set a field, the APM value wins.
+
+**Recommended path** for instruction files: `.github/oblt-aw/scheduled/<name>.md`. Other repo-relative paths still work.
 
 ```yaml
 x-oblt-aw:
@@ -26,7 +28,7 @@ x-oblt-aw:
       repo-scheduled:
         automations:
           - id: build-error-triage
-            instructions-file: docs/ai/build-error-triage.md
+            instructions-file: .github/oblt-aw/scheduled/build-error-triage.md
             schedule-profiles: [weekly]
             capabilities: [buildkite-logs]
 ```
@@ -44,14 +46,26 @@ capabilities:
 Detect Buildkite build errors over the last 7 days…
 ```
 
+Inline form (requires `id`; same schedule/capability rules):
+
+```yaml
+repo-scheduled:
+  automations:
+    - id: weekly-nudge
+      schedule-profiles: [weekly]
+      instructions: |
+        Scan open PRs older than 14 days and comment a short nudge when idle.
+```
+
 | Field | Where | Required | Meaning |
 |-------|-------|----------|---------|
-| `instructions-file` | APM only | yes | Repo-relative path to the Markdown body |
+| `instructions-file` | APM only | one of file/inline | Repo-relative Markdown path (prefer `.github/oblt-aw/scheduled/`) |
+| `instructions` | APM only | one of file/inline | Inline Markdown body (optional frontmatter); requires `id` |
 | `schedule-profiles` | APM and/or frontmatter | yes (one place) | One or more of `daily`, `frequent`, `weekly` |
 | `capabilities` | APM and/or frontmatter | no | Allowlisted ids (today: `buildkite-logs`) |
-| `id` | APM and/or frontmatter | no | Defaults to the instruction file stem |
+| `id` | APM and/or frontmatter | for inline; else optional | Defaults to the instruction file stem when using a file |
 
-Do **not** add consumer cron workflows, GH-AW sources, or lock files for this feature. Discovery does not glob a fixed directory; only APM-listed paths run.
+Do **not** add consumer cron workflows, GH-AW sources, or lock files for this feature. Discovery does not glob a fixed directory; only APM-listed automations run.
 
 ## Schedule lanes
 
@@ -78,8 +92,8 @@ Secrets are **optional** on the schedule call chain. If an automation lists a ca
 | Control Plane enablement | Dashboard checkbox `obs:repo-scheduled` |
 | Cron / lanes | Framework client templates |
 | MCP / secret maps for allowlisted capabilities | Framework |
-| Which files run | Consumer `apm.yml` automations list |
-| What the agent does | Consumer instruction files |
+| Which automations run | Consumer `apm.yml` automations list |
+| What the agent does | Consumer instruction files or inline `instructions` |
 
 ## Safe outputs and permissions
 
@@ -88,7 +102,7 @@ Non-destructive safe-outputs on the generic AW: `create-issue`, `add-comment`, `
 ## Migration notes (golang-crossbuild-style AWs)
 
 1. Enable **Repo Scheduled** on the Control Plane dashboard.
-2. Add an `apm.yml` automation with `instructions-file`, `schedule-profiles: [weekly]`, and `capabilities: [buildkite-logs]`; move prompt/skill text into the instruction body.
+2. Add an `apm.yml` automation with `instructions-file` under `.github/oblt-aw/scheduled/` (or inline `instructions` plus `id`), `schedule-profiles: [weekly]`, and `capabilities: [buildkite-logs]`; move prompt/skill text into the instruction body.
 3. Keep provisioning `BUILDKITE_LOGS_API_TOKEN`.
 4. Remove the consumer-owned `debug-build-report.md` / lock / local cron once the framework path is verified.
 
