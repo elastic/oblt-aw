@@ -49,6 +49,52 @@ KNOWN_CAPABILITIES: dict[str, str] = {
 }
 E2E_BAIT_AUTOMATION_ID = "e2e-repo-scheduled-bait"
 E2E_BAIT_PATH = ".github/ai/scheduled/e2e-repo-scheduled-bait.md"
+E2E_REPO_SCHEDULED_MODE_TOKEN = "E2E_REPO_SCHEDULED_MODE=true"
+
+
+def additional_instructions_enable_e2e(additional_instructions: str) -> bool:
+    """True when platform text enables the live E2E bait wake."""
+    return E2E_REPO_SCHEDULED_MODE_TOKEN in (additional_instructions or "")
+
+
+def build_materialized_instruction_markdown(
+    *,
+    automation_id: str,
+    source_label: str,
+    body: str,
+    additional_instructions: str = "",
+) -> str:
+    """Build ``/tmp/gh-aw/repo-scheduled-instructions.md`` contents.
+
+    When E2E mode is set in ``additional_instructions``, prepend an
+    authoritative E2E wake block so the agent source-of-truth file itself
+    contains ``E2E_REPO_SCHEDULED_MODE=true`` (avoids production-noop flakes).
+    """
+    chunks: list[str] = [
+        f"# Automation `{automation_id}`",
+        "",
+        f"Source: `{source_label}`",
+        "",
+    ]
+    extra = (additional_instructions or "").strip()
+    if additional_instructions_enable_e2e(extra):
+        chunks.extend(
+            [
+                "## Platform E2E wake (authoritative)",
+                "",
+                f"`{E2E_REPO_SCHEDULED_MODE_TOKEN}` is set for this wake.",
+                "Follow the E2E wake rules below and in additional-instructions.",
+                "Create exactly one GitHub issue. Do not call `noop`.",
+                "",
+                extra,
+                "",
+                "---",
+                "",
+            ]
+        )
+    chunks.append(body.rstrip() + "\n")
+    return "\n".join(chunks)
+
 
 _FRONTMATTER_RE = re.compile(
     r"\A---\s*\n(.*?)\n---\s*\n?(.*)\Z",

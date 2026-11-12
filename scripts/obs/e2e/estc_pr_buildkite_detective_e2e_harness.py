@@ -47,6 +47,13 @@ for _path in (_E2E_DIR, _SCRIPTS_DIR):
 
 from e2e_fixture_pr import ensure_pr_is_draft
 
+# Re-export: older harnesses import this module as a shared helper bag.
+# New call sites that only need ``gh`` JSON helpers should import ``e2e_gh``.
+from e2e_gh import (
+    gh_json,
+    gh_json_error_is_transient,  # noqa: F401
+)
+
 WORKFLOW_ID = "obs:estc-pr-buildkite-detective"
 DEFAULT_CONFIG = Path("config/obs/e2e-estc-pr-buildkite-detective.json")
 FAIL_STATES = ("failed", "timed_out")
@@ -73,11 +80,12 @@ def _load_json(path: Path) -> Any:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(timezone.utc)  # noqa: UP017
 
 
 def _parse_gh_time(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    # Keep Z→offset for runtimes where fromisoformat rejects trailing Z.
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))  # noqa: FURB162
 
 
 def _running_in_github_actions() -> bool:
@@ -195,22 +203,6 @@ def normalize_e2e_pr_config(cfg: dict[str, Any]) -> dict[str, Any]:
     out = dict(cfg)
     out["e2e_pr"] = e2e
     return out
-
-
-def gh_json(args: list[str], *, check: bool = True) -> Any:
-    proc = subprocess.run(
-        ["gh", *args],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if check and proc.returncode != 0:
-        raise RuntimeError(
-            f"gh {' '.join(args)} failed ({proc.returncode}): {proc.stderr.strip()}"
-        )
-    if not proc.stdout.strip():
-        return None
-    return json.loads(proc.stdout)
 
 
 def flatten_slurped_pages(payload: Any) -> list[Any]:

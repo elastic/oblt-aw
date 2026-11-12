@@ -317,6 +317,26 @@ class TestBuildkiteMcpOptional:
         assert '"required": false' in text[idx : idx + 800]
 
 
+class TestE2EModeMaterializeAndBait:
+    def test_materialize_step_bakes_e2e_flag_into_instructions_file(self) -> None:
+        text = (ROOT / ".github" / "workflows" / "gh-aw-repo-scheduled.md").read_text(
+            encoding="utf-8"
+        )
+        assert "ADDITIONAL_INSTRUCTIONS: ${{ inputs.additional-instructions }}" in text
+        assert 'E2E_MODE_TOKEN = "E2E_REPO_SCHEDULED_MODE=true"' in text
+        assert "## Platform E2E wake (authoritative)" in text
+        assert "Do not call `noop`" in text
+        assert "except" in text.lower() and "E2E_REPO_SCHEDULED_MODE=true" in text
+
+    def test_bait_checks_materialized_file_before_production_noop(self) -> None:
+        text = harness.bait_content()
+        e2e_idx = text.index("## E2E wakes")
+        prod_idx = text.index("## Production wakes")
+        assert e2e_idx < prod_idx
+        assert "materialized at `/tmp/gh-aw/repo-scheduled-instructions.md`" in text
+        assert "absent from **both**" in text
+
+
 class TestHarnessHelpers:
     def test_bait_content_requires_marker(self, tmp_path: pathlib.Path) -> None:
         path = tmp_path / "bait.md"

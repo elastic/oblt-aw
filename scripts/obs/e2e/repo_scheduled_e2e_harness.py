@@ -848,8 +848,13 @@ def run_live_case(
         issue_since = max(issue_since, since)
 
         if expect_issue:
-            issue_deadline = min(case_deadline, time.time() + 900)
-            while time.time() < issue_deadline:
+            # Schedule run (including safe_outputs) already completed. Issue
+            # creation is synchronous with that run — only allow a short API
+            # lag window, then fail closed (do not burn ~900s after a noop).
+            issue_grace_deadline = min(
+                case_deadline, time.time() + max(30, interval * 3)
+            )
+            while time.time() < issue_grace_deadline:
                 issue = find_e2e_issue(
                     repo,
                     title_prefix=title_prefix,
@@ -861,10 +866,13 @@ def run_live_case(
                     break
                 time.sleep(interval)
             if issue is None:
+                run_url = str(completed_run.get("url") or "").strip() or "(no url)"
                 result = _blocked(
-                    f"Timed out waiting for open issue with title prefix "
-                    f"{title_prefix!r}, bait markers for {bait_path!r}, "
-                    f"and invocation_id={invocation_id}",
+                    f"Schedule trigger completed with agent leaf success but no "
+                    f"open issue with title prefix {title_prefix!r}, bait markers "
+                    f"for {bait_path!r}, and invocation_id={invocation_id} "
+                    f"(run={run_url}). Failing closed — the agent likely noop'd "
+                    "or safe-outputs did not create the bait issue.",
                     path_gates={"dashboard_enabled": dashboard_ok},
                     invocation_id=invocation_id,
                     schedule_trigger=schedule_trigger_evidence(

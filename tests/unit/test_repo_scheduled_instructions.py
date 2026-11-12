@@ -28,6 +28,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from repo_scheduled_instructions import (
     E2E_BAIT_AUTOMATION_ID,
     E2E_BAIT_PATH,
+    E2E_REPO_SCHEDULED_MODE_TOKEN,
+    additional_instructions_enable_e2e,
+    build_materialized_instruction_markdown,
     evaluate_for_profile,
     gate_automations_by_capabilities,
     matrix_payload,
@@ -479,3 +482,42 @@ def test_injected_bait_blocked_without_capability_secret(
     assert len(blocked) == 1
     assert blocked[0]["id"] == E2E_BAIT_AUTOMATION_ID
     assert "buildkite-logs" in blocked[0]["missing-capabilities"]
+
+
+def test_additional_instructions_enable_e2e() -> None:
+    assert additional_instructions_enable_e2e(
+        f"{E2E_REPO_SCHEDULED_MODE_TOKEN}. Create issue."
+    )
+    assert not additional_instructions_enable_e2e(
+        "Prefer noop when nothing is actionable."
+    )
+
+
+def test_build_materialized_instruction_markdown_prepends_e2e_block() -> None:
+    text = build_materialized_instruction_markdown(
+        automation_id=E2E_BAIT_AUTOMATION_ID,
+        source_label=E2E_BAIT_PATH,
+        body="## E2E wakes\n\nCreate one issue.\n",
+        additional_instructions=(
+            f"{E2E_REPO_SCHEDULED_MODE_TOKEN}. "
+            "Create exactly one GitHub issue. Do not noop."
+        ),
+    )
+    assert "## Platform E2E wake (authoritative)" in text
+    assert E2E_REPO_SCHEDULED_MODE_TOKEN in text
+    assert "Do not call `noop`" in text
+    assert "## E2E wakes" in text
+    # Flag appears before consumer body so source-of-truth cannot miss it.
+    assert text.index(E2E_REPO_SCHEDULED_MODE_TOKEN) < text.index("## E2E wakes")
+
+
+def test_build_materialized_instruction_markdown_skips_e2e_without_flag() -> None:
+    text = build_materialized_instruction_markdown(
+        automation_id="docs-patrol",
+        source_label="apm.yml#instructions",
+        body="Prefer noop.\n",
+        additional_instructions="Prefer noop when nothing is actionable.",
+    )
+    assert "## Platform E2E wake" not in text
+    assert E2E_REPO_SCHEDULED_MODE_TOKEN not in text
+    assert "Prefer noop." in text
