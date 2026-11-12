@@ -174,7 +174,7 @@ class TestOracle:
     def test_rejects_partial_canary_env(self) -> None:
         outcome = _synthetic_live_outcome()
         outcome["fixture"]["comparable_secret_env_names"] = [
-            "E2E_OTLP_CANARY_ENDPOINT",
+            "E2E_OTLP_CANARY_BASIC_PASSWORD",
             "E2E_OTLP_CANARY_HEADERS",
         ]
         report = _evaluate(outcome)
