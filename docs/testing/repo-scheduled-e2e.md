@@ -27,7 +27,7 @@ Oracle pass/fail for agent side effects is **issue presence** (number + URL) plu
 1. **Control Plane dashboard** — enable `obs:repo-scheduled` for `elastic/oblt-aw`.
 2. **Bait fixture** — `.github/ai/scheduled/e2e-repo-scheduled-bait.md` must be present on the default branch (merged via normal PR).
 3. **Permissions** — the E2E workflow needs Actions write (dispatch schedule) and Issues write (close cleanup).
-4. **Collateral** — under `e2e-all.yml`, repo-scheduled runs **after** autodoc so the shared schedule trigger is not dispatched in parallel. Prefer `gh workflow run e2e-repo-scheduled.yml` for an isolated smoke.
+4. **Collateral** — under `e2e-all.yml`, repo-scheduled and autodoc can run in parallel, and both may dispatch the shared schedule trigger at the same time. Isolation is maintained via `e2e-invocation-id` in docs-patrol concurrency (`cancel-in-progress`), so correlated runs stay separated. Prefer `gh workflow run e2e-repo-scheduled.yml` for an isolated smoke.
 5. **Duration** — budget agent time for the issue case; failed discovers/agent skips should surface in minutes, not hours.
 
 ## How to run
