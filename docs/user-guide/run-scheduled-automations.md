@@ -4,7 +4,7 @@
 
 Use **Repo Scheduled** (`obs:repo-scheduled`) when you want a cron-driven agent in your repository, but you do not want to own GH-AW compilation, lock files, or schedule client YAML.
 
-You write the automation as instruction Markdown (and optional allowlisted capabilities). `oblt-aw` owns the generic agentic workflow, schedule lanes (`daily` / `frequent` / `weekly`), dashboard gating, and capability wiring such as Buildkite logs.
+You write the automation as instruction Markdown (and optional allowlisted capabilities). The **framework** owns the generic agentic workflow, schedule lanes (`daily` / `frequent` / `weekly`), lock compilation, and capability wiring such as Buildkite logs. The **control plane** (Control Plane dashboard and prelude) only enables or gates whether Repo Scheduled runs for the repository.
 
 This guide is the user journey for consumer-defined cron agents. Together with [Define local AI assets](local-ai-assets.md), it sits under [Customize in your repository (BYO)](index.md#customize-in-your-repository-byo). Contract detail lives in [Repo Scheduled](../workflows/obs-aw-repo-scheduled.md) ([#2197](https://github.com/elastic/oblt-aw/issues/2197)).
 
@@ -30,7 +30,7 @@ flowchart TD
 
 | Concern | Owner |
 |---------|--------|
-| Dashboard enablement (`obs:repo-scheduled`) | You (checkbox) |
+| Dashboard enablement (`obs:repo-scheduled`) | You via Control Plane dashboard (control plane) |
 | Cron clients and lanes | Framework |
 | Lock file / AW compilation | Framework |
 | Which automations run | Your `apm.yml` `automations` list |
