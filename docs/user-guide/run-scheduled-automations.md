@@ -136,10 +136,20 @@ List one or more profiles per automation. On each wake, only automations whose e
 Repo Scheduled still calls [resolve agentic assets](../workflows/aw-resolve-agentic-assets.md) before the agent leaf. For this route:
 
 - Put the full agent brief in the instruction Markdown or inline `instructions` (this is what the scheduled agent receives).
-- Use allowlisted `capabilities` (today: `buildkite-logs`) when you need framework-wired tools and secrets.
+- Set optional `capabilities` only from the allowlist below when you need framework-wired tools and secrets.
 - Use `obs.common` / other `workflows.<id>` blocks for shared setup or instructions on **other** agentic workflows; `workflows.repo-scheduled` is the override block for this route and holds the `automations` list.
 
 Do **not** rely on top-level `dependencies.apm` for Repo Scheduled behavior. That install runs in the resolve job; the scheduled agent gets the resolved instruction text, not the installed package files or MCP config from those packages. For skills-style guidance on this route, put it in the instruction body. Broader APM package use on other workflows: [Define local AI assets](local-ai-assets.md).
+
+### Capabilities
+
+Only these ids are allowed. Omit `capabilities` when the agent only needs the instruction text and default safe outputs.
+
+| Capability | Meaning | Secret |
+|------------|---------|--------|
+| `buildkite-logs` | Wires Buildkite MCP so the agent can read Buildkite logs | `BUILDKITE_LOGS_API_TOKEN` — required when this capability is listed; missing secret fails the wake closed |
+
+Framework wiring detail: [Repo Scheduled → Capabilities](../workflows/obs-aw-repo-scheduled.md#capabilities).
 
 ## Example use cases (instruction content)
 
