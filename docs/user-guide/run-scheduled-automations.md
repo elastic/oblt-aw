@@ -116,7 +116,7 @@ Uncheck the dashboard box to stop all consumer-defined scheduled automations for
 
 If the repository already runs a local GH-AW (source `.md`, generated `.lock.yml`, compiler pin, and its own `schedule` trigger):
 
-1. Enable **Repo Scheduled** and add an `apm.yml` automation that points at your prompt text (move it under `.github/oblt-aw/scheduled/` or use inline `instructions` with an `id`).
+1. Enable **Repo Scheduled** and add an `apm.yml` automation that points at your prompt text via `instructions-file` (any repo-relative path; `.github/oblt-aw/scheduled/` is recommended) or inline `instructions` with an `id`.
 2. Keep the same lane and secrets (for Buildkite triage: `weekly` + `BUILDKITE_LOGS_API_TOKEN`).
 3. Prove one green framework path (schedule or `workflow_dispatch`).
 4. Remove the consumer lock, local cron workflow, and compile-check plumbing for that AW so you do not double-run.
