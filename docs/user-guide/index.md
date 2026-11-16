@@ -1,6 +1,6 @@
 ---
 navigation_title: User guide
-description: What Elastic developers do with oblt-aw — onboard, enable or disable agentic workflows, define local AI assets, run scheduled automations, and choose Automerge dependency collections.
+description: What Elastic developers do with oblt-aw — onboard and enable platform workflows, customize with local AI assets or scheduled automations (BYO), and choose Automerge dependency collections.
 applies_to: {}
 ---
 
@@ -15,15 +15,24 @@ Procedures for developers and target repository owners who use OBLT Agentic Work
 
 ## I want to…
 
+### Use platform workflows
+
 | Goal | Guide |
 |------|--------|
 | Onboard a repository that is not registered yet | [Onboard a repository](onboard-a-repository.md) |
 | Enable or disable an agentic workflow from the Control Plane dashboard | [Enable or disable an agentic workflow](enable-a-new-workflow.md) |
 | Opt in or opt out of Automerge dependency collections from the Control Plane dashboard | [Opt in or opt out of Automerge dependency collections](opt-in-opt-out.md) |
-| Define local AI assets (`apm.yml` / `x-oblt-aw`) in a target repository | [Define local AI assets](local-ai-assets.md) |
-| Run your own scheduled automations (`obs:repo-scheduled`) | [Run your own scheduled automations](run-scheduled-automations.md) |
 | Choose which dependency collections Automerge covers | [Choose Automerge dependency collections](automerge-services.md) |
 | See what agentic workflows do and when they run | [Agentic workflow catalog by outcome](../knowledge-base/agentic-workflows/by-outcome.md) |
+
+### Customize in your repository (BYO)
+
+Bring your own behavior in the target repo while the control plane still owns runtime, locks, and schedule clients. Both guides use root `apm.yml` under `x-oblt-aw`.
+
+| Goal | Guide |
+|------|--------|
+| Define local AI assets for shipped agentic workflows | [Define local AI assets](local-ai-assets.md) |
+| Run your own scheduled automations (`obs:repo-scheduled`) | [Run your own scheduled automations](run-scheduled-automations.md) |
 
 ## Related
 

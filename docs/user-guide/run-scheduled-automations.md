@@ -6,7 +6,7 @@ Use **Repo Scheduled** (`obs:repo-scheduled`) when you want a cron-driven agent 
 
 You write the automation as instruction Markdown (and optional allowlisted capabilities). `oblt-aw` owns the generic agentic workflow, schedule lanes (`daily` / `frequent` / `weekly`), dashboard gating, and capability wiring such as Buildkite logs.
 
-This guide is the user journey. Contract detail lives in [Repo Scheduled](../workflows/obs-aw-repo-scheduled.md) ([#2197](https://github.com/elastic/oblt-aw/issues/2197)).
+This guide is the user journey for consumer-defined cron agents. Together with [Define local AI assets](local-ai-assets.md), it sits under [Customize in your repository (BYO)](index.md#customize-in-your-repository-byo). Contract detail lives in [Repo Scheduled](../workflows/obs-aw-repo-scheduled.md) ([#2197](https://github.com/elastic/oblt-aw/issues/2197)).
 
 ```mermaid
 flowchart TD
