@@ -27,7 +27,7 @@ Procedures for developers and target repository owners who use OBLT Agentic Work
 
 ### Customize in your repository (BYO)
 
-Bring your own behavior in the target repo. The **framework** owns runtime, locks, and schedule clients; the **control plane** (Control Plane dashboard and prelude) only enables or gates those agentic workflows. See [Glossary](../glossary.md#control-plane). Both guides use root `apm.yml` under `x-oblt-aw`.
+You bring the behavior: instruction text, optional local AI assets, and (for schedules) which automations run. You turn workflows on from the Control Plane dashboard. You do not own locks, schedule clients, or compilation — oblt-aw does. Both guides use root `apm.yml` under `x-oblt-aw`.
 
 | Goal | Guide |
 |------|--------|
