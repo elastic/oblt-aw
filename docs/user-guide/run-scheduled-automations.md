@@ -23,7 +23,7 @@ flowchart TD
 ## Prerequisites
 
 - The repository is registered and Observability schedule clients are installed (`trigger-obs-aw-schedule-daily.yml`, `trigger-obs-aw-schedule-frequent.yml`, `trigger-obs-aw-schedule-weekly.yml`). See [Onboard a repository](onboard-a-repository.md).
-- You can edit the Control Plane dashboard issue (`label:oblt-aw/dashboard`) and commit to the default branch (or the branch the schedule checks out).
+- **Repo Scheduled** (`obs:repo-scheduled`) is checked on the Control Plane dashboard. See [Enable or disable an agentic workflow](enable-a-new-workflow.md).
 - You know which lane you need: `daily`, `frequent`, or `weekly` (see [Schedule lanes](#schedule-lanes)).
 
 ## Who owns what
@@ -43,9 +43,7 @@ flowchart TD
 
 Goal: one scheduled agent that creates an issue or comments when your instructions say so.
 
-1. **Enable Repo Scheduled** — On the Control Plane dashboard, check **Repo Scheduled** (`obs:repo-scheduled`). Checking the box does not run the agent immediately; the next matching schedule wake applies gating. See [Enable or disable an agentic workflow](enable-a-new-workflow.md).
-
-2. **Add root `apm.yml`** — Declare at least one automation under `x-oblt-aw.obs.workflows.repo-scheduled.automations`. Prefer an `instructions-file` under `.github/oblt-aw/scheduled/`. Every org block still needs `common` (it can be empty `{}`).
+1. **Add root `apm.yml`** — Declare at least one automation under `x-oblt-aw.obs.workflows.repo-scheduled.automations`. Prefer an `instructions-file` under `.github/oblt-aw/scheduled/`. Every org block still needs `common` (it can be empty `{}`).
 
 ```yaml
 x-oblt-aw:
@@ -60,7 +58,7 @@ x-oblt-aw:
             schedule-profiles: [weekly]
 ```
 
-3. **Write the instruction file** — Put the agent brief in the Markdown body. Frontmatter is optional when `schedule-profiles` (and optional `id` / `capabilities`) are already set in `apm.yml`.
+2. **Write the instruction file** — Put the agent brief in the Markdown body. Frontmatter is optional when `schedule-profiles` (and optional `id` / `capabilities`) are already set in `apm.yml`.
 
 ```markdown
 ---
@@ -72,11 +70,11 @@ Add a short comment that asks for an update or a close decision.
 Do not change repository files.
 ```
 
-4. **Merge to the default branch** — Discovery reads the consumer checkout for that schedule run.
+3. **Merge to the default branch** — Discovery reads the consumer checkout for that schedule run.
 
-5. **Wait for the weekly lane** — `trigger-obs-aw-schedule-weekly.yml` (typical cron `0 6 * * 1` UTC). Or ask a maintainer to dispatch the schedule client with the weekly profile when your repo allows `workflow_dispatch`.
+4. **Wait for the weekly lane** — `trigger-obs-aw-schedule-weekly.yml` (typical cron `0 6 * * 1` UTC). Or ask a maintainer to dispatch the schedule client with the weekly profile when your repo allows `workflow_dispatch`.
 
-6. **Confirm in Actions** — Open the schedule client run in your repository. Expect prelude gating for `obs:repo-scheduled`, a discover step that lists your automation id, then an agent leaf for that id. Safe outputs are non-destructive (`create-issue`, `add-comment`, `add-labels`); there is no `contents: write`.
+5. **Confirm in Actions** — Open the schedule client run in your repository. Expect prelude gating for `obs:repo-scheduled`, a discover step that lists your automation id, then an agent leaf for that id. Safe outputs are non-destructive (`create-issue`, `add-comment`, `add-labels`); there is no `contents: write`.
 
 ### Buildkite build-error triage (capability + secret)
 
