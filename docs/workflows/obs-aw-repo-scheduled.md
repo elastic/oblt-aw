@@ -6,6 +6,8 @@ Source file: [.github/workflows/obs-aw-repo-scheduled.yml](https://github.com/el
 
 Generic scheduled agentic workflow for **consumer-defined** automations. The framework owns compilation, the lock file, schedule lanes, and capability wiring. Consumers declare automations in `apm.yml`, point each entry at an instruction Markdown file (or inline Markdown), and enable the Control Plane dashboard checkbox `obs:repo-scheduled`.
 
+User journeys (enable, declare, Buildkite triage, fail-closed, migrate): [Run your own scheduled automations](../user-guide/run-scheduled-automations.md).
+
 ## Prerequisites
 
 - Repository registered and schedule clients installed ([Onboard a repository](../user-guide/onboard-a-repository.md)).
@@ -112,6 +114,7 @@ Live production-path validation lives under [repo-scheduled-e2e](../testing/repo
 
 ## References
 
+- User journeys: [Run your own scheduled automations](../user-guide/run-scheduled-automations.md)
 - Routing: [docs/routing/repo-scheduled-routing.md](../routing/repo-scheduled-routing.md)
 - Schedule orchestrator: [obs-aw-event-schedule.md](obs-aw-event-schedule.md)
 - Client templates: [obs-aw-client-template.md](obs-aw-client-template.md)

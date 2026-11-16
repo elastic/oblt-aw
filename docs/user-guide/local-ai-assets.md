@@ -88,3 +88,4 @@ If `apm install` fails, the resolve job warns and continues; instruction resolut
 - [Resolve agentic assets](../workflows/aw-resolve-agentic-assets.md) — reusable workflow contract
 - [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format
 - [Enable or disable an agentic workflow](enable-a-new-workflow.md)
+- [Run your own scheduled automations](run-scheduled-automations.md) — consumer-defined cron via `obs:repo-scheduled`

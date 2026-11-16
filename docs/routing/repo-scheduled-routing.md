@@ -15,4 +15,5 @@
 
 ## References
 
+- [Run your own scheduled automations](../user-guide/run-scheduled-automations.md)
 - [obs-aw-repo-scheduled.md](../workflows/obs-aw-repo-scheduled.md)
