@@ -23,7 +23,7 @@ If onboarding is not complete, follow [Onboard a repository](onboard-a-repositor
 3. Check one or more Automerge dependency collection checkboxes under that parent.
 4. Wait for the next supported client workflow trigger (`pull_request`, `schedule`, and so on).
 
-For collection meanings before enabling them, see [Choose Automerge dependency collections](automerge-services.md).
+For collection meanings before enabling them, see [Choose Automerge dependency collections](automerge-services.md). For non-dependency Automerge (`all-files`) plus `apm.yml` policy, see [Non-dependency Automerge user journeys](automerge-user-journeys.md).
 
 ## Opt out (disable) Automerge collections
 
@@ -53,6 +53,7 @@ See also [Control Plane dashboard — user instructions: Audit trail](../operati
 
 ## Related guides
 
-- [Enable or disable an agentic workflow](enable-a-new-workflow.md)
 - [Choose Automerge dependency collections](automerge-services.md)
 - [Control Plane dashboard — user instructions](../operations/control-plane-dashboard.md)
+- [Enable or disable an agentic workflow](enable-a-new-workflow.md)
+- [Non-dependency Automerge user journeys](automerge-user-journeys.md)

@@ -20,6 +20,7 @@ toc:
       - file: opt-in-opt-out.md
       - file: local-ai-assets.md
       - file: automerge-services.md
+      - file: automerge-user-journeys.md
   - folder: admin-guide
     children:
       - file: index.md
