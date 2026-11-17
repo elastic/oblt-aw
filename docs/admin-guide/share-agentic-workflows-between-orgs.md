@@ -27,6 +27,7 @@ flowchart LR
 - The reusable implementation already exists under the owning org prefix (today’s pilots use `obs-aw-*`, for example `obs-aw-dependency-review.yml`).
 - The owning org already wires that basename in its `*-aw-event-*.yml` orchestrators and remote triggers (same rules as a normal owned route).
 - You can change `config/common/services.json` and the owning org’s registry in one PR (`config/common/` CODEOWNERS: `@elastic/observablt-ci`).
+- If any `inner_workflows` reusable calls [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md), that reusable already accepts `shared-org-key` and forwards it as `org-key` on each resolve call (see `obs-aw-dependency-review.yml` / `obs-aw-estc-pr-buildkite-detective.yml`). Adapt the reusable and its owning-org callers **before** publishing; otherwise consuming orgs that pass `shared-org-key` hit an undeclared input, and omitting it resolves assets for the owning org instead of the consumer.
 
 ## Publish (owning org)
 
@@ -52,7 +53,7 @@ Do these in **one** pull request for the owning org. After merge, other orgs opt
    - Add the service `id` to `include_common` (alphabetical) if that org should still offer it.
    - Remove the full object from the local `workflows` array if it lived there. Duplicate ids between `include_common` and `workflows` fail expansion.
 
-3. **Keep owning wiring green** — Owning-org event orchestrators must still list every `inner_workflows` basename under `control-plane-workflows` and `uses:` those reusables. Remote triggers for those event families must remain under `.github/remote-workflow-template/<owner-org>/`. Do not rename implementation files when publishing; other orgs call the same owning-prefix reusables.
+3. **Keep owning wiring green** — Owning-org event orchestrators must still list every `inner_workflows` basename under `control-plane-workflows` and `uses:` those reusables. Pass `shared-org-key: <owner-org>` on those jobs when the reusable declares that input (same pattern consuming orgs use in the opt-in guide). Remote triggers for those event families must remain under `.github/remote-workflow-template/<owner-org>/`. Do not rename implementation files when publishing; other orgs call the same owning-prefix reusables.
 
 4. **Validate locally**
 
@@ -77,6 +78,7 @@ Follow [Opt in or out of agentic workflows from other orgs](opt-in-common-servic
 - Do not add a Common dashboard section or `common:workflow-id` gating ids.
 - Do not copy the workflow body into another org’s `workflows` array; point at `config/common` and use `include_common`.
 - Do not change the owning-prefix reusable filename solely to make it look “shared” — consumers call the existing basename.
+- Do not publish a route that resolves APM assets without a `shared-org-key` input wired through to `aw-resolve-agentic-assets`.
 - Do not fold a second org’s opt-in into the publish PR unless that org’s CODEOWNERS deliberately review the same change set.
 
 ## See also
