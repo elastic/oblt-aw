@@ -105,6 +105,9 @@ jobs:
       - name: Validate docs relative Markdown fragment links
         run: python scripts/validate_docs_fragment_links.py
 
+      - name: Validate docs control-plane vs framework terminology
+        run: python scripts/validate_docs_terminology.py
+
       - name: Validate reusable-workflow caller permissions
         env:
           GITHUB_TOKEN: ${{ github.token }}

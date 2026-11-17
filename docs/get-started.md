@@ -66,7 +66,7 @@ Browse by what you want to automate: [Agentic workflow catalog by outcome](knowl
 
 For Automerge dependency collections: [Choose Automerge dependency collections](user-guide/automerge-services.md).
 
-To customize agent instructions or setup for your repository: [Define local AI assets](user-guide/local-ai-assets.md).
+To customize agent instructions or setup, or to run your own scheduled automations: [Customize in your repository (BYO)](user-guide/index.md#customize-in-your-repository-byo).
 
 More in the [User guide](user-guide/index.md).
 

@@ -41,7 +41,7 @@ See [Control Plane dashboard format](operations/control-plane-dashboard-format.m
 
 The configure-and-gate mechanism inside the framework: Control Plane dashboard, opt-in/opt-out, audit trail, and verification of requirements before agentic workflows run (for example [aw-prelude](workflows/aw-prelude.md)).
 
-Not a synonym for **oblt-aw** as a whole.
+Not a synonym for **oblt-aw** as a whole. Runtime, lock compilation, schedule clients, distribution, and capability wiring are **framework** concerns; the control plane only enables and gates.
 
 See [Architecture overview](architecture/overview.md), [Control Plane dashboard](operations/control-plane-dashboard.md).
 

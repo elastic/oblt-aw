@@ -6,7 +6,7 @@ Agentic workflows ship with framework defaults. In your **target repository**, y
 
 Declare those assets in [`apm.yml`](https://github.com/microsoft/apm) at the repository root, under the `x-oblt-aw` extension. When an enabled agentic workflow runs, [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md) reads that file from your repo and resolves instructions, inputs, and setup commands for the agent job.
 
-You do **not** need `apm.yml` to enable workflows from the Control Plane dashboard. Add it only when you want to customize behavior for your repository.
+You do **not** need `apm.yml` to enable workflows from the Control Plane dashboard. Add it only when you want to customize behavior for your repository. Together with [Run your own scheduled automations](run-scheduled-automations.md), this is the [Customize in your repository (BYO)](index.md#customize-in-your-repository-byo) path in the user guide.
 
 Schema, precedence, and runtime detail: [APM agentic assets](../architecture/apm-agentic-assets.md).
 
@@ -88,3 +88,4 @@ If `apm install` fails, the resolve job warns and continues; instruction resolut
 - [Resolve agentic assets](../workflows/aw-resolve-agentic-assets.md) — reusable workflow contract
 - [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format
 - [Enable or disable an agentic workflow](enable-a-new-workflow.md)
+- [Run your own scheduled automations](run-scheduled-automations.md) — consumer-defined cron via `obs:repo-scheduled`

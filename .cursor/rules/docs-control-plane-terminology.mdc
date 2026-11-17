@@ -1,0 +1,28 @@
+---
+description: Keep control plane (enable/gate) distinct from framework (oblt-aw runtime) in docs and agent prose.
+globs: docs/**/*.md
+alwaysApply: false
+---
+
+# Docs terminology — control plane ≠ framework
+
+## Definitions (from [docs/glossary.md](../../docs/glossary.md))
+
+| Term | Means | Does **not** mean |
+|------|--------|-------------------|
+| **Control plane** | Configure-and-gate: Control Plane dashboard, opt-in/opt-out, audit, prelude verification | The whole product, distribution, lock compilation, schedule clients, or agent runtime |
+| **Control Plane dashboard** | The per-repo dashboard issue with enable checkboxes | A synonym for “control plane” as a whole, or for the framework |
+| **Framework** / **oblt-aw** | Routes, client templates, distribution, catalog, and the control plane as one product | Use “control plane” when you only mean enablement/gating |
+
+## Required wording
+
+- Enable / disable / checkbox / prelude gate → **control plane** or **Control Plane dashboard**.
+- Locks, AW compilation, schedule lanes/clients, routes, distribution, capability wiring, agent runtime → **framework** or **oblt-aw**.
+- When both matter in one sentence, name them separately (framework owns X; control plane gates Y).
+
+## Forbidden patterns
+
+- Saying the control plane “owns” or “runs” runtime, locks, compilation, schedule clients, or distribution.
+- Using “control plane” as a casual synonym for the `elastic/oblt-aw` product or repository role when you mean the framework.
+
+CI: `python scripts/validate_docs_terminology.py` (see also `AGENTS.md`).
