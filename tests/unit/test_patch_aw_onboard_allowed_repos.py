@@ -1,0 +1,75 @@
+# Copyright 2026-2027 Elasticsearch B.V.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+"""Tests for scripts/patch_aw_onboard_allowed_repos.py."""
+
+from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+
+import pytest
+
+MODULE_PATH = (
+    Path(__file__).resolve().parent.parent.parent
+    / "scripts"
+    / "patch_aw_onboard_allowed_repos.py"
+)
+SPEC = importlib.util.spec_from_file_location(
+    "patch_aw_onboard_allowed_repos", MODULE_PATH
+)
+assert SPEC and SPEC.loader
+patch_mod = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(patch_mod)
+
+SAMPLE_LOCK = """jobs:
+  agent:
+    outputs:
+      agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
+    steps:
+      - name: Generate Safe Outputs Config
+        env:
+          GH_AW_SAFE_OUTPUTS_CONFIG: '{"create_pull_request":{"allowed_repos":"${{ steps.onboard-phase.outputs.allowed_repos }}"}}'
+  safe_outputs:
+    steps:
+      - name: Process Safe Outputs
+        env:
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: '{"create_pull_request":{"allowed_repos":"${{ steps.onboard-phase.outputs.allowed_repos }}"}}'
+"""
+
+
+def test_patch_lock_wires_agent_output_and_handler(tmp_path: Path) -> None:
+    lock = tmp_path / "gh-aw-onboard-repository.lock.yml"
+    lock.write_text(SAMPLE_LOCK, encoding="utf-8")
+    assert patch_mod.patch_lock(lock) is True
+    text = lock.read_text(encoding="utf-8")
+    assert patch_mod.AGENT_OUTPUT_LINE.strip() in text
+    assert (
+        'GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: \'{"create_pull_request":'
+        '{"allowed_repos":"${{ needs.agent.outputs.allowed_repos }}"}}\'' in text
+    )
+    assert (
+        'GH_AW_SAFE_OUTPUTS_CONFIG: \'{"create_pull_request":'
+        '{"allowed_repos":"${{ steps.onboard-phase.outputs.allowed_repos }}"}}\''
+        in text
+    )
+    assert patch_mod.patch_lock(lock) is False
+
+
+def test_patch_lock_fails_closed_when_anchor_missing(tmp_path: Path) -> None:
+    lock = tmp_path / "gh-aw-onboard-repository.lock.yml"
+    lock.write_text("jobs: {}\n", encoding="utf-8")
+    with pytest.raises(SystemExit, match="anchor not found"):
+        patch_mod.patch_lock(lock)

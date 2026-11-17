@@ -54,13 +54,13 @@ Permissions (source intent; lock expands job-level scopes):
 
 - Workflow: `id-token: write` for OIDC `create-token`; agent reads contents/issues/pull-requests; Copilot requests.
 - Safe outputs create comments, optional issue body updates (Phase 2 abort), and pull requests with the minted Vault-app token (policy id from `config/onboard-repository.json`).
-- GitHub tools and `create-pull-request` allow `elastic/*` so Phase 2 can target the consumer repository.
+- GitHub MCP may read `elastic/*`; `create-pull-request` allows only platform repos plus the consumer parsed from the issue (not `elastic/*`).
 
 Safe outputs:
 
 - `add-comment` (issue)
 - `update-issue` (body replace; Phase 2 abort uncheck only)
-- `create-pull-request` with `draft: false`, `max: 7`, `auto-close-issue: false`, `allowed-repos: elastic/*`
+- `create-pull-request` with `draft: false`, `max: 7`, `auto-close-issue: false`, run-scoped `allowed-repos` (platform + parsed consumer)
 
 Concurrency uses `cancel-in-progress: false` so an abort `update-issue` (which emits `edited`) does not cancel the abort run.
 
