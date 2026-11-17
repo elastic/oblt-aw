@@ -32,12 +32,10 @@ Technical registration detail for maintainers and agents: [Registering resources
    :screenshot:
    :::
 
-2. **Fill the fields and read the phase checkboxes**
+2. **Fill the fields and keep the phase triggers**
+   - **Phase triggers** — Leave the pre-filled task list as-is on submit (**Phase 1** checked, **Phase 2** unchecked). Checking Phase 2 later (after catalog-info merges) starts the next phase.
    - **Repository** — `elastic/<repo>` (example: `elastic/my-repo`).
    - **Organization key** — `docs`, `obs`, or `security` (matches a `config/<org-key>/` folder in `elastic/oblt-aw`).
-   - **Phase triggers** (in the issue body):
-     - **Phase 1 — Catalog** is already checked. Submitting the form starts Phase 1.
-     - **Phase 2 — Remaining PRs** stays unchecked until catalog-info is merged.
 
    ```text
    Repository:        elastic/my-repo
