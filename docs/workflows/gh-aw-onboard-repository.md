@@ -55,7 +55,7 @@ Permissions (source intent; lock expands job-level scopes):
 
 - Workflow: `id-token: write` for OIDC `create-token`; agent reads contents/issues/pull-requests; Copilot requests.
 - Safe outputs create comments, optional issue body updates (Phase 2 abort), and pull requests with the minted Vault-app token (policy id from `config/onboard-repository.json`).
-- GitHub MCP may read `elastic/*`; `create-pull-request` allows only platform repos plus the consumer parsed from the issue (not `elastic/*`).
+- GitHub MCP/DIFC read allowlist is platform repos at compile time; MCP is patched at runtime to platform plus the consumer parsed from the issue (not `elastic/*`). `create-pull-request` uses the same run-scoped allowlist.
 
 Safe outputs:
 
