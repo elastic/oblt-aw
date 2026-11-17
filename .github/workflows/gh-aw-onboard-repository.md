@@ -91,15 +91,35 @@ steps:
       if [[ "$phase2" -eq 1 ]]; then
         phase=2
       fi
+      # Platform repos always; append this issue's validated consumer only (never elastic/*).
+      allowed_repos="elastic/catalog-info,elastic/oblt-aw,elastic/observability-github-secrets,elastic/observability-github-settings"
+      if [[ -n "$repo" ]]; then
+        allowed_repos="${allowed_repos},${repo}"
+      fi
       {
         echo "repository=${repo}"
         echo "phase=${phase}"
         echo "phase2_checked=${phase2}"
+        echo "allowed_repos=${allowed_repos}"
       } >> "$GITHUB_OUTPUT"
-      echo "Parsed repository='${repo}' phase=${phase} phase2_checked=${phase2}"
-  # Do not add actions/checkout here: any custom checkout suppresses gh-aw's default
-  # workflow-repository checkout (needed for docs/, config/, and registration edits).
-  # Phase 2 clones elastic/<repo> into repos/consumer when the host tree is missing.
+      echo "Parsed repository='${repo}' phase=${phase} phase2_checked=${phase2} allowed_repos=${allowed_repos}"
+  # Do not use actions/checkout here: it suppresses gh-aw's default workflow-repo checkout.
+  # Authenticated host clone keeps persist-credentials out of the agent sandbox.
+  - name: Checkout consumer repository for Phase 2
+    id: checkout-consumer
+    if: steps.onboard-phase.outputs.phase == '2' && steps.onboard-phase.outputs.repository != ''
+    continue-on-error: true
+    env:
+      CONSUMER_REPO: ${{ steps.onboard-phase.outputs.repository }}
+      GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+    run: |
+      set -euo pipefail
+      rm -rf repos/consumer
+      mkdir -p repos
+      # Token only for this host clone; scrub remote URL before the agent runs.
+      git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${CONSUMER_REPO}.git" repos/consumer
+      git -C repos/consumer remote set-url origin "https://github.com/${CONSUMER_REPO}.git"
+      echo "Checked out ${CONSUMER_REPO} into repos/consumer (credentials scrubbed)"
 tools:
   github:
     # Prefer OIDC create-token output, then MCP/secret fallbacks (gh-aw >= v0.89.21).
@@ -111,6 +131,7 @@ tools:
     # gh-aw-create-pr-from-issue. Remove once DIFC integrity tags allow approved
     # reads for write-gated issue authors.
     min-integrity: none
+    # MCP reads may need sibling elastic repos; PR writes are constrained below.
     allowed-repos:
       - "elastic/*"
   bash: true
@@ -145,8 +166,8 @@ safe-outputs:
     max: 7
     auto-close-issue: false
     title-prefix: "[oblt-aw][onboard] "
-    allowed-repos:
-      - "elastic/*"
+    # Platform repos + this issue's consumer only (from parse step); not elastic/*.
+    allowed-repos: ${{ steps.onboard-phase.outputs.allowed_repos }}
 strict: false
 timeout-minutes: 90
 ---
@@ -193,7 +214,7 @@ Before any Phase 2 PR work:
    - Call `add-comment` explaining that Phase 2 was aborted because the Phase 1 `elastic/catalog-info` PR is not merged yet; link the open catalog PR when one exists; tell the user to merge it, wait for the TokenPolicy to be active, then check Phase 2 again.
    - Do **not** open Phase 2 PRs. Do **not** leave Phase 2 checked.
 3. If the catalog PR is merged, also confirm `repos/catalog-info` on the default branch lists `elastic/<repo>` on `token-policy-oblt-aw-onboard-repository` (file `resources/github-token-policies/token-policy-oblt-aw-onboard-repository.yaml`). If missing, abort the same way (uncheck Phase 2 + comment): Phase 1 must add the consumer to the onboard agent TokenPolicy selector.
-4. Prefer the host checkout at `repos/consumer` when present. If Phase 2 is allowed but `repos/consumer` is missing, clone `elastic/<repo>` into `repos/consumer` with `gh`/`git` using available credentials before editing consumer files.
+4. Prefer the host checkout at `repos/consumer` (authenticated host step; credentials scrubbed). If Phase 2 is allowed but that tree is missing (checkout soft-failed), comment the failure and stop — do **not** attempt an agent-side `git clone` (no git credentials in the sandbox).
 
 ## Retry safety (before opening PRs)
 
