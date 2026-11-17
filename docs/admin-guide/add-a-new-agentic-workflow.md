@@ -68,4 +68,5 @@ When a workflow calls `gh-aw-*`, each agent job must invoke [aw-resolve-agentic-
 - [Change maturity level](change-maturity-level.md)
 - [Contributing to oblt-aw](../development/contributing.md) — local setup and pre-commit
 - [QA](../knowledge-base/qa/index.md) — unit, integration, and E2E layers
+- [Share agentic workflows between orgs](share-agentic-workflows-between-orgs.md) — publish an owned workflow into `config/common`
 - [Use GitHub ephemeral tokens](use-gh-ephemeral-tokens.md)
