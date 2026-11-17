@@ -9,9 +9,21 @@ body:
       value: |
         Use this form to register an `elastic/*` repository for OBLT Agentic Workflows.
 
-        Fill in the fields below and submit. Automation opens the required pull requests and comments on this issue with status, any errors, and what to do next.
+        Onboarding runs in **two phases**. Each phase starts when its checkbox below is checked (Phase 1 is already checked and runs when you submit).
 
         Guide: [Onboard a repository](https://github.com/elastic/oblt-aw/blob/main/docs/user-guide/onboard-a-repository.md)
+
+        ### How the phase checkboxes work
+
+        - Checking a phase box **starts that phase** of the onboard agent (`gh-aw-onboard-repository`).
+        - **Phase 1** is checked for you. Submitting this form applies the label and runs Phase 1.
+        - **Phase 2** stays unchecked until you are ready. Check it **only after** the Phase 1 `elastic/catalog-info` pull request is **merged**.
+        - If you check Phase 2 too early, the agent **aborts**: it unchecks Phase 2 and comments with the reason. Merge catalog-info, then check Phase 2 again.
+
+        ### Phase triggers
+
+        - [x] **Phase 1 — Catalog** — Opens **only** the `elastic/catalog-info` pull request (consumer TokenPolicy, org-scoped sync/distribute/settings allowlists, and this onboard agent’s TokenPolicy selector for `elastic/<repo>`). Already checked; runs on submit.
+        - [ ] **Phase 2 — Remaining PRs** — Opens registration (`elastic/oblt-aw`), settings, secrets (when needed), consumer `CODEOWNERS`, and Renovate ignore (when Renovate is enabled). Check this **after** the Phase 1 catalog-info PR is merged.
   - type: input
     id: repository
     attributes:

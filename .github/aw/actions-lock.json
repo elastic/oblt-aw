@@ -1,5 +1,10 @@
 {
   "entries": {
+    "actions/checkout@v5": {
+      "repo": "actions/checkout",
+      "version": "v5",
+      "sha": "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09"
+    },
     "actions/setup-go@v7": {
       "repo": "actions/setup-go",
       "version": "v7",
