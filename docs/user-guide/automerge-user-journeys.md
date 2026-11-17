@@ -5,15 +5,15 @@
 Use these journeys when you want Automerge for **non-dependency** pull requests (human or automation work that is not a Dependabot-style collection bump). That path needs:
 
 1. Parent Automerge and the **All files (non-dependency)** collection (`all-files`) on the Control Plane dashboard.
-2. Consumer policy in root `apm.yml` under `x-oblt-aw.<org>.workflows.automerge.policy` (trigger labels, authors, forks).
+2. An effective trigger label on the PR — by default that is `oblt-aw/ai/merge-ready`. Optional consumer policy in root `apm.yml` only when you want extra labels, authors, or forks.
 
-Control Plane only turns features on or off. Labels, authors, and fork rules stay in your repository. Schema detail stays in [Choose Automerge dependency collections](automerge-services.md#consumer-policy-apmyml). Production pilot enablement is tracked in [#2571](https://github.com/elastic/oblt-aw/issues/2571).
+Control Plane only turns features on or off. Optional label, author, and fork rules live in your repository under `x-oblt-aw.<org>.workflows.automerge.policy` in `apm.yml`. Schema detail stays in [Choose Automerge dependency collections](automerge-services.md#consumer-policy-apmyml). Production pilot enablement is tracked in [#2571](https://github.com/elastic/oblt-aw/issues/2571).
 
-Prefer a **specific** dependency collection when both that collection and `all-files` match the changed paths. Leave `all-files` off until policy and label ownership are agreed.
+Prefer a **specific** dependency collection when both that collection and `all-files` match the changed paths. Leave `all-files` off until you agree who may apply the trigger label (and any custom policy).
 
 ```mermaid
 flowchart TD
-  A[Maintainer enables obs:automerge + all-files] --> B[Commit apm.yml automerge.policy]
+  A[Maintainer enables obs:automerge + all-files] --> B[Optional: commit apm.yml automerge.policy]
   B --> C[PR opened or updated]
   C --> D{Effective trigger label present?}
   D -->|no| Z[Skip Automerge]
@@ -27,28 +27,28 @@ flowchart TD
 
 - The repository is onboarded and Automerge client triggers are installed ([Onboard a repository](onboard-a-repository.md)).
 - You can open the Control Plane dashboard issue (`label:oblt-aw/dashboard`) ([Opt in or opt out of Automerge dependency collections](opt-in-opt-out.md)).
-- You know your org key (for example `obs`) for the `x-oblt-aw.<org>` block ([Define local AI assets](local-ai-assets.md)).
+- If you add custom policy, you know your org key (for example `obs`) for the `x-oblt-aw.<org>` block in root `apm.yml` ([Define local AI assets](local-ai-assets.md)).
 
 ## Who owns what
 
 | Concern | Owner |
 |---------|--------|
 | Parent Automerge and collection checkboxes | You via Control Plane dashboard |
-| `apm.yml` automerge policy (labels, authors, forks) | You in the consumer repository |
+| Optional `apm.yml` automerge policy (labels, authors, forks) | You in the consumer repository |
 | Applying an effective trigger label | Maintainer, Dependency Review, or a repo classifier / bridge |
 | Approve, merge, and deferred retry | Framework Automerge route |
 
 ## Journey 1 — Enable non-dependency Automerge
 
-Goal: turn on `all-files` safely after policy is ready.
+Goal: turn on `all-files` and prove a merge with the default gates (no custom policy required).
 
 1. **Confirm Automerge clients exist** — Your repo should already have the pull-request and frequent-schedule Automerge triggers from onboarding. If Automerge is missing from the dashboard, finish onboarding first.
-2. **Draft consumer policy before enabling `all-files`** — Add `workflows.automerge.policy` on the default branch (or the branch Automerge reads as the PR **base**). Start with trigger labels you trust; keep forks disabled unless you need trusted forks (later journeys).
+2. **Optional: customize policy in root `apm.yml`** — Only if you need extra trigger labels, authors, or fork rules. Put them under `x-oblt-aw.<org>.workflows.automerge.policy` on the default branch (or the branch Automerge reads as the PR **base**). If you omit `policy`, defaults apply: `oblt-aw/ai/merge-ready` only, forks disabled, authors allow-list with control-plane bots and no consumer extras. For custom labels, authors, or forks, use the journeys below.
 3. **Enable the parent toggle** — On the Control Plane dashboard, check **Automerge** (`obs:automerge`).
 4. **Enable All files (non-dependency)** — Check the indented **All files (non-dependency)** collection (`obs:automerge:all-files`). It is off by default.
 5. **Wait for the next PR event** — Checkbox edits do not start Automerge by themselves. Open or label a PR, or update an existing one, to exercise the path.
 
-Minimal policy (custom trigger label only):
+Optional `apm.yml` snippet (custom trigger label only):
 
 ```yaml
 x-oblt-aw:
@@ -68,7 +68,7 @@ x-oblt-aw:
 
 Goal: Automerge when your repo’s label is present, not only merge-ready.
 
-1. **List extra labels under `policy.trigger-labels`** — Each listed label is added to the effective set. Omitting `oblt-aw/ai/merge-ready` does not remove it.
+1. **In root `apm.yml`, list extra labels under `workflows.automerge.policy.trigger-labels`** — Each listed label is added to the effective set. Omitting `oblt-aw/ai/merge-ready` does not remove it.
 2. **Decide who applies the label** — For a first proof, a maintainer can add the label by hand. Later, Dependency Review or a repository classifier / bridge can apply the same label. Automerge does not invent labels; it only checks that at least one effective label is on the PR.
 3. **Prove with a labeled PR** — Open a non-draft PR that should use `all-files`, apply one effective label, and confirm approve/merge (or arm when checks are still pending).
 
@@ -77,6 +77,8 @@ Goal: Automerge when your repo’s label is present, not only merge-ready.
 Goal: allow non-bot authors (or named extras) without opening Automerge to everyone.
 
 Defaults when `policy` (or `authors`) is omitted: control-plane bots from [`allowed_pr_authors.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) only, plus an empty consumer allow-list.
+
+Set these under `x-oblt-aw.<org>.workflows.automerge.policy` in root `apm.yml`.
 
 ### Allow-list extras
 
@@ -110,7 +112,7 @@ Control-plane bots remain allowed in both modes.
 Goal: allow fork PRs only when association matches (for example Elastic employee forks).
 
 1. **Keep the default while you prove same-repo** — Default `forks.mode` is `disabled` (same-repository PRs only).
-2. **Switch to author-association when needed**:
+2. **In root `apm.yml`, switch to author-association when needed** under `workflows.automerge.policy`:
 
 ```yaml
 policy:
@@ -127,10 +129,10 @@ Fork PRs also need a token path that can approve and merge; see [Automerge routi
 
 ## Journey 5 — Prove a PR can Automerge
 
-Goal: end-to-end happy path after enablement and policy are in place.
+Goal: end-to-end happy path after `all-files` is enabled (custom `apm.yml` policy only if you added it).
 
 1. Open a **non-draft** PR whose changed paths fall through to `all-files` (not a more specific enabled collection you did not intend).
-2. Ensure the author and fork rules in policy pass.
+2. Ensure the author and fork rules pass (defaults, or your `apm.yml` policy if you set one).
 3. Apply at least one **effective** trigger label (`oblt-aw/ai/merge-ready` and/or a label from `trigger-labels`).
 4. Let required checks run. Automerge may squash-merge immediately when GitHub’s merge API accepts the head, or **arm** the PR for deferred merge on the frequent schedule when checks are still pending.
 5. Confirm success: approving review from Automerge, then merged or armed (bot comment with `obs-aw-automerge:armed`), not a dependency-collection skip comment.
