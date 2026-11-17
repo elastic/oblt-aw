@@ -39,9 +39,34 @@ SAMPLE_LOCK = """jobs:
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
     steps:
+      - name: Start DIFC Proxy
+        env:
+          DIFC_PROXY_POLICY: '{"allow-only":{"min-integrity":"none","repos":["elastic/catalog-info","elastic/oblt-aw","elastic/observability-github-secrets","elastic/observability-github-settings"]}}'
+      - name: Determine automatic lockdown mode for GitHub MCP Server
+        env:
+          GH_AW_GITHUB_REPOS: '["elastic/catalog-info","elastic/oblt-aw","elastic/observability-github-secrets","elastic/observability-github-settings"]'
       - name: Generate Safe Outputs Config
         env:
           GH_AW_SAFE_OUTPUTS_CONFIG: '{"create_pull_request":{"allowed_repos":"${{ steps.onboard-phase.outputs.allowed_repos }}"}}'
+      - name: Start MCP Gateway
+        id: start-mcp-gateway
+        env:
+          DEBUG: 'false'
+        run: |
+          cat << GH_AW_MCP_CONFIG_EOF
+          {
+            "guard-policies": {
+              "allow-only": {
+                "repos": [
+                      "elastic/catalog-info",
+                      "elastic/oblt-aw",
+                      "elastic/observability-github-secrets",
+                      "elastic/observability-github-settings"
+                    ]
+              }
+            }
+          }
+          GH_AW_MCP_CONFIG_EOF
   safe_outputs:
     steps:
       - name: Process Safe Outputs
@@ -50,7 +75,7 @@ SAMPLE_LOCK = """jobs:
 """
 
 
-def test_patch_lock_wires_agent_output_and_handler(tmp_path: Path) -> None:
+def test_patch_lock_wires_agent_output_handler_and_mcp(tmp_path: Path) -> None:
     lock = tmp_path / "gh-aw-onboard-repository.lock.yml"
     lock.write_text(SAMPLE_LOCK, encoding="utf-8")
     assert patch_mod.patch_lock(lock) is True
@@ -61,8 +86,18 @@ def test_patch_lock_wires_agent_output_and_handler(tmp_path: Path) -> None:
         '{"allowed_repos":"${{ needs.agent.outputs.allowed_repos }}"}}\'' in text
     )
     assert (
-        'GH_AW_SAFE_OUTPUTS_CONFIG: \'{"create_pull_request":'
-        '{"allowed_repos":"${{ steps.onboard-phase.outputs.allowed_repos }}"}}\''
+        "GH_AW_GITHUB_REPOS: "
+        "'${{ steps.onboard-phase.outputs.allowed_repos_json }}'" in text
+    )
+    assert '"repos": ${GH_AW_GITHUB_REPOS}' in text
+    assert (
+        'DIFC_PROXY_POLICY: \'{"allow-only":{"min-integrity":"none",'
+        '"repos":["elastic/catalog-info","elastic/oblt-aw",'
+        '"elastic/observability-github-secrets",'
+        '"elastic/observability-github-settings"]}}\'' in text
+    )
+    assert (
+        "GH_AW_GITHUB_REPOS: ${{ steps.onboard-phase.outputs.allowed_repos_json }}"
         in text
     )
     assert patch_mod.patch_lock(lock) is False

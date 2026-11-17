@@ -94,11 +94,24 @@ steps:
       if [[ -n "$repo" ]]; then
         allowed_repos="${allowed_repos},${repo}"
       fi
+      allowed_repos_json="["
+      first=1
+      IFS=',' read -ra _allowed_repos <<< "${allowed_repos}"
+      for r in "${_allowed_repos[@]}"; do
+        if [[ "${first}" -eq 1 ]]; then
+          first=0
+        else
+          allowed_repos_json+=","
+        fi
+        allowed_repos_json+="\"${r}\""
+      done
+      allowed_repos_json+="]"
       {
         echo "repository=${repo}"
         echo "phase=${phase}"
         echo "phase2_checked=${phase2}"
         echo "allowed_repos=${allowed_repos}"
+        echo "allowed_repos_json=${allowed_repos_json}"
       } >> "$GITHUB_OUTPUT"
       echo "Parsed repository='${repo}' phase=${phase} phase2_checked=${phase2} allowed_repos=${allowed_repos}"
   # Do not use actions/checkout here: it suppresses gh-aw's default workflow-repo checkout.
@@ -129,15 +142,19 @@ tools:
     # gh-aw-create-pr-from-issue. Remove once DIFC integrity tags allow approved
     # reads for write-gated issue authors.
     min-integrity: none
-    # MCP reads may need sibling elastic repos; PR writes are constrained below.
+    # Compile-time floor: platform only (DIFC starts before parse). MCP gateway is
+    # patched at runtime to platform + this issue's consumer (never elastic/*).
     allowed-repos:
-      - "elastic/*"
+      - "elastic/catalog-info"
+      - "elastic/oblt-aw"
+      - "elastic/observability-github-secrets"
+      - "elastic/observability-github-settings"
   bash: true
   web-fetch:
 network:
   allowed:
-    - defaults
     - github
+    - local
     - "docs.elastic.dev"
 safe-outputs:
   activation-comments: false
@@ -208,10 +225,10 @@ Before any Phase 2 PR work:
 
 1. Find the Phase 1 catalog concern: open **or** recently merged PRs in `elastic/catalog-info` whose titles start with `[oblt-aw][onboard]` and that target this `elastic/<repo>`.
 2. If there is **no** merged catalog onboard PR for this repository (only open, missing, or unrelated), **abort Phase 2**:
-   - Call `update-issue` with `operation: replace` and the **full** current issue body where the Phase 2 line is changed from `- [x] **Phase 2`…` to `- [ ] **Phase 2`…` (preserve every other line exactly).
+   - Re-fetch the issue body **immediately** before writing (do not reuse an earlier copy). Change **only** the Phase 2 checkbox line from `- [x] **Phase 2`…` to `- [ ] **Phase 2`…`; keep every other line from that latest body exactly. Call `update-issue` with `operation: replace` and that surgically updated body. If Phase 2 is already unchecked in the latest body, skip `update-issue`.
    - Call `add-comment` explaining that Phase 2 was aborted because the Phase 1 `elastic/catalog-info` PR is not merged yet; link the open catalog PR when one exists; tell the user to merge it, wait for the TokenPolicy to be active, then check Phase 2 again.
    - Do **not** open Phase 2 PRs. Do **not** leave Phase 2 checked.
-3. If the catalog PR is merged, also confirm `repos/catalog-info` on the default branch lists `elastic/<repo>` on `token-policy-oblt-aw-onboard-repository` (file `resources/github-token-policies/token-policy-oblt-aw-onboard-repository.yaml`). If missing, abort the same way (uncheck Phase 2 + comment): Phase 1 must add the consumer to the onboard agent TokenPolicy selector.
+3. If the catalog PR is merged, also confirm `repos/catalog-info` on the default branch lists `elastic/<repo>` on `token-policy-oblt-aw-onboard-repository` (file `resources/github-token-policies/token-policy-oblt-aw-onboard-repository.yaml`). If missing, abort the same way (re-fetch + uncheck Phase 2 only + comment): Phase 1 must add the consumer to the onboard agent TokenPolicy selector.
 4. Prefer the host checkout at `repos/consumer` (authenticated host step; credentials scrubbed). If Phase 2 is allowed but that tree is missing (checkout soft-failed), comment the failure and stop — do **not** attempt an agent-side `git clone` (no git credentials in the sandbox).
 
 ## Retry safety (before opening PRs)
@@ -289,7 +306,7 @@ Pass **real newlines** in every safe-output text field that GitHub renders as Ma
 
 - `add-comment` `body`
 - `create-pull-request` `body` (and titles without embedded `\n`)
-- `update-issue` `body` (full issue body when unchecking Phase 2)
+- `update-issue` `body` (latest issue body with only the Phase 2 checkbox unchecked)
 
 Never put the two-character sequence `\` + `n` in those fields; never collapse a multi-line body into one escaped line. Use headings and lists GitHub can render. For links, prefer full `https://github.com/.../pull/<n>` URLs or `#aw_…` ids — not `owner/repo#n` shorthand and not invented `pulls?q=` search links.
 

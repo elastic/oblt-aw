@@ -14,16 +14,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Wire run-scoped create-pull-request allowlist into the safe_outputs job.
+"""Wire run-scoped onboard allowlists into the compiled lock file.
 
 The onboard markdown sets ``create-pull-request.allowed-repos`` from
 ``steps.onboard-phase.outputs.allowed_repos``. That expression is valid in the
 agent job (where the parse step runs) but resolves empty in ``safe_outputs``.
-This post-compile step:
+Compile-time ``tools.github.allowed-repos`` is platform-only (DIFC starts before
+parse). This post-compile step:
 
 1. Publishes ``allowed_repos`` as an agent job output.
 2. Rewrites ``GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG`` to use
    ``needs.agent.outputs.allowed_repos``.
+3. Points ``GH_AW_GITHUB_REPOS`` and the MCP gateway ``repos`` guard at
+   ``steps.onboard-phase.outputs.allowed_repos_json`` (platform + consumer).
 
 Run from Makefile ``compile-aw`` after ``patch_aw_onboard_edited_label``.
 Idempotent.
@@ -31,6 +34,7 @@ Idempotent.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -46,6 +50,22 @@ AGENT_OUTPUT_LINE = (
 
 STEP_EXPR = "${{ steps.onboard-phase.outputs.allowed_repos }}"
 NEEDS_EXPR = "${{ needs.agent.outputs.allowed_repos }}"
+REPOS_JSON_EXPR = "${{ steps.onboard-phase.outputs.allowed_repos_json }}"
+
+GITHUB_REPOS_STATIC = re.compile(
+    r"^(\s*GH_AW_GITHUB_REPOS:\s*)'\[\"elastic/[^\"]+\"(?:,\s*\"elastic/[^\"]+\")*\]'\s*$",
+    re.MULTILINE,
+)
+GITHUB_REPOS_REPLACEMENT = rf"\1'{REPOS_JSON_EXPR}'"
+
+# Multiline MCP gateway guard only (never touch compact DIFC_PROXY_POLICY).
+MCP_REPOS_STATIC = re.compile(
+    r'^(\s*"repos":\s*)\[\n'
+    r'(?:\s*"elastic/[^"]+",?\n)+'
+    r"(\s*)\]",
+    re.MULTILINE,
+)
+MCP_REPOS_REPLACEMENT = r"\1${GH_AW_GITHUB_REPOS}"
 
 
 def patch_lock(path: Path) -> bool:
@@ -87,6 +107,74 @@ def patch_lock(path: Path) -> bool:
         else:
             new_lines.append(line)
     updated = "".join(new_lines)
+
+    if REPOS_JSON_EXPR not in updated or "GH_AW_GITHUB_REPOS:" not in updated:
+        # Still need to wire runtime JSON even when already partially patched.
+        pass
+
+    replaced_github_repos, github_count = GITHUB_REPOS_STATIC.subn(
+        GITHUB_REPOS_REPLACEMENT, updated, count=1
+    )
+    if github_count:
+        updated = replaced_github_repos
+        changes += github_count
+    elif f"GH_AW_GITHUB_REPOS: '{REPOS_JSON_EXPR}'" not in updated:
+        raise SystemExit(
+            f"{path.name}: GH_AW_GITHUB_REPOS platform list not found; "
+            "gh-aw compiler output may have changed — update "
+            "scripts/patch_aw_onboard_allowed_repos.py"
+        )
+
+    # Prefer the MCP gateway multiline list; leave DIFC_PROXY_POLICY compile-time.
+    if '"repos": ${GH_AW_GITHUB_REPOS}' not in updated:
+        replaced_mcp, mcp_count = MCP_REPOS_STATIC.subn(
+            MCP_REPOS_REPLACEMENT, updated, count=1
+        )
+        if mcp_count == 0:
+            raise SystemExit(
+                f"{path.name}: MCP guard repos list not found; "
+                "gh-aw compiler output may have changed — update "
+                "scripts/patch_aw_onboard_allowed_repos.py"
+            )
+        updated = replaced_mcp
+        changes += mcp_count
+
+    if 'repos":${GH_AW_GITHUB_REPOS}' in updated and "DIFC_PROXY_POLICY" in updated:
+        # Recover if an older patch rewrote DIFC to a runtime env expansion.
+        difc_fixed = re.sub(
+            r"(DIFC_PROXY_POLICY: '\{\"allow-only\":\{\"min-integrity\":\"none\","
+            r"\"repos\":)\$\{GH_AW_GITHUB_REPOS\}(\}\}')",
+            r'\1["elastic/catalog-info","elastic/oblt-aw",'
+            r'"elastic/observability-github-secrets",'
+            r'"elastic/observability-github-settings"]\2',
+            updated,
+            count=1,
+        )
+        if difc_fixed != updated:
+            updated = difc_fixed
+            changes += 1
+
+    # Ensure Start MCP Gateway exports the runtime JSON for heredoc expansion.
+    if (
+        "GH_AW_GITHUB_REPOS: ${{ steps.onboard-phase.outputs.allowed_repos_json }}"
+        not in updated
+        and "id: start-mcp-gateway" in updated
+    ):
+        gateway_env_anchor = "      - name: Start MCP Gateway\n        id: start-mcp-gateway\n        env:\n"
+        if gateway_env_anchor not in updated:
+            raise SystemExit(
+                f"{path.name}: Start MCP Gateway env anchor not found; "
+                "gh-aw compiler output may have changed — update "
+                "scripts/patch_aw_onboard_allowed_repos.py"
+            )
+        updated = updated.replace(
+            gateway_env_anchor,
+            gateway_env_anchor
+            + "          GH_AW_GITHUB_REPOS: "
+            + "${{ steps.onboard-phase.outputs.allowed_repos_json }}\n",
+            1,
+        )
+        changes += 1
 
     if changes == 0:
         return False
