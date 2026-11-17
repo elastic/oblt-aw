@@ -19,11 +19,19 @@ body:
         - **Phase 1** is checked for you. Submitting this form applies the label and runs Phase 1.
         - **Phase 2** stays unchecked until you are ready. Check it **only after** the Phase 1 `elastic/catalog-info` pull request is **merged**.
         - If you check Phase 2 too early, the agent **aborts**: it unchecks Phase 2 and comments with the reason. Merge catalog-info, then check Phase 2 again.
-
-        ### Phase triggers
-
+  - type: textarea
+    id: phase-triggers
+    attributes:
+      label: Phase triggers
+      description: >
+        These lines become part of the issue body (markdown-only checkboxes are omitted on submit).
+        Leave Phase 1 checked. Check Phase 2 only after the Phase 1 catalog-info PR is merged.
+        Do not remove either line.
+      value: |
         - [x] **Phase 1 — Catalog** — Opens **only** the `elastic/catalog-info` pull request (consumer TokenPolicy, org-scoped sync/distribute/settings allowlists, and this onboard agent’s TokenPolicy selector for `elastic/<repo>`). Already checked; runs on submit.
         - [ ] **Phase 2 — Remaining PRs** — Opens registration (`elastic/oblt-aw`), settings, secrets (when needed), consumer `CODEOWNERS`, and Renovate ignore (when Renovate is enabled). Check this **after** the Phase 1 catalog-info PR is merged.
+    validations:
+      required: true
   - type: input
     id: repository
     attributes:

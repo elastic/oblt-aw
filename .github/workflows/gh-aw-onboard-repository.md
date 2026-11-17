@@ -97,16 +97,9 @@ steps:
         echo "phase2_checked=${phase2}"
       } >> "$GITHUB_OUTPUT"
       echo "Parsed repository='${repo}' phase=${phase} phase2_checked=${phase2}"
-  - name: Checkout consumer repository for Phase 2
-    id: checkout-consumer
-    if: steps.onboard-phase.outputs.phase == '2' && steps.onboard-phase.outputs.repository != ''
-    continue-on-error: true
-    uses: actions/checkout@v7
-    with:
-      repository: ${{ steps.onboard-phase.outputs.repository }}
-      path: repos/consumer
-      persist-credentials: false
-      token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+  # Do not add actions/checkout here: any custom checkout suppresses gh-aw's default
+  # workflow-repository checkout (needed for docs/, config/, and registration edits).
+  # Phase 2 clones elastic/<repo> into repos/consumer when the host tree is missing.
 tools:
   github:
     # Prefer OIDC create-token output, then MCP/secret fallbacks (gh-aw >= v0.89.21).
