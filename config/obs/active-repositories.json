@@ -185,6 +185,12 @@
       "ai-assets-token-policy": ""
     },
     {
+      "repository": "elastic/relay-service",
+      "pin-class": "production",
+      "workflow-token-policy": "token-policy-2c835424e119",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/sandbox-service",
       "pin-class": "production",
       "workflow-token-policy": "token-policy-2d01907e8da6",
