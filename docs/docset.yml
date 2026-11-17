@@ -21,6 +21,7 @@ toc:
       - file: local-ai-assets.md
       - file: run-scheduled-automations.md
       - file: automerge-services.md
+      - file: automerge-user-journeys.md
   - folder: admin-guide
     children:
       - file: index.md

@@ -1,6 +1,6 @@
 ---
 navigation_title: User guide
-description: What Elastic developers do with oblt-aw — onboard and enable platform workflows, customize with local AI assets or scheduled automations (BYO), and choose Automerge dependency collections.
+description: What Elastic developers do with oblt-aw — onboard and enable platform workflows, customize with local AI assets or scheduled automations (BYO), choose Automerge collections, and customize non-dependency Automerge.
 applies_to: {}
 ---
 
@@ -23,6 +23,7 @@ Procedures for developers and target repository owners who use OBLT Agentic Work
 | Enable or disable an agentic workflow from the Control Plane dashboard | [Enable or disable an agentic workflow](enable-a-new-workflow.md) |
 | Opt in or opt out of Automerge dependency collections from the Control Plane dashboard | [Opt in or opt out of Automerge dependency collections](opt-in-opt-out.md) |
 | Choose which dependency collections Automerge covers | [Choose Automerge dependency collections](automerge-services.md) |
+| Enable and customize non-dependency Automerge (`all-files` + policy) | [Non-dependency Automerge user journeys](automerge-user-journeys.md) |
 | See what agentic workflows do and when they run | [Agentic workflow catalog by outcome](../knowledge-base/agentic-workflows/by-outcome.md) |
 
 ### Customize in your repository (BYO)
