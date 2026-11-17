@@ -19,6 +19,7 @@ toc:
       - file: enable-a-new-workflow.md
       - file: opt-in-opt-out.md
       - file: local-ai-assets.md
+      - file: run-scheduled-automations.md
       - file: automerge-services.md
       - file: automerge-user-journeys.md
   - folder: admin-guide
