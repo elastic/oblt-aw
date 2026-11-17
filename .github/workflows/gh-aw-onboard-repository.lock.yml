@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"d802094e990fc96a64bf5ad34edb3c49453d210ce84c1b5847fa0e17782382aa","body_hash":"604cde664ebac83001c7fce9e8e6bd4b2f2710810e33883e98563e65c9aa5458","compiler_version":"v0.92.5","agent_id":"copilot","agent_model":"gpt-5.3-codex","engine_versions":{"copilot":"1.0.98","copilot-sdk":"1.0.16"}}
-# gh-aw-manifest: {"version":1,"secrets":["GH_AW_CI_TRIGGER_TOKEN","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"b7ad1dad31e06c5925ef5d2fc7ad053ef454303e","version":"v7.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/setup-python","sha":"5fda3b95a4ea91299a34e894583c3862153e4b97","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"},{"repo":"astral-sh/setup-uv","sha":"20cfd1bf945f4377ade1205e4dbc17946fc9a30d","version":"v10"},{"repo":"elastic/oblt-actions/github/create-token","sha":"645d97cb15a7742c25352c2bd4d1e2ea0590c746","version":"v1"},{"repo":"github/gh-aw-actions/setup","sha":"ebb97091a4afcc9bf2d594071dbabe861e9a34fc","version":"v0.92.5"},{"repo":"github/gh-aw-actions/setup-cli","sha":"ebb97091a4afcc9bf2d594071dbabe861e9a34fc","version":"v0.92.5"},{"repo":"ruby/setup-ruby","sha":"651ff0d62c5c79bed6d53ec518387aae20e72c1a","version":"v1.329.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.62","digest":"sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.62@sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.62","digest":"sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.62@sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.62","digest":"sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.62@sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.35","digest":"sha256:35e28671836380c0eae52660ea2ad7e5f6659f63cb20d1abae9271656c670858","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.35@sha256:35e28671836380c0eae52660ea2ad7e5f6659f63cb20d1abae9271656c670858"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f","pinned_image":"ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f"},{"image":"ghcr.io/github/github-mcp-server:v2.0.2","digest":"sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796","pinned_image":"ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796"}],"mcp_servers":[{"name":"github","tools":["actions_get","actions_list","get_commit","get_file_contents","get_job_logs","get_latest_release","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"public-code-search","tools":["search_code"]},{"name":"safeoutputs","tools":["add_comment","create_pull_request","missing_data","missing_tool","noop","report_incomplete"]}],"threat_detection":{"mode":"enabled"}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"69b687d9ad0b59e93accfb5d49046200a9cb0d45b46ba54326dc70ef3ddcc1ac","body_hash":"58f1f5ff18d58138446f9adc1ed776d63a696e2d0aab89c5b6a8298c1af9801e","compiler_version":"v0.92.5","agent_id":"copilot","agent_model":"gpt-5.3-codex","engine_versions":{"copilot":"1.0.98","copilot-sdk":"1.0.16"}}
+# gh-aw-manifest: {"version":1,"secrets":["GH_AW_CI_TRIGGER_TOKEN","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-go","sha":"b7ad1dad31e06c5925ef5d2fc7ad053ef454303e","version":"v7.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/setup-python","sha":"5fda3b95a4ea91299a34e894583c3862153e4b97","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"},{"repo":"astral-sh/setup-uv","sha":"20cfd1bf945f4377ade1205e4dbc17946fc9a30d","version":"v10"},{"repo":"elastic/oblt-actions/github/create-token","sha":"645d97cb15a7742c25352c2bd4d1e2ea0590c746","version":"v1"},{"repo":"github/gh-aw-actions/setup","sha":"ebb97091a4afcc9bf2d594071dbabe861e9a34fc","version":"v0.92.5"},{"repo":"github/gh-aw-actions/setup-cli","sha":"ebb97091a4afcc9bf2d594071dbabe861e9a34fc","version":"v0.92.5"},{"repo":"ruby/setup-ruby","sha":"651ff0d62c5c79bed6d53ec518387aae20e72c1a","version":"v1.329.0"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.62","digest":"sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.62@sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.62","digest":"sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.62@sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.62","digest":"sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.62@sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.35","digest":"sha256:35e28671836380c0eae52660ea2ad7e5f6659f63cb20d1abae9271656c670858","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.35@sha256:35e28671836380c0eae52660ea2ad7e5f6659f63cb20d1abae9271656c670858"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f","pinned_image":"ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f"},{"image":"ghcr.io/github/github-mcp-server:v2.0.2","digest":"sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796","pinned_image":"ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796"}],"mcp_servers":[{"name":"github","tools":["actions_get","actions_list","get_commit","get_file_contents","get_job_logs","get_latest_release","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"public-code-search","tools":["search_code"]},{"name":"safeoutputs","tools":["add_comment","create_pull_request","missing_data","missing_tool","noop","report_incomplete","update_issue"]}],"threat_detection":{"mode":"enabled"}}
 # This file was automatically generated by gh-aw (v0.92.5). DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -80,6 +80,7 @@ on:
     # - oblt-aw/onboard/repository # Label filtering applied via job conditions
     types:
       - labeled
+      - edited
 # roles: # Roles processed as role check in pre-activation job
 # - admin # Roles processed as role check in pre-activation job
 # - maintainer # Roles processed as role check in pre-activation job
@@ -90,7 +91,7 @@ on:
 permissions: {}
 
 concurrency:
-  cancel-in-progress: true
+  cancel-in-progress: false
   group: ${{ github.workflow }}-onboard-repository-${{ github.event.issue.number }}
 
 run-name: "Onboard Repository"
@@ -109,8 +110,7 @@ jobs:
     name: activation
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && (github.event_name != 'issues' || github.event.action != 'labeled' ||
-      github.event.label.name == 'oblt-aw/onboard/repository')
+      needs.pre_activation.outputs.activated == 'true' && (github.event_name != 'issues' || (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/onboard/repository') || (github.event.action == 'edited' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository')))
     runs-on: ubuntu-slim
     # Permissions for the activation job (workflow permissions default to none).
     permissions:
@@ -198,7 +198,7 @@ jobs:
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
-          GH_AW_INFO_ALLOWED_DOMAINS: '["artifacts.elastic.co","cloud.elastic.co","docs.elastic.dev","ela.st","elastic.co","public-code-search.fastmcp.app","www.elastic.co"]'
+          GH_AW_INFO_ALLOWED_DOMAINS: '["artifacts.elastic.co","cloud.elastic.co","defaults","docs.elastic.dev","ela.st","elastic.co","github","public-code-search.fastmcp.app","www.elastic.co"]'
           GH_AW_INFO_FIREWALL_ENABLED: "true"
           GH_AW_INFO_AWF_VERSION: "v0.28.62"
           GH_AW_INFO_AWMG_VERSION: ""
@@ -313,7 +313,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_ALLOWED_BOTS: "github-actions[bot]"
-          GH_AW_ALLOWED_DOMAINS: "artifacts.elastic.co,cloud.elastic.co,docs.elastic.dev,ela.st,elastic.co,public-code-search.fastmcp.app,www.elastic.co"
+          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,api.snapcraft.io,archive.ubuntu.com,artifacts.elastic.co,azure.archive.ubuntu.com,cloud.elastic.co,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.elastic.dev,docs.github.com,ela.st,elastic.co,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,patch-diff.githubusercontent.com,patchdiff.githubusercontent.com,ppa.launchpad.net,public-code-search.fastmcp.app,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.elastic.co,www.googleapis.com"
         with:
           script: |
             const path = require('path');
@@ -341,7 +341,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_PROMPT_CONTENT_0000: "<system>\n"
-          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: add_comment(max:2), create_pull_request(max:5), missing_tool, missing_data, noop(max:2)\n"
+          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: add_comment(max:2), update_issue, create_pull_request(max:7), missing_tool, missing_data, noop(max:2)\n"
           GH_AW_PROMPT_CONTENT_0002: "</safe-output-tools>\n"
           GH_AW_PROMPT_CONTENT_0003: "<github-context>\nThe following GitHub context information is available for this workflow:\n{{#if github.actor}}\n- **actor**: __GH_AW_GITHUB_ACTOR__\n{{/if}}\n{{#if github.repository}}\n- **repository**: __GH_AW_GITHUB_REPOSITORY__\n{{/if}}\n{{#if github.workspace}}\n- **workspace**: __GH_AW_GITHUB_WORKSPACE__\n{{/if}}\n{{#if github.event.issue.number || (github.aw.context.item_type == 'issue' && github.aw.context.item_number)}}\n- **issue-number**: #__GH_AW_EXPR_7C248226__\n{{/if}}\n{{#if github.event.discussion.number || (github.aw.context.item_type == 'discussion' && github.aw.context.item_number)}}\n- **discussion-number**: #__GH_AW_EXPR_C19C384F__\n{{/if}}\n{{#if github.event.pull_request.number || (github.aw.context.item_type == 'pull_request' && github.aw.context.item_number)}}\n- **pull-request-number**: #__GH_AW_EXPR_76DF9333__\n{{/if}}\n{{#if github.event.comment.id || github.aw.context.comment_id}}\n- **comment-id**: __GH_AW_EXPR_77C1A4D2__\n{{/if}}\n{{#if github.run_id}}\n- **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__\n{{/if}}\n- **checkouts**: The following repositories have been checked out and are available in the workspace:\n  - repo `__GH_AW_GITHUB_REPOSITORY__` → `__GH_AW_GITHUB_WORKSPACE__` (cwd) [full history, all branches available as remote-tracking refs]\n  - repo `elastic/catalog-info` → `__GH_AW_GITHUB_WORKSPACE__/repos/catalog-info` [shallow clone, fetch-depth=1 (default)]\n  - repo `elastic/observability-github-settings` → `__GH_AW_GITHUB_WORKSPACE__/repos/observability-github-settings` [shallow clone, fetch-depth=1 (default)]\n  - repo `elastic/observability-github-secrets` → `__GH_AW_GITHUB_WORKSPACE__/repos/observability-github-secrets` [shallow clone, fetch-depth=1 (default)]\n  - **Note**: The workspace path reported above may contain a separate shallow, credential-free checkout of the host repository. Use the exact checkout path shown for the repository you need. Before concluding that a branch is unavailable, confirm your working directory matches that path and inspect refs there. If the branch is not present in that checkout and is not listed as an additional fetched ref, it has NOT been checked out. For private repositories you cannot fetch it. If the branch is required and not available, exit with an error and ask the user to add it to the `fetch:` option of the `checkout:` configuration (e.g., `fetch: [\"refs/pulls/open/*\"]` for all open PR refs, or `fetch: [\"main\", \"feature/my-branch\"]` for specific branches).\n  - **Warning: No git credentials are available to the agent.** Credentials are\n    intentionally removed after the checkout step for security. This means any git\n    operation that needs to authenticate to the remote will fail. In private repositories, that includes:\n    - `git fetch`, `git pull`, `git clone`, and `git push` (direct push, not via safe-output tools)\n    - Checking out or switching to a remote branch that is not already fetched\n    - Deepening a shallow clone (`git fetch --unshallow`)\n    - On-demand blob fetches in partial/blobless clones (operations on files not in the initial checkout)\n    Do NOT attempt to configure credentials, run `git credential fill`, or modify `.gitconfig` —\n    authentication will not succeed. If you encounter credential prompts or authentication errors,\n    stop immediately and report the limitation rather than spending turns trying to work around it.\n</github-context>\n\n"
           GH_AW_PROMPT_CONTENT_0004: "</system>\n"
@@ -352,7 +352,7 @@ jobs:
           GH_AW_PROMPT_CONTENT_0009: "## Observability defaults\n\nShared opinionated defaults for Observability-owned agentic workflows. Import this fragment from each in-repo `gh-aw-*.md` so model, failure reporting, and trusted users stay in one place.\n\nFailure reporting: `report-failure-as-issue` and `report-failed-jobs` are off, and every default failure fallback that can open a tracking issue is set to `create-issue: false` / `report-as-issue: false` (`noop`, `missing-tool`, `missing-data`, `report-incomplete`). Keep those signals for run handling; do not open new issues.\n\nNote: `on.bots` cannot be declared in a shared fragment; pin bot actors on each workflow that needs them (for example `github-actions[bot]` and `buildkite-limited-access[bot]`).\n\nNote: gh-aw merges imported `report-failed-jobs` into the main workflow `safe-outputs`; do not repeat it on importing workflows. Do not declare a bare `noop:` on the main workflow; that overrides this fragment and restores `report-as-issue: true`.\n\nNote: on gh-aw >= v0.91.x, Copilot BYOK is the default and native `tools.web-fetch` needs `engine.copilot-sdk: true` on each importing workflow that declares `web-fetch`.\n"
           GH_AW_PROMPT_CONTENT_0010: "## Rigor\n\n**Silence is better than noise. A false positive wastes a human's time and erodes trust in every future report.**\n\n- If you claim something is missing or broken, show the exact evidence in the code — file path, line number, and what you observed.\n- If a conclusion depends on assumptions you haven't confirmed, do not assert it. Verify first; if you cannot verify, do not report.\n- \"I don't know\" is better than a wrong answer. `noop` is better than a speculative finding.\n- It's worth the time to verify now versus guessing and forcing someone else to verify later.\n- Before submitting any output, re-read it as a skeptical reviewer. Ask: \"Would a senior engineer on this team find this useful, or would they close it immediately?\" If the answer is \"close,\" call `noop` instead.\n- Only report findings you would confidently defend in a code review. If you feel the need to hedge with \"might,\" \"could,\" or \"possibly,\" the finding is not ready to file.\n- Be thorough, spend the time to investigate and verify. There is no rush. Do your best work.\n\n"
           GH_AW_PROMPT_CONTENT_0011: "Repository conventions are pre-fetched to `/tmp/agents.md`. Read this file early in your task to understand the codebase's conventions, guidelines, and patterns. If the file doesn't exist, continue without it. When spawning sub-agents, include the contents of `/tmp/agents.md` in each sub-agent's prompt (or tell the sub-agent to read the file directly).\n"
-          GH_AW_PROMPT_CONTENT_0012: "# Onboard a consumer repository\n\nYou run **only** in `elastic/oblt-aw` when an issue is labeled `oblt-aw/onboard/repository`.\nYou are **not** a consumer catalog workflow: do not touch `workflow-registry.json`, client templates, or Control Plane Dashboard checkbox definitions.\n\n## Inputs (from the issue)\n\nRead the triggering issue via GitHub MCP using the **issue-number** from `<github-context>` (the prompt does not embed the issue body). From that issue body, extract exactly:\n\n1. **Repository** — must match `elastic/<repo>` (slug under the `elastic` org).\n2. **Organization key** — must be an existing directory under `config/` in this repository (today: `docs`, `obs`, or `security`).\n\nIf either value is missing, invalid, or the repository is already listed in `config/<org-key>/active-repositories.json`, call `add-comment` with a clear explanation and stop (use `noop` if no further action is possible).\n\n## Retry safety (before opening PRs)\n\nBefore calling `create-pull-request`, search for **existing open** pull requests whose titles start with `[oblt-aw][onboard]` and that target the same `elastic/<repo>` (in any of the allowlisted repos). Prefer GitHub search / `gh pr list` filtered by that title prefix.\n\nMap each matching open PR to one inventory concern by repository (and title):\n\n| Concern | Allowlisted repo | Typical title contains |\n|---------|------------------|------------------------|\n| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy + mapped org-scoped sync/distribute + settings selectors) |\n| catalog-settings-selector | `elastic/catalog-info` | `observability-github-settings token policy` / settings selector / allowlist |\n| registration | `elastic/oblt-aw` | `Register` / `active repositories` |\n| settings | `elastic/observability-github-settings` | `branch protection` |\n| secrets | `elastic/observability-github-secrets` | `secret` / secrets provision |\n\nThen:\n\n1. **Never duplicate** — do not open a second PR for a concern that already has an open matching onboard PR. Do not invent `pulls?q=` search links.\n2. **Gap-fill missing concerns** — run [Consumer secrets](#consumer-secrets) and [Org-scoped allowlists](#org-scoped-allowlists-catalog). If discovery is non-empty and there is **no** open secrets onboard PR for this repository, open that secrets PR. If step **2e** is required and the open catalog PR did not cover sync/distribute or `token-policy-observability-github-settings-<suffix>`, open a follow-up catalog PR (`temporary_id` `aw_catalog_settings`). Open other missing always-required concerns the same way when absent.\n3. **Stop only when complete** — if every required inventory concern is already covered by open PRs (and secrets is either open or correctly skipped as “none” after full discovery; and step **2e** selectors are covered), call `add-comment` with **exact PR URLs**, merge order, and stop.\n4. Re-applying the `oblt-aw/onboard/repository` label is the supported retry; treat prior open onboard PRs as the source of truth for concerns they already cover until they merge or close.\n\n## Authoritative procedure (read and follow — do not invent)\n\n**Read and follow** these docs in the workspace. They are the technical contract. Do **not** invent parallel steps.\n\n1. `docs/onboarding/registering-a-repository.md` — especially **Pull request inventory**, **Consumer secrets discovery**, **Automation contract**, **Steps** (including step **2e** org-scoped sync/distribute **and** settings allowlists), and the TokenPolicy appendix.\n2. `docs/user-guide/onboard-a-repository.md` — post-merge human steps (dashboard enablement) to cite in the issue comment.\n\nEdit the checked-out trees named in the Automation contract (`repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, and this repository root for `elastic/oblt-aw`). Settings stacks live under `resources/<settings-org>/branch-protections/<repo>/` (`docs`→`obs` until `orgs.json` has docs).\n\n### Org-scoped allowlists (catalog)\n\nFollow registering-resources step **2e** in full.\n\nIn the catalog concern PR: (1) add the consumer TokenPolicy for `trigger-<org>-aw-*.yml@*`. (2) Map the registration org-key to the policy suffix — `obs`→`obs`, `security`→`security`, `docs`→`obs` (temporary). Ensure the consumer’s github-repository RRE lives under `resources/github/engineering/<backstage-org>/`. (3) Ensure these list `elastic/<repo>`:\n\n- `token-policy-oblt-aw-sync-control-plane-dashboard-<suffix>.yaml`\n- `token-policy-oblt-aw-distribute-client-workflow-<suffix>.yaml`\n- `token-policy-observability-github-settings-<suffix>.yaml`\n\nRun `python .github/scripts/update-token-policy-obs-repositories/update_token_policy.py --org <suffix>` (or append sorted selector rows). If the org settings policy pins a `repos` allowlist in that script, add `elastic/<repo>` to the pin and keep every existing entry, then re-run. Prefer folding into `temporary_id` `aw_catalog`; on retry use `aw_catalog_settings` when the open catalog PR lacks allowlist coverage. Do **not** invent `-docs` policies or use `ALWAYS_INCLUDE_REPOS`. Never rely on a later weekly job or on `active-repositories.json` alone.\n\n### Consumer secrets\n\nBefore deciding whether to open a secrets PR (do **not** hardcode secret names):\n\n1. Read `config/<org-key>/workflow-registry.json`.\n2. Build the **effective** workflow list for that org:\n   - For each id in top-level `include_common` (when present), look up that service in `config/common/services.json` and take its object (including `docs`).\n   - Then append every local `workflows` entry.\n   - Do **not** read only the local `workflows` array — shared services such as `estc-pr-buildkite-detective` live under `include_common` and would be skipped.\n3. For **every** effective entry with a `docs:` path, **open that markdown file** and collect consumer-facing secret names from **Prerequisites** first (when the doc says consumers provision/map a name). Fall back to required `Secret:` lines under **API / Interface**.\n4. **Union across all effective workflows.** Do **not** filter by `default_enabled`, `enabled_by_default`, “onboarding defaults”, maturity, or whether a workflow is likely to be toggled on later. A secrets PR provisions for the org catalog; dashboard opt-in is separate.\n5. In `repos/observability-github-secrets`, resolve each name to a `conf/shared` module (`*.tf` search or README Create Secret table). Fail closed if unresolved — do not invent modules or skip unresolved names.\n6. Non-empty set → scaffold or update `conf/resources/<repo>/` (+ `docs/<repo>.md`) and open one secrets PR (`temporary_id` `aw_secrets`). Empty set **only after** the full-union steps above → skip and record “none” in the checklist. Never write “none” because you only inspected default-enabled entries, ignored `include_common`, or did not open the docs files.\n\nFollow `docs/onboarding/registering-a-repository.md` (**Consumer secrets discovery**) in full.\n\n### Markdown format (comments and PR bodies)\n\nPass **real newlines** in every safe-output text field that GitHub renders as Markdown:\n\n- `add-comment` `body`\n- `create-pull-request` `body` (and titles without embedded `\\n`)\n\nNever put the two-character sequence `\\` + `n` in those fields; never collapse a multi-line body into one escaped line. Use headings and lists GitHub can render. For links, prefer full `https://github.com/.../pull/<n>` URLs or `#aw_…` ids — not `owner/repo#n` shorthand and not invented `pulls?q=` search links.\n\n### Issue comment\n\nOn each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_catalog_settings`, `aw_obltaw`, `aw_settings`, `aw_secrets` as needed). Link newly opened PRs with those `#aw_…` ids so safe-outputs rewrite them to exact PR URLs. For already-open PRs, use real `https://github.com/<owner>/<repo>/pull/<n>` URLs from search / `gh pr list`.\n\n**Content to include** in the issue comment (wording and heading text may vary):\n\n- Parsed repository and organization key\n- Checklist of opened or skipped PRs (one entry per inventory concern, including catalog allowlists / settings selector when required)\n- Explicit **human** checklist item for the consumer `CODEOWNERS` PR (registering step **5a**)\n- Explicit **human** checklist item for the consumer Renovate ignore **when Renovate is enabled** (registering step **5b**: disable updates for `.github/workflows/trigger-*-aw-*.yml`)\n- Merge order (catalog-info — including step **2e** allowlists — before `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows; consumer CODEOWNERS and Renovate ignore before or with distribute)\n- That merges are **manual**\n- Pointer to `docs/user-guide/onboard-a-repository.md` for post-merge dashboard enablement\n\n**Pull request bodies** must also follow [Markdown format](#markdown-format-comments-and-pr-bodies). Keep them short (summary of the concern-specific change); do not paste discovery essays or escaped newline sequences.\n\n## Safe-output constraints\n\n- Open PRs only via `create-pull-request` (`draft: false`). Do not merge. Do not close the onboard issue.\n- Finish with `add-comment` covering the content above, in **valid Markdown** (real newlines; exact PR links).\n- On failure, comment what failed; never invent credentials.\n- Call at least one of: `create-pull-request`, `add-comment`, or `noop`. A text-only exit with zero safe outputs is a failure.\n\n"
+          GH_AW_PROMPT_CONTENT_0012: "# Onboard a consumer repository\n\nYou run **only** in `elastic/oblt-aw` when an issue labeled `oblt-aw/onboard/repository` is **labeled** or **edited**.\nYou are **not** a consumer catalog workflow: do not touch `workflow-registry.json`, client templates, or Control Plane Dashboard checkbox definitions.\n\n## Two phases (mandatory)\n\nThe issue body has phase trigger checkboxes (see the issue form). Parse them from the issue body:\n\n| Checkbox text (contains) | Checked means |\n|--------------------------|---------------|\n| `Phase 1 — Catalog` | Run **Phase 1** |\n| `Phase 2 — Remaining PRs` | Run **Phase 2** |\n\n**Phase selection rules:**\n\n1. If **Phase 2** is checked → run **Phase 2** only (subject to the catalog-merge gate below).\n2. Else if the event is `labeled`, or **Phase 1** is checked → run **Phase 1**.\n3. Else (for example `edited` with Phase 2 unchecked and Phase 1 already done) → call `noop` and stop. Do **not** open PRs.\n\nDo **not** treat Control Plane dashboard checkboxes as phase triggers.\n\n## Inputs (from the issue)\n\nRead the triggering issue via GitHub MCP using the **issue-number** from `<github-context>` (the prompt does not embed the issue body). From that issue body, extract exactly:\n\n1. **Repository** — must match `elastic/<repo>` (slug under the `elastic` org).\n2. **Organization key** — must be an existing directory under `config/` in this repository (today: `docs`, `obs`, or `security`).\n3. **Phase checkboxes** — as above.\n\nIf repository or org-key is missing/invalid, or the repository is already listed in `config/<org-key>/active-repositories.json` when Phase 1 would register it, call `add-comment` with a clear explanation and stop (use `noop` if no further action is possible).\n\n## Phase 2 catalog-merge gate (fail closed)\n\nBefore any Phase 2 PR work:\n\n1. Find the Phase 1 catalog concern: open **or** recently merged PRs in `elastic/catalog-info` whose titles start with `[oblt-aw][onboard]` and that target this `elastic/<repo>`.\n2. If there is **no** merged catalog onboard PR for this repository (only open, missing, or unrelated), **abort Phase 2**:\n   - Call `update-issue` with `operation: replace` and the **full** current issue body where the Phase 2 line is changed from `- [x] **Phase 2`…` to `- [ ] **Phase 2`…` (preserve every other line exactly).\n   - Call `add-comment` explaining that Phase 2 was aborted because the Phase 1 `elastic/catalog-info` PR is not merged yet; link the open catalog PR when one exists; tell the user to merge it, wait for the TokenPolicy to be active, then check Phase 2 again.\n   - Do **not** open Phase 2 PRs. Do **not** leave Phase 2 checked.\n3. If the catalog PR is merged, also confirm `repos/catalog-info` on the default branch lists `elastic/<repo>` on `token-policy-oblt-aw-onboard-repository` (file `resources/github-token-policies/token-policy-oblt-aw-onboard-repository.yaml`). If missing, abort the same way (uncheck Phase 2 + comment): Phase 1 must add the consumer to the onboard agent TokenPolicy selector.\n4. Prefer the host checkout at `repos/consumer` when present. If Phase 2 is allowed but `repos/consumer` is missing, clone `elastic/<repo>` into `repos/consumer` with `gh`/`git` using available credentials before editing consumer files.\n\n## Retry safety (before opening PRs)\n\nBefore calling `create-pull-request`, search for **existing open** pull requests whose titles start with `[oblt-aw][onboard]` and that target the same `elastic/<repo>` (in any of the allowlisted repos). Prefer GitHub search / `gh pr list` filtered by that title prefix.\n\nMap each matching open PR to one inventory concern by repository (and title):\n\n| Concern | Allowlisted repo | Typical title contains | Phase |\n|---------|------------------|------------------------|-------|\n| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy + mapped org-scoped sync/distribute + settings selectors + **onboard agent TokenPolicy selector**) | 1 |\n| catalog-settings-selector | `elastic/catalog-info` | `observability-github-settings token policy` / settings selector / allowlist | 1 (gap-fill) |\n| registration | `elastic/oblt-aw` | `Register` / `active repositories` | 2 |\n| settings | `elastic/observability-github-settings` | `branch protection` | 2 |\n| secrets | `elastic/observability-github-secrets` | `secret` / secrets provision | 2 |\n| codeowners | `elastic/<repo>` | `CODEOWNERS` / trigger owners | 2 |\n| renovate | `elastic/<repo>` | `Renovate` / `packageRules` / trigger ignore | 2 |\n\nThen:\n\n1. **Never duplicate** — do not open a second PR for a concern that already has an open matching onboard PR. Do not invent `pulls?q=` search links.\n2. **Phase 1 scope** — open or gap-fill **catalog** concerns only. Do **not** open registration, settings, secrets, CODEOWNERS, or Renovate in Phase 1.\n3. **Phase 2 scope** — gap-fill registration, settings, secrets, CODEOWNERS, Renovate. Open a catalog follow-up (`aw_catalog_settings`) only when step **2e** / onboard-selector coverage is still missing after a merged Phase 1 PR.\n4. **Stop only when the active phase is complete** — comment with **exact PR URLs** and what the human should do next (merge catalog, then check Phase 2; or merge remaining PRs in order).\n5. Re-applying the `oblt-aw/onboard/repository` label retries the phase implied by the checkboxes; treat prior open onboard PRs as the source of truth until they merge or close.\n\n## Authoritative procedure (read and follow — do not invent)\n\n**Read and follow** these docs in the workspace. They are the technical contract. Do **not** invent parallel steps.\n\n1. `docs/onboarding/registering-a-repository.md` — especially **Pull request inventory**, **Consumer secrets discovery**, **Automation contract**, **Steps** (including step **2e** and onboard TokenPolicy selector), and the TokenPolicy appendix.\n2. `docs/user-guide/onboard-a-repository.md` — two-phase UX and post-merge dashboard enablement to cite in the issue comment.\n\nEdit the checked-out trees named in the Automation contract (`repos/catalog-info`, `repos/observability-github-settings`, `repos/observability-github-secrets`, this repository root for `elastic/oblt-aw`, and `repos/consumer` for CODEOWNERS / Renovate in Phase 2). Settings stacks live under `resources/<settings-org>/branch-protections/<repo>/` (`docs`→`obs` until `orgs.json` has docs).\n\n### Org-scoped allowlists (catalog) — Phase 1\n\nFollow registering-resources step **2e** in full, **and** add `elastic/<repo>` to the onboard agent TokenPolicy selector.\n\nIn the catalog concern PR: (1) add the consumer TokenPolicy for `trigger-<org>-aw-*.yml@*`. (2) Map the registration org-key to the policy suffix — `obs`→`obs`, `security`→`security`, `docs`→`obs` (temporary). Ensure the consumer’s github-repository RRE lives under `resources/github/engineering/<backstage-org>/`. (3) Ensure these list `elastic/<repo>`:\n\n- `token-policy-oblt-aw-sync-control-plane-dashboard-<suffix>.yaml`\n- `token-policy-oblt-aw-distribute-client-workflow-<suffix>.yaml`\n- `token-policy-observability-github-settings-<suffix>.yaml`\n- `token-policy-oblt-aw-onboard-repository.yaml` (onboard agent; required so Phase 2 can open consumer PRs)\n\nRun `python .github/scripts/update-token-policy-obs-repositories/update_token_policy.py --org <suffix>` (or append sorted selector rows) for the org-scoped policies. For the onboard policy, append a selector row for `elastic/<repo>` when missing (keep existing platform and consumer selectors). Prefer folding into `temporary_id` `aw_catalog`; on retry use `aw_catalog_settings` when the open catalog PR lacks allowlist or onboard-selector coverage. Do **not** invent `-docs` policies or use `ALWAYS_INCLUDE_REPOS`. Never rely on a later weekly job or on `active-repositories.json` alone.\n\n### Consumer secrets — Phase 2\n\nBefore deciding whether to open a secrets PR (do **not** hardcode secret names):\n\n1. Read `config/<org-key>/workflow-registry.json`.\n2. Build the **effective** workflow list for that org:\n   - For each id in top-level `include_common` (when present), look up that service in `config/common/services.json` and take its object (including `docs`).\n   - Then append every local `workflows` entry.\n   - Do **not** read only the local `workflows` array — shared services such as `estc-pr-buildkite-detective` live under `include_common` and would be skipped.\n3. For **every** effective entry with a `docs:` path, **open that markdown file** and collect consumer-facing secret names from **Prerequisites** first (when the doc says consumers provision/map a name). Fall back to required `Secret:` lines under **API / Interface**.\n4. **Union across all effective workflows.** Do **not** filter by `default_enabled`, `enabled_by_default`, “onboarding defaults”, maturity, or whether a workflow is likely to be toggled on later. A secrets PR provisions for the org catalog; dashboard opt-in is separate.\n5. In `repos/observability-github-secrets`, resolve each name to a `conf/shared` module (`*.tf` search or README Create Secret table). Fail closed if unresolved — do not invent modules or skip unresolved names.\n6. Non-empty set → scaffold or update `conf/resources/<repo>/` (+ `docs/<repo>.md`) and open one secrets PR (`temporary_id` `aw_secrets`). Empty set **only after** the full-union steps above → skip and record “none” in the checklist. Never write “none” because you only inspected default-enabled entries, ignored `include_common`, or did not open the docs files.\n\nFollow `docs/onboarding/registering-a-repository.md` (**Consumer secrets discovery**) in full.\n\n### Consumer CODEOWNERS and Renovate — Phase 2\n\nIn `repos/consumer` (or the consumer checkout):\n\n1. **CODEOWNERS (always)** — Append (do not replace other owners) the org trigger rule from registering step **5a**. Open PR `temporary_id` `aw_codeowners` targeting `elastic/<repo>`.\n2. **Renovate (when enabled)** — If the consumer has Renovate config (`renovate.json`, `renovate.json5`, or `.github/renovate.json` / `.json5`), append the `packageRules` ignore from registering step **5b**. Open PR `temporary_id` `aw_renovate`. If no Renovate config, skip and record “none” in the checklist.\n\n### Markdown format (comments and PR bodies)\n\nPass **real newlines** in every safe-output text field that GitHub renders as Markdown:\n\n- `add-comment` `body`\n- `create-pull-request` `body` (and titles without embedded `\\n`)\n- `update-issue` `body` (full issue body when unchecking Phase 2)\n\nNever put the two-character sequence `\\` + `n` in those fields; never collapse a multi-line body into one escaped line. Use headings and lists GitHub can render. For links, prefer full `https://github.com/.../pull/<n>` URLs or `#aw_…` ids — not `owner/repo#n` shorthand and not invented `pulls?q=` search links.\n\n### Issue comment\n\nOn each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_catalog_settings`, `aw_obltaw`, `aw_settings`, `aw_secrets`, `aw_codeowners`, `aw_renovate` as needed). Link newly opened PRs with those `#aw_…` ids so safe-outputs rewrite them to exact PR URLs. For already-open PRs, use real `https://github.com/<owner>/<repo>/pull/<n>` URLs from search / `gh pr list`.\n\n**Content to include** in the issue comment (wording and heading text may vary):\n\n- Parsed repository, organization key, and which **phase** ran\n- Checklist of opened or skipped PRs for that phase\n- **Phase 1:** tell the human to merge the catalog-info PR, then check **Phase 2 — Remaining PRs** on this issue\n- **Phase 2:** merge order (catalog already merged; then `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows; consumer CODEOWNERS and Renovate ignore before or with distribute)\n- That merges are **manual**\n- Pointer to `docs/user-guide/onboard-a-repository.md` for post-merge dashboard enablement\n\n**Pull request bodies** must also follow [Markdown format](#markdown-format-comments-and-pr-bodies). Keep them short (summary of the concern-specific change); do not paste discovery essays or escaped newline sequences.\n\n## Safe-output constraints\n\n- Open PRs only via `create-pull-request` (`draft: false`). Do not merge. Do not close the onboard issue.\n- Use `update-issue` **only** to uncheck Phase 2 on the catalog-merge abort path. Do not rewrite phase checkboxes in other cases (avoids edit loops).\n- Finish with `add-comment` covering the content above, in **valid Markdown** (real newlines; exact PR links), unless the run is a pure `noop`.\n- On failure, comment what failed; never invent credentials.\n- Call at least one of: `create-pull-request`, `add-comment`, `update-issue`, or `noop`. A text-only exit with zero safe outputs is a failure.\n\n"
         with:
           script: |
             const { setupGlobals } = require(process.env.GH_AW_ACTIONS_DIR + '/setup_globals.cjs');
@@ -506,7 +506,6 @@ jobs:
       ai_credits_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.ai_credits_rate_limit_error || 'false' }}
       aic: ${{ steps.parse-token-usage.outputs.aic }}
       ambient_context: ${{ steps.parse-token-usage.outputs.ambient_context }}
-      checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
       http_400_response_error: ${{ steps.detect-agent-errors.outputs.http_400_response_error || 'false' }}
       inference_access_error: ${{ steps.detect-agent-errors.outputs.inference_access_error || 'false' }}
@@ -584,11 +583,6 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh"
       - name: Check OTLP telemetry configuration
         run: bash "${RUNNER_TEMP}/gh-aw/actions/check_otlp_default_credentials.sh"
-      - name: Checkout repository (gh-aw default)
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
       - name: Checkout elastic/catalog-info into repos/catalog-info
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -636,60 +630,131 @@ jobs:
           evidence_tmp="/tmp/gh-aw/agent_execution.json.tmp"
           printf '{"version":1,"component":"agent","run_id":%s,"run_attempt":%s,"state":"not_started"}\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > "$evidence_tmp"
           mv "$evidence_tmp" "/tmp/gh-aw/agent_execution.json"
-      - name: Install gh-aw extension
-        uses: github/gh-aw-actions/setup-cli@ebb97091a4afcc9bf2d594071dbabe861e9a34fc # v0.92.5
-        with:
-          version: 'v0.92.5'
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh"
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Start DIFC Proxy
+        env:
+          GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GH_HOST: ${{ env.GH_HOST }}
+          GITHUB_HOST: ${{ env.GITHUB_HOST }}
+          GITHUB_ENTERPRISE_HOST: ${{ env.GITHUB_ENTERPRISE_HOST }}
+          GITHUB_GRAPHQL_URL: ${{ env.GITHUB_GRAPHQL_URL }}
+          GITHUB_COPILOT_BASE_URL: ${{ env.GITHUB_COPILOT_BASE_URL }}
+          GH_AW_NETWORK_ISOLATION: 'true'
+          DIFC_PROXY_POLICY: '{"allow-only":{"min-integrity":"none","repos":["elastic/*"]}}'
+          DIFC_PROXY_IMAGE: 'ghcr.io/github/gh-aw-mcpg:v0.4.35'
+        run: |
+          bash "${RUNNER_TEMP}/gh-aw/actions/start_difc_proxy.sh"
       - name: Download activation artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: activation
           path: /tmp/gh-aw
-      - if: hashFiles('go.mod') != ''
-        name: Setup Go
+      - name: Setup Go
+        if: hashFiles('go.mod') != ''
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         with:
           cache: true
           go-version-file: go.mod
-      - if: hashFiles('.python-version') != ''
-        name: Setup Python
+      - name: Setup Python
+        if: hashFiles('.python-version') != ''
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         with:
           python-version-file: .python-version
-      - if: hashFiles('.node-version') != ''
-        name: Setup Node.js (.node-version)
+      - name: Setup Node.js (.node-version)
+        if: hashFiles('.node-version') != ''
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         with:
           node-version-file: .node-version
-      - if: hashFiles('.node-version') == '' && hashFiles('.nvmrc') != ''
-        name: Setup Node.js (.nvmrc)
+      - name: Setup Node.js (.nvmrc)
+        if: hashFiles('.node-version') == '' && hashFiles('.nvmrc') != ''
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         with:
           node-version-file: .nvmrc
-      - if: hashFiles('.ruby-version') != ''
-        name: Setup Ruby
+      - name: Setup Ruby
+        if: hashFiles('.ruby-version') != ''
         uses: ruby/setup-ruby@651ff0d62c5c79bed6d53ec518387aae20e72c1a # v1.329.0
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         with:
           bundler-cache: true
           ruby-version: .ruby-version
-      - id: setup-uv
+      - name: Setup uv
+        id: setup-uv
         if: hashFiles('pyproject.toml', 'uv.lock') != ''
-        name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10
-      - env:
-          UV_PATH: ${{ steps.setup-uv.outputs.uv-path }}
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      - name: Expose uv in workspace
         if: hashFiles('pyproject.toml', 'uv.lock') != ''
-        name: Expose uv in workspace
-        run: "set -euo pipefail\n# AWF-friendly location: gh-aw scans /opt/hostedtoolcache/**/bin paths.\ntoolcache_bin=\"/opt/hostedtoolcache/gh-aw-tools/current/x64/bin\"\nsudo mkdir -p \"$toolcache_bin\"\nsudo ln -sf \"$UV_PATH\" \"$toolcache_bin/uv\"\n"
+        run: |
+          set -euo pipefail
+          # AWF-friendly location: gh-aw scans /opt/hostedtoolcache/**/bin paths.
+          toolcache_bin="/opt/hostedtoolcache/gh-aw-tools/current/x64/bin"
+          sudo mkdir -p "$toolcache_bin"
+          sudo ln -sf "$UV_PATH" "$toolcache_bin/uv"
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+          UV_PATH: ${{ steps.setup-uv.outputs.uv-path }}
         shell: bash
       - name: Configure Copilot CLI settings
-        run: "set -euo pipefail\nmkdir -p ~/.copilot\nCONFIG=\"$HOME/.copilot/config.json\"\nif [ -f \"$CONFIG\" ]; then\n    jq '. + {\"chat.customAgentInSubagent.enabled\": true}' \"$CONFIG\" > \"$CONFIG.tmp\" && mv \"$CONFIG.tmp\" \"$CONFIG\"\nelse\n    echo '{\"chat.customAgentInSubagent.enabled\":true}' > \"$CONFIG\"\nfi\n"
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.copilot
+          CONFIG="$HOME/.copilot/config.json"
+          if [ -f "$CONFIG" ]; then
+              jq '. + {"chat.customAgentInSubagent.enabled": true}' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+          else
+              echo '{"chat.customAgentInSubagent.enabled":true}' > "$CONFIG"
+          fi
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         shell: bash
       - name: Fetch repository conventions
         run: |
@@ -700,31 +765,92 @@ jobs:
           else
             echo "No AGENTS.md found; continuing without repository conventions"
           fi
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
         shell: bash
-
+      - name: Require onboard label for edited events
+        if: github.event.action == 'edited'
+        run: |
+          set -euo pipefail
+          # Defense in depth: gh-aw names-filter is labeled-only; Makefile also patches job if.
+          if [[ ",${ISSUE_LABELS}," != *",oblt-aw/onboard/repository,"* ]]; then
+            echo "::error::edited event without label oblt-aw/onboard/repository; refusing to run"
+            exit 1
+          fi
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      - name: Parse onboard issue phase and repository
+        id: onboard-phase
+        run: |
+          set -euo pipefail
+          body="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" --jq '.body // ""')"
+          repo="$(printf '%s\n' "$body" | awk '
+            BEGIN { grab=0 }
+            /^### Repository[[:space:]]*$/ { grab=1; next }
+            grab && /^### / { exit }
+            grab && NF { gsub(/\r/,""); print; exit }
+          ')"
+          if [[ ! "$repo" =~ ^elastic/[A-Za-z0-9._-]+$ ]]; then
+            echo "::warning::Could not parse elastic/<repo> from issue body"
+            repo=""
+          fi
+          phase2=0
+          if printf '%s\n' "$body" | grep -Eiq -- '^\s*-\s*\[x\]\s*\*\*Phase 2'; then
+            phase2=1
+          fi
+          phase=1
+          if [[ "$phase2" -eq 1 ]]; then
+            phase=2
+          fi
+          {
+            echo "repository=${repo}"
+            echo "phase=${phase}"
+            echo "phase2_checked=${phase2}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Parsed repository='${repo}' phase=${phase} phase2_checked=${phase2}"
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+      - name: Checkout consumer repository for Phase 2
+        id: checkout-consumer
+        if: steps.onboard-phase.outputs.phase == '2' && steps.onboard-phase.outputs.repository != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        env:
+          GH_HOST: ${{ env.GH_HOST || 'github.com' }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_API_URL: https://localhost:18443/api/v3
+          GITHUB_GRAPHQL_URL: https://localhost:18443/api/graphql
+          NODE_EXTRA_CA_CERTS: /tmp/gh-aw/proxy-logs/proxy-tls/ca.crt
+        with:
+          path: repos/consumer
+          persist-credentials: false
+          repository: ${{ steps.onboard-phase.outputs.repository }}
+          token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+      - name: Install gh-aw extension
+        uses: github/gh-aw-actions/setup-cli@ebb97091a4afcc9bf2d594071dbabe861e9a34fc # v0.92.5
+        with:
+          version: 'v0.92.5'
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_TOKEN: ${{ github.token }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
-      - name: Checkout PR branch
-        id: checkout-pr
-        if: |
-          github.event.pull_request || github.event.issue.pull_request || github.event_name == 'workflow_dispatch'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GH_AW_ALLOWED_BOTS: "github-actions[bot]"
-        with:
-          github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          script: |
-            const path = require('path');
-            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
-            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require(path.join(actionsDir, 'checkout_pr_branch.cjs'));
-            await main();
       - name: Install GitHub Copilot CLI
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
@@ -742,7 +868,7 @@ jobs:
           GH_AW_GITHUB_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN }}
           GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
           GH_AW_GITHUB_MIN_INTEGRITY: 'none'
-          GH_AW_GITHUB_REPOS: '["elastic/oblt-aw","elastic/catalog-info","elastic/observability-github-settings","elastic/observability-github-secrets"]'
+          GH_AW_GITHUB_REPOS: '["elastic/*"]'
         with:
           script: |
             const path = require('path');
@@ -757,12 +883,10 @@ jobs:
           GH_AW_TRUSTED_USERS_VAR: ${{ vars.GH_AW_GITHUB_TRUSTED_USERS || '' }}
           GH_AW_APPROVAL_LABELS_VAR: ${{ vars.GH_AW_GITHUB_APPROVAL_LABELS || '' }}
         run: bash "${RUNNER_TEMP}/gh-aw/actions/parse_guard_list.sh"
-      - name: Restore agent config folders from base branch
-        if: steps.checkout-pr.outcome == 'success'
-        env:
-          GH_AW_AGENT_FOLDERS: ".agents .github"
-          GH_AW_AGENT_FILES: "AGENTS.md"
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_base_github_folders.sh"
+      - name: Stop DIFC Proxy
+        if: always()
+        continue-on-error: true
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/stop_difc_proxy.sh"
       - name: Restore inline sub-agents from activation artifact
         env:
           GH_AW_SUB_AGENT_DIR: ".github/agents"
@@ -784,7 +908,7 @@ jobs:
         env:
           GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
           GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"discussions\":false,\"max\":2,\"target\":\"triggering\"},\"create_pull_request\":{\"allowed_repos\":[\"elastic/oblt-aw\",\"elastic/catalog-info\",\"elastic/observability-github-settings\",\"elastic/observability-github-secrets\"],\"auto_close_issue\":false,\"draft\":false,\"max\":5,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"AGENTS.md\"],\"protected_files_policy\":\"request-review\",\"title_prefix\":\"[oblt-aw][onboard] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"discussions\":false,\"max\":2,\"target\":\"triggering\"},\"create_pull_request\":{\"allowed_repos\":[\"elastic/*\"],\"auto_close_issue\":false,\"draft\":false,\"max\":7,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"AGENTS.md\"],\"protected_files_policy\":\"request-review\",\"title_prefix\":\"[oblt-aw][onboard] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"report_incomplete\":{},\"update_issue\":{\"allow_body\":true,\"max\":1,\"required_labels\":[\"oblt-aw/onboard/repository\"],\"required_title_prefix\":\"[onboard]\",\"target\":\"triggering\"}}"
         with:
           script: |
             const path = require('path');
@@ -799,7 +923,8 @@ jobs:
             {
               "description_suffixes": {
                 "add_comment": " CONSTRAINTS: Maximum 2 comment(s) can be added. Target: triggering. Supports reply_to_id for discussion threading.",
-                "create_pull_request": " CONSTRAINTS: Maximum 5 pull request(s) can be created. Title will be prefixed with \"[oblt-aw][onboard] \"."
+                "create_pull_request": " CONSTRAINTS: Maximum 7 pull request(s) can be created. Title will be prefixed with \"[oblt-aw][onboard] \".",
+                "update_issue": " CONSTRAINTS: Maximum 1 issue(s) can be updated. Target: triggering. The target issue title must start with \"[onboard]\". Body updates are allowed."
               },
               "repo_params": {
                 "create_pull_request": {
@@ -983,6 +1108,58 @@ jobs:
                     "maxLength": 1024
                   }
                 }
+              },
+              "update_issue": {
+                "defaultMax": 1,
+                "fields": {
+                  "assignees": {
+                    "type": "array",
+                    "itemType": "string",
+                    "itemSanitize": true,
+                    "itemMaxLength": 39
+                  },
+                  "body": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  },
+                  "issue_number": {
+                    "issueOrPRNumber": true
+                  },
+                  "labels": {
+                    "type": "array"
+                  },
+                  "milestone": {
+                    "optionalPositiveInteger": true,
+                    "allowNull": true
+                  },
+                  "operation": {
+                    "type": "string",
+                    "enum": [
+                      "replace",
+                      "append",
+                      "prepend",
+                      "replace-island"
+                    ]
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "closed"
+                    ]
+                  },
+                  "title": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  }
+                },
+                "customValidation": "requiresOneOf:status,title,body,labels,assignees,milestone"
               }
             }
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -1043,7 +1220,7 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_eca03a5de91916cd_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_cc58b3cc83c1e28d_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -1062,10 +1239,7 @@ jobs:
                     "blocked-users": ${GH_AW_GUARD_BLOCKED_USERS},
                     "min-integrity": "none",
                     "repos": [
-                      "elastic/oblt-aw",
-                      "elastic/catalog-info",
-                      "elastic/observability-github-settings",
-                      "elastic/observability-github-secrets"
+                      "elastic/*"
                     ],
                     "trusted-users": ${GH_AW_GUARD_TRUSTED_USERS}
                   }
@@ -1080,10 +1254,7 @@ jobs:
                 "guard-policies": {
                   "write-sink": {
                     "accept": [
-                      "private:elastic/oblt-aw",
-                      "private:elastic/catalog-info",
-                      "private:elastic/observability-github-settings",
-                      "private:elastic/observability-github-secrets"
+                      "private:elastic"
                     ],
                     "sink-visibility": "${GH_AW_SINK_VISIBILITY}"
                   }
@@ -1125,10 +1296,7 @@ jobs:
                 "guard-policies": {
                   "write-sink": {
                     "accept": [
-                      "private:elastic/oblt-aw",
-                      "private:elastic/catalog-info",
-                      "private:elastic/observability-github-settings",
-                      "private:elastic/observability-github-secrets"
+                      "private:elastic"
                     ],
                     "sink-visibility": "${GH_AW_SINK_VISIBILITY}"
                   }
@@ -1148,7 +1316,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_eca03a5de91916cd_EOF
+          GH_AW_MCP_CONFIG_cc58b3cc83c1e28d_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -1225,7 +1393,7 @@ jobs:
           if [[ ! "$GH_AW_MAX_AI_CREDITS" =~ ^[0-9]+$ ]]; then
             GH_AW_MAX_AI_CREDITS="1000"
           fi
-          printf '%s\n' "{\"\$schema\":\"https://github.com/github/gh-aw-firewall/releases/download/v0.28.62/awf-config.schema.json\",\"network\":{\"allowDomains\":[\"artifacts.elastic.co\",\"cloud.elastic.co\",\"docs.elastic.dev\",\"ela.st\",\"elastic.co\",\"public-code-search.fastmcp.app\",\"www.elastic.co\"],\"isolation\":true,\"topologyAttach\":[\"awmg-mcpg\"]},\"apiProxy\":{\"enabled\":true,\"enableTokenSteering\":true,\"maxRuns\":500,\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS},\"maxCacheMisses\":5,\"providers\":{\"github-copilot\":{\"models\":{\"gpt-5.3-codex\":{\"cost\":{\"cache_read\":\"1.75e-07\",\"input\":\"1.75e-06\",\"output\":\"1.4e-05\"}}}}},\"models\":{\"agent\":[\"sonnet-6x\",\"gpt-6\",\"gpt-5.4\",\"gpt-5.5\",\"gpt-5.6\",\"gpt-5.3\",\"gemini-pro\",\"any\"],\"antigravity\":[\"copilot/antigravity*\",\"google/antigravity*\",\"gemini/antigravity*\"],\"any\":[\"copilot/*\",\"anthropic/*\",\"openai/*\",\"google/*\",\"gemini/*\"],\"auto\":[\"copilot/auto\",\"large\"],\"claude\":[\"agent\"],\"codex\":[\"agent\"],\"coding\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\",\"gpt-5-codex\",\"kimi\"],\"computer-use\":[\"copilot/*computer-use*\",\"google/*computer-use*\",\"gemini/*computer-use*\",\"openai/*computer-use*\"],\"copilot\":[\"agent\"],\"deep-research\":[\"copilot/deep-research*\",\"copilot/o3-deep-research*\",\"copilot/o4-mini-deep-research*\",\"google/deep-research*\",\"gemini/deep-research*\",\"openai/o3-deep-research*\",\"openai/o4-mini-deep-research*\"],\"detection\":[\"small\"],\"evals\":[\"small\"],\"fable\":[\"copilot/*fable*\",\"anthropic/*fable*\"],\"gemini\":[\"agent\"],\"gemini-3-flash\":[\"copilot/gemini-3*flash*\",\"google/gemini-3*flash*\",\"gemini/gemini-3*flash*\"],\"gemini-3-pro\":[\"copilot/gemini-3*pro*\",\"google/gemini-3*pro*\",\"google/nano-banana*\",\"gemini/gemini-3*pro*\"],\"gemini-3.1-flash\":[\"copilot/gemini-3.1*flash*\",\"google/gemini-3.1*flash*\",\"gemini/gemini-3.1*flash*\"],\"gemini-3.1-pro\":[\"copilot/gemini-3.1*pro*\",\"google/gemini-3.1*pro*\",\"gemini/gemini-3.1*pro*\"],\"gemini-3.5-flash\":[\"copilot/gemini-3.5*flash*\",\"google/gemini-3.5*flash*\",\"gemini/gemini-3.5*flash*\"],\"gemini-3.6-flash\":[\"copilot/gemini-3.6*flash*\",\"google/gemini-3.6*flash*\",\"gemini/gemini-3.6*flash*\"],\"gemini-3.7-flash\":[\"copilot/gemini-3.7*flash*\",\"google/gemini-3.7*flash*\",\"gemini/gemini-3.7*flash*\"],\"gemini-3.8-flash\":[\"copilot/gemini-3.8*flash*\",\"google/gemini-3.8*flash*\",\"gemini/gemini-3.8*flash*\"],\"gemini-flash\":[\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"],\"gemini-flash-lite\":[\"copilot/gemini-*flash*lite*\",\"google/gemini-*flash*lite*\",\"gemini/gemini-*flash*lite*\"],\"gemini-omni\":[\"copilot/gemini-omni*\",\"google/gemini-omni*\",\"gemini/gemini-omni*\"],\"gemini-pro\":[\"copilot/gemini-*pro*\",\"google/gemini-*pro*\",\"gemini/gemini-*pro*\"],\"gemma\":[\"copilot/gemma*\",\"google/gemma*\",\"gemini/gemma*\"],\"gpt-5\":[\"copilot/gpt-5*\",\"openai/gpt-5*\"],\"gpt-5-codex\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\"],\"gpt-5-mini\":[\"copilot/gpt-5*mini*\",\"openai/gpt-5*mini*\"],\"gpt-5-nano\":[\"copilot/gpt-5*nano*\",\"openai/gpt-5*nano*\"],\"gpt-5-pro\":[\"copilot/gpt-5*pro*\",\"openai/gpt-5*pro*\"],\"gpt-5.1\":[\"copilot/gpt-5.1*\",\"openai/gpt-5.1*\"],\"gpt-5.2\":[\"copilot/gpt-5.2*\",\"openai/gpt-5.2*\"],\"gpt-5.3\":[\"copilot/gpt-5.3*\",\"openai/gpt-5.3*\"],\"gpt-5.4\":[\"copilot/gpt-5.4*\",\"openai/gpt-5.4*\"],\"gpt-5.5\":[\"copilot/gpt-5.5*\",\"openai/gpt-5.5*\"],\"gpt-5.6\":[\"copilot/gpt-5.6*\",\"openai/gpt-5.6*\"],\"gpt-6\":[\"copilot/gpt-6*\",\"openai/gpt-6*\"],\"grok\":[\"copilot/*grok*\",\"openai/*grok*\"],\"haiku\":[\"copilot/*haiku*\",\"anthropic/*haiku*\"],\"image-generation\":[\"copilot/gpt-image*\",\"openai/gpt-image*\",\"openai/chatgpt-image*\",\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"google/imagen*\"],\"kimi\":[\"copilot/kimi*\",\"openai/kimi*\"],\"kiwi\":[\"copilot/kiwi*\",\"openai/kiwi*\"],\"large\":[\"sonnet\",\"gpt-6\",\"gpt-5-pro\",\"gpt-5\",\"gemini-pro\"],\"lyria\":[\"google/lyria*\",\"gemini/lyria*\",\"copilot/lyria*\"],\"mai-code\":[\"copilot/MAI-Code*\",\"copilot/mai-code*\",\"openai/MAI-Code*\"],\"mai-code-1-flash-picker\":[\"copilot/MAI-Code-1-Flash-picker*\",\"copilot/mai-code-1-flash-picker*\",\"openai/MAI-Code-1-Flash-picker*\"],\"mini\":[\"haiku\",\"gpt-5-mini\",\"gpt-5-nano\",\"gemini-flash-lite\"],\"nano-banana\":[\"copilot/nano-banana*\",\"google/nano-banana*\",\"gemini/nano-banana*\"],\"opus\":[\"copilot/*opus*\",\"anthropic/*opus*\"],\"opusplan\":[\"opus?effort=high\"],\"raptor-mini\":[\"copilot/raptor*\",\"openai/raptor*\"],\"reasoning\":[\"copilot/o1*\",\"copilot/o3*\",\"copilot/o4*\",\"openai/o1*\",\"openai/o3*\",\"openai/o4*\"],\"robotics\":[\"copilot/*robotics*\",\"google/*robotics*\",\"gemini/*robotics*\"],\"small\":[\"mini\"],\"small-agent\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash\"],\"sonnet\":[\"copilot/*sonnet*\",\"anthropic/*sonnet*\"],\"sonnet-6x\":[\"copilot/*sonnet-4.5*\",\"copilot/*sonnet-4.6*\",\"copilot/*sonnet-5*\",\"copilot/*sonnet-4-5-*\",\"anthropic/*sonnet-4-5-*\",\"copilot/*sonnet-4-6*\",\"anthropic/*sonnet-4-6*\",\"anthropic/*sonnet-5*\"],\"summarization\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash-lite\",\"mini\"],\"veo\":[\"google/veo*\",\"gemini/veo*\"],\"vision\":[\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"]}},\"container\":{\"imageTag\":\"0.28.62,squid=sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef,agent=sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f,api-proxy=sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d,cli-proxy=sha256:b23bbe2c025f60ea9aacde67c078ea937b54b4039552bca072ae9610d9e1c294\",\"agentTimeout\":90},\"logging\":{\"proxyLogsDir\":\"/tmp/gh-aw/sandbox/firewall/logs\",\"auditDir\":\"/tmp/gh-aw/sandbox/firewall/audit\"}}" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
+          printf '%s\n' "{\"\$schema\":\"https://github.com/github/gh-aw-firewall/releases/download/v0.28.62/awf-config.schema.json\",\"network\":{\"allowDomains\":[\"*.githubusercontent.com\",\"api.snapcraft.io\",\"archive.ubuntu.com\",\"artifacts.elastic.co\",\"azure.archive.ubuntu.com\",\"cloud.elastic.co\",\"codeload.github.com\",\"crl.geotrust.com\",\"crl.globalsign.com\",\"crl.identrust.com\",\"crl.sectigo.com\",\"crl.thawte.com\",\"crl.usertrust.com\",\"crl.verisign.com\",\"crl3.digicert.com\",\"crl4.digicert.com\",\"crls.ssl.com\",\"docs.elastic.dev\",\"docs.github.com\",\"ela.st\",\"elastic.co\",\"github-cloud.githubusercontent.com\",\"github-cloud.s3.amazonaws.com\",\"github.blog\",\"github.com\",\"github.githubassets.com\",\"json-schema.org\",\"json.schemastore.org\",\"keyserver.ubuntu.com\",\"lfs.github.com\",\"objects.githubusercontent.com\",\"ocsp.digicert.com\",\"ocsp.geotrust.com\",\"ocsp.globalsign.com\",\"ocsp.identrust.com\",\"ocsp.sectigo.com\",\"ocsp.ssl.com\",\"ocsp.thawte.com\",\"ocsp.usertrust.com\",\"ocsp.verisign.com\",\"packagecloud.io\",\"packages.cloud.google.com\",\"packages.microsoft.com\",\"patch-diff.githubusercontent.com\",\"patchdiff.githubusercontent.com\",\"ppa.launchpad.net\",\"public-code-search.fastmcp.app\",\"raw.githubusercontent.com\",\"s.symcb.com\",\"s.symcd.com\",\"security.ubuntu.com\",\"ts-crl.ws.symantec.com\",\"ts-ocsp.ws.symantec.com\",\"www.elastic.co\",\"www.googleapis.com\"],\"isolation\":true,\"topologyAttach\":[\"awmg-mcpg\"]},\"apiProxy\":{\"enabled\":true,\"enableTokenSteering\":true,\"maxRuns\":500,\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS},\"maxCacheMisses\":5,\"providers\":{\"github-copilot\":{\"models\":{\"gpt-5.3-codex\":{\"cost\":{\"cache_read\":\"1.75e-07\",\"input\":\"1.75e-06\",\"output\":\"1.4e-05\"}}}}},\"models\":{\"agent\":[\"sonnet-6x\",\"gpt-6\",\"gpt-5.4\",\"gpt-5.5\",\"gpt-5.6\",\"gpt-5.3\",\"gemini-pro\",\"any\"],\"antigravity\":[\"copilot/antigravity*\",\"google/antigravity*\",\"gemini/antigravity*\"],\"any\":[\"copilot/*\",\"anthropic/*\",\"openai/*\",\"google/*\",\"gemini/*\"],\"auto\":[\"copilot/auto\",\"large\"],\"claude\":[\"agent\"],\"codex\":[\"agent\"],\"coding\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\",\"gpt-5-codex\",\"kimi\"],\"computer-use\":[\"copilot/*computer-use*\",\"google/*computer-use*\",\"gemini/*computer-use*\",\"openai/*computer-use*\"],\"copilot\":[\"agent\"],\"deep-research\":[\"copilot/deep-research*\",\"copilot/o3-deep-research*\",\"copilot/o4-mini-deep-research*\",\"google/deep-research*\",\"gemini/deep-research*\",\"openai/o3-deep-research*\",\"openai/o4-mini-deep-research*\"],\"detection\":[\"small\"],\"evals\":[\"small\"],\"fable\":[\"copilot/*fable*\",\"anthropic/*fable*\"],\"gemini\":[\"agent\"],\"gemini-3-flash\":[\"copilot/gemini-3*flash*\",\"google/gemini-3*flash*\",\"gemini/gemini-3*flash*\"],\"gemini-3-pro\":[\"copilot/gemini-3*pro*\",\"google/gemini-3*pro*\",\"google/nano-banana*\",\"gemini/gemini-3*pro*\"],\"gemini-3.1-flash\":[\"copilot/gemini-3.1*flash*\",\"google/gemini-3.1*flash*\",\"gemini/gemini-3.1*flash*\"],\"gemini-3.1-pro\":[\"copilot/gemini-3.1*pro*\",\"google/gemini-3.1*pro*\",\"gemini/gemini-3.1*pro*\"],\"gemini-3.5-flash\":[\"copilot/gemini-3.5*flash*\",\"google/gemini-3.5*flash*\",\"gemini/gemini-3.5*flash*\"],\"gemini-3.6-flash\":[\"copilot/gemini-3.6*flash*\",\"google/gemini-3.6*flash*\",\"gemini/gemini-3.6*flash*\"],\"gemini-3.7-flash\":[\"copilot/gemini-3.7*flash*\",\"google/gemini-3.7*flash*\",\"gemini/gemini-3.7*flash*\"],\"gemini-3.8-flash\":[\"copilot/gemini-3.8*flash*\",\"google/gemini-3.8*flash*\",\"gemini/gemini-3.8*flash*\"],\"gemini-flash\":[\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"],\"gemini-flash-lite\":[\"copilot/gemini-*flash*lite*\",\"google/gemini-*flash*lite*\",\"gemini/gemini-*flash*lite*\"],\"gemini-omni\":[\"copilot/gemini-omni*\",\"google/gemini-omni*\",\"gemini/gemini-omni*\"],\"gemini-pro\":[\"copilot/gemini-*pro*\",\"google/gemini-*pro*\",\"gemini/gemini-*pro*\"],\"gemma\":[\"copilot/gemma*\",\"google/gemma*\",\"gemini/gemma*\"],\"gpt-5\":[\"copilot/gpt-5*\",\"openai/gpt-5*\"],\"gpt-5-codex\":[\"copilot/gpt-5*codex*\",\"openai/gpt-5*codex*\"],\"gpt-5-mini\":[\"copilot/gpt-5*mini*\",\"openai/gpt-5*mini*\"],\"gpt-5-nano\":[\"copilot/gpt-5*nano*\",\"openai/gpt-5*nano*\"],\"gpt-5-pro\":[\"copilot/gpt-5*pro*\",\"openai/gpt-5*pro*\"],\"gpt-5.1\":[\"copilot/gpt-5.1*\",\"openai/gpt-5.1*\"],\"gpt-5.2\":[\"copilot/gpt-5.2*\",\"openai/gpt-5.2*\"],\"gpt-5.3\":[\"copilot/gpt-5.3*\",\"openai/gpt-5.3*\"],\"gpt-5.4\":[\"copilot/gpt-5.4*\",\"openai/gpt-5.4*\"],\"gpt-5.5\":[\"copilot/gpt-5.5*\",\"openai/gpt-5.5*\"],\"gpt-5.6\":[\"copilot/gpt-5.6*\",\"openai/gpt-5.6*\"],\"gpt-6\":[\"copilot/gpt-6*\",\"openai/gpt-6*\"],\"grok\":[\"copilot/*grok*\",\"openai/*grok*\"],\"haiku\":[\"copilot/*haiku*\",\"anthropic/*haiku*\"],\"image-generation\":[\"copilot/gpt-image*\",\"openai/gpt-image*\",\"openai/chatgpt-image*\",\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"google/imagen*\"],\"kimi\":[\"copilot/kimi*\",\"openai/kimi*\"],\"kiwi\":[\"copilot/kiwi*\",\"openai/kiwi*\"],\"large\":[\"sonnet\",\"gpt-6\",\"gpt-5-pro\",\"gpt-5\",\"gemini-pro\"],\"lyria\":[\"google/lyria*\",\"gemini/lyria*\",\"copilot/lyria*\"],\"mai-code\":[\"copilot/MAI-Code*\",\"copilot/mai-code*\",\"openai/MAI-Code*\"],\"mai-code-1-flash-picker\":[\"copilot/MAI-Code-1-Flash-picker*\",\"copilot/mai-code-1-flash-picker*\",\"openai/MAI-Code-1-Flash-picker*\"],\"mini\":[\"haiku\",\"gpt-5-mini\",\"gpt-5-nano\",\"gemini-flash-lite\"],\"nano-banana\":[\"copilot/nano-banana*\",\"google/nano-banana*\",\"gemini/nano-banana*\"],\"opus\":[\"copilot/*opus*\",\"anthropic/*opus*\"],\"opusplan\":[\"opus?effort=high\"],\"raptor-mini\":[\"copilot/raptor*\",\"openai/raptor*\"],\"reasoning\":[\"copilot/o1*\",\"copilot/o3*\",\"copilot/o4*\",\"openai/o1*\",\"openai/o3*\",\"openai/o4*\"],\"robotics\":[\"copilot/*robotics*\",\"google/*robotics*\",\"gemini/*robotics*\"],\"small\":[\"mini\"],\"small-agent\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash\"],\"sonnet\":[\"copilot/*sonnet*\",\"anthropic/*sonnet*\"],\"sonnet-6x\":[\"copilot/*sonnet-4.5*\",\"copilot/*sonnet-4.6*\",\"copilot/*sonnet-5*\",\"copilot/*sonnet-4-5-*\",\"anthropic/*sonnet-4-5-*\",\"copilot/*sonnet-4-6*\",\"anthropic/*sonnet-4-6*\",\"anthropic/*sonnet-5*\"],\"summarization\":[\"haiku\",\"gpt-5-mini\",\"gemini-flash-lite\",\"mini\"],\"veo\":[\"google/veo*\",\"gemini/veo*\"],\"vision\":[\"copilot/gemini-*image*\",\"google/gemini-*image*\",\"gemini/gemini-*image*\",\"copilot/gemini-*flash*\",\"google/gemini-*flash*\",\"gemini/gemini-*flash*\"]}},\"container\":{\"imageTag\":\"0.28.62,squid=sha256:b145850ed8bdffd2d4fcd8f1f3ea5793b56cadee6989700b91f42cff490630ef,agent=sha256:80c4ddd927647b636f49807d2557b4cd3ec175c894194e432c9374f5a69e890f,api-proxy=sha256:ebb9e7b5bec475f6b6c2eb6e999ada7d41d57d0acbacb8493c5bebc0106fd44d,cli-proxy=sha256:b23bbe2c025f60ea9aacde67c078ea937b54b4039552bca072ae9610d9e1c294\",\"agentTimeout\":90},\"logging\":{\"proxyLogsDir\":\"/tmp/gh-aw/sandbox/firewall/logs\",\"auditDir\":\"/tmp/gh-aw/sandbox/firewall/audit\"}}" > "${RUNNER_TEMP}/gh-aw/awf-config.json"
           cp "${RUNNER_TEMP}/gh-aw/awf-config.json" /tmp/gh-aw/awf-config.json
           export GH_AW_MODELS_JSON_PATH="/tmp/gh-aw/models.json"
           GH_AW_DOCKER_HOST=""
@@ -1373,7 +1541,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: "artifacts.elastic.co,cloud.elastic.co,docs.elastic.dev,ela.st,elastic.co,public-code-search.fastmcp.app,www.elastic.co"
+          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,api.snapcraft.io,archive.ubuntu.com,artifacts.elastic.co,azure.archive.ubuntu.com,cloud.elastic.co,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.elastic.dev,docs.github.com,ela.st,elastic.co,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,patch-diff.githubusercontent.com,patchdiff.githubusercontent.com,ppa.launchpad.net,public-code-search.fastmcp.app,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.elastic.co,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -1739,14 +1907,13 @@ jobs:
           GH_AW_WORKFLOW_ID: "gh-aw-onboard-repository"
           GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "0"
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_AI_CREDITS_RATE_LIMIT_ERROR: ${{ needs.agent.outputs.ai_credits_rate_limit_error || 'false' }}
           GH_AW_UNKNOWN_MODEL_AI_CREDITS: ${{ needs.agent.outputs.unknown_model_ai_credits || 'false' }}
           GH_AW_AIC: ${{ needs.agent.outputs.aic }}
           GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
           GH_AW_DETECTION_JOB_RESULT: ${{ needs.detection.result }}
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
-          GH_AW_DEFAULT_CHECKOUT_USES_TRIGGER_REF: "true"
+          GH_AW_DEFAULT_CHECKOUT_USES_TRIGGER_REF: "false"
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
           GH_AW_MCP_POLICY_ERROR: ${{ needs.agent.outputs.mcp_policy_error }}
           GH_AW_AGENTIC_ENGINE_TIMEOUT: ${{ needs.agent.outputs.agentic_engine_timeout }}
@@ -2218,7 +2385,7 @@ jobs:
   pre_activation:
     name: pre_activation
     if: >
-      github.event_name != 'issues' || github.event.action != 'labeled' || github.event.label.name == 'oblt-aw/onboard/repository'
+      github.event_name != 'issues' || (github.event.action == 'labeled' && github.event.label.name == 'oblt-aw/onboard/repository') || (github.event.action == 'edited' && contains(join(github.event.issue.labels.*.name, ','), 'oblt-aw/onboard/repository'))
     runs-on: ubuntu-slim
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
@@ -2461,10 +2628,10 @@ jobs:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_MENTIONS_GITHUB_TOKEN: ${{ github.token }}
-          GH_AW_ALLOWED_DOMAINS: "artifacts.elastic.co,cloud.elastic.co,docs.elastic.dev,ela.st,elastic.co,public-code-search.fastmcp.app,www.elastic.co"
+          GH_AW_ALLOWED_DOMAINS: "*.githubusercontent.com,api.snapcraft.io,archive.ubuntu.com,artifacts.elastic.co,azure.archive.ubuntu.com,cloud.elastic.co,codeload.github.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,docs.elastic.dev,docs.github.com,ela.st,elastic.co,github-cloud.githubusercontent.com,github-cloud.s3.amazonaws.com,github.blog,github.com,github.githubassets.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,lfs.github.com,objects.githubusercontent.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,patch-diff.githubusercontent.com,patchdiff.githubusercontent.com,ppa.launchpad.net,public-code-search.fastmcp.app,raw.githubusercontent.com,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.elastic.co,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"discussions\":false,\"max\":2,\"target\":\"triggering\"},\"create_pull_request\":{\"allowed_repos\":[\"elastic/oblt-aw\",\"elastic/catalog-info\",\"elastic/observability-github-settings\",\"elastic/observability-github-secrets\"],\"auto_close_issue\":false,\"draft\":false,\"max\":5,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"AGENTS.md\"],\"protected_files_policy\":\"request-review\",\"title_prefix\":\"[oblt-aw][onboard] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_comment\":{\"discussions\":false,\"max\":2,\"target\":\"triggering\"},\"create_pull_request\":{\"allowed_repos\":[\"elastic/*\"],\"auto_close_issue\":false,\"draft\":false,\"max\":7,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"AGENTS.md\"],\"protected_files_policy\":\"request-review\",\"title_prefix\":\"[oblt-aw][onboard] \"},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":2,\"report-as-issue\":\"false\"},\"report_incomplete\":{},\"update_issue\":{\"allow_body\":true,\"max\":1,\"required_labels\":[\"oblt-aw/onboard/repository\"],\"required_title_prefix\":\"[onboard]\",\"target\":\"triggering\"}}"
           GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
           GITHUB_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GH_AW_GITHUB_TOKEN_SOURCE: "unknown"

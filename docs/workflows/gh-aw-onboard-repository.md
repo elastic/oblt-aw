@@ -24,17 +24,27 @@ This workflow is **not** part of the consumer agentic catalog:
 
 Triggers:
 
-- `issues` `labeled` when the label is `oblt-aw/onboard/repository` (issue forms apply the label after create and emit this event)
+- `issues` `labeled` when the label is `oblt-aw/onboard/repository` (issue forms apply the label after create and emit this event) — **Phase 1**
+- `issues` `edited` when the issue still has that label (for example the human checks **Phase 2**) — **Phase 2** or no-op when nothing to do
 
-There is **no** `workflow_dispatch` path: the agent requires the triggering issue for input parsing and `add-comment`. Retry by re-applying the onboard label (gap-fills missing inventory concerns; does not duplicate open `[oblt-aw][onboard]` PRs).
+There is **no** `workflow_dispatch` path: the agent requires the triggering issue for input parsing and `add-comment`.
+
+### Two phases
+
+| Phase | How it starts | What the agent opens |
+|-------|---------------|----------------------|
+| **1 — Catalog** | Phase 1 checkbox is checked on submit; label applied | `elastic/catalog-info` only (consumer TokenPolicy, step **2e** allowlists, **onboard agent TokenPolicy selector**) |
+| **2 — Remaining PRs** | Human checks Phase 2 after catalog merges | Registration, settings, secrets (when needed), consumer `CODEOWNERS`, Renovate ignore (when enabled) |
+
+If Phase 2 is checked while the Phase 1 catalog PR is not merged (or the onboard TokenPolicy selector still omits the consumer), the agent **aborts**: `update-issue` unchecks Phase 2 and `add-comment` explains why.
 
 Behavior:
 
-1. Read the triggering issue via GitHub MCP and parse **repository** (`elastic/<repo>`) and **org key** (`docs` / `obs` / `security`) from the body. Source sets `tools.github.min-integrity: none` (temporary DIFC workaround so human-authored onboard issues are readable under the default `approved` floor).
-2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps including **2e** org-scoped sync/distribute **and** settings allowlists, appendix).
-3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones (especially secrets after full registry-doc discovery, and catalog step **2e** when sync/distribute or `token-policy-observability-github-settings-<suffix>` coverage is missing). Stop with **exact PR URLs** only when the inventory is complete.
-4. Open up to five **normal (non-draft)** PRs (separate concerns; catalog may split into consumer TokenPolicy + allowlist gap-fill); do not merge them. The catalog PR must add the consumer TokenPolicy and apply step **2e** (mapped org-scoped sync/distribute **and** settings selectors; extend any pinned settings `repos` allowlist when present). Settings bypasser stacks use `resources/<settings-org>/branch-protections/<repo>/`. Discover secrets from **every** org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines — do **not** filter by `default_enabled`; then resolve shared modules in the secrets checkout. PR bodies must be valid Markdown (real newlines).
-5. Comment with required content (parsed inputs, PR checklist, merge order, user-guide pointer) in **valid Markdown** — real newlines; full PR URLs or `#aw_…` rewrite. Heading wording is not fixed.
+1. Read the triggering issue via GitHub MCP and parse **repository** (`elastic/<repo>`), **org key** (`docs` / `obs` / `security`), and phase checkboxes. Source sets `tools.github.min-integrity: none` (temporary DIFC workaround so human-authored onboard issues are readable under the default `approved` floor).
+2. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps including **2e** and onboard TokenPolicy selector, appendix).
+3. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones for the **active phase only**.
+4. Open up to seven **normal (non-draft)** PRs across both phases (phase-scoped; catalog may split into consumer TokenPolicy + allowlist gap-fill). Do not merge them. Host steps parse the issue and, for Phase 2, check out `elastic/<repo>` into `repos/consumer` (`continue-on-error` so an early Phase 2 can still abort cleanly).
+5. Comment with required content (parsed inputs, phase, PR checklist, next step) in **valid Markdown** — real newlines; full PR URLs or `#aw_…` rewrite. Heading wording is not fixed.
 
 User-facing steps: [Onboard a repository](../user-guide/onboard-a-repository.md).
 
@@ -43,12 +53,18 @@ User-facing steps: [Onboard a repository](../user-guide/onboard-a-repository.md)
 Permissions (source intent; lock expands job-level scopes):
 
 - Workflow: `id-token: write` for OIDC `create-token`; agent reads contents/issues/pull-requests; Copilot requests.
-- Safe outputs create comments and pull requests with the minted Vault-app token (policy id from `config/onboard-repository.json`).
+- Safe outputs create comments, optional issue body updates (Phase 2 abort), and pull requests with the minted Vault-app token (policy id from `config/onboard-repository.json`).
+- GitHub tools and `create-pull-request` allow `elastic/*` so Phase 2 can target the consumer repository.
 
 Safe outputs:
 
 - `add-comment` (issue)
-- `create-pull-request` with `draft: false`, `max: 5`, `auto-close-issue: false`, allowlisted repos above
+- `update-issue` (body replace; Phase 2 abort uncheck only)
+- `create-pull-request` with `draft: false`, `max: 7`, `auto-close-issue: false`, `allowed-repos: elastic/*`
+
+Concurrency uses `cancel-in-progress: false` so an abort `update-issue` (which emits `edited`) does not cancel the abort run.
+
+`make compile-aw` runs `scripts/patch_aw_onboard_edited_label.py` so job `if:` conditions require label `oblt-aw/onboard/repository` on `edited` (gh-aw’s `names` filter is labeled-only). A host step fails closed as defense in depth.
 
 ## Related exclusions
 
