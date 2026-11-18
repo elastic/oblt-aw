@@ -68,9 +68,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: elastic/oblt-aw
-          # Prefer the SHA of this reusable so feature-branch / pin refs work
-          # before scripts land on main (aw-resolve still pins main today).
-          ref: ${{ github.workflow_sha || 'main' }}
+          # Nested reusable calls from a consumer set github.workflow_sha to the
+          # *caller* commit (not elastic/oblt-aw). That ref is not in oblt-aw and
+          # fails with "not our ref". Use this repo's sha only when the caller
+          # *is* elastic/oblt-aw (in-repo E2E / pin testing); otherwise main.
+          ref: ${{ github.repository == 'elastic/oblt-aw' && github.sha || 'main' }}
           path: _oblt-aw
           fetch-depth: 1
           sparse-checkout: |
