@@ -103,6 +103,8 @@ Non-destructive safe-outputs on the generic AW: `create-issue`, `add-comment`, `
 
 ## Migration notes (golang-crossbuild-style AWs)
 
+Step-by-step user journey: [Migrate off a consumer-owned scheduled AW](../user-guide/run-scheduled-automations.md#migrate-off-a-consumer-owned-scheduled-aw). Pilot: `elastic/golang-crossbuild` `debug-build-report` ([#2573](https://github.com/elastic/oblt-aw/issues/2573)).
+
 1. Enable **Repo Scheduled** on the Control Plane dashboard.
 2. Add an `apm.yml` automation with `instructions-file` under `.github/oblt-aw/scheduled/` (or inline `instructions` plus `id`), `schedule-profiles: [weekly]`, and `capabilities: [buildkite-logs]`; move prompt/skill text into the instruction body.
 3. Keep provisioning `BUILDKITE_LOGS_API_TOKEN`.

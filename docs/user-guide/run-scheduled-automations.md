@@ -121,6 +121,8 @@ If the repository already runs a local GH-AW (source `.md`, generated `.lock.yml
 3. Prove one green framework path (schedule or `workflow_dispatch`).
 4. Remove the consumer lock, local cron workflow, and compile-check plumbing for that AW so you do not double-run.
 
+Pilot reference: `elastic/golang-crossbuild` moves `debug-build-report` onto this path ([oblt-aw#2573](https://github.com/elastic/oblt-aw/issues/2573)). Keep any other consumer-owned AWs (and their compile gate) if they are still in use.
+
 ## Schedule lanes
 
 | Profile | Client trigger | Typical cron (UTC) | Use when |
