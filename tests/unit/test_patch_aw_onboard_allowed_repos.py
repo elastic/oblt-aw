@@ -55,14 +55,44 @@ SAMPLE_LOCK = """jobs:
         run: |
           cat << GH_AW_MCP_CONFIG_EOF
           {
-            "guard-policies": {
-              "allow-only": {
-                "repos": [
+            "servers": {
+              "github": {
+                "guard-policies": {
+                  "allow-only": {
+                    "repos": [
                       "elastic/catalog-info",
                       "elastic/oblt-aw",
                       "elastic/observability-github-secrets",
                       "elastic/observability-github-settings"
                     ]
+                  }
+                }
+              },
+              "public-code-search": {
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "private:elastic/catalog-info",
+                      "private:elastic/oblt-aw",
+                      "private:elastic/observability-github-secrets",
+                      "private:elastic/observability-github-settings"
+                    ],
+                    "sink-visibility": "${GH_AW_SINK_VISIBILITY}"
+                  }
+                }
+              },
+              "safeoutputs": {
+                "guard-policies": {
+                  "write-sink": {
+                    "accept": [
+                      "private:elastic/catalog-info",
+                      "private:elastic/oblt-aw",
+                      "private:elastic/observability-github-secrets",
+                      "private:elastic/observability-github-settings"
+                    ],
+                    "sink-visibility": "${GH_AW_SINK_VISIBILITY}"
+                  }
+                }
               }
             }
           }
@@ -100,7 +130,28 @@ def test_patch_lock_wires_agent_output_handler_and_mcp(tmp_path: Path) -> None:
         "GH_AW_GITHUB_REPOS: ${{ steps.onboard-phase.outputs.allowed_repos_json }}"
         in text
     )
+    assert (
+        "GH_AW_GITHUB_SINKS: ${{ steps.onboard-phase.outputs.allowed_sinks_json }}"
+        in text
+    )
+    assert text.count('"accept": ${GH_AW_GITHUB_SINKS}') == 2
+    assert '"sink-visibility": "${GH_AW_SINK_VISIBILITY}"' in text
+    assert "private:elastic/*" not in text
+    assert '"accept": ["*"]' not in text
     assert patch_mod.patch_lock(lock) is False
+
+
+def test_patch_lock_fails_closed_when_write_sink_missing(tmp_path: Path) -> None:
+    lock = tmp_path / "gh-aw-onboard-repository.lock.yml"
+    # Valid anchors but no write-sink.accept lists.
+    lock.write_text(
+        SAMPLE_LOCK.replace('"write-sink": {', '"write-sink-disabled": {').replace(
+            '"accept": [', '"accept_disabled": ['
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(SystemExit, match="write-sink.accept"):
+        patch_mod.patch_lock(lock)
 
 
 def test_patch_lock_fails_closed_when_anchor_missing(tmp_path: Path) -> None:

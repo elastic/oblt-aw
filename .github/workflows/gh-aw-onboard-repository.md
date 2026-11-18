@@ -96,7 +96,9 @@ steps:
       if [[ -n "$repo" ]]; then
         allowed_repos="${allowed_repos},${repo}"
       fi
+      # Exact private: tags for write-sink.accept (same repos; no wildcard).
       allowed_repos_json="["
+      allowed_sinks_json="["
       first=1
       IFS=',' read -ra _allowed_repos <<< "${allowed_repos}"
       for r in "${_allowed_repos[@]}"; do
@@ -104,16 +106,20 @@ steps:
           first=0
         else
           allowed_repos_json+=","
+          allowed_sinks_json+=","
         fi
         allowed_repos_json+="\"${r}\""
+        allowed_sinks_json+="\"private:${r}\""
       done
       allowed_repos_json+="]"
+      allowed_sinks_json+="]"
       {
         echo "repository=${repo}"
         echo "phase=${phase}"
         echo "phase2_checked=${phase2}"
         echo "allowed_repos=${allowed_repos}"
         echo "allowed_repos_json=${allowed_repos_json}"
+        echo "allowed_sinks_json=${allowed_sinks_json}"
       } >> "$GITHUB_OUTPUT"
       echo "Parsed repository='${repo}' phase=${phase} phase2_checked=${phase2} allowed_repos=${allowed_repos}"
   # Do not use actions/checkout here: it suppresses gh-aw's default workflow-repo checkout.
