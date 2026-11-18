@@ -27,6 +27,9 @@ parse). This post-compile step:
    ``needs.agent.outputs.allowed_repos``.
 3. Points ``GH_AW_GITHUB_REPOS`` and the MCP gateway ``repos`` guard at
    ``steps.onboard-phase.outputs.allowed_repos_json`` (platform + consumer).
+4. Points both MCP ``write-sink.accept`` lists at
+   ``steps.onboard-phase.outputs.allowed_sinks_json`` (``private:<repo>``
+   tags for the same validated set; preserves ``sink-visibility``).
 
 Run from Makefile ``compile-aw`` after ``patch_aw_onboard_edited_label``.
 Idempotent.
@@ -51,6 +54,7 @@ AGENT_OUTPUT_LINE = (
 STEP_EXPR = "${{ steps.onboard-phase.outputs.allowed_repos }}"
 NEEDS_EXPR = "${{ needs.agent.outputs.allowed_repos }}"
 REPOS_JSON_EXPR = "${{ steps.onboard-phase.outputs.allowed_repos_json }}"
+SINKS_JSON_EXPR = "${{ steps.onboard-phase.outputs.allowed_sinks_json }}"
 
 GITHUB_REPOS_STATIC = re.compile(
     r"^(\s*GH_AW_GITHUB_REPOS:\s*)'\[\"elastic/[^\"]+\"(?:,\s*\"elastic/[^\"]+\")*\]'\s*$",
@@ -66,6 +70,16 @@ MCP_REPOS_STATIC = re.compile(
     re.MULTILINE,
 )
 MCP_REPOS_REPLACEMENT = r"\1${GH_AW_GITHUB_REPOS}"
+
+# Both safeoutputs and public-code-search write-sink.accept lists.
+WRITE_SINK_ACCEPT_STATIC = re.compile(
+    r'^(\s*"accept":\s*)\[\n'
+    r'(?:\s*"private:elastic/[^"]+",?\n)+'
+    r"(\s*)\]",
+    re.MULTILINE,
+)
+WRITE_SINK_ACCEPT_REPLACEMENT = r"\1${GH_AW_GITHUB_SINKS}"
+WRITE_SINK_ACCEPT_RUNTIME = '"accept": ${GH_AW_GITHUB_SINKS}'
 
 
 def patch_lock(path: Path) -> bool:
@@ -154,27 +168,48 @@ def patch_lock(path: Path) -> bool:
             updated = difc_fixed
             changes += 1
 
+    # Derive write-sink.accept from the same validated repos (no wildcard).
+    if WRITE_SINK_ACCEPT_RUNTIME not in updated:
+        replaced_sinks, sink_count = WRITE_SINK_ACCEPT_STATIC.subn(
+            WRITE_SINK_ACCEPT_REPLACEMENT, updated
+        )
+        if sink_count == 0:
+            raise SystemExit(
+                f"{path.name}: write-sink.accept lists not found; "
+                "gh-aw compiler output may have changed — update "
+                "scripts/patch_aw_onboard_allowed_repos.py"
+            )
+        updated = replaced_sinks
+        changes += sink_count
+    if '"sink-visibility": "${GH_AW_SINK_VISIBILITY}"' not in updated:
+        raise SystemExit(
+            f"{path.name}: sink-visibility runtime expansion missing after "
+            "write-sink patch; refuse to drop visibility guard"
+        )
+
     # Ensure Start MCP Gateway exports the runtime JSON for heredoc expansion.
-    if (
-        "GH_AW_GITHUB_REPOS: ${{ steps.onboard-phase.outputs.allowed_repos_json }}"
-        not in updated
-        and "id: start-mcp-gateway" in updated
-    ):
-        gateway_env_anchor = "      - name: Start MCP Gateway\n        id: start-mcp-gateway\n        env:\n"
+    gateway_env_anchor = (
+        "      - name: Start MCP Gateway\n        id: start-mcp-gateway\n        env:\n"
+    )
+    if "id: start-mcp-gateway" in updated:
         if gateway_env_anchor not in updated:
             raise SystemExit(
                 f"{path.name}: Start MCP Gateway env anchor not found; "
                 "gh-aw compiler output may have changed — update "
                 "scripts/patch_aw_onboard_allowed_repos.py"
             )
-        updated = updated.replace(
-            gateway_env_anchor,
-            gateway_env_anchor
-            + "          GH_AW_GITHUB_REPOS: "
-            + "${{ steps.onboard-phase.outputs.allowed_repos_json }}\n",
-            1,
-        )
-        changes += 1
+        gateway_inserts: list[str] = []
+        if f"GH_AW_GITHUB_REPOS: {REPOS_JSON_EXPR}" not in updated:
+            gateway_inserts.append(f"          GH_AW_GITHUB_REPOS: {REPOS_JSON_EXPR}\n")
+        if f"GH_AW_GITHUB_SINKS: {SINKS_JSON_EXPR}" not in updated:
+            gateway_inserts.append(f"          GH_AW_GITHUB_SINKS: {SINKS_JSON_EXPR}\n")
+        if gateway_inserts:
+            updated = updated.replace(
+                gateway_env_anchor,
+                gateway_env_anchor + "".join(gateway_inserts),
+                1,
+            )
+            changes += len(gateway_inserts)
 
     if changes == 0:
         return False
