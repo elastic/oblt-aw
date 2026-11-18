@@ -8,6 +8,8 @@ Shared reusable prelude for agentic workflows (Control Plane dashboard gating an
 
 Event-scoped orchestrators (`obs-aw-event-*`, `docs-aw-event-*`) call this workflow once per GitHub event family, then fan out to per-route `*-aw-*` workflows with `shared-proceed` and related outputs. CI enforces that route reusables declare `shared-proceed` via [scripts/validate_aw_workflow_prelude.py](https://github.com/elastic/oblt-aw/blob/main/scripts/validate_aw_workflow_prelude.py).
 
+Registry scripts and `config/` check out at `job.workflow_sha` (this reusable’s commit), matching the consumer pin for promote/rollback.
+
 APM asset resolution (`apm install`, `apm.yml` merge) is **not** part of the prelude. Call [aw-resolve-agentic-assets.yml](aw-resolve-agentic-assets.md) once per `gh-aw-*` agent invocation instead.
 
 ### Jobs (Actions UI)

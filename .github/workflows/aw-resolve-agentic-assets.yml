@@ -107,8 +107,11 @@ jobs:
       - name: Checkout oblt-aw resolver scripts
         uses: actions/checkout@v7
         with:
-          repository: elastic/oblt-aw
-          ref: main
+          # github.workflow_sha is the *caller* commit. job.workflow_sha is this
+          # reusable's commit (same pin as uses: …@v0 / @main / SHA) so resolver
+          # scripts stay lockstep with promote/rollback (not GHES).
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: _oblt-aw
           fetch-depth: 1
           token: ${{ github.token }}

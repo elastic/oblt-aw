@@ -67,12 +67,11 @@ jobs:
       - name: Checkout oblt-aw discovery scripts
         uses: actions/checkout@v7
         with:
-          repository: elastic/oblt-aw
-          # Nested reusable calls from a consumer set github.workflow_sha to the
-          # *caller* commit (not elastic/oblt-aw). That ref is not in oblt-aw and
-          # fails with "not our ref". Use this repo's sha only when the caller
-          # *is* elastic/oblt-aw (in-repo E2E / pin testing); otherwise main.
-          ref: ${{ github.repository == 'elastic/oblt-aw' && github.sha || 'main' }}
+          # github.workflow_sha is the *caller* commit (consumer). job.workflow_sha
+          # is this reusable's commit — same pin as uses: …@v0 / @main / SHA — so
+          # discovery scripts stay lockstep with promote/rollback (not GHES).
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: _oblt-aw
           fetch-depth: 1
           sparse-checkout: |

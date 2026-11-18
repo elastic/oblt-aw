@@ -6,6 +6,8 @@ Source file: [.github/workflows/obs-aw-repo-scheduled.yml](https://github.com/el
 
 Generic scheduled agentic workflow for **consumer-defined** automations. The framework owns compilation, the lock file, schedule lanes, and capability wiring. Consumers declare automations in `apm.yml`, point each entry at an instruction Markdown file (or inline Markdown), and enable the Control Plane dashboard checkbox `obs:repo-scheduled`.
 
+Discovery checks out control-plane scripts at `job.workflow_sha` (the called reusable’s commit), so a consumer `@v0` / pin / rollback stays aligned with promote. Do not use `github.workflow_sha` here — that is the consumer caller commit.
+
 User journeys (enable, declare, Buildkite triage, fail-closed, migrate): [Run your own scheduled automations](../user-guide/run-scheduled-automations.md).
 
 ## Prerequisites
