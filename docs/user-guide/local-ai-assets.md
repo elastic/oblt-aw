@@ -37,7 +37,7 @@ Under `x-oblt-aw.<org-key>`, each org block needs a `common` section. Optional `
 
 3. **Override per workflow when needed** — If you define `workflows.<id>`, that block is used **instead of** `common` for that workflow (full override). Copy any shared setup or instructions you still need into the override. For wrappers that share one dashboard row, use `inner-workflows.<wrapper-basename>` the same way (full override of the parent workflow block).
 
-4. **Optional: local fragments** — Map fragment ids to repo-relative Markdown paths under `<org-key>.fragments`, then list those ids in `additional-instructions-fragments` on the asset block you want.
+4. **Optional: local fragments** — Map fragment ids to repo-relative Markdown paths under `<org-key>.fragments`, then list those ids in `additional-instructions-fragments` on the asset block you want. For `obs:repo-scheduled`, you can also set `additional-instructions-fragments` on a single `automations[]` entry so that skill text applies only to that automation.
 
 5. **Commit on the default branch (or the branch the workflow checks out)** — Resolution uses the consumer checkout for that run. After merge, trigger the agentic workflow (or wait for its normal event) and confirm the agent followed the new guidance.
 

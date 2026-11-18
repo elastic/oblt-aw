@@ -27,7 +27,7 @@ Each asset block (`common`, `workflows.<id>`, or `inner-workflows.<basename>`) m
 |-------|------|----------|
 | `setup-commands` | Inline string or list of strings | Shell run before the agentic engine. Use a **list** for separate steps, a **single string** for one command, or a **multiline block** (`\|`) for several inline commands (one non-empty, non-`#` line per command). Entries may be repo script paths (for example `./scripts/bootstrap.sh`) or arbitrary inline shell (for example `npm ci`). |
 | `setup-commands-file` | Repo-relative path | Optional. UTF-8 file with one command per line; appended after `setup-commands`. Same line rules as multiline inline text. |
-| `additional-instructions-fragments` | List of ids | Ordered ids from `<org-key>.fragments`; materialized before inline `additional-instructions`. |
+| `additional-instructions-fragments` | List of ids | Ordered ids from `<org-key>.fragments`; materialized before inline `additional-instructions`. On `obs:repo-scheduled`, the same field is also allowed on each `automations[]` entry (appended for that matrix job only, after the wake-level resolve output). |
 | `inputs` | Mapping | Agentic workflow input overrides; `*-file` keys load repo file contents (see manifest example). |
 
 A repository in multiple org fleets may define separate `obs` and `docs` blocks with different `common` guidance.

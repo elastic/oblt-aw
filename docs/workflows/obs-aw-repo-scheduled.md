@@ -25,12 +25,19 @@ Declare automations under the Observability workflow block. Each entry needs eit
 x-oblt-aw:
   version: 1
   obs:
+    fragments:
+      build-triage-skill: .apm/skills/build-triage/SKILL.md
     common: {}
     workflows:
       repo-scheduled:
+        # Optional: shared additional-instructions for every automation on this wake.
+        # Prefer automations[].additional-instructions-fragments for skill text that
+        # belongs to one automation only.
         automations:
           - id: build-error-triage
             instructions-file: .github/oblt-aw/scheduled/build-error-triage.md
+            additional-instructions-fragments:
+              - build-triage-skill
             schedule-profiles: [weekly]
             capabilities: [buildkite-logs]
 ```
@@ -65,6 +72,7 @@ repo-scheduled:
 | `instructions` | APM only | one of file/inline | Inline Markdown body (optional frontmatter); requires `id` |
 | `schedule-profiles` | APM and/or frontmatter | yes (one place) | One or more of `daily`, `frequent`, `weekly` |
 | `capabilities` | APM and/or frontmatter | no | Allowlisted ids (today: `buildkite-logs`) |
+| `additional-instructions-fragments` | APM automation entry | no | Ordered ids from `obs.fragments`; appended to this automation's `additional-instructions` only |
 | `id` | APM and/or frontmatter | for inline; else optional | Defaults to the instruction file stem when using a file |
 
 Do **not** add consumer cron workflows, GH-AW sources, or lock files for this feature. Discovery does not glob a fixed directory; only APM-listed automations run.
