@@ -28,9 +28,16 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from repo_scheduled_instructions import (
     E2E_BAIT_AUTOMATION_ID,
     E2E_BAIT_PATH,
+    E2E_PLATFORM_WAKE_HEADING,
+    E2E_PLATFORM_WAKE_SENTINEL,
+    E2E_REPO_SCHEDULED_MODE_TOKEN,
+    additional_instructions_enable_e2e,
+    build_materialized_instruction_markdown,
     evaluate_for_profile,
     gate_automations_by_capabilities,
+    materialized_instructions_enable_e2e,
     matrix_payload,
+    parse_instruction_file,
     resolve_e2e_bait_only,
 )
 
@@ -45,21 +52,26 @@ def _write_file(repo: pathlib.Path, rel: str, content: str) -> pathlib.Path:
 def _write_apm(
     repo: pathlib.Path,
     automations: list[dict[str, object]],
+    *,
+    fragments: dict[str, str] | None = None,
 ) -> None:
+    obs: dict[str, object] = {
+        "common": {},
+        "workflows": {
+            "repo-scheduled": {
+                "automations": automations,
+            }
+        },
+    }
+    if fragments is not None:
+        obs["fragments"] = fragments
     doc = {
         "name": "fixture",
         "version": "1.0.0",
         "dependencies": {"apm": [], "mcp": []},
         "x-oblt-aw": {
             "version": 1,
-            "obs": {
-                "common": {},
-                "workflows": {
-                    "repo-scheduled": {
-                        "automations": automations,
-                    }
-                },
-            },
+            "obs": obs,
         },
     }
     _write_file(repo, "apm.yml", yaml.safe_dump(doc, sort_keys=False))
@@ -96,6 +108,69 @@ def test_profile_filter_and_matrix_from_apm(tmp_path: pathlib.Path) -> None:
     assert [a.automation_id for a in frequent.matching] == ["merge-nudge"]
     payload = matrix_payload(daily.matching)
     assert payload["include"][0]["path"] == "docs/ai/build-errors.md"
+    assert payload["include"][0]["additional-instructions"] == ""
+
+
+def test_automation_level_fragments_materialize_into_matrix(
+    tmp_path: pathlib.Path,
+) -> None:
+    _write_file(tmp_path, "ai/brief.md", "Short scheduled brief.\n")
+    _write_file(tmp_path, "ai/skill-a.md", "Skill A body with {braces}.\n")
+    _write_file(tmp_path, "ai/skill-b.md", "Skill B body.\n")
+    _write_file(tmp_path, "ai/other.md", "Other automation brief.\n")
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "id": "with-skill",
+                "instructions-file": "ai/brief.md",
+                "schedule-profiles": ["weekly"],
+                "additional-instructions-fragments": ["skill-a", "skill-b"],
+            },
+            {
+                "id": "plain",
+                "instructions-file": "ai/other.md",
+                "schedule-profiles": ["weekly"],
+            },
+        ],
+        fragments={
+            "skill-a": "ai/skill-a.md",
+            "skill-b": "ai/skill-b.md",
+        },
+    )
+    result = evaluate_for_profile(tmp_path, "weekly", env={})
+    assert [a.automation_id for a in result.matching] == ["with-skill", "plain"]
+    assert "Skill A body with {braces}." in result.matching[0].additional_instructions
+    assert "Skill B body." in result.matching[0].additional_instructions
+    assert result.matching[1].additional_instructions == ""
+    payload = matrix_payload(result.matching)
+    assert payload["include"][0]["additional-instructions"].startswith("\n\n")
+    assert (
+        "Skill A body with {braces}."
+        in payload["include"][0]["additional-instructions"]
+    )
+    assert payload["include"][1]["additional-instructions"] == ""
+
+
+def test_automation_fragments_require_fragments_map(
+    tmp_path: pathlib.Path,
+) -> None:
+    _write_file(tmp_path, "ai/brief.md", "Brief.\n")
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "id": "missing-map",
+                "instructions-file": "ai/brief.md",
+                "schedule-profiles": ["daily"],
+                "additional-instructions-fragments": ["skill-a"],
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert result.matching == []
+    assert result.errors
+    assert "fragments is required" in result.errors[0]
 
 
 def test_apm_schedule_profiles_and_capabilities_override_frontmatter(
@@ -479,3 +554,65 @@ def test_injected_bait_blocked_without_capability_secret(
     assert len(blocked) == 1
     assert blocked[0]["id"] == E2E_BAIT_AUTOMATION_ID
     assert "buildkite-logs" in blocked[0]["missing-capabilities"]
+
+
+def test_additional_instructions_enable_e2e() -> None:
+    assert additional_instructions_enable_e2e(
+        f"{E2E_REPO_SCHEDULED_MODE_TOKEN}. Create issue."
+    )
+    assert not additional_instructions_enable_e2e(
+        "Prefer noop when nothing is actionable."
+    )
+
+
+def test_build_materialized_instruction_markdown_prepends_e2e_block() -> None:
+    text = build_materialized_instruction_markdown(
+        automation_id=E2E_BAIT_AUTOMATION_ID,
+        source_label=E2E_BAIT_PATH,
+        body="## E2E wakes\n\nCreate one issue.\n",
+        additional_instructions=(
+            f"{E2E_REPO_SCHEDULED_MODE_TOKEN}. "
+            "Create exactly one GitHub issue. Do not noop."
+        ),
+    )
+    assert E2E_PLATFORM_WAKE_HEADING in text
+    assert E2E_PLATFORM_WAKE_SENTINEL in text
+    assert E2E_REPO_SCHEDULED_MODE_TOKEN in text  # from additional_instructions copy
+    assert materialized_instructions_enable_e2e(text)
+    assert "Do not call `noop`" in text
+    assert "## E2E wakes" in text
+    # Sentinel appears before consumer body so source-of-truth cannot miss it.
+    assert text.index(E2E_PLATFORM_WAKE_SENTINEL) < text.index("## E2E wakes")
+
+
+def test_build_materialized_instruction_markdown_skips_e2e_without_flag() -> None:
+    text = build_materialized_instruction_markdown(
+        automation_id="docs-patrol",
+        source_label="apm.yml#instructions",
+        body="Prefer noop.\n",
+        additional_instructions="Prefer noop when nothing is actionable.",
+    )
+    assert E2E_PLATFORM_WAKE_HEADING not in text
+    assert E2E_PLATFORM_WAKE_SENTINEL not in text
+    assert E2E_REPO_SCHEDULED_MODE_TOKEN not in text
+    assert not materialized_instructions_enable_e2e(text)
+    assert "Prefer noop." in text
+
+
+def test_real_bait_without_platform_flag_does_not_self_arm() -> None:
+    """Fixture prose must not embed enablement tokens (Copilot gate finding)."""
+    bait_path = ROOT / E2E_BAIT_PATH
+    bait_text = bait_path.read_text(encoding="utf-8")
+    assert E2E_PLATFORM_WAKE_SENTINEL not in bait_text
+    assert E2E_REPO_SCHEDULED_MODE_TOKEN not in bait_text
+    _meta, body = parse_instruction_file(bait_path)
+    text = build_materialized_instruction_markdown(
+        automation_id=E2E_BAIT_AUTOMATION_ID,
+        source_label=E2E_BAIT_PATH,
+        body=body,
+        additional_instructions="Prefer noop when nothing is actionable.",
+    )
+    assert E2E_PLATFORM_WAKE_HEADING not in text
+    assert E2E_PLATFORM_WAKE_SENTINEL not in text
+    assert not materialized_instructions_enable_e2e(text)
+    assert "E2E_REPO_SCHEDULED_BAIT_MARKER" in text

@@ -9,7 +9,7 @@ Automerge has two layers:
 
 This lets a team say: “We trust Automerge for these update types, but not for the rest.”
 
-For non-dependency PRs (for example risk-labeled human or Nightshift work), enable the **All files (non-dependency)** collection (`all-files`, off by default) and set consumer policy in `apm.yml` under `x-oblt-aw.<org>.workflows.automerge.policy`. Control Plane only turns features on or off; labels, authors, and fork rules stay in the consumer repo.
+For non-dependency PRs (for example risk-labeled human or automation work), enable the **All files (non-dependency)** collection (`all-files`, off by default) and set consumer policy in `apm.yml` under `x-oblt-aw.<org>.workflows.automerge.policy`. Control Plane only turns features on or off; labels, authors, and fork rules stay in the consumer repo. Step-by-step enablement and policy customization: [Non-dependency Automerge user journeys](automerge-user-journeys.md).
 
 :::{image} ../images/control-plane-dashboard-checkboxes.png
 :alt: Automerge parent checkbox with nested dependency collection checkboxes on the Control Plane dashboard
@@ -82,7 +82,7 @@ x-oblt-aw:
       automerge:
         policy:
           trigger-labels:
-            - nightshift:risk-low
+            - my-team:merge-ready
           forks:
             mode: author-association   # or: disabled (default)
             author-associations:
@@ -96,17 +96,17 @@ x-oblt-aw:
               - OWNER
 ```
 
-- **Trigger labels:** `oblt-aw/ai/merge-ready` is always effective. Listed labels are added; omitting merge-ready does not remove it. Who applies the label (Dependency Review, Nightshift shadow-mode, or a maintainer) is up to the repository.
+- **Trigger labels:** `oblt-aw/ai/merge-ready` is always effective. Listed labels are added; omitting merge-ready does not remove it. Who applies the label (Dependency Review, a repository classifier / bridge, or a maintainer) is up to the repository.
 - **Authors:** Control-plane bots in [`allowed_pr_authors.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) are always allowed. `allow-list` adds logins; `author-association` allows non-bot authors whose GitHub `author_association` matches.
 - **Forks:** Default `disabled` keeps same-repo only. `author-association` allows forks when association matches (for example Elastic employee forks with `MEMBER` / `OWNER`).
 - **Defaults when `policy` is omitted:** merge-ready only, forks disabled, authors allow-list with no extras (today’s bot path).
 - **CODEOWNERS / merge queue:** Automerge still squash-merges over REST as the Vault app when `shared-token-policy` is set (bypass classic BP / rulesets). It does not enqueue into a merge queue.
 
-See also [Local AI assets](local-ai-assets.md) and [Automerge routing](../routing/automerge-routing.md).
+See also [Local AI assets](local-ai-assets.md), [Non-dependency Automerge user journeys](automerge-user-journeys.md), and [Automerge routing](../routing/automerge-routing.md).
 
 ## Choosing what to enable
 
 - Start with the **parent Automerge toggle**.
 - Enable only the collections that match your repository.
-- Leave **All files (non-dependency)** disabled until you have consumer policy and a trusted label path.
+- Leave **All files (non-dependency)** disabled until you have consumer policy and a trusted label path. Walk through enablement and customization in [Non-dependency Automerge user journeys](automerge-user-journeys.md).
 - If you are unsure, leave a collection disabled until you are comfortable with the risk.

@@ -41,6 +41,7 @@ from typing import Any, cast
 # importlib keeps mypy from type-checking that module as a follow-import
 # (its get_enabled_workflows ignore is unused when other scripts/ files are checked).
 estc = cast(Any, importlib.import_module("estc_pr_buildkite_detective_e2e_harness"))
+e2e_gh = cast(Any, importlib.import_module("e2e_gh"))
 # Fix-path selection must match the oracle (key presence, not truthiness).
 oracle = cast(Any, importlib.import_module("oracle_autodoc_e2e"))
 
@@ -385,7 +386,7 @@ def dispatch_schedule_trigger(
 
 def _issue_body_matches_bait(body: str, bait_path: str) -> bool:
     """Require fixture marker and bait path (or basename) in the issue body."""
-    text = body or ""
+    text = e2e_gh.normalize_issue_body_for_markers(body)
     if E2E_AUTODOC_BAIT_MARKER not in text:
         return False
     full_path, basename = bait_markers(bait_path)
@@ -430,7 +431,7 @@ def find_audit_issue(
         created = estc._parse_gh_time(created_raw)
         if created < since:
             continue
-        body = str(issue.get("body") or "")
+        body = e2e_gh.normalize_issue_body_for_markers(str(issue.get("body") or ""))
         if not _issue_body_matches_bait(body, bait_path):
             continue
         matches.append(issue)

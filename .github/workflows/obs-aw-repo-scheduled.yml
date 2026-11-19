@@ -67,10 +67,11 @@ jobs:
       - name: Checkout oblt-aw discovery scripts
         uses: actions/checkout@v7
         with:
-          repository: elastic/oblt-aw
-          # Prefer the SHA of this reusable so feature-branch / pin refs work
-          # before scripts land on main (aw-resolve still pins main today).
-          ref: ${{ github.workflow_sha || 'main' }}
+          # github.workflow_sha is the *caller* commit (consumer). job.workflow_sha
+          # is this reusable's commit — same pin as uses: …@v0 / @main / SHA — so
+          # discovery scripts stay lockstep with promote/rollback (not GHES).
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: _oblt-aw
           fetch-depth: 1
           sparse-checkout: |
@@ -79,7 +80,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: pip
@@ -138,6 +139,9 @@ jobs:
       automation-id: ${{ matrix.id }}
       instruction-path: ${{ matrix.path }}
       instructions: ${{ matrix.instructions }}
-      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      # Wake-level resolve (platform + workflow-block fragments) then per-automation
+      # fragments from matrix (discovery already prefixes "\n\n" when non-empty).
+      # Concatenate contexts — do not use format(); skill Markdown may contain "{".
+      additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}${{ matrix.additional-instructions }}
     secrets:
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}

@@ -20,9 +20,12 @@ Consumers declare automations under
 ``x-oblt-aw.obs.workflows.repo-scheduled.automations`` with either
 ``instructions-file`` (recommended under ``.github/oblt-aw/scheduled/``) or
 inline ``instructions``. Optional ``schedule-profiles``, ``capabilities``,
-and ``id`` may live in the APM entry and/or instruction frontmatter
-(APM wins when both set). Inline entries require ``id``. The framework owns
-cron, MCP, and secret wiring for allowlisted capability ids.
+``id``, and ``additional-instructions-fragments`` may live in the APM entry
+(and profiles/capabilities/id may also be in instruction frontmatter; APM
+wins when both set). Inline entries require ``id``. Per-automation fragment
+ids resolve via ``x-oblt-aw.obs.fragments`` and are appended to that job's
+``additional-instructions`` (after the once-per-wake resolve output). The
+framework owns cron, MCP, and secret wiring for allowlisted capability ids.
 """
 
 from __future__ import annotations
@@ -37,7 +40,11 @@ from pathlib import Path
 from typing import Any
 
 import yaml  # type: ignore[import-untyped]
-from apm_agentic_assets import load_apm_manifest
+from apm_agentic_assets import (
+    load_apm_manifest,
+    materialize_consumer_fragments,
+    normalize_fragment_id_list,
+)
 from common import write_outputs
 
 ORG_KEY = "obs"
@@ -49,6 +56,62 @@ KNOWN_CAPABILITIES: dict[str, str] = {
 }
 E2E_BAIT_AUTOMATION_ID = "e2e-repo-scheduled-bait"
 E2E_BAIT_PATH = ".github/ai/scheduled/e2e-repo-scheduled-bait.md"
+E2E_REPO_SCHEDULED_MODE_TOKEN = "E2E_REPO_SCHEDULED_MODE=true"
+# Injected only by the platform materializer — never quote this in bait prose.
+E2E_PLATFORM_WAKE_HEADING = "## Platform E2E wake (authoritative)"
+E2E_PLATFORM_WAKE_SENTINEL = "PLATFORM_E2E_REPO_SCHEDULED_WAKE=1"
+
+
+def additional_instructions_enable_e2e(additional_instructions: str) -> bool:
+    """True when platform text enables the live E2E bait wake."""
+    return E2E_REPO_SCHEDULED_MODE_TOKEN in (additional_instructions or "")
+
+
+def materialized_instructions_enable_e2e(instructions_markdown: str) -> bool:
+    """True when materialized instructions carry the platform-only E2E sentinel."""
+    return E2E_PLATFORM_WAKE_SENTINEL in (instructions_markdown or "")
+
+
+def build_materialized_instruction_markdown(
+    *,
+    automation_id: str,
+    source_label: str,
+    body: str,
+    additional_instructions: str = "",
+) -> str:
+    """Build ``/tmp/gh-aw/repo-scheduled-instructions.md`` contents.
+
+    When E2E mode is set in ``additional_instructions``, prepend a
+    platform-only wake block (sentinel + heading). Consumer bait bodies must
+    not embed the sentinel; agents gate on that marker, not on fixture prose.
+    """
+    chunks: list[str] = [
+        f"# Automation `{automation_id}`",
+        "",
+        f"Source: `{source_label}`",
+        "",
+    ]
+    extra = (additional_instructions or "").strip()
+    if additional_instructions_enable_e2e(extra):
+        chunks.extend(
+            [
+                E2E_PLATFORM_WAKE_HEADING,
+                "",
+                f"`{E2E_PLATFORM_WAKE_SENTINEL}`",
+                "",
+                "Platform live E2E mode is enabled for this wake.",
+                "Follow the E2E wake rules below and in additional-instructions.",
+                "Create exactly one GitHub issue. Do not call `noop`.",
+                "",
+                extra,
+                "",
+                "---",
+                "",
+            ]
+        )
+    chunks.append(body.rstrip() + "\n")
+    return "\n".join(chunks)
+
 
 _FRONTMATTER_RE = re.compile(
     r"\A---\s*\n(.*?)\n---\s*\n?(.*)\Z",
@@ -65,6 +128,10 @@ class ScheduledAutomation:
     schedule_profiles: tuple[str, ...]
     capabilities: tuple[str, ...]
     instructions: str = ""
+    # Materialized Markdown from automations[].additional-instructions-fragments.
+    # Empty when unset. Callers concatenate after the wake-level resolve output
+    # (prefix with "\\n\\n" when non-empty — see matrix_payload).
+    additional_instructions: str = ""
 
 
 @dataclass(frozen=True)
@@ -229,8 +296,25 @@ def read_automations_entries(apm: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
+def _org_extension_from_apm(apm: dict[str, Any]) -> dict[str, Any] | None:
+    """Return ``x-oblt-aw.obs`` when present and a mapping."""
+    ext = apm.get("x-oblt-aw")
+    if not isinstance(ext, dict):
+        return None
+    org = ext.get(ORG_KEY)
+    if org is None:
+        return None
+    if not isinstance(org, dict):
+        raise TypeError(f"apm.yml: x-oblt-aw.{ORG_KEY} must be a mapping")
+    return org
+
+
 def load_automation_from_apm_entry(
-    repo_root: Path, entry: dict[str, Any], *, index: int
+    repo_root: Path,
+    entry: dict[str, Any],
+    *,
+    index: int,
+    org_extension: dict[str, Any] | None = None,
 ) -> ScheduledAutomation:
     """Build one ScheduledAutomation from an APM automations[] entry."""
     source = f"apm.yml automations[{index}]"
@@ -313,12 +397,31 @@ def load_automation_from_apm_entry(
         )
     _validate_capabilities(capabilities, source=source)
 
+    fragment_ids = normalize_fragment_id_list(
+        entry.get("additional-instructions-fragments"),
+        field=f"{source}.additional-instructions-fragments",
+    )
+    additional_instructions = ""
+    if fragment_ids:
+        if org_extension is None:
+            raise ValueError(
+                f"{source}: additional-instructions-fragments requires "
+                f"x-oblt-aw.{ORG_KEY} (with a fragments map)"
+            )
+        additional_instructions = materialize_consumer_fragments(
+            repo_root=repo_root,
+            org_extension=org_extension,
+            fragment_ids=fragment_ids,
+            org_key=ORG_KEY,
+        )
+
     return ScheduledAutomation(
         automation_id=automation_id,
         path=path,
         schedule_profiles=tuple(profiles),
         capabilities=tuple(capabilities),
         instructions=instructions_payload,
+        additional_instructions=additional_instructions,
     )
 
 
@@ -327,9 +430,12 @@ def discover_automations(repo_root: Path) -> list[ScheduledAutomation]:
     apm = load_apm_document(repo_root)
     if apm is None:
         return []
+    org_extension = _org_extension_from_apm(apm)
     entries = read_automations_entries(apm)
     return [
-        load_automation_from_apm_entry(repo_root, entry, index=index)
+        load_automation_from_apm_entry(
+            repo_root, entry, index=index, org_extension=org_extension
+        )
         for index, entry in enumerate(entries)
     ]
 
@@ -412,18 +518,26 @@ def evaluate_for_profile(
 
 
 def matrix_payload(automations: list[ScheduledAutomation]) -> dict[str, Any]:
-    """GitHub Actions matrix.include payload for runnable automations."""
-    return {
-        "include": [
+    """GitHub Actions matrix.include payload for runnable automations.
+
+    ``additional-instructions`` is empty or ``\\n\\n`` + materialized fragment
+    text so the workflow can concatenate it after the wake-level resolve
+    output without ``format()`` (skill Markdown may contain ``{`` / ``}``).
+    """
+    include: list[dict[str, str]] = []
+    for item in automations:
+        extra = item.additional_instructions.strip()
+        additional = f"\n\n{extra}" if extra else ""
+        include.append(
             {
                 "id": item.automation_id,
                 "path": item.path,
                 "instructions": item.instructions,
                 "capabilities": ",".join(item.capabilities),
+                "additional-instructions": additional,
             }
-            for item in automations
-        ]
-    }
+        )
+    return {"include": include}
 
 
 def load_checked_in_e2e_bait(

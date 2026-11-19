@@ -16,6 +16,7 @@ Promote framework changes safely with mandatory gating E2E, keep consumer trigge
 | Development pins | `pin-class: development` in `config/*/active-repositories.json` | Always `@main`. `elastic/oblt-aw` must be development (live E2E consumer) |
 | E2E-only schedule entry | `.github/workflows/e2e-trigger-obs-aw-schedule.yml` | Relative `./` (framework-only; not distributed) |
 | Event orchestrators → routes | `obs-aw-event-*.yml` | Relative `./` (inherits caller pin) |
+| Control-plane script + config checkouts | `aw-prelude.yml`, `aw-resolve-agentic-assets.yml`, `obs-aw-repo-scheduled.yml` | `job.workflow_sha` / `job.workflow_repository` (called reusable commit — scripts **and** `config/` stay on the same pin; not `github.workflow_sha` / hard-coded `main`). Production `@v0` sees new registrations/token policies only after promote (or tag retarget); development `@main` sees tip. |
 | In-repo GH-AW locks | `obs-aw-autodoc.yml`, `obs-aw-dependency-review.yml`, `obs-aw-estc-pr-buildkite-detective.yml` | Relative `./gh-aw-*.lock.yml` (inherits caller pin) |
 | Upstream locks still in `ai-github-actions` | Other `obs-aw-*.yml` wrappers | `elastic/ai-github-actions/...@main` (until [#1876](https://github.com/elastic/oblt-aw/issues/1876)) |
 | Release metadata | `config/release-pointers.json` | `current` / `next` / `previous` SHAs + semver |

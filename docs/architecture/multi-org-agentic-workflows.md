@@ -197,15 +197,18 @@ Some agentic capabilities are useful to more than one org. The control plane kee
 
 **Pilot:** `automerge`, `dependency-review`, and `estc-pr-buildkite-detective` live in `config/common/services.json`. Observability opts in via `include_common` and already wires `obs-aw-event-*` plus remote triggers. Other orgs opt in in **their own PRs** (registry + event orchestrators + remote triggers). CI runs `scripts/validate_common_service_opt_in.py` so an incomplete opt-in fails closed.
 
-**Operator guide:** [Opt in or out of agentic workflows from other orgs](../admin-guide/opt-in-common-services.md).
+**Operator guides:**
 
-**Publishing a common service (owning org):**
+- Publish (owning org): [Share agentic workflows between orgs](../admin-guide/share-agentic-workflows-between-orgs.md)
+- Opt in (consuming org): [Opt in or out of agentic workflows from other orgs](../admin-guide/opt-in-common-services.md)
+
+**Publishing a common service (owning org):** see the share guide. Short form:
 
 1. Add the workflow object to `config/common/services.json` (implementation already exists as `<owner>-aw-*`).
 2. Include it from the owning org’s `include_common` if that org should offer it too.
 3. Keep owning-org event orchestrators and triggers green under `validate_common_service_opt_in.py`.
 
-**Opting into a common service (consuming org):** do all of the following in the **same** PR — see the admin guide.
+**Opting into a common service (consuming org):** do all of the following in the **same** PR — see the opt-in admin guide.
 
 ---
 

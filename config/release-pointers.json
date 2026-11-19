@@ -3,19 +3,19 @@
   "notes": "Empty SHAs mean uninitialized. First promote on main creates v0.0.0 after embedded E2E. Stay on v0 until the promote train is proven; graduate to v1 with a major bump + template redistribute. Pointer names follow Unified Release semantics: current / next / previous.",
   "pointers": {
     "current": {
-      "semver": "v0.3.0",
-      "sha": "bb101ea8d319d062e0238eca0b498ed7ed97953f",
-      "updated_at": "2026-11-10T12:41:43+00:00"
+      "semver": "v0.4.0",
+      "sha": "0384043661fd684e7e8cf7e1d6155d542772e8f6",
+      "updated_at": "2026-11-12T19:43:01+00:00"
     },
     "next": {
-      "semver": "v0.3.0",
-      "sha": "bb101ea8d319d062e0238eca0b498ed7ed97953f",
-      "updated_at": "2026-11-10T12:41:43+00:00"
+      "semver": "v0.4.0",
+      "sha": "0384043661fd684e7e8cf7e1d6155d542772e8f6",
+      "updated_at": "2026-11-12T19:43:01+00:00"
     },
     "previous": {
-      "semver": "v0.2.1",
-      "sha": "5e8d5da94e9a0b26465e88dbc9cf225a78263141",
-      "updated_at": "2026-11-10T12:41:43+00:00"
+      "semver": "v0.3.0",
+      "sha": "bb101ea8d319d062e0238eca0b498ed7ed97953f",
+      "updated_at": "2026-11-12T19:43:01+00:00"
     }
   },
   "schema_version": 1,

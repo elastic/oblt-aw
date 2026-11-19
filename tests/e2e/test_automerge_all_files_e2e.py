@@ -328,6 +328,65 @@ def test_oracle_rejects_trigger_false_before_contract() -> None:
     assert "case_trigger_enforced" in failed
 
 
+def test_cleanup_stacked_fixture_retries_until_base_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exists_calls = {"base": 0}
+
+    def _exists(_repo: str, branch: str) -> bool:
+        if branch.endswith("/head"):
+            return False
+        exists_calls["base"] += 1
+        # First exists check + first post-delete check still see the branch;
+        # second post-delete check reports absent.
+        return exists_calls["base"] < 3
+
+    deletes: list[str] = []
+
+    def _delete(_repo: str, branch: str) -> None:
+        deletes.append(branch)
+
+    sleeps: list[float] = []
+
+    monkeypatch.setattr(harness.dr_e2e, "fixture_branch_exists", _exists)
+    monkeypatch.setattr(harness.dr_e2e, "delete_fixture_branch", _delete)
+    monkeypatch.setattr(harness.time, "sleep", sleeps.append)
+
+    result = harness.cleanup_stacked_fixture(
+        "elastic/oblt-aw",
+        pr_number=1,
+        head_branch="e2e/automerge-all-files/head",
+        base_branch="e2e/automerge-all-files/base/x",
+        merged=True,
+    )
+    assert result["completed"] is True
+    assert result["head_absent"] is True
+    assert result["base_absent"] is True
+    assert "error" not in result
+    assert deletes == ["e2e/automerge-all-files/base/x"]
+    assert sleeps == [harness._CLEANUP_ABSENCE_SLEEP_SECONDS]
+
+
+def test_cleanup_stacked_fixture_records_error_when_base_remains(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(harness.dr_e2e, "fixture_branch_exists", lambda *_a, **_k: True)
+    monkeypatch.setattr(harness.dr_e2e, "delete_fixture_branch", lambda *_a, **_k: None)
+    monkeypatch.setattr(harness.time, "sleep", lambda *_a, **_k: None)
+    monkeypatch.setattr(harness, "_CLEANUP_ABSENCE_ATTEMPTS", 2)
+
+    result = harness.cleanup_stacked_fixture(
+        "elastic/oblt-aw",
+        pr_number=1,
+        head_branch="e2e/automerge-all-files/head",
+        base_branch="e2e/automerge-all-files/base/x",
+        merged=True,
+    )
+    assert result["completed"] is False
+    assert result["base_absent"] is False
+    assert "still present after 2 delete attempts" in str(result.get("error") or "")
+
+
 def test_automerge_matched_job_name_prefers_merge_leaf() -> None:
     detail = {
         "jobs": [

@@ -142,7 +142,7 @@ After the org scaffold exists, register repositories with [Registering resources
 ## Notes and deferrals
 
 - **Docs org** — Control-plane key `docs` still maps to Backstage / fleet suffix **`obs`** until consumer `metadata.labels.org` is `docs`. Do not invent `-docs` sync/distribute TokenPolicies or `resources/github/engineering/docs/` for current docs consumers; use the Obs engineering tree and obs-suffixed policies. Full Docs-only fleet policies stay deferred until labels align.
-- **Shared common workflows** — Opting an org into `config/common` is a separate admin step: [Opt in or out of agentic workflows from other orgs](opt-in-common-services.md).
+- **Shared common workflows** — Publishing into `config/common` and opting an org in are separate admin steps: [Share agentic workflows between orgs](share-agentic-workflows-between-orgs.md), [Opt in or out of agentic workflows from other orgs](opt-in-common-services.md).
 
 ## See also
 

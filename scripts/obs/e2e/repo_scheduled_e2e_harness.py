@@ -43,6 +43,7 @@ for _path in (_E2E_DIR, _SCRIPTS_DIR):
         sys.path.insert(0, str(_path))
 
 estc = cast(Any, importlib.import_module("estc_pr_buildkite_detective_e2e_harness"))
+e2e_gh = cast(Any, importlib.import_module("e2e_gh"))
 oracle = cast(Any, importlib.import_module("oracle_repo_scheduled_e2e"))
 discovery = cast(Any, importlib.import_module("repo_scheduled_instructions"))
 
@@ -384,7 +385,18 @@ def wait_for_correlated_schedule_run(
                     if schedule_agent_job_executed(
                         detail_cast, automation_id=automation_id
                     ):
-                        return detail_cast, None
+                        agent_conclusion = repo_scheduled_agent_job_conclusion(
+                            detail_cast, automation_id=automation_id
+                        )
+                        if agent_conclusion == "success":
+                            return detail_cast, None
+                        reason = (
+                            f"repo-scheduled agent leaf {automation_id!r} concluded "
+                            f"{agent_conclusion!r} (url={url}). "
+                            "Failing closed instead of waiting for an issue that "
+                            "cannot appear after agent startup/run failure."
+                        )
+                        return detail_cast, reason
                     conclusion = (
                         str(detail_cast.get("conclusion") or "").strip() or "unknown"
                     )
@@ -472,7 +484,7 @@ def dispatch_schedule_trigger(
 
 
 def _issue_body_matches_bait(body: str, bait_path: str) -> bool:
-    text = body or ""
+    text = e2e_gh.normalize_issue_body_for_markers(body)
     if E2E_REPO_SCHEDULED_BAIT_MARKER not in text:
         return False
     full_path, basename = bait_markers(bait_path)
@@ -519,7 +531,7 @@ def find_e2e_issue(
         created = estc._parse_gh_time(created_raw)
         if created < since:
             continue
-        body = str(issue.get("body") or "")
+        body = e2e_gh.normalize_issue_body_for_markers(str(issue.get("body") or ""))
         if not _issue_body_matches_bait(body, bait_path):
             continue
         if token and f"E2E_INVOCATION_ID={token}" not in body and token not in body:
@@ -837,8 +849,13 @@ def run_live_case(
         issue_since = max(issue_since, since)
 
         if expect_issue:
-            issue_deadline = min(case_deadline, time.time() + 900)
-            while time.time() < issue_deadline:
+            # Schedule run (including safe_outputs) already completed. Issue
+            # creation is synchronous with that run — only allow a short API
+            # lag window, then fail closed (do not burn ~900s after a noop).
+            issue_grace_deadline = min(
+                case_deadline, time.time() + max(30, interval * 3)
+            )
+            while time.time() < issue_grace_deadline:
                 issue = find_e2e_issue(
                     repo,
                     title_prefix=title_prefix,
@@ -850,10 +867,13 @@ def run_live_case(
                     break
                 time.sleep(interval)
             if issue is None:
+                run_url = str(completed_run.get("url") or "").strip() or "(no url)"
                 result = _blocked(
-                    f"Timed out waiting for open issue with title prefix "
-                    f"{title_prefix!r}, bait markers for {bait_path!r}, "
-                    f"and invocation_id={invocation_id}",
+                    f"Schedule trigger completed with agent leaf success but no "
+                    f"open issue with title prefix {title_prefix!r}, bait markers "
+                    f"for {bait_path!r}, and invocation_id={invocation_id} "
+                    f"(run={run_url}). Failing closed — the agent likely noop'd "
+                    "or safe-outputs did not create the bait issue.",
                     path_gates={"dashboard_enabled": dashboard_ok},
                     invocation_id=invocation_id,
                     schedule_trigger=schedule_trigger_evidence(

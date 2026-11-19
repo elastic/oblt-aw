@@ -6,6 +6,10 @@ Source file: [.github/workflows/obs-aw-repo-scheduled.yml](https://github.com/el
 
 Generic scheduled agentic workflow for **consumer-defined** automations. The framework owns compilation, the lock file, schedule lanes, and capability wiring. Consumers declare automations in `apm.yml`, point each entry at an instruction Markdown file (or inline Markdown), and enable the Control Plane dashboard checkbox `obs:repo-scheduled`.
 
+Discovery checks out control-plane scripts at `job.workflow_sha` (the called reusable’s commit), so a consumer `@v0` / pin / rollback stays aligned with promote. Do not use `github.workflow_sha` here — that is the consumer caller commit.
+
+User journeys (enable, declare, Buildkite triage, fail-closed, migrate): [Run your own scheduled automations](../user-guide/run-scheduled-automations.md).
+
 ## Prerequisites
 
 - Repository registered and schedule clients installed ([Onboard a repository](../user-guide/onboard-a-repository.md)).
@@ -23,12 +27,19 @@ Declare automations under the Observability workflow block. Each entry needs eit
 x-oblt-aw:
   version: 1
   obs:
+    fragments:
+      build-triage-skill: .apm/skills/build-triage/SKILL.md
     common: {}
     workflows:
       repo-scheduled:
+        # Optional: shared additional-instructions for every automation on this wake.
+        # Prefer automations[].additional-instructions-fragments for skill text that
+        # belongs to one automation only.
         automations:
           - id: build-error-triage
             instructions-file: .github/oblt-aw/scheduled/build-error-triage.md
+            additional-instructions-fragments:
+              - build-triage-skill
             schedule-profiles: [weekly]
             capabilities: [buildkite-logs]
 ```
@@ -63,6 +74,7 @@ repo-scheduled:
 | `instructions` | APM only | one of file/inline | Inline Markdown body (optional frontmatter); requires `id` |
 | `schedule-profiles` | APM and/or frontmatter | yes (one place) | One or more of `daily`, `frequent`, `weekly` |
 | `capabilities` | APM and/or frontmatter | no | Allowlisted ids (today: `buildkite-logs`) |
+| `additional-instructions-fragments` | APM automation entry | no | Ordered ids from `obs.fragments`; appended to this automation's `additional-instructions` only |
 | `id` | APM and/or frontmatter | for inline; else optional | Defaults to the instruction file stem when using a file |
 
 Do **not** add consumer cron workflows, GH-AW sources, or lock files for this feature. Discovery does not glob a fixed directory; only APM-listed automations run.
@@ -101,6 +113,8 @@ Non-destructive safe-outputs on the generic AW: `create-issue`, `add-comment`, `
 
 ## Migration notes (golang-crossbuild-style AWs)
 
+Step-by-step user journey: [Migrate off a consumer-owned scheduled AW](../user-guide/run-scheduled-automations.md#migrate-off-a-consumer-owned-scheduled-aw). Pilot: `elastic/golang-crossbuild` `debug-build-report` ([#2573](https://github.com/elastic/oblt-aw/issues/2573)).
+
 1. Enable **Repo Scheduled** on the Control Plane dashboard.
 2. Add an `apm.yml` automation with `instructions-file` under `.github/oblt-aw/scheduled/` (or inline `instructions` plus `id`), `schedule-profiles: [weekly]`, and `capabilities: [buildkite-logs]`; move prompt/skill text into the instruction body.
 3. Keep provisioning `BUILDKITE_LOGS_API_TOKEN`.
@@ -112,6 +126,7 @@ Live production-path validation lives under [repo-scheduled-e2e](../testing/repo
 
 ## References
 
+- User journeys: [Run your own scheduled automations](../user-guide/run-scheduled-automations.md)
 - Routing: [docs/routing/repo-scheduled-routing.md](../routing/repo-scheduled-routing.md)
 - Schedule orchestrator: [obs-aw-event-schedule.md](obs-aw-event-schedule.md)
 - Client templates: [obs-aw-client-template.md](obs-aw-client-template.md)

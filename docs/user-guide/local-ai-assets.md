@@ -6,7 +6,7 @@ Agentic workflows ship with framework defaults. In your **target repository**, y
 
 Declare those assets in [`apm.yml`](https://github.com/microsoft/apm) at the repository root, under the `x-oblt-aw` extension. When an enabled agentic workflow runs, [aw-resolve-agentic-assets](../workflows/aw-resolve-agentic-assets.md) reads that file from your repo and resolves instructions, inputs, and setup commands for the agent job.
 
-You do **not** need `apm.yml` to enable workflows from the Control Plane dashboard. Add it only when you want to customize behavior for your repository.
+You do **not** need `apm.yml` to enable workflows from the Control Plane dashboard. Add it only when you want to customize behavior for your repository. Together with [Run your own scheduled automations](run-scheduled-automations.md), this is the [Customize in your repository (BYO)](index.md#customize-in-your-repository-byo) path in the user guide.
 
 Schema, precedence, and runtime detail: [APM agentic assets](../architecture/apm-agentic-assets.md).
 
@@ -26,7 +26,7 @@ Under `x-oblt-aw.<org-key>`, each org block needs a `common` section. Optional `
 | Local Markdown fragments | `<org-key>.fragments` + `additional-instructions-fragments` | Ordered fragment files, then inline instructions |
 | Setup shell | `setup-commands` and optional `setup-commands-file` | Runs in the consumer checkout before the agent engine |
 | Workflow inputs | other keys under `inputs` | Overrides platform inputs per key (for example `lookback-window` for autodoc) |
-| Automerge policy | `workflows.automerge.policy` | Extra trigger labels, author mode, and fork mode for Automerge verify/approve (see [Automerge services](automerge-services.md#consumer-policy-apmyml)) |
+| Automerge policy | `workflows.automerge.policy` | Extra trigger labels, author mode, and fork mode for Automerge verify/approve (see [Automerge services](automerge-services.md#consumer-policy-apmyml); journeys: [Non-dependency Automerge user journeys](automerge-user-journeys.md)) |
 | APM packages | top-level `dependencies.apm` | Installed with `apm install` when `apm.yml` is present |
 
 ## Steps
@@ -37,7 +37,7 @@ Under `x-oblt-aw.<org-key>`, each org block needs a `common` section. Optional `
 
 3. **Override per workflow when needed** — If you define `workflows.<id>`, that block is used **instead of** `common` for that workflow (full override). Copy any shared setup or instructions you still need into the override. For wrappers that share one dashboard row, use `inner-workflows.<wrapper-basename>` the same way (full override of the parent workflow block).
 
-4. **Optional: local fragments** — Map fragment ids to repo-relative Markdown paths under `<org-key>.fragments`, then list those ids in `additional-instructions-fragments` on the asset block you want.
+4. **Optional: local fragments** — Map fragment ids to repo-relative Markdown paths under `<org-key>.fragments`, then list those ids in `additional-instructions-fragments` on the asset block you want. For `obs:repo-scheduled`, you can also set `additional-instructions-fragments` on a single `automations[]` entry so that skill text applies only to that automation.
 
 5. **Commit on the default branch (or the branch the workflow checks out)** — Resolution uses the consumer checkout for that run. After merge, trigger the agentic workflow (or wait for its normal event) and confirm the agent followed the new guidance.
 
@@ -88,3 +88,4 @@ If `apm install` fails, the resolve job warns and continues; instruction resolut
 - [Resolve agentic assets](../workflows/aw-resolve-agentic-assets.md) — reusable workflow contract
 - [APM manifest schema](https://microsoft.github.io/apm/reference/manifest-schema/) — official `apm.yml` format
 - [Enable or disable an agentic workflow](enable-a-new-workflow.md)
+- [Run your own scheduled automations](run-scheduled-automations.md) — consumer-defined cron via `obs:repo-scheduled`

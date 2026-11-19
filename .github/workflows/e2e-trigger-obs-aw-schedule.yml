@@ -53,3 +53,8 @@ jobs:
       e2e-autodoc-mode: ${{ github.event.inputs.e2e-autodoc-mode == 'true' }}
       e2e-repo-scheduled-mode: ${{ github.event.inputs.e2e-repo-scheduled-mode == 'true' }}
       e2e-invocation-id: ${{ github.event.inputs.e2e-invocation-id }}
+    secrets:
+      # Same mapping as distributed trigger-obs-aw-schedule-*.yml. Optional for
+      # E2E bait (Buildkite MCP is required:false); needed when automations use
+      # buildkite-logs on the control plane.
+      BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_LOGS_API_TOKEN }}

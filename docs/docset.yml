@@ -19,7 +19,9 @@ toc:
       - file: enable-a-new-workflow.md
       - file: opt-in-opt-out.md
       - file: local-ai-assets.md
+      - file: run-scheduled-automations.md
       - file: automerge-services.md
+      - file: automerge-user-journeys.md
   - folder: admin-guide
     children:
       - file: index.md
@@ -28,6 +30,7 @@ toc:
       - file: change-maturity-level.md
       - file: configure-a-github-secret.md
       - file: opt-in-common-services.md
+      - file: share-agentic-workflows-between-orgs.md
       - file: use-gh-ephemeral-tokens.md
   - folder: troubleshooting
     children:
@@ -103,7 +106,6 @@ toc:
       - hidden: ./obs-aw-automerge-deferred.md
       - hidden: ./obs-aw-automerge.md
       - hidden: ./obs-aw-client-template.md
-      - hidden: ./obs-aw-compiler-upgrade.md
       - hidden: ./obs-aw-dependency-review.md
       - hidden: ./obs-aw-duplicate-issue-detector.md
       - hidden: ./obs-aw-estc-pr-buildkite-detective.md

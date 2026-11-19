@@ -297,6 +297,57 @@ class TestLeafMatcher:
         )
 
 
+class TestBuildkiteMcpOptional:
+    def test_source_marks_buildkite_mcp_not_required(self) -> None:
+        text = (ROOT / ".github" / "workflows" / "gh-aw-repo-scheduled.md").read_text(
+            encoding="utf-8"
+        )
+        idx = text.index("buildkite:")
+        # Keep Buildkite optional so missing token does not fail agent startup.
+        assert "required: false" in text[idx : idx + 400]
+
+    def test_lock_emits_buildkite_required_false(self) -> None:
+        text = (
+            ROOT / ".github" / "workflows" / "gh-aw-repo-scheduled.lock.yml"
+        ).read_text(encoding="utf-8")
+        # Prefer the gateway MCP config block over the compact manifest header.
+        marker = '"buildkite": {'
+        assert marker in text
+        idx = text.index(marker)
+        assert '"required": false' in text[idx : idx + 800]
+
+
+class TestE2EModeMaterializeAndBait:
+    def test_materialize_step_bakes_e2e_flag_into_instructions_file(self) -> None:
+        text = (ROOT / ".github" / "workflows" / "gh-aw-repo-scheduled.md").read_text(
+            encoding="utf-8"
+        )
+        assert "ADDITIONAL_INSTRUCTIONS: ${{ inputs.additional-instructions }}" in text
+        assert 'E2E_MODE_TOKEN = "E2E_REPO_SCHEDULED_MODE=true"' in text
+        assert (
+            'E2E_PLATFORM_WAKE_SENTINEL = "PLATFORM_E2E_REPO_SCHEDULED_WAKE=1"' in text
+        )
+        assert "## Platform E2E wake (authoritative)" in text
+        assert "Do not call `noop`" in text
+        assert "PLATFORM_E2E_REPO_SCHEDULED_WAKE=1" in text
+        assert "except" in text.lower() and "E2E_REPO_SCHEDULED_MODE=true" in text
+        # Agent gate must not treat bare mode token in instructions.md as enough.
+        assert (
+            "E2E_REPO_SCHEDULED_MODE=true` appears in `/tmp/gh-aw/repo-scheduled-instructions.md`"
+            not in text
+        )
+
+    def test_bait_checks_materialized_file_before_production_noop(self) -> None:
+        text = harness.bait_content()
+        e2e_idx = text.index("## E2E wakes")
+        prod_idx = text.index("## Production wakes")
+        assert e2e_idx < prod_idx
+        assert "materialized instructions file" in text
+        assert "platform-injected" in text
+        assert "E2E_REPO_SCHEDULED_MODE=true" not in text
+        assert "PLATFORM_E2E_REPO_SCHEDULED_WAKE=1" not in text
+
+
 class TestHarnessHelpers:
     def test_bait_content_requires_marker(self, tmp_path: pathlib.Path) -> None:
         path = tmp_path / "bait.md"
@@ -327,6 +378,45 @@ class TestHarnessHelpers:
             {"displayTitle": "E2E schedule [other]"}, "abc123deadbe"
         )
         assert harness._run_matches_invocation({"displayTitle": "anything"}, "")
+
+    def test_issue_body_matches_markdown_escaped_markers(self) -> None:
+        bait = ".github/ai/scheduled/e2e-repo-scheduled-bait.md"
+        body = (
+            "Required markers:\n\n"
+            "- E2E\\_REPO\\_SCHEDULED\\_BAIT\\_MARKER\n"
+            "- Source fixture: `.github/ai/scheduled/e2e-repo-scheduled-bait.md`\n"
+            "- E2E\\_INVOCATION\\_ID=b8f9dc58b086\n"
+        )
+        assert harness._issue_body_matches_bait(body, bait)
+
+    def test_find_e2e_issue_matches_escaped_body(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        since = datetime(2026, 11, 12, 18, 0, 0, tzinfo=timezone.utc)  # noqa: UP017
+        body = (
+            "E2E\\_REPO\\_SCHEDULED\\_BAIT\\_MARKER\n"
+            "`.github/ai/scheduled/e2e-repo-scheduled-bait.md`\n"
+            "E2E\\_INVOCATION\\_ID=b8f9dc58b086\n"
+        )
+        issues = [
+            {
+                "number": 2551,
+                "title": "[oblt-aw][repo-scheduled] E2E bait",
+                "url": "https://example.test/issues/2551",
+                "createdAt": "2026-11-12T18:40:45Z",
+                "body": body,
+            }
+        ]
+        monkeypatch.setattr(harness.estc, "gh_json", lambda *_a, **_k: issues)
+        found = harness.find_e2e_issue(
+            "elastic/oblt-aw",
+            title_prefix="[oblt-aw][repo-scheduled]",
+            since=since,
+            bait_path=".github/ai/scheduled/e2e-repo-scheduled-bait.md",
+            invocation_id="b8f9dc58b086",
+        )
+        assert found is not None
+        assert found["number"] == 2551
 
     def test_wait_fail_closed_when_correlated_run_lacks_agent_leaf(
         self, monkeypatch: pytest.MonkeyPatch
@@ -384,6 +474,66 @@ class TestHarnessHelpers:
         assert reason is not None
         assert "without repo-scheduled agent leaf" in reason
         assert "Failing closed" in reason
+
+    def test_wait_fail_closed_when_agent_leaf_concludes_failure(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        completed = {
+            "databaseId": 102,
+            "status": "completed",
+            "conclusion": "failure",
+            "url": "https://example.test/runs/102",
+            "createdAt": "2026-11-12T12:00:00Z",
+            "event": "workflow_dispatch",
+            "displayTitle": "E2E schedule [abc123deadbe]",
+            "name": "E2E schedule [abc123deadbe]",
+            "jobs": [
+                {
+                    "name": (
+                        "Run schedule event orchestrator / repo-scheduled / "
+                        "run-automation (e2e-repo-scheduled-bait) / agent"
+                    ),
+                    "conclusion": "failure",
+                }
+            ],
+        }
+
+        def _fake_list(*_a: object, **_k: object) -> list:
+            return [
+                {
+                    "databaseId": 102,
+                    "status": "completed",
+                    "conclusion": "failure",
+                    "createdAt": "2026-11-12T12:00:00Z",
+                    "event": "workflow_dispatch",
+                    "displayTitle": "E2E schedule [abc123deadbe]",
+                    "name": "E2E schedule [abc123deadbe]",
+                    "url": "https://example.test/runs/102",
+                    "headSha": "abc",
+                }
+            ]
+
+        def _fake_gh_json(args: list[str]) -> dict:
+            assert args[:2] == ["run", "view"]
+            return completed
+
+        monkeypatch.setattr(harness, "list_schedule_trigger_runs", _fake_list)
+        monkeypatch.setattr(harness.estc, "gh_json", _fake_gh_json)
+        monkeypatch.setattr(harness.time, "sleep", lambda *_a, **_k: None)
+
+        detail, reason = harness.wait_for_correlated_schedule_run(
+            "elastic/oblt-aw",
+            "e2e-trigger-obs-aw-schedule.yml",
+            since=datetime(2026, 11, 12, 11, 0, tzinfo=timezone.utc),  # noqa: UP017
+            timeout_seconds=30,
+            interval_seconds=1,
+            invocation_id="abc123deadbe",
+            require_agent_leaf=True,
+        )
+        assert detail is not None
+        assert reason is not None
+        assert "concluded 'failure'" in reason
+        assert "waiting for an issue" in reason
 
     def test_wait_noop_fail_closed_when_discover_failed(
         self, monkeypatch: pytest.MonkeyPatch

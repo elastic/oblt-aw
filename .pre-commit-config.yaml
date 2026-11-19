@@ -29,10 +29,20 @@ repos:
         args:
           - -ignore
           - 'unknown permission scope "copilot-requests"'
+          # job.workflow_* (callee identity) is documented on github.com; actionlint
+          # v1.7.12 still models job without those fields (rhysd/actionlint#757).
+          - -ignore
+          - 'property "workflow_sha" is not defined'
+          - -ignore
+          - 'property "workflow_repository" is not defined'
+          - -ignore
+          - 'property "workflow_ref" is not defined'
+          - -ignore
+          - 'property "workflow_file_path" is not defined'
 
   # ── Python linting & formatting ───────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.4
+    rev: v0.17.5
     hooks:
       - id: ruff
         args: [--fix]
