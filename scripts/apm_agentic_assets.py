@@ -291,7 +291,7 @@ def extract_setup_commands(block: dict[str, Any], *, repo_root: Path) -> list[st
     return commands
 
 
-def _normalize_fragment_id_list(raw: Any, *, field: str) -> list[str]:
+def normalize_fragment_id_list(raw: Any, *, field: str) -> list[str]:
     if raw is None:
         return []
     if not isinstance(raw, list):
@@ -302,6 +302,10 @@ def _normalize_fragment_id_list(raw: Any, *, field: str) -> list[str]:
             raise ValueError(f"{field}[{index}] must be a non-empty string")
         out.append(item.strip())
     return out
+
+
+# Backward-compatible alias for in-repo callers.
+_normalize_fragment_id_list = normalize_fragment_id_list
 
 
 def materialize_consumer_fragments(

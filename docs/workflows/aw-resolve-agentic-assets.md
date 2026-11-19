@@ -6,6 +6,8 @@ Source file: [.github/workflows/aw-resolve-agentic-assets.yml](https://github.co
 
 Resolves consumer agentic assets for **one** `gh-aw-*` invocation: [`apm.yml`](https://github.com/microsoft/apm) / `x-oblt-aw` blocks, workflow-specific consumer files (for example `.oblt-aw.autodocignore`), and platform baseline instructions. Call this reusable immediately before each job that `uses` an upstream agentic workflow lock file.
 
+Resolver scripts and `config/` check out together at `job.workflow_sha` (this reusable’s commit), matching the consumer pin for promote/rollback. Production `@v0` does not read tip-of-`main` registration; new AI-assets / token-policy rows apply there only after promote (development `@main` already tracks tip).
+
 CI enforces the contract via [scripts/validate_aw_workflow_resolve_agentic_assets.py](https://github.com/elastic/oblt-aw/blob/main/scripts/validate_aw_workflow_resolve_agentic_assets.py): every local `*-aw-*` workflow with at least one `gh-aw-*` call must invoke `aw-resolve-agentic-assets.yml` at least once per agent job (for example `obs-aw-autodoc.yml` uses two resolve jobs for audit and fix).
 
 Wrappers that only gate or run scripts (for example `obs-aw-security-injection-detector.yml`) do not call this workflow.

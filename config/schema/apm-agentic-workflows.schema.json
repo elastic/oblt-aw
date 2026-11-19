@@ -216,6 +216,14 @@
             }
           ],
           "description": "Optional allowlisted capability ids (also accepted in file frontmatter)."
+        },
+        "additional-instructions-fragments": {
+          "type": "array",
+          "description": "Ordered fragment ids from the org fragments map, scoped to this automation only. Materialized into additional-instructions for this matrix job (after workflow-level resolve output). Prefer this over workflows.repo-scheduled.additional-instructions-fragments when guidance is automation-specific.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          }
         }
       }
     },

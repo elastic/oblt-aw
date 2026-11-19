@@ -1,5 +1,5 @@
 ---
-applyTo: ".github/workflows/gh-aw-*.md, .github/workflows/gh-aw-fragments/**/*.md, .github/workflows/compiler-upgrade.md, .github/workflows/obs-aw-compiler-upgrade.md"
+applyTo: ".github/workflows/gh-aw-*.md, .github/workflows/gh-aw-fragments/**/*.md, .github/workflows/compiler-upgrade.md"
 ---
 
 # gh-aw lock files

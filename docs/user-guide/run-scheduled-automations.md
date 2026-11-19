@@ -83,17 +83,23 @@ Goal: weekly triage of Buildkite failures, same pattern as consumer-owned AWs su
 1. Complete the [first weekly automation](#first-weekly-automation-happy-path) steps with `schedule-profiles: [weekly]` and `capabilities: [buildkite-logs]`.
 
 ```yaml
-repo-scheduled:
-  automations:
-    - id: build-error-triage
-      instructions-file: .github/oblt-aw/scheduled/build-error-triage.md
-      schedule-profiles: [weekly]
-      capabilities: [buildkite-logs]
+obs:
+  fragments:
+    build-triage-skill: .apm/skills/build-triage/SKILL.md
+  workflows:
+    repo-scheduled:
+      automations:
+        - id: build-error-triage
+          instructions-file: .github/oblt-aw/scheduled/build-error-triage.md
+          additional-instructions-fragments:
+            - build-triage-skill
+          schedule-profiles: [weekly]
+          capabilities: [buildkite-logs]
 ```
 
 2. **Add the repository secret** `BUILDKITE_LOGS_API_TOKEN` (same name as the status detective). The framework maps it to Buildkite MCP. See [Configure a GitHub secret](../admin-guide/configure-a-github-secret.md).
 
-3. **Put triage guidance in the instruction body** — pipeline slug, lookback window, how to categorize failures, issue title/body conventions, labels such as `observablt-ci`, and when to open or skip an issue.
+3. **Split the brief and the skill** — Keep the scheduled Markdown short (pipeline slug, lookback, when to open or skip). Put long diagnosis / issue-format text in `.apm/` (or another Markdown path) and import it with `obs.fragments` + `automations[].additional-instructions-fragments` so it does not apply to every other automation on the same wake. Workflow-level `additional-instructions-fragments` on `repo-scheduled` still works for guidance shared by every automation.
 
 4. **If discovery fails closed** — An automation that lists `buildkite-logs` without the secret present fails that wake. Fix the secret, then wait for the next weekly run.
 
@@ -120,6 +126,8 @@ If the repository already runs a local GH-AW (source `.md`, generated `.lock.yml
 2. Keep the same lane and secrets (for Buildkite triage: `weekly` + `BUILDKITE_LOGS_API_TOKEN`).
 3. Prove one green framework path (schedule or `workflow_dispatch`).
 4. Remove the consumer lock, local cron workflow, and compile-check plumbing for that AW so you do not double-run.
+
+Pilot reference: `elastic/golang-crossbuild` moves `debug-build-report` onto this path ([oblt-aw#2573](https://github.com/elastic/oblt-aw/issues/2573)). Keep any other consumer-owned AWs (and their compile gate) if they are still in use.
 
 ## Schedule lanes
 

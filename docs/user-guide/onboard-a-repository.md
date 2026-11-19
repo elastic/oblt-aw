@@ -108,7 +108,7 @@ Technical registration detail for maintainers and agents: [Registering resources
    gh issue list --repo elastic/<repo> --label oblt-aw/dashboard --state open
    ```
 
-9. **Enable or disable agentic workflows** — In your repository, open the Control Plane dashboard issue and check or uncheck the agentic workflows you want. GitHub saves on click. Agentic workflows apply on the next supported client trigger. See [Enable or disable an agentic workflow](enable-a-new-workflow.md).
+9. **Enable or disable agentic workflows** — In your repository, open the Control Plane dashboard issue and check or uncheck the agentic workflows you want. GitHub saves on click. Agentic workflows apply on the next supported client trigger. See [Enable or disable an agentic workflow](enable-a-new-workflow.md). To run your own cron agents without owning locks, enable **Repo Scheduled** and follow [Run your own scheduled automations](run-scheduled-automations.md).
 
    :::{image} ../images/control-plane-dashboard-checkboxes.png
    :alt: Control Plane dashboard Enable/Disable checkboxes including Automerge dependency collections

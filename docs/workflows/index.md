@@ -34,7 +34,6 @@ Shared framework jobs use **kebab-case, action-oriented** ids with domain contex
 - [Codex preview](codex-preview.md)
 - [Codex preview cleanup](codex-preview-cleanup.md)
 - [Compiler upgrade](compiler-upgrade.md)
-- [Compiler upgrade (Observability)](obs-aw-compiler-upgrade.md)
 - [Control Plane dashboard audit](aw-dashboard-audit.md)
 - [Control Plane dashboard reader](get-enabled-workflows.md)
 - [Control Plane dashboard sync](sync-control-plane-dashboard.md)
