@@ -5,7 +5,7 @@
 **Dependency Review** (`obs:dependency-review`) analyzes bot dependency pull requests in your repository. On each matching PR it can:
 
 1. Post a structured **analysis comment** (changelog highlights, usage in this repo, compatibility, risk).
-2. Apply **`oblt-aw/ai/merge-ready`** when overall risk is **low** or **low-to-moderate** and the other merge-ready gates pass.
+2. Apply the **`oblt-aw/ai/merge-ready`** label when overall risk is **low** or **low-to-moderate** and the other merge-ready gates pass.
 
 You enable it from the Control Plane dashboard. The **framework** owns the route, agent lock, and labeling rules. The **control plane** only gates whether it runs for your repository.
 
@@ -19,7 +19,7 @@ flowchart TD
   C -->|yes| D[Agent analyzes the PR]
   D --> E[Analysis comment on the PR]
   D --> F{Low or low-to-moderate risk and gates pass?}
-  F -->|yes| G[Apply oblt-aw/ai/merge-ready]
+  F -->|yes| G[Apply the oblt-aw/ai/merge-ready label]
   F -->|no| H[No merge-ready label]
   G --> I[Optional: Automerge if parent and collection enabled]
 ```
@@ -65,9 +65,9 @@ For a real dependency bump, the agent posts a comment titled **Dependency Update
 
 If the PR has **no** dependency updates to review, the agent calls `noop` and does **not** post that analysis comment.
 
-### `oblt-aw/ai/merge-ready`
+### `oblt-aw/ai/merge-ready` label
 
-Applied only when overall risk is **low** or **low-to-moderate** and the framework gates pass (for example no breaking change that affects this repo, Actions pins not failing commit verification, production workflows that cannot be validated on the PR do not block incorrectly). Risk **moderate** or **high** means no merge-ready label.
+The agent applies the **`oblt-aw/ai/merge-ready`** label only when overall risk is **low** or **low-to-moderate** and the framework gates pass (for example no breaking change that affects this repo, Actions pins not failing commit verification, production workflows that cannot be validated on the PR do not block incorrectly). Risk **moderate** or **high** means no merge-ready label.
 
 Missing upstream release notes alone must not raise risk above **low-to-moderate** or block the label when the other gates pass.
 
@@ -79,7 +79,7 @@ If the agent run succeeds but produces no analysis `comment_id`, a control-plane
 
 | Piece | Role |
 |-------|------|
-| Dependency Review | Reviews the bot PR and may apply `oblt-aw/ai/merge-ready` |
+| Dependency Review | Reviews the bot PR and may apply the `oblt-aw/ai/merge-ready` label |
 | Automerge parent (`obs:automerge`) | Turns Automerge on for the repository |
 | Automerge collection (for example `obs:automerge:github-actions`) | Allows that file collection to proceed |
 
@@ -92,8 +92,8 @@ Dependency Review can label a PR even when Automerge is off. Automerge still nee
 | No Dependency Review job | Dashboard checkbox off, repo not onboarded, or PR author not on the allow list — [Workflows skipped or not running](../troubleshooting/common-problems/workflows-skipped-or-not-running.md) |
 | Job skipped on a human PR | Expected: only allow-listed bot authors are routed |
 | No analysis comment, only retry note | Empty safe outputs; push a commit or reopen the PR and re-check the Actions run |
-| Analysis comment but no `oblt-aw/ai/merge-ready` | Risk above low-to-moderate, or a gate failed (breaking change, Actions verification, untestable production workflow impact). Read the comment’s Labels Applied section |
-| Merge-ready present but PR not merged | Enable Automerge parent + matching collection; Dependency Review does not merge |
+| Analysis comment but no `oblt-aw/ai/merge-ready` label | Risk above low-to-moderate, or a gate failed (breaking change, Actions verification, untestable production workflow impact). Read the comment’s Labels Applied section |
+| `oblt-aw/ai/merge-ready` label present but PR not merged | Enable Automerge parent + matching collection; Dependency Review does not merge |
 
 ## References
 
