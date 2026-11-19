@@ -49,10 +49,9 @@ from e2e_fixture_pr import ensure_pr_is_draft
 
 # Re-export: older harnesses import this module as a shared helper bag.
 # New call sites that only need ``gh`` JSON helpers should import ``e2e_gh``.
-from e2e_gh import (
-    gh_json,
-    gh_json_error_is_transient,  # noqa: F401
-)
+from e2e_gh import gh_json, gh_json_error_is_transient
+
+__all__ = ["gh_json", "gh_json_error_is_transient"]
 
 WORKFLOW_ID = "obs:estc-pr-buildkite-detective"
 DEFAULT_CONFIG = Path("config/obs/e2e-estc-pr-buildkite-detective.json")

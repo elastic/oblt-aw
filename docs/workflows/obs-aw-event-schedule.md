@@ -22,11 +22,13 @@ The optional `schedule-profile` defaults to `daily`.
 
 Each route runs only when its profile and gate match. The resource detector is schedule-only; security detectors and repo-scheduled also allow `workflow_dispatch`.
 
-The optional `e2e-autodoc-mode` defaults to `false` and is forwarded to the autodoc workflow. The control-plane E2E dispatcher calls this wrapper with the daily profile and can enable bait-only autodoc mode.
+The optional `e2e-autodoc-mode` defaults to `false` and is forwarded to the autodoc workflow. The optional `e2e-repo-scheduled-mode` defaults to `false` and is forwarded to repo-scheduled so live E2E can force the checked-in bait automation. The optional `e2e-invocation-id` defaults to an empty string and is forwarded to both autodoc and repo-scheduled for live E2E correlation (docs-patrol concurrency isolation plus repo-scheduled run/issue correlation).
+
+The control-plane E2E dispatcher calls this wrapper with the daily profile and can set these E2E inputs without adding them to distributed production schedule clients.
 
 ## Inputs, outputs, and access
 
-Inputs: `schedule-profile` (`daily`, `frequent`, or `weekly`) and boolean `e2e-autodoc-mode`. Optional secret `BUILDKITE_API_TOKEN` (from consumer `BUILDKITE_LOGS_API_TOKEN`) for repo-scheduled `buildkite-logs`. Top-level permissions are `contents: read`; called jobs receive route-specific permissions, including OIDC where required.
+Inputs: `schedule-profile` (`daily`, `frequent`, or `weekly`, default `daily`), boolean `e2e-autodoc-mode` (default `false`), boolean `e2e-repo-scheduled-mode` (default `false`), and string `e2e-invocation-id` (default empty). `e2e-autodoc-mode` and `e2e-invocation-id` are forwarded to autodoc; `e2e-repo-scheduled-mode` and `e2e-invocation-id` are forwarded to repo-scheduled. Optional secret `BUILDKITE_API_TOKEN` (from consumer `BUILDKITE_LOGS_API_TOKEN`) for repo-scheduled `buildkite-logs`. Top-level permissions are `contents: read`; called jobs receive route-specific permissions, including OIDC where required.
 
 ## Sources
 
