@@ -135,7 +135,10 @@ steps:
       ready=0
       reason=""
       open_pr_url=""
-      if [[ -f "${ONBOARD_POLICY}" ]] && grep -Eq -- "repository:\\s*${CONSUMER_REPO}([[:space:]]|$)" "${ONBOARD_POLICY}"; then
+      # Literal match via Python (dots in repo names must not become ERE wildcards).
+      if python3 scripts/onboard_policy_has_selector.py \
+        --policy "${ONBOARD_POLICY}" \
+        --repository "${CONSUMER_REPO}"; then
         ready=1
       else
         reason="onboard TokenPolicy selector missing for ${CONSUMER_REPO} on catalog-info default branch"
