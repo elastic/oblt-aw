@@ -45,21 +45,33 @@ OLD_SNIPPETS: tuple[str, ...] = (
     ),
 )
 
-NEW_SNIPPET = (
+# Prior join()+contains() form was a substring test (matched
+# ``…/repository-done``). Keep it in the replace set so recompiles migrate.
+LEGACY_JOIN_SNIPPET = (
     "github.event_name != 'issues' || "
     f"(github.event.action == 'labeled' && github.event.label.name == '{ONBOARD_LABEL}') || "
     "(github.event.action == 'edited' && "
     f"contains(join(github.event.issue.labels.*.name, ','), '{ONBOARD_LABEL}'))"
 )
 
+# Array contains() is exact label membership (GitHub Actions expression docs).
+NEW_SNIPPET = (
+    "github.event_name != 'issues' || "
+    f"(github.event.action == 'labeled' && github.event.label.name == '{ONBOARD_LABEL}') || "
+    "(github.event.action == 'edited' && "
+    f"contains(github.event.issue.labels.*.name, '{ONBOARD_LABEL}'))"
+)
+
+_REPLACE_FROM: tuple[str, ...] = (*OLD_SNIPPETS, LEGACY_JOIN_SNIPPET)
+
 
 def patch_lock(path: Path) -> bool:
     text = path.read_text(encoding="utf-8")
-    if NEW_SNIPPET in text and all(old not in text for old in OLD_SNIPPETS):
+    if NEW_SNIPPET in text and all(old not in text for old in _REPLACE_FROM):
         return False
     updated = text
     replacements = 0
-    for old in OLD_SNIPPETS:
+    for old in _REPLACE_FROM:
         count = updated.count(old)
         if count:
             updated = updated.replace(old, NEW_SNIPPET)
