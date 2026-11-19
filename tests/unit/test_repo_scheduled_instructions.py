@@ -52,21 +52,26 @@ def _write_file(repo: pathlib.Path, rel: str, content: str) -> pathlib.Path:
 def _write_apm(
     repo: pathlib.Path,
     automations: list[dict[str, object]],
+    *,
+    fragments: dict[str, str] | None = None,
 ) -> None:
+    obs: dict[str, object] = {
+        "common": {},
+        "workflows": {
+            "repo-scheduled": {
+                "automations": automations,
+            }
+        },
+    }
+    if fragments is not None:
+        obs["fragments"] = fragments
     doc = {
         "name": "fixture",
         "version": "1.0.0",
         "dependencies": {"apm": [], "mcp": []},
         "x-oblt-aw": {
             "version": 1,
-            "obs": {
-                "common": {},
-                "workflows": {
-                    "repo-scheduled": {
-                        "automations": automations,
-                    }
-                },
-            },
+            "obs": obs,
         },
     }
     _write_file(repo, "apm.yml", yaml.safe_dump(doc, sort_keys=False))
@@ -103,6 +108,69 @@ def test_profile_filter_and_matrix_from_apm(tmp_path: pathlib.Path) -> None:
     assert [a.automation_id for a in frequent.matching] == ["merge-nudge"]
     payload = matrix_payload(daily.matching)
     assert payload["include"][0]["path"] == "docs/ai/build-errors.md"
+    assert payload["include"][0]["additional-instructions"] == ""
+
+
+def test_automation_level_fragments_materialize_into_matrix(
+    tmp_path: pathlib.Path,
+) -> None:
+    _write_file(tmp_path, "ai/brief.md", "Short scheduled brief.\n")
+    _write_file(tmp_path, "ai/skill-a.md", "Skill A body with {braces}.\n")
+    _write_file(tmp_path, "ai/skill-b.md", "Skill B body.\n")
+    _write_file(tmp_path, "ai/other.md", "Other automation brief.\n")
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "id": "with-skill",
+                "instructions-file": "ai/brief.md",
+                "schedule-profiles": ["weekly"],
+                "additional-instructions-fragments": ["skill-a", "skill-b"],
+            },
+            {
+                "id": "plain",
+                "instructions-file": "ai/other.md",
+                "schedule-profiles": ["weekly"],
+            },
+        ],
+        fragments={
+            "skill-a": "ai/skill-a.md",
+            "skill-b": "ai/skill-b.md",
+        },
+    )
+    result = evaluate_for_profile(tmp_path, "weekly", env={})
+    assert [a.automation_id for a in result.matching] == ["with-skill", "plain"]
+    assert "Skill A body with {braces}." in result.matching[0].additional_instructions
+    assert "Skill B body." in result.matching[0].additional_instructions
+    assert result.matching[1].additional_instructions == ""
+    payload = matrix_payload(result.matching)
+    assert payload["include"][0]["additional-instructions"].startswith("\n\n")
+    assert (
+        "Skill A body with {braces}."
+        in payload["include"][0]["additional-instructions"]
+    )
+    assert payload["include"][1]["additional-instructions"] == ""
+
+
+def test_automation_fragments_require_fragments_map(
+    tmp_path: pathlib.Path,
+) -> None:
+    _write_file(tmp_path, "ai/brief.md", "Brief.\n")
+    _write_apm(
+        tmp_path,
+        [
+            {
+                "id": "missing-map",
+                "instructions-file": "ai/brief.md",
+                "schedule-profiles": ["daily"],
+                "additional-instructions-fragments": ["skill-a"],
+            }
+        ],
+    )
+    result = evaluate_for_profile(tmp_path, "daily", env={})
+    assert result.matching == []
+    assert result.errors
+    assert "fragments is required" in result.errors[0]
 
 
 def test_apm_schedule_profiles_and_capabilities_override_frontmatter(
