@@ -29,7 +29,7 @@ on:
     - "github-actions[bot]"
 concurrency:
   group: ${{ github.workflow }}-onboard-repository-${{ github.event.issue.number }}
-  # false: update-issue (Phase 2 abort uncheck) emits edited; do not cancel the abort run.
+  # false: host Phase 2 abort uncheck emits edited; do not cancel the abort run.
   cancel-in-progress: false
 # Policy id lives in config/onboard-repository.json (same pattern as config/e2e.json).
 # Resolved by gh-aw-fragments/ephemeral-github-token.md before create-token.
@@ -122,11 +122,71 @@ steps:
         echo "allowed_sinks_json=${allowed_sinks_json}"
       } >> "$GITHUB_OUTPUT"
       echo "Parsed repository='${repo}' phase=${phase} phase2_checked=${phase2} allowed_repos=${allowed_repos}"
+  # Host owns Phase 2 abort uncheck (fresh issue body) so the agent never queues a
+  # whole-body update-issue that can race with maintainer edits in safe_outputs.
+  - name: Enforce Phase 2 catalog-merge gate
+    id: phase2-gate
+    if: steps.onboard-phase.outputs.phase2_checked == '1' && steps.onboard-phase.outputs.repository != ''
+    env:
+      GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      CONSUMER_REPO: ${{ steps.onboard-phase.outputs.repository }}
+      ONBOARD_POLICY: repos/catalog-info/resources/github-token-policies/token-policy-oblt-aw-onboard-repository.yaml
+    run: |
+      set -euo pipefail
+      ready=0
+      reason=""
+      open_pr_url=""
+      if [[ -f "${ONBOARD_POLICY}" ]] && grep -Eq -- "repository:\\s*${CONSUMER_REPO}([[:space:]]|$)" "${ONBOARD_POLICY}"; then
+        ready=1
+      else
+        reason="onboard TokenPolicy selector missing for ${CONSUMER_REPO} on catalog-info default branch"
+      fi
+      if [[ "${ready}" -eq 0 ]]; then
+        printf 'aborted\n' > .onboard-phase2-host-aborted
+        open_pr_url="$(gh pr list --repo elastic/catalog-info --state open --limit 20 \
+          --json number,title,url 2>/dev/null \
+          | jq -r --arg repo "${CONSUMER_REPO}" \
+            '[.[] | select(.title | startswith("[oblt-aw][onboard]")) | select(.title | contains($repo))] | .[0].url // empty' \
+          || true)"
+        body="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" --jq '.body // ""')"
+        if printf '%s\n' "${body}" | grep -Eq -- '^[[:space:]]*-[[:space:]]*\[[xX]\][[:space:]]*\*\*Phase 2'; then
+          updated="$(printf '%s\n' "${body}" | awk '
+            {
+              line=$0
+              if (line ~ /^[[:space:]]*-[[:space:]]*\[[xX]\][[:space:]]*\*\*Phase 2/) {
+                sub(/\[[xX]\]/, "[ ]", line)
+              }
+              print line
+            }
+          ')"
+          jq -n --arg body "${updated}" '{body:$body}' \
+            | gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" -X PATCH --input -
+          comment="Phase 2 was aborted on the host: ${reason}."
+          if [[ -n "${open_pr_url}" ]]; then
+            comment+=" Open catalog PR: ${open_pr_url}."
+          fi
+          comment+=" Merge the Phase 1 catalog-info PR (including the onboard TokenPolicy selector), wait for it to be active, then check Phase 2 again."
+          jq -n --arg body "${comment}" '{body:$body}' \
+            | gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" -X POST --input -
+        else
+          echo "Phase 2 already unchecked; skipping issue rewrite"
+        fi
+        echo "aborted=true" >> "${GITHUB_OUTPUT}"
+        echo "::notice::Phase 2 aborted on host (${reason})"
+      else
+        rm -f .onboard-phase2-host-aborted
+        echo "aborted=false" >> "${GITHUB_OUTPUT}"
+        echo "Phase 2 gate passed for ${CONSUMER_REPO}"
+      fi
   # Do not use actions/checkout here: it suppresses gh-aw's default workflow-repo checkout.
   # Authenticated host clone keeps persist-credentials out of the agent sandbox.
   - name: Checkout consumer repository for Phase 2
     id: checkout-consumer
-    if: steps.onboard-phase.outputs.phase == '2' && steps.onboard-phase.outputs.repository != ''
+    if: >-
+      steps.onboard-phase.outputs.phase == '2'
+      && steps.onboard-phase.outputs.repository != ''
+      && steps.phase2-gate.outputs.aborted != 'true'
     continue-on-error: true
     env:
       CONSUMER_REPO: ${{ steps.onboard-phase.outputs.repository }}
@@ -135,10 +195,22 @@ steps:
       set -euo pipefail
       rm -rf repos/consumer
       mkdir -p repos
-      # Token only for this host clone; scrub remote URL before the agent runs.
-      git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${CONSUMER_REPO}.git" repos/consumer
+      # Transient Authorization header only (never embed the token in the remote URL).
+      # On any failure, remove a partial checkout so the agent never sees credentials.
+      cleanup() {
+        local ec=$?
+        if [[ "${ec}" -ne 0 && -e repos/consumer ]]; then
+          rm -rf repos/consumer
+        fi
+      }
+      trap cleanup EXIT
+      auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+      git -c "http.https://github.com/.extraheader=${auth_header}" \
+        clone --depth 1 "https://github.com/${CONSUMER_REPO}.git" repos/consumer
+      # Defense in depth: ensure origin has no embedded credentials.
       git -C repos/consumer remote set-url origin "https://github.com/${CONSUMER_REPO}.git"
-      echo "Checked out ${CONSUMER_REPO} into repos/consumer (credentials scrubbed)"
+      git -C repos/consumer config --unset-all "http.https://github.com/.extraheader" 2>/dev/null || true
+      echo "Checked out ${CONSUMER_REPO} into repos/consumer (no credentials in remote URL)"
 tools:
   github:
     # Prefer OIDC create-token output, then MCP/secret fallbacks (gh-aw >= v0.89.21).
@@ -174,14 +246,6 @@ safe-outputs:
     pull-requests: false
     discussions: false
     target: "triggering"
-  update-issue:
-    # Phase 2 abort: uncheck the Phase 2 box when catalog-info is not merged yet.
-    # Pass operation: replace on the tool call (not a frontmatter field for update-issue).
-    body: true
-    max: 1
-    target: "triggering"
-    required-labels: [oblt-aw/onboard/repository]
-    required-title-prefix: "[onboard]"
   create-pull-request:
     draft: false
     # Phase 1: catalog (+ optional allowlist gap-fill).
@@ -229,15 +293,14 @@ If repository or org-key is missing/invalid, or the repository is already listed
 
 ## Phase 2 catalog-merge gate (fail closed)
 
+The **host** step `Enforce Phase 2 catalog-merge gate` already checks that `repos/catalog-info` lists this `elastic/<repo>` on `token-policy-oblt-aw-onboard-repository`. When that fails, the host unchecks Phase 2 on the **latest** issue body and comments — do **not** call any issue-body rewrite tool (avoids racing maintainer edits through delayed safe-outputs).
+
 Before any Phase 2 PR work:
 
-1. Find the Phase 1 catalog concern: open **or** recently merged PRs in `elastic/catalog-info` whose titles start with `[oblt-aw][onboard]` and that target this `elastic/<repo>`.
-2. If there is **no** merged catalog onboard PR for this repository (only open, missing, or unrelated), **abort Phase 2**:
-   - Re-fetch the issue body **immediately** before writing (do not reuse an earlier copy). Change **only** the Phase 2 checkbox line from `- [x] **Phase 2`…` to `- [ ] **Phase 2`…`; keep every other line from that latest body exactly. Call `update-issue` with `operation: replace` and that surgically updated body. If Phase 2 is already unchecked in the latest body, skip `update-issue`.
-   - Call `add-comment` explaining that Phase 2 was aborted because the Phase 1 `elastic/catalog-info` PR is not merged yet; link the open catalog PR when one exists; tell the user to merge it, wait for the TokenPolicy to be active, then check Phase 2 again.
-   - Do **not** open Phase 2 PRs. Do **not** leave Phase 2 checked.
-3. If the catalog PR is merged, also confirm `repos/catalog-info` on the default branch lists `elastic/<repo>` on `token-policy-oblt-aw-onboard-repository` (file `resources/github-token-policies/token-policy-oblt-aw-onboard-repository.yaml`). If missing, abort the same way (re-fetch + uncheck Phase 2 only + comment): Phase 1 must add the consumer to the onboard agent TokenPolicy selector.
-4. Prefer the host checkout at `repos/consumer` (authenticated host step; credentials scrubbed). If Phase 2 is allowed but that tree is missing (checkout soft-failed), comment the failure and stop — do **not** attempt an agent-side `git clone` (no git credentials in the sandbox).
+1. If `.onboard-phase2-host-aborted` exists, or a re-fetch shows Phase 2 unchecked, call `noop` and stop (host already commented when it unchecked).
+2. Confirm the host gate passed: `repos/catalog-info/.../token-policy-oblt-aw-onboard-repository.yaml` lists this consumer, and `repos/consumer` exists when CODEOWNERS/Renovate work is needed.
+3. If Phase 2 is still checked but the selector is missing or `repos/consumer` is absent (checkout soft-failed), call `add-comment` explaining the block and stop — do **not** attempt an agent-side `git clone` and do **not** rewrite the issue body.
+4. Prefer the host checkout at `repos/consumer` (authenticated host step; credentials never embedded in the remote URL).
 
 ## Retry safety (before opening PRs)
 
@@ -314,7 +377,6 @@ Pass **real newlines** in every safe-output text field that GitHub renders as Ma
 
 - `add-comment` `body`
 - `create-pull-request` `body` (and titles without embedded `\n`)
-- `update-issue` `body` (latest issue body with only the Phase 2 checkbox unchecked)
 
 Never put the two-character sequence `\` + `n` in those fields; never collapse a multi-line body into one escaped line. Use headings and lists GitHub can render. For links, prefer full `https://github.com/.../pull/<n>` URLs or `#aw_…` ids — not `owner/repo#n` shorthand and not invented `pulls?q=` search links.
 
@@ -336,7 +398,7 @@ On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_
 ## Safe-output constraints
 
 - Open PRs only via `create-pull-request` (`draft: false`). Do not merge. Do not close the onboard issue.
-- Use `update-issue` **only** to uncheck Phase 2 on the catalog-merge abort path. Do not rewrite phase checkboxes in other cases (avoids edit loops).
+- Do **not** rewrite the issue body (Phase 2 abort uncheck is host-owned). Do not toggle phase checkboxes from the agent.
 - Finish with `add-comment` covering the content above, in **valid Markdown** (real newlines; exact PR links), unless the run is a pure `noop`.
 - On failure, comment what failed; never invent credentials.
-- Call at least one of: `create-pull-request`, `add-comment`, `update-issue`, or `noop`. A text-only exit with zero safe outputs is a failure.
+- Call at least one of: `create-pull-request`, `add-comment`, or `noop`. A text-only exit with zero safe outputs is a failure.

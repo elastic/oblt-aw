@@ -52,7 +52,26 @@ def test_patch_lock_rewrites_labeled_only_filters(tmp_path: Path) -> None:
     text = lock.read_text(encoding="utf-8")
     assert patch_mod.NEW_SNIPPET in text
     assert "github.event.action != 'labeled'" not in text
+    assert "join(github.event.issue.labels" not in text
+    assert (
+        "contains(github.event.issue.labels.*.name, 'oblt-aw/onboard/repository')"
+        in text
+    )
     assert patch_mod.patch_lock(lock) is False
+
+
+def test_patch_lock_migrates_legacy_join_substring_filter(tmp_path: Path) -> None:
+    lock = tmp_path / "gh-aw-onboard-repository.lock.yml"
+    lock.write_text(
+        f"jobs:\n  pre_activation:\n    if: {patch_mod.LEGACY_JOIN_SNIPPET}\n",
+        encoding="utf-8",
+    )
+    assert patch_mod.patch_lock(lock) is True
+    text = lock.read_text(encoding="utf-8")
+    assert patch_mod.NEW_SNIPPET in text
+    assert patch_mod.LEGACY_JOIN_SNIPPET not in text
+    # Exact membership must not match a longer sibling label name as a substring.
+    assert "join(" not in text
 
 
 def test_patch_lock_fails_closed_when_snippet_missing(tmp_path: Path) -> None:

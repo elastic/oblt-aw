@@ -36,7 +36,7 @@ There is **no** `workflow_dispatch` path: the agent requires the triggering issu
 | **1 — Catalog** | Phase 1 checkbox is checked on submit; label applied | `elastic/catalog-info` only (consumer TokenPolicy, step **2e** allowlists, **onboard agent TokenPolicy selector**) |
 | **2 — Remaining PRs** | Human checks Phase 2 after catalog merges | Registration, settings, secrets (when needed), consumer `CODEOWNERS`, Renovate ignore (when enabled) |
 
-If Phase 2 is checked while the Phase 1 catalog PR is not merged (or the onboard TokenPolicy selector still omits the consumer), the agent **aborts**: `update-issue` unchecks Phase 2 and `add-comment` explains why.
+If Phase 2 is checked while the onboard TokenPolicy selector still omits the consumer on `catalog-info` default branch, a **host** step aborts: it unchecks Phase 2 on the latest issue body and comments why. The agent does not rewrite the issue body.
 
 Behavior:
 
@@ -44,7 +44,7 @@ Behavior:
 2. Read the triggering issue via GitHub MCP and parse **repository** (`elastic/<repo>`), **org key** (`docs` / `obs` / `security`), and phase checkboxes. Source sets `tools.github.min-integrity: none` (temporary DIFC workaround so human-authored onboard issues are readable under the default `approved` floor).
 3. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps including **2e** and onboard TokenPolicy selector, appendix).
 4. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones for the **active phase only**.
-5. Open up to seven **normal (non-draft)** PRs across both phases (phase-scoped; catalog may split into consumer TokenPolicy + allowlist gap-fill). Do not merge them. Host steps parse the issue and, for Phase 2, check out `elastic/<repo>` into `repos/consumer` (`continue-on-error` so an early Phase 2 can still abort cleanly).
+5. Open up to seven **normal (non-draft)** PRs across both phases (phase-scoped; catalog may split into consumer TokenPolicy + allowlist gap-fill). Do not merge them. Host steps parse the issue, enforce the Phase 2 catalog gate, and (when the gate passes) check out `elastic/<repo>` into `repos/consumer` without embedding the token in the remote URL (`continue-on-error` so a soft-failed checkout does not fail the job).
 6. Comment with required content (parsed inputs, phase, PR checklist, next step) in **valid Markdown** — real newlines; full PR URLs or `#aw_…` rewrite. Heading wording is not fixed.
 
 User-facing steps: [Onboard a repository](../user-guide/onboard-a-repository.md).
@@ -54,18 +54,17 @@ User-facing steps: [Onboard a repository](../user-guide/onboard-a-repository.md)
 Permissions (source intent; lock expands job-level scopes):
 
 - Workflow: `id-token: write` for OIDC `create-token`; agent reads contents/issues/pull-requests; Copilot requests.
-- Safe outputs create comments, optional issue body updates (Phase 2 abort), and pull requests with the minted Vault-app token (policy id from `config/onboard-repository.json`).
+- Safe outputs create comments and pull requests with the minted Vault-app token (policy id from `config/onboard-repository.json`). Phase 2 abort uncheck is host-owned (not a safe-output).
 - GitHub MCP/DIFC read allowlist is platform repos at compile time; MCP is patched at runtime to platform plus the consumer parsed from the issue (not `elastic/*`). `create-pull-request` uses the same run-scoped allowlist.
 
 Safe outputs:
 
 - `add-comment` (issue)
-- `update-issue` (body replace; Phase 2 abort uncheck only)
 - `create-pull-request` with `draft: false`, `max: 7`, `auto-close-issue: false`, run-scoped `allowed-repos` (platform + parsed consumer)
 
-Concurrency uses `cancel-in-progress: false` so an abort `update-issue` (which emits `edited`) does not cancel the abort run.
+Concurrency uses `cancel-in-progress: false` so a host Phase 2 abort uncheck (which emits `edited`) does not cancel the abort run.
 
-`make compile-aw` runs `scripts/patch_aw_onboard_edited_label.py` so job `if:` conditions require label `oblt-aw/onboard/repository` on `edited` (gh-aw’s `names` filter is labeled-only). A host step fails closed as defense in depth.
+`make compile-aw` runs `scripts/patch_aw_onboard_edited_label.py` so job `if:` conditions require **exact** label membership for `oblt-aw/onboard/repository` on `edited` (gh-aw’s `names` filter is labeled-only; do not use `join`+substring `contains`). A host step fails closed as defense in depth.
 
 ## Related exclusions
 

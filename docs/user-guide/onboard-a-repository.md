@@ -50,7 +50,7 @@ Technical registration detail for maintainers and agents: [Registering resources
 
 5. **Merge the catalog-info PR**, then **check Phase 2** on the same issue. Checking Phase 2 starts the agent again (`issues` `edited`).
 
-   If you check Phase 2 before catalog-info is merged, the agent **aborts**: it unchecks Phase 2 and comments with the reason. Merge catalog-info, then check Phase 2 again.
+   If you check Phase 2 before catalog-info is merged (or before the onboard TokenPolicy selector lists your repo), the workflow **aborts** on the host: it unchecks Phase 2 and comments with the reason. Merge catalog-info, then check Phase 2 again.
 
 6. **Phase 2 — wait for the remaining PRs** — The agent opens **separate, normal (non-draft) pull requests**, one concern per PR:
 
@@ -120,7 +120,7 @@ Technical registration detail for maintainers and agents: [Registering resources
 Full fixes live under [Troubleshooting](../troubleshooting/index.md). Quick links:
 
 - **No agent comment / no PRs** (or retry after a partial run) — [Onboard agent no comment or PRs](../troubleshooting/common-problems/onboard-agent-no-comment-or-prs.md)
-- **Phase 2 unchecked by the agent** — Catalog-info from Phase 1 is not merged yet (or the onboard TokenPolicy selector still omits your repo). Merge that PR, then check Phase 2 again.
+- **Phase 2 unchecked by the workflow** — Catalog-info from Phase 1 is not merged yet (or the onboard TokenPolicy selector still omits your repo). Merge that PR, then check Phase 2 again.
 - **Registration merged too early** — [Registration before catalog TokenPolicy](../troubleshooting/common-problems/registration-before-catalog-token-policy.md)
 - **Settings branch-protection PR fails token administration check** — [Settings token-policy selector missing](../troubleshooting/common-problems/settings-token-policy-selector-missing.md)
 - **No install PR or Control Plane dashboard** — [Missing client template or Control Plane dashboard](../troubleshooting/common-problems/missing-client-template-or-dashboard.md)
