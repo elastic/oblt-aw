@@ -75,6 +75,8 @@ steps:
 
       BK_TOKEN = os.environ['BUILDKITE_API_TOKEN']
       EVENT_NAME = os.environ['GITHUB_EVENT_NAME']
+      # Mirrored by scripts/estc_buildkite_log_tail.py (unit-tested); keep inline
+      # so consumer checkouts do not need control-plane scripts on PATH.
       LOG_TAIL_DEFAULT = 150
       LOG_TAIL_MAX = 2000
       raw_tail = os.environ.get('BUILDKITE_LOG_TAIL_LINES', '').strip()

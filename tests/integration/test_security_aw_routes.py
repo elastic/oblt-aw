@@ -174,7 +174,9 @@ class TestWrapperLockWiring:
             assert (
                 with_block.get("buildkite-log-tail-lines")
                 == "${{ fromJSON(needs.resolve-apm-assets.outputs."
-                "resolved-inputs-json)['buildkite-log-tail-lines'] || 150 }}"
+                "resolved-inputs-json)['buildkite-log-tail-lines'] == null && 150 || "
+                "fromJSON(needs.resolve-apm-assets.outputs."
+                "resolved-inputs-json)['buildkite-log-tail-lines'] }}"
             )
         assert (
             with_block.get("setup-commands")
