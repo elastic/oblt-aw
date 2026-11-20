@@ -577,7 +577,6 @@ x-oblt-aw:
           allowed-days-of-week:
             - Monday
             - tuesday
-            - not-a-day
             - monday
 """,
             encoding="utf-8",
@@ -588,3 +587,7 @@ x-oblt-aw:
         assert "`monday`" in text
         assert "`tuesday`" in text
         assert "all UTC weekdays" not in text
+
+    def test_normalize_automerge_policy_rejects_unknown_weekday(self) -> None:
+        with pytest.raises(ValueError, match="unknown weekday"):
+            aaa.normalize_automerge_policy({"allowed-days-of-week": ["monady"]})
