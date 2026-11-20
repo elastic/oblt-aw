@@ -75,6 +75,7 @@ Shared framework jobs use **kebab-case, action-oriented** ids with domain contex
 - [Onboard repository (in-repo only)](gh-aw-onboard-repository.md)
 - [PR Actions Detective](obs-aw-pr-actions-detective.md)
 - [PR Buildkite Detective](obs-aw-estc-pr-buildkite-detective.md)
+- [Python version sync](aw-sync-python-version.md)
 - [Release promote](aw-release-promote.md)
 - [Release rollback](aw-release-rollback.md)
 - [Resolve agentic assets](aw-resolve-agentic-assets.md)

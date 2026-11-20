@@ -15,6 +15,11 @@ tools:
   github:
     min-integrity: approved
     trusted-users: "github-actions[bot]"
+# BEGIN synced-from:.python-version:runtimes
+runtimes:
+  python:
+    version: "3.14"
+# END synced-from:.python-version:runtimes
 ---
 
 ## Observability defaults

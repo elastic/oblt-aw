@@ -1,0 +1,55 @@
+name: Sync Python version pins
+
+# Root .python-version is the bumpable source of truth (Renovate / manual).
+# Agent jobs cannot read that file at runtime (they check out the consumer),
+# so this workflow copies the pin into GH-AW fragments and the pre-commit
+# action input via scripts/sync_python_version.py.
+on:
+  pull_request:
+    paths:
+      - ".python-version"
+      - ".github/workflows/gh-aw-fragments/obs-defaults.md"
+      - ".github/workflows/gh-aw-fragments/runtime-setup.md"
+      - ".github/workflows/ci.yml"
+      - "scripts/sync_python_version.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync-python-version:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout pull request head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ github.token }}
+
+      - name: Sync Python pins from .python-version
+        run: |
+          set -euo pipefail
+          python3 scripts/sync_python_version.py
+          if git diff --quiet -- \
+            .github/workflows/ci.yml \
+            .github/workflows/gh-aw-fragments/obs-defaults.md \
+            .github/workflows/gh-aw-fragments/runtime-setup.md; then
+            echo "Already in sync"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .github/workflows/ci.yml \
+            .github/workflows/gh-aw-fragments/obs-defaults.md \
+            .github/workflows/gh-aw-fragments/runtime-setup.md
+          git commit -m "Sync Python pins from .python-version"
+          git push
+          echo "Synced Python pins from .python-version"
+          echo "::notice::If GH-AW fragments changed, run make compile-aw-check on this branch"

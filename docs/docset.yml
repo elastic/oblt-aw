@@ -70,6 +70,7 @@ toc:
       - hidden: ./aw-release-rollback.md
       - hidden: ./aw-resolve-agentic-assets.md
       - hidden: ./aw-sync-apm-version.md
+      - hidden: ./aw-sync-python-version.md
       - hidden: ./ci.md
       - hidden: ./codex-preview-cleanup.md
       - hidden: ./codex-preview.md

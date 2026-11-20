@@ -7,11 +7,15 @@ steps:
       go-version-file: go.mod
       cache: true
 
+  # BEGIN synced-from:.python-version:setup-python
   - name: Setup Python
-    if: hashFiles('.python-version') != ''
+    # Control-plane pin (baked at compile time). Do not use
+    # python-version-file here — agent jobs check out the consumer
+    # repo, so .python-version would be the target's pin.
     uses: actions/setup-python@v7
     with:
-      python-version-file: '.python-version'
+      python-version: '3.14'
+  # END synced-from:.python-version:setup-python
 
   - name: Setup Node.js (.node-version)
     if: hashFiles('.node-version') != ''

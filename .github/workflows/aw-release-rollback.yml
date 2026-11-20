@@ -75,7 +75,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version-file: .python-version
 
       - name: Configure Git identity
         uses: elastic/oblt-actions/git/setup@v1
