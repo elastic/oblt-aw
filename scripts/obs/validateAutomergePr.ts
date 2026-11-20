@@ -21,8 +21,9 @@
  *
  * Control-plane bot logins live in `config/obs/allowed_pr_authors.json`, which Prelude
  * loads for ingress and `scripts/sync_allowed_pr_authors_bots.py` syncs onto static GH-AW
- * `on.bots` / prompt copies. Consumer `apm.yml` may extend authors, forks, and trigger
- * labels via `x-oblt-aw.<org>.workflows.automerge.policy` (see automergePolicy.ts).
+ * `on.bots` / prompt copies. Consumer `apm.yml` may extend authors, forks, trigger
+ * labels, and allowed UTC weekdays via `x-oblt-aw.<org>.workflows.automerge.policy`
+ * (see automergePolicy.ts).
  *
  * GraphQL/`gh pr view` (gh ≥ 2.50) may return `app/<slug>` for GitHub Apps while REST
  * and webhooks return `<slug>[bot]`. Matching always normalizes `app/<slug>` →
@@ -42,7 +43,33 @@ function fallbackDefaultAutomergePolicy() {
     triggerLabels: [MERGE_READY_LABEL_FALLBACK],
     forks: { mode: 'disabled', authorAssociations: [] },
     authors: { mode: 'allow-list', allowList: [], authorAssociations: [] },
+    allowedDaysOfWeek: [],
   };
+}
+
+/** @param {Date} [when] */
+function fallbackUtcWeekdayName(when = new Date()) {
+  return [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ][when.getUTCDay()];
+}
+
+/**
+ * @param {{ allowedDaysOfWeek?: string[] }} policy
+ * @param {Date} [when]
+ */
+function fallbackIsDayAllowedByPolicy(policy, when = new Date()) {
+  const allowed = policy.allowedDaysOfWeek || [];
+  if (!allowed.length) {
+    return true;
+  }
+  return allowed.includes(fallbackUtcWeekdayName(when));
 }
 
 function loadAutomergePolicyModule() {
@@ -119,6 +146,9 @@ const isForkAllowedByPolicy =
     );
     return allowed.has(String(args.authorAssociation || '').toUpperCase());
   });
+const isDayAllowedByPolicy =
+  policyModule?.isDayAllowedByPolicy || fallbackIsDayAllowedByPolicy;
+const utcWeekdayName = policyModule?.utcWeekdayName || fallbackUtcWeekdayName;
 
 const GITHUB_ACTIONS_BOT = 'github-actions[bot]';
 
@@ -165,19 +195,42 @@ module.exports.run = async function run({
   sharedTokenPolicy = '',
   policy = undefined,
   policyJson = '',
+  now = undefined,
 }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
+  const emptyFail = {
+    ok: false,
+    weekdayOk: false,
+    triggerLabels: [],
+    allowedDaysOfWeek: [],
+  };
 
   if (typeof prNumber !== 'number' || !Number.isFinite(prNumber)) {
     core.info('Automerge: invalid or missing pull request number; skipping.');
-    return { ok: false, triggerLabels: [] };
+    return emptyFail;
   }
 
-  const effectivePolicy =
-    policy && typeof policy === 'object'
-      ? normalizeAutomergePolicy(policy)
-      : parseAutomergePolicyJson(policyJson);
+  /** @type {ReturnType<typeof defaultAutomergePolicy>} */
+  let effectivePolicy;
+  try {
+    effectivePolicy =
+      policy && typeof policy === 'object'
+        ? normalizeAutomergePolicy(policy)
+        : parseAutomergePolicyJson(policyJson);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    core.info(`Automerge: invalid consumer policy (${message}); failing closed.`);
+    return emptyFail;
+  }
+  const when = now instanceof Date ? now : new Date();
+  const allowedDaysOfWeek = effectivePolicy.allowedDaysOfWeek || [];
+  const failResult = {
+    ok: false,
+    weekdayOk: false,
+    triggerLabels: effectivePolicy.triggerLabels,
+    allowedDaysOfWeek,
+  };
 
   const { data: pr } = await github.rest.pulls.get({
     owner,
@@ -202,7 +255,7 @@ module.exports.run = async function run({
         (author !== authorRaw ? ` (normalized '${author}')` : '') +
         ` association='${authorAssociation}' is not allowed by automerge policy`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   // Approve must use Vault for github-actions-authored PRs (GITHUB_TOKEN would self-APPROVE).
@@ -210,7 +263,7 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: author '${GITHUB_ACTIONS_BOT}' requires a non-empty shared-token-policy so approve can use Vault instead of GITHUB_TOKEN`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   const labelNames = (pr.labels || []).map((l) => l.name);
@@ -218,12 +271,12 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: missing trigger label (need one of: ${effectivePolicy.triggerLabels.join(', ')})`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   if (pr.draft) {
     core.info(`PR #${prNumber}: draft PRs are excluded`);
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   const headFull = pr.head?.repo?.full_name || '';
@@ -238,14 +291,30 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: fork PRs are excluded by automerge policy (forks.mode=${effectivePolicy.forks.mode})`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   if ((pr.head?.ref || '') === (pr.base?.ref || '')) {
     core.info(`PR #${prNumber}: head ref equals base ref`);
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
-  core.info(`PR #${prNumber}: passed automerge validation`);
-  return { ok: true, triggerLabels: effectivePolicy.triggerLabels };
+  // Weekday is soft for PR-path proceed (approve/arm can still run) and hard for
+  // merge/deferred. Callers that must not merge today check weekdayOk.
+  const weekdayOk = isDayAllowedByPolicy(effectivePolicy, when);
+  if (!weekdayOk) {
+    const day = utcWeekdayName(when);
+    const allowed = allowedDaysOfWeek.join(', ');
+    core.info(
+      `PR #${prNumber}: UTC weekday '${day}' is not in allowed-days-of-week (${allowed}); deferring merge`
+    );
+  } else {
+    core.info(`PR #${prNumber}: passed automerge validation`);
+  }
+  return {
+    ok: true,
+    weekdayOk,
+    triggerLabels: effectivePolicy.triggerLabels,
+    allowedDaysOfWeek,
+  };
 };

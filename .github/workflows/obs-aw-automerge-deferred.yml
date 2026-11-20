@@ -220,7 +220,7 @@ jobs:
 
             const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
             const { run: validate } = rq('./scripts/obs/validateAutomergePr.ts');
-            const { ok, triggerLabels } = await validate({
+            const { ok, weekdayOk, triggerLabels, allowedDaysOfWeek } = await validate({
               github,
               context,
               prNumber,
@@ -232,7 +232,11 @@ jobs:
               'trigger-labels-json',
               JSON.stringify(Array.isArray(triggerLabels) ? triggerLabels : [])
             );
-            if (!ok) {
+            core.setOutput(
+              'allowed-days-json',
+              JSON.stringify(Array.isArray(allowedDaysOfWeek) ? allowedDaysOfWeek : [])
+            );
+            if (!ok || !weekdayOk) {
               core.info(`PR #${prNumber}: verify gate failed; skipping merge.`);
               core.setOutput('proceed', 'false');
               return;
@@ -262,6 +266,7 @@ jobs:
           HEAD_SHA: ${{ matrix.head_sha }}
           REPO: ${{ github.repository }}
           AUTOMERGE_TRIGGER_LABELS_JSON: ${{ steps.gates.outputs.trigger-labels-json }}
+          AUTOMERGE_ALLOWED_DAYS_JSON: ${{ steps.gates.outputs.allowed-days-json }}
         run: |
           set -euo pipefail
           # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh
@@ -274,6 +279,16 @@ jobs:
           fi
           if [[ "${label_rc}" -ne 0 ]]; then
             echo "PR #${PR_NUMBER}: could not verify automerge trigger labels; failing closed." >&2
+            exit 1
+          fi
+          day_rc=0
+          automerge_utc_weekday_allowed || day_rc=$?
+          if [[ "${day_rc}" -eq 2 ]]; then
+            echo "PR #${PR_NUMBER}: UTC weekday policy deferred merge; next allowed day may merge."
+            exit 0
+          fi
+          if [[ "${day_rc}" -ne 0 ]]; then
+            echo "PR #${PR_NUMBER}: could not evaluate allowed-days-of-week; failing closed." >&2
             exit 1
           fi
           if merge_out="$(gh api --method PUT "repos/${REPO}/pulls/${PR_NUMBER}/merge" \
