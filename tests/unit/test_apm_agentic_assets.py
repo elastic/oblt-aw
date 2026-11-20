@@ -549,6 +549,8 @@ x-oblt-aw:
         assert "docs/**" in text
         assert "**/*.go" in text
         assert "all UTC weekdays" in text
+        assert "Do **not** withhold approval" in text
+        assert "merge-only" in text
 
     def test_normalize_automerge_policy_paths_fail_closed(self) -> None:
         with pytest.raises(TypeError, match="paths must be a mapping"):
@@ -587,6 +589,7 @@ x-oblt-aw:
         assert "`monday`" in text
         assert "`tuesday`" in text
         assert "all UTC weekdays" not in text
+        assert "Do **not** withhold approval" in text
 
     def test_normalize_automerge_policy_rejects_unknown_weekday(self) -> None:
         with pytest.raises(ValueError, match="unknown weekday"):

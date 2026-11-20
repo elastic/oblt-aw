@@ -834,9 +834,12 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
             f"- **Forks associations**: {forks_assoc}",
             f"- **All-files path allow**: {paths_allow}",
             f"- **All-files path deny**: {paths_deny}",
-            f"- **Allowed days of week (UTC)**: {allowed_days}",
+            f"- **Allowed days of week (UTC, merge-only)**: {allowed_days}",
             "",
-            "Approve only when the PR matches this policy, is not draft, the UTC",
-            "weekday is allowed, and head ref differs from base ref.",
+            "Approve when the PR matches this policy (labels/authors/forks), is not",
+            "draft, and head ref differs from base ref. Do **not** withhold approval",
+            "because of ``allowed-days-of-week`` — that gate is enforced at merge",
+            "time so a blocked UTC day can still get an APPROVED review and arm",
+            "for deferred merge on an allowed day.",
         ]
     )
