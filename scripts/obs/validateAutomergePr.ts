@@ -21,8 +21,9 @@
  *
  * Control-plane bot logins live in `config/obs/allowed_pr_authors.json`, which Prelude
  * loads for ingress and `scripts/sync_allowed_pr_authors_bots.py` syncs onto static GH-AW
- * `on.bots` / prompt copies. Consumer `apm.yml` may extend authors, forks, and trigger
- * labels via `x-oblt-aw.<org>.workflows.automerge.policy` (see automergePolicy.ts).
+ * `on.bots` / prompt copies. Consumer `apm.yml` may extend authors, forks, trigger
+ * labels, and allowed UTC weekdays via `x-oblt-aw.<org>.workflows.automerge.policy`
+ * (see automergePolicy.ts).
  *
  * GraphQL/`gh pr view` (gh ≥ 2.50) may return `app/<slug>` for GitHub Apps while REST
  * and webhooks return `<slug>[bot]`. Matching always normalizes `app/<slug>` →
@@ -43,7 +44,33 @@ function fallbackDefaultAutomergePolicy() {
     forks: { mode: 'disabled', authorAssociations: [] },
     authors: { mode: 'allow-list', allowList: [], authorAssociations: [] },
     paths: { allow: [], deny: [] },
+    allowedDaysOfWeek: [],
   };
+}
+
+/** @param {Date} [when] */
+function fallbackUtcWeekdayName(when = new Date()) {
+  return [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ][when.getUTCDay()];
+}
+
+/**
+ * @param {{ allowedDaysOfWeek?: string[] }} policy
+ * @param {Date} [when]
+ */
+function fallbackIsDayAllowedByPolicy(policy, when = new Date()) {
+  const allowed = policy.allowedDaysOfWeek || [];
+  if (!allowed.length) {
+    return true;
+  }
+  return allowed.includes(fallbackUtcWeekdayName(when));
 }
 
 function loadAutomergePolicyModule() {
@@ -120,6 +147,9 @@ const isForkAllowedByPolicy =
     );
     return allowed.has(String(args.authorAssociation || '').toUpperCase());
   });
+const isDayAllowedByPolicy =
+  policyModule?.isDayAllowedByPolicy || fallbackIsDayAllowedByPolicy;
+const utcWeekdayName = policyModule?.utcWeekdayName || fallbackUtcWeekdayName;
 
 const GITHUB_ACTIONS_BOT = 'github-actions[bot]';
 
@@ -166,6 +196,7 @@ module.exports.run = async function run({
   sharedTokenPolicy = '',
   policy = undefined,
   policyJson = '',
+  now = undefined,
 }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
@@ -188,6 +219,7 @@ module.exports.run = async function run({
     );
     return { ok: false, triggerLabels: [] };
   }
+  const when = now instanceof Date ? now : new Date();
 
   const { data: pr } = await github.rest.pulls.get({
     owner,
@@ -253,6 +285,15 @@ module.exports.run = async function run({
 
   if ((pr.head?.ref || '') === (pr.base?.ref || '')) {
     core.info(`PR #${prNumber}: head ref equals base ref`);
+    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+  }
+
+  if (!isDayAllowedByPolicy(effectivePolicy, when)) {
+    const day = utcWeekdayName(when);
+    const allowed = (effectivePolicy.allowedDaysOfWeek || []).join(', ');
+    core.info(
+      `PR #${prNumber}: UTC weekday '${day}' is not in allowed-days-of-week (${allowed})`
+    );
     return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
   }
 

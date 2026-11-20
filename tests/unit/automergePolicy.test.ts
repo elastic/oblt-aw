@@ -26,6 +26,7 @@ const {
   isAuthorAllowedByPolicy,
   isForkAllowedByPolicy,
   filesMatchAllFilesPathPolicy,
+  isDayAllowedByPolicy,
 } = require('../../scripts/obs/automergePolicy.ts');
 
 test('normalizeAutomergePolicy always keeps merge-ready and defaults forks/authors', () => {
@@ -39,6 +40,29 @@ test('normalizeAutomergePolicy always keeps merge-ready and defaults forks/autho
   assert.equal(policy.forks.mode, 'disabled');
   assert.equal(policy.authors.mode, 'allow-list');
   assert.deepEqual(policy.paths, { allow: [], deny: [] });
+  assert.deepEqual(policy.allowedDaysOfWeek, []);
+});
+
+test('normalizeAutomergePolicy keeps allowed-days-of-week and drops unknowns', () => {
+  const policy = normalizeAutomergePolicy({
+    'allowed-days-of-week': ['Monday', 'friday', 'not-a-day', 'monday'],
+  });
+  assert.deepEqual(policy.allowedDaysOfWeek, ['monday', 'friday']);
+});
+
+test('isDayAllowedByPolicy treats empty list as unrestricted', () => {
+  const policy = defaultAutomergePolicy();
+  assert.equal(isDayAllowedByPolicy(policy, new Date('2026-11-20T12:00:00Z')), true);
+});
+
+test('isDayAllowedByPolicy allows and rejects UTC weekdays', () => {
+  const policy = normalizeAutomergePolicy({
+    'allowed-days-of-week': ['monday', 'tuesday', 'wednesday', 'thursday'],
+  });
+  // Friday 2026-11-20 UTC
+  assert.equal(isDayAllowedByPolicy(policy, new Date('2026-11-20T12:00:00Z')), false);
+  // Monday 2026-11-16 UTC
+  assert.equal(isDayAllowedByPolicy(policy, new Date('2026-11-16T12:00:00Z')), true);
 });
 
 test('hasTriggerLabel accepts merge-ready or configured extras', () => {

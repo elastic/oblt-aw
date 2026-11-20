@@ -359,3 +359,65 @@ test('validateAutomergePr still rejects untrusted fork under author-association 
   });
   assert.equal(r.ok, false);
 });
+
+test('validateAutomergePr rejects disallowed UTC weekday', async () => {
+  const { core, infoMessages } = makeCore();
+  const github = {
+    rest: {
+      pulls: { get: async () => ({ data: basePr() }) },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 77,
+    core,
+    policy: {
+      'allowed-days-of-week': ['monday', 'tuesday', 'wednesday', 'thursday'],
+    },
+    now: new Date('2026-11-20T12:00:00Z'), // Friday UTC
+  });
+  assert.equal(r.ok, false);
+  assert.ok(
+    infoMessages.some((msg) => msg.includes("UTC weekday 'friday'")),
+    infoMessages.join('\n')
+  );
+});
+
+test('validateAutomergePr allows listed UTC weekday', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: { get: async () => ({ data: basePr() }) },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 78,
+    core,
+    policy: {
+      'allowed-days-of-week': ['monday', 'tuesday', 'wednesday', 'thursday'],
+    },
+    now: new Date('2026-11-16T12:00:00Z'), // Monday UTC
+  });
+  assert.equal(r.ok, true);
+});
+
+test('validateAutomergePr treats empty allowed-days-of-week as unrestricted', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: { get: async () => ({ data: basePr() }) },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 79,
+    core,
+    policy: { 'allowed-days-of-week': [] },
+    now: new Date('2026-11-20T12:00:00Z'), // Friday UTC
+  });
+  assert.equal(r.ok, true);
+});
