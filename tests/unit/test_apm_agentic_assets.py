@@ -533,6 +533,33 @@ x-oblt-aw:
         ]
         assert policy["forks"]["mode"] == "author-association"
         assert policy["authors"]["mode"] == "author-association"
+        assert policy["allowed-days-of-week"] == []
         text = aaa.format_automerge_policy_instructions(policy)
         assert "Effective Automerge Policy" in text
         assert "nightshift:risk-low" in text
+        assert "all UTC weekdays" in text
+
+    def test_resolve_automerge_policy_allowed_days(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      automerge:
+        policy:
+          allowed-days-of-week:
+            - Monday
+            - tuesday
+            - not-a-day
+            - monday
+""",
+            encoding="utf-8",
+        )
+        policy = aaa.resolve_automerge_policy(repo_root=repo, org_key="obs")
+        assert policy["allowed-days-of-week"] == ["monday", "tuesday"]
+        text = aaa.format_automerge_policy_instructions(policy)
+        assert "`monday`" in text
+        assert "`tuesday`" in text
+        assert "all UTC weekdays" not in text

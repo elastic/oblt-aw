@@ -528,6 +528,19 @@ def _as_string_list(value: Any) -> list[str]:
     return out
 
 
+_AUTOMERGE_WEEKDAYS = frozenset(
+    {
+        "friday",
+        "monday",
+        "saturday",
+        "sunday",
+        "thursday",
+        "tuesday",
+        "wednesday",
+    }
+)
+
+
 def default_automerge_policy() -> dict[str, Any]:
     """Control-plane defaults when consumer policy is omitted."""
     return {
@@ -541,7 +554,26 @@ def default_automerge_policy() -> dict[str, Any]:
             "allow-list": [],
             "author-associations": [],
         },
+        # Empty means unrestricted (all UTC weekdays).
+        "allowed-days-of-week": [],
     }
+
+
+def _normalize_allowed_days_of_week(raw: Any) -> list[str]:
+    """Lowercase weekday names; drop unknowns; empty means unrestricted."""
+    if not isinstance(raw, list):
+        return []
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in raw:
+        if not isinstance(item, str):
+            continue
+        day = item.strip().lower()
+        if day not in _AUTOMERGE_WEEKDAYS or day in seen:
+            continue
+        seen.add(day)
+        out.append(day)
+    return out
 
 
 def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
@@ -577,6 +609,8 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
         authors_allow_list = _as_string_list(authors_raw.get("allow-list"))
         authors_associations = _as_string_list(authors_raw.get("author-associations"))
 
+    allowed_days = _normalize_allowed_days_of_week(raw.get("allowed-days-of-week"))
+
     return {
         "trigger-labels": trigger_labels,
         "forks": {
@@ -588,6 +622,7 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
             "allow-list": authors_allow_list,
             "author-associations": authors_associations,
         },
+        "allowed-days-of-week": allowed_days,
     }
 
 
@@ -648,6 +683,10 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
         ", ".join(f"`{name}`" for name in authors.get("allow-list") or [])
         or "_(none beyond control-plane bots)_"
     )
+    allowed_days_raw = policy.get("allowed-days-of-week") or []
+    allowed_days = (
+        ", ".join(f"`{name}`" for name in allowed_days_raw) or "_(all UTC weekdays)_"
+    )
 
     return "\n".join(
         [
@@ -664,8 +703,9 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
             f"- **Authors associations**: {authors_assoc}",
             f"- **Forks mode**: `{forks.get('mode', 'disabled')}`",
             f"- **Forks associations**: {forks_assoc}",
+            f"- **Allowed days of week (UTC)**: {allowed_days}",
             "",
-            "Approve only when the PR matches this policy, is not draft, and head",
-            "ref differs from base ref.",
+            "Approve only when the PR matches this policy, is not draft, the UTC",
+            "weekday is allowed, and head ref differs from base ref.",
         ]
     )

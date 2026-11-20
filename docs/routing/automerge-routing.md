@@ -14,7 +14,7 @@ Routed workflow sources:
 - `.github/workflows/obs-aw-automerge.yml` — PR path (`verify`, `check-dependency-collection`, `approve`, `assert-approved-review`, `automerge`, `rest-merge`, `arm-for-deferred-merge`, `report-automerge-outcome`)
 - `.github/workflows/obs-aw-automerge-deferred.yml` — frequent schedule profile (`discover`, matrix `merge`)
 
-**Approve (PR path):** Nested in-repo `gh-aw-autoapprove` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]`. Pass `shared-token-policy` (Vault) when the author is `github-actions[bot]` or the PR is from a fork (`pull_request` `GITHUB_TOKEN` is read-only for forks). Control-plane bot logins come from [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) and are synced onto the autoapprove source with `make sync-allowed-pr-authors`; consumer `apm.yml` policy may extend authors, forks, and trigger labels, but not through `shared-allowed-pr-authors-*` inputs.
+**Approve (PR path):** Nested in-repo `gh-aw-autoapprove` picks a token so the approver is never the PR author (GitHub rejects self-APPROVE). Default is empty `github-token-policy` → `GITHUB_TOKEN` / `github-actions[bot]`. Pass `shared-token-policy` (Vault) when the author is `github-actions[bot]` or the PR is from a fork (`pull_request` `GITHUB_TOKEN` is read-only for forks). Control-plane bot logins come from [allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) and are synced onto the autoapprove source with `make sync-allowed-pr-authors`; consumer `apm.yml` policy may extend authors, forks, trigger labels, and allowed UTC weekdays, but not through `shared-allowed-pr-authors-*` inputs.
 
 **Merge strategy (CI-duration independent):**
 
@@ -52,6 +52,7 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 | PR state | Not a draft |
 | Branch origin | Default same-repo only; `policy.forks.mode: author-association` allows forks when `author_association` matches |
 | Refs | Head ref ≠ base ref |
+| Weekday | Optional `policy.allowed-days-of-week` (UTC). Omitted or empty means all days |
 
 **Collection gate** (`scripts/obs/checkAutomergeDependencyCollection.ts`):
 
@@ -65,7 +66,7 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 
 **`assert-approved-review` job:** Fail-closed check that a non-author `APPROVED` review exists for the current head before `automerge` runs. COMMENT-only eligibility fails here with an explicit missing-APPROVE outcome comment.
 
-**Deferred discover** (`scripts/obs/discover_armed_automerge_prs.sh`): requires armed marker from the PR path so approve has already run before the deferred merge.
+**Deferred discover** (`scripts/obs/discover_armed_automerge_prs.sh`): requires armed marker from the PR path so approve has already run before the deferred merge. Also skips candidates whose base-SHA policy `allowed-days-of-week` excludes today’s UTC weekday.
 
 **Required checks:** Validated by GitHub’s merge API on every PR-path and deferred-merge attempt, not by `validateAutomergePr.ts`.
 
