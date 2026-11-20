@@ -103,19 +103,31 @@ class TestEstcWrapperLockWiring:
             == "${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}"
         )
         assert (
+            with_block.get("buildkite-log-tail-lines")
+            == "${{ fromJSON(needs.resolve-apm-assets.outputs."
+            "resolved-inputs-json)['buildkite-log-tail-lines'] == null && 150 || "
+            "fromJSON(needs.resolve-apm-assets.outputs."
+            "resolved-inputs-json)['buildkite-log-tail-lines'] }}"
+        )
+        assert (
             with_block.get("setup-commands")
             == "${{ join(fromJSON(needs.resolve-apm-assets.outputs."
             "resolved-setup-commands-json), fromJSON('\"\\n\"')) }}"
         )
 
         lock_inputs = _lock_workflow_call_inputs(lock)
-        for key in ("additional-instructions", "setup-commands"):
+        for key in (
+            "additional-instructions",
+            "buildkite-log-tail-lines",
+            "setup-commands",
+        ):
             assert key in lock_inputs, (
                 f"{LOCK_BASENAME} must declare workflow_call input {key!r}"
             )
             assert key in with_block, (
                 f"{WRAPPER_BASENAME} agent job must pass lock input {key!r}"
             )
+        assert lock_inputs["buildkite-log-tail-lines"].get("default") == 150
 
     def test_wrapper_does_not_invoke_agent_engine_inline(self) -> None:
         """Regression guard: wrapper must call the lock, not embed an agent job."""
@@ -145,6 +157,7 @@ class TestEstcResolveFixtures:
 
         assert resolved["asset_source"] == "workflow"
         assert resolved["setup_commands"] == expected_setup
+        assert resolved["inputs"].get("buildkite-log-tail-lines") == 500
 
         # Wrapper joins setup-commands JSON with newlines before the lock input.
         lock_setup_commands = "\n".join(resolved["setup_commands"])
@@ -184,6 +197,7 @@ class TestEstcResolveFixtures:
         assert resolved["apm_manifest_present"] is False
         assert resolved["asset_source"] == "none"
         assert resolved["setup_commands"] == []
+        assert "buildkite-log-tail-lines" not in resolved["inputs"]
         assert "flaky-test" in resolved["additional_instructions"]
         by_name = {
             layer["layer"]: layer for layer in resolved["instruction_layers"]["layers"]

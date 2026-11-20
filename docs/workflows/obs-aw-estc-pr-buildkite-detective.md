@@ -35,8 +35,8 @@ Edit the GH-AW source [`.github/workflows/gh-aw-estc-pr-buildkite-detective.md`]
 | Opinionated (Observability-owned) | Preserved as lock inputs |
 |-----------------------------------|--------------------------|
 | Model, failure-issue suppression (`report-failure-as-issue` / `report-failed-jobs` false; `noop` / `missing-tool` / `missing-data` / `report-incomplete` do not create issues), and GitHub `trusted-users` via [`.github/workflows/gh-aw-fragments/obs-defaults.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md) | `additional-instructions` (from `aw-resolve-agentic-assets`) |
-| Comment footer via [`.github/workflows/gh-aw-fragments/messages-footer.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/messages-footer.md) (What is this? → [oblt-aw README](https://github.com/elastic/oblt-aw/blob/main/README.md)) | `setup-commands` (joined from consumer `apm.yml` when non-empty) |
-| Bot actors hardcoded on the source (`github-actions[bot]`, `buildkite-limited-access[bot]`) — GH-AW does not allow `on.bots` in shared fragments | |
+| Comment footer via [`.github/workflows/gh-aw-fragments/messages-footer.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/messages-footer.md) (What is this? → [oblt-aw README](https://github.com/elastic/oblt-aw/blob/main/README.md)) | `buildkite-log-tail-lines` (from consumer `apm.yml` `inputs`, default `150`, max `2000`) |
+| Bot actors hardcoded on the source (`github-actions[bot]`, `buildkite-limited-access[bot]`) — GH-AW does not allow `on.bots` in shared fragments | `setup-commands` (joined from consumer `apm.yml` when non-empty) |
 | Wrapper exposes `shared-proceed`, `shared-org-key`, and the Buildkite secret | |
 
 Shared compile imports for this workflow also include the other files under [`.github/workflows/gh-aw-fragments/`](https://github.com/elastic/oblt-aw/tree/main/.github/workflows/gh-aw-fragments).
@@ -64,6 +64,7 @@ Wrapper `workflow_call` contract:
 Lock inputs passed by the wrapper:
 
 - `additional-instructions` — resolved framework + consumer instructions
+- `buildkite-log-tail-lines` — trailing Buildkite log lines per failed job. Wrapper uses a null-only default (`…['buildkite-log-tail-lines'] == null && 150 || …['buildkite-log-tail-lines']`) so an explicit `0` is not rewritten to `150`. Set under `x-oblt-aw.<org-key>.workflows.estc-pr-buildkite-detective.inputs` in consumer `apm.yml`. Allowed range is 1–2000; invalid values fail the prefetch step. See [Define local AI assets](../user-guide/local-ai-assets.md).
 - `setup-commands` — `join(fromJSON(resolved-setup-commands-json), fromJSON('"\n"'))` from resolve (empty when the consumer has none; `fromJSON` supplies a real newline because expression string literals do not interpret `\n`)
 
 Migration note for consumers: if you previously configured the consumer-facing secret name as `BUILDKITE_API_TOKEN`, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN` in repository/organization secrets.
