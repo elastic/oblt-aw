@@ -66,9 +66,11 @@ jobs:
     # Relative so client @v0 / control-plane tip pins inherit the release train.
     uses: ./.github/workflows/gh-aw-docs-patrol.lock.yml
     with:
-      # Lookback (1 day), title-prefix ([oblt-aw][autodoc]), model/bots/footer,
+      # Lookback (1 day), title-prefix ([oblt-aw][autodoc]), bots/footer,
       # and failure-issue suppression are opinionated on the in-repo lock.
+      # Model comes from APM inputs.model when set; else framework default.
       additional-instructions: ${{ needs.resolve-apm-assets-audit.outputs.resolved-additional-instructions }}
+      model: ${{ fromJSON(needs.resolve-apm-assets-audit.outputs.resolved-inputs-json).model || 'gpt-5.3-codex' }}
       e2e-invocation-id: ${{ inputs.e2e-invocation-id }}
     secrets: inherit
 
@@ -96,11 +98,13 @@ jobs:
     # Relative so client @v0 / control-plane tip pins inherit the release train.
     uses: ./.github/workflows/gh-aw-create-pr-from-issue.lock.yml
     with:
-      # Draft PRs, model/bots/footer, failure-issue suppression, and docs-only
+      # Draft PRs, bots/footer, failure-issue suppression, and docs-only
       # prompt (including top-level docs protected-files excludes) are
       # opinionated on the in-repo lock.
+      # Model comes from APM inputs.model when set; else framework default.
       target-issue-number: ${{ needs.audit.outputs.created_issue_number }}
       additional-instructions: ${{ needs.resolve-apm-assets-fix.outputs.resolved-additional-instructions }}
+      model: ${{ fromJSON(needs.resolve-apm-assets-fix.outputs.resolved-inputs-json).model || 'gpt-5.3-codex' }}
     secrets: inherit
 
   # Step 3: Finalize autodoc PR — link audit issue for close-on-merge, assign reviewer, labels
