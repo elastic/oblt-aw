@@ -21,9 +21,11 @@ const {
   MERGE_READY_LABEL,
   defaultAutomergePolicy,
   normalizeAutomergePolicy,
+  parseAutomergePolicyJson,
   hasTriggerLabel,
   isAuthorAllowedByPolicy,
   isForkAllowedByPolicy,
+  filesMatchAllFilesPathPolicy,
 } = require('../../scripts/obs/automergePolicy.ts');
 
 test('normalizeAutomergePolicy always keeps merge-ready and defaults forks/authors', () => {
@@ -36,6 +38,7 @@ test('normalizeAutomergePolicy always keeps merge-ready and defaults forks/autho
   ]);
   assert.equal(policy.forks.mode, 'disabled');
   assert.equal(policy.authors.mode, 'allow-list');
+  assert.deepEqual(policy.paths, { allow: [], deny: [] });
 });
 
 test('hasTriggerLabel accepts merge-ready or configured extras', () => {
@@ -147,5 +150,69 @@ test('isForkAllowedByPolicy author-association allows trusted forks', () => {
       authorAssociation: 'NONE',
     }),
     false
+  );
+});
+
+test('normalizeAutomergePolicy reads paths allow and deny', () => {
+  const policy = normalizeAutomergePolicy({
+    paths: {
+      allow: ['docs/**', 'docs/**'],
+      deny: ['**/*.go', 'helm/**'],
+    },
+  });
+  assert.deepEqual(policy.paths, {
+    allow: ['docs/**'],
+    deny: ['**/*.go', 'helm/**'],
+  });
+});
+
+test('normalizeAutomergePolicy fails closed on invalid paths', () => {
+  assert.throws(
+    () => normalizeAutomergePolicy({ paths: 'docs/**' }),
+    /paths must be a mapping/
+  );
+  assert.throws(
+    () => normalizeAutomergePolicy({ paths: { allow: 'docs/**' } }),
+    /paths\.allow must be an array/
+  );
+  assert.throws(
+    () => normalizeAutomergePolicy({ paths: { deny: [1] } }),
+    /paths\.deny entries must be strings/
+  );
+});
+
+test('parseAutomergePolicyJson fails closed on invalid JSON', () => {
+  assert.throws(() => parseAutomergePolicyJson('{'), SyntaxError);
+});
+
+test('filesMatchAllFilesPathPolicy allow and deny rules', () => {
+  assert.equal(
+    filesMatchAllFilesPathPolicy(['docs/README.md'], {
+      allow: ['docs/**'],
+      deny: [],
+    }),
+    true
+  );
+  assert.equal(
+    filesMatchAllFilesPathPolicy(['docs/README.md', 'main.go'], {
+      allow: ['docs/**'],
+      deny: [],
+    }),
+    false
+  );
+  assert.equal(
+    filesMatchAllFilesPathPolicy(['docs/README.md'], {
+      allow: ['docs/**'],
+      deny: ['docs/**'],
+    }),
+    false
+  );
+  assert.equal(
+    filesMatchAllFilesPathPolicy(['main.go'], { allow: [], deny: ['**/*.go'] }),
+    false
+  );
+  assert.equal(
+    filesMatchAllFilesPathPolicy(['docs/README.md'], { allow: [], deny: [] }),
+    true
   );
 });

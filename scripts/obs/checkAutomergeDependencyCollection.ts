@@ -26,6 +26,7 @@ const {
   loadCollectionsConfig,
   parseEnabledWorkflowsJson,
 } = require('./classifyAutomergeDependencyCollection.ts');
+const { parseAutomergePolicyJson } = require('./automergePolicy.ts');
 
 async function listPullRequestFilePaths(github, owner, repo, prNumber) {
   const files = await github.paginate(github.rest.pulls.listFiles, {
@@ -86,12 +87,24 @@ module.exports.run = async function run({
   core,
   enabledWorkflowsJson = '[]',
   orgKey = '',
+  policyJson = '',
 }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
 
   if (typeof prNumber !== 'number' || !Number.isFinite(prNumber)) {
     core.info('Automerge collection gate: invalid PR number; skipping.');
+    return { allowed: false, collectionId: '' };
+  }
+
+  let pathPolicy = { allow: [], deny: [] };
+  try {
+    pathPolicy = parseAutomergePolicyJson(policyJson).paths;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    core.info(
+      `Automerge collection gate: invalid automerge policy (${message}); denying.`
+    );
     return { allowed: false, collectionId: '' };
   }
 
@@ -114,7 +127,8 @@ module.exports.run = async function run({
   const outcome = classifyChangedFiles(
     changedFiles,
     collections,
-    enabledCollectionIds
+    enabledCollectionIds,
+    pathPolicy
   );
 
   if (outcome.status === 'allowed') {
@@ -144,6 +158,10 @@ module.exports.run = async function run({
   } else if (outcome.status === 'ambiguous') {
     core.info(
       `PR #${prNumber}: ambiguous collections [${outcome.collectionIds.join(', ')}]; posted gate comment`
+    );
+  } else if (outcome.status === 'paths-ineligible') {
+    core.info(
+      `PR #${prNumber}: all-files path policy rejected changed files; posted gate comment`
     );
   } else {
     core.info(

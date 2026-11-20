@@ -523,6 +523,11 @@ x-oblt-aw:
             author-associations:
               - MEMBER
               - OWNER
+          paths:
+            allow:
+              - docs/**
+            deny:
+              - "**/*.go"
 """,
             encoding="utf-8",
         )
@@ -533,6 +538,20 @@ x-oblt-aw:
         ]
         assert policy["forks"]["mode"] == "author-association"
         assert policy["authors"]["mode"] == "author-association"
+        assert policy["paths"] == {
+            "allow": ["docs/**"],
+            "deny": ["**/*.go"],
+        }
         text = aaa.format_automerge_policy_instructions(policy)
         assert "Effective Automerge Policy" in text
         assert "nightshift:risk-low" in text
+        assert "docs/**" in text
+        assert "**/*.go" in text
+
+    def test_normalize_automerge_policy_paths_fail_closed(self) -> None:
+        with pytest.raises(TypeError, match="paths must be a mapping"):
+            aaa.normalize_automerge_policy({"paths": "docs/**"})
+        with pytest.raises(TypeError, match="paths.allow must be an array"):
+            aaa.normalize_automerge_policy({"paths": {"allow": "docs/**"}})
+        with pytest.raises(TypeError, match="paths.deny entries must be strings"):
+            aaa.normalize_automerge_policy({"paths": {"deny": [1]}})

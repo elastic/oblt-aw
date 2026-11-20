@@ -42,6 +42,7 @@ function fallbackDefaultAutomergePolicy() {
     triggerLabels: [MERGE_READY_LABEL_FALLBACK],
     forks: { mode: 'disabled', authorAssociations: [] },
     authors: { mode: 'allow-list', allowList: [], authorAssociations: [] },
+    paths: { allow: [], deny: [] },
   };
 }
 
@@ -174,10 +175,19 @@ module.exports.run = async function run({
     return { ok: false, triggerLabels: [] };
   }
 
-  const effectivePolicy =
-    policy && typeof policy === 'object'
-      ? normalizeAutomergePolicy(policy)
-      : parseAutomergePolicyJson(policyJson);
+  let effectivePolicy;
+  try {
+    effectivePolicy =
+      policy && typeof policy === 'object'
+        ? normalizeAutomergePolicy(policy)
+        : parseAutomergePolicyJson(policyJson);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    core.info(
+      `PR #${prNumber}: invalid automerge policy (${message}); skipping.`
+    );
+    return { ok: false, triggerLabels: [] };
+  }
 
   const { data: pr } = await github.rest.pulls.get({
     owner,

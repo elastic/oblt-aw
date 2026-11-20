@@ -9,7 +9,7 @@ Automerge has two layers:
 
 This lets a team say: “We trust Automerge for these update types, but not for the rest.”
 
-For non-dependency PRs (for example risk-labeled human or automation work), enable the **All files (non-dependency)** collection (`all-files`, off by default) and set consumer policy in `apm.yml` under `x-oblt-aw.<org>.workflows.automerge.policy`. Control Plane only turns features on or off; labels, authors, and fork rules stay in the consumer repo. Step-by-step enablement and policy customization: [Non-dependency Automerge user journeys](automerge-user-journeys.md).
+For non-dependency PRs (for example risk-labeled human or automation work), enable the **All files (non-dependency)** collection (`all-files`, off by default) and set consumer policy in `apm.yml` under `x-oblt-aw.<org>.workflows.automerge.policy`. Control Plane only turns features on or off; labels, authors, forks, and optional path allow/deny rules stay in the consumer repo. Step-by-step enablement and policy customization: [Non-dependency Automerge user journeys](automerge-user-journeys.md).
 
 :::{image} ../images/control-plane-dashboard-checkboxes.png
 :alt: Automerge parent checkbox with nested dependency collection checkboxes on the Control Plane dashboard
@@ -38,7 +38,7 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 
 | Collection | What it covers | Representative files | Why enable it |
 |------------|----------------|----------------------|---------------|
-| All files (non-dependency) | Any changed paths when consumer automerge policy allows | `**/*` | Opt-in catch-all for risk-labeled or otherwise policy-gated PRs outside dependency bots; prefer a specific collection when both match |
+| All files (non-dependency) | Any changed paths when consumer automerge policy allows (optional `paths.allow` / `paths.deny`) | `**/*` | Opt-in catch-all for risk-labeled or otherwise policy-gated PRs outside dependency bots; prefer a specific collection when both match |
 | APM CLI version | APM CLI pin updates for agent package install | `.apm.version`, `**/.apm.version`, `.apm-cli-pin/requirements.txt` | Keep the framework APM CLI pin current when Dependabot bumps `apm-cli` |
 | GitHub Actions bumps | Version updates for GitHub Actions and composite actions | `.github/workflows/**`, `.github/actions/**`, `**/action.yml`, `**/action.yaml` | Keep CI actions current without hand-merging routine bumps |
 | pre-commit hook updates | Dependency updates for pre-commit hooks | `.pre-commit-config.yaml` | Keep local and CI hook versions moving with low review overhead |
@@ -94,12 +94,19 @@ x-oblt-aw:
             author-associations:
               - MEMBER
               - OWNER
+          paths:                       # optional; only applies to all-files
+            allow:
+              - docs/**
+            deny:
+              - "**/*.go"
+              - helm/**
 ```
 
 - **Trigger labels:** `oblt-aw/ai/merge-ready` is always effective. Listed labels are added; omitting merge-ready does not remove it. Who applies the label (Dependency Review, a repository classifier / bridge, or a maintainer) is up to the repository.
 - **Authors:** Control-plane bots in [`allowed_pr_authors.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) are always allowed. `allow-list` adds logins; `author-association` allows non-bot authors whose GitHub `author_association` matches.
 - **Forks:** Default `disabled` keeps same-repo only. `author-association` allows forks when association matches (for example Elastic employee forks with `MEMBER` / `OWNER`).
-- **Defaults when `policy` is omitted:** merge-ready only, forks disabled, authors allow-list with no extras (today’s bot path).
+- **Paths (all-files only):** Optional `paths.allow` and `paths.deny` globs. When `all-files` is the matched collection, every changed file must match `allow` (if set) and none may match `deny` (`deny` wins). Omitted or empty lists leave path scope unrestricted. An invalid `paths` block fails closed (blocks Automerge). Specific dependency collections ignore this block.
+- **Defaults when `policy` is omitted:** merge-ready only, forks disabled, authors allow-list with no extras (today’s bot path), no path restriction.
 - **CODEOWNERS / merge queue:** Automerge still squash-merges over REST as the Vault app when `shared-token-policy` is set (bypass classic BP / rulesets). It does not enqueue into a merge queue.
 
 See also [Local AI assets](local-ai-assets.md), [Non-dependency Automerge user journeys](automerge-user-journeys.md), and [Automerge routing](../routing/automerge-routing.md).
