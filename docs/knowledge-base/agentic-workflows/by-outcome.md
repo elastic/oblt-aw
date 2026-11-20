@@ -66,7 +66,7 @@ flowchart TB
 | Agentic workflow | Maturity | What it does | Docs |
 |----------|----------|--------------|------|
 | Automated Documentation | stable | Finds doc gaps and opens issues/PRs | [obs-aw-autodoc](../../workflows/obs-aw-autodoc.md) |
-| Dependency Review | stable | Labels bot dependency PRs when merge-ready | [obs-aw-dependency-review](../../workflows/obs-aw-dependency-review.md) |
+| Dependency Review | stable | Labels bot dependency PRs when merge-ready | [Get Dependency Review on pull requests](../../user-guide/dependency-review.md), [obs-aw-dependency-review](../../workflows/obs-aw-dependency-review.md) |
 | PR Actions Detective | early-adoption | Diagnoses failed GitHub Actions runs on a PR | [obs-aw-pr-actions-detective](../../workflows/obs-aw-pr-actions-detective.md) |
 | PR Buildkite Detective | stable | Diagnoses Buildkite failures on a PR | [obs-aw-estc-pr-buildkite-detective](../../workflows/obs-aw-estc-pr-buildkite-detective.md) |
 | Resource Not Accessible by Integration | early-adoption | Detects, triages, and fixes that Actions error | [obs-aw-resource-not-accessible-by-integration-detector](../../workflows/obs-aw-resource-not-accessible-by-integration-detector.md) |

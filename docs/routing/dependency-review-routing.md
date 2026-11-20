@@ -30,6 +30,7 @@ The agentic lock lives in-repo as `gh-aw-dependency-review` (Observability-owned
 
 ## References
 
+- User guide: [Get Dependency Review on pull requests](../user-guide/dependency-review.md)
 - [docs/workflows/obs-aw-dependency-review.md](../workflows/obs-aw-dependency-review.md)
 - [docs/workflows/obs-aw-client-template.md](../workflows/obs-aw-client-template.md)
 - Live E2E: [docs/testing/dependency-review-e2e.md](../testing/dependency-review-e2e.md)
