@@ -165,21 +165,8 @@ automerge_squash_merge_at_sha() {
     return 1
   fi
 
-  # Re-check UTC weekday immediately before merge (approve may have run earlier).
-  day_rc=0
-  automerge_utc_weekday_allowed || day_rc=$?
-  if [[ "${day_rc}" -eq 2 ]]; then
-    echo "MERGE_RESULT=not_ready"
-    echo "UTC weekday policy deferred merge on ${repo}#${pr_number}; arm for deferred retry." >&2
-    return 0
-  fi
-  if [[ "${day_rc}" -ne 0 ]]; then
-    echo "MERGE_RESULT=merge_failed"
-    echo "Could not evaluate allowed-days-of-week on ${repo}#${pr_number}; failing closed." >&2
-    return 1
-  fi
-
-  # Revalidate approval: dismissals between assert-approved-review and merge must fail closed.
+  # Revalidate approval before weekday deferral: a dismissed review must fail closed
+  # even on a blocked day (do not arm / soft-defer without APPROVED).
   set +e
   assert_out="$(automerge_assert_pr_has_approved_review \
     "${repo}" "${pr_number}" "${author_login}" "${expected_sha}" 2>&1)"
@@ -194,6 +181,20 @@ automerge_squash_merge_at_sha() {
   if [[ "${assert_rc}" -ne 0 ]]; then
     echo "MERGE_RESULT=merge_failed"
     echo "Could not revalidate APPROVED review for ${repo}#${pr_number}; failing closed." >&2
+    return 1
+  fi
+
+  # Re-check UTC weekday immediately before merge (approve may have run earlier).
+  day_rc=0
+  automerge_utc_weekday_allowed || day_rc=$?
+  if [[ "${day_rc}" -eq 2 ]]; then
+    echo "MERGE_RESULT=not_ready"
+    echo "UTC weekday policy deferred merge on ${repo}#${pr_number}; arm for deferred retry." >&2
+    return 0
+  fi
+  if [[ "${day_rc}" -ne 0 ]]; then
+    echo "MERGE_RESULT=merge_failed"
+    echo "Could not evaluate allowed-days-of-week on ${repo}#${pr_number}; failing closed." >&2
     return 1
   fi
 
