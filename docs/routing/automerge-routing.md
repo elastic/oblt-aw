@@ -52,7 +52,7 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 | PR state | Not a draft |
 | Branch origin | Default same-repo only; `policy.forks.mode: author-association` allows forks when `author_association` matches |
 | Refs | Head ref ≠ base ref |
-| Weekday | Optional `policy.allowed-days-of-week` (UTC). Omitted or empty means all days |
+| Weekday | Optional `policy.allowed-days-of-week` (UTC). Omitted or empty means all days. Malformed values fail closed. Verify may proceed on a blocked day so approve/arm can run; merge rechecks immediately before the REST call |
 
 **Collection gate** (`scripts/obs/checkAutomergeDependencyCollection.ts`):
 

@@ -465,3 +465,52 @@ def test_effective_trigger_labels_defaults_under_nounset() -> None:
     assert result.returncode == 0, result.stderr
     assert "oblt-aw/ai/merge-ready" in result.stdout
     assert "unbound variable" not in result.stderr
+
+
+def test_utc_weekday_allowed_empty_is_unrestricted() -> None:
+    env = os.environ.copy()
+    env["AUTOMERGE_ALLOWED_DAYS_JSON"] = "[]"
+    env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = "friday"
+    result = subprocess.run(
+        ["bash", "-c", f'source "{SCRIPT}"; automerge_utc_weekday_allowed'],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_utc_weekday_allowed_rejects_disallowed_day() -> None:
+    env = os.environ.copy()
+    env["AUTOMERGE_ALLOWED_DAYS_JSON"] = '["monday","tuesday"]'
+    env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = "friday"
+    result = subprocess.run(
+        ["bash", "-c", f'source "{SCRIPT}"; automerge_utc_weekday_allowed'],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 2
+    assert "friday" in result.stderr
+
+
+def test_squash_merge_at_sha_weekday_policy_is_not_ready(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Disallowed UTC weekday must soft-defer merge (arm path), not fail closed."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            labels_json='["oblt-aw/ai/merge-ready"]',
+            allow_merge=False,
+        ),
+    )
+    env["AUTOMERGE_ALLOWED_DAYS_JSON"] = '["monday","tuesday"]'
+    env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = "friday"
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=not_ready" in result.stdout
+    assert "weekday" in result.stderr.lower() or "allowed-days" in result.stderr

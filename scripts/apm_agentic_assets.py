@@ -559,17 +559,36 @@ def default_automerge_policy() -> dict[str, Any]:
     }
 
 
-def _normalize_allowed_days_of_week(raw: Any) -> list[str]:
-    """Lowercase weekday names; drop unknowns; empty means unrestricted."""
+def _normalize_allowed_days_of_week(raw: Any, *, present: bool) -> list[str]:
+    """
+    Normalize weekday allow-list.
+
+    Omitted or ``[]`` means unrestricted. Any non-list value, or any entry that
+    is not a known weekday name, raises ``ValueError`` (fail closed).
+    """
+    if not present:
+        return []
     if not isinstance(raw, list):
+        raise TypeError(
+            "allowed-days-of-week must be an array of weekday names "
+            "(monday … sunday), or omitted / [] for all days"
+        )
+    if not raw:
         return []
     seen: set[str] = set()
     out: list[str] = []
     for item in raw:
         if not isinstance(item, str):
-            continue
+            raise TypeError(
+                f"allowed-days-of-week entries must be strings; got {type(item).__name__}"
+            )
         day = item.strip().lower()
-        if day not in _AUTOMERGE_WEEKDAYS or day in seen:
+        if day not in _AUTOMERGE_WEEKDAYS:
+            raise ValueError(
+                f"allowed-days-of-week contains unknown weekday {item.strip()!r} "
+                "(expected monday … sunday)"
+            )
+        if day in seen:
             continue
         seen.add(day)
         out.append(day)
@@ -609,7 +628,10 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
         authors_allow_list = _as_string_list(authors_raw.get("allow-list"))
         authors_associations = _as_string_list(authors_raw.get("author-associations"))
 
-    allowed_days = _normalize_allowed_days_of_week(raw.get("allowed-days-of-week"))
+    days_present = "allowed-days-of-week" in raw
+    allowed_days = _normalize_allowed_days_of_week(
+        raw.get("allowed-days-of-week"), present=days_present
+    )
 
     return {
         "trigger-labels": trigger_labels,

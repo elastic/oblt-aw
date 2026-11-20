@@ -199,17 +199,38 @@ module.exports.run = async function run({
 }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
+  const emptyFail = {
+    ok: false,
+    weekdayOk: false,
+    triggerLabels: [],
+    allowedDaysOfWeek: [],
+  };
 
   if (typeof prNumber !== 'number' || !Number.isFinite(prNumber)) {
     core.info('Automerge: invalid or missing pull request number; skipping.');
-    return { ok: false, triggerLabels: [] };
+    return emptyFail;
   }
 
-  const effectivePolicy =
-    policy && typeof policy === 'object'
-      ? normalizeAutomergePolicy(policy)
-      : parseAutomergePolicyJson(policyJson);
+  /** @type {ReturnType<typeof defaultAutomergePolicy>} */
+  let effectivePolicy;
+  try {
+    effectivePolicy =
+      policy && typeof policy === 'object'
+        ? normalizeAutomergePolicy(policy)
+        : parseAutomergePolicyJson(policyJson);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    core.info(`Automerge: invalid consumer policy (${message}); failing closed.`);
+    return emptyFail;
+  }
   const when = now instanceof Date ? now : new Date();
+  const allowedDaysOfWeek = effectivePolicy.allowedDaysOfWeek || [];
+  const failResult = {
+    ok: false,
+    weekdayOk: false,
+    triggerLabels: effectivePolicy.triggerLabels,
+    allowedDaysOfWeek,
+  };
 
   const { data: pr } = await github.rest.pulls.get({
     owner,
@@ -234,7 +255,7 @@ module.exports.run = async function run({
         (author !== authorRaw ? ` (normalized '${author}')` : '') +
         ` association='${authorAssociation}' is not allowed by automerge policy`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   // Approve must use Vault for github-actions-authored PRs (GITHUB_TOKEN would self-APPROVE).
@@ -242,7 +263,7 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: author '${GITHUB_ACTIONS_BOT}' requires a non-empty shared-token-policy so approve can use Vault instead of GITHUB_TOKEN`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   const labelNames = (pr.labels || []).map((l) => l.name);
@@ -250,12 +271,12 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: missing trigger label (need one of: ${effectivePolicy.triggerLabels.join(', ')})`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   if (pr.draft) {
     core.info(`PR #${prNumber}: draft PRs are excluded`);
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   const headFull = pr.head?.repo?.full_name || '';
@@ -270,23 +291,30 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: fork PRs are excluded by automerge policy (forks.mode=${effectivePolicy.forks.mode})`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   if ((pr.head?.ref || '') === (pr.base?.ref || '')) {
     core.info(`PR #${prNumber}: head ref equals base ref`);
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
-  if (!isDayAllowedByPolicy(effectivePolicy, when)) {
+  // Weekday is soft for PR-path proceed (approve/arm can still run) and hard for
+  // merge/deferred. Callers that must not merge today check weekdayOk.
+  const weekdayOk = isDayAllowedByPolicy(effectivePolicy, when);
+  if (!weekdayOk) {
     const day = utcWeekdayName(when);
-    const allowed = (effectivePolicy.allowedDaysOfWeek || []).join(', ');
+    const allowed = allowedDaysOfWeek.join(', ');
     core.info(
-      `PR #${prNumber}: UTC weekday '${day}' is not in allowed-days-of-week (${allowed})`
+      `PR #${prNumber}: UTC weekday '${day}' is not in allowed-days-of-week (${allowed}); deferring merge`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+  } else {
+    core.info(`PR #${prNumber}: passed automerge validation`);
   }
-
-  core.info(`PR #${prNumber}: passed automerge validation`);
-  return { ok: true, triggerLabels: effectivePolicy.triggerLabels };
+  return {
+    ok: true,
+    weekdayOk,
+    triggerLabels: effectivePolicy.triggerLabels,
+    allowedDaysOfWeek,
+  };
 };

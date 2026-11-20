@@ -40,11 +40,31 @@ test('normalizeAutomergePolicy always keeps merge-ready and defaults forks/autho
   assert.deepEqual(policy.allowedDaysOfWeek, []);
 });
 
-test('normalizeAutomergePolicy keeps allowed-days-of-week and drops unknowns', () => {
+test('normalizeAutomergePolicy keeps allowed-days-of-week and dedupes case', () => {
   const policy = normalizeAutomergePolicy({
-    'allowed-days-of-week': ['Monday', 'friday', 'not-a-day', 'monday'],
+    'allowed-days-of-week': ['Monday', 'friday', 'monday'],
   });
   assert.deepEqual(policy.allowedDaysOfWeek, ['monday', 'friday']);
+});
+
+test('normalizeAutomergePolicy rejects unknown weekday names', () => {
+  assert.throws(
+    () =>
+      normalizeAutomergePolicy({
+        'allowed-days-of-week': ['monady'],
+      }),
+    /unknown weekday/
+  );
+});
+
+test('normalizeAutomergePolicy rejects non-array allowed-days-of-week', () => {
+  assert.throws(
+    () =>
+      normalizeAutomergePolicy({
+        'allowed-days-of-week': 'monday',
+      }),
+    /must be an array/
+  );
 });
 
 test('isDayAllowedByPolicy treats empty list as unrestricted', () => {

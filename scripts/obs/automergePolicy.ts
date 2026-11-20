@@ -84,11 +84,22 @@ function asStringList(value) {
 }
 
 /**
+ * Normalize weekday allow-list. Omitted / empty ⇒ unrestricted.
+ * Any non-array value, or any entry that is not a known weekday name, fails closed.
  * @param {unknown} value
+ * @param {boolean} present
  * @returns {string[]}
  */
-function asAllowedDaysOfWeek(value) {
+function asAllowedDaysOfWeek(value, present) {
+  if (!present) {
+    return [];
+  }
   if (!Array.isArray(value)) {
+    throw new Error(
+      'allowed-days-of-week must be an array of weekday names (monday … sunday), or omitted / [] for all days'
+    );
+  }
+  if (value.length === 0) {
     return [];
   }
   const seen = new Set();
@@ -96,10 +107,17 @@ function asAllowedDaysOfWeek(value) {
   const out = [];
   for (const item of value) {
     if (typeof item !== 'string') {
-      continue;
+      throw new Error(
+        `allowed-days-of-week entries must be strings; got ${typeof item}`
+      );
     }
     const day = item.trim().toLowerCase();
-    if (!ALLOWED_WEEKDAY_SET.has(day) || seen.has(day)) {
+    if (!ALLOWED_WEEKDAY_SET.has(day)) {
+      throw new Error(
+        `allowed-days-of-week contains unknown weekday '${item.trim()}'; (expected monday … sunday)`
+      );
+    }
+    if (seen.has(day)) {
       continue;
     }
     seen.add(day);
@@ -162,8 +180,12 @@ function normalizeAutomergePolicy(raw) {
     );
   }
 
+  const daysPresent =
+    Object.prototype.hasOwnProperty.call(obj, 'allowed-days-of-week') ||
+    Object.prototype.hasOwnProperty.call(obj, 'allowedDaysOfWeek');
   const allowedDaysOfWeek = asAllowedDaysOfWeek(
-    obj['allowed-days-of-week'] ?? obj.allowedDaysOfWeek
+    obj['allowed-days-of-week'] ?? obj.allowedDaysOfWeek,
+    daysPresent
   );
 
   return {
@@ -185,15 +207,17 @@ function normalizeAutomergePolicy(raw) {
  * @param {string} rawJson
  * @returns {AutomergePolicy}
  */
+/**
+ * Parse policy JSON. Empty input ⇒ defaults. Invalid JSON or invalid
+ * ``allowed-days-of-week`` values throw (callers must fail closed).
+ * @param {string} rawJson
+ * @returns {AutomergePolicy}
+ */
 function parseAutomergePolicyJson(rawJson) {
   if (!rawJson || typeof rawJson !== 'string' || !rawJson.trim()) {
     return defaultAutomergePolicy();
   }
-  try {
-    return normalizeAutomergePolicy(JSON.parse(rawJson));
-  } catch {
-    return defaultAutomergePolicy();
-  }
+  return normalizeAutomergePolicy(JSON.parse(rawJson));
 }
 
 /**

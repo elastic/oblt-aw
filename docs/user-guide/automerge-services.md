@@ -104,7 +104,7 @@ x-oblt-aw:
 - **Trigger labels:** `oblt-aw/ai/merge-ready` is always effective. Listed labels are added; omitting merge-ready does not remove it. Who applies the label (Dependency Review, a repository classifier / bridge, or a maintainer) is up to the repository.
 - **Authors:** Control-plane bots in [`allowed_pr_authors.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) are always allowed. `allow-list` adds logins; `author-association` allows non-bot authors whose GitHub `author_association` matches.
 - **Forks:** Default `disabled` keeps same-repo only. `author-association` allows forks when association matches (for example Elastic employee forks with `MEMBER` / `OWNER`).
-- **Allowed days of week:** Optional list of lowercase English weekday names (`monday` … `sunday`). Evaluated in **UTC**. Omitted or empty means every day. Use this to avoid automerges on Fridays or weekends.
+- **Allowed days of week:** Optional list of lowercase English weekday names (`monday` … `sunday`). Evaluated in **UTC** at merge time (and again on the deferred path). Omitted or empty means every day. Unknown names or a non-list value fail policy resolve closed. On a blocked day, Automerge can still approve and arm the PR; merge waits until an allowed UTC day.
 - **Defaults when `policy` is omitted:** merge-ready only, forks disabled, authors allow-list with no extras (today’s bot path), all UTC weekdays allowed.
 - **CODEOWNERS / merge queue:** Automerge still squash-merges over REST as the Vault app when `shared-token-policy` is set (bypass classic BP / rulesets). It does not enqueue into a merge queue.
 
