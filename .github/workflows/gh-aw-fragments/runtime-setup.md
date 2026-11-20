@@ -1,12 +1,5 @@
 ---
 steps:
-  - name: Setup Go
-    if: hashFiles('go.mod') != ''
-    uses: actions/setup-go@v7
-    with:
-      go-version-file: go.mod
-      cache: true
-
   # BEGIN synced-from:.python-version:setup-python
   - name: Setup Python
     # Control-plane pin (baked at compile time). Do not use
@@ -28,30 +21,6 @@ steps:
     uses: actions/setup-node@v7
     with:
       node-version-file: '.nvmrc'
-
-  - name: Setup Ruby
-    if: hashFiles('.ruby-version') != ''
-    uses: ruby/setup-ruby@v1
-    with:
-      ruby-version: '.ruby-version'
-      bundler-cache: true
-
-  - name: Setup uv
-    if: hashFiles('pyproject.toml', 'uv.lock') != ''
-    uses: astral-sh/setup-uv@v10
-    id: setup-uv
-
-  - name: Expose uv in workspace
-    if: hashFiles('pyproject.toml', 'uv.lock') != ''
-    shell: bash
-    env:
-      UV_PATH: ${{ steps.setup-uv.outputs.uv-path }}
-    run: |
-      set -euo pipefail
-      # AWF-friendly location: gh-aw scans /opt/hostedtoolcache/**/bin paths.
-      toolcache_bin="/opt/hostedtoolcache/gh-aw-tools/current/x64/bin"
-      sudo mkdir -p "$toolcache_bin"
-      sudo ln -sf "$UV_PATH" "$toolcache_bin/uv"
 
   - name: Configure Copilot CLI settings
     shell: bash

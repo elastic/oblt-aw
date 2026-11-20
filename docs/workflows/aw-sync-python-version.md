@@ -10,7 +10,7 @@
 
 ## Purpose
 
-Keeps agent GH-AW fragments and the CI pre-commit action input aligned with the root [`.python-version`](https://github.com/elastic/oblt-aw/blob/main/.python-version) file. That file is the bumpable source of truth. Agent jobs check out consumer repositories, so they cannot read this repo's `.python-version` at runtime; the sync script bakes the pin into compiled setup steps instead. Control-plane `actions/setup-python` steps use `python-version-file: .python-version` and follow the file directly.
+Keeps agent GH-AW fragments and the CI pre-commit action input aligned with the root [`.python-version`](https://github.com/elastic/oblt-aw/blob/main/.python-version) file. That file is the bumpable source of truth. Agent jobs check out consumer repositories, so they cannot read this repo's `.python-version` at runtime; the sync script bakes the pin into compiled setup steps instead. Control-plane `actions/setup-python` steps use `python-version-file: .python-version` and follow the file directly. Shared `runtime-setup` only installs Python (control-plane pin) and optional consumer Node; it does not install Go, Ruby, or uv.
 
 ## Execution flow
 
