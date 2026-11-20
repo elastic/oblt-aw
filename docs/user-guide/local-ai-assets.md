@@ -25,7 +25,7 @@ Under `x-oblt-aw.<org-key>`, each org block needs a `common` section. Optional `
 | Extra agent instructions | `inputs.additional-instructions` or `inputs.additional-instructions-file` | Appended after framework and platform prompts |
 | Local Markdown fragments | `<org-key>.fragments` + `additional-instructions-fragments` | Ordered fragment files, then inline instructions |
 | Setup shell | `setup-commands` and optional `setup-commands-file` | Runs in the consumer checkout before the agent engine |
-| Workflow inputs | other keys under `inputs` | Overrides platform inputs per key (for example `lookback-window` for autodoc) |
+| Workflow inputs | other keys under `inputs` | Overrides platform inputs per key (for example `lookback-window` for autodoc, or `buildkite-log-tail-lines` for the Buildkite detective) |
 | Automerge policy | `workflows.automerge.policy` | Extra trigger labels, author mode, fork mode, and optional `all-files` path allow/deny for Automerge verify/approve (see [Automerge services](automerge-services.md#consumer-policy-apmyml); journeys: [Non-dependency Automerge user journeys](automerge-user-journeys.md)) |
 | APM packages | top-level `dependencies.apm` | Installed with `apm install` when `apm.yml` is present |
 
@@ -73,6 +73,29 @@ x-oblt-aw:
 ```
 
 Optional APM package dependencies (skills, plugins, MCP servers) use the standard APM `dependencies.apm` list in the same file. Private GitHub packages need `ai-assets-token-policy` set for the repo in `config/<org-key>/active-repositories.json` (maintainer change); otherwise install uses the job `GITHUB_TOKEN`.
+
+### Buildkite detective log depth
+
+For `estc-pr-buildkite-detective`, set how many trailing log lines each failed Buildkite job writes under `/tmp/gh-aw/buildkite-logs/`:
+
+| Key | Default | Allowed |
+|-----|---------|---------|
+| `buildkite-log-tail-lines` | `150` | integer from `1` to `2000` |
+
+Omit the key to keep the default. Non-integers, values below `1`, or values above `2000` fail the prefetch step with a clear error (they are not clamped).
+
+Example (org key is your fleet; `endpoint-dev` uses `security`):
+
+```yaml
+x-oblt-aw:
+  version: 1
+  security:
+    common: {}
+    workflows:
+      estc-pr-buildkite-detective:
+        inputs:
+          buildkite-log-tail-lines: 500
+```
 
 ## Check that it applied
 
