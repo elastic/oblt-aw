@@ -34,5 +34,7 @@ jobs:
     uses: elastic/oblt-aw/.github/workflows/gh-aw-pr-actions-detective.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      # APM inputs.model when set; otherwise framework default (obs-defaults).
+      model: ${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json).model || 'gpt-5.3-codex' }}
       # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.
       setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), fromJSON('"\n"')) }}

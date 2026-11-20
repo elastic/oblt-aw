@@ -102,6 +102,8 @@ uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.y
 
 and restore any upstream-required inputs (`allowed-bot-users`, `classification-labels`, `report-failure-as-issue`) if needed. Copies in `elastic/ai-github-actions` remain for other consumers; this cutover does not deprecate or remove them.
 
+**Model selection:** default comes from [`obs-defaults`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md). Consumers override with `x-oblt-aw.<org>.….inputs.model` in `apm.yml` (see [Choose a model](../user-guide/local-ai-assets.md#choose-a-model-for-your-workflow)). The wrapper forwards `resolved-inputs-json.model` into the lock.
+
 **Integration (no live model):** fixtures and wiring checks for resolve → wrapper → lock inputs live under [`testdata/agentic/dependency-review/`](https://github.com/elastic/oblt-aw/tree/main/testdata/agentic/dependency-review) and [`tests/integration/test_dependency_review.py`](https://github.com/elastic/oblt-aw/blob/main/tests/integration/test_dependency_review.py).
 
 **E2E:** production path on **`elastic/oblt-aw`** via [`.github/workflows/e2e-dependency-review.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/e2e-dependency-review.yml) (`workflow_dispatch` / `workflow_call` from `e2e-all.yml`). Live happy path: Vault-authored Actions pin-bump PR → dependency-review comment + `oblt-aw/ai/merge-ready`. See [dependency-review-e2e](../testing/dependency-review-e2e.md).

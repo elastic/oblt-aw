@@ -47,6 +47,8 @@ jobs:
     uses: ./.github/workflows/gh-aw-dependency-review.lock.yml
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      # APM inputs.model when set; otherwise framework default (obs-defaults).
+      model: ${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json).model || 'gpt-5.3-codex' }}
       # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.
       setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), fromJSON('"\n"')) }}
       github-token-policy: ${{ inputs.shared-token-policy }}

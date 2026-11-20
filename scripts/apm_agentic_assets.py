@@ -241,6 +241,22 @@ def materialize_inputs(
     return out
 
 
+def validate_model_input(inputs: dict[str, Any]) -> None:
+    """Fail closed when ``inputs.model`` is present but empty or not a string.
+
+    Omit the key to keep the framework default (obs-defaults). Unsupported model
+    ids are rejected later by gh-aw at agent runtime.
+    """
+    if "model" not in inputs:
+        return
+    value = inputs["model"]
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(
+            "inputs.model must be a non-empty string when set "
+            "(omit the key to use the framework default)"
+        )
+
+
 def _expand_setup_command_lines(text: str) -> list[str]:
     """Split multiline inline setup text into individual shell commands."""
     lines: list[str] = []
@@ -435,6 +451,7 @@ def resolve_apm_assets(
     def _platform_only(
         *, manifest_present: bool, extension_present: bool
     ) -> dict[str, Any]:
+        validate_model_input(platform_inputs)
         additional, layers = compose_additional_instructions(
             platform_additional_instructions
         )
@@ -487,6 +504,7 @@ def resolve_apm_assets(
     setup_commands = extract_setup_commands(block, repo_root=repo_root)
 
     merged_inputs = merge_platform_and_apm_inputs(platform_inputs, apm_inputs)
+    validate_model_input(merged_inputs)
     additional, layers = compose_additional_instructions(
         platform_additional_instructions,
         consumer_fragments_text=consumer_fragments,

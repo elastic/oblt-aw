@@ -252,6 +252,8 @@ jobs:
     uses: ./.github/workflows/gh-aw-autoapprove.lock.yml
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      # APM inputs.model when set; otherwise framework default (obs-defaults).
+      model: ${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json).model || 'gpt-5.3-codex' }}
       # Do not forward resolved-setup-commands-json: approve only needs PR metadata.
       # Empty → GITHUB_TOKEN; Vault when github-actions[bot] (self-APPROVE) or fork (read-only token).
       github-token-policy: ${{ (github.event.pull_request.user.login == 'github-actions[bot]' || github.event.pull_request.head.repo.full_name != github.repository) && inputs.shared-token-policy || '' }}

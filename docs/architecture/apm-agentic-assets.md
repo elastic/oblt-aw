@@ -105,7 +105,7 @@ When the Control Plane dashboard gate passes (`proceed == true`), each agent job
    - `resolved-setup-commands-json`
    - `resolved-instruction-layers-json` (which fragments/inline/auto layers were appended)
 
-Downstream `gh-aw-*` jobs should pass `additional-instructions: ${{ needs.<resolve-job>.outputs.resolved-additional-instructions }}` and may read other keys from `resolved-inputs-json` when needed. Use one resolve job per agent invocation when platform prompts differ (see `obs-aw-autodoc.yml`).
+Downstream `gh-aw-*` jobs should pass `additional-instructions: ${{ needs.<resolve-job>.outputs.resolved-additional-instructions }}` and may read other keys from `resolved-inputs-json` when needed (for example `model` for in-repo locks). Use one resolve job per agent invocation when platform prompts differ (see `obs-aw-autodoc.yml`). Consumer model override ergonomics: [Choose a model](../user-guide/local-ai-assets.md#choose-a-model-for-your-workflow).
 
 ## Schema
 
