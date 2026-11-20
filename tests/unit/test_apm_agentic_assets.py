@@ -538,6 +538,8 @@ x-oblt-aw:
         assert "Effective Automerge Policy" in text
         assert "nightshift:risk-low" in text
         assert "all UTC weekdays" in text
+        assert "Do **not** withhold approval" in text
+        assert "merge-only" in text
 
     def test_resolve_automerge_policy_allowed_days(self, repo: pathlib.Path) -> None:
         (repo / "apm.yml").write_text(
@@ -562,6 +564,7 @@ x-oblt-aw:
         assert "`monday`" in text
         assert "`tuesday`" in text
         assert "all UTC weekdays" not in text
+        assert "Do **not** withhold approval" in text
 
     def test_normalize_automerge_policy_rejects_unknown_weekday(self) -> None:
         with pytest.raises(ValueError, match="unknown weekday"):
