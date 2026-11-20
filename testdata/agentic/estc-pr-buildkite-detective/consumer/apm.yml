@@ -20,3 +20,4 @@ x-oblt-aw:
         inputs:
           additional-instructions: |
             ESTC_CONSUMER_INLINE_MARKER
+          buildkite-log-tail-lines: 500

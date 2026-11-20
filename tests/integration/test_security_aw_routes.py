@@ -170,6 +170,12 @@ class TestWrapperLockWiring:
             with_block.get("additional-instructions")
             == "${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}"
         )
+        if route.workflow_id == "estc-pr-buildkite-detective":
+            assert (
+                with_block.get("buildkite-log-tail-lines")
+                == "${{ fromJSON(needs.resolve-apm-assets.outputs."
+                "resolved-inputs-json)['buildkite-log-tail-lines'] || 150 }}"
+            )
         assert (
             with_block.get("setup-commands")
             == "${{ join(fromJSON(needs.resolve-apm-assets.outputs."
@@ -369,6 +375,8 @@ class TestResolveFixtures:
 
         assert resolved["asset_source"] == "workflow"
         assert resolved["setup_commands"] == expected_setup
+        if route.workflow_id == "estc-pr-buildkite-detective":
+            assert resolved["inputs"].get("buildkite-log-tail-lines") == 500
         text = resolved["additional_instructions"]
         assert route.marker in text
         assert "SHOULD_NOT_APPLY" not in text
