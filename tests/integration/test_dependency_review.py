@@ -105,21 +105,28 @@ class TestDependencyReviewWrapperLockWiring:
         assert "classification-labels" not in with_block
         assert "report-failure-as-issue" not in with_block
 
+        assert with_block.get("model") == (
+            "${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json)."
+            "model || 'gpt-5.3-codex' }}"
+        )
         lock_inputs = _lock_workflow_call_inputs(lock)
         for key in (
             "additional-instructions",
-            "setup-commands",
             "github-token-policy",
+            "model",
+            "setup-commands",
         ):
             assert key in lock_inputs, (
                 f"{LOCK_BASENAME} must declare workflow_call input {key!r}"
+            )
+            assert key in with_block, (
+                f"{WRAPPER_BASENAME} agent job must pass lock input {key!r}"
             )
         assert "classification-labels" not in lock_inputs, (
             f"{LOCK_BASENAME} must hardcode the merge-ready allowlist "
             "(no caller-overridable classification-labels input)"
         )
         for dropped in (
-            "model",
             "allowed-bot-users",
             "messages-footer",
             "report-failure-as-issue",

@@ -107,9 +107,13 @@ class TestEstcWrapperLockWiring:
             == "${{ join(fromJSON(needs.resolve-apm-assets.outputs."
             "resolved-setup-commands-json), fromJSON('\"\\n\"')) }}"
         )
+        assert with_block.get("model") == (
+            "${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json)."
+            "model || 'gpt-5.3-codex' }}"
+        )
 
         lock_inputs = _lock_workflow_call_inputs(lock)
-        for key in ("additional-instructions", "setup-commands"):
+        for key in ("additional-instructions", "model", "setup-commands"):
             assert key in lock_inputs, (
                 f"{LOCK_BASENAME} must declare workflow_call input {key!r}"
             )

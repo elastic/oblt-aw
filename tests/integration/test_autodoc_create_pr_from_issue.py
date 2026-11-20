@@ -42,7 +42,17 @@ _ALLOWED_FILE_PATTERNS = (
     "*.rst",
     "**/*.rst",
 )
-_MINIMAL_LOCK_INPUTS = frozenset({"target-issue-number", "additional-instructions"})
+_MINIMAL_LOCK_INPUTS = frozenset(
+    {"additional-instructions", "model", "target-issue-number"}
+)
+_EXPECTED_FIX_MODEL = (
+    "${{ fromJSON(needs.resolve-apm-assets-fix.outputs.resolved-inputs-json)."
+    "model || 'gpt-5.3-codex' }}"
+)
+_EXPECTED_AUDIT_MODEL = (
+    "${{ fromJSON(needs.resolve-apm-assets-audit.outputs.resolved-inputs-json)."
+    "model || 'gpt-5.3-codex' }}"
+)
 
 
 def _load_yaml(path: pathlib.Path) -> dict:
@@ -151,7 +161,7 @@ class TestAutodocCreatePrWrapperLockWiring:
         )
         assert "draft-prs" not in with_block
         assert "report-failure-as-issue" not in with_block
-        assert "model" not in with_block
+        assert with_block.get("model") == _EXPECTED_FIX_MODEL
 
         lock_inputs = set(_lock_workflow_call_inputs(lock))
         # Compiler may inject aw_context; require the preserved autodoc inputs and
@@ -161,11 +171,10 @@ class TestAutodocCreatePrWrapperLockWiring:
         )
         for dropped in (
             "draft-prs",
-            "report-failure-as-issue",
-            "model",
-            "prompt",
-            "setup-commands",
             "messages-footer",
+            "prompt",
+            "report-failure-as-issue",
+            "setup-commands",
         ):
             assert dropped not in lock_inputs, (
                 f"lock must not expose simplified-away input {dropped!r}"
@@ -277,12 +286,14 @@ class TestAutodocInvocationConcurrencyWiring:
         assert "e2e-invocation-id" in wrapper_inputs
         audit_with = wrapper["jobs"]["audit"].get("with") or {}
         assert audit_with.get("e2e-invocation-id") == "${{ inputs.e2e-invocation-id }}"
+        assert audit_with.get("model") == _EXPECTED_AUDIT_MODEL
         assert "gh-aw-docs-patrol.lock.yml" in str(wrapper["jobs"]["audit"]["uses"])
 
         lock_call_inputs = (_workflow_on_block(lock).get("workflow_call") or {}).get(
             "inputs"
         ) or {}
         assert "e2e-invocation-id" in lock_call_inputs
+        assert "model" in lock_call_inputs
         concurrency = lock.get("concurrency") or {}
         group = str(concurrency.get("group") or "")
         assert "inputs.e2e-invocation-id || 'prod'" in group, (

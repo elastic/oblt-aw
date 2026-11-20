@@ -310,6 +310,82 @@ x-oblt-aw:
         )
         assert out["inputs"]["lookback-window"] == "3 days ago"
 
+    def test_model_override_from_apm_common(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        model: gpt-4.1
+""",
+            encoding="utf-8",
+        )
+        out = aaa.resolve_apm_assets(
+            repo_root=repo,
+            workflow_id="autodoc",
+            org_key="obs",
+        )
+        assert out["inputs"]["model"] == "gpt-4.1"
+
+    def test_model_omitted_leaves_inputs_without_key(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        lookback-window: 1 day ago
+""",
+            encoding="utf-8",
+        )
+        out = aaa.resolve_apm_assets(
+            repo_root=repo,
+            workflow_id="autodoc",
+            org_key="obs",
+        )
+        assert "model" not in out["inputs"]
+
+    def test_empty_model_fails_closed(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        model: "   "
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="inputs.model must be a non-empty string"):
+            aaa.resolve_apm_assets(
+                repo_root=repo,
+                workflow_id="autodoc",
+                org_key="obs",
+            )
+
+    def test_non_string_model_fails_closed(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        model: 12
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="inputs.model must be a non-empty string"):
+            aaa.resolve_apm_assets(
+                repo_root=repo,
+                workflow_id="autodoc",
+                org_key="obs",
+            )
+
     def test_multi_org_isolated_common(self, repo: pathlib.Path) -> None:
         (repo / "apm.yml").write_text(
             """
