@@ -17,18 +17,36 @@
  * Consumer automerge policy from ``x-oblt-aw.<org>.workflows.automerge.policy``.
  *
  * Defaults match today's behavior: merge-ready only, forks disabled, authors
- * allow-list (control-plane bots only unless the repo adds names).
+ * allow-list (control-plane bots only unless the repo adds names), and no
+ * path restriction for ``all-files`` (empty allow/deny means unrestricted).
  */
+
+const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
 
 const MERGE_READY_LABEL = 'oblt-aw/ai/merge-ready';
 
+/** Top-level policy keys (kebab + camel) accepted by normalize. */
+const KNOWN_POLICY_KEYS = new Set([
+  'authors',
+  'forks',
+  'paths',
+  'trigger-labels',
+  'triggerLabels',
+]);
+
 /** @typedef {'disabled' | 'author-association'} ForksMode */
 /** @typedef {'allow-list' | 'author-association'} AuthorsMode */
+
+/** @typedef {object} AutomergePathPolicy
+ * @property {string[]} allow Empty means every path is allowed (deny still applies).
+ * @property {string[]} deny Empty means nothing is denied. Deny wins over allow.
+ */
 
 /** @typedef {object} AutomergePolicy
  * @property {string[]} triggerLabels
  * @property {{ mode: ForksMode, authorAssociations: string[] }} forks
  * @property {{ mode: AuthorsMode, allowList: string[], authorAssociations: string[] }} authors
+ * @property {AutomergePathPolicy} paths Applies only to the ``all-files`` collection.
  */
 
 /**
@@ -45,6 +63,10 @@ function defaultAutomergePolicy() {
       mode: 'allow-list',
       allowList: [],
       authorAssociations: [],
+    },
+    paths: {
+      allow: [],
+      deny: [],
     },
   };
 }
@@ -68,8 +90,79 @@ function asStringList(value) {
 }
 
 /**
+ * Normalize path glob lists. Omitted / empty ⇒ unrestricted for that list.
+ * Present but non-array, or any non-string entry, fails closed.
+ * @param {unknown} value
+ * @param {string} fieldName
+ * @param {boolean} present
+ * @returns {string[]}
+ */
+function asPathGlobList(value, fieldName, present) {
+  if (!present) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(
+      `paths.${fieldName} must be an array of glob strings, or omitted / []`
+    );
+  }
+  /** @type {string[]} */
+  const out = [];
+  const seen = new Set();
+  for (const item of value) {
+    if (typeof item !== 'string') {
+      throw new Error(
+        `paths.${fieldName} entries must be strings; got ${typeof item}`
+      );
+    }
+    const text = item.trim();
+    if (!text || seen.has(text)) {
+      continue;
+    }
+    seen.add(text);
+    out.push(text);
+  }
+  return out;
+}
+
+/**
+ * @param {unknown} raw
+ * @param {boolean} present
+ * @returns {AutomergePathPolicy}
+ */
+function asPathPolicy(raw, present) {
+  if (!present) {
+    return { allow: [], deny: [] };
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(
+      'paths must be a mapping with optional allow/deny glob arrays'
+    );
+  }
+  /** @type {Record<string, unknown>} */
+  const obj = /** @type {Record<string, unknown>} */ (raw);
+  const allowPresent = Object.prototype.hasOwnProperty.call(obj, 'allow');
+  const denyPresent = Object.prototype.hasOwnProperty.call(obj, 'deny');
+  return {
+    allow: asPathGlobList(obj.allow, 'allow', allowPresent),
+    deny: asPathGlobList(obj.deny, 'deny', denyPresent),
+  };
+}
+
+/**
+ * @param {Record<string, unknown>} obj
+ * @returns {string[]}
+ */
+function unknownPolicyKeys(obj) {
+  return Object.keys(obj)
+    .filter((key) => !KNOWN_POLICY_KEYS.has(key))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+/**
  * Normalize a raw policy mapping (kebab-case from apm.yml or camelCase JSON).
  * Always includes ``oblt-aw/ai/merge-ready`` in trigger labels.
+ * Invalid ``paths`` values throw (callers must fail closed).
  * @param {unknown} raw
  * @returns {AutomergePolicy}
  */
@@ -80,6 +173,13 @@ function normalizeAutomergePolicy(raw) {
   }
   /** @type {Record<string, unknown>} */
   const obj = /** @type {Record<string, unknown>} */ (raw);
+
+  const unknown = unknownPolicyKeys(obj);
+  if (unknown.length > 0) {
+    console.warn(
+      `automerge policy: ignoring unknown key(s): ${unknown.join(', ')}`
+    );
+  }
 
   const triggerRaw = obj['trigger-labels'] ?? obj.triggerLabels;
   const extraLabels = asStringList(triggerRaw);
@@ -121,6 +221,9 @@ function normalizeAutomergePolicy(raw) {
     );
   }
 
+  const pathsPresent = Object.prototype.hasOwnProperty.call(obj, 'paths');
+  const paths = asPathPolicy(obj.paths, pathsPresent);
+
   return {
     triggerLabels,
     forks: {
@@ -132,10 +235,13 @@ function normalizeAutomergePolicy(raw) {
       allowList: authorsAllowList,
       authorAssociations: authorsAssociations,
     },
+    paths,
   };
 }
 
 /**
+ * Parse policy JSON. Empty input ⇒ defaults. Invalid JSON or invalid
+ * ``paths`` values throw (callers must fail closed).
  * @param {string} rawJson
  * @returns {AutomergePolicy}
  */
@@ -143,11 +249,7 @@ function parseAutomergePolicyJson(rawJson) {
   if (!rawJson || typeof rawJson !== 'string' || !rawJson.trim()) {
     return defaultAutomergePolicy();
   }
-  try {
-    return normalizeAutomergePolicy(JSON.parse(rawJson));
-  } catch {
-    return defaultAutomergePolicy();
-  }
+  return normalizeAutomergePolicy(JSON.parse(rawJson));
 }
 
 /**
@@ -199,12 +301,39 @@ function isForkAllowedByPolicy(policy, args) {
   return allowed.has(String(args.authorAssociation || '').toUpperCase());
 }
 
+/**
+ * Whether every changed file is eligible under ``all-files`` path policy.
+ * Empty allow ⇒ all paths allowed; empty deny ⇒ nothing denied; deny wins.
+ * @param {string[]} files
+ * @param {AutomergePathPolicy} [paths]
+ * @returns {boolean}
+ */
+function filesMatchAllFilesPathPolicy(files, paths) {
+  const changed = [...new Set(files.map((f) => f.trim()).filter(Boolean))];
+  if (changed.length === 0) {
+    return false;
+  }
+  const allow = paths?.allow || [];
+  const deny = paths?.deny || [];
+  return changed.every((file) => {
+    if (deny.length > 0 && pathMatchesAnyGlob(file, deny)) {
+      return false;
+    }
+    if (allow.length > 0 && !pathMatchesAnyGlob(file, allow)) {
+      return false;
+    }
+    return true;
+  });
+}
+
 module.exports = {
   MERGE_READY_LABEL,
+  KNOWN_POLICY_KEYS,
   defaultAutomergePolicy,
   normalizeAutomergePolicy,
   parseAutomergePolicyJson,
   hasTriggerLabel,
   isAuthorAllowedByPolicy,
   isForkAllowedByPolicy,
+  filesMatchAllFilesPathPolicy,
 };
