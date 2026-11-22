@@ -208,7 +208,7 @@ jobs:
           inputs.install-apm-packages &&
           steps.detect.outputs.present == 'true'
         continue-on-error: true
-        uses: microsoft/apm-action@d723bb64ed70c135bbaf87d126b721dd2dae0439 # v1.10.0
+        uses: microsoft/apm-action@176186397bcf6d997b4ef8d3433bfb3db37fe630 # v1.11.0
         with:
           apm-version: ${{ steps.apm-cli-version.outputs.version }}
           github-token: ${{ steps.create-apm-token.outputs.token || github.token }}
