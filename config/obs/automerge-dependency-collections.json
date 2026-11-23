@@ -88,6 +88,41 @@
       ]
     },
     {
+      "id": "gradle",
+      "description": "Gradle build, version catalog, and wrapper updates",
+      "file-glob": [
+        "**/build.gradle",
+        "**/build.gradle.kts",
+        "**/gradle/*.versions.toml",
+        "**/gradle/wrapper/gradle-wrapper.properties",
+        "**/gradle/wrapper/gradle-wrapper.jar",
+        "**/gradlew",
+        "**/gradlew.bat"
+      ]
+    },
+    {
+      "id": "swiftpm",
+      "description": "Swift package manifest and resolved dependency updates",
+      "file-glob": [
+        "Package.swift",
+        "Package.resolved",
+        "**/Package.swift",
+        "**/Package.resolved"
+      ]
+    },
+    {
+      "id": "cocoapods",
+      "description": "CocoaPods podspec, Podfile, and lockfile updates",
+      "file-glob": [
+        "*.podspec",
+        "Podfile",
+        "Podfile.lock",
+        "**/*.podspec",
+        "**/Podfile",
+        "**/Podfile.lock"
+      ]
+    },
+    {
       "id": "terraform",
       "description": "Terraform/OpenTofu/Terragrunt dependency and lockfile updates",
       "file-glob": [

@@ -309,6 +309,166 @@ test('classifyChangedFiles does not match updatecli paths via terraform or open-
   });
 });
 
+test('classifyChangedFiles allows dashboard-enabled Gradle builds, catalogs, and wrappers', () => {
+  const collections = [
+    catalogCollection('gradle'),
+    catalogCollection('node-dependencies'),
+    catalogCollection('all-files'),
+  ];
+  const enabled = ['obs:automerge', 'obs:automerge:gradle'];
+  const outcome = classifyChangedFiles(
+    [
+      'build.gradle',
+      'build.gradle.kts',
+      'gradle/libs.versions.toml',
+      'gradle/instrumentation.versions.toml',
+      'gradle/wrapper/gradle-wrapper.properties',
+      'gradle/wrapper/gradle-wrapper.jar',
+      'gradlew',
+      'gradlew.bat',
+      'android/build.gradle',
+      'android/library/build.gradle',
+      'fixture/android/app/build.gradle.kts',
+      'fixture/android/gradle/libs.versions.toml',
+      'fixture/android/gradle/wrapper/gradle-wrapper.properties',
+      'fixture/android/gradle/wrapper/gradle-wrapper.jar',
+      'fixture/android/gradlew',
+      'fixture/android/gradlew.bat',
+    ],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'gradle',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled Gradle collection', () => {
+  const outcome = classifyChangedFiles(
+    ['gradle/libs.versions.toml', 'android/build.gradle'],
+    [catalogCollection('gradle'), catalogCollection('all-files')],
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(outcome, {
+    status: 'disabled',
+    collectionId: 'gradle',
+  });
+});
+
+test('classifyChangedFiles leaves mixed Gradle/Node and gradle.properties PRs unmerged', () => {
+  const collections = [
+    catalogCollection('gradle'),
+    catalogCollection('node-dependencies'),
+    catalogCollection('all-files'),
+  ];
+  const enabled = [
+    'obs:automerge',
+    'obs:automerge:gradle',
+    'obs:automerge:node-dependencies',
+  ];
+  for (const files of [
+    ['gradle/libs.versions.toml', 'package.json'],
+    ['gradle.properties'],
+    ['fixture/android/gradle.properties'],
+  ]) {
+    assert.deepEqual(
+      classifyChangedFiles(
+        files,
+        collections,
+        enabledAutomergeCollectionIds(enabled)
+      ),
+      { status: 'disabled', collectionId: 'all-files' }
+    );
+  }
+});
+
+for (const { id, files } of [
+  {
+    id: 'swiftpm',
+    files: [
+      'Package.swift',
+      'Package.resolved',
+      'packages/sdk/Package.swift',
+      'Example/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved',
+    ],
+  },
+  {
+    id: 'cocoapods',
+    files: [
+      'ElasticOtelReactNative.podspec',
+      'Podfile',
+      'Podfile.lock',
+      'packages/sdk/ElasticOtelReactNative.podspec',
+      'fixture/ios/Podfile',
+      'fixture/ios/Podfile.lock',
+    ],
+  },
+]) {
+  test(`classifyChangedFiles allows dashboard-enabled ${id} without overlapping other ecosystems`, () => {
+    const collections = [
+      'gradle',
+      'swiftpm',
+      'cocoapods',
+      'node-dependencies',
+      'all-files',
+    ].map(catalogCollection);
+    const enabled = ['obs:automerge', `obs:automerge:${id}`];
+    assert.deepEqual(
+      classifyChangedFiles(
+        files,
+        collections,
+        enabledAutomergeCollectionIds(enabled)
+      ),
+      { status: 'allowed', collectionId: id }
+    );
+  });
+
+  test(`classifyChangedFiles rejects dashboard-disabled ${id} collection`, () => {
+    assert.deepEqual(
+      classifyChangedFiles(
+        files,
+        [catalogCollection(id), catalogCollection('all-files')],
+        enabledAutomergeCollectionIds(ENABLED)
+      ),
+      { status: 'disabled', collectionId: id }
+    );
+  });
+}
+
+test('classifyChangedFiles leaves PRs spanning mobile and Node ecosystems unmerged', () => {
+  const collections = [
+    'gradle',
+    'swiftpm',
+    'cocoapods',
+    'node-dependencies',
+    'all-files',
+  ].map(catalogCollection);
+  const enabled = [
+    'obs:automerge',
+    'obs:automerge:gradle',
+    'obs:automerge:swiftpm',
+    'obs:automerge:cocoapods',
+    'obs:automerge:node-dependencies',
+  ];
+  for (const files of [
+    ['Package.swift', 'fixture/android/build.gradle'],
+    ['Package.resolved', 'package.json'],
+    ['Package.swift', 'fixture/ios/Podfile.lock'],
+    ['ElasticOtelReactNative.podspec', 'android/build.gradle'],
+    ['fixture/ios/Podfile', 'package-lock.json'],
+  ]) {
+    assert.deepEqual(
+      classifyChangedFiles(
+        files,
+        collections,
+        enabledAutomergeCollectionIds(enabled)
+      ),
+      { status: 'disabled', collectionId: 'all-files' }
+    );
+  }
+});
+
 const NODE_DEPENDENCY_GLOBS = [
   'package.json',
   'package-lock.json',

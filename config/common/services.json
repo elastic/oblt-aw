@@ -61,6 +61,24 @@
           "default_enabled": false
         },
         {
+          "id": "gradle",
+          "name": "Gradle dependencies",
+          "description": "Auto-merge for Gradle build, version catalog, and wrapper updates.",
+          "default_enabled": false
+        },
+        {
+          "id": "swiftpm",
+          "name": "Swift Package Manager dependencies",
+          "description": "Auto-merge for Swift package manifest and resolved dependency updates.",
+          "default_enabled": false
+        },
+        {
+          "id": "cocoapods",
+          "name": "CocoaPods dependencies",
+          "description": "Auto-merge for CocoaPods podspec, Podfile, and lockfile updates.",
+          "default_enabled": false
+        },
+        {
           "id": "terraform",
           "name": "Terraform / OpenTofu",
           "description": "Auto-merge for Terraform, OpenTofu, and Terragrunt dependency updates.",
