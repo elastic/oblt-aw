@@ -22,6 +22,8 @@ on:
   issues:
     types: [labeled]
     names: [oblt-aw/onboard/repository]
+  # Immediate 👀 on the issue so the requester sees the agent picked it up.
+  reaction: eyes
   roles: [admin, maintainer, write]
   bots:
     - "github-actions[bot]"

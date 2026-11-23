@@ -40,7 +40,7 @@ Technical registration detail for maintainers and agents: [Registering resources
    Organization key:  obs
    ```
 
-3. **Submit** — The form applies the label `oblt-aw/onboard/repository`. That starts the in-repo agent `gh-aw-onboard-repository` in `elastic/oblt-aw` only (this is **not** a consumer catalog / Control Plane dashboard agentic workflow).
+3. **Submit** — The form applies the label `oblt-aw/onboard/repository`. That starts the in-repo agent `gh-aw-onboard-repository` in `elastic/oblt-aw` only (this is **not** a consumer catalog / Control Plane dashboard agentic workflow). A 👀 reaction appears on the issue when the agent starts.
 
 4. **Wait for the agent checklist comment** — The agent posts progress on the issue and opens **separate, normal (non-draft) pull requests**, one concern per PR. Typical PRs:
 
