@@ -47,7 +47,7 @@ Edit the GH-AW source [`.github/workflows/gh-aw-dependency-review.md`](https://g
 
 Observability-owned labeling rules live in [`.github/workflows/gh-aw-dependency-review.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.md) (Steps 3a / 4). Hard blockers for `oblt-aw/ai/merge-ready` are: overall risk above the consumer **max-merge-ready-risk** ceiling (or **high**), and breaking changes that affect this repository. Secondary ecosystem checks are reported in the analysis table but do **not** withhold the label.
 
-### Consumer risk ceiling (`apm.yml`)
+### Consumer risk ceiling (`apm.yml`) [consumer-risk-ceiling-apmyml]
 
 Optional under `x-oblt-aw.<org>.workflows.dependency-review.policy` (see [Define local AI assets](../user-guide/local-ai-assets.md)):
 
