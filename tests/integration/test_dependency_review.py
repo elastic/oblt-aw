@@ -64,8 +64,12 @@ class TestDependencyReviewWrapperLockWiring:
         assert resolve_job["uses"].endswith("aw-resolve-agentic-assets.yml"), (
             f"unexpected resolve uses: {resolve_job['uses']!r}"
         )
-        assert resolve_job["with"]["workflow-basename"] == WRAPPER_BASENAME
-        assert "platform-additional-instructions" not in (resolve_job.get("with") or {})
+        with_block = resolve_job.get("with") or {}
+        assert with_block["workflow-basename"] == WRAPPER_BASENAME
+        assert with_block.get("consumer-ref") == (
+            "${{ github.event.pull_request.base.sha }}"
+        ), "dependency-review policy must resolve from the PR base, not the head"
+        assert "platform-additional-instructions" not in with_block
 
     def test_agent_job_passes_resolve_outputs_to_lock_inputs(self) -> None:
         wrapper = _load_yaml(WRAPPER_PATH)

@@ -30,6 +30,8 @@ jobs:
     with:
       workflow-basename: obs-aw-dependency-review.yml
       org-key: ${{ inputs.shared-org-key }}
+      # Trusted base revision only — do not resolve max-merge-ready-risk from PR head.
+      consumer-ref: ${{ github.event.pull_request.base.sha }}
       # Prompt body (noop / CVE / merge-ready / GitHub-read) lives in
       # gh-aw-dependency-review.md. Resolve only merges consumer APM fragments.
 

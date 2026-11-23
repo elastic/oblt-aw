@@ -605,3 +605,51 @@ x-oblt-aw:
     def test_normalize_dependency_review_policy_accepts_low(self) -> None:
         policy = aaa.normalize_dependency_review_policy({"max-merge-ready-risk": "low"})
         assert policy["max-merge-ready-risk"] == "low"
+
+    def test_dependency_review_policy_uses_checkout_root_not_sibling_head(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """
+        Restrictive base ceiling must win when resolve reads that checkout.
+
+        Mirrors the wrapper consumer-ref=base.sha contract: a head apm.yml that
+        raises max-merge-ready-risk must not affect policy resolved from base.
+        """
+        base = tmp_path / "base"
+        head = tmp_path / "head"
+        base.mkdir()
+        head.mkdir()
+        (base / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      dependency-review:
+        policy:
+          max-merge-ready-risk: low
+""",
+            encoding="utf-8",
+        )
+        (head / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      dependency-review:
+        policy:
+          max-merge-ready-risk: moderate
+""",
+            encoding="utf-8",
+        )
+        from_base = aaa.resolve_dependency_review_policy(repo_root=base, org_key="obs")
+        from_head = aaa.resolve_dependency_review_policy(repo_root=head, org_key="obs")
+        assert from_base["max-merge-ready-risk"] == "low"
+        assert from_head["max-merge-ready-risk"] == "moderate"
+        # Effective policy for the agent must follow the checkout root in use.
+        text = aaa.format_dependency_review_policy_instructions(from_base)
+        assert "**max-merge-ready-risk**: `low`" in text
+        assert "**max-merge-ready-risk**: `moderate`" not in text
