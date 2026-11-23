@@ -246,6 +246,7 @@ jobs:
               core,
               enabledWorkflowsJson: process.env.ENABLED_WORKFLOWS_JSON || '[]',
               orgKey: process.env.ORG_KEY || '',
+              policyJson: process.env.AUTOMERGE_POLICY_JSON || '',
             });
             if (!allowed) {
               core.info(`PR #${prNumber}: collection gate denied; skipping merge.`);

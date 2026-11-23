@@ -285,6 +285,29 @@
               }
             }
           }
+        },
+        "paths": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Optional path globs for the all-files collection. Every changed file must match allow (when set) and none may match deny. Deny wins. Omitted or empty lists leave path scope unrestricted.",
+          "properties": {
+            "allow": {
+              "type": "array",
+              "description": "Glob allow-list for all-files. Empty or omitted means every path is allowed (deny still applies).",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "deny": {
+              "type": "array",
+              "description": "Glob deny-list for all-files. Empty or omitted means nothing is denied. Deny wins over allow.",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         }
       }
     }

@@ -41,6 +41,7 @@ Precedence within the org block for the running ``org-key``:
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -528,6 +529,16 @@ def _as_string_list(value: Any) -> list[str]:
     return out
 
 
+_AUTOMERGE_POLICY_KNOWN_KEYS = frozenset(
+    {
+        "authors",
+        "forks",
+        "paths",
+        "trigger-labels",
+    }
+)
+
+
 def default_automerge_policy() -> dict[str, Any]:
     """Control-plane defaults when consumer policy is omitted."""
     return {
@@ -541,6 +552,83 @@ def default_automerge_policy() -> dict[str, Any]:
             "allow-list": [],
             "author-associations": [],
         },
+        # Empty allow/deny means unrestricted for the ``all-files`` collection.
+        "paths": {
+            "allow": [],
+            "deny": [],
+        },
+    }
+
+
+_AUTOMERGE_PATH_KNOWN_KEYS = frozenset({"allow", "deny"})
+_UNSUPPORTED_PATH_GLOB_CHARS = frozenset("?[]")
+
+
+def _assert_supported_path_glob(pattern: str, *, field_name: str) -> None:
+    """Path globs only support ``*`` and ``**`` (same as collection file-glob)."""
+    if any(ch in pattern for ch in _UNSUPPORTED_PATH_GLOB_CHARS):
+        raise ValueError(
+            f"paths.{field_name} pattern {pattern!r} uses unsupported glob syntax "
+            "(only * and ** are supported)"
+        )
+
+
+def _normalize_path_glob_list(raw: Any, *, field_name: str, present: bool) -> list[str]:
+    """
+    Normalize a path glob list under ``paths``.
+
+    Omitted or ``[]`` means unrestricted for that list. Any non-list value,
+    blank entry, unsupported syntax, or non-string entry raises (fail closed).
+    """
+    if not present:
+        return []
+    if not isinstance(raw, list):
+        raise TypeError(
+            f"paths.{field_name} must be an array of glob strings, or omitted / []"
+        )
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in raw:
+        if not isinstance(item, str):
+            raise TypeError(
+                f"paths.{field_name} entries must be strings; got {type(item).__name__}"
+            )
+        if item != item.strip():
+            raise ValueError(
+                f"paths.{field_name} entries must not have leading or trailing whitespace"
+            )
+        if not item:
+            raise ValueError(
+                f"paths.{field_name} entries must be non-empty glob strings"
+            )
+        _assert_supported_path_glob(item, field_name=field_name)
+        if item in seen:
+            continue
+        seen.add(item)
+        out.append(item)
+    return out
+
+
+def _normalize_paths_policy(raw: Any, *, present: bool) -> dict[str, list[str]]:
+    """Normalize ``paths``; invalid shapes raise (fail closed)."""
+    if not present:
+        return {"allow": [], "deny": []}
+    if not isinstance(raw, dict):
+        raise TypeError("paths must be a mapping with optional allow/deny glob arrays")
+    unknown = sorted(set(raw) - _AUTOMERGE_PATH_KNOWN_KEYS)
+    if unknown:
+        raise ValueError(
+            "paths contains unknown key(s): "
+            + ", ".join(unknown)
+            + " (expected allow, deny)"
+        )
+    return {
+        "allow": _normalize_path_glob_list(
+            raw.get("allow"), field_name="allow", present="allow" in raw
+        ),
+        "deny": _normalize_path_glob_list(
+            raw.get("deny"), field_name="deny", present="deny" in raw
+        ),
     }
 
 
@@ -549,10 +637,18 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
     Normalize ``workflows.automerge.policy`` (kebab-case).
 
     ``oblt-aw/ai/merge-ready`` is always present in ``trigger-labels``.
+    Invalid ``paths`` values raise (callers must fail closed).
     """
     base = default_automerge_policy()
     if not isinstance(raw, dict):
         return base
+
+    unknown = sorted(set(raw) - _AUTOMERGE_POLICY_KNOWN_KEYS)
+    if unknown:
+        print(
+            "automerge policy: ignoring unknown key(s): " + ", ".join(unknown),
+            file=sys.stderr,
+        )
 
     extra_labels = _as_string_list(raw.get("trigger-labels"))
     trigger_labels = list(dict.fromkeys([MERGE_READY_LABEL, *extra_labels]))
@@ -577,6 +673,8 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
         authors_allow_list = _as_string_list(authors_raw.get("allow-list"))
         authors_associations = _as_string_list(authors_raw.get("author-associations"))
 
+    paths = _normalize_paths_policy(raw.get("paths"), present="paths" in raw)
+
     return {
         "trigger-labels": trigger_labels,
         "forks": {
@@ -588,6 +686,7 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
             "allow-list": authors_allow_list,
             "author-associations": authors_associations,
         },
+        "paths": paths,
     }
 
 
@@ -649,6 +748,14 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
         or "_(none beyond control-plane bots)_"
     )
 
+    paths = policy.get("paths") or {}
+    paths_allow = (
+        ", ".join(f"`{name}`" for name in paths.get("allow") or []) or "_(all paths)_"
+    )
+    paths_deny = (
+        ", ".join(f"`{name}`" for name in paths.get("deny") or []) or "_(none)_"
+    )
+
     return "\n".join(
         [
             "## Effective Automerge Policy",
@@ -664,6 +771,8 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
             f"- **Authors associations**: {authors_assoc}",
             f"- **Forks mode**: `{forks.get('mode', 'disabled')}`",
             f"- **Forks associations**: {forks_assoc}",
+            f"- **All-files path allow**: {paths_allow}",
+            f"- **All-files path deny**: {paths_deny}",
             "",
             "Approve only when the PR matches this policy, is not draft, and head",
             "ref differs from base ref.",

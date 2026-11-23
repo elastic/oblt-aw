@@ -108,6 +108,7 @@ and restore any upstream-required inputs (`allowed-bot-users`, `classification-l
 
 ## References
 
+- User guide: [Get Dependency Review on pull requests](../user-guide/dependency-review.md)
 - Client template: [obs-aw-client-template.md](obs-aw-client-template.md) — registry id `dependency-review`
 - Routing: [docs/routing/dependency-review-routing.md](../routing/dependency-review-routing.md)
 - In-repo source: [`.github/workflows/gh-aw-dependency-review.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.md)

@@ -17,6 +17,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 
 const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
+const { filesMatchAllFilesPathPolicy } = require('./automergePolicy.ts');
 
 const GATE_COMMENT_MARKER = '<!-- obs-aw-automerge:dependency-collection-gate -->';
 /** @deprecated Prefer ``enabledAutomergeCollectionIds`` with an explicit consuming org. */
@@ -61,7 +62,12 @@ const OPT_IN_OPT_OUT_GUIDE_URL =
  * @property {string[]} collectionIds
  */
 
-/** @typedef {ClassificationOutcomeAllowed|ClassificationOutcomeDisabled|ClassificationOutcomeUnclassified|ClassificationOutcomeAmbiguous} ClassificationOutcome
+/** @typedef {object} ClassificationOutcomePathsIneligible
+ * @property {'paths-ineligible'} status
+ * @property {string} collectionId
+ */
+
+/** @typedef {ClassificationOutcomeAllowed|ClassificationOutcomeDisabled|ClassificationOutcomeUnclassified|ClassificationOutcomeAmbiguous|ClassificationOutcomePathsIneligible} ClassificationOutcome
  */
 
 const CONFIG_PATH = path.join(
@@ -180,8 +186,27 @@ function preferInfrastructureOverMobileCollections(matched) {
     : matched;
 }
 
-function classifyChangedFiles(files, collections, enabledCollectionIds) {
-  const changed = [...new Set(files.map((f) => f.trim()).filter(Boolean))];
+/**
+ * @param {string[]} files Current PR filenames (collection matching).
+ * @param {DependencyCollection[]} collections
+ * @param {string[]} enabledCollectionIds
+ * @param {{ allow?: string[], deny?: string[] }} [allFilesPathPolicy]
+ *   Optional ``all-files`` path allow/deny from consumer automerge policy.
+ * @param {string[]} [pathPolicyFiles]
+ *   Paths checked against ``allFilesPathPolicy`` (defaults to ``files``).
+ *   Callers should include rename ``previous_filename`` values here only.
+ * @returns {ClassificationOutcome}
+ */
+function classifyChangedFiles(
+  files,
+  collections,
+  enabledCollectionIds,
+  allFilesPathPolicy,
+  pathPolicyFiles
+) {
+  const changed = [
+    ...new Set(files.filter((f) => typeof f === 'string' && f)),
+  ];
   const enabledSet = new Set(enabledCollectionIds);
   if (changed.length === 0) {
     return { status: 'unclassified', collectionId: null };
@@ -207,6 +232,23 @@ function classifyChangedFiles(files, collections, enabledCollectionIds) {
 
   const collection = matched[0];
   if (enabledSet.has(collection.id)) {
+    const pathCheckFiles =
+      pathPolicyFiles === undefined
+        ? changed
+        : [
+            ...new Set(
+              pathPolicyFiles.filter((f) => typeof f === 'string' && f)
+            ),
+          ];
+    if (
+      collection.id === GENERIC_COLLECTION_ID &&
+      !filesMatchAllFilesPathPolicy(pathCheckFiles, allFilesPathPolicy)
+    ) {
+      return {
+        status: 'paths-ineligible',
+        collectionId: collection.id,
+      };
+    }
     return { status: 'allowed', collectionId: collection.id };
   }
   return { status: 'disabled', collectionId: collection.id };
@@ -238,6 +280,11 @@ function buildGateCommentBody(outcome, changedFiles, enabledCollectionIds) {
     reason = `Automerge skipped this pull request because the changed files matched more than one collection: ${outcome.collectionIds.map((id) => `\`${id}\``).join(', ')}.`;
     nextStep =
       'Narrow the change to a single dependency type, or ask a maintainer to merge the pull request manually.';
+  } else if (outcome.status === 'paths-ineligible') {
+    reason =
+      'Automerge skipped this pull request because one or more changed files are outside the consumer `all-files` path policy (`workflows.automerge.policy.paths`). Every changed file must match `paths.allow` (when set) and none may match `paths.deny`.';
+    nextStep =
+      'Adjust the pull request to only touch allowed paths, update `paths` in consumer `apm.yml`, or merge the pull request manually.';
   }
 
   return [

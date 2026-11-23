@@ -51,6 +51,7 @@ jobs:
     outputs:
       proceed: ${{ steps.validate.outputs.proceed }}
       trigger-labels-json: ${{ steps.validate.outputs.trigger-labels-json }}
+      automerge-policy-json: ${{ steps.policy.outputs.automerge-policy-json }}
     steps:
       - name: Checkout consumer repository (apm.yml for automerge policy)
         uses: actions/checkout@v7
@@ -78,6 +79,7 @@ jobs:
             scripts/apm_agentic_assets.py
             scripts/common.py
             scripts/obs/automergePolicy.ts
+            scripts/obs/lib/matchPathGlob.ts
             scripts/obs/validateAutomergePr.ts
             scripts/resolve_automerge_policy_cli.py
             package.json
@@ -167,6 +169,7 @@ jobs:
           token: ${{ github.token }}
           sparse-checkout: |
             config/obs/automerge-dependency-collections.json
+            scripts/obs/automergePolicy.ts
             scripts/obs/checkAutomergeDependencyCollection.ts
             scripts/obs/classifyAutomergeDependencyCollection.ts
             scripts/obs/lib/matchPathGlob.ts
@@ -192,6 +195,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           ENABLED_WORKFLOWS_JSON: ${{ inputs.shared-enabled-workflows }}
           ORG_KEY: ${{ inputs.shared-org-key }}
+          AUTOMERGE_POLICY_JSON: ${{ needs.verify.outputs.automerge-policy-json }}
         with:
           github-token: ${{ github.token }}
           script: |
@@ -209,6 +213,7 @@ jobs:
               core,
               enabledWorkflowsJson: process.env.ENABLED_WORKFLOWS_JSON || '[]',
               orgKey: process.env.ORG_KEY || '',
+              policyJson: process.env.AUTOMERGE_POLICY_JSON || '',
             });
             core.setOutput('allowed', allowed ? 'true' : 'false');
             core.setOutput('collection-id', collectionId || '');
