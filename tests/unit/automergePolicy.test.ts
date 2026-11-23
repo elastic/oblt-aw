@@ -241,4 +241,12 @@ test('filesMatchAllFilesPathPolicy allow and deny rules', () => {
     }),
     false
   );
+  // Embedded newline must not bypass deny: ['helm/**'] while still matching **/*.
+  assert.equal(
+    filesMatchAllFilesPathPolicy(['helm/network\npolicy.yaml'], {
+      allow: [],
+      deny: ['helm/**'],
+    }),
+    false
+  );
 });

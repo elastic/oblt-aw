@@ -338,9 +338,12 @@ function isForkAllowedByPolicy(policy, args) {
   return allowed.has(String(args.authorAssociation || '').toUpperCase());
 }
 
+/** JS line terminators that can split a path segment and bypass globs. */
+const PATH_LINE_TERMINATORS = /[\n\r\u2028\u2029]/;
+
 /**
  * GitHub paths are forward-slash and unpadded. Reject ambiguous names when
- * path restrictions are active so trim/`\` rewrites cannot widen matches.
+ * path restrictions are active so trim/`\`/newline rewrites cannot widen matches.
  * @param {string} filePath
  * @returns {boolean}
  */
@@ -352,6 +355,9 @@ function isSafeRepoPathForPolicy(filePath) {
     return false;
   }
   if (filePath.includes('\\')) {
+    return false;
+  }
+  if (PATH_LINE_TERMINATORS.test(filePath)) {
     return false;
   }
   return true;
