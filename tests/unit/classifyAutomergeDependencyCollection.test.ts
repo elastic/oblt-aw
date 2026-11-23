@@ -437,13 +437,7 @@ for (const { id, files } of [
 }
 
 test('classifyChangedFiles leaves PRs spanning mobile and Node ecosystems unmerged', () => {
-  const collections = [
-    'gradle',
-    'swiftpm',
-    'cocoapods',
-    'node-dependencies',
-    'all-files',
-  ].map(catalogCollection);
+  const { collections } = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
   const enabled = [
     'obs:automerge',
     'obs:automerge:gradle',
@@ -467,6 +461,62 @@ test('classifyChangedFiles leaves PRs spanning mobile and Node ecosystems unmerg
       { status: 'disabled', collectionId: 'all-files' }
     );
   }
+});
+
+for (const { id, files } of [
+  {
+    id: 'gradle',
+    files: [
+      'build.gradle',
+      'build.gradle.kts',
+      'gradle/libs.versions.toml',
+      'gradle/wrapper/gradle-wrapper.properties',
+      'gradle/wrapper/gradle-wrapper.jar',
+      'gradlew',
+      'gradlew.bat',
+    ],
+  },
+  { id: 'swiftpm', files: ['Package.swift', 'Package.resolved'] },
+  { id: 'cocoapods', files: ['SDK.podspec', 'Podfile', 'Podfile.lock'] },
+]) {
+  for (const { owner, directory } of [
+    { owner: 'vm-images', directory: '.buildkite' },
+    { owner: 'github-actions', directory: '.github/actions/sdk' },
+    { owner: 'github-actions', directory: '.github/workflows/sdk' },
+  ]) {
+    test(`full catalog preserves ${owner} eligibility for ${id} files in ${directory}`, () => {
+      const { collections } = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
+      const nested = files.map((file) => `${directory}/${file}`);
+      for (const changed of [...nested.map((file) => [file]), nested]) {
+        for (const enabledMobile of [[], [id]]) {
+          assert.deepEqual(
+            classifyChangedFiles(changed, collections, [owner, ...enabledMobile]),
+            { status: 'allowed', collectionId: owner }
+          );
+        }
+        assert.deepEqual(
+          classifyChangedFiles(changed, collections, [id, 'all-files']),
+          { status: 'disabled', collectionId: owner }
+        );
+      }
+
+      assert.deepEqual(
+        classifyChangedFiles([...files, ...nested], collections, [id]),
+        { status: 'allowed', collectionId: id }
+      );
+    });
+  }
+}
+
+test('full catalog keeps unrelated infrastructure overlaps ambiguous', () => {
+  const { collections } = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
+  const outcome = classifyChangedFiles(
+    ['.buildkite/action.yml'],
+    collections,
+    collections.map((collection) => collection.id)
+  );
+  assert.equal(outcome.status, 'ambiguous');
+  assert.deepEqual(outcome.collectionIds.sort(), ['github-actions', 'vm-images']);
 });
 
 const NODE_DEPENDENCY_GLOBS = [

@@ -55,6 +55,8 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 | VM / container images | CI runner, Docker/container, Compose, and snapshot-environment image-pin updates | `.buildkite/**`, `**/Dockerfile`, `**/Dockerfile.*`, `**/docker-compose.yml`, `**/docker-compose.yaml`, `testing/environments/snapshot.yml` | Handy when image-pin bumps are expected and you trust the matching automation path |
 | Package version | `.package-version` bump automation | `.package-version`, `**/.package-version` | Useful for repos that treat version file bumps as routine automation |
 
+When `vm-images` or `github-actions` covers every changed file, it takes precedence over `gradle`, `swiftpm`, and `cocoapods`. For example, `.buildkite/build.gradle` stays in `vm-images`, and `.github/actions/sdk/Package.swift` stays in `github-actions`. The infrastructure collection must be enabled; enabling only the mobile collection does not override it.
+
 Collection ids and globs are defined in [`config/obs/automerge-dependency-collections.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/automerge-dependency-collections.json). Example entry:
 
 ```json
