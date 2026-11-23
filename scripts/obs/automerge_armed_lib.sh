@@ -113,7 +113,6 @@ automerge_pr_has_merge_ready_label() {
   local triggers_json
   local actors_json
   local present
-  local timeline_json
   local trusted
   labels_json="$(gh api "repos/${repo}/pulls/${pr_number}" --jq '[.labels[].name]')" || {
     echo "Failed to list labels for ${repo}#${pr_number}." >&2
@@ -155,35 +154,33 @@ automerge_pr_has_merge_ready_label() {
     echo "Failed to read label timeline for ${repo}#${pr_number}." >&2
     return 1
   fi
-  timeline_json="$(printf '%s\n' "${timeline_pages}" | jq -s 'add // []')" || {
-    echo "Failed to parse label timeline for ${repo}#${pr_number}." >&2
-    return 1
-  }
-
-  trusted="$(jq -rn \
-    --argjson timeline "${timeline_json}" \
-    --argjson triggers "${triggers_json}" \
-    --argjson actors "${actors_json}" \
-    "${_AUTOMERGE_JQ_NORM_LOGIN}"'
-    if ($timeline | type) != "array" or ($triggers | type) != "array" or ($actors | type) != "array" then
-      error("expected timeline/trigger/actor arrays")
-    else
-      (reduce $timeline[] as $e ({};
-        if ($e.event == "labeled" or $e.event == "unlabeled")
-           and (($e.label.name | type) == "string") then
-          .[$e.label.name] =
-            (if $e.event == "unlabeled" then null else (($e.actor.login // "") | norm) end)
-        else . end
-      )) as $appliers
-      | any(
-          $triggers[];
-          . as $t
-          | ($appliers[$t] != null)
-            and ($appliers[$t] != "")
-            and (($actors | index($appliers[$t])) != null)
-        )
-    end
-    ')" || {
+  # Feed the timeline through stdin — --argjson can exceed ARG_MAX on long PRs.
+  trusted="$(
+    printf '%s\n' "${timeline_pages}" | jq -s 'add // []' | jq -rn \
+      --argjson triggers "${triggers_json}" \
+      --argjson actors "${actors_json}" \
+      "${_AUTOMERGE_JQ_NORM_LOGIN}"'
+      input as $timeline |
+      if ($timeline | type) != "array" or ($triggers | type) != "array" or ($actors | type) != "array" then
+        error("expected timeline/trigger/actor arrays")
+      else
+        (reduce $timeline[] as $e ({};
+          if ($e.event == "labeled" or $e.event == "unlabeled")
+             and (($e.label.name | type) == "string") then
+            .[$e.label.name] =
+              (if $e.event == "unlabeled" then null else (($e.actor.login // "") | norm) end)
+          else . end
+        )) as $appliers
+        | any(
+            $triggers[];
+            . as $t
+            | ($appliers[$t] != null)
+              and ($appliers[$t] != "")
+              and (($actors | index($appliers[$t])) != null)
+          )
+      end
+      '
+  )" || {
     echo "Failed to parse label timeline for ${repo}#${pr_number}." >&2
     return 1
   }

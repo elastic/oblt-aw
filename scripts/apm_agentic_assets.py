@@ -542,7 +542,12 @@ _AUTOMERGE_POLICY_KNOWN_KEYS = frozenset(
 
 
 def default_automerge_policy() -> dict[str, Any]:
-    """Control-plane defaults when consumer policy is omitted."""
+    """Control-plane defaults when consumer policy is omitted.
+
+    ``label-actors`` is omitted so TypeScript ``normalizeAutomergePolicy`` keeps
+    the provenance gate off (an empty ``allow`` array under a present key would
+    enable Vault-only trust).
+    """
     return {
         "trigger-labels": [MERGE_READY_LABEL],
         "forks": {
@@ -553,9 +558,6 @@ def default_automerge_policy() -> dict[str, Any]:
             "mode": "allow-list",
             "allow-list": [],
             "author-associations": [],
-        },
-        "label-actors": {
-            "allow": [],
         },
         # Empty allow/deny means unrestricted for the ``all-files`` collection.
         "paths": {
@@ -642,8 +644,8 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
     Normalize ``workflows.automerge.policy`` (kebab-case).
 
     ``oblt-aw/ai/merge-ready`` is always present in ``trigger-labels``.
-    When ``label-actors`` is present, ``elastic-vault-github-plugin-prod[bot]``
-    is always included in ``label-actors.allow``.
+    ``label-actors`` is included only when present on the raw mapping; when set,
+    ``elastic-vault-github-plugin-prod[bot]`` is always in ``allow``.
     Invalid ``paths`` values raise (callers must fail closed).
     """
     base = default_automerge_policy()
@@ -682,15 +684,7 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
 
     paths = _normalize_paths_policy(raw.get("paths"), present="paths" in raw)
 
-    label_actors_allow: list[str] = []
-    if "label-actors" in raw:
-        label_actors_raw = raw.get("label-actors")
-        extras: list[str] = []
-        if isinstance(label_actors_raw, dict):
-            extras = _as_string_list(label_actors_raw.get("allow"))
-        label_actors_allow = list(dict.fromkeys([DEFAULT_TRUSTED_LABEL_ACTOR, *extras]))
-
-    return {
+    result: dict[str, Any] = {
         "trigger-labels": trigger_labels,
         "forks": {
             "mode": forks_mode,
@@ -701,11 +695,19 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
             "allow-list": authors_allow_list,
             "author-associations": authors_associations,
         },
-        "label-actors": {
-            "allow": label_actors_allow,
-        },
         "paths": paths,
     }
+
+    if "label-actors" in raw:
+        label_actors_raw = raw.get("label-actors")
+        extras: list[str] = []
+        if isinstance(label_actors_raw, dict):
+            extras = _as_string_list(label_actors_raw.get("allow"))
+        result["label-actors"] = {
+            "allow": list(dict.fromkeys([DEFAULT_TRUSTED_LABEL_ACTOR, *extras])),
+        }
+
+    return result
 
 
 def extract_automerge_policy_raw(

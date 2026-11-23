@@ -542,7 +542,7 @@ x-oblt-aw:
             "allow": ["docs/**"],
             "deny": ["**/*.go"],
         }
-        assert policy["label-actors"]["allow"] == []
+        assert "label-actors" not in policy
         text = aaa.format_automerge_policy_instructions(policy)
         assert "Effective Automerge Policy" in text
         assert "nightshift:risk-low" in text
@@ -564,6 +564,10 @@ x-oblt-aw:
         with pytest.raises(ValueError, match="unsupported glob"):
             aaa.normalize_automerge_policy({"paths": {"deny": ["helm/values-?.yaml"]}})
 
+    def test_default_automerge_policy_omits_label_actors(self) -> None:
+        policy = aaa.default_automerge_policy()
+        assert "label-actors" not in policy
+
     def test_normalize_automerge_policy_label_actors_always_includes_vault(
         self,
     ) -> None:
@@ -579,3 +583,16 @@ x-oblt-aw:
         text = aaa.format_automerge_policy_instructions(policy)
         assert aaa.DEFAULT_TRUSTED_LABEL_ACTOR in text
         assert "nightshift-bot[bot]" in text
+
+    def test_normalize_omits_label_actors_when_consumer_did_not_set_them(
+        self,
+    ) -> None:
+        """Wire format must not enable Vault-only trust without opt-in."""
+        import json
+
+        policy = aaa.normalize_automerge_policy(
+            {"trigger-labels": ["nightshift:risk-low"]}
+        )
+        assert "label-actors" not in policy
+        payload = json.dumps(policy, separators=(",", ":"), sort_keys=True)
+        assert "label-actors" not in json.loads(payload)

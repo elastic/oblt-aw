@@ -64,6 +64,23 @@ test('normalizeAutomergePolicy empty label-actors.allow still trusts vault bot',
   assert.deepEqual(policy.labelActors.allow, [DEFAULT_TRUSTED_LABEL_ACTOR]);
 });
 
+test('parseAutomergePolicyJson without label-actors keeps gate off (Python wire)', () => {
+  // Python resolve_automerge_policy omits label-actors when unset.
+  const policy = parseAutomergePolicyJson(
+    JSON.stringify({
+      'trigger-labels': [MERGE_READY_LABEL, 'nightshift:risk-low'],
+      forks: { mode: 'disabled', 'author-associations': [] },
+      authors: {
+        mode: 'allow-list',
+        'allow-list': [],
+        'author-associations': [],
+      },
+    })
+  );
+  assert.deepEqual(policy.labelActors.allow, []);
+  assert.equal(isLabelActorGateEnabled(policy), false);
+});
+
 test('hasTrustedTriggerLabel requires allowed applier when gate is on', () => {
   const policy = normalizeAutomergePolicy({
     'trigger-labels': ['nightshift:risk-low'],
