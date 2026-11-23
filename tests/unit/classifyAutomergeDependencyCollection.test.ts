@@ -837,3 +837,151 @@ test('classifyChangedFiles reports disabled all-files when catch-all matches but
     collectionId: GENERIC_COLLECTION_ID,
   });
 });
+
+test('classifyChangedFiles allows all-files when path policy matches', () => {
+  const {
+    GENERIC_COLLECTION_ID,
+  } = require('../../scripts/obs/classifyAutomergeDependencyCollection.ts');
+  const collections = [
+    {
+      id: GENERIC_COLLECTION_ID,
+      'file-glob': ['**/*'],
+    },
+  ];
+  const enabled = [
+    'obs:automerge',
+    `obs:automerge:${GENERIC_COLLECTION_ID}`,
+  ];
+  const outcome = classifyChangedFiles(
+    ['docs/README.md'],
+    collections,
+    enabledAutomergeCollectionIds(enabled),
+    { allow: ['docs/**'], deny: ['**/*.go'] }
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: GENERIC_COLLECTION_ID,
+  });
+});
+
+test('classifyChangedFiles rejects all-files when any path is outside allow', () => {
+  const {
+    GENERIC_COLLECTION_ID,
+  } = require('../../scripts/obs/classifyAutomergeDependencyCollection.ts');
+  const collections = [
+    {
+      id: GENERIC_COLLECTION_ID,
+      'file-glob': ['**/*'],
+    },
+  ];
+  const enabled = [
+    'obs:automerge',
+    `obs:automerge:${GENERIC_COLLECTION_ID}`,
+  ];
+  const outcome = classifyChangedFiles(
+    ['docs/README.md', 'main.go'],
+    collections,
+    enabledAutomergeCollectionIds(enabled),
+    { allow: ['docs/**'], deny: [] }
+  );
+  assert.deepEqual(outcome, {
+    status: 'paths-ineligible',
+    collectionId: GENERIC_COLLECTION_ID,
+  });
+});
+
+test('classifyChangedFiles rejects all-files when any path matches deny', () => {
+  const {
+    GENERIC_COLLECTION_ID,
+  } = require('../../scripts/obs/classifyAutomergeDependencyCollection.ts');
+  const collections = [
+    {
+      id: GENERIC_COLLECTION_ID,
+      'file-glob': ['**/*'],
+    },
+  ];
+  const enabled = [
+    'obs:automerge',
+    `obs:automerge:${GENERIC_COLLECTION_ID}`,
+  ];
+  const outcome = classifyChangedFiles(
+    ['docs/README.md'],
+    collections,
+    enabledAutomergeCollectionIds(enabled),
+    { allow: ['docs/**'], deny: ['docs/**'] }
+  );
+  assert.deepEqual(outcome, {
+    status: 'paths-ineligible',
+    collectionId: GENERIC_COLLECTION_ID,
+  });
+});
+
+test('classifyChangedFiles path policy checks previous_filename separately', () => {
+  const {
+    GENERIC_COLLECTION_ID,
+  } = require('../../scripts/obs/classifyAutomergeDependencyCollection.ts');
+  const collections = [
+    {
+      id: GENERIC_COLLECTION_ID,
+      'file-glob': ['**/*'],
+    },
+  ];
+  const enabled = [
+    'obs:automerge',
+    `obs:automerge:${GENERIC_COLLECTION_ID}`,
+  ];
+  const outcome = classifyChangedFiles(
+    ['docs/network-policy.yaml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled),
+    { allow: ['docs/**'], deny: [] },
+    ['docs/network-policy.yaml', 'helm/network-policy.yaml']
+  );
+  assert.deepEqual(outcome, {
+    status: 'paths-ineligible',
+    collectionId: GENERIC_COLLECTION_ID,
+  });
+});
+
+test('classifyChangedFiles path policy does not affect specific collections', () => {
+  const collections = [
+    {
+      id: 'all-files',
+      'file-glob': ['**/*'],
+    },
+    {
+      id: 'github-actions',
+      'file-glob': ['.github/workflows/**'],
+    },
+  ];
+  const enabled = [
+    'obs:automerge',
+    'obs:automerge:all-files',
+    'obs:automerge:github-actions',
+  ];
+  const outcome = classifyChangedFiles(
+    ['.github/workflows/ci.yml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled),
+    { allow: ['docs/**'], deny: ['.github/**'] }
+  );
+  assert.deepEqual(outcome, {
+    status: 'allowed',
+    collectionId: 'github-actions',
+  });
+});
+
+test('buildGateCommentBody explains paths-ineligible', () => {
+  const {
+    GENERIC_COLLECTION_ID,
+    buildGateCommentBody,
+  } = require('../../scripts/obs/classifyAutomergeDependencyCollection.ts');
+  const body = buildGateCommentBody(
+    { status: 'paths-ineligible', collectionId: GENERIC_COLLECTION_ID },
+    ['main.go'],
+    [GENERIC_COLLECTION_ID]
+  );
+  assert.match(body, /path policy/);
+  assert.match(body, /paths\.allow/);
+  assert.match(body, /paths\.deny/);
+});
