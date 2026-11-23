@@ -17,6 +17,16 @@
       ]
     },
     {
+      "id": "oblt-cli",
+      "description": "oblt-cli version pin updates (.oblt-cli-version / .default-oblt-cli-version)",
+      "file-glob": [
+        ".oblt-cli-version",
+        "**/.oblt-cli-version",
+        ".default-oblt-cli-version",
+        "**/.default-oblt-cli-version"
+      ]
+    },
+    {
       "id": "github-actions",
       "description": "GitHub Actions and composite action version bumps",
       "file-glob": [
