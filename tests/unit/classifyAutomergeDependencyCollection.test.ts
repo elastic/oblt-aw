@@ -590,6 +590,95 @@ test('classifyChangedFiles rejects dashboard-disabled apm-cli collection', () =>
   });
 });
 
+test('classifyChangedFiles allows dashboard-enabled oblt-cli collection', () => {
+  const collections = [...COLLECTIONS, catalogCollection('oblt-cli')];
+  const enabled = ['obs:automerge', 'obs:automerge:oblt-cli'];
+  const versionOutcome = classifyChangedFiles(
+    ['.oblt-cli-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(versionOutcome, {
+    status: 'allowed',
+    collectionId: 'oblt-cli',
+  });
+
+  const defaultOutcome = classifyChangedFiles(
+    ['.default-oblt-cli-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(defaultOutcome, {
+    status: 'allowed',
+    collectionId: 'oblt-cli',
+  });
+
+  const nestedOutcome = classifyChangedFiles(
+    ['nested/.oblt-cli-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(nestedOutcome, {
+    status: 'allowed',
+    collectionId: 'oblt-cli',
+  });
+});
+
+test('classifyChangedFiles rejects dashboard-disabled oblt-cli collection', () => {
+  const collections = [...COLLECTIONS, catalogCollection('oblt-cli')];
+  const versionOutcome = classifyChangedFiles(
+    ['.oblt-cli-version'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(versionOutcome, {
+    status: 'disabled',
+    collectionId: 'oblt-cli',
+  });
+
+  const defaultOutcome = classifyChangedFiles(
+    ['.default-oblt-cli-version'],
+    collections,
+    enabledAutomergeCollectionIds(ENABLED)
+  );
+  assert.deepEqual(defaultOutcome, {
+    status: 'disabled',
+    collectionId: 'oblt-cli',
+  });
+});
+
+test('classifyChangedFiles does not match oblt-cli paths via apm-cli or package-version', () => {
+  const collections = [
+    ...COLLECTIONS,
+    catalogCollection('apm-cli'),
+    catalogCollection('package-version'),
+  ];
+  const enabled = [
+    'obs:automerge',
+    'obs:automerge:apm-cli',
+    'obs:automerge:package-version',
+  ];
+  const versionOutcome = classifyChangedFiles(
+    ['.oblt-cli-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(versionOutcome, {
+    status: 'unclassified',
+    collectionId: null,
+  });
+
+  const defaultOutcome = classifyChangedFiles(
+    ['.default-oblt-cli-version'],
+    collections,
+    enabledAutomergeCollectionIds(enabled)
+  );
+  assert.deepEqual(defaultOutcome, {
+    status: 'unclassified',
+    collectionId: null,
+  });
+});
+
 test('classifyChangedFiles allows dashboard-enabled root package-version collection', () => {
   const collections = [
     ...COLLECTIONS,

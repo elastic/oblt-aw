@@ -40,6 +40,7 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 |------------|----------------|----------------------|---------------|
 | All files (non-dependency) | Any changed paths when consumer automerge policy allows | `**/*` | Opt-in catch-all for risk-labeled or otherwise policy-gated PRs outside dependency bots; prefer a specific collection when both match |
 | APM CLI version | APM CLI pin updates for agent package install | `.apm.version`, `**/.apm.version`, `.apm-cli-pin/requirements.txt` | Keep the framework APM CLI pin current when Dependabot bumps `apm-cli` |
+| oblt-cli version | oblt-cli pin updates | `.oblt-cli-version`, `**/.oblt-cli-version`, `.default-oblt-cli-version`, `**/.default-oblt-cli-version` | Useful when Updatecli (or similar) bumps only the oblt-cli version pin and you already trust that automation |
 | GitHub Actions bumps | Version updates for GitHub Actions and composite actions | `.github/workflows/**`, `.github/actions/**`, `**/action.yml`, `**/action.yaml` | Keep CI actions current without hand-merging routine bumps |
 | pre-commit hook updates | Dependency updates for pre-commit hooks | `.pre-commit-config.yaml` | Keep local and CI hook versions moving with low review overhead |
 | Python dependencies | Python package and lockfile updates | `**/pyproject.toml`, `**/requirements.txt`, `**/requirements-*.txt`, `**/poetry.lock`, `**/Pipfile`, `**/Pipfile.lock` | Useful when Python bumps are routine and low risk for your repo |
