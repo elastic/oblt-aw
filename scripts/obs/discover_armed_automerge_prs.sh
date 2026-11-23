@@ -51,16 +51,15 @@ else
   mkdir -p "${POLICY_CACHE_DIR}"
 fi
 
-# Resolve trigger-labels JSON for a trusted PR base SHA (cached on disk).
-# Prints a JSON string array to stdout.
-automerge_discover_triggers_for_base_sha() {
+# Resolve normalized automerge policy JSON for a trusted PR base SHA (cached).
+# Prints the full policy object to stdout.
+automerge_discover_policy_for_base_sha() {
   local base_sha="${1:?base sha required}"
-  local cache_file="${POLICY_CACHE_DIR}/${base_sha}.triggers.json"
+  local cache_file="${POLICY_CACHE_DIR}/${base_sha}.policy.json"
   local work_dir
   local name
   local encoded
   local policy_json
-  local triggers
   local gh_out
 
   if [[ -f "${cache_file}" ]]; then
@@ -90,10 +89,17 @@ automerge_discover_triggers_for_base_sha() {
       GITHUB_OUTPUT="${work_dir}/github_output" \
       python3 "${OBLT_AW_ROOT}/scripts/resolve_automerge_policy_cli.py"
   )"
-  triggers="$(printf '%s' "${policy_json}" | jq -c '."trigger-labels" // ["oblt-aw/ai/merge-ready"]')"
-  printf '%s\n' "${triggers}" >"${cache_file}"
+  printf '%s\n' "${policy_json}" >"${cache_file}"
   rm -rf "${work_dir}"
-  printf '%s\n' "${triggers}"
+  printf '%s\n' "${policy_json}"
+}
+
+# Back-compat wrapper: trigger-labels array only.
+automerge_discover_triggers_for_base_sha() {
+  local base_sha="${1:?base sha required}"
+  local policy_json
+  policy_json="$(automerge_discover_policy_for_base_sha "${base_sha}")"
+  printf '%s' "${policy_json}" | jq -c '."trigger-labels" // ["oblt-aw/ai/merge-ready"]'
 }
 
 eligible='[]'
@@ -114,6 +120,7 @@ while IFS=$'\t' read -r pr_number head_sha; do
   if [[ "${LEGACY_MERGE_READY_ONLY}" == "true" ]]; then
     # Self-contained path for @v0 callers that only sparse-fetch this script.
     unset AUTOMERGE_TRIGGER_LABELS_JSON || true
+    unset AUTOMERGE_LABEL_ACTORS_JSON || true
     base_sha="legacy"
   else
     base_sha="$(gh api "repos/${REPO}/pulls/${pr_number}" --jq '.base.sha')" || {
@@ -124,8 +131,15 @@ while IFS=$'\t' read -r pr_number head_sha; do
       echo "Empty base.sha for ${REPO}#${pr_number}; aborting discover." >&2
       exit 1
     fi
-    AUTOMERGE_TRIGGER_LABELS_JSON="$(automerge_discover_triggers_for_base_sha "${base_sha}")"
+    policy_json="$(automerge_discover_policy_for_base_sha "${base_sha}")"
+    AUTOMERGE_TRIGGER_LABELS_JSON="$(
+      printf '%s' "${policy_json}" | jq -c '."trigger-labels" // ["oblt-aw/ai/merge-ready"]'
+    )"
+    AUTOMERGE_LABEL_ACTORS_JSON="$(
+      printf '%s' "${policy_json}" | jq -c '."label-actors".allow // []'
+    )"
     export AUTOMERGE_TRIGGER_LABELS_JSON
+    export AUTOMERGE_LABEL_ACTORS_JSON
   fi
 
   # Drop opted-out / label-stripped PRs before the matrix cap so they cannot

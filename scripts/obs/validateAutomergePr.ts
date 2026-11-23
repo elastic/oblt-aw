@@ -37,12 +37,16 @@ const fs = require('node:fs');
 
 const MERGE_READY_LABEL_FALLBACK = 'oblt-aw/ai/merge-ready';
 
+const DEFAULT_TRUSTED_LABEL_ACTOR_FALLBACK =
+  'elastic-vault-github-plugin-prod[bot]';
+
 function fallbackDefaultAutomergePolicy() {
   return {
     triggerLabels: [MERGE_READY_LABEL_FALLBACK],
     forks: { mode: 'disabled', authorAssociations: [] },
     authors: { mode: 'allow-list', allowList: [], authorAssociations: [] },
     paths: { allow: [], deny: [] },
+    labelActors: { allow: [] },
   };
 }
 
@@ -58,6 +62,9 @@ function loadAutomergePolicyModule() {
 const policyModule = loadAutomergePolicyModule();
 const MERGE_READY_LABEL =
   policyModule?.MERGE_READY_LABEL || MERGE_READY_LABEL_FALLBACK;
+const DEFAULT_TRUSTED_LABEL_ACTOR =
+  policyModule?.DEFAULT_TRUSTED_LABEL_ACTOR ||
+  DEFAULT_TRUSTED_LABEL_ACTOR_FALLBACK;
 const defaultAutomergePolicy =
   policyModule?.defaultAutomergePolicy || fallbackDefaultAutomergePolicy;
 const normalizeAutomergePolicy =
@@ -87,6 +94,35 @@ const hasTriggerLabel =
     return (policy.triggerLabels || [MERGE_READY_LABEL_FALLBACK]).some((name) =>
       labels.has(name)
     );
+  });
+const isLabelActorGateEnabled =
+  policyModule?.isLabelActorGateEnabled ||
+  ((policy) => (policy.labelActors?.allow || []).length > 0);
+const hasTrustedTriggerLabel =
+  policyModule?.hasTrustedTriggerLabel ||
+  ((policy, presentLabelNames, latestAppliers) => {
+    if (!hasTriggerLabel(policy, presentLabelNames)) {
+      return false;
+    }
+    if (!isLabelActorGateEnabled(policy)) {
+      return true;
+    }
+    const present = new Set(presentLabelNames);
+    const allow = new Set(policy.labelActors?.allow || []);
+    return (policy.triggerLabels || []).some((name) => {
+      if (!present.has(name)) {
+        return false;
+      }
+      const actor =
+        latestAppliers instanceof Map
+          ? latestAppliers.get(name)
+          : latestAppliers[name];
+      if (actor == null || actor === '') {
+        return false;
+      }
+      const normalized = normalizePrAuthorLogin(actor);
+      return allow.has(normalized);
+    });
   });
 const isAuthorAllowedByPolicy =
   policyModule?.isAuthorAllowedByPolicy ||
@@ -155,8 +191,44 @@ function isAllowedPrAuthor(login) {
 module.exports.normalizePrAuthorLogin = normalizePrAuthorLogin;
 module.exports.isAllowedPrAuthor = isAllowedPrAuthor;
 module.exports.MERGE_READY_LABEL = MERGE_READY_LABEL;
+module.exports.DEFAULT_TRUSTED_LABEL_ACTOR = DEFAULT_TRUSTED_LABEL_ACTOR;
 module.exports.defaultAutomergePolicy = defaultAutomergePolicy;
 module.exports.normalizeAutomergePolicy = normalizeAutomergePolicy;
+
+/**
+ * Latest labeled/unlabeled applier per label name from the issue timeline.
+ * Fail-closed callers must treat thrown errors as gate failure.
+ * @param {{ paginate: Function, rest: { issues: { listEventsForTimeline: unknown } } }} github
+ * @param {{ owner: string, repo: string, issueNumber: number }} args
+ * @returns {Promise<Map<string, string|null>>}
+ */
+async function resolveLatestLabelAppliers(github, args) {
+  const events = await github.paginate(github.rest.issues.listEventsForTimeline, {
+    owner: args.owner,
+    repo: args.repo,
+    issue_number: args.issueNumber,
+    per_page: 100,
+  });
+  /** @type {Map<string, string|null>} */
+  const latest = new Map();
+  for (const event of events || []) {
+    if (event?.event !== 'labeled' && event?.event !== 'unlabeled') {
+      continue;
+    }
+    const name = event.label?.name;
+    if (typeof name !== 'string' || !name) {
+      continue;
+    }
+    if (event.event === 'unlabeled') {
+      latest.set(name, null);
+      continue;
+    }
+    latest.set(name, normalizePrAuthorLogin(event.actor?.login || ''));
+  }
+  return latest;
+}
+
+module.exports.resolveLatestLabelAppliers = resolveLatestLabelAppliers;
 
 module.exports.run = async function run({
   github,
@@ -172,7 +244,7 @@ module.exports.run = async function run({
 
   if (typeof prNumber !== 'number' || !Number.isFinite(prNumber)) {
     core.info('Automerge: invalid or missing pull request number; skipping.');
-    return { ok: false, triggerLabels: [] };
+    return { ok: false, triggerLabels: [], labelActorsAllow: [] };
   }
 
   let effectivePolicy;
@@ -186,8 +258,9 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: invalid automerge policy (${message}); skipping.`
     );
-    return { ok: false, triggerLabels: [] };
+    return { ok: false, triggerLabels: [], labelActorsAllow: [] };
   }
+  const labelActorsAllow = effectivePolicy.labelActors?.allow || [];
 
   const { data: pr } = await github.rest.pulls.get({
     owner,
@@ -212,7 +285,11 @@ module.exports.run = async function run({
         (author !== authorRaw ? ` (normalized '${author}')` : '') +
         ` association='${authorAssociation}' is not allowed by automerge policy`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return {
+      ok: false,
+      triggerLabels: effectivePolicy.triggerLabels,
+      labelActorsAllow,
+    };
   }
 
   // Approve must use Vault for github-actions-authored PRs (GITHUB_TOKEN would self-APPROVE).
@@ -220,7 +297,11 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: author '${GITHUB_ACTIONS_BOT}' requires a non-empty shared-token-policy so approve can use Vault instead of GITHUB_TOKEN`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return {
+      ok: false,
+      triggerLabels: effectivePolicy.triggerLabels,
+      labelActorsAllow,
+    };
   }
 
   const labelNames = (pr.labels || []).map((l) => l.name);
@@ -228,12 +309,52 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: missing trigger label (need one of: ${effectivePolicy.triggerLabels.join(', ')})`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return {
+      ok: false,
+      triggerLabels: effectivePolicy.triggerLabels,
+      labelActorsAllow,
+    };
+  }
+
+  if (isLabelActorGateEnabled(effectivePolicy)) {
+    let latestAppliers;
+    try {
+      latestAppliers = await resolveLatestLabelAppliers(github, {
+        owner,
+        repo,
+        issueNumber: prNumber,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      core.info(
+        `PR #${prNumber}: could not read label timeline (fail closed): ${message}`
+      );
+      return {
+        ok: false,
+        triggerLabels: effectivePolicy.triggerLabels,
+        labelActorsAllow,
+      };
+    }
+    if (!hasTrustedTriggerLabel(effectivePolicy, labelNames, latestAppliers)) {
+      core.info(
+        `PR #${prNumber}: no trigger label applied by an allowed actor ` +
+          `(allow: ${labelActorsAllow.join(', ')})`
+      );
+      return {
+        ok: false,
+        triggerLabels: effectivePolicy.triggerLabels,
+        labelActorsAllow,
+      };
+    }
   }
 
   if (pr.draft) {
     core.info(`PR #${prNumber}: draft PRs are excluded`);
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return {
+      ok: false,
+      triggerLabels: effectivePolicy.triggerLabels,
+      labelActorsAllow,
+    };
   }
 
   const headFull = pr.head?.repo?.full_name || '';
@@ -248,14 +369,26 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: fork PRs are excluded by automerge policy (forks.mode=${effectivePolicy.forks.mode})`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return {
+      ok: false,
+      triggerLabels: effectivePolicy.triggerLabels,
+      labelActorsAllow,
+    };
   }
 
   if ((pr.head?.ref || '') === (pr.base?.ref || '')) {
     core.info(`PR #${prNumber}: head ref equals base ref`);
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return {
+      ok: false,
+      triggerLabels: effectivePolicy.triggerLabels,
+      labelActorsAllow,
+    };
   }
 
   core.info(`PR #${prNumber}: passed automerge validation`);
-  return { ok: true, triggerLabels: effectivePolicy.triggerLabels };
+  return {
+    ok: true,
+    triggerLabels: effectivePolicy.triggerLabels,
+    labelActorsAllow,
+  };
 };

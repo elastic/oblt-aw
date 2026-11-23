@@ -220,7 +220,7 @@ jobs:
 
             const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
             const { run: validate } = rq('./scripts/obs/validateAutomergePr.ts');
-            const { ok, triggerLabels } = await validate({
+            const { ok, triggerLabels, labelActorsAllow } = await validate({
               github,
               context,
               prNumber,
@@ -231,6 +231,10 @@ jobs:
             core.setOutput(
               'trigger-labels-json',
               JSON.stringify(Array.isArray(triggerLabels) ? triggerLabels : [])
+            );
+            core.setOutput(
+              'label-actors-json',
+              JSON.stringify(Array.isArray(labelActorsAllow) ? labelActorsAllow : [])
             );
             if (!ok) {
               core.info(`PR #${prNumber}: verify gate failed; skipping merge.`);
@@ -263,6 +267,7 @@ jobs:
           HEAD_SHA: ${{ matrix.head_sha }}
           REPO: ${{ github.repository }}
           AUTOMERGE_TRIGGER_LABELS_JSON: ${{ steps.gates.outputs.trigger-labels-json }}
+          AUTOMERGE_LABEL_ACTORS_JSON: ${{ steps.gates.outputs.label-actors-json }}
         run: |
           set -euo pipefail
           # shellcheck source=../../../scripts/obs/automerge_armed_lib.sh

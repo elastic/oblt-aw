@@ -19,10 +19,13 @@ const assert = require('node:assert/strict');
 
 const {
   MERGE_READY_LABEL,
+  DEFAULT_TRUSTED_LABEL_ACTOR,
   defaultAutomergePolicy,
   normalizeAutomergePolicy,
   parseAutomergePolicyJson,
   hasTriggerLabel,
+  isLabelActorGateEnabled,
+  hasTrustedTriggerLabel,
   isAuthorAllowedByPolicy,
   isForkAllowedByPolicy,
   filesMatchAllFilesPathPolicy,
@@ -39,6 +42,57 @@ test('normalizeAutomergePolicy always keeps merge-ready and defaults forks/autho
   assert.equal(policy.forks.mode, 'disabled');
   assert.equal(policy.authors.mode, 'allow-list');
   assert.deepEqual(policy.paths, { allow: [], deny: [] });
+  assert.deepEqual(policy.labelActors.allow, []);
+  assert.equal(isLabelActorGateEnabled(policy), false);
+});
+
+test('normalizeAutomergePolicy always adds vault bot when label-actors is set', () => {
+  const policy = normalizeAutomergePolicy({
+    'label-actors': { allow: ['nightshift-bot[bot]'] },
+  });
+  assert.deepEqual(policy.labelActors.allow, [
+    DEFAULT_TRUSTED_LABEL_ACTOR,
+    'nightshift-bot[bot]',
+  ]);
+  assert.equal(isLabelActorGateEnabled(policy), true);
+});
+
+test('normalizeAutomergePolicy empty label-actors.allow still trusts vault bot', () => {
+  const policy = normalizeAutomergePolicy({
+    'label-actors': { allow: [] },
+  });
+  assert.deepEqual(policy.labelActors.allow, [DEFAULT_TRUSTED_LABEL_ACTOR]);
+});
+
+test('hasTrustedTriggerLabel requires allowed applier when gate is on', () => {
+  const policy = normalizeAutomergePolicy({
+    'trigger-labels': ['nightshift:risk-low'],
+    'label-actors': { allow: ['nightshift-bot[bot]'] },
+  });
+  assert.equal(
+    hasTrustedTriggerLabel(policy, ['nightshift:risk-low'], {
+      'nightshift:risk-low': 'nightshift-bot[bot]',
+    }),
+    true
+  );
+  assert.equal(
+    hasTrustedTriggerLabel(policy, ['nightshift:risk-low'], {
+      'nightshift:risk-low': DEFAULT_TRUSTED_LABEL_ACTOR,
+    }),
+    true
+  );
+  assert.equal(
+    hasTrustedTriggerLabel(policy, ['nightshift:risk-low'], {
+      'nightshift:risk-low': 'random-human',
+    }),
+    false
+  );
+  assert.equal(
+    hasTrustedTriggerLabel(policy, ['nightshift:risk-low'], {
+      'nightshift:risk-low': null,
+    }),
+    false
+  );
 });
 
 test('hasTriggerLabel accepts merge-ready or configured extras', () => {
