@@ -183,13 +183,16 @@ Classify by **changed paths** and **what the diff bumps**. Prefer these path fam
 - `.pre-commit-config.yaml` → **pre-commit**
 - `go.mod`, `go.sum`, `**/go.mod`, `**/go.sum` (and related NOTICE / `beats` bumps when those land together) → **Go** (or Go + related manifests)
 - `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml` (and `**/` variants) → **npm/Node**
+- `**/build.gradle`, `**/build.gradle.kts`, `**/gradle/*.versions.toml`, `**/gradle/wrapper/gradle-wrapper.properties`, `**/gradle/wrapper/gradle-wrapper.jar`, `**/gradlew`, `**/gradlew.bat` → **Gradle**
+- `Package.swift`, `Package.resolved` (and `**/` variants) → **Swift Package Manager**
+- `*.podspec`, `Podfile`, `Podfile.lock` (and `**/` variants) → **CocoaPods**
 - `pyproject.toml`, `requirements*.txt`, `Pipfile*`, `poetry.lock`, `uv.lock` (and `**/` variants) → **Python**
 - `**/*.tf`, `**/*.tfvars`, `**/.terraform.lock.hcl`, `**/terragrunt.hcl`, version pin files for Terraform/OpenTofu/Terragrunt → **Terraform**
 - `**/*.rego`, `**/.opa-version`, `**/opa.yaml`, `**/opa.yml` → **Open Policy Agent**
 - `updatecli-compose.yaml`, `updatecli-compose.yml`, `**/updatecli-compose.yaml`, `**/updatecli-compose.yml`, `.updatecli-version`, `**/.updatecli-version` → **Updatecli**
 - `.package-version`, `**/.package-version` → **package-version**
 - `.buildkite/**`, `**/Dockerfile`, `**/Dockerfile.*`, `**/docker-compose.yml`, `**/docker-compose.yaml`, `testing/environments/snapshot.yml` → **CI / container / snapshot image pins** when the diff bumps runner, container, or snapshot **image** identifiers or env pins. There is **no** separate “Buildkite plugin” dependency collection: do **not** map every `.buildkite/**` change to “Buildkite plugin.” If a `.buildkite/` diff bumps a plugin SHA/tag instead of an image pin, still treat it as an in-scope version bump; label the ecosystem **other** (or note “Buildkite plugin pin” as the bump type in the analysis) and continue — do **not** noop.
-- `pom.xml`, `build.gradle`, `build.gradle.kts`, `gradle.lockfile` → **Java/Kotlin (Maven/Gradle)**
+- `pom.xml`, `gradle.lockfile` → **Java/Kotlin (Maven/Gradle)**
 - Other version/pin/lockfile bumps → **other** (still in-scope; analyze them)
 
 Any clear version, pin, digest, or lockfile bump in the families above is a dependency update to review.
