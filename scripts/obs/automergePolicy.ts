@@ -19,9 +19,9 @@
  * Defaults match today's behavior: merge-ready only, forks disabled, authors
  * allow-list (control-plane bots only unless the repo adds names), and no
  * path restriction for ``all-files`` (empty allow/deny means unrestricted).
+ *
+ * Path globs support only ``*`` and ``**`` (same as collection file-glob).
  */
-
-const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
 
 const MERGE_READY_LABEL = 'oblt-aw/ai/merge-ready';
 
@@ -33,6 +33,11 @@ const KNOWN_POLICY_KEYS = new Set([
   'trigger-labels',
   'triggerLabels',
 ]);
+
+const KNOWN_PATH_KEYS = new Set(['allow', 'deny']);
+
+/** Unsupported in path globs (matcher only implements ``*`` / ``**``). */
+const UNSUPPORTED_GLOB_CHARS = /[?[\]]/;
 
 /** @typedef {'disabled' | 'author-association'} ForksMode */
 /** @typedef {'allow-list' | 'author-association'} AuthorsMode */
@@ -90,8 +95,22 @@ function asStringList(value) {
 }
 
 /**
+ * @param {string} pattern
+ * @param {string} fieldName
+ */
+function assertSupportedPathGlob(pattern, fieldName) {
+  if (UNSUPPORTED_GLOB_CHARS.test(pattern)) {
+    throw new Error(
+      `paths.${fieldName} pattern '${pattern}' uses unsupported glob syntax ` +
+        '(only * and ** are supported)'
+    );
+  }
+}
+
+/**
  * Normalize path glob lists. Omitted / empty ⇒ unrestricted for that list.
- * Present but non-array, or any non-string entry, fails closed.
+ * Present but non-array, blank entries, unsupported syntax, or non-strings
+ * fail closed.
  * @param {unknown} value
  * @param {string} fieldName
  * @param {boolean} present
@@ -115,12 +134,22 @@ function asPathGlobList(value, fieldName, present) {
         `paths.${fieldName} entries must be strings; got ${typeof item}`
       );
     }
-    const text = item.trim();
-    if (!text || seen.has(text)) {
+    if (item !== item.trim()) {
+      throw new Error(
+        `paths.${fieldName} entries must not have leading or trailing whitespace`
+      );
+    }
+    if (!item) {
+      throw new Error(
+        `paths.${fieldName} entries must be non-empty glob strings`
+      );
+    }
+    assertSupportedPathGlob(item, fieldName);
+    if (seen.has(item)) {
       continue;
     }
-    seen.add(text);
-    out.push(text);
+    seen.add(item);
+    out.push(item);
   }
   return out;
 }
@@ -141,6 +170,14 @@ function asPathPolicy(raw, present) {
   }
   /** @type {Record<string, unknown>} */
   const obj = /** @type {Record<string, unknown>} */ (raw);
+  const unknown = Object.keys(obj)
+    .filter((key) => !KNOWN_PATH_KEYS.has(key))
+    .sort((a, b) => a.localeCompare(b));
+  if (unknown.length > 0) {
+    throw new Error(
+      `paths contains unknown key(s): ${unknown.join(', ')} (expected allow, deny)`
+    );
+  }
   const allowPresent = Object.prototype.hasOwnProperty.call(obj, 'allow');
   const denyPresent = Object.prototype.hasOwnProperty.call(obj, 'deny');
   return {
@@ -302,19 +339,49 @@ function isForkAllowedByPolicy(policy, args) {
 }
 
 /**
- * Whether every changed file is eligible under ``all-files`` path policy.
+ * GitHub paths are forward-slash and unpadded. Reject ambiguous names when
+ * path restrictions are active so trim/`\` rewrites cannot widen matches.
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+function isSafeRepoPathForPolicy(filePath) {
+  if (typeof filePath !== 'string' || !filePath) {
+    return false;
+  }
+  if (filePath !== filePath.trim()) {
+    return false;
+  }
+  if (filePath.includes('\\')) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Whether every path is eligible under ``all-files`` path policy.
  * Empty allow ⇒ all paths allowed; empty deny ⇒ nothing denied; deny wins.
+ * Loads the glob matcher lazily so verify callers that only need labels/authors
+ * do not require ``lib/matchPathGlob.ts`` in sparse checkout.
  * @param {string[]} files
  * @param {AutomergePathPolicy} [paths]
  * @returns {boolean}
  */
 function filesMatchAllFilesPathPolicy(files, paths) {
-  const changed = [...new Set(files.map((f) => f.trim()).filter(Boolean))];
+  const changed = [...new Set(files.filter((f) => typeof f === 'string' && f))];
   if (changed.length === 0) {
     return false;
   }
   const allow = paths?.allow || [];
   const deny = paths?.deny || [];
+  const restricted = allow.length > 0 || deny.length > 0;
+  if (restricted && changed.some((file) => !isSafeRepoPathForPolicy(file))) {
+    return false;
+  }
+  if (!restricted) {
+    return true;
+  }
+  // Lazy require: verify sparse checkout may omit the matcher until path checks run.
+  const { pathMatchesAnyGlob } = require('./lib/matchPathGlob.ts');
   return changed.every((file) => {
     if (deny.length > 0 && pathMatchesAnyGlob(file, deny)) {
       return false;
@@ -336,4 +403,5 @@ module.exports = {
   isAuthorAllowedByPolicy,
   isForkAllowedByPolicy,
   filesMatchAllFilesPathPolicy,
+  isSafeRepoPathForPolicy,
 };

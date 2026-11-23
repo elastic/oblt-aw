@@ -171,20 +171,26 @@ function preferSpecificOverGeneric(matched) {
 }
 
 /**
- * @param {string[]} files
+ * @param {string[]} files Current PR filenames (collection matching).
  * @param {DependencyCollection[]} collections
  * @param {string[]} enabledCollectionIds
  * @param {{ allow?: string[], deny?: string[] }} [allFilesPathPolicy]
  *   Optional ``all-files`` path allow/deny from consumer automerge policy.
+ * @param {string[]} [pathPolicyFiles]
+ *   Paths checked against ``allFilesPathPolicy`` (defaults to ``files``).
+ *   Callers should include rename ``previous_filename`` values here only.
  * @returns {ClassificationOutcome}
  */
 function classifyChangedFiles(
   files,
   collections,
   enabledCollectionIds,
-  allFilesPathPolicy
+  allFilesPathPolicy,
+  pathPolicyFiles
 ) {
-  const changed = [...new Set(files.map((f) => f.trim()).filter(Boolean))];
+  const changed = [
+    ...new Set(files.filter((f) => typeof f === 'string' && f)),
+  ];
   const enabledSet = new Set(enabledCollectionIds);
   if (changed.length === 0) {
     return { status: 'unclassified', collectionId: null };
@@ -208,9 +214,17 @@ function classifyChangedFiles(
 
   const collection = matched[0];
   if (enabledSet.has(collection.id)) {
+    const pathCheckFiles =
+      pathPolicyFiles === undefined
+        ? changed
+        : [
+            ...new Set(
+              pathPolicyFiles.filter((f) => typeof f === 'string' && f)
+            ),
+          ];
     if (
       collection.id === GENERIC_COLLECTION_ID &&
-      !filesMatchAllFilesPathPolicy(changed, allFilesPathPolicy)
+      !filesMatchAllFilesPathPolicy(pathCheckFiles, allFilesPathPolicy)
     ) {
       return {
         status: 'paths-ineligible',

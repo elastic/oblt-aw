@@ -555,3 +555,9 @@ x-oblt-aw:
             aaa.normalize_automerge_policy({"paths": {"allow": "docs/**"}})
         with pytest.raises(TypeError, match="paths.deny entries must be strings"):
             aaa.normalize_automerge_policy({"paths": {"deny": [1]}})
+        with pytest.raises(ValueError, match="unknown key"):
+            aaa.normalize_automerge_policy({"paths": {"alow": ["docs/**"]}})
+        with pytest.raises(ValueError, match="non-empty"):
+            aaa.normalize_automerge_policy({"paths": {"allow": [""]}})
+        with pytest.raises(ValueError, match="unsupported glob"):
+            aaa.normalize_automerge_policy({"paths": {"deny": ["helm/values-?.yaml"]}})

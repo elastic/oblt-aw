@@ -916,6 +916,33 @@ test('classifyChangedFiles rejects all-files when any path matches deny', () => 
   });
 });
 
+test('classifyChangedFiles path policy checks previous_filename separately', () => {
+  const {
+    GENERIC_COLLECTION_ID,
+  } = require('../../scripts/obs/classifyAutomergeDependencyCollection.ts');
+  const collections = [
+    {
+      id: GENERIC_COLLECTION_ID,
+      'file-glob': ['**/*'],
+    },
+  ];
+  const enabled = [
+    'obs:automerge',
+    `obs:automerge:${GENERIC_COLLECTION_ID}`,
+  ];
+  const outcome = classifyChangedFiles(
+    ['docs/network-policy.yaml'],
+    collections,
+    enabledAutomergeCollectionIds(enabled),
+    { allow: ['docs/**'], deny: [] },
+    ['docs/network-policy.yaml', 'helm/network-policy.yaml']
+  );
+  assert.deepEqual(outcome, {
+    status: 'paths-ineligible',
+    collectionId: GENERIC_COLLECTION_ID,
+  });
+});
+
 test('classifyChangedFiles path policy does not affect specific collections', () => {
   const collections = [
     {

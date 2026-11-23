@@ -179,6 +179,18 @@ test('normalizeAutomergePolicy fails closed on invalid paths', () => {
     () => normalizeAutomergePolicy({ paths: { deny: [1] } }),
     /paths\.deny entries must be strings/
   );
+  assert.throws(
+    () => normalizeAutomergePolicy({ paths: { alow: ['docs/**'] } }),
+    /unknown key/
+  );
+  assert.throws(
+    () => normalizeAutomergePolicy({ paths: { allow: [''] } }),
+    /non-empty/
+  );
+  assert.throws(
+    () => normalizeAutomergePolicy({ paths: { deny: ['helm/values-?.yaml'] } }),
+    /unsupported glob/
+  );
 });
 
 test('parseAutomergePolicyJson fails closed on invalid JSON', () => {
@@ -214,5 +226,19 @@ test('filesMatchAllFilesPathPolicy allow and deny rules', () => {
   assert.equal(
     filesMatchAllFilesPathPolicy(['docs/README.md'], { allow: [], deny: [] }),
     true
+  );
+  assert.equal(
+    filesMatchAllFilesPathPolicy([' docs/README.md'], {
+      allow: ['docs/**'],
+      deny: [],
+    }),
+    false
+  );
+  assert.equal(
+    filesMatchAllFilesPathPolicy(['docs\\production.yaml'], {
+      allow: ['docs/**'],
+      deny: [],
+    }),
+    false
   );
 });

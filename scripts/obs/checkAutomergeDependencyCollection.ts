@@ -28,13 +28,48 @@ const {
 } = require('./classifyAutomergeDependencyCollection.ts');
 const { parseAutomergePolicyJson } = require('./automergePolicy.ts');
 
-async function listPullRequestFilePaths(github, owner, repo, prNumber) {
+/**
+ * @param {import('@octokit/rest').Octokit} github
+ * @param {string} owner
+ * @param {string} repo
+ * @param {number} prNumber
+ * @returns {Promise<{ filename: string, previous_filename?: string }[]>}
+ */
+async function listPullRequestFiles(github, owner, repo, prNumber) {
   const files = await github.paginate(github.rest.pulls.listFiles, {
     owner,
     repo,
     pull_number: prNumber,
   });
-  return files.map((f) => f.filename);
+  return files.map((f) => ({
+    filename: f.filename,
+    previous_filename: f.previous_filename || undefined,
+  }));
+}
+
+/**
+ * Current names for collection matching, plus previous names for path policy.
+ * @param {{ filename: string, previous_filename?: string }[]} files
+ * @returns {{ filenames: string[], pathPolicyNames: string[] }}
+ */
+function splitFileNamesForGates(files) {
+  /** @type {string[]} */
+  const filenames = [];
+  /** @type {string[]} */
+  const pathPolicyNames = [];
+  for (const file of files) {
+    if (typeof file.filename === 'string' && file.filename) {
+      filenames.push(file.filename);
+      pathPolicyNames.push(file.filename);
+    }
+    if (
+      typeof file.previous_filename === 'string' &&
+      file.previous_filename
+    ) {
+      pathPolicyNames.push(file.previous_filename);
+    }
+  }
+  return { filenames, pathPolicyNames };
 }
 
 async function findGateComment(github, owner, repo, prNumber) {
@@ -97,6 +132,15 @@ module.exports.run = async function run({
     return { allowed: false, collectionId: '' };
   }
 
+  // Released tip-from-main helpers must receive the resolved policy JSON object
+  // (including defaults). An omitted/blank value must not widen to unrestricted.
+  if (!policyJson || typeof policyJson !== 'string' || !policyJson.trim()) {
+    core.info(
+      'Automerge collection gate: missing automerge policy JSON; denying.'
+    );
+    return { allowed: false, collectionId: '' };
+  }
+
   let pathPolicy = { allow: [], deny: [] };
   try {
     pathPolicy = parseAutomergePolicyJson(policyJson).paths;
@@ -118,17 +162,37 @@ module.exports.run = async function run({
     typeof orgKey === 'string' ? orgKey : undefined
   );
 
-  const changedFiles = await listPullRequestFilePaths(
+  const { data: pr } = await github.rest.pulls.get({
+    owner,
+    repo,
+    pull_number: prNumber,
+  });
+  const expectedChangedFiles = Number(pr.changed_files);
+  const listedFiles = await listPullRequestFiles(
     github,
     owner,
     repo,
     prNumber
   );
+  // GitHub caps pulls.listFiles at 3000 entries even with pagination.
+  if (
+    Number.isFinite(expectedChangedFiles) &&
+    listedFiles.length !== expectedChangedFiles
+  ) {
+    core.info(
+      `PR #${prNumber}: listed ${listedFiles.length} files but PR reports ` +
+        `${expectedChangedFiles} changed_files; denying (incomplete file list).`
+    );
+    return { allowed: false, collectionId: '' };
+  }
+
+  const { filenames, pathPolicyNames } = splitFileNamesForGates(listedFiles);
   const outcome = classifyChangedFiles(
-    changedFiles,
+    filenames,
     collections,
     enabledCollectionIds,
-    pathPolicy
+    pathPolicy,
+    pathPolicyNames
   );
 
   if (outcome.status === 'allowed') {
@@ -146,7 +210,7 @@ module.exports.run = async function run({
 
   const commentBody = buildGateCommentBody(
     outcome,
-    changedFiles,
+    filenames,
     enabledCollectionIds
   );
   await upsertGateComment(github, owner, repo, prNumber, commentBody);
@@ -171,3 +235,6 @@ module.exports.run = async function run({
 
   return { allowed: false, collectionId };
 };
+
+module.exports.listPullRequestFiles = listPullRequestFiles;
+module.exports.splitFileNamesForGates = splitFileNamesForGates;

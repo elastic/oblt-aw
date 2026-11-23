@@ -79,6 +79,7 @@ jobs:
             scripts/apm_agentic_assets.py
             scripts/common.py
             scripts/obs/automergePolicy.ts
+            scripts/obs/lib/matchPathGlob.ts
             scripts/obs/validateAutomergePr.ts
             scripts/resolve_automerge_policy_cli.py
             package.json

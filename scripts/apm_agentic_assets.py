@@ -560,12 +560,25 @@ def default_automerge_policy() -> dict[str, Any]:
     }
 
 
+_AUTOMERGE_PATH_KNOWN_KEYS = frozenset({"allow", "deny"})
+_UNSUPPORTED_PATH_GLOB_CHARS = frozenset("?[]")
+
+
+def _assert_supported_path_glob(pattern: str, *, field_name: str) -> None:
+    """Path globs only support ``*`` and ``**`` (same as collection file-glob)."""
+    if any(ch in pattern for ch in _UNSUPPORTED_PATH_GLOB_CHARS):
+        raise ValueError(
+            f"paths.{field_name} pattern {pattern!r} uses unsupported glob syntax "
+            "(only * and ** are supported)"
+        )
+
+
 def _normalize_path_glob_list(raw: Any, *, field_name: str, present: bool) -> list[str]:
     """
     Normalize a path glob list under ``paths``.
 
-    Omitted or ``[]`` means unrestricted for that list. Any non-list value, or
-    any non-string entry, raises (fail closed).
+    Omitted or ``[]`` means unrestricted for that list. Any non-list value,
+    blank entry, unsupported syntax, or non-string entry raises (fail closed).
     """
     if not present:
         return []
@@ -580,11 +593,19 @@ def _normalize_path_glob_list(raw: Any, *, field_name: str, present: bool) -> li
             raise TypeError(
                 f"paths.{field_name} entries must be strings; got {type(item).__name__}"
             )
-        text = item.strip()
-        if not text or text in seen:
+        if item != item.strip():
+            raise ValueError(
+                f"paths.{field_name} entries must not have leading or trailing whitespace"
+            )
+        if not item:
+            raise ValueError(
+                f"paths.{field_name} entries must be non-empty glob strings"
+            )
+        _assert_supported_path_glob(item, field_name=field_name)
+        if item in seen:
             continue
-        seen.add(text)
-        out.append(text)
+        seen.add(item)
+        out.append(item)
     return out
 
 
@@ -594,6 +615,13 @@ def _normalize_paths_policy(raw: Any, *, present: bool) -> dict[str, list[str]]:
         return {"allow": [], "deny": []}
     if not isinstance(raw, dict):
         raise TypeError("paths must be a mapping with optional allow/deny glob arrays")
+    unknown = sorted(set(raw) - _AUTOMERGE_PATH_KNOWN_KEYS)
+    if unknown:
+        raise ValueError(
+            "paths contains unknown key(s): "
+            + ", ".join(unknown)
+            + " (expected allow, deny)"
+        )
     return {
         "allow": _normalize_path_glob_list(
             raw.get("allow"), field_name="allow", present="allow" in raw
