@@ -26,7 +26,7 @@ For Control Plane dashboard gate semantics (`get-enabled-workflows` and `enabled
 
 When the lock succeeds without a `comment_id`, `notify-no-comment` upserts a single comment on the triggering PR (marker `obs-aw-dependency-review:notify-no-comment`; run URL + retry guidance). See [docs/workflows/obs-aw-dependency-review.md](../workflows/obs-aw-dependency-review.md) for the empty-safe-outputs failure mode.
 
-The agentic lock lives in-repo as `gh-aw-dependency-review` (Observability-owned). Bots and `oblt-aw/ai/merge-ready` semantics are hardcoded on that source; the wrapper only forwards `shared-proceed`, `shared-token-policy`, and resolved consumer instructions.
+The agentic lock lives in-repo as `gh-aw-dependency-review` (Observability-owned). Bots and the `oblt-aw/ai/merge-ready` allowlist are hardcoded on that source. The merge-ready **risk ceiling** comes from consumer APM (`workflows.dependency-review.policy.max-merge-ready-risk`; default `low-to-moderate`). The wrapper only forwards `shared-proceed`, `shared-token-policy`, and resolved consumer instructions (including the Effective Dependency Review Policy block).
 
 ## References
 

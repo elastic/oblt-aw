@@ -208,8 +208,8 @@ If the action reference uses a commit SHA (e.g. `uses: actions/checkout@de0fac2e
 1. Read **`actions-commit-verification.json`** at the workspace root (pre-agent REST facts). Match each SHA-pinned Action in the PR by `action` + `sha` (or by `sha` alone when unique).
 2. Apply this decision table (mandatory):
    - **`verified: true`** → Commit verified ✅. Ecosystem commit check **passes** for this pin.
-   - **`verified: false`** → Commit verified ⚠️ No (`reason` when present). Ecosystem commit check **fails** for this pin. Unverified / unsigned Action pins are a supply-chain risk — do **not** apply `oblt-aw/ai/merge-ready`.
-   - **`verified` is null / pin missing / `error` set** → verification data is **unavailable**. Call `missing_data` or `report_incomplete` explaining the gap. Do **not** invent “MCP field not exposed”, do **not** mark overall risk **moderate** solely because verification data is missing, and do **not** post a full low-risk analysis that withholds the label only for that reason.
+   - **`verified: false`** → Commit verified ⚠️ No (`reason` when present). Ecosystem commit check **fails** for this pin. Report it in the analysis table; it is **advisory only** and must **not** by itself withhold `oblt-aw/ai/merge-ready`.
+   - **`verified` is null / pin missing / `error` set** → verification data is **unavailable**. Call `missing_data` or `report_incomplete` explaining the gap. Do **not** invent “MCP field not exposed”, do **not** mark overall risk **moderate** solely because verification data is missing, and do **not** post a full analysis that withholds the label only for that reason.
 3. Do **not** call MCP `get_commit` (or shell `gh`) to re-check `commit.verification` — MCP responses omit those fields and caused false negatives.
 4. Still check whether the commit SHA corresponds to a known release tag and that the tag points at the expected SHA (MCP releases/tags is fine for tag mapping). Tag mapping does **not** replace a `verified: false` result from the facts file.
 
@@ -271,6 +271,9 @@ When the bump is a **plugin or Action** pin that uses a SHA or mutable tag (not 
 1. Check if the update moves from a SHA-pinned version to a mutable tag (higher risk).
 2. Check if the update moves from one mutable tag to another mutable tag (moderate risk).
 3. SHA-to-SHA or tag-to-SHA-pinned updates are preferred.
+4. Mutable tags under **`github/*`**, **`actions/*`**, and **`elastic/*`** are **accepted** for pin-format reporting (document as ⚠️ Mutable tag — accepted namespace). Other namespaces remain ⚠️ Mutable tag without that acceptance note.
+
+Pin-format warnings are **advisory only** for labeling — report them in the analysis table; they must **not** by themselves withhold `oblt-aw/ai/merge-ready`.
 
 Skip this section for pure CI/container/snapshot **image** identifier or env pin bumps.
 
@@ -304,21 +307,31 @@ The only classification label this Observability-owned workflow may apply is **`
 
 First assign an overall risk level for the PR: **low**, **low-to-moderate**, **moderate**, or **high**, using the CVE-focused analysis above (scope of vulnerable surface in this repo, quality of the fix, blast radius, and whether behavior changes are contained).
 
+**Risk ceiling (Effective Dependency Review Policy):** When additional-instructions include an **Effective Dependency Review Policy** section, its **max-merge-ready-risk** value is the highest overall risk band that may receive the label. Compare overall risk to that ceiling:
+
+| `max-merge-ready-risk` (APM) | Overall risk bands that may receive `oblt-aw/ai/merge-ready` |
+| --- | --- |
+| `low` | **low** only |
+| `low-to-moderate` (default when policy is omitted) | **low**, **low-to-moderate** |
+| `moderate` | **low**, **low-to-moderate**, **moderate** |
+
+**`high` is never merge-ready-eligible** and cannot be set as `max-merge-ready-risk`. If the Effective Policy section is missing, treat the ceiling as **`low-to-moderate`**.
+
 **Unavailable upstream release notes** (after Step 3b fallbacks) must **not** by themselves raise overall risk above **low-to-moderate**, must **not** be recorded as Breaking changes ⚠️, and must **not** cause you to withhold `oblt-aw/ai/merge-ready` when the other Step 4 gates pass. Prefer **low** when local usage is stable and the bump is clearly CI/dev-only or otherwise contained; use **low-to-moderate** when notes are missing but residual uncertainty remains — still apply the label when the gates below are met.
 
 Apply `oblt-aw/ai/merge-ready` when ALL of the following are true:
-- Overall risk is **low** OR **low-to-moderate** (including when changelogs mention CVEs, GHSAs, or security fixes—those entries do **not** disqualify the label in these two bands; they must still be documented in your analysis).
+- Overall risk is at or below **max-merge-ready-risk** from the Effective Dependency Review Policy (including when changelogs mention CVEs, GHSAs, or security fixes—those entries do **not** disqualify the label within the allowed bands; they must still be documented in your analysis).
 - No breaking changes to APIs, inputs, or features used by this repository (judge from local usage cross-checked with whatever changelog content Step 3b returned; missing notes alone are not a breaking change).
-- Ecosystem checks pass (Actions commit verification per Step 3a / `actions-commit-verification.json`, pin format acceptable when Step 3e applies, etc.).
-- Workflows using the dependency are testable in PR context (pull_request or pull_request_target trigger), OR the dependency is dev-only / CI-only (e.g. pre-commit, linters, CI image pins) with no production application impact.
 
-Minor behavioral changes (e.g. ignore-pattern handling, formatting) that do not affect this repo's usage do NOT disqualify the label when risk is low or low-to-moderate.
+**Secondary ecosystem checks are advisory only** for labeling. Still evaluate and show them in the analysis table (Actions commit verification per Step 3a / `actions-commit-verification.json`, pin format when Step 3e applies including accepted mutable-tag namespaces, testable in PR / not testable, etc.). Failed, warned, or inconclusive results — including `verified: false`, inconclusive verification, mutable tags, and “not testable in PR” — must **not** withhold `oblt-aw/ai/merge-ready` when the risk ceiling and breaking-change gates pass.
 
-When overall risk is **low** or **low-to-moderate** and the gates above are met, you **MUST** call `add_labels` with `oblt-aw/ai/merge-ready`. Soft-withholding the label “because changelog was incomplete” while claiming low / low-to-moderate risk is forbidden.
+Minor behavioral changes (e.g. ignore-pattern handling, formatting) that do not affect this repo's usage do NOT disqualify the label when overall risk is within the Effective Policy ceiling.
 
-Do NOT add `oblt-aw/ai/merge-ready` when: overall risk is **moderate** or **high**, breaking changes affect this repo, ecosystem checks fail (including any Actions pin with `verified: false` in the facts file), or workflows are untestable and the dependency has production impact.
+When overall risk is within the Effective Policy ceiling and there are no breaking changes affecting this repo, you **MUST** call `add_labels` with `oblt-aw/ai/merge-ready`. Soft-withholding the label “because changelog was incomplete” or “because an ecosystem check warned” while claiming an eligible risk band is forbidden.
 
-Missing Actions verification data (`verified: null` / missing pin / collector error) is **not** an automatic moderate-risk or soft “withhold label while claiming low risk” outcome — use `missing_data` / `report_incomplete` per Step 3a.
+Do NOT add `oblt-aw/ai/merge-ready` when: overall risk is above **max-merge-ready-risk** (or is **high**), or breaking changes affect this repo.
+
+Missing Actions verification data (`verified: null` / missing pin / collector error) is **not** an automatic moderate-risk or soft “withhold label while claiming eligible risk” outcome — use `missing_data` / `report_incomplete` per Step 3a, then continue labeling from the risk ceiling and breaking-change gates.
 
 ### Step 5: Post Analysis Comment
 

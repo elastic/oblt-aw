@@ -27,6 +27,7 @@ Under `x-oblt-aw.<org-key>`, each org block needs a `common` section. Optional `
 | Setup shell | `setup-commands` and optional `setup-commands-file` | Runs in the consumer checkout before the agent engine |
 | Workflow inputs | other keys under `inputs` | Overrides platform inputs per key (for example `lookback-window` for autodoc) |
 | Automerge policy | `workflows.automerge.policy` | Extra trigger labels, author mode, fork mode, and optional `all-files` path allow/deny for Automerge verify/approve (see [Automerge services](automerge-services.md#consumer-policy-apmyml); journeys: [Non-dependency Automerge user journeys](automerge-user-journeys.md)) |
+| Dependency Review policy | `workflows.dependency-review.policy` | `max-merge-ready-risk` ceiling for `oblt-aw/ai/merge-ready` (`low`, `low-to-moderate`, `moderate`; default when omitted: `low-to-moderate`) |
 | APM packages | top-level `dependencies.apm` | Installed with `apm install` when `apm.yml` is present |
 
 ## Steps
@@ -73,6 +74,29 @@ x-oblt-aw:
 ```
 
 Optional APM package dependencies (skills, plugins, MCP servers) use the standard APM `dependencies.apm` list in the same file. Private GitHub packages need `ai-assets-token-policy` set for the repo in `config/<org-key>/active-repositories.json` (maintainer change); otherwise install uses the job `GITHUB_TOKEN`.
+
+### Dependency Review policy (`max-merge-ready-risk`)
+
+Under `x-oblt-aw.<org-key>.workflows.dependency-review.policy`, set **`max-merge-ready-risk`** to the highest overall risk band that may receive `oblt-aw/ai/merge-ready`. Omit the policy block to keep the control-plane default.
+
+| Value | Effect |
+| --- | --- |
+| `low` | Only **low** overall risk may get the label |
+| `low-to-moderate` | **Default** when policy is omitted — **low** or **low-to-moderate** |
+| `moderate` | **low**, **low-to-moderate**, or **moderate** may get the label |
+
+Do **not** set `high` — it is not a valid APM value and never receives the label. Hard blockers remain: risk above the ceiling, and breaking changes that affect this repository. Ecosystem check warnings stay in the analysis comment but do not withhold the label. Details: [obs-aw-dependency-review](../workflows/obs-aw-dependency-review.md#consumer-risk-ceiling-apmyml).
+
+```yaml
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      dependency-review:
+        policy:
+          max-merge-ready-risk: moderate
+```
 
 ## Check that it applied
 

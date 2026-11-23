@@ -561,3 +561,47 @@ x-oblt-aw:
             aaa.normalize_automerge_policy({"paths": {"allow": [""]}})
         with pytest.raises(ValueError, match="unsupported glob"):
             aaa.normalize_automerge_policy({"paths": {"deny": ["helm/values-?.yaml"]}})
+
+    def test_default_dependency_review_policy_when_apm_missing(
+        self, repo: pathlib.Path
+    ) -> None:
+        policy = aaa.resolve_dependency_review_policy(repo_root=repo, org_key="obs")
+        assert policy == aaa.default_dependency_review_policy()
+        assert policy["max-merge-ready-risk"] == aaa.DEFAULT_MAX_MERGE_READY_RISK
+
+    def test_resolve_dependency_review_policy_from_apm(
+        self, repo: pathlib.Path
+    ) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      dependency-review:
+        policy:
+          max-merge-ready-risk: moderate
+""",
+            encoding="utf-8",
+        )
+        policy = aaa.resolve_dependency_review_policy(repo_root=repo, org_key="obs")
+        assert policy["max-merge-ready-risk"] == "moderate"
+        text = aaa.format_dependency_review_policy_instructions(policy)
+        assert "Effective Dependency Review Policy" in text
+        assert "`moderate`" in text
+        for level in aaa.MERGE_READY_RISK_LEVELS:
+            assert f"`{level}`" in text
+        assert "`high`" in text
+
+    def test_normalize_dependency_review_policy_rejects_high(
+        self,
+    ) -> None:
+        policy = aaa.normalize_dependency_review_policy(
+            {"max-merge-ready-risk": "high"}
+        )
+        assert policy["max-merge-ready-risk"] == aaa.DEFAULT_MAX_MERGE_READY_RISK
+
+    def test_normalize_dependency_review_policy_accepts_low(self) -> None:
+        policy = aaa.normalize_dependency_review_policy({"max-merge-ready-risk": "low"})
+        assert policy["max-merge-ready-risk"] == "low"

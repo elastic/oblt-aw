@@ -511,6 +511,12 @@ def resolve_apm_assets(
 
 MERGE_READY_LABEL = "oblt-aw/ai/merge-ready"
 AUTOMERGE_WORKFLOW_ID = "automerge"
+DEPENDENCY_REVIEW_WORKFLOW_ID = "dependency-review"
+# Settable ceilings for workflows.dependency-review.policy.max-merge-ready-risk.
+# Analysis may still assign overall risk "high"; that band is never merge-ready-eligible
+# and is not a valid APM value.
+MERGE_READY_RISK_LEVELS = ("low", "low-to-moderate", "moderate")
+DEFAULT_MAX_MERGE_READY_RISK = "low-to-moderate"
 
 
 def _as_string_list(value: Any) -> list[str]:
@@ -776,5 +782,105 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
             "",
             "Approve only when the PR matches this policy, is not draft, and head",
             "ref differs from base ref.",
+        ]
+    )
+
+
+def default_dependency_review_policy() -> dict[str, Any]:
+    """Control-plane defaults when consumer dependency-review policy is omitted."""
+    return {
+        "max-merge-ready-risk": DEFAULT_MAX_MERGE_READY_RISK,
+    }
+
+
+def normalize_dependency_review_policy(raw: Any) -> dict[str, Any]:
+    """
+    Normalize ``workflows.dependency-review.policy`` (kebab-case).
+
+    Unknown or invalid ``max-merge-ready-risk`` values fall back to the default.
+    """
+    base = default_dependency_review_policy()
+    if not isinstance(raw, dict):
+        return base
+
+    ceiling = raw.get("max-merge-ready-risk")
+    if isinstance(ceiling, str) and ceiling in MERGE_READY_RISK_LEVELS:
+        return {"max-merge-ready-risk": ceiling}
+    return base
+
+
+def extract_dependency_review_policy_raw(
+    org_extension: dict[str, Any] | None,
+) -> Any:
+    """Return the raw ``workflows.dependency-review.policy`` mapping, or None."""
+    if not isinstance(org_extension, dict):
+        return None
+    workflows = org_extension.get("workflows")
+    if not isinstance(workflows, dict):
+        return None
+    dependency_review = workflows.get(DEPENDENCY_REVIEW_WORKFLOW_ID)
+    if not isinstance(dependency_review, dict):
+        return None
+    return dependency_review.get("policy")
+
+
+def resolve_dependency_review_policy(
+    *,
+    repo_root: Path,
+    org_key: str,
+) -> dict[str, Any]:
+    """
+    Resolve effective dependency-review policy for ``org_key`` from consumer
+    ``apm.yml``.
+
+    Missing manifest / extension / policy yields control-plane defaults
+    (``max-merge-ready-risk: low-to-moderate``).
+    """
+    manifest, present = load_apm_manifest(repo_root)
+    if not present or manifest is None:
+        return default_dependency_review_policy()
+
+    extension = manifest.get(OBLT_AW_EXTENSION_KEY)
+    if not isinstance(extension, dict):
+        return default_dependency_review_policy()
+
+    org_extension = extract_org_extension(extension, org_key)
+    if org_extension is None:
+        return default_dependency_review_policy()
+
+    return normalize_dependency_review_policy(
+        extract_dependency_review_policy_raw(org_extension)
+    )
+
+
+def format_dependency_review_policy_instructions(policy: dict[str, Any]) -> str:
+    """Markdown block injected into dependency-review additional-instructions."""
+    ceiling = policy.get("max-merge-ready-risk", DEFAULT_MAX_MERGE_READY_RISK)
+    allowed = ", ".join(f"`{name}`" for name in MERGE_READY_RISK_LEVELS)
+
+    return "\n".join(
+        [
+            "## Effective Dependency Review Policy",
+            "",
+            "This section is authoritative for the merge-ready risk ceiling.",
+            "Assign overall risk as usual (**low**, **low-to-moderate**,",
+            "**moderate**, or **high**). Apply `oblt-aw/ai/merge-ready` only when",
+            "overall risk is at or below **max-merge-ready-risk** and the other",
+            "Step 4 hard blockers do not apply.",
+            "",
+            f"- **max-merge-ready-risk**: `{ceiling}`",
+            f"- **Allowed APM values** (settable ceilings): {allowed}",
+            "- **Not settable / never merge-ready**: `high`",
+            "",
+            "Ceiling meanings:",
+            "- `low` — only **low** overall risk may receive the label",
+            "- `low-to-moderate` — **low** or **low-to-moderate** (default when",
+            "  `workflows.dependency-review.policy` is omitted)",
+            "- `moderate` — **low**, **low-to-moderate**, or **moderate**",
+            "",
+            "Secondary ecosystem checks (commit verified, pin format, testable in",
+            "PR, and similar) remain documented in the analysis table but must",
+            "**not** withhold the label when the risk ceiling and breaking-change",
+            "gates pass.",
         ]
     )

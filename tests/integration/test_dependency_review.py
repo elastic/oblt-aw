@@ -170,9 +170,15 @@ class TestDependencyReviewResolveFixtures:
         assert "DR_CONSUMER_FRAGMENT_MARKER" in text
         assert "DR_CONSUMER_INLINE_MARKER" in text
         assert "DR_COMMON_INLINE_SHOULD_NOT_APPLY" not in text
+        assert "Effective Dependency Review Policy" in text
+        assert "max-merge-ready-risk" in text
+        assert "`low-to-moderate`" in text
         assert text.index("DR_CONSUMER_FRAGMENT_MARKER") < text.index(
             "DR_CONSUMER_INLINE_MARKER"
         )
+        assert resolved["dependency_review_policy"] == {
+            "max-merge-ready-risk": "low-to-moderate"
+        }
 
         layers = resolved["instruction_layers"]
         assert layers["org-key"] == expected_layers["org-key"]
@@ -194,13 +200,19 @@ class TestDependencyReviewResolveFixtures:
 
         assert resolved["apm_manifest_present"] is False
         assert resolved["setup_commands"] == []
-        assert resolved["additional_instructions"].strip() == ""
+        text = resolved["additional_instructions"]
+        assert "Effective Dependency Review Policy" in text
+        assert "**max-merge-ready-risk**: `low-to-moderate`" in text
+        assert resolved["dependency_review_policy"] == {
+            "max-merge-ready-risk": "low-to-moderate"
+        }
         by_name = {
             layer["layer"]: layer for layer in resolved["instruction_layers"]["layers"]
         }
         assert by_name["platform-inline"]["present"] is False
         assert by_name["consumer-inline"]["present"] is False
         assert by_name["control-plane-workflow"]["ids"] == []
+        assert by_name["consumer-auto"]["sources"] == ["dependency-review-policy"]
 
 
 def test_fixture_tree_is_present() -> None:
@@ -255,6 +267,9 @@ def test_actions_commit_verification_contract_in_prompt() -> None:
     assert "Collect Actions commit verification (REST)" in source
     assert "verified: true" in source
     assert "verified: false" in source
+    assert "advisory only" in source
+    assert "Effective Dependency Review Policy" in source
+    assert "max-merge-ready-risk" in source
     assert "missing_data" in source
     assert "Do **not** call MCP `get_commit`" in source
     assert "Do **not** use MCP `get_commit`" in source

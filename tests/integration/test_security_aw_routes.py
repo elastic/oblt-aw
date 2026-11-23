@@ -398,7 +398,14 @@ class TestResolveFixtures:
 
         assert resolved["apm_manifest_present"] is False
         assert resolved["setup_commands"] == []
-        assert resolved["additional_instructions"].strip() == platform.strip()
+        text = resolved["additional_instructions"]
+        if route.workflow_id == "dependency-review":
+            if platform.strip():
+                assert platform.strip() in text
+            assert "Effective Dependency Review Policy" in text
+            assert "**max-merge-ready-risk**: `low-to-moderate`" in text
+        else:
+            assert text.strip() == platform.strip()
 
     @route_param
     def test_fixture_tree_is_present(self, route: Route) -> None:
