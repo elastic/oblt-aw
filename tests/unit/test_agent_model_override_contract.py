@@ -3,7 +3,9 @@
 Each in-repo agent that accepts ``inputs.model`` must keep:
 - ``engine.model: ${{ inputs.model }}`` in the source markdown
 - a non-empty ``workflow_call`` input default of ``gpt-5.3-codex``
-- every compiled ``COPILOT_MODEL`` env bound to ``${{ inputs.model }}``
+- activation feeding ``GH_AW_MODEL_SELECTOR`` from ``${{ inputs.model }}``
+- metadata ``agent_model`` and every ``COPILOT_MODEL`` bound through
+  ``needs.activation.outputs.model-selector`` (gh-aw >= v1.3.x routing)
 
 A recompile that bakes a literal model would break APM overrides while still
 passing wrapper forwarding checks that only assert the wrapper ``with:`` map.
@@ -34,7 +36,9 @@ _AGENT_BASENAMES = (
 )
 
 _DEFAULT_MODEL = "gpt-5.3-codex"
-_MODEL_EXPR = "${{ inputs.model }}"
+_MODEL_INPUT_EXPR = "${{ inputs.model }}"
+_MODEL_SELECTOR_EXPR = "${{ needs.activation.outputs.model-selector }}"
+_MODEL_SELECTOR_ENV = 'GH_AW_MODEL_SELECTOR: "${{ inputs.model }}"'
 _METADATA_RE = re.compile(
     r"^# gh-aw-metadata:\s*(\{.*\})\s*$",
     re.MULTILINE,
@@ -98,14 +102,18 @@ def test_agent_model_override_contract(basename: str) -> None:
     frontmatter = _frontmatter(md_path.read_text(encoding="utf-8"))
     engine = frontmatter.get("engine")
     assert isinstance(engine, dict), f"{md_path.name}: missing engine mapping"
-    assert engine.get("model") == _MODEL_EXPR, (
-        f"{md_path.name}: engine.model must be {_MODEL_EXPR!r} "
+    assert engine.get("model") == _MODEL_INPUT_EXPR, (
+        f"{md_path.name}: engine.model must be {_MODEL_INPUT_EXPR!r} "
         f"(got {engine.get('model')!r})"
     )
 
     lock_text = lock_path.read_text(encoding="utf-8")
-    assert _agent_model_from_lock(lock_text) == _MODEL_EXPR, (
-        f"{lock_path.name}: metadata agent_model must stay {_MODEL_EXPR!r}"
+    assert _agent_model_from_lock(lock_text) == _MODEL_SELECTOR_EXPR, (
+        f"{lock_path.name}: metadata agent_model must stay {_MODEL_SELECTOR_EXPR!r}"
+    )
+    assert _MODEL_SELECTOR_ENV in lock_text, (
+        f"{lock_path.name}: activation must feed GH_AW_MODEL_SELECTOR "
+        f"from {_MODEL_INPUT_EXPR!r}"
     )
 
     lock = _load_yaml(lock_path)
@@ -123,6 +131,11 @@ def test_agent_model_override_contract(basename: str) -> None:
     _collect_copilot_models(lock, copilot_models)
     assert copilot_models, f"{lock_path.name}: expected at least one COPILOT_MODEL"
     for value in copilot_models:
-        assert value == _MODEL_EXPR, (
-            f"{lock_path.name}: COPILOT_MODEL must be {_MODEL_EXPR!r} (got {value!r})"
+        assert "needs.activation.outputs.model-selector" in value, (
+            f"{lock_path.name}: COPILOT_MODEL must reference "
+            f"needs.activation.outputs.model-selector (got {value!r})"
+        )
+        assert _DEFAULT_MODEL not in value, (
+            f"{lock_path.name}: COPILOT_MODEL must not bake "
+            f"{_DEFAULT_MODEL!r} (got {value!r})"
         )
