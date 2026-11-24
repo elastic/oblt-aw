@@ -7,6 +7,12 @@
       "ai-assets-token-policy": ""
     },
     {
+      "repository": "elastic/apm-agent-ios",
+      "pin-class": "production",
+      "workflow-token-policy": "token-policy-841a1dbc459a",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/apm-server",
       "pin-class": "production",
       "workflow-token-policy": "token-policy-88538bb580ff",
