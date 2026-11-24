@@ -73,6 +73,10 @@ jobs:
     uses: ./.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      # APM inputs.model when set; otherwise framework default (obs-defaults).
+      model: ${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json).model || 'gpt-5.3-codex' }}
+      # APM override; toJSON null/"" check so GHA loose == does not treat 0 as null.
+      buildkite-log-tail-lines: ${{ (toJSON(fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json)['buildkite-log-tail-lines']) == 'null' || toJSON(fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json)['buildkite-log-tail-lines']) == '""') && 150 || fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json)['buildkite-log-tail-lines'] }}
       # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.
       setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), fromJSON('"\n"')) }}
     secrets:

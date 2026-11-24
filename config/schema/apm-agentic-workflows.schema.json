@@ -293,6 +293,23 @@
             }
           }
         },
+        "allowed-days-of-week": {
+          "type": "array",
+          "description": "UTC weekdays when automerge may run. Omitted or empty means all days. Values are lowercase English names (monday … sunday).",
+          "items": {
+            "type": "string",
+            "enum": [
+              "friday",
+              "monday",
+              "saturday",
+              "sunday",
+              "thursday",
+              "tuesday",
+              "wednesday"
+            ]
+          },
+          "uniqueItems": true
+        },
         "paths": {
           "type": "object",
           "additionalProperties": false,

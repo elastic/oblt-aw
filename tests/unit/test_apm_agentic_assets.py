@@ -310,6 +310,82 @@ x-oblt-aw:
         )
         assert out["inputs"]["lookback-window"] == "3 days ago"
 
+    def test_model_override_from_apm_common(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        model: gpt-4.1
+""",
+            encoding="utf-8",
+        )
+        out = aaa.resolve_apm_assets(
+            repo_root=repo,
+            workflow_id="autodoc",
+            org_key="obs",
+        )
+        assert out["inputs"]["model"] == "gpt-4.1"
+
+    def test_model_omitted_leaves_inputs_without_key(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        lookback-window: 1 day ago
+""",
+            encoding="utf-8",
+        )
+        out = aaa.resolve_apm_assets(
+            repo_root=repo,
+            workflow_id="autodoc",
+            org_key="obs",
+        )
+        assert "model" not in out["inputs"]
+
+    def test_empty_model_fails_closed(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        model: "   "
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="inputs.model must be a non-empty string"):
+            aaa.resolve_apm_assets(
+                repo_root=repo,
+                workflow_id="autodoc",
+                org_key="obs",
+            )
+
+    def test_non_string_model_fails_closed(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        model: 12
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="inputs.model must be a non-empty string"):
+            aaa.resolve_apm_assets(
+                repo_root=repo,
+                workflow_id="autodoc",
+                org_key="obs",
+            )
+
     def test_multi_org_isolated_common(self, repo: pathlib.Path) -> None:
         (repo / "apm.yml").write_text(
             """
@@ -542,11 +618,15 @@ x-oblt-aw:
             "allow": ["docs/**"],
             "deny": ["**/*.go"],
         }
+        assert policy["allowed-days-of-week"] == []
         text = aaa.format_automerge_policy_instructions(policy)
         assert "Effective Automerge Policy" in text
         assert "nightshift:risk-low" in text
         assert "docs/**" in text
         assert "**/*.go" in text
+        assert "all UTC weekdays" in text
+        assert "Do **not** withhold approval" in text
+        assert "merge-only" in text
 
     def test_normalize_automerge_policy_paths_fail_closed(self) -> None:
         with pytest.raises(TypeError, match="paths must be a mapping"):
@@ -568,6 +648,35 @@ x-oblt-aw:
         policy = aaa.resolve_dependency_review_policy(repo_root=repo, org_key="obs")
         assert policy == aaa.default_dependency_review_policy()
         assert policy["max-merge-ready-risk"] == aaa.DEFAULT_MAX_MERGE_READY_RISK
+
+    def test_resolve_automerge_policy_allowed_days(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      automerge:
+        policy:
+          allowed-days-of-week:
+            - Monday
+            - tuesday
+            - monday
+""",
+            encoding="utf-8",
+        )
+        policy = aaa.resolve_automerge_policy(repo_root=repo, org_key="obs")
+        assert policy["allowed-days-of-week"] == ["monday", "tuesday"]
+        text = aaa.format_automerge_policy_instructions(policy)
+        assert "`monday`" in text
+        assert "`tuesday`" in text
+        assert "all UTC weekdays" not in text
+        assert "Do **not** withhold approval" in text
+
+    def test_normalize_automerge_policy_rejects_unknown_weekday(self) -> None:
+        with pytest.raises(ValueError, match="unknown weekday"):
+            aaa.normalize_automerge_policy({"allowed-days-of-week": ["monady"]})
 
     def test_resolve_dependency_review_policy_from_apm(
         self, repo: pathlib.Path

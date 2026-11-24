@@ -18,7 +18,8 @@
  *
  * Defaults match today's behavior: merge-ready only, forks disabled, authors
  * allow-list (control-plane bots only unless the repo adds names), and no
- * path restriction for ``all-files`` (empty allow/deny means unrestricted).
+ * path restriction for ``all-files`` (empty allow/deny means unrestricted), and
+ * no weekday restriction (empty ``allowedDaysOfWeek`` means all UTC days).
  *
  * Path globs support only ``*`` and ``**`` (same as collection file-glob).
  */
@@ -27,6 +28,8 @@ const MERGE_READY_LABEL = 'oblt-aw/ai/merge-ready';
 
 /** Top-level policy keys (kebab + camel) accepted by normalize. */
 const KNOWN_POLICY_KEYS = new Set([
+  'allowed-days-of-week',
+  'allowedDaysOfWeek',
   'authors',
   'forks',
   'paths',
@@ -38,6 +41,19 @@ const KNOWN_PATH_KEYS = new Set(['allow', 'deny']);
 
 /** Unsupported in path globs (matcher only implements ``*`` / ``**``). */
 const UNSUPPORTED_GLOB_CHARS = /[?[\]]/;
+
+/** UTC weekday names indexed by ``Date#getUTCDay()`` (0 = Sunday). */
+const UTC_WEEKDAY_NAMES = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+];
+
+const ALLOWED_WEEKDAY_SET = new Set(UTC_WEEKDAY_NAMES);
 
 /** @typedef {'disabled' | 'author-association'} ForksMode */
 /** @typedef {'allow-list' | 'author-association'} AuthorsMode */
@@ -51,6 +67,7 @@ const UNSUPPORTED_GLOB_CHARS = /[?[\]]/;
  * @property {string[]} triggerLabels
  * @property {{ mode: ForksMode, authorAssociations: string[] }} forks
  * @property {{ mode: AuthorsMode, allowList: string[], authorAssociations: string[] }} authors
+ * @property {string[]} allowedDaysOfWeek Empty means unrestricted (all UTC weekdays).
  * @property {AutomergePathPolicy} paths Applies only to the ``all-files`` collection.
  */
 
@@ -73,6 +90,7 @@ function defaultAutomergePolicy() {
       allow: [],
       deny: [],
     },
+    allowedDaysOfWeek: [],
   };
 }
 
@@ -150,6 +168,49 @@ function asPathGlobList(value, fieldName, present) {
     }
     seen.add(item);
     out.push(item);
+  }
+  return out;
+}
+
+/**
+ * Normalize weekday allow-list. Omitted / empty ⇒ unrestricted.
+ * Any non-array value, or any entry that is not a known weekday name, fails closed.
+ * @param {unknown} value
+ * @param {boolean} present
+ * @returns {string[]}
+ */
+function asAllowedDaysOfWeek(value, present) {
+  if (!present) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(
+      'allowed-days-of-week must be an array of weekday names (monday … sunday), or omitted / [] for all days'
+    );
+  }
+  if (value.length === 0) {
+    return [];
+  }
+  const seen = new Set();
+  /** @type {string[]} */
+  const out = [];
+  for (const item of value) {
+    if (typeof item !== 'string') {
+      throw new Error(
+        `allowed-days-of-week entries must be strings; got ${typeof item}`
+      );
+    }
+    const day = item.trim().toLowerCase();
+    if (!ALLOWED_WEEKDAY_SET.has(day)) {
+      throw new Error(
+        `allowed-days-of-week contains unknown weekday '${item.trim()}'; (expected monday … sunday)`
+      );
+    }
+    if (seen.has(day)) {
+      continue;
+    }
+    seen.add(day);
+    out.push(day);
   }
   return out;
 }
@@ -261,6 +322,14 @@ function normalizeAutomergePolicy(raw) {
   const pathsPresent = Object.prototype.hasOwnProperty.call(obj, 'paths');
   const paths = asPathPolicy(obj.paths, pathsPresent);
 
+  const daysPresent =
+    Object.prototype.hasOwnProperty.call(obj, 'allowed-days-of-week') ||
+    Object.prototype.hasOwnProperty.call(obj, 'allowedDaysOfWeek');
+  const allowedDaysOfWeek = asAllowedDaysOfWeek(
+    obj['allowed-days-of-week'] ?? obj.allowedDaysOfWeek,
+    daysPresent
+  );
+
   return {
     triggerLabels,
     forks: {
@@ -273,12 +342,19 @@ function normalizeAutomergePolicy(raw) {
       authorAssociations: authorsAssociations,
     },
     paths,
+    allowedDaysOfWeek,
   };
 }
 
 /**
  * Parse policy JSON. Empty input ⇒ defaults. Invalid JSON or invalid
  * ``paths`` values throw (callers must fail closed).
+ * @param {string} rawJson
+ * @returns {AutomergePolicy}
+ */
+/**
+ * Parse policy JSON. Empty input ⇒ defaults. Invalid JSON or invalid
+ * ``allowed-days-of-week`` values throw (callers must fail closed).
  * @param {string} rawJson
  * @returns {AutomergePolicy}
  */
@@ -399,9 +475,34 @@ function filesMatchAllFilesPathPolicy(files, paths) {
   });
 }
 
+/**
+ * Empty ``allowedDaysOfWeek`` means unrestricted. Otherwise the UTC weekday
+ * of ``when`` must be listed (lowercase English names).
+ * @param {AutomergePolicy} policy
+ * @param {Date} [when]
+ * @returns {boolean}
+ */
+function isDayAllowedByPolicy(policy, when = new Date()) {
+  const allowed = policy.allowedDaysOfWeek || [];
+  if (!allowed.length) {
+    return true;
+  }
+  const day = UTC_WEEKDAY_NAMES[when.getUTCDay()];
+  return allowed.includes(day);
+}
+
+/**
+ * @param {Date} [when]
+ * @returns {string}
+ */
+function utcWeekdayName(when = new Date()) {
+  return UTC_WEEKDAY_NAMES[when.getUTCDay()];
+}
+
 module.exports = {
   MERGE_READY_LABEL,
   KNOWN_POLICY_KEYS,
+  UTC_WEEKDAY_NAMES,
   defaultAutomergePolicy,
   normalizeAutomergePolicy,
   parseAutomergePolicyJson,
@@ -410,4 +511,6 @@ module.exports = {
   isForkAllowedByPolicy,
   filesMatchAllFilesPathPolicy,
   isSafeRepoPathForPolicy,
+  isDayAllowedByPolicy,
+  utcWeekdayName,
 };
