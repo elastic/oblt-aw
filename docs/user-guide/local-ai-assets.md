@@ -25,7 +25,8 @@ Under `x-oblt-aw.<org-key>`, each org block needs a `common` section. Optional `
 | Extra agent instructions | `inputs.additional-instructions` or `inputs.additional-instructions-file` | Appended after framework and platform prompts |
 | Local Markdown fragments | `<org-key>.fragments` + `additional-instructions-fragments` | Ordered fragment files, then inline instructions |
 | Setup shell | `setup-commands` and optional `setup-commands-file` | Runs in the consumer checkout before the agent engine |
-| Workflow inputs | other keys under `inputs` | Overrides platform inputs per key (for example `lookback-window` for autodoc, or `buildkite-log-tail-lines` for the Buildkite detective) |
+| Agent model | `inputs.model` | Overrides the framework default for in-repo locks (see [Choose a model](#choose-a-model-for-your-workflow)) |
+| Workflow inputs | other keys under `inputs` | Overrides platform inputs per key (for example `lookback-window` for autodoc or `buildkite-log-tail-lines` for the Buildkite detective) |
 | Automerge policy | `workflows.automerge.policy` | Extra trigger labels, author mode, fork mode, optional `all-files` path allow/deny, and optional UTC weekday allow-list for Automerge verify/approve (see [Automerge services](automerge-services.md#consumer-policy-apmyml); journeys: [Non-dependency Automerge user journeys](automerge-user-journeys.md)) |
 | APM packages | top-level `dependencies.apm` | Installed with `apm install` when `apm.yml` is present |
 
@@ -40,6 +41,65 @@ Under `x-oblt-aw.<org-key>`, each org block needs a `common` section. Optional `
 4. **Optional: local fragments** — Map fragment ids to repo-relative Markdown paths under `<org-key>.fragments`, then list those ids in `additional-instructions-fragments` on the asset block you want. For `obs:repo-scheduled`, you can also set `additional-instructions-fragments` on a single `automations[]` entry so that skill text applies only to that automation.
 
 5. **Commit on the default branch (or the branch the workflow checks out)** — Resolution uses the consumer checkout for that run. After merge, trigger the agentic workflow (or wait for its normal event) and confirm the agent followed the new guidance.
+
+## Choose a model for your workflow
+
+In-repo Observability agent locks default to the model in
+[`.github/workflows/gh-aw-fragments/obs-defaults.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md)
+(`gpt-5.3-codex` today). Set `inputs.model` in `apm.yml` when you want a different
+model for your repository.
+
+| Level | When to use |
+|-------|-------------|
+| Omit `inputs.model` | Keep the framework default |
+| `common.inputs.model` | Same model for every agentic workflow in that org that has no workflow override |
+| `workflows.<id>.inputs.model` | One workflow only (full block override of `common`) |
+| `inner-workflows.<basename>.inputs.model` | One wrapper when several wrappers share a registry id |
+
+Precedence for the selected asset block is unchanged:
+`inner-workflows` > `workflows.<id>` > `common`. Within that block, APM
+`inputs.model` overrides any platform input of the same name. If the key is
+omitted, the wrapper passes the framework default into the lock.
+
+| `inputs.model` value | Behavior |
+|----------------------|----------|
+| Omitted | Framework default (`gpt-5.3-codex` from obs-defaults) |
+| Non-empty string | That model is passed to the lock; gh-aw rejects unsupported ids at agent runtime |
+| Empty or non-string | Resolve fails early with a clear error |
+
+Example — org-wide override under Observability:
+
+```yaml
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        model: gpt-4.1
+```
+
+Example — only Dependency Review:
+
+```yaml
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        additional-instructions: |
+          Shared repo guidance.
+    workflows:
+      dependency-review:
+        inputs:
+          model: gpt-4.1
+          additional-instructions: |
+            Shared repo guidance.
+            Focus on lockfile and CVE notes.
+```
+
+Workflows that still call upstream locks outside this repository may not accept
+`model` yet; those routes keep their lock-baked default until the upstream lock
+exposes the input.
 
 ## Minimal example
 

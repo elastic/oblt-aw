@@ -14,6 +14,8 @@ engine:
   id: copilot
   # Required on gh-aw >= v0.91.x: BYOK Copilot disables native web-fetch unless SDK mode is on.
   copilot-sdk: true
+  # Caller/APM override; default matches obs-defaults. Overrides imported top-level model.
+  model: ${{ inputs.model }}
 on:
   stale-check: false
   workflow_call:
@@ -23,6 +25,13 @@ on:
         type: string
         required: false
         default: ""
+      model:
+        description: >-
+          Agent model id or alias. Defaults to the framework default from
+          obs-defaults (gpt-5.3-codex). Set via apm.yml inputs.model to override.
+        type: string
+        required: false
+        default: "gpt-5.3-codex"
       buildkite-log-tail-lines:
         description: "How many trailing Buildkite log lines to prefetch per failed job (1–2000; default 150)"
         type: number

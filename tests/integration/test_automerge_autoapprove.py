@@ -96,6 +96,10 @@ class TestAutomergeAutoapproveWrapperLockWiring:
             "|| github.event.pull_request.head.repo.full_name != github.repository) "
             "&& inputs.shared-token-policy || '' }}"
         )
+        assert with_block.get("model") == (
+            "${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json)."
+            "model || 'gpt-5.3-codex' }}"
+        )
         for dropped in (
             "allowed-bot-users",
             "prompt",
@@ -110,14 +114,15 @@ class TestAutomergeAutoapproveWrapperLockWiring:
         for key in (
             "additional-instructions",
             "github-token-policy",
+            "model",
         ):
             assert key in lock_inputs, (
                 f"{LOCK_BASENAME} must declare workflow_call input {key!r}"
             )
+            assert key in with_block, f"{AGENT_JOB} must pass lock input {key!r}"
         for dropped in (
             "allowed-bot-users",
             "messages-footer",
-            "model",
             "prompt",
             "report-failure-as-issue",
             "setup-commands",
