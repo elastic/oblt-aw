@@ -6,12 +6,18 @@ This page is the **live E2E fixture** for `obs:autodoc`.
 
 ## Status
 
-Incomplete on purpose. Do **not** treat this as finished product documentation.
+This file is a **fixture page** for live E2E verification, not product documentation.
 
-## Missing content (intentional)
+## Harness purpose
 
-- [ ] Purpose of the live autodoc E2E harness
-- [ ] How framework-only `e2e-trigger-obs-aw-schedule.yml` / `e2e-autodoc-mode` enables evaluation of this file
-- [ ] Cleanup expectations (issue/PR closed; this fixture stays on the default branch)
+The live autodoc E2E harness uses this page as a stable, known audit target so `obs:autodoc` can prove end-to-end issue creation behavior against a real repository file.
+
+## How E2E evaluation is enabled
+
+Framework-only `e2e-trigger-obs-aw-schedule.yml` runs with `e2e-autodoc-mode=true`. In that mode, the wrapper injects E2E audit context (`E2E_AUTODOC_MODE=true`) and scopes docs patrol evaluation to this fixture path.
+
+## Cleanup expectations
+
+After the E2E assertion, the generated issue/PR is closed without merge. This fixture file remains on the default branch so future live runs can assert the same behavior.
 
 See [autodoc-e2e-bait](../autodoc-e2e-bait.md).
