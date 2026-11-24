@@ -247,7 +247,7 @@
           "properties": {
             "allow": {
               "type": "array",
-              "description": "Logins or app slugs allowed to apply trigger labels (for example nightshift-bot[bot]).",
+              "description": "Exact REST actor logins from the timeline labeled event. Include [bot] for GitHub Apps (for example nightshift-bot[bot]). Bare app slugs are not rewritten and do not match.",
               "items": {
                 "type": "string",
                 "minLength": 1

@@ -644,3 +644,70 @@ def test_squash_merge_dismissed_approval_beats_blocked_weekday(
     assert "MERGE_RESULT=merge_failed" in result.stdout
     assert "ASSERT_REASON=missing_approval" in result.stdout
     assert "MERGE_RESULT=not_ready" not in result.stdout
+
+
+def _timeline_event(
+    event: str, *, actor: str, label: str = "oblt-aw/ai/merge-ready"
+) -> str:
+    return (
+        f'{{"event":"{event}","label":{{"name":"{label}"}},'
+        f'"actor":{{"login":"{actor}"}}}}'
+    )
+
+
+def _timeline_pages(*pages: list[str]) -> str:
+    """Emit one JSON array per page (gh api --paginate --jq '.' shape)."""
+    return "\n".join("[" + ",".join(page) + "]" for page in pages)
+
+
+def test_squash_merge_at_sha_rejects_untrusted_reapply_across_timeline_pages(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Trusted apply then untrusted reapply must skip; never send merge PUT."""
+    timeline = _timeline_pages(
+        [_timeline_event("labeled", actor="nightshift-bot[bot]")],
+        [
+            _timeline_event("unlabeled", actor="nightshift-bot[bot]"),
+            _timeline_event("labeled", actor="random-triager"),
+        ],
+    )
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            timeline_json=timeline,
+            allow_merge=False,
+        ),
+    )
+    env["AUTOMERGE_LABEL_ACTORS_JSON"] = '["nightshift-bot[bot]"]'
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=skipped" in result.stdout
+    assert "trusted trigger-label applier" in result.stderr
+    assert "merge must not run" not in result.stderr
+
+
+def test_squash_merge_at_sha_accepts_trusted_reapply_across_timeline_pages(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Untrusted history then trusted reapply must merge using concatenated pages."""
+    timeline = _timeline_pages(
+        [_timeline_event("labeled", actor="random-triager")],
+        [
+            _timeline_event("unlabeled", actor="random-triager"),
+            _timeline_event("labeled", actor="nightshift-bot[bot]"),
+        ],
+    )
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            timeline_json=timeline,
+            merge_body="",
+            merge_exit=0,
+        ),
+    )
+    env["AUTOMERGE_LABEL_ACTORS_JSON"] = '["nightshift-bot[bot]"]'
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=merged" in result.stdout
