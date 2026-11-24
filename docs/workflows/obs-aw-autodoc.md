@@ -80,6 +80,7 @@ Permissions:
 - `discussions: write`
 - `issues: write`
 - `pull-requests: write`
+- `id-token: write` (required by the gh-aw v1.3.x lock calls in `audit` and `fix`)
 
 `notify-fix-failure` and `notify-no-pr` use job-level `issues: write` only.
 

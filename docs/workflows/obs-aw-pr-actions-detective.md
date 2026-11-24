@@ -52,6 +52,7 @@ Wrapper call permissions (max token scope passed into the lock):
 - `issues: write`
 - `pull-requests: write`
 - `copilot-requests: write`
+- `id-token: write` (required by the gh-aw v1.3.x lock activation/OIDC contract)
 
 Compiled lock job permissions (actual privilege boundary):
 
