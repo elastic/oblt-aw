@@ -9,7 +9,7 @@ applies_to: {}
 E2E and live-harness notes for framework workflows. These pages support maintainers validating routes; they are not part of the developer get-started path.
 
 - [Autodoc E2E](autodoc-e2e.md)
-- [Autodoc E2E bait](autodoc-e2e-bait.md)
+- [Autodoc E2E bait](autodoc-e2e-bait.md) (documents the intentionally incomplete fixture and expected issue/PR cleanup behavior)
 - [Automerge all-files policy E2E](automerge-all-files-e2e.md)
 - [Automerge VM images E2E](automerge-vm-images-e2e.md)
 - [Dependency review E2E](dependency-review-e2e.md)

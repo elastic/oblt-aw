@@ -14,4 +14,6 @@ Incomplete on purpose. Do **not** treat this as finished product documentation.
 - [ ] How framework-only `e2e-trigger-obs-aw-schedule.yml` / `e2e-autodoc-mode` enables evaluation of this file
 - [ ] Cleanup expectations (issue/PR closed; this fixture stays on the default branch)
 
+If a live E2E run opens a docs-fix PR for this page, close it without merge.
+
 See [autodoc-e2e-bait](../autodoc-e2e-bait.md).

@@ -17,6 +17,15 @@ Intentional incomplete documentation page used by the live `obs:autodoc` E2E har
 
 Do **not** complete this page in product docs on `main`; that would remove the gap the E2E asserts. Fix PRs from live E2E are closed without merge.
 
+## Expected live E2E signal
+
+When `E2E_AUTODOC_MODE=true` is injected by the schedule wrapper, docs-patrol should open exactly one issue that includes both:
+
+- `docs/testing/fixtures/e2e-autodoc-bait.md`
+- `E2E_AUTODOC_BAIT_MARKER`
+
+Cleanup closes that issue and any linked fix PRs while leaving the bait fixture unchanged on the default branch.
+
 ## Related
 
 - Harness docs: [autodoc-e2e](autodoc-e2e.md)
