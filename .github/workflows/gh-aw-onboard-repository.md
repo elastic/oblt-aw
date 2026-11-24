@@ -75,8 +75,9 @@ network:
     - "docs.elastic.dev"
 safe-outputs:
   activation-comments: false
-  # Prefer OIDC create-token output, then secrets (gh-aw >= v0.89.21).
-  github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+  # Secrets only: conclusion consumes this expression and cannot mint create-token (gh-aw >= v1.3.x).
+  # safe_outputs still prefers the minted token via wire_ephemeral_token.py after compile.
+  github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   add-comment:
     max: 2
     issues: true
