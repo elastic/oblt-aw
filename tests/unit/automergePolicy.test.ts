@@ -29,6 +29,7 @@ const {
   isAuthorAllowedByPolicy,
   isForkAllowedByPolicy,
   filesMatchAllFilesPathPolicy,
+  isDayAllowedByPolicy,
 } = require('../../scripts/obs/automergePolicy.ts');
 
 test('normalizeAutomergePolicy always keeps merge-ready and defaults forks/authors', () => {
@@ -44,6 +45,7 @@ test('normalizeAutomergePolicy always keeps merge-ready and defaults forks/autho
   assert.deepEqual(policy.paths, { allow: [], deny: [] });
   assert.deepEqual(policy.labelActors.allow, []);
   assert.equal(isLabelActorGateEnabled(policy), false);
+  assert.deepEqual(policy.allowedDaysOfWeek, []);
 });
 
 test('normalizeAutomergePolicy always adds vault bot when label-actors is set', () => {
@@ -110,6 +112,48 @@ test('hasTrustedTriggerLabel requires allowed applier when gate is on', () => {
     }),
     false
   );
+});
+
+test('normalizeAutomergePolicy keeps allowed-days-of-week and dedupes case', () => {
+  const policy = normalizeAutomergePolicy({
+    'allowed-days-of-week': ['Monday', 'friday', 'monday'],
+  });
+  assert.deepEqual(policy.allowedDaysOfWeek, ['monday', 'friday']);
+});
+
+test('normalizeAutomergePolicy rejects unknown weekday names', () => {
+  assert.throws(
+    () =>
+      normalizeAutomergePolicy({
+        'allowed-days-of-week': ['monady'],
+      }),
+    /unknown weekday/
+  );
+});
+
+test('normalizeAutomergePolicy rejects non-array allowed-days-of-week', () => {
+  assert.throws(
+    () =>
+      normalizeAutomergePolicy({
+        'allowed-days-of-week': 'monday',
+      }),
+    /must be an array/
+  );
+});
+
+test('isDayAllowedByPolicy treats empty list as unrestricted', () => {
+  const policy = defaultAutomergePolicy();
+  assert.equal(isDayAllowedByPolicy(policy, new Date('2026-11-20T12:00:00Z')), true);
+});
+
+test('isDayAllowedByPolicy allows and rejects UTC weekdays', () => {
+  const policy = normalizeAutomergePolicy({
+    'allowed-days-of-week': ['monday', 'tuesday', 'wednesday', 'thursday'],
+  });
+  // Friday 2026-11-20 UTC
+  assert.equal(isDayAllowedByPolicy(policy, new Date('2026-11-20T12:00:00Z')), false);
+  // Monday 2026-11-16 UTC
+  assert.equal(isDayAllowedByPolicy(policy, new Date('2026-11-16T12:00:00Z')), true);
 });
 
 test('hasTriggerLabel accepts merge-ready or configured extras', () => {

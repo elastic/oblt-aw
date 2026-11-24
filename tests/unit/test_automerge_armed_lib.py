@@ -503,6 +503,20 @@ def test_effective_label_actors_empty_under_nounset() -> None:
     assert result.stdout.strip() == "[]"
 
 
+def test_utc_weekday_allowed_empty_is_unrestricted() -> None:
+    env = os.environ.copy()
+    env["AUTOMERGE_ALLOWED_DAYS_JSON"] = "[]"
+    env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = "friday"
+    result = subprocess.run(
+        ["bash", "-c", f'source "{SCRIPT}"; automerge_utc_weekday_allowed'],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_effective_label_actors_always_includes_vault_bot() -> None:
     env = os.environ.copy()
     env["AUTOMERGE_LABEL_ACTORS_JSON"] = '["nightshift-bot[bot]"]'
@@ -520,6 +534,21 @@ def test_effective_label_actors_always_includes_vault_bot() -> None:
     assert result.returncode == 0, result.stderr
     assert "elastic-vault-github-plugin-prod[bot]" in result.stdout
     assert "nightshift-bot[bot]" in result.stdout
+
+
+def test_utc_weekday_allowed_rejects_disallowed_day() -> None:
+    env = os.environ.copy()
+    env["AUTOMERGE_ALLOWED_DAYS_JSON"] = '["monday","tuesday"]'
+    env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = "friday"
+    result = subprocess.run(
+        ["bash", "-c", f'source "{SCRIPT}"; automerge_utc_weekday_allowed'],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 2
+    assert "friday" in result.stderr
 
 
 def test_squash_merge_at_sha_skips_when_label_actor_untrusted(
@@ -544,6 +573,26 @@ def test_squash_merge_at_sha_skips_when_label_actor_untrusted(
     assert "trusted trigger-label applier" in result.stderr
 
 
+def test_squash_merge_at_sha_weekday_policy_is_not_ready(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Disallowed UTC weekday must soft-defer merge (arm path), not fail closed."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            labels_json='["oblt-aw/ai/merge-ready"]',
+            allow_merge=False,
+        ),
+    )
+    env["AUTOMERGE_ALLOWED_DAYS_JSON"] = '["monday","tuesday"]'
+    env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = "friday"
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=not_ready" in result.stdout
+    assert "weekday" in result.stderr.lower() or "allowed-days" in result.stderr
+
+
 def test_squash_merge_at_sha_accepts_vault_label_actor(
     tmp_path: pathlib.Path,
 ) -> None:
@@ -551,8 +600,6 @@ def test_squash_merge_at_sha_accepts_vault_label_actor(
         tmp_path,
         _fake_gh_squash_script(head_sha=_VALID_SHA, merge_body="", merge_exit=0),
     )
-    env["AUTOMERGE_LABEL_ACTORS_JSON"] = "[]"
-    # Empty array disables gate; set a non-empty list to enable with vault default.
     env["AUTOMERGE_LABEL_ACTORS_JSON"] = '["nightshift-bot[bot]"]'
     result = _bash_merge(_squash(), env=env)
     assert result.returncode == 0, result.stderr
@@ -575,3 +622,25 @@ def test_squash_merge_at_sha_timeline_error_is_merge_failed(
     assert result.returncode == 1
     assert "MERGE_RESULT=merge_failed" in result.stdout
     assert "Could not verify" in result.stderr or "timeline" in result.stderr.lower()
+
+
+def test_squash_merge_dismissed_approval_beats_blocked_weekday(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Dismissed review on a blocked day must fail closed, not soft-defer."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            labels_json='["oblt-aw/ai/merge-ready"]',
+            reviews_json=_dismissed_after_approved_reviews_json(),
+            allow_merge=False,
+        ),
+    )
+    env["AUTOMERGE_ALLOWED_DAYS_JSON"] = '["monday","tuesday"]'
+    env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = "friday"
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 1
+    assert "MERGE_RESULT=merge_failed" in result.stdout
+    assert "ASSERT_REASON=missing_approval" in result.stdout
+    assert "MERGE_RESULT=not_ready" not in result.stdout

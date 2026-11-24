@@ -47,11 +47,16 @@ Technical details for eligibility, validation, approval, tokens, and merge behav
 | Go dependencies | Go module and sum updates | `go.mod`, `go.sum`, `**/go.mod`, `**/go.sum` | Good for teams that accept standard Go dependency refreshes automatically |
 | Update beats | elastic-agent update-beats bumps | `NOTICE.txt`, `NOTICE-fips.txt`, `go.mod`, `go.sum`, `beats` | Helpful when update-beats changes are expected and well understood |
 | Node dependencies | npm/yarn/pnpm manifest, lockfile, and JS bundled dist updates | `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `dist/**/*.cjs`, `dist/**/*.js`, `dist/**/*.js.map`, `dist/**/*.mjs`, `dist/licenses.txt`, `**/package.json`, `**/package-lock.json`, `**/yarn.lock`, `**/pnpm-lock.yaml`, `**/dist/**/*.cjs`, `**/dist/**/*.js`, `**/dist/**/*.js.map`, `**/dist/**/*.mjs`, `**/dist/licenses.txt` | Keep JavaScript dependency maintenance routine and predictable (including GitHub Actions that rebuild JS under `dist/`; not generic Go/goreleaser `dist/` trees) |
+| Gradle dependencies | Gradle build, version catalog, and wrapper updates | `**/build.gradle`, `**/build.gradle.kts`, `**/gradle/*.versions.toml`, `**/gradle/wrapper/gradle-wrapper.properties`, `**/gradle/wrapper/gradle-wrapper.jar`, `**/gradlew`, `**/gradlew.bat` | Keep Gradle dependency and wrapper updates routine, including nested Android builds |
+| Swift Package Manager dependencies | Swift package manifest and resolved dependency updates | `Package.swift`, `Package.resolved` (and `**/` variants) | Keep Swift package dependencies current in root and nested packages |
+| CocoaPods dependencies | CocoaPods podspec, Podfile, and lockfile updates | `*.podspec`, `Podfile`, `Podfile.lock` (and `**/` variants) | Keep native iOS dependencies current without enabling other ecosystems |
 | Terraform / OpenTofu | Terraform, OpenTofu, and Terragrunt dependency updates | `**/*.tf`, `**/*.tfvars`, `**/*.tfvars.json`, `**/.terraform.lock.hcl`, `**/terragrunt.hcl`, `**/.opentofu-version`, `**/.terraform-version`, `**/.terragrunt-version` | Useful for infrastructure repos that want safe, routine IaC refreshes merged automatically |
 | Open Policy Agent | Rego policies plus OPA version and configuration updates | `**/*.rego`, `**/.opa-version`, `**/opa.yaml`, `**/opa.yml` | Keep policy code and OPA tooling current while preserving review control elsewhere |
 | Updatecli compose / version | Updatecli compose policy catalog and tool version pin updates | `updatecli-compose.yaml`, `updatecli-compose.yml`, `**/updatecli-compose.yaml`, `**/updatecli-compose.yml`, `.updatecli-version`, `**/.updatecli-version` | Useful when Updatecli itself bumps policy image pins or its own tool version and you already trust those catalogs |
 | VM / container images | CI runner, Docker/container, Compose, and snapshot-environment image-pin updates | `.buildkite/**`, `**/Dockerfile`, `**/Dockerfile.*`, `**/docker-compose.yml`, `**/docker-compose.yaml`, `testing/environments/snapshot.yml` | Handy when image-pin bumps are expected and you trust the matching automation path |
 | Package version | `.package-version` bump automation | `.package-version`, `**/.package-version` | Useful for repos that treat version file bumps as routine automation |
+
+When `vm-images` or `github-actions` covers every changed file, it takes precedence over `gradle`, `swiftpm`, and `cocoapods`. For example, `.buildkite/build.gradle` stays in `vm-images`, and `.github/actions/sdk/Package.swift` stays in `github-actions`. The infrastructure collection must be enabled; enabling only the mobile collection does not override it.
 
 Collection ids and globs are defined in [`config/obs/automerge-dependency-collections.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/automerge-dependency-collections.json). Example entry:
 
@@ -98,6 +103,11 @@ x-oblt-aw:
             author-associations:
               - MEMBER
               - OWNER
+          allowed-days-of-week:        # optional; omit or [] = all UTC days
+            - monday
+            - tuesday
+            - wednesday
+            - thursday
           paths:                       # optional; only applies to all-files
             allow:
               - docs/**
@@ -110,8 +120,9 @@ x-oblt-aw:
 - **Label actors:** Optional. When `label-actors` is set, Automerge reads the PR timeline and treats a trigger label as absent unless the latest `labeled` event was applied by an allowed actor. `elastic-vault-github-plugin-prod[bot]` is always included in the allow list when this gate is on. If the timeline cannot be read, verify and live merge fail closed. Omit `label-actors` to keep today’s presence-only behavior.
 - **Authors:** Control-plane bots in [`allowed_pr_authors.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) are always allowed. `allow-list` adds logins; `author-association` allows non-bot authors whose GitHub `author_association` matches.
 - **Forks:** Default `disabled` keeps same-repo only. `author-association` allows forks when association matches (for example Elastic employee forks with `MEMBER` / `OWNER`).
+- **Allowed days of week:** Optional list of lowercase English weekday names (`monday` … `sunday`). Evaluated in **UTC** at merge time (and again on the deferred path). Omitted or empty means every day. Unknown names or a non-list value fail policy resolve closed. On a blocked day, Automerge can still approve and arm the PR; merge waits until an allowed UTC day.
 - **Paths (all-files only):** Optional `paths.allow` and `paths.deny` globs. When `all-files` is the matched collection, every changed file (and any rename `previous_filename`) must match `allow` (if set) and none may match `deny` (`deny` wins). Globs support only `*` and `**` (same as collection `file-glob`); `?` and character classes are rejected. Omitted or empty lists leave path scope unrestricted. An invalid `paths` block (unknown keys, blank entries, unsupported syntax) fails closed. Specific dependency collections ignore this block.
-- **Defaults when `policy` is omitted:** merge-ready only, no label-actor gate, forks disabled, authors allow-list with no extras (today’s bot path), no path restriction.
+- **Defaults when `policy` is omitted:** merge-ready only, no label-actor gate, forks disabled, authors allow-list with no extras (today’s bot path), no path restriction, all UTC weekdays allowed.
 - **CODEOWNERS / merge queue:** Automerge still squash-merges over REST as the Vault app when `shared-token-policy` is set (bypass classic BP / rulesets). It does not enqueue into a merge queue.
 
 See also [Local AI assets](local-ai-assets.md), [Non-dependency Automerge user journeys](automerge-user-journeys.md), and [Automerge routing](../routing/automerge-routing.md).

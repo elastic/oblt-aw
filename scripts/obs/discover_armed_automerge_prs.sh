@@ -16,7 +16,9 @@
 
 # List open PRs with a bot-authored armed marker for the current head SHA and at
 # least one effective trigger label from that PR's base-SHA consumer policy.
-# Writes GitHub Actions outputs: candidates (JSON array), has-candidates (true|false).
+# Skips candidates whose policy ``allowed-days-of-week`` excludes today's UTC
+# weekday (empty/omitted means unrestricted). Writes GitHub Actions outputs:
+# candidates (JSON array), has-candidates (true|false).
 #
 # Required env:
 #   GITHUB_REPOSITORY, GITHUB_OUTPUT, GH_TOKEN
@@ -28,6 +30,8 @@
 #   AUTOMERGE_DISCOVER_MAX_CANDIDATES (default 100)
 #   GITHUB_RUN_NUMBER — rotates the eligible batch across ticks
 #   POLICY_CACHE_DIR — directory for per-base-SHA policy cache
+#   AUTOMERGE_DISCOVER_UTC_WEEKDAY — override UTC weekday name for tests
+#     (monday … sunday); production leaves this unset
 set -euo pipefail
 
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
@@ -37,6 +41,7 @@ MAX_CANDIDATES="${AUTOMERGE_DISCOVER_MAX_CANDIDATES:-100}"
 RUN_NUMBER="${GITHUB_RUN_NUMBER:-0}"
 POLICY_CACHE_DIR="${POLICY_CACHE_DIR:-${RUNNER_TEMP:-/tmp}/automerge-policy-by-base}"
 OBLT_AW_ROOT="${OBLT_AW_ROOT:-}"
+TODAY_UTC="${AUTOMERGE_DISCOVER_UTC_WEEKDAY:-$(date -u +%A | tr '[:upper:]' '[:lower:]')}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=automerge_armed_lib.sh
@@ -102,9 +107,21 @@ automerge_discover_triggers_for_base_sha() {
   printf '%s' "${policy_json}" | jq -c '."trigger-labels" // ["oblt-aw/ai/merge-ready"]'
 }
 
+# True when allowed-days-of-week is empty (unrestricted) or contains today's UTC day.
+automerge_discover_day_allowed() {
+  local policy_json="${1:?policy JSON required}"
+  local allowed
+  allowed="$(printf '%s' "${policy_json}" | jq -c '."allowed-days-of-week" // []')"
+  if [[ "$(printf '%s' "${allowed}" | jq 'length')" -eq 0 ]]; then
+    return 0
+  fi
+  printf '%s' "${allowed}" | jq -e --arg day "${TODAY_UTC}" 'index($day) != null' >/dev/null
+}
+
 eligible='[]'
 scanned=0
 opted_out=0
+day_skipped=0
 while IFS=$'\t' read -r pr_number head_sha; do
   [[ -n "${pr_number}" && -n "${head_sha}" ]] || continue
   scanned=$((scanned + 1))
@@ -122,6 +139,7 @@ while IFS=$'\t' read -r pr_number head_sha; do
     unset AUTOMERGE_TRIGGER_LABELS_JSON || true
     unset AUTOMERGE_LABEL_ACTORS_JSON || true
     base_sha="legacy"
+    policy_json='{"trigger-labels":["oblt-aw/ai/merge-ready"],"allowed-days-of-week":[]}'
   else
     base_sha="$(gh api "repos/${REPO}/pulls/${pr_number}" --jq '.base.sha')" || {
       echo "Failed to resolve base.sha for ${REPO}#${pr_number}; aborting discover." >&2
@@ -140,6 +158,11 @@ while IFS=$'\t' read -r pr_number head_sha; do
     )"
     export AUTOMERGE_TRIGGER_LABELS_JSON
     export AUTOMERGE_LABEL_ACTORS_JSON
+  fi
+  if ! automerge_discover_day_allowed "${policy_json}"; then
+    day_skipped=$((day_skipped + 1))
+    echo "PR #${pr_number}: deferred skip (UTC weekday '${TODAY_UTC}' not in allowed-days-of-week for base ${base_sha:0:7})"
+    continue
   fi
 
   # Drop opted-out / label-stripped PRs before the matrix cap so they cannot
@@ -194,7 +217,7 @@ fi
 } >>"${OUT}"
 
 candidate_count="$(jq 'length' <<<"${candidates}")"
-echo "Automerge deferred: scanned ${scanned} open PR(s); ${opted_out} armed without trigger label; ${eligible_count} eligible; ${candidate_count} in this tick (max ${MAX_CANDIDATES})"
+echo "Automerge deferred: scanned ${scanned} open PR(s); ${opted_out} armed without trigger label; ${day_skipped} skipped for UTC weekday; ${eligible_count} eligible; ${candidate_count} in this tick (max ${MAX_CANDIDATES})"
 if [[ "${eligible_count}" -gt "${MAX_CANDIDATES}" ]]; then
   echo "Automerge deferred: ${eligible_count} eligible armed PR(s); rotating batch of ${MAX_CANDIDATES} this tick (run ${RUN_NUMBER})." >&2
 fi

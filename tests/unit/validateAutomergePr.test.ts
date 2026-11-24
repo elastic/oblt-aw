@@ -450,3 +450,96 @@ test('validateAutomergePr still rejects untrusted fork under author-association 
   });
   assert.equal(r.ok, false);
 });
+
+test('validateAutomergePr soft-defers disallowed UTC weekday (ok true, weekdayOk false)', async () => {
+  const { core, infoMessages } = makeCore();
+  const github = {
+    rest: {
+      pulls: { get: async () => ({ data: basePr() }) },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 77,
+    core,
+    policy: {
+      'allowed-days-of-week': ['monday', 'tuesday', 'wednesday', 'thursday'],
+    },
+    now: new Date('2026-11-20T12:00:00Z'), // Friday UTC
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.weekdayOk, false);
+  assert.deepEqual(r.allowedDaysOfWeek, [
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+  ]);
+  assert.ok(
+    infoMessages.some((msg) => msg.includes("UTC weekday 'friday'")),
+    infoMessages.join('\n')
+  );
+});
+
+test('validateAutomergePr allows listed UTC weekday', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: { get: async () => ({ data: basePr() }) },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 78,
+    core,
+    policy: {
+      'allowed-days-of-week': ['monday', 'tuesday', 'wednesday', 'thursday'],
+    },
+    now: new Date('2026-11-16T12:00:00Z'), // Monday UTC
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.weekdayOk, true);
+});
+
+test('validateAutomergePr treats empty allowed-days-of-week as unrestricted', async () => {
+  const { core } = makeCore();
+  const github = {
+    rest: {
+      pulls: { get: async () => ({ data: basePr() }) },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 79,
+    core,
+    policy: { 'allowed-days-of-week': [] },
+    now: new Date('2026-11-20T12:00:00Z'), // Friday UTC
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.weekdayOk, true);
+});
+
+test('validateAutomergePr fails closed on malformed allowed-days-of-week', async () => {
+  const { core, infoMessages } = makeCore();
+  const github = {
+    rest: {
+      pulls: { get: async () => ({ data: basePr() }) },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 80,
+    core,
+    policy: { 'allowed-days-of-week': ['monady'] },
+  });
+  assert.equal(r.ok, false);
+  assert.equal(r.weekdayOk, false);
+  assert.ok(
+    infoMessages.some((msg) => msg.includes('invalid consumer policy')),
+    infoMessages.join('\n')
+  );
+});

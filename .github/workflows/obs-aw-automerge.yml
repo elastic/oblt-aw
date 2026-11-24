@@ -53,6 +53,7 @@ jobs:
       trigger-labels-json: ${{ steps.validate.outputs.trigger-labels-json }}
       automerge-policy-json: ${{ steps.policy.outputs.automerge-policy-json }}
       label-actors-json: ${{ steps.validate.outputs.label-actors-json }}
+      allowed-days-json: ${{ steps.validate.outputs.allowed-days-json }}
     steps:
       - name: Checkout consumer repository (apm.yml for automerge policy)
         uses: actions/checkout@v7
@@ -133,7 +134,7 @@ jobs:
             rq('tsx/cjs/api').register();
             const { run } = rq('./scripts/obs/validateAutomergePr.ts');
             const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            const { ok, triggerLabels, labelActorsAllow } = await run({
+            const { ok, triggerLabels, labelActorsAllow, allowedDaysOfWeek } = await run({
               github,
               context,
               prNumber,
@@ -141,6 +142,7 @@ jobs:
               sharedTokenPolicy: process.env.SHARED_TOKEN_POLICY || '',
               policyJson: process.env.AUTOMERGE_POLICY_JSON || '',
             });
+            // Weekday denial still proceeds so approve/arm can run; merge rechecks UTC day.
             core.setOutput('proceed', ok ? 'true' : 'false');
             core.setOutput(
               'trigger-labels-json',
@@ -149,6 +151,10 @@ jobs:
             core.setOutput(
               'label-actors-json',
               JSON.stringify(Array.isArray(labelActorsAllow) ? labelActorsAllow : [])
+            );
+            core.setOutput(
+              'allowed-days-json',
+              JSON.stringify(Array.isArray(allowedDaysOfWeek) ? allowedDaysOfWeek : [])
             );
 
   # Classify dependency updates by changed file paths (no extra labels in consumer repos).
@@ -405,6 +411,7 @@ jobs:
           ASSERTED_SHA: ${{ needs.assert-approved-review.outputs.head_sha }}
           AUTOMERGE_TRIGGER_LABELS_JSON: ${{ needs.verify.outputs.trigger-labels-json }}
           AUTOMERGE_LABEL_ACTORS_JSON: ${{ needs.verify.outputs.label-actors-json }}
+          AUTOMERGE_ALLOWED_DAYS_JSON: ${{ needs.verify.outputs.allowed-days-json }}
         run: |
           set -euo pipefail
           # shellcheck source=../../../scripts/obs/assert_automerge_approved_review.sh
@@ -484,6 +491,7 @@ jobs:
           HEAD_SHA: ${{ needs.assert-approved-review.outputs.head_sha }}
           AUTOMERGE_TRIGGER_LABELS_JSON: ${{ needs.verify.outputs.trigger-labels-json }}
           AUTOMERGE_LABEL_ACTORS_JSON: ${{ needs.verify.outputs.label-actors-json }}
+          AUTOMERGE_ALLOWED_DAYS_JSON: ${{ needs.verify.outputs.allowed-days-json }}
         run: |
           set -euo pipefail
           # shellcheck source=../../../scripts/obs/assert_automerge_approved_review.sh
@@ -504,7 +512,7 @@ jobs:
           fi
           if [[ "${result}" == "not_ready" ]]; then
             echo "merged=false" >> "${GITHUB_OUTPUT}"
-            echo "REST merge blocked by pending checks (will arm for deferred merge)."
+            echo "REST merge blocked by pending checks or weekday policy (will arm for deferred merge)."
             exit 0
           fi
           echo "merged=false" >> "${GITHUB_OUTPUT}"

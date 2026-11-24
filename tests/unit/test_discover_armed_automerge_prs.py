@@ -24,7 +24,7 @@ def _sha_for_pr(pr: int) -> str:
     return f"{pr:040x}"
 
 
-def _apm_b64(*, custom: bool) -> str:
+def _apm_b64(*, custom: bool, weekdays: bool = False) -> str:
     if custom:
         body = (
             "workflows:\n"
@@ -32,13 +32,20 @@ def _apm_b64(*, custom: bool) -> str:
             "    policy:\n"
             f"      trigger-labels: [{_CUSTOM!r}]\n"
         )
+    elif weekdays:
+        body = (
+            "workflows:\n"
+            "  automerge:\n"
+            "    policy:\n"
+            "      allowed-days-of-week: [monday, tuesday, wednesday, thursday]\n"
+        )
     else:
         body = "workflows: {}\n"
     return base64.b64encode(body.encode()).decode()
 
 
 def _install_fake_oblt_root(tmp_path: pathlib.Path) -> pathlib.Path:
-    """Stub resolver that reads trigger markers from REPO_ROOT/apm.yml."""
+    """Stub resolver that reads trigger/day markers from REPO_ROOT/apm.yml."""
     root = tmp_path / "oblt-aw"
     scripts = root / "scripts"
     scripts.mkdir(parents=True)
@@ -54,8 +61,14 @@ def _install_fake_oblt_root(tmp_path: pathlib.Path) -> pathlib.Path:
                 triggers = [{_CUSTOM!r}, {_MERGE_READY!r}]
             else:
                 triggers = [{_MERGE_READY!r}]
+            days = []
+            if "allowed-days-of-week" in text:
+                days = ["monday", "tuesday", "wednesday", "thursday"]
             payload = json.dumps(
-                {{"trigger-labels": triggers}},
+                {{
+                    "trigger-labels": triggers,
+                    "allowed-days-of-week": days,
+                }},
                 separators=(",", ":"),
                 sort_keys=True,
             )
@@ -71,6 +84,9 @@ def _install_fake_oblt_root(tmp_path: pathlib.Path) -> pathlib.Path:
     return root
 
 
+_WEEKDAY_BASE = "w" * 40
+
+
 def _install_fake_gh(
     tmp_path: pathlib.Path,
     *,
@@ -84,7 +100,9 @@ def _install_fake_gh(
         "bases": {str(k): v for k, v in base_by_pr.items()},
         "default_apm": _apm_b64(custom=False),
         "release_apm": _apm_b64(custom=True),
+        "weekday_apm": _apm_b64(custom=False, weekdays=True),
         "release_base": _RELEASE_BASE,
+        "weekday_base": _WEEKDAY_BASE,
         "bot": _BOT,
     }
     state_path = tmp_path / "fake_gh_state.json"
@@ -134,6 +152,8 @@ def _install_fake_gh(
                 content = state["default_apm"]
                 if f"ref={{state['release_base']}}" in joined:
                     content = state["release_apm"]
+                elif f"ref={{state['weekday_base']}}" in joined:
+                    content = state["weekday_apm"]
                 print(json.dumps({{"content": content}}))
                 raise SystemExit(0)
 
@@ -171,6 +191,7 @@ def _run_discover(
     run_number: str = "0",
     max_candidates: str = "100",
     oblt_root: pathlib.Path | None = None,
+    utc_weekday: str | None = None,
 ) -> tuple[subprocess.CompletedProcess[str], dict[str, str]]:
     out_file = tmp_path / f"github_output_{run_number}"
     out_file.write_text("", encoding="utf-8")
@@ -179,6 +200,10 @@ def _run_discover(
     run_env["GITHUB_RUN_NUMBER"] = run_number
     run_env["AUTOMERGE_DISCOVER_MAX_CANDIDATES"] = max_candidates
     run_env["POLICY_CACHE_DIR"] = str(tmp_path / f"policy-cache-{run_number}")
+    if utc_weekday is None:
+        run_env.pop("AUTOMERGE_DISCOVER_UTC_WEEKDAY", None)
+    else:
+        run_env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = utc_weekday
     if oblt_root is None:
         run_env.pop("OBLT_AW_ROOT", None)
     else:
@@ -274,3 +299,38 @@ def test_discover_cap_rotation_opt_out_and_per_base_policy(
     assert set(range(200, 206)).isdisjoint(nums1)
     assert set(nums1) - set(nums0)
     assert re.search(r"\b111 eligible\b", first.stdout + second.stdout)
+
+
+def test_discover_skips_disallowed_utc_weekday(tmp_path: pathlib.Path) -> None:
+    """Policy with weekday allow-list drops candidates on excluded UTC days."""
+    pulls = [
+        {"number": 1, "head": {"sha": _sha_for_pr(1)}},
+        {"number": 2, "head": {"sha": _sha_for_pr(2)}},
+    ]
+    labels = {1: [_MERGE_READY], 2: [_MERGE_READY]}
+    bases = {1: _DEFAULT_BASE, 2: _WEEKDAY_BASE}
+    env = _install_fake_gh(tmp_path, pulls=pulls, labels_by_pr=labels, base_by_pr=bases)
+    oblt_root = _install_fake_oblt_root(tmp_path)
+
+    blocked, out_blocked = _run_discover(
+        tmp_path,
+        env,
+        run_number="weekday-blocked",
+        oblt_root=oblt_root,
+        utc_weekday="friday",
+    )
+    assert blocked.returncode == 0, blocked.stderr + blocked.stdout
+    nums_blocked = [int(c["pr_number"]) for c in json.loads(out_blocked["candidates"])]
+    assert nums_blocked == [1]
+    assert "UTC weekday 'friday'" in blocked.stdout
+
+    allowed, out_allowed = _run_discover(
+        tmp_path,
+        env,
+        run_number="weekday-allowed",
+        oblt_root=oblt_root,
+        utc_weekday="monday",
+    )
+    assert allowed.returncode == 0, allowed.stderr + allowed.stdout
+    nums_allowed = [int(c["pr_number"]) for c in json.loads(out_allowed["candidates"])]
+    assert nums_allowed == [1, 2]
