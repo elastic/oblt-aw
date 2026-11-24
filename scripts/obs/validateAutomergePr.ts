@@ -22,7 +22,8 @@
  * Control-plane bot logins live in `config/obs/allowed_pr_authors.json`, which Prelude
  * loads for ingress and `scripts/sync_allowed_pr_authors_bots.py` syncs onto static GH-AW
  * `on.bots` / prompt copies. Consumer `apm.yml` may extend authors, forks, trigger
- * labels, and allowed UTC weekdays via `x-oblt-aw.<org>.workflows.automerge.policy`
+ * labels, allowed label appliers, and allowed UTC weekdays via
+ * `x-oblt-aw.<org>.workflows.automerge.policy`
  * (see automergePolicy.ts).
  *
  * GraphQL/`gh pr view` (gh ≥ 2.50) may return `app/<slug>` for GitHub Apps while REST
@@ -38,12 +39,16 @@ const fs = require('node:fs');
 
 const MERGE_READY_LABEL_FALLBACK = 'oblt-aw/ai/merge-ready';
 
+const DEFAULT_TRUSTED_LABEL_ACTOR_FALLBACK =
+  'elastic-vault-github-plugin-prod[bot]';
+
 function fallbackDefaultAutomergePolicy() {
   return {
     triggerLabels: [MERGE_READY_LABEL_FALLBACK],
     forks: { mode: 'disabled', authorAssociations: [] },
     authors: { mode: 'allow-list', allowList: [], authorAssociations: [] },
     paths: { allow: [], deny: [] },
+    labelActors: { allow: [] },
     allowedDaysOfWeek: [],
   };
 }
@@ -85,6 +90,9 @@ function loadAutomergePolicyModule() {
 const policyModule = loadAutomergePolicyModule();
 const MERGE_READY_LABEL =
   policyModule?.MERGE_READY_LABEL || MERGE_READY_LABEL_FALLBACK;
+const DEFAULT_TRUSTED_LABEL_ACTOR =
+  policyModule?.DEFAULT_TRUSTED_LABEL_ACTOR ||
+  DEFAULT_TRUSTED_LABEL_ACTOR_FALLBACK;
 const defaultAutomergePolicy =
   policyModule?.defaultAutomergePolicy || fallbackDefaultAutomergePolicy;
 const normalizeAutomergePolicy =
@@ -114,6 +122,35 @@ const hasTriggerLabel =
     return (policy.triggerLabels || [MERGE_READY_LABEL_FALLBACK]).some((name) =>
       labels.has(name)
     );
+  });
+const isLabelActorGateEnabled =
+  policyModule?.isLabelActorGateEnabled ||
+  ((policy) => (policy.labelActors?.allow || []).length > 0);
+const hasTrustedTriggerLabel =
+  policyModule?.hasTrustedTriggerLabel ||
+  ((policy, presentLabelNames, latestAppliers) => {
+    if (!hasTriggerLabel(policy, presentLabelNames)) {
+      return false;
+    }
+    if (!isLabelActorGateEnabled(policy)) {
+      return true;
+    }
+    const present = new Set(presentLabelNames);
+    const allow = new Set(policy.labelActors?.allow || []);
+    return (policy.triggerLabels || []).some((name) => {
+      if (!present.has(name)) {
+        return false;
+      }
+      const actor =
+        latestAppliers instanceof Map
+          ? latestAppliers.get(name)
+          : latestAppliers[name];
+      if (actor == null || actor === '') {
+        return false;
+      }
+      const normalized = normalizePrAuthorLogin(actor);
+      return allow.has(normalized);
+    });
   });
 const isAuthorAllowedByPolicy =
   policyModule?.isAuthorAllowedByPolicy ||
@@ -185,8 +222,44 @@ function isAllowedPrAuthor(login) {
 module.exports.normalizePrAuthorLogin = normalizePrAuthorLogin;
 module.exports.isAllowedPrAuthor = isAllowedPrAuthor;
 module.exports.MERGE_READY_LABEL = MERGE_READY_LABEL;
+module.exports.DEFAULT_TRUSTED_LABEL_ACTOR = DEFAULT_TRUSTED_LABEL_ACTOR;
 module.exports.defaultAutomergePolicy = defaultAutomergePolicy;
 module.exports.normalizeAutomergePolicy = normalizeAutomergePolicy;
+
+/**
+ * Latest labeled/unlabeled applier per label name from the issue timeline.
+ * Fail-closed callers must treat thrown errors as gate failure.
+ * @param {{ paginate: Function, rest: { issues: { listEventsForTimeline: unknown } } }} github
+ * @param {{ owner: string, repo: string, issueNumber: number }} args
+ * @returns {Promise<Map<string, string|null>>}
+ */
+async function resolveLatestLabelAppliers(github, args) {
+  const events = await github.paginate(github.rest.issues.listEventsForTimeline, {
+    owner: args.owner,
+    repo: args.repo,
+    issue_number: args.issueNumber,
+    per_page: 100,
+  });
+  /** @type {Map<string, string|null>} */
+  const latest = new Map();
+  for (const event of events || []) {
+    if (event?.event !== 'labeled' && event?.event !== 'unlabeled') {
+      continue;
+    }
+    const name = event.label?.name;
+    if (typeof name !== 'string' || !name) {
+      continue;
+    }
+    if (event.event === 'unlabeled') {
+      latest.set(name, null);
+      continue;
+    }
+    latest.set(name, normalizePrAuthorLogin(event.actor?.login || ''));
+  }
+  return latest;
+}
+
+module.exports.resolveLatestLabelAppliers = resolveLatestLabelAppliers;
 
 module.exports.run = async function run({
   github,
@@ -204,6 +277,7 @@ module.exports.run = async function run({
     ok: false,
     weekdayOk: false,
     triggerLabels: [],
+    labelActorsAllow: [],
     allowedDaysOfWeek: [],
   };
 
@@ -226,12 +300,14 @@ module.exports.run = async function run({
     );
     return emptyFail;
   }
+  const labelActorsAllow = effectivePolicy.labelActors?.allow || [];
   const when = now instanceof Date ? now : new Date();
   const allowedDaysOfWeek = effectivePolicy.allowedDaysOfWeek || [];
   const failResult = {
     ok: false,
     weekdayOk: false,
     triggerLabels: effectivePolicy.triggerLabels,
+    labelActorsAllow,
     allowedDaysOfWeek,
   };
 
@@ -277,6 +353,30 @@ module.exports.run = async function run({
     return failResult;
   }
 
+  if (isLabelActorGateEnabled(effectivePolicy)) {
+    let latestAppliers;
+    try {
+      latestAppliers = await resolveLatestLabelAppliers(github, {
+        owner,
+        repo,
+        issueNumber: prNumber,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      core.info(
+        `PR #${prNumber}: could not read label timeline (fail closed): ${message}`
+      );
+      return failResult;
+    }
+    if (!hasTrustedTriggerLabel(effectivePolicy, labelNames, latestAppliers)) {
+      core.info(
+        `PR #${prNumber}: no trigger label applied by an allowed actor ` +
+          `(allow: ${labelActorsAllow.join(', ')})`
+      );
+      return failResult;
+    }
+  }
+
   if (pr.draft) {
     core.info(`PR #${prNumber}: draft PRs are excluded`);
     return failResult;
@@ -318,6 +418,7 @@ module.exports.run = async function run({
     ok: true,
     weekdayOk,
     triggerLabels: effectivePolicy.triggerLabels,
+    labelActorsAllow,
     allowedDaysOfWeek,
   };
 };

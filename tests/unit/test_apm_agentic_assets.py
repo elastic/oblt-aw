@@ -618,12 +618,14 @@ x-oblt-aw:
             "allow": ["docs/**"],
             "deny": ["**/*.go"],
         }
+        assert "label-actors" not in policy
         assert policy["allowed-days-of-week"] == []
         text = aaa.format_automerge_policy_instructions(policy)
         assert "Effective Automerge Policy" in text
         assert "nightshift:risk-low" in text
         assert "docs/**" in text
         assert "**/*.go" in text
+        assert "not enforced" in text
         assert "all UTC weekdays" in text
         assert "Do **not** withhold approval" in text
         assert "merge-only" in text
@@ -641,6 +643,39 @@ x-oblt-aw:
             aaa.normalize_automerge_policy({"paths": {"allow": [""]}})
         with pytest.raises(ValueError, match="unsupported glob"):
             aaa.normalize_automerge_policy({"paths": {"deny": ["helm/values-?.yaml"]}})
+
+    def test_default_automerge_policy_omits_label_actors(self) -> None:
+        policy = aaa.default_automerge_policy()
+        assert "label-actors" not in policy
+
+    def test_normalize_automerge_policy_label_actors_always_includes_vault(
+        self,
+    ) -> None:
+        policy = aaa.normalize_automerge_policy(
+            {
+                "label-actors": {"allow": ["nightshift-bot[bot]"]},
+            }
+        )
+        assert policy["label-actors"]["allow"] == [
+            aaa.DEFAULT_TRUSTED_LABEL_ACTOR,
+            "nightshift-bot[bot]",
+        ]
+        text = aaa.format_automerge_policy_instructions(policy)
+        assert aaa.DEFAULT_TRUSTED_LABEL_ACTOR in text
+        assert "nightshift-bot[bot]" in text
+
+    def test_normalize_omits_label_actors_when_consumer_did_not_set_them(
+        self,
+    ) -> None:
+        """Wire format must not enable Vault-only trust without opt-in."""
+        import json
+
+        policy = aaa.normalize_automerge_policy(
+            {"trigger-labels": ["nightshift:risk-low"]}
+        )
+        assert "label-actors" not in policy
+        payload = json.dumps(policy, separators=(",", ":"), sort_keys=True)
+        assert "label-actors" not in json.loads(payload)
 
     def test_resolve_automerge_policy_allowed_days(self, repo: pathlib.Path) -> None:
         (repo / "apm.yml").write_text(

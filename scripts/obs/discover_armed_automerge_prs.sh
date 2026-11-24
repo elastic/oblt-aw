@@ -56,8 +56,8 @@ else
   mkdir -p "${POLICY_CACHE_DIR}"
 fi
 
-# Resolve policy snippet for a trusted PR base SHA (cached on disk).
-# Prints JSON with trigger-labels and allowed-days-of-week.
+# Resolve normalized automerge policy JSON for a trusted PR base SHA (cached).
+# Prints the full policy object to stdout.
 automerge_discover_policy_for_base_sha() {
   local base_sha="${1:?base sha required}"
   local cache_file="${POLICY_CACHE_DIR}/${base_sha}.policy.json"
@@ -65,7 +65,6 @@ automerge_discover_policy_for_base_sha() {
   local name
   local encoded
   local policy_json
-  local snippet
   local gh_out
 
   if [[ -f "${cache_file}" ]]; then
@@ -95,22 +94,24 @@ automerge_discover_policy_for_base_sha() {
       GITHUB_OUTPUT="${work_dir}/github_output" \
       python3 "${OBLT_AW_ROOT}/scripts/resolve_automerge_policy_cli.py"
   )"
-  snippet="$(
-    printf '%s' "${policy_json}" | jq -c '{
-      "trigger-labels": (."trigger-labels" // ["oblt-aw/ai/merge-ready"]),
-      "allowed-days-of-week": (."allowed-days-of-week" // [])
-    }'
-  )"
-  printf '%s\n' "${snippet}" >"${cache_file}"
+  printf '%s\n' "${policy_json}" >"${cache_file}"
   rm -rf "${work_dir}"
-  printf '%s\n' "${snippet}"
+  printf '%s\n' "${policy_json}"
 }
 
-# True when allowed-days-of-week is empty (unrestricted) or contains TODAY_UTC.
+# Back-compat wrapper: trigger-labels array only.
+automerge_discover_triggers_for_base_sha() {
+  local base_sha="${1:?base sha required}"
+  local policy_json
+  policy_json="$(automerge_discover_policy_for_base_sha "${base_sha}")"
+  printf '%s' "${policy_json}" | jq -c '."trigger-labels" // ["oblt-aw/ai/merge-ready"]'
+}
+
+# True when allowed-days-of-week is empty (unrestricted) or contains today's UTC day.
 automerge_discover_day_allowed() {
-  local policy_snippet="${1:?policy snippet required}"
+  local policy_json="${1:?policy JSON required}"
   local allowed
-  allowed="$(printf '%s' "${policy_snippet}" | jq -c '."allowed-days-of-week" // []')"
+  allowed="$(printf '%s' "${policy_json}" | jq -c '."allowed-days-of-week" // []')"
   if [[ "$(printf '%s' "${allowed}" | jq 'length')" -eq 0 ]]; then
     return 0
   fi
@@ -136,8 +137,9 @@ while IFS=$'\t' read -r pr_number head_sha; do
   if [[ "${LEGACY_MERGE_READY_ONLY}" == "true" ]]; then
     # Self-contained path for @v0 callers that only sparse-fetch this script.
     unset AUTOMERGE_TRIGGER_LABELS_JSON || true
+    unset AUTOMERGE_LABEL_ACTORS_JSON || true
     base_sha="legacy"
-    policy_snippet='{"trigger-labels":["oblt-aw/ai/merge-ready"],"allowed-days-of-week":[]}'
+    policy_json='{"trigger-labels":["oblt-aw/ai/merge-ready"],"allowed-days-of-week":[]}'
   else
     base_sha="$(gh api "repos/${REPO}/pulls/${pr_number}" --jq '.base.sha')" || {
       echo "Failed to resolve base.sha for ${REPO}#${pr_number}; aborting discover." >&2
@@ -147,17 +149,20 @@ while IFS=$'\t' read -r pr_number head_sha; do
       echo "Empty base.sha for ${REPO}#${pr_number}; aborting discover." >&2
       exit 1
     fi
-    policy_snippet="$(automerge_discover_policy_for_base_sha "${base_sha}")"
+    policy_json="$(automerge_discover_policy_for_base_sha "${base_sha}")"
     AUTOMERGE_TRIGGER_LABELS_JSON="$(
-      printf '%s' "${policy_snippet}" | jq -c '."trigger-labels"'
+      printf '%s' "${policy_json}" | jq -c '."trigger-labels" // ["oblt-aw/ai/merge-ready"]'
+    )"
+    AUTOMERGE_LABEL_ACTORS_JSON="$(
+      printf '%s' "${policy_json}" | jq -c '."label-actors".allow // []'
     )"
     export AUTOMERGE_TRIGGER_LABELS_JSON
-
-    if ! automerge_discover_day_allowed "${policy_snippet}"; then
-      day_skipped=$((day_skipped + 1))
-      echo "PR #${pr_number}: deferred skip (UTC weekday '${TODAY_UTC}' not in allowed-days-of-week for base ${base_sha:0:7})"
-      continue
-    fi
+    export AUTOMERGE_LABEL_ACTORS_JSON
+  fi
+  if ! automerge_discover_day_allowed "${policy_json}"; then
+    day_skipped=$((day_skipped + 1))
+    echo "PR #${pr_number}: deferred skip (UTC weekday '${TODAY_UTC}' not in allowed-days-of-week for base ${base_sha:0:7})"
+    continue
   fi
 
   # Drop opted-out / label-stripped PRs before the matrix cap so they cannot

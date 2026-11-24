@@ -528,6 +528,7 @@ def resolve_apm_assets(
 
 
 MERGE_READY_LABEL = "oblt-aw/ai/merge-ready"
+DEFAULT_TRUSTED_LABEL_ACTOR = "elastic-vault-github-plugin-prod[bot]"
 AUTOMERGE_WORKFLOW_ID = "automerge"
 
 
@@ -552,6 +553,7 @@ _AUTOMERGE_POLICY_KNOWN_KEYS = frozenset(
         "allowed-days-of-week",
         "authors",
         "forks",
+        "label-actors",
         "paths",
         "trigger-labels",
     }
@@ -572,7 +574,12 @@ _AUTOMERGE_WEEKDAYS = frozenset(
 
 
 def default_automerge_policy() -> dict[str, Any]:
-    """Control-plane defaults when consumer policy is omitted."""
+    """Control-plane defaults when consumer policy is omitted.
+
+    ``label-actors`` is omitted so TypeScript ``normalizeAutomergePolicy`` keeps
+    the provenance gate off (an empty ``allow`` array under a present key would
+    enable Vault-only trust).
+    """
     return {
         "trigger-labels": [MERGE_READY_LABEL],
         "forks": {
@@ -707,6 +714,8 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
     Normalize ``workflows.automerge.policy`` (kebab-case).
 
     ``oblt-aw/ai/merge-ready`` is always present in ``trigger-labels``.
+    ``label-actors`` is included only when present on the raw mapping; when set,
+    ``elastic-vault-github-plugin-prod[bot]`` is always in ``allow``.
     Invalid ``paths`` values raise (callers must fail closed).
     """
     base = default_automerge_policy()
@@ -749,7 +758,7 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
         raw.get("allowed-days-of-week"), present=days_present
     )
 
-    return {
+    result: dict[str, Any] = {
         "trigger-labels": trigger_labels,
         "forks": {
             "mode": forks_mode,
@@ -763,6 +772,17 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
         "allowed-days-of-week": allowed_days,
         "paths": paths,
     }
+
+    if "label-actors" in raw:
+        label_actors_raw = raw.get("label-actors")
+        extras: list[str] = []
+        if isinstance(label_actors_raw, dict):
+            extras = _as_string_list(label_actors_raw.get("allow"))
+        result["label-actors"] = {
+            "allow": list(dict.fromkeys([DEFAULT_TRUSTED_LABEL_ACTOR, *extras])),
+        }
+
+    return result
 
 
 def extract_automerge_policy_raw(
@@ -810,6 +830,7 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
     labels = ", ".join(f"`{name}`" for name in policy.get("trigger-labels") or [])
     forks = policy.get("forks") or {}
     authors = policy.get("authors") or {}
+    label_actors = policy.get("label-actors") or {}
     forks_assoc = (
         ", ".join(f"`{name}`" for name in forks.get("author-associations") or [])
         or "_(none)_"
@@ -822,6 +843,12 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
         ", ".join(f"`{name}`" for name in authors.get("allow-list") or [])
         or "_(none beyond control-plane bots)_"
     )
+    label_actor_allow = label_actors.get("allow") or []
+    if label_actor_allow:
+        label_actors_text = ", ".join(f"`{name}`" for name in label_actor_allow)
+    else:
+        label_actors_text = "_(not enforced)_"
+
     allowed_days_raw = policy.get("allowed-days-of-week") or []
     allowed_days = (
         ", ".join(f"`{name}`" for name in allowed_days_raw) or "_(all UTC weekdays)_"
@@ -843,8 +870,11 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
             "applied the same rules). Control-plane bots from",
             "`config/obs/allowed_pr_authors.json` are always allowed authors.",
             f"`{MERGE_READY_LABEL}` is always a valid trigger label.",
+            f"`{DEFAULT_TRUSTED_LABEL_ACTOR}` is always allowed when",
+            "`label-actors` is configured.",
             "",
             f"- **Trigger labels**: {labels}",
+            f"- **Label actors allow**: {label_actors_text}",
             f"- **Authors mode**: `{authors.get('mode', 'allow-list')}`",
             f"- **Authors allow-list extras**: {allow_list}",
             f"- **Authors associations**: {authors_assoc}",
