@@ -1,6 +1,12 @@
 {
   "repositories": [
     {
+      "repository": "elastic/apm-agent-android",
+      "pin-class": "production",
+      "workflow-token-policy": "token-policy-8f29a664b18b",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/apm-server",
       "pin-class": "production",
       "workflow-token-policy": "token-policy-88538bb580ff",
