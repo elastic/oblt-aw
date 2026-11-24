@@ -282,4 +282,10 @@ class TestResolverWithFragments:
             platform_additional_instructions="",
         )
         assert _fragment_ids(resolved) == []
-        assert resolved["additional_instructions"].strip() == ""
+        text = resolved["additional_instructions"]
+        assert "Effective Dependency Review Policy" in text
+        assert "**max-merge-ready-risk**: `low-to-moderate`" in text
+        by_name = {
+            layer["layer"]: layer for layer in resolved["instruction_layers"]["layers"]
+        }
+        assert by_name["consumer-auto"]["sources"] == ["dependency-review-policy"]

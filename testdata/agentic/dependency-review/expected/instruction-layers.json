@@ -37,7 +37,7 @@
     {
       "layer": "consumer-auto",
       "kind": "auto",
-      "sources": []
+      "sources": ["dependency-review-policy"]
     }
   ]
 }

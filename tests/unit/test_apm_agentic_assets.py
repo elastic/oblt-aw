@@ -644,6 +644,13 @@ x-oblt-aw:
         with pytest.raises(ValueError, match="unsupported glob"):
             aaa.normalize_automerge_policy({"paths": {"deny": ["helm/values-?.yaml"]}})
 
+    def test_default_dependency_review_policy_when_apm_missing(
+        self, repo: pathlib.Path
+    ) -> None:
+        policy = aaa.resolve_dependency_review_policy(repo_root=repo, org_key="obs")
+        assert policy == aaa.default_dependency_review_policy()
+        assert policy["max-merge-ready-risk"] == aaa.DEFAULT_MAX_MERGE_READY_RISK
+
     def test_default_automerge_policy_omits_label_actors(self) -> None:
         policy = aaa.default_automerge_policy()
         assert "label-actors" not in policy
@@ -705,3 +712,104 @@ x-oblt-aw:
     def test_normalize_automerge_policy_rejects_unknown_weekday(self) -> None:
         with pytest.raises(ValueError, match="unknown weekday"):
             aaa.normalize_automerge_policy({"allowed-days-of-week": ["monady"]})
+
+    def test_resolve_dependency_review_policy_from_apm(
+        self, repo: pathlib.Path
+    ) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      dependency-review:
+        policy:
+          max-merge-ready-risk: moderate
+""",
+            encoding="utf-8",
+        )
+        policy = aaa.resolve_dependency_review_policy(repo_root=repo, org_key="obs")
+        assert policy["max-merge-ready-risk"] == "moderate"
+        text = aaa.format_dependency_review_policy_instructions(policy)
+        assert "Effective Dependency Review Policy" in text
+        assert "`moderate`" in text
+        for level in aaa.MERGE_READY_RISK_LEVELS:
+            assert f"`{level}`" in text
+        assert "`high`" in text
+
+    def test_normalize_dependency_review_policy_rejects_high(self) -> None:
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-risk": "high"})
+
+    def test_normalize_dependency_review_policy_accepts_low(self) -> None:
+        policy = aaa.normalize_dependency_review_policy({"max-merge-ready-risk": "low"})
+        assert policy["max-merge-ready-risk"] == "low"
+
+    def test_normalize_dependency_review_policy_omitted_uses_default(self) -> None:
+        policy = aaa.normalize_dependency_review_policy(None)
+        assert policy == aaa.default_dependency_review_policy()
+
+    def test_normalize_dependency_review_policy_rejects_malformed(self) -> None:
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-risk": "low "})
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy(
+                {"max-merge-ready-risk": "low-to-modrate"}
+            )
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-risk": 1})
+        with pytest.raises(ValueError, match="max-merge-ready-risk is required"):
+            aaa.normalize_dependency_review_policy({})
+        with pytest.raises(ValueError, match="max-merge-ready-risk is required"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-riks": "low"})
+        with pytest.raises(TypeError, match="must be a mapping"):
+            aaa.normalize_dependency_review_policy("low")
+
+    def test_dependency_review_policy_uses_checkout_root_not_sibling_head(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """
+        Restrictive base ceiling must win when resolve reads that checkout.
+
+        Mirrors the wrapper consumer-ref=base.sha contract: a head apm.yml that
+        raises max-merge-ready-risk must not affect policy resolved from base.
+        """
+        base = tmp_path / "base"
+        head = tmp_path / "head"
+        base.mkdir()
+        head.mkdir()
+        (base / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      dependency-review:
+        policy:
+          max-merge-ready-risk: low
+""",
+            encoding="utf-8",
+        )
+        (head / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      dependency-review:
+        policy:
+          max-merge-ready-risk: moderate
+""",
+            encoding="utf-8",
+        )
+        from_base = aaa.resolve_dependency_review_policy(repo_root=base, org_key="obs")
+        from_head = aaa.resolve_dependency_review_policy(repo_root=head, org_key="obs")
+        assert from_base["max-merge-ready-risk"] == "low"
+        assert from_head["max-merge-ready-risk"] == "moderate"
+        # Effective policy for the agent must follow the checkout root in use.
+        text = aaa.format_dependency_review_policy_instructions(from_base)
+        assert "**max-merge-ready-risk**: `low`" in text
+        assert "**max-merge-ready-risk**: `moderate`" not in text
