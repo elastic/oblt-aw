@@ -542,11 +542,15 @@ x-oblt-aw:
             "allow": ["docs/**"],
             "deny": ["**/*.go"],
         }
+        assert policy["allowed-days-of-week"] == []
         text = aaa.format_automerge_policy_instructions(policy)
         assert "Effective Automerge Policy" in text
         assert "nightshift:risk-low" in text
         assert "docs/**" in text
         assert "**/*.go" in text
+        assert "all UTC weekdays" in text
+        assert "Do **not** withhold approval" in text
+        assert "merge-only" in text
 
     def test_normalize_automerge_policy_paths_fail_closed(self) -> None:
         with pytest.raises(TypeError, match="paths must be a mapping"):
@@ -561,3 +565,32 @@ x-oblt-aw:
             aaa.normalize_automerge_policy({"paths": {"allow": [""]}})
         with pytest.raises(ValueError, match="unsupported glob"):
             aaa.normalize_automerge_policy({"paths": {"deny": ["helm/values-?.yaml"]}})
+
+    def test_resolve_automerge_policy_allowed_days(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      automerge:
+        policy:
+          allowed-days-of-week:
+            - Monday
+            - tuesday
+            - monday
+""",
+            encoding="utf-8",
+        )
+        policy = aaa.resolve_automerge_policy(repo_root=repo, org_key="obs")
+        assert policy["allowed-days-of-week"] == ["monday", "tuesday"]
+        text = aaa.format_automerge_policy_instructions(policy)
+        assert "`monday`" in text
+        assert "`tuesday`" in text
+        assert "all UTC weekdays" not in text
+        assert "Do **not** withhold approval" in text
+
+    def test_normalize_automerge_policy_rejects_unknown_weekday(self) -> None:
+        with pytest.raises(ValueError, match="unknown weekday"):
+            aaa.normalize_automerge_policy({"allowed-days-of-week": ["monady"]})
