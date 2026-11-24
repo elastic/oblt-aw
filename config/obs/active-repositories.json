@@ -25,6 +25,12 @@
       "ai-assets-token-policy": ""
     },
     {
+      "repository": "elastic/elastic-otel-react-native",
+      "pin-class": "production",
+      "workflow-token-policy": "token-policy-9c37800ecc62",
+      "ai-assets-token-policy": ""
+    },
+    {
       "repository": "elastic/elastic-package",
       "pin-class": "production",
       "workflow-token-policy": "token-policy-7b9cd8e32fdf",
