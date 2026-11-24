@@ -64,8 +64,12 @@ class TestDependencyReviewWrapperLockWiring:
         assert resolve_job["uses"].endswith("aw-resolve-agentic-assets.yml"), (
             f"unexpected resolve uses: {resolve_job['uses']!r}"
         )
-        assert resolve_job["with"]["workflow-basename"] == WRAPPER_BASENAME
-        assert "platform-additional-instructions" not in (resolve_job.get("with") or {})
+        with_block = resolve_job.get("with") or {}
+        assert with_block["workflow-basename"] == WRAPPER_BASENAME
+        assert with_block.get("consumer-ref") == (
+            "${{ github.event.pull_request.base.sha }}"
+        ), "dependency-review policy must resolve from the PR base, not the head"
+        assert "platform-additional-instructions" not in with_block
 
     def test_agent_job_passes_resolve_outputs_to_lock_inputs(self) -> None:
         wrapper = _load_yaml(WRAPPER_PATH)
@@ -105,21 +109,28 @@ class TestDependencyReviewWrapperLockWiring:
         assert "classification-labels" not in with_block
         assert "report-failure-as-issue" not in with_block
 
+        assert with_block.get("model") == (
+            "${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json)."
+            "model || 'gpt-5.3-codex' }}"
+        )
         lock_inputs = _lock_workflow_call_inputs(lock)
         for key in (
             "additional-instructions",
-            "setup-commands",
             "github-token-policy",
+            "model",
+            "setup-commands",
         ):
             assert key in lock_inputs, (
                 f"{LOCK_BASENAME} must declare workflow_call input {key!r}"
+            )
+            assert key in with_block, (
+                f"{WRAPPER_BASENAME} agent job must pass lock input {key!r}"
             )
         assert "classification-labels" not in lock_inputs, (
             f"{LOCK_BASENAME} must hardcode the merge-ready allowlist "
             "(no caller-overridable classification-labels input)"
         )
         for dropped in (
-            "model",
             "allowed-bot-users",
             "messages-footer",
             "report-failure-as-issue",
@@ -170,9 +181,15 @@ class TestDependencyReviewResolveFixtures:
         assert "DR_CONSUMER_FRAGMENT_MARKER" in text
         assert "DR_CONSUMER_INLINE_MARKER" in text
         assert "DR_COMMON_INLINE_SHOULD_NOT_APPLY" not in text
+        assert "Effective Dependency Review Policy" in text
+        assert "max-merge-ready-risk" in text
+        assert "`low-to-moderate`" in text
         assert text.index("DR_CONSUMER_FRAGMENT_MARKER") < text.index(
             "DR_CONSUMER_INLINE_MARKER"
         )
+        assert resolved["dependency_review_policy"] == {
+            "max-merge-ready-risk": "low-to-moderate"
+        }
 
         layers = resolved["instruction_layers"]
         assert layers["org-key"] == expected_layers["org-key"]
@@ -194,13 +211,19 @@ class TestDependencyReviewResolveFixtures:
 
         assert resolved["apm_manifest_present"] is False
         assert resolved["setup_commands"] == []
-        assert resolved["additional_instructions"].strip() == ""
+        text = resolved["additional_instructions"]
+        assert "Effective Dependency Review Policy" in text
+        assert "**max-merge-ready-risk**: `low-to-moderate`" in text
+        assert resolved["dependency_review_policy"] == {
+            "max-merge-ready-risk": "low-to-moderate"
+        }
         by_name = {
             layer["layer"]: layer for layer in resolved["instruction_layers"]["layers"]
         }
         assert by_name["platform-inline"]["present"] is False
         assert by_name["consumer-inline"]["present"] is False
         assert by_name["control-plane-workflow"]["ids"] == []
+        assert by_name["consumer-auto"]["sources"] == ["dependency-review-policy"]
 
 
 def test_fixture_tree_is_present() -> None:
@@ -255,6 +278,9 @@ def test_actions_commit_verification_contract_in_prompt() -> None:
     assert "Collect Actions commit verification (REST)" in source
     assert "verified: true" in source
     assert "verified: false" in source
+    assert "advisory only" in source
+    assert "Effective Dependency Review Policy" in source
+    assert "max-merge-ready-risk" in source
     assert "missing_data" in source
     assert "Do **not** call MCP `get_commit`" in source
     assert "Do **not** use MCP `get_commit`" in source

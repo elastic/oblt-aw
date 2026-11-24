@@ -21,8 +21,10 @@
  *
  * Control-plane bot logins live in `config/obs/allowed_pr_authors.json`, which Prelude
  * loads for ingress and `scripts/sync_allowed_pr_authors_bots.py` syncs onto static GH-AW
- * `on.bots` / prompt copies. Consumer `apm.yml` may extend authors, forks, and trigger
- * labels via `x-oblt-aw.<org>.workflows.automerge.policy` (see automergePolicy.ts).
+ * `on.bots` / prompt copies. Consumer `apm.yml` may extend authors, forks, trigger
+ * labels, allowed label appliers, and allowed UTC weekdays via
+ * `x-oblt-aw.<org>.workflows.automerge.policy`
+ * (see automergePolicy.ts).
  *
  * GraphQL/`gh pr view` (gh ≥ 2.50) may return `app/<slug>` for GitHub Apps while REST
  * and webhooks return `<slug>[bot]`. Matching always normalizes `app/<slug>` →
@@ -37,13 +39,43 @@ const fs = require('node:fs');
 
 const MERGE_READY_LABEL_FALLBACK = 'oblt-aw/ai/merge-ready';
 
+const DEFAULT_TRUSTED_LABEL_ACTOR_FALLBACK =
+  'elastic-vault-github-plugin-prod[bot]';
+
 function fallbackDefaultAutomergePolicy() {
   return {
     triggerLabels: [MERGE_READY_LABEL_FALLBACK],
     forks: { mode: 'disabled', authorAssociations: [] },
     authors: { mode: 'allow-list', allowList: [], authorAssociations: [] },
     paths: { allow: [], deny: [] },
+    labelActors: { allow: [] },
+    allowedDaysOfWeek: [],
   };
+}
+
+/** @param {Date} [when] */
+function fallbackUtcWeekdayName(when = new Date()) {
+  return [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ][when.getUTCDay()];
+}
+
+/**
+ * @param {{ allowedDaysOfWeek?: string[] }} policy
+ * @param {Date} [when]
+ */
+function fallbackIsDayAllowedByPolicy(policy, when = new Date()) {
+  const allowed = policy.allowedDaysOfWeek || [];
+  if (!allowed.length) {
+    return true;
+  }
+  return allowed.includes(fallbackUtcWeekdayName(when));
 }
 
 function loadAutomergePolicyModule() {
@@ -58,6 +90,9 @@ function loadAutomergePolicyModule() {
 const policyModule = loadAutomergePolicyModule();
 const MERGE_READY_LABEL =
   policyModule?.MERGE_READY_LABEL || MERGE_READY_LABEL_FALLBACK;
+const DEFAULT_TRUSTED_LABEL_ACTOR =
+  policyModule?.DEFAULT_TRUSTED_LABEL_ACTOR ||
+  DEFAULT_TRUSTED_LABEL_ACTOR_FALLBACK;
 const defaultAutomergePolicy =
   policyModule?.defaultAutomergePolicy || fallbackDefaultAutomergePolicy;
 const normalizeAutomergePolicy =
@@ -87,6 +122,35 @@ const hasTriggerLabel =
     return (policy.triggerLabels || [MERGE_READY_LABEL_FALLBACK]).some((name) =>
       labels.has(name)
     );
+  });
+const isLabelActorGateEnabled =
+  policyModule?.isLabelActorGateEnabled ||
+  ((policy) => (policy.labelActors?.allow || []).length > 0);
+const hasTrustedTriggerLabel =
+  policyModule?.hasTrustedTriggerLabel ||
+  ((policy, presentLabelNames, latestAppliers) => {
+    if (!hasTriggerLabel(policy, presentLabelNames)) {
+      return false;
+    }
+    if (!isLabelActorGateEnabled(policy)) {
+      return true;
+    }
+    const present = new Set(presentLabelNames);
+    const allow = new Set(policy.labelActors?.allow || []);
+    return (policy.triggerLabels || []).some((name) => {
+      if (!present.has(name)) {
+        return false;
+      }
+      const actor =
+        latestAppliers instanceof Map
+          ? latestAppliers.get(name)
+          : latestAppliers[name];
+      if (actor == null || actor === '') {
+        return false;
+      }
+      const normalized = normalizePrAuthorLogin(actor);
+      return allow.has(normalized);
+    });
   });
 const isAuthorAllowedByPolicy =
   policyModule?.isAuthorAllowedByPolicy ||
@@ -120,6 +184,9 @@ const isForkAllowedByPolicy =
     );
     return allowed.has(String(args.authorAssociation || '').toUpperCase());
   });
+const isDayAllowedByPolicy =
+  policyModule?.isDayAllowedByPolicy || fallbackIsDayAllowedByPolicy;
+const utcWeekdayName = policyModule?.utcWeekdayName || fallbackUtcWeekdayName;
 
 const GITHUB_ACTIONS_BOT = 'github-actions[bot]';
 
@@ -155,8 +222,44 @@ function isAllowedPrAuthor(login) {
 module.exports.normalizePrAuthorLogin = normalizePrAuthorLogin;
 module.exports.isAllowedPrAuthor = isAllowedPrAuthor;
 module.exports.MERGE_READY_LABEL = MERGE_READY_LABEL;
+module.exports.DEFAULT_TRUSTED_LABEL_ACTOR = DEFAULT_TRUSTED_LABEL_ACTOR;
 module.exports.defaultAutomergePolicy = defaultAutomergePolicy;
 module.exports.normalizeAutomergePolicy = normalizeAutomergePolicy;
+
+/**
+ * Latest labeled/unlabeled applier per label name from the issue timeline.
+ * Fail-closed callers must treat thrown errors as gate failure.
+ * @param {{ paginate: Function, rest: { issues: { listEventsForTimeline: unknown } } }} github
+ * @param {{ owner: string, repo: string, issueNumber: number }} args
+ * @returns {Promise<Map<string, string|null>>}
+ */
+async function resolveLatestLabelAppliers(github, args) {
+  const events = await github.paginate(github.rest.issues.listEventsForTimeline, {
+    owner: args.owner,
+    repo: args.repo,
+    issue_number: args.issueNumber,
+    per_page: 100,
+  });
+  /** @type {Map<string, string|null>} */
+  const latest = new Map();
+  for (const event of events || []) {
+    if (event?.event !== 'labeled' && event?.event !== 'unlabeled') {
+      continue;
+    }
+    const name = event.label?.name;
+    if (typeof name !== 'string' || !name) {
+      continue;
+    }
+    if (event.event === 'unlabeled') {
+      latest.set(name, null);
+      continue;
+    }
+    latest.set(name, normalizePrAuthorLogin(event.actor?.login || ''));
+  }
+  return latest;
+}
+
+module.exports.resolveLatestLabelAppliers = resolveLatestLabelAppliers;
 
 module.exports.run = async function run({
   github,
@@ -166,15 +269,24 @@ module.exports.run = async function run({
   sharedTokenPolicy = '',
   policy = undefined,
   policyJson = '',
+  now = undefined,
 }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
+  const emptyFail = {
+    ok: false,
+    weekdayOk: false,
+    triggerLabels: [],
+    labelActorsAllow: [],
+    allowedDaysOfWeek: [],
+  };
 
   if (typeof prNumber !== 'number' || !Number.isFinite(prNumber)) {
     core.info('Automerge: invalid or missing pull request number; skipping.');
-    return { ok: false, triggerLabels: [] };
+    return emptyFail;
   }
 
+  /** @type {ReturnType<typeof defaultAutomergePolicy>} */
   let effectivePolicy;
   try {
     effectivePolicy =
@@ -184,10 +296,20 @@ module.exports.run = async function run({
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     core.info(
-      `PR #${prNumber}: invalid automerge policy (${message}); skipping.`
+      `PR #${prNumber}: invalid consumer policy (${message}); failing closed.`
     );
-    return { ok: false, triggerLabels: [] };
+    return emptyFail;
   }
+  const labelActorsAllow = effectivePolicy.labelActors?.allow || [];
+  const when = now instanceof Date ? now : new Date();
+  const allowedDaysOfWeek = effectivePolicy.allowedDaysOfWeek || [];
+  const failResult = {
+    ok: false,
+    weekdayOk: false,
+    triggerLabels: effectivePolicy.triggerLabels,
+    labelActorsAllow,
+    allowedDaysOfWeek,
+  };
 
   const { data: pr } = await github.rest.pulls.get({
     owner,
@@ -212,7 +334,7 @@ module.exports.run = async function run({
         (author !== authorRaw ? ` (normalized '${author}')` : '') +
         ` association='${authorAssociation}' is not allowed by automerge policy`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   // Approve must use Vault for github-actions-authored PRs (GITHUB_TOKEN would self-APPROVE).
@@ -220,7 +342,7 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: author '${GITHUB_ACTIONS_BOT}' requires a non-empty shared-token-policy so approve can use Vault instead of GITHUB_TOKEN`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   const labelNames = (pr.labels || []).map((l) => l.name);
@@ -228,12 +350,36 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: missing trigger label (need one of: ${effectivePolicy.triggerLabels.join(', ')})`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
+  }
+
+  if (isLabelActorGateEnabled(effectivePolicy)) {
+    let latestAppliers;
+    try {
+      latestAppliers = await resolveLatestLabelAppliers(github, {
+        owner,
+        repo,
+        issueNumber: prNumber,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      core.info(
+        `PR #${prNumber}: could not read label timeline (fail closed): ${message}`
+      );
+      return failResult;
+    }
+    if (!hasTrustedTriggerLabel(effectivePolicy, labelNames, latestAppliers)) {
+      core.info(
+        `PR #${prNumber}: no trigger label applied by an allowed actor ` +
+          `(allow: ${labelActorsAllow.join(', ')})`
+      );
+      return failResult;
+    }
   }
 
   if (pr.draft) {
     core.info(`PR #${prNumber}: draft PRs are excluded`);
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   const headFull = pr.head?.repo?.full_name || '';
@@ -248,14 +394,31 @@ module.exports.run = async function run({
     core.info(
       `PR #${prNumber}: fork PRs are excluded by automerge policy (forks.mode=${effectivePolicy.forks.mode})`
     );
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
   if ((pr.head?.ref || '') === (pr.base?.ref || '')) {
     core.info(`PR #${prNumber}: head ref equals base ref`);
-    return { ok: false, triggerLabels: effectivePolicy.triggerLabels };
+    return failResult;
   }
 
-  core.info(`PR #${prNumber}: passed automerge validation`);
-  return { ok: true, triggerLabels: effectivePolicy.triggerLabels };
+  // Weekday is soft for PR-path proceed (approve/arm can still run) and hard for
+  // merge/deferred. Callers that must not merge today check weekdayOk.
+  const weekdayOk = isDayAllowedByPolicy(effectivePolicy, when);
+  if (!weekdayOk) {
+    const day = utcWeekdayName(when);
+    const allowed = allowedDaysOfWeek.join(', ');
+    core.info(
+      `PR #${prNumber}: UTC weekday '${day}' is not in allowed-days-of-week (${allowed}); deferring merge`
+    );
+  } else {
+    core.info(`PR #${prNumber}: passed automerge validation`);
+  }
+  return {
+    ok: true,
+    weekdayOk,
+    triggerLabels: effectivePolicy.triggerLabels,
+    labelActorsAllow,
+    allowedDaysOfWeek,
+  };
 };

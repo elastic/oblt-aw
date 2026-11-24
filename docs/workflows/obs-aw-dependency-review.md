@@ -45,23 +45,50 @@ Edit the GH-AW source [`.github/workflows/gh-aw-dependency-review.md`](https://g
 
 ## Labeling and Actions commit verification
 
-Observability-owned labeling rules live in [`.github/workflows/gh-aw-dependency-review.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.md) (Steps 3a / 4). Summary of the Actions commit-verification contract ([#2097](https://github.com/elastic/oblt-aw/issues/2097)):
+Observability-owned labeling rules live in [`.github/workflows/gh-aw-dependency-review.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.md) (Steps 3a / 4). Hard blockers for `oblt-aw/ai/merge-ready` are: overall risk above the consumer **max-merge-ready-risk** ceiling (or **high**), and breaking changes that affect this repository. Secondary ecosystem checks are reported in the analysis table but do **not** withhold the label.
+
+### Consumer risk ceiling (`apm.yml`) [consumer-risk-ceiling-apmyml]
+
+Optional under `x-oblt-aw.<org>.workflows.dependency-review.policy` (see [Define local AI assets](../user-guide/local-ai-assets.md)):
+
+| `max-merge-ready-risk` | Meaning | Merge-ready when overall risk is |
+| --- | --- | --- |
+| `low` | Strictest ceiling | **low** only |
+| `low-to-moderate` | **Default** when the policy block is omitted | **low** or **low-to-moderate** |
+| `moderate` | Opt-in higher ceiling | **low**, **low-to-moderate**, or **moderate** |
+
+**`high` cannot be set** in APM and never receives `oblt-aw/ai/merge-ready`. When `policy` is present, `max-merge-ready-risk` must be an exact allowed value; malformed or missing values fail resolve instead of falling back to a broader default. Resolve always injects an **Effective Dependency Review Policy** block so the agent sees the active ceiling. The wrapper passes `consumer-ref` as the PR **base** SHA (same trust model as automerge policy), so a dependency bump cannot raise its own risk ceiling from the PR head.
+
+```yaml
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      dependency-review:
+        policy:
+          max-merge-ready-risk: moderate
+```
+
+### Actions commit verification
+
+Summary of the Actions commit-verification contract ([#2097](https://github.com/elastic/oblt-aw/issues/2097), labeling relaxation in [#1943](https://github.com/elastic/oblt-aw/issues/1943)):
 
 | `actions-commit-verification.json` pin | Ecosystem commit check | `oblt-aw/ai/merge-ready` |
 |----------------------------------------|------------------------|--------------------------|
-| `verified: true` | Pass | Allowed when other Step 4 gates pass |
-| `verified: false` | Fail | Must **not** apply |
-| `verified: null` / missing pin / collector `error` | Unavailable | Call `missing_data` / `report_incomplete` — do **not** inflate risk to **moderate** solely for this, and do not soft-withhold the label while claiming low risk |
+| `verified: true` | Pass | Allowed when risk ceiling and breaking-change gates pass |
+| `verified: false` | Fail (advisory) | Document in the table; does **not** withhold the label alone |
+| `verified: null` / missing pin / collector `error` | Unavailable | Call `missing_data` / `report_incomplete` — do **not** inflate risk to **moderate** solely for this, and do not soft-withhold the label while claiming an eligible risk band |
 
 A pre-agent runner step fetches `scripts/obs/collect_actions_commit_verification.py` from an immutable `elastic/oblt-aw` commit into `RUNNER_TEMP` (never from the PR checkout), verifies its SHA-256, then writes `actions-commit-verification.json` via GitHub REST (`GET /repos/{owner}/{repo}/commits/{sha}`). The agent must prefer that file over MCP `get_commit` (MCP omits `commit.verification` and caused false negatives).
 
-**Untestable production workflows** (only `push` / `release` / `schedule` / `workflow_dispatch`, with production impact) still block `oblt-aw/ai/merge-ready` under Step 4. That rule is unchanged by #2097.
+**Not testable in PR** and pin-format warnings (including accepted mutable tags under `github/*`, `actions/*`, and `elastic/*`) are also advisory for labeling.
 
 ### Release notes fetch and merge-ready
 
 Step 3b in the lock prompt requires GitHub MCP release tools first (`get_release_by_tag` / `list_releases` / `get_latest_release`, one retry on empty/error). MCP list/latest selection is restricted to an **exact-equivalent** tag for the target new version (e.g. `1.2.3` ↔ `v1.2.3`); newer or adjacent releases must not be used as a notes substitute. Then `web-fetch` on release/compare URLs from Dependabot metadata, then local commit metadata only. Shell `curl` / `wget` / unauthenticated `gh` to GitHub HTTP endpoints are forbidden (Copilot CLI URL gates deny them under `--no-ask-user`).
 
-Missing upstream release-note body after that chain must be documented under Changelog highlights. It must **not** be reported as Breaking changes ⚠️, must **not** alone raise risk above **low-to-moderate**, and must **not** soft-withhold `oblt-aw/ai/merge-ready` when overall risk is **low** or **low-to-moderate** and the other Step 4 gates pass.
+Missing upstream release-note body after that chain must be documented under Changelog highlights. It must **not** be reported as Breaking changes ⚠️, must **not** alone raise risk above **low-to-moderate**, and must **not** soft-withhold `oblt-aw/ai/merge-ready` when overall risk is within the Effective Policy ceiling and the breaking-change gate passes.
 
 ## Failure mode (empty safe outputs)
 
@@ -101,6 +128,8 @@ uses: elastic/ai-github-actions/.github/workflows/gh-aw-dependency-review.lock.y
 ```
 
 and restore any upstream-required inputs (`allowed-bot-users`, `classification-labels`, `report-failure-as-issue`) if needed. Copies in `elastic/ai-github-actions` remain for other consumers; this cutover does not deprecate or remove them.
+
+**Model selection:** default comes from [`obs-defaults`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-fragments/obs-defaults.md). Consumers override with `x-oblt-aw.<org>.….inputs.model` in `apm.yml` (see [Choose a model](../user-guide/local-ai-assets.md#choose-a-model-for-your-workflow)). The wrapper forwards `resolved-inputs-json.model` into the lock.
 
 **Integration (no live model):** fixtures and wiring checks for resolve → wrapper → lock inputs live under [`testdata/agentic/dependency-review/`](https://github.com/elastic/oblt-aw/tree/main/testdata/agentic/dependency-review) and [`tests/integration/test_dependency_review.py`](https://github.com/elastic/oblt-aw/blob/main/tests/integration/test_dependency_review.py).
 

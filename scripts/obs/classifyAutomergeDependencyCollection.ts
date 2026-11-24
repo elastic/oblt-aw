@@ -171,6 +171,22 @@ function preferSpecificOverGeneric(matched) {
 }
 
 /**
+ * Preserve existing infrastructure coverage when new mobile globs also match.
+ * All entries here already cover every changed file; enabled toggles must not
+ * change which collection owns the PR.
+ * @param {DependencyCollection[]} matched
+ * @returns {DependencyCollection[]}
+ */
+function preferInfrastructureOverMobileCollections(matched) {
+  const hasInfrastructure = matched.some((c) =>
+    ['vm-images', 'github-actions'].includes(c.id)
+  );
+  return hasInfrastructure
+    ? matched.filter((c) => !['gradle', 'swiftpm', 'cocoapods'].includes(c.id))
+    : matched;
+}
+
+/**
  * @param {string[]} files Current PR filenames (collection matching).
  * @param {DependencyCollection[]} collections
  * @param {string[]} enabledCollectionIds
@@ -196,9 +212,11 @@ function classifyChangedFiles(
     return { status: 'unclassified', collectionId: null };
   }
 
-  const matched = preferSpecificOverGeneric(
-    preferNonSupersetCollections(
-      collections.filter((c) => collectionMatchesAllFiles(c, changed))
+  const matched = preferInfrastructureOverMobileCollections(
+    preferSpecificOverGeneric(
+      preferNonSupersetCollections(
+        collections.filter((c) => collectionMatchesAllFiles(c, changed))
+      )
     )
   );
 

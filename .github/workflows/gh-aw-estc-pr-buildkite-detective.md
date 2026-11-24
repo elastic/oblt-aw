@@ -14,6 +14,8 @@ engine:
   id: copilot
   # Required on gh-aw >= v0.91.x: BYOK Copilot disables native web-fetch unless SDK mode is on.
   copilot-sdk: true
+  # Caller/APM override; default matches obs-defaults. Overrides imported top-level model.
+  model: ${{ inputs.model }}
 on:
   stale-check: false
   workflow_call:
@@ -23,6 +25,18 @@ on:
         type: string
         required: false
         default: ""
+      model:
+        description: >-
+          Agent model id or alias. Defaults to the framework default from
+          obs-defaults (gpt-5.3-codex). Set via apm.yml inputs.model to override.
+        type: string
+        required: false
+        default: "gpt-5.3-codex"
+      buildkite-log-tail-lines:
+        description: "How many trailing Buildkite log lines to prefetch per failed job (1–2000; default 150)"
+        type: number
+        required: false
+        default: 150
       setup-commands:
         description: "Shell commands to run before the agent starts (dependency install, build, etc.)"
         type: string
@@ -60,6 +74,7 @@ steps:
   - name: Resolve event context and fetch Buildkite data
     env:
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}
+      BUILDKITE_LOG_TAIL_LINES: ${{ inputs.buildkite-log-tail-lines }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_RUN_ID: ${{ github.run_id }}
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -69,7 +84,28 @@ steps:
 
       BK_TOKEN = os.environ['BUILDKITE_API_TOKEN']
       EVENT_NAME = os.environ['GITHUB_EVENT_NAME']
-      LOG_TAIL = 150
+      # Mirrored by scripts/estc_buildkite_log_tail.py (unit-tested); keep inline
+      # so consumer checkouts do not need control-plane scripts on PATH.
+      LOG_TAIL_DEFAULT = 150
+      LOG_TAIL_MAX = 2000
+      raw_tail = os.environ.get('BUILDKITE_LOG_TAIL_LINES', '').strip()
+      if not raw_tail:
+          LOG_TAIL = LOG_TAIL_DEFAULT
+      else:
+          try:
+              LOG_TAIL = int(raw_tail)
+          except ValueError:
+              print(
+                  '::error::buildkite-log-tail-lines must be an integer '
+                  f'(got {raw_tail!r})'
+              )
+              sys.exit(1)
+          if LOG_TAIL < 1 or LOG_TAIL > LOG_TAIL_MAX:
+              print(
+                  '::error::buildkite-log-tail-lines must be between 1 and '
+                  f'{LOG_TAIL_MAX} (got {LOG_TAIL})'
+              )
+              sys.exit(1)
       ANSI_RE = re.compile(r'\x1b(?:\[[0-9;]*[A-Za-z]|_[^\x07]*\x07|[()][AB012]|[=>])')
       BK_URL_RE = re.compile(r'https://buildkite\.com/([^/]+)/([^/]+)/builds/(\d+)')
 

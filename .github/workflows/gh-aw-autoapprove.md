@@ -15,6 +15,8 @@ engine:
   id: copilot
   # Required on gh-aw >= v0.91.x: BYOK Copilot disables native web-fetch unless SDK mode is on.
   copilot-sdk: true
+  # Caller/APM override; default matches obs-defaults. Overrides imported top-level model.
+  model: ${{ inputs.model }}
   concurrency:
     group: "gh-aw-copilot-${{ github.workflow }}-autoapprove-${{ github.event.pull_request.number }}"
 on:
@@ -26,6 +28,13 @@ on:
         type: string
         required: false
         default: ""
+      model:
+        description: >-
+          Agent model id or alias. Defaults to the framework default from
+          obs-defaults (gpt-5.3-codex). Set via apm.yml inputs.model to override.
+        type: string
+        required: false
+        default: "gpt-5.3-codex"
       github-token-policy:
         description: "Elastic TokenPolicy id for create-token. When set, mint an OIDC ephemeral token so the review is submitted as the Vault app. Leave empty to use GITHUB_TOKEN."
         type: string
@@ -72,8 +81,9 @@ tools:
   web-fetch:
 safe-outputs:
   activation-comments: false
-  # Prefer OIDC create-token output, then secrets (gh-aw >= v0.89.21).
-  github-token: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+  # Secrets only: conclusion consumes this expression and cannot mint create-token (gh-aw >= v1.3.x).
+  # safe_outputs still prefers the minted token via wire_ephemeral_token.py after compile.
+  github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 strict: false
 timeout-minutes: 30
 # Approve skips consumer APM shell setup: only PR metadata via MCP is required.

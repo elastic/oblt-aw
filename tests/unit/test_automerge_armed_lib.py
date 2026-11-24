@@ -244,13 +244,20 @@ def _fake_gh_squash_script(
     labels_exit: int = 0,
     reviews_json: str | None = None,
     reviews_exit: int = 0,
+    timeline_json: str | None = None,
+    timeline_exit: int = 0,
     allow_merge: bool = True,
     merge_body: str = "",
     merge_exit: int = 0,
 ) -> str:
-    """Stub gh for head SHA, labels, reviews, and optional merge PUT."""
+    """Stub gh for head SHA, labels, reviews, timeline, and optional merge PUT."""
     if reviews_json is None:
         reviews_json = _approved_reviews_json(head_sha=head_sha)
+    if timeline_json is None:
+        timeline_json = (
+            '[{"event":"labeled","label":{"name":"oblt-aw/ai/merge-ready"},'
+            '"actor":{"login":"' + _APPROVER + '"}}]'
+        )
     if allow_merge:
         merge_block = f"""\
         if [[ "$*" == *"pulls/"*"/merge"* ]]; then
@@ -293,6 +300,16 @@ def _fake_gh_squash_script(
           exit 0
         fi
         """
+    timeline_block = f"""\
+        if [[ "$*" == *"/timeline"* ]]; then
+          if [[ {timeline_exit} -ne 0 ]]; then
+            echo "timeline api boom" >&2
+            exit {timeline_exit}
+          fi
+          printf '%s\\n' {shlex.quote(timeline_json)}
+          exit 0
+        fi
+        """
     return f"""\
         #!/usr/bin/env bash
         set -euo pipefail
@@ -302,6 +319,7 @@ def _fake_gh_squash_script(
         fi
         {labels_block}
         {reviews_block}
+        {timeline_block}
         {merge_block}
         echo "unexpected gh args: $*" >&2
         exit 99
@@ -465,3 +483,231 @@ def test_effective_trigger_labels_defaults_under_nounset() -> None:
     assert result.returncode == 0, result.stderr
     assert "oblt-aw/ai/merge-ready" in result.stdout
     assert "unbound variable" not in result.stderr
+
+
+def test_effective_label_actors_empty_under_nounset() -> None:
+    env = os.environ.copy()
+    env.pop("AUTOMERGE_LABEL_ACTORS_JSON", None)
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'set -u; source "{SCRIPT}"; automerge_effective_label_actors_json',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "[]"
+
+
+def test_utc_weekday_allowed_empty_is_unrestricted() -> None:
+    env = os.environ.copy()
+    env["AUTOMERGE_ALLOWED_DAYS_JSON"] = "[]"
+    env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = "friday"
+    result = subprocess.run(
+        ["bash", "-c", f'source "{SCRIPT}"; automerge_utc_weekday_allowed'],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_effective_label_actors_always_includes_vault_bot() -> None:
+    env = os.environ.copy()
+    env["AUTOMERGE_LABEL_ACTORS_JSON"] = '["nightshift-bot[bot]"]'
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            f'source "{SCRIPT}"; automerge_effective_label_actors_json',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "elastic-vault-github-plugin-prod[bot]" in result.stdout
+    assert "nightshift-bot[bot]" in result.stdout
+
+
+def test_utc_weekday_allowed_rejects_disallowed_day() -> None:
+    env = os.environ.copy()
+    env["AUTOMERGE_ALLOWED_DAYS_JSON"] = '["monday","tuesday"]'
+    env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = "friday"
+    result = subprocess.run(
+        ["bash", "-c", f'source "{SCRIPT}"; automerge_utc_weekday_allowed'],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 2
+    assert "friday" in result.stderr
+
+
+def test_squash_merge_at_sha_skips_when_label_actor_untrusted(
+    tmp_path: pathlib.Path,
+) -> None:
+    timeline = (
+        '[{"event":"labeled","label":{"name":"oblt-aw/ai/merge-ready"},'
+        '"actor":{"login":"random-triager"}}]'
+    )
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            timeline_json=timeline,
+            allow_merge=False,
+        ),
+    )
+    env["AUTOMERGE_LABEL_ACTORS_JSON"] = '["nightshift-bot[bot]"]'
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=skipped" in result.stdout
+    assert "trusted trigger-label applier" in result.stderr
+
+
+def test_squash_merge_at_sha_weekday_policy_is_not_ready(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Disallowed UTC weekday must soft-defer merge (arm path), not fail closed."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            labels_json='["oblt-aw/ai/merge-ready"]',
+            allow_merge=False,
+        ),
+    )
+    env["AUTOMERGE_ALLOWED_DAYS_JSON"] = '["monday","tuesday"]'
+    env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = "friday"
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=not_ready" in result.stdout
+    assert "weekday" in result.stderr.lower() or "allowed-days" in result.stderr
+
+
+def test_squash_merge_at_sha_accepts_vault_label_actor(
+    tmp_path: pathlib.Path,
+) -> None:
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(head_sha=_VALID_SHA, merge_body="", merge_exit=0),
+    )
+    env["AUTOMERGE_LABEL_ACTORS_JSON"] = '["nightshift-bot[bot]"]'
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=merged" in result.stdout
+
+
+def test_squash_merge_at_sha_timeline_error_is_merge_failed(
+    tmp_path: pathlib.Path,
+) -> None:
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            timeline_exit=1,
+            allow_merge=False,
+        ),
+    )
+    env["AUTOMERGE_LABEL_ACTORS_JSON"] = '["nightshift-bot[bot]"]'
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 1
+    assert "MERGE_RESULT=merge_failed" in result.stdout
+    assert "Could not verify" in result.stderr or "timeline" in result.stderr.lower()
+
+
+def test_squash_merge_dismissed_approval_beats_blocked_weekday(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Dismissed review on a blocked day must fail closed, not soft-defer."""
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            labels_json='["oblt-aw/ai/merge-ready"]',
+            reviews_json=_dismissed_after_approved_reviews_json(),
+            allow_merge=False,
+        ),
+    )
+    env["AUTOMERGE_ALLOWED_DAYS_JSON"] = '["monday","tuesday"]'
+    env["AUTOMERGE_DISCOVER_UTC_WEEKDAY"] = "friday"
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 1
+    assert "MERGE_RESULT=merge_failed" in result.stdout
+    assert "ASSERT_REASON=missing_approval" in result.stdout
+    assert "MERGE_RESULT=not_ready" not in result.stdout
+
+
+def _timeline_event(
+    event: str, *, actor: str, label: str = "oblt-aw/ai/merge-ready"
+) -> str:
+    return (
+        f'{{"event":"{event}","label":{{"name":"{label}"}},'
+        f'"actor":{{"login":"{actor}"}}}}'
+    )
+
+
+def _timeline_pages(*pages: list[str]) -> str:
+    """Emit one JSON array per page (gh api --paginate --jq '.' shape)."""
+    return "\n".join("[" + ",".join(page) + "]" for page in pages)
+
+
+def test_squash_merge_at_sha_rejects_untrusted_reapply_across_timeline_pages(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Trusted apply then untrusted reapply must skip; never send merge PUT."""
+    timeline = _timeline_pages(
+        [_timeline_event("labeled", actor="nightshift-bot[bot]")],
+        [
+            _timeline_event("unlabeled", actor="nightshift-bot[bot]"),
+            _timeline_event("labeled", actor="random-triager"),
+        ],
+    )
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            timeline_json=timeline,
+            allow_merge=False,
+        ),
+    )
+    env["AUTOMERGE_LABEL_ACTORS_JSON"] = '["nightshift-bot[bot]"]'
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=skipped" in result.stdout
+    assert "trusted trigger-label applier" in result.stderr
+    assert "merge must not run" not in result.stderr
+
+
+def test_squash_merge_at_sha_accepts_trusted_reapply_across_timeline_pages(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Untrusted history then trusted reapply must merge using concatenated pages."""
+    timeline = _timeline_pages(
+        [_timeline_event("labeled", actor="random-triager")],
+        [
+            _timeline_event("unlabeled", actor="random-triager"),
+            _timeline_event("labeled", actor="nightshift-bot[bot]"),
+        ],
+    )
+    env = _install_fake_gh(
+        tmp_path,
+        _fake_gh_squash_script(
+            head_sha=_VALID_SHA,
+            timeline_json=timeline,
+            merge_body="",
+            merge_exit=0,
+        ),
+    )
+    env["AUTOMERGE_LABEL_ACTORS_JSON"] = '["nightshift-bot[bot]"]'
+    result = _bash_merge(_squash(), env=env)
+    assert result.returncode == 0, result.stderr
+    assert "MERGE_RESULT=merged" in result.stdout

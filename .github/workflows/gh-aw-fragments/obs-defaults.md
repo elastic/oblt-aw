@@ -1,6 +1,7 @@
 ---
 model: gpt-5.3-codex
 safe-outputs:
+  require-agent-success: true
   report-failure-as-issue: false
   report-failed-jobs: false
   noop:
@@ -22,6 +23,8 @@ tools:
 Shared opinionated defaults for Observability-owned agentic workflows. Import this fragment from each in-repo `gh-aw-*.md` so model, failure reporting, and trusted users stay in one place.
 
 Failure reporting: `report-failure-as-issue` and `report-failed-jobs` are off, and every default failure fallback that can open a tracking issue is set to `create-issue: false` / `report-as-issue: false` (`noop`, `missing-tool`, `missing-data`, `report-incomplete`). Keep those signals for run handling; do not open new issues.
+
+Agent success gate: `require-agent-success` is on so safe-output writes are blocked when an agent job fails.
 
 Note: `on.bots` cannot be declared in a shared fragment; pin bot actors on each workflow that needs them (for example `github-actions[bot]` and `buildkite-limited-access[bot]`).
 

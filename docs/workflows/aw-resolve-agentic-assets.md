@@ -25,7 +25,7 @@ The reusable workflow job id is `resolve-agentic-assets`. Route wrappers typical
 | `platform-additional-instructions` | string | `""` | Framework baseline text for this agent invocation (prepended before repo APM instructions) |
 | `platform-inputs-json` | string | `"{}"` | JSON object of platform inputs; APM `inputs` override per key |
 | `install-apm-packages` | boolean | `true` | Run [`microsoft/apm-action`](https://github.com/microsoft/apm-action) when `apm.yml` is present (installs the APM CLI and runs `apm install`) |
-| `consumer-ref` | string | `""` | Optional git ref/SHA for the consumer checkout. Automerge passes `pull_request.base.sha` so authorize/approve policy is not read from the PR head. Empty keeps the default `actions/checkout` ref for the event |
+| `consumer-ref` | string | `""` | Optional git ref/SHA for the consumer checkout. Automerge and dependency-review pass `pull_request.base.sha` so authorize/approve / max-merge-ready-risk policy is not read from the PR head. Empty keeps the default `actions/checkout` ref for the event |
 
 The APM CLI version comes from the framework pin in [`.apm.version`](https://github.com/elastic/oblt-aw/blob/main/.apm.version) (sparse-checked out with the resolver). Dependabot updates the matching PyPI pin in [`.apm-cli-pin/requirements.txt`](https://github.com/elastic/oblt-aw/blob/main/.apm-cli-pin/requirements.txt); [`.github/workflows/aw-sync-apm-version.yml`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/aw-sync-apm-version.yml) copies that version into `.apm.version`.
 
@@ -46,7 +46,7 @@ The `workflow-token-policy` field (exposed to route workflows as `shared-token-p
 | `apm-extension-present` | Manifest contains `x-oblt-aw` |
 | `asset-source` | `none`, `common`, `workflow`, or `inner-workflow` |
 | `resolved-additional-instructions` | Merged framework fragments, platform, APM, and consumer-side instructions |
-| `resolved-inputs-json` | Merged platform + APM inputs |
+| `resolved-inputs-json` | Merged platform + APM inputs (includes `model` when set in APM; wrappers pass it through to locks that declare a `model` input) |
 | `resolved-setup-commands-json` | JSON array of shell commands from the selected asset block (`setup-commands` inline string/list and optional `setup-commands-file`) |
 | `resolved-instruction-layers-json` | JSON object listing which fragment ids and inline/auto layers were appended (`org-key`, `workflow-id`, `workflow-basename`, `layers`) |
 
@@ -82,9 +82,11 @@ jobs:
     if: >-
       fromJSON(needs.run-aw-prelude.outputs.proceed-by-workflow)['obs-aw-example.yml'] == 'true' &&
       <same conditions as resolve-apm-assets>
-    uses: elastic/ai-github-actions/.github/workflows/gh-aw-example.lock.yml@main
+    uses: ./.github/workflows/gh-aw-example.lock.yml
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      # APM inputs.model when set; otherwise framework default (obs-defaults).
+      model: ${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json).model || 'gpt-5.3-codex' }}
 ```
 
 Examples with upstream gates: [obs-aw-automerge.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-automerge.yml) (resolve after verify + dependency collection), [obs-aw-resource-not-accessible-by-integration-detector.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-resource-not-accessible-by-integration-detector.yml) (resolve after discover). Multi-agent wrappers use one resolve job per `gh-aw-*` invocation — see [obs-aw-autodoc.yml](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/obs-aw-autodoc.yml).

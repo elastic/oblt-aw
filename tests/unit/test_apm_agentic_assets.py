@@ -310,6 +310,82 @@ x-oblt-aw:
         )
         assert out["inputs"]["lookback-window"] == "3 days ago"
 
+    def test_model_override_from_apm_common(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        model: gpt-4.1
+""",
+            encoding="utf-8",
+        )
+        out = aaa.resolve_apm_assets(
+            repo_root=repo,
+            workflow_id="autodoc",
+            org_key="obs",
+        )
+        assert out["inputs"]["model"] == "gpt-4.1"
+
+    def test_model_omitted_leaves_inputs_without_key(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        lookback-window: 1 day ago
+""",
+            encoding="utf-8",
+        )
+        out = aaa.resolve_apm_assets(
+            repo_root=repo,
+            workflow_id="autodoc",
+            org_key="obs",
+        )
+        assert "model" not in out["inputs"]
+
+    def test_empty_model_fails_closed(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        model: "   "
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="inputs.model must be a non-empty string"):
+            aaa.resolve_apm_assets(
+                repo_root=repo,
+                workflow_id="autodoc",
+                org_key="obs",
+            )
+
+    def test_non_string_model_fails_closed(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common:
+      inputs:
+        model: 12
+""",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="inputs.model must be a non-empty string"):
+            aaa.resolve_apm_assets(
+                repo_root=repo,
+                workflow_id="autodoc",
+                org_key="obs",
+            )
+
     def test_multi_org_isolated_common(self, repo: pathlib.Path) -> None:
         (repo / "apm.yml").write_text(
             """
@@ -542,11 +618,17 @@ x-oblt-aw:
             "allow": ["docs/**"],
             "deny": ["**/*.go"],
         }
+        assert "label-actors" not in policy
+        assert policy["allowed-days-of-week"] == []
         text = aaa.format_automerge_policy_instructions(policy)
         assert "Effective Automerge Policy" in text
         assert "nightshift:risk-low" in text
         assert "docs/**" in text
         assert "**/*.go" in text
+        assert "not enforced" in text
+        assert "all UTC weekdays" in text
+        assert "Do **not** withhold approval" in text
+        assert "merge-only" in text
 
     def test_normalize_automerge_policy_paths_fail_closed(self) -> None:
         with pytest.raises(TypeError, match="paths must be a mapping"):
@@ -561,3 +643,173 @@ x-oblt-aw:
             aaa.normalize_automerge_policy({"paths": {"allow": [""]}})
         with pytest.raises(ValueError, match="unsupported glob"):
             aaa.normalize_automerge_policy({"paths": {"deny": ["helm/values-?.yaml"]}})
+
+    def test_default_dependency_review_policy_when_apm_missing(
+        self, repo: pathlib.Path
+    ) -> None:
+        policy = aaa.resolve_dependency_review_policy(repo_root=repo, org_key="obs")
+        assert policy == aaa.default_dependency_review_policy()
+        assert policy["max-merge-ready-risk"] == aaa.DEFAULT_MAX_MERGE_READY_RISK
+
+    def test_default_automerge_policy_omits_label_actors(self) -> None:
+        policy = aaa.default_automerge_policy()
+        assert "label-actors" not in policy
+
+    def test_normalize_automerge_policy_label_actors_always_includes_vault(
+        self,
+    ) -> None:
+        policy = aaa.normalize_automerge_policy(
+            {
+                "label-actors": {"allow": ["nightshift-bot[bot]"]},
+            }
+        )
+        assert policy["label-actors"]["allow"] == [
+            aaa.DEFAULT_TRUSTED_LABEL_ACTOR,
+            "nightshift-bot[bot]",
+        ]
+        text = aaa.format_automerge_policy_instructions(policy)
+        assert aaa.DEFAULT_TRUSTED_LABEL_ACTOR in text
+        assert "nightshift-bot[bot]" in text
+
+    def test_normalize_omits_label_actors_when_consumer_did_not_set_them(
+        self,
+    ) -> None:
+        """Wire format must not enable Vault-only trust without opt-in."""
+        import json
+
+        policy = aaa.normalize_automerge_policy(
+            {"trigger-labels": ["nightshift:risk-low"]}
+        )
+        assert "label-actors" not in policy
+        payload = json.dumps(policy, separators=(",", ":"), sort_keys=True)
+        assert "label-actors" not in json.loads(payload)
+
+    def test_resolve_automerge_policy_allowed_days(self, repo: pathlib.Path) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      automerge:
+        policy:
+          allowed-days-of-week:
+            - Monday
+            - tuesday
+            - monday
+""",
+            encoding="utf-8",
+        )
+        policy = aaa.resolve_automerge_policy(repo_root=repo, org_key="obs")
+        assert policy["allowed-days-of-week"] == ["monday", "tuesday"]
+        text = aaa.format_automerge_policy_instructions(policy)
+        assert "`monday`" in text
+        assert "`tuesday`" in text
+        assert "all UTC weekdays" not in text
+        assert "Do **not** withhold approval" in text
+
+    def test_normalize_automerge_policy_rejects_unknown_weekday(self) -> None:
+        with pytest.raises(ValueError, match="unknown weekday"):
+            aaa.normalize_automerge_policy({"allowed-days-of-week": ["monady"]})
+
+    def test_resolve_dependency_review_policy_from_apm(
+        self, repo: pathlib.Path
+    ) -> None:
+        (repo / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      dependency-review:
+        policy:
+          max-merge-ready-risk: moderate
+""",
+            encoding="utf-8",
+        )
+        policy = aaa.resolve_dependency_review_policy(repo_root=repo, org_key="obs")
+        assert policy["max-merge-ready-risk"] == "moderate"
+        text = aaa.format_dependency_review_policy_instructions(policy)
+        assert "Effective Dependency Review Policy" in text
+        assert "`moderate`" in text
+        for level in aaa.MERGE_READY_RISK_LEVELS:
+            assert f"`{level}`" in text
+        assert "`high`" in text
+
+    def test_normalize_dependency_review_policy_rejects_high(self) -> None:
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-risk": "high"})
+
+    def test_normalize_dependency_review_policy_accepts_low(self) -> None:
+        policy = aaa.normalize_dependency_review_policy({"max-merge-ready-risk": "low"})
+        assert policy["max-merge-ready-risk"] == "low"
+
+    def test_normalize_dependency_review_policy_omitted_uses_default(self) -> None:
+        policy = aaa.normalize_dependency_review_policy(None)
+        assert policy == aaa.default_dependency_review_policy()
+
+    def test_normalize_dependency_review_policy_rejects_malformed(self) -> None:
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-risk": "low "})
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy(
+                {"max-merge-ready-risk": "low-to-modrate"}
+            )
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-risk": 1})
+        with pytest.raises(ValueError, match="max-merge-ready-risk is required"):
+            aaa.normalize_dependency_review_policy({})
+        with pytest.raises(ValueError, match="max-merge-ready-risk is required"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-riks": "low"})
+        with pytest.raises(TypeError, match="must be a mapping"):
+            aaa.normalize_dependency_review_policy("low")
+
+    def test_dependency_review_policy_uses_checkout_root_not_sibling_head(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """
+        Restrictive base ceiling must win when resolve reads that checkout.
+
+        Mirrors the wrapper consumer-ref=base.sha contract: a head apm.yml that
+        raises max-merge-ready-risk must not affect policy resolved from base.
+        """
+        base = tmp_path / "base"
+        head = tmp_path / "head"
+        base.mkdir()
+        head.mkdir()
+        (base / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      dependency-review:
+        policy:
+          max-merge-ready-risk: low
+""",
+            encoding="utf-8",
+        )
+        (head / "apm.yml").write_text(
+            """
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      dependency-review:
+        policy:
+          max-merge-ready-risk: moderate
+""",
+            encoding="utf-8",
+        )
+        from_base = aaa.resolve_dependency_review_policy(repo_root=base, org_key="obs")
+        from_head = aaa.resolve_dependency_review_policy(repo_root=head, org_key="obs")
+        assert from_base["max-merge-ready-risk"] == "low"
+        assert from_head["max-merge-ready-risk"] == "moderate"
+        # Effective policy for the agent must follow the checkout root in use.
+        text = aaa.format_dependency_review_policy_instructions(from_base)
+        assert "**max-merge-ready-risk**: `low`" in text
+        assert "**max-merge-ready-risk**: `moderate`" not in text

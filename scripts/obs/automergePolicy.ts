@@ -18,7 +18,9 @@
  *
  * Defaults match today's behavior: merge-ready only, forks disabled, authors
  * allow-list (control-plane bots only unless the repo adds names), and no
- * path restriction for ``all-files`` (empty allow/deny means unrestricted).
+ * path restriction for ``all-files`` (empty allow/deny means unrestricted), and
+ * no weekday restriction (empty ``allowedDaysOfWeek`` means all UTC days).
+ * no label-actor provenance gate until ``label-actors`` is set.
  *
  * Path globs support only ``*`` and ``**`` (same as collection file-glob).
  */
@@ -27,8 +29,12 @@ const MERGE_READY_LABEL = 'oblt-aw/ai/merge-ready';
 
 /** Top-level policy keys (kebab + camel) accepted by normalize. */
 const KNOWN_POLICY_KEYS = new Set([
+  'allowed-days-of-week',
+  'allowedDaysOfWeek',
   'authors',
   'forks',
+  'label-actors',
+  'labelActors',
   'paths',
   'trigger-labels',
   'triggerLabels',
@@ -38,6 +44,24 @@ const KNOWN_PATH_KEYS = new Set(['allow', 'deny']);
 
 /** Unsupported in path globs (matcher only implements ``*`` / ``**``). */
 const UNSUPPORTED_GLOB_CHARS = /[?[\]]/;
+
+/**
+ * Always unioned into ``label-actors.allow`` when that policy object is present.
+ * Matches the Vault app that applies merge-ready when using shared-token-policy.
+ */
+const DEFAULT_TRUSTED_LABEL_ACTOR = 'elastic-vault-github-plugin-prod[bot]';
+
+/** UTC weekday names indexed by ``Date#getUTCDay()`` (0 = Sunday). */
+const UTC_WEEKDAY_NAMES = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+];
+const ALLOWED_WEEKDAY_SET = new Set(UTC_WEEKDAY_NAMES);
 
 /** @typedef {'disabled' | 'author-association'} ForksMode */
 /** @typedef {'allow-list' | 'author-association'} AuthorsMode */
@@ -51,7 +75,9 @@ const UNSUPPORTED_GLOB_CHARS = /[?[\]]/;
  * @property {string[]} triggerLabels
  * @property {{ mode: ForksMode, authorAssociations: string[] }} forks
  * @property {{ mode: AuthorsMode, allowList: string[], authorAssociations: string[] }} authors
+ * @property {string[]} allowedDaysOfWeek Empty means unrestricted (all UTC weekdays).
  * @property {AutomergePathPolicy} paths Applies only to the ``all-files`` collection.
+ * @property {{ allow: string[] }} labelActors
  */
 
 /**
@@ -73,6 +99,10 @@ function defaultAutomergePolicy() {
       allow: [],
       deny: [],
     },
+    labelActors: {
+      allow: [],
+    },
+    allowedDaysOfWeek: [],
   };
 }
 
@@ -155,6 +185,49 @@ function asPathGlobList(value, fieldName, present) {
 }
 
 /**
+ * Normalize weekday allow-list. Omitted / empty ⇒ unrestricted.
+ * Any non-array value, or any entry that is not a known weekday name, fails closed.
+ * @param {unknown} value
+ * @param {boolean} present
+ * @returns {string[]}
+ */
+function asAllowedDaysOfWeek(value, present) {
+  if (!present) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(
+      'allowed-days-of-week must be an array of weekday names (monday … sunday), or omitted / [] for all days'
+    );
+  }
+  if (value.length === 0) {
+    return [];
+  }
+  const seen = new Set();
+  /** @type {string[]} */
+  const out = [];
+  for (const item of value) {
+    if (typeof item !== 'string') {
+      throw new Error(
+        `allowed-days-of-week entries must be strings; got ${typeof item}`
+      );
+    }
+    const day = item.trim().toLowerCase();
+    if (!ALLOWED_WEEKDAY_SET.has(day)) {
+      throw new Error(
+        `allowed-days-of-week contains unknown weekday '${item.trim()}'; (expected monday … sunday)`
+      );
+    }
+    if (seen.has(day)) {
+      continue;
+    }
+    seen.add(day);
+    out.push(day);
+  }
+  return out;
+}
+
+/**
  * @param {unknown} raw
  * @param {boolean} present
  * @returns {AutomergePathPolicy}
@@ -197,8 +270,27 @@ function unknownPolicyKeys(obj) {
 }
 
 /**
+ * Map GraphQL ``app/<slug>`` actor logins to the REST ``<slug>[bot]`` form.
+ * @param {unknown} login
+ * @returns {string}
+ */
+function normalizeActorLogin(login) {
+  const raw = String(login || '').trim();
+  if (!raw) {
+    return '';
+  }
+  const appMatch = /^app\/([^/]+)$/i.exec(raw);
+  if (appMatch) {
+    return `${appMatch[1]}[bot]`;
+  }
+  return raw;
+}
+
+/**
  * Normalize a raw policy mapping (kebab-case from apm.yml or camelCase JSON).
  * Always includes ``oblt-aw/ai/merge-ready`` in trigger labels.
+ * When ``label-actors`` is present, always includes
+ * ``elastic-vault-github-plugin-prod[bot]`` in the allow list.
  * Invalid ``paths`` values throw (callers must fail closed).
  * @param {unknown} raw
  * @returns {AutomergePolicy}
@@ -261,6 +353,35 @@ function normalizeAutomergePolicy(raw) {
   const pathsPresent = Object.prototype.hasOwnProperty.call(obj, 'paths');
   const paths = asPathPolicy(obj.paths, pathsPresent);
 
+  let labelActorsAllow = [];
+  const hasLabelActors =
+    Object.prototype.hasOwnProperty.call(obj, 'label-actors') ||
+    Object.prototype.hasOwnProperty.call(obj, 'labelActors');
+  if (hasLabelActors) {
+    const labelActorsRaw = obj['label-actors'] ?? obj.labelActors;
+    let extras = [];
+    if (
+      labelActorsRaw &&
+      typeof labelActorsRaw === 'object' &&
+      !Array.isArray(labelActorsRaw)
+    ) {
+      /** @type {Record<string, unknown>} */
+      const labelActors = /** @type {Record<string, unknown>} */ (labelActorsRaw);
+      extras = asStringList(labelActors.allow);
+    }
+    labelActorsAllow = [
+      ...new Set([DEFAULT_TRUSTED_LABEL_ACTOR, ...extras]),
+    ];
+  }
+
+  const daysPresent =
+    Object.prototype.hasOwnProperty.call(obj, 'allowed-days-of-week') ||
+    Object.prototype.hasOwnProperty.call(obj, 'allowedDaysOfWeek');
+  const allowedDaysOfWeek = asAllowedDaysOfWeek(
+    obj['allowed-days-of-week'] ?? obj.allowedDaysOfWeek,
+    daysPresent
+  );
+
   return {
     triggerLabels,
     forks: {
@@ -273,12 +394,16 @@ function normalizeAutomergePolicy(raw) {
       authorAssociations: authorsAssociations,
     },
     paths,
+    labelActors: {
+      allow: labelActorsAllow,
+    },
+    allowedDaysOfWeek,
   };
 }
 
 /**
  * Parse policy JSON. Empty input ⇒ defaults. Invalid JSON or invalid
- * ``paths`` values throw (callers must fail closed).
+ * ``paths`` or ``allowed-days-of-week`` values throw (callers must fail closed).
  * @param {string} rawJson
  * @returns {AutomergePolicy}
  */
@@ -297,6 +422,62 @@ function parseAutomergePolicyJson(rawJson) {
 function hasTriggerLabel(policy, labelNames) {
   const labels = new Set(labelNames);
   return policy.triggerLabels.some((name) => labels.has(name));
+}
+
+/**
+ * Non-empty ``labelActors.allow`` enables the provenance gate.
+ * @param {AutomergePolicy} policy
+ * @returns {boolean}
+ */
+function isLabelActorGateEnabled(policy) {
+  return (policy.labelActors?.allow || []).length > 0;
+}
+
+/**
+ * @param {AutomergePolicy} policy
+ * @param {string} login
+ * @returns {boolean}
+ */
+function isLabelActorAllowed(policy, login) {
+  const normalized = normalizeActorLogin(login);
+  if (!normalized) {
+    return false;
+  }
+  return new Set(policy.labelActors?.allow || []).has(normalized);
+}
+
+/**
+ * When the gate is off, any present trigger label is enough. When on, at least
+ * one currently present effective trigger label must have a trusted latest
+ * applier (map value from timeline; null means last event was unlabeled).
+ * @param {AutomergePolicy} policy
+ * @param {string[]} presentLabelNames
+ * @param {Map<string, string|null>|Record<string, string|null|undefined>} latestAppliers
+ * @returns {boolean}
+ */
+function hasTrustedTriggerLabel(policy, presentLabelNames, latestAppliers) {
+  if (!hasTriggerLabel(policy, presentLabelNames)) {
+    return false;
+  }
+  if (!isLabelActorGateEnabled(policy)) {
+    return true;
+  }
+  const present = new Set(presentLabelNames);
+  const getApplier =
+    latestAppliers instanceof Map
+      ? (name) => latestAppliers.get(name)
+      : (name) => latestAppliers[name];
+
+  return policy.triggerLabels.some((name) => {
+    if (!present.has(name)) {
+      return false;
+    }
+    const actor = getApplier(name);
+    if (actor == null || actor === '') {
+      return false;
+    }
+    return isLabelActorAllowed(policy, actor);
+  });
 }
 
 /**
@@ -399,15 +580,47 @@ function filesMatchAllFilesPathPolicy(files, paths) {
   });
 }
 
+/**
+ * Empty ``allowedDaysOfWeek`` means unrestricted. Otherwise the UTC weekday
+ * of ``when`` must be listed (lowercase English names).
+ * @param {AutomergePolicy} policy
+ * @param {Date} [when]
+ * @returns {boolean}
+ */
+function isDayAllowedByPolicy(policy, when = new Date()) {
+  const allowed = policy.allowedDaysOfWeek || [];
+  if (!allowed.length) {
+    return true;
+  }
+  const day = UTC_WEEKDAY_NAMES[when.getUTCDay()];
+  return allowed.includes(day);
+}
+
+/**
+ * @param {Date} [when]
+ * @returns {string}
+ */
+function utcWeekdayName(when = new Date()) {
+  return UTC_WEEKDAY_NAMES[when.getUTCDay()];
+}
+
 module.exports = {
   MERGE_READY_LABEL,
   KNOWN_POLICY_KEYS,
+  DEFAULT_TRUSTED_LABEL_ACTOR,
+  UTC_WEEKDAY_NAMES,
   defaultAutomergePolicy,
   normalizeAutomergePolicy,
   parseAutomergePolicyJson,
+  normalizeActorLogin,
   hasTriggerLabel,
+  isLabelActorGateEnabled,
+  isLabelActorAllowed,
+  hasTrustedTriggerLabel,
   isAuthorAllowedByPolicy,
   isForkAllowedByPolicy,
   filesMatchAllFilesPathPolicy,
   isSafeRepoPathForPolicy,
+  isDayAllowedByPolicy,
+  utcWeekdayName,
 };

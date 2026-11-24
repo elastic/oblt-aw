@@ -30,6 +30,8 @@ jobs:
     with:
       workflow-basename: obs-aw-dependency-review.yml
       org-key: ${{ inputs.shared-org-key }}
+      # Trusted base revision only — do not resolve max-merge-ready-risk from PR head.
+      consumer-ref: ${{ github.event.pull_request.base.sha }}
       # Prompt body (noop / CVE / merge-ready / GitHub-read) lives in
       # gh-aw-dependency-review.md. Resolve only merges consumer APM fragments.
 
@@ -47,6 +49,8 @@ jobs:
     uses: ./.github/workflows/gh-aw-dependency-review.lock.yml
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
+      # APM inputs.model when set; otherwise framework default (obs-defaults).
+      model: ${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json).model || 'gpt-5.3-codex' }}
       # fromJSON('"\n"') yields a real newline; '\n' is two literal characters in GHA expressions.
       setup-commands: ${{ join(fromJSON(needs.resolve-apm-assets.outputs.resolved-setup-commands-json), fromJSON('"\n"')) }}
       github-token-policy: ${{ inputs.shared-token-policy }}

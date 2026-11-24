@@ -242,6 +242,22 @@ def materialize_inputs(
     return out
 
 
+def validate_model_input(inputs: dict[str, Any]) -> None:
+    """Fail closed when ``inputs.model`` is present but empty or not a string.
+
+    Omit the key to keep the framework default (obs-defaults). Unsupported model
+    ids are rejected later by gh-aw at agent runtime.
+    """
+    if "model" not in inputs:
+        return
+    value = inputs["model"]
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(
+            "inputs.model must be a non-empty string when set "
+            "(omit the key to use the framework default)"
+        )
+
+
 def _expand_setup_command_lines(text: str) -> list[str]:
     """Split multiline inline setup text into individual shell commands."""
     lines: list[str] = []
@@ -436,6 +452,7 @@ def resolve_apm_assets(
     def _platform_only(
         *, manifest_present: bool, extension_present: bool
     ) -> dict[str, Any]:
+        validate_model_input(platform_inputs)
         additional, layers = compose_additional_instructions(
             platform_additional_instructions
         )
@@ -488,6 +505,7 @@ def resolve_apm_assets(
     setup_commands = extract_setup_commands(block, repo_root=repo_root)
 
     merged_inputs = merge_platform_and_apm_inputs(platform_inputs, apm_inputs)
+    validate_model_input(merged_inputs)
     additional, layers = compose_additional_instructions(
         platform_additional_instructions,
         consumer_fragments_text=consumer_fragments,
@@ -510,7 +528,14 @@ def resolve_apm_assets(
 
 
 MERGE_READY_LABEL = "oblt-aw/ai/merge-ready"
+DEFAULT_TRUSTED_LABEL_ACTOR = "elastic-vault-github-plugin-prod[bot]"
 AUTOMERGE_WORKFLOW_ID = "automerge"
+DEPENDENCY_REVIEW_WORKFLOW_ID = "dependency-review"
+# Settable ceilings for workflows.dependency-review.policy.max-merge-ready-risk.
+# Analysis may still assign overall risk "high"; that band is never merge-ready-eligible
+# and is not a valid APM value.
+MERGE_READY_RISK_LEVELS = ("low", "low-to-moderate", "moderate")
+DEFAULT_MAX_MERGE_READY_RISK = "low-to-moderate"
 
 
 def _as_string_list(value: Any) -> list[str]:
@@ -531,16 +556,36 @@ def _as_string_list(value: Any) -> list[str]:
 
 _AUTOMERGE_POLICY_KNOWN_KEYS = frozenset(
     {
+        "allowed-days-of-week",
         "authors",
         "forks",
+        "label-actors",
         "paths",
         "trigger-labels",
     }
 )
 
 
+_AUTOMERGE_WEEKDAYS = frozenset(
+    {
+        "friday",
+        "monday",
+        "saturday",
+        "sunday",
+        "thursday",
+        "tuesday",
+        "wednesday",
+    }
+)
+
+
 def default_automerge_policy() -> dict[str, Any]:
-    """Control-plane defaults when consumer policy is omitted."""
+    """Control-plane defaults when consumer policy is omitted.
+
+    ``label-actors`` is omitted so TypeScript ``normalizeAutomergePolicy`` keeps
+    the provenance gate off (an empty ``allow`` array under a present key would
+    enable Vault-only trust).
+    """
     return {
         "trigger-labels": [MERGE_READY_LABEL],
         "forks": {
@@ -557,6 +602,8 @@ def default_automerge_policy() -> dict[str, Any]:
             "allow": [],
             "deny": [],
         },
+        # Empty means unrestricted (all UTC weekdays).
+        "allowed-days-of-week": [],
     }
 
 
@@ -632,11 +679,49 @@ def _normalize_paths_policy(raw: Any, *, present: bool) -> dict[str, list[str]]:
     }
 
 
+def _normalize_allowed_days_of_week(raw: Any, *, present: bool) -> list[str]:
+    """
+    Normalize weekday allow-list.
+
+    Omitted or ``[]`` means unrestricted. Any non-list value, or any entry that
+    is not a known weekday name, raises ``ValueError`` (fail closed).
+    """
+    if not present:
+        return []
+    if not isinstance(raw, list):
+        raise TypeError(
+            "allowed-days-of-week must be an array of weekday names "
+            "(monday … sunday), or omitted / [] for all days"
+        )
+    if not raw:
+        return []
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in raw:
+        if not isinstance(item, str):
+            raise TypeError(
+                f"allowed-days-of-week entries must be strings; got {type(item).__name__}"
+            )
+        day = item.strip().lower()
+        if day not in _AUTOMERGE_WEEKDAYS:
+            raise ValueError(
+                f"allowed-days-of-week contains unknown weekday {item.strip()!r} "
+                "(expected monday … sunday)"
+            )
+        if day in seen:
+            continue
+        seen.add(day)
+        out.append(day)
+    return out
+
+
 def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
     """
     Normalize ``workflows.automerge.policy`` (kebab-case).
 
     ``oblt-aw/ai/merge-ready`` is always present in ``trigger-labels``.
+    ``label-actors`` is included only when present on the raw mapping; when set,
+    ``elastic-vault-github-plugin-prod[bot]`` is always in ``allow``.
     Invalid ``paths`` values raise (callers must fail closed).
     """
     base = default_automerge_policy()
@@ -674,8 +759,12 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
         authors_associations = _as_string_list(authors_raw.get("author-associations"))
 
     paths = _normalize_paths_policy(raw.get("paths"), present="paths" in raw)
+    days_present = "allowed-days-of-week" in raw
+    allowed_days = _normalize_allowed_days_of_week(
+        raw.get("allowed-days-of-week"), present=days_present
+    )
 
-    return {
+    result: dict[str, Any] = {
         "trigger-labels": trigger_labels,
         "forks": {
             "mode": forks_mode,
@@ -686,8 +775,20 @@ def normalize_automerge_policy(raw: Any) -> dict[str, Any]:
             "allow-list": authors_allow_list,
             "author-associations": authors_associations,
         },
+        "allowed-days-of-week": allowed_days,
         "paths": paths,
     }
+
+    if "label-actors" in raw:
+        label_actors_raw = raw.get("label-actors")
+        extras: list[str] = []
+        if isinstance(label_actors_raw, dict):
+            extras = _as_string_list(label_actors_raw.get("allow"))
+        result["label-actors"] = {
+            "allow": list(dict.fromkeys([DEFAULT_TRUSTED_LABEL_ACTOR, *extras])),
+        }
+
+    return result
 
 
 def extract_automerge_policy_raw(
@@ -735,6 +836,7 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
     labels = ", ".join(f"`{name}`" for name in policy.get("trigger-labels") or [])
     forks = policy.get("forks") or {}
     authors = policy.get("authors") or {}
+    label_actors = policy.get("label-actors") or {}
     forks_assoc = (
         ", ".join(f"`{name}`" for name in forks.get("author-associations") or [])
         or "_(none)_"
@@ -746,6 +848,16 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
     allow_list = (
         ", ".join(f"`{name}`" for name in authors.get("allow-list") or [])
         or "_(none beyond control-plane bots)_"
+    )
+    label_actor_allow = label_actors.get("allow") or []
+    if label_actor_allow:
+        label_actors_text = ", ".join(f"`{name}`" for name in label_actor_allow)
+    else:
+        label_actors_text = "_(not enforced)_"
+
+    allowed_days_raw = policy.get("allowed-days-of-week") or []
+    allowed_days = (
+        ", ".join(f"`{name}`" for name in allowed_days_raw) or "_(all UTC weekdays)_"
     )
 
     paths = policy.get("paths") or {}
@@ -764,8 +876,11 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
             "applied the same rules). Control-plane bots from",
             "`config/obs/allowed_pr_authors.json` are always allowed authors.",
             f"`{MERGE_READY_LABEL}` is always a valid trigger label.",
+            f"`{DEFAULT_TRUSTED_LABEL_ACTOR}` is always allowed when",
+            "`label-actors` is configured.",
             "",
             f"- **Trigger labels**: {labels}",
+            f"- **Label actors allow**: {label_actors_text}",
             f"- **Authors mode**: `{authors.get('mode', 'allow-list')}`",
             f"- **Authors allow-list extras**: {allow_list}",
             f"- **Authors associations**: {authors_assoc}",
@@ -773,8 +888,127 @@ def format_automerge_policy_instructions(policy: dict[str, Any]) -> str:
             f"- **Forks associations**: {forks_assoc}",
             f"- **All-files path allow**: {paths_allow}",
             f"- **All-files path deny**: {paths_deny}",
+            f"- **Allowed days of week (UTC, merge-only)**: {allowed_days}",
             "",
-            "Approve only when the PR matches this policy, is not draft, and head",
-            "ref differs from base ref.",
+            "Approve when the PR matches this policy (labels/authors/forks), is not",
+            "draft, and head ref differs from base ref. Do **not** withhold approval",
+            "because of ``allowed-days-of-week`` — that gate is enforced at merge",
+            "time so a blocked UTC day can still get an APPROVED review and arm",
+            "for deferred merge on an allowed day.",
+        ]
+    )
+
+
+def default_dependency_review_policy() -> dict[str, Any]:
+    """Control-plane defaults when consumer dependency-review policy is omitted."""
+    return {
+        "max-merge-ready-risk": DEFAULT_MAX_MERGE_READY_RISK,
+    }
+
+
+def normalize_dependency_review_policy(raw: Any) -> dict[str, Any]:
+    """
+    Normalize ``workflows.dependency-review.policy`` (kebab-case).
+
+    Omit the policy mapping (``None``) to keep control-plane defaults. A present
+    policy mapping must set ``max-merge-ready-risk`` to an exact allowed value;
+    missing or invalid values raise (fail closed — no silent broaden).
+    """
+    if raw is None:
+        return default_dependency_review_policy()
+    if not isinstance(raw, dict):
+        raise TypeError(
+            "workflows.dependency-review.policy must be a mapping with "
+            "max-merge-ready-risk"
+        )
+    if "max-merge-ready-risk" not in raw:
+        raise ValueError(
+            "workflows.dependency-review.policy.max-merge-ready-risk is required "
+            "when policy is set "
+            f"(allowed: {', '.join(MERGE_READY_RISK_LEVELS)})"
+        )
+    ceiling = raw["max-merge-ready-risk"]
+    if not isinstance(ceiling, str) or ceiling not in MERGE_READY_RISK_LEVELS:
+        raise ValueError(
+            "workflows.dependency-review.policy.max-merge-ready-risk must be one of "
+            f"{', '.join(MERGE_READY_RISK_LEVELS)}; got {ceiling!r}"
+        )
+    return {"max-merge-ready-risk": ceiling}
+
+
+def extract_dependency_review_policy_raw(
+    org_extension: dict[str, Any] | None,
+) -> Any:
+    """Return the raw ``workflows.dependency-review.policy`` mapping, or None."""
+    if not isinstance(org_extension, dict):
+        return None
+    workflows = org_extension.get("workflows")
+    if not isinstance(workflows, dict):
+        return None
+    dependency_review = workflows.get(DEPENDENCY_REVIEW_WORKFLOW_ID)
+    if not isinstance(dependency_review, dict):
+        return None
+    return dependency_review.get("policy")
+
+
+def resolve_dependency_review_policy(
+    *,
+    repo_root: Path,
+    org_key: str,
+) -> dict[str, Any]:
+    """
+    Resolve effective dependency-review policy for ``org_key`` from consumer
+    ``apm.yml``.
+
+    Missing manifest / extension / policy yields control-plane defaults
+    (``max-merge-ready-risk: low-to-moderate``). A present policy with a
+    missing or invalid ceiling raises (see ``normalize_dependency_review_policy``).
+    """
+    manifest, present = load_apm_manifest(repo_root)
+    if not present or manifest is None:
+        return default_dependency_review_policy()
+
+    extension = manifest.get(OBLT_AW_EXTENSION_KEY)
+    if not isinstance(extension, dict):
+        return default_dependency_review_policy()
+
+    org_extension = extract_org_extension(extension, org_key)
+    if org_extension is None:
+        return default_dependency_review_policy()
+
+    return normalize_dependency_review_policy(
+        extract_dependency_review_policy_raw(org_extension)
+    )
+
+
+def format_dependency_review_policy_instructions(policy: dict[str, Any]) -> str:
+    """Markdown block injected into dependency-review additional-instructions."""
+    ceiling = policy.get("max-merge-ready-risk", DEFAULT_MAX_MERGE_READY_RISK)
+    allowed = ", ".join(f"`{name}`" for name in MERGE_READY_RISK_LEVELS)
+
+    return "\n".join(
+        [
+            "## Effective Dependency Review Policy",
+            "",
+            "This section is authoritative for the merge-ready risk ceiling.",
+            "Assign overall risk as usual (**low**, **low-to-moderate**,",
+            "**moderate**, or **high**). Apply `oblt-aw/ai/merge-ready` only when",
+            "overall risk is at or below **max-merge-ready-risk** and the other",
+            "Step 4 hard blockers do not apply.",
+            "",
+            f"- **max-merge-ready-risk**: `{ceiling}`",
+            f"- **Allowed APM values** (settable ceilings): {allowed}",
+            "- **Not settable / never merge-ready**: `high`",
+            "",
+            "Ceiling meanings:",
+            "- `low` — only **low** overall risk may receive the label",
+            "- `low-to-moderate` — **low** or **low-to-moderate** (default when",
+            "  `workflows.dependency-review.policy` is omitted)",
+            "- `moderate` — **low**, **low-to-moderate**, or **moderate**",
+            "",
+            "Secondary ecosystem checks (commit verified, pin format, testable in",
+            "PR, and similar) remain documented in the analysis table but must",
+            "**not** withhold the label when the risk ceiling and breaking-change",
+            "gates pass.",
         ]
     )

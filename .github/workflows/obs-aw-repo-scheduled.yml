@@ -134,6 +134,8 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
+      # Callee lock declares id-token: write (gh-aw >= v1.3.x activation/OIDC).
+      id-token: write
     uses: ./.github/workflows/gh-aw-repo-scheduled.lock.yml
     with:
       automation-id: ${{ matrix.id }}
@@ -143,5 +145,7 @@ jobs:
       # fragments from matrix (discovery already prefixes "\n\n" when non-empty).
       # Concatenate contexts — do not use format(); skill Markdown may contain "{".
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}${{ matrix.additional-instructions }}
+      # APM inputs.model when set; otherwise framework default (obs-defaults).
+      model: ${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json).model || 'gpt-5.3-codex' }}
     secrets:
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_API_TOKEN }}

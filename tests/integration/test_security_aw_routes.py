@@ -24,6 +24,7 @@ _root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_root / "scripts"))
 
 import agentic_assets_resolver as resolver
+import estc_buildkite_log_tail as eblt
 from evaluate_workflow_gates import evaluate_gates
 from validate_common_service_opt_in import validate_org_common_opt_in
 from workflow_registry import expand_org_workflow_dicts, resolve_compound_id
@@ -170,6 +171,11 @@ class TestWrapperLockWiring:
             with_block.get("additional-instructions")
             == "${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}"
         )
+        if route.workflow_id == "estc-pr-buildkite-detective":
+            assert (
+                with_block.get("buildkite-log-tail-lines")
+                == eblt.WRAPPER_BUILDKITE_LOG_TAIL_LINES_EXPR
+            )
         assert (
             with_block.get("setup-commands")
             == "${{ join(fromJSON(needs.resolve-apm-assets.outputs."
@@ -369,6 +375,8 @@ class TestResolveFixtures:
 
         assert resolved["asset_source"] == "workflow"
         assert resolved["setup_commands"] == expected_setup
+        if route.workflow_id == "estc-pr-buildkite-detective":
+            assert resolved["inputs"].get("buildkite-log-tail-lines") == 500
         text = resolved["additional_instructions"]
         assert route.marker in text
         assert "SHOULD_NOT_APPLY" not in text
@@ -398,7 +406,14 @@ class TestResolveFixtures:
 
         assert resolved["apm_manifest_present"] is False
         assert resolved["setup_commands"] == []
-        assert resolved["additional_instructions"].strip() == platform.strip()
+        text = resolved["additional_instructions"]
+        if route.workflow_id == "dependency-review":
+            if platform.strip():
+                assert platform.strip() in text
+            assert "Effective Dependency Review Policy" in text
+            assert "**max-merge-ready-risk**: `low-to-moderate`" in text
+        else:
+            assert text.strip() == platform.strip()
 
     @route_param
     def test_fixture_tree_is_present(self, route: Route) -> None:

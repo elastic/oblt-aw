@@ -29,6 +29,7 @@ Each asset block (`common`, `workflows.<id>`, or `inner-workflows.<basename>`) m
 | `setup-commands-file` | Repo-relative path | Optional. UTF-8 file with one command per line; appended after `setup-commands`. Same line rules as multiline inline text. |
 | `additional-instructions-fragments` | List of ids | Ordered ids from `<org-key>.fragments`; materialized before inline `additional-instructions`. On `obs:repo-scheduled`, the same field is also allowed on each `automations[]` entry (appended for that matrix job only, after the wake-level resolve output). |
 | `inputs` | Mapping | Agentic workflow input overrides; `*-file` keys load repo file contents (see manifest example). |
+| `policy` | Mapping | Workflow-specific only. **`automerge`:** trigger labels, authors, forks. **`dependency-review`:** `max-merge-ready-risk` (`low` \| `low-to-moderate` \| `moderate`; default when the policy block is omitted: `low-to-moderate`; present but invalid/missing values fail resolve; `high` is not settable). Ignored for other workflow ids. |
 
 A repository in multiple org fleets may define separate `obs` and `docs` blocks with different `common` guidance.
 
@@ -105,7 +106,7 @@ When the Control Plane dashboard gate passes (`proceed == true`), each agent job
    - `resolved-setup-commands-json`
    - `resolved-instruction-layers-json` (which fragments/inline/auto layers were appended)
 
-Downstream `gh-aw-*` jobs should pass `additional-instructions: ${{ needs.<resolve-job>.outputs.resolved-additional-instructions }}` and may read other keys from `resolved-inputs-json` when needed. Use one resolve job per agent invocation when platform prompts differ (see `obs-aw-autodoc.yml`).
+Downstream `gh-aw-*` jobs should pass `additional-instructions: ${{ needs.<resolve-job>.outputs.resolved-additional-instructions }}` and may read other keys from `resolved-inputs-json` when needed (for example `model` for in-repo locks). Use one resolve job per agent invocation when platform prompts differ (see `obs-aw-autodoc.yml`). Consumer model override ergonomics: [Choose a model](../user-guide/local-ai-assets.md#choose-a-model-for-your-workflow).
 
 ## Schema
 

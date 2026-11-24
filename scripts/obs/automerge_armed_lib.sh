@@ -19,9 +19,18 @@
 
 AUTOMERGE_ARMED_BOT='github-actions[bot]'
 AUTOMERGE_MERGE_READY_LABEL='oblt-aw/ai/merge-ready'
+AUTOMERGE_DEFAULT_TRUSTED_LABEL_ACTOR='elastic-vault-github-plugin-prod[bot]'
 # Optional JSON array of trigger labels (from consumer automerge policy). Defaults to
 # merge-ready only when unset or invalid so older callers keep working.
 AUTOMERGE_TRIGGER_LABELS_JSON="${AUTOMERGE_TRIGGER_LABELS_JSON:-}"
+# Optional JSON array of trusted label appliers. Empty/unset disables the
+# provenance gate (backward compatible). When set, vault bot is always trusted.
+AUTOMERGE_LABEL_ACTORS_JSON="${AUTOMERGE_LABEL_ACTORS_JSON:-}"
+
+# Optional JSON array of allowed UTC weekdays (from consumer automerge policy).
+# Empty / unset / invalid ⇒ unrestricted. Production merge paths should pass the
+# trusted resolve output; AUTOMERGE_DISCOVER_UTC_WEEKDAY overrides "today" for tests.
+AUTOMERGE_ALLOWED_DAYS_JSON="${AUTOMERGE_ALLOWED_DAYS_JSON:-}"
 # HTML comment marker always includes the approved head SHA, e.g.
 # <!-- obs-aw-automerge:armed sha=0123…abcdef -->
 
@@ -68,14 +77,74 @@ automerge_effective_trigger_labels_json() {
   printf '%s\n' "${parsed}"
 }
 
+# Effective trusted label appliers (empty array disables the provenance gate).
+# When AUTOMERGE_LABEL_ACTORS_JSON is a non-empty array, always include the Vault bot.
+automerge_effective_label_actors_json() {
+  local raw="${AUTOMERGE_LABEL_ACTORS_JSON:-}"
+  local parsed=""
+  if [[ -n "${raw}" ]]; then
+    parsed="$(printf '%s' "${raw}" | jq -c \
+      --arg vault "${AUTOMERGE_DEFAULT_TRUSTED_LABEL_ACTOR}" \
+      'if type == "array" then
+         ([.[] | select(type == "string" and . != "")] + (if length > 0 then [$vault] else [] end))
+         | unique
+       else
+         []
+       end' 2>/dev/null)" || parsed=""
+  fi
+  if [[ -z "${parsed}" ]]; then
+    printf '[]\n'
+    return 0
+  fi
+  printf '%s\n' "${parsed}"
+}
+
+# Normalize GraphQL app/<slug> logins to <slug>[bot] (jq helper fragment).
+# shellcheck disable=SC2016
+_AUTOMERGE_JQ_NORM_LOGIN='def norm:
+  if type != "string" then ""
+  elif test("^app/"; "i") then (sub("^app/"; "") + "[bot]")
+  else . end;'
+
+# True when AUTOMERGE_ALLOWED_DAYS_JSON is empty/unset (unrestricted) or contains
+# today's UTC weekday (lowercase English name). Exit 0 allowed; 2 disallowed.
+automerge_utc_weekday_allowed() {
+  local raw="${AUTOMERGE_ALLOWED_DAYS_JSON:-}"
+  local today
+  local allowed
+  today="${AUTOMERGE_DISCOVER_UTC_WEEKDAY:-$(date -u +%A | tr '[:upper:]' '[:lower:]')}"
+  if [[ -z "${raw}" || "${raw}" == '[]' || "${raw}" == 'null' ]]; then
+    return 0
+  fi
+  allowed="$(printf '%s' "${raw}" | jq -c '
+    if type == "array" then
+      [.[] | select(type == "string") | ascii_downcase]
+    else
+      []
+    end' 2>/dev/null)" || allowed='[]'
+  if [[ "$(printf '%s' "${allowed}" | jq 'length')" -eq 0 ]]; then
+    return 0
+  fi
+  if printf '%s' "${allowed}" | jq -e --arg day "${today}" 'index($day) != null' >/dev/null; then
+    return 0
+  fi
+  echo "UTC weekday '${today}' is not in allowed-days-of-week (${allowed})." >&2
+  return 2
+}
+
 # Live trigger-label check (any effective policy trigger label).
-# Exit 0 — at least one present; 2 — confirmed absent; 1 — API/parse error (not an opt-out).
+# When AUTOMERGE_LABEL_ACTORS_JSON is non-empty, also require that at least one
+# present trigger label was last applied by a trusted actor (issue timeline).
+# Exit 0 — at least one present (and trusted when gated); 2 — confirmed absent
+# or untrusted; 1 — API/parse error (not an opt-out).
 automerge_pr_has_merge_ready_label() {
   local repo="${1:?repo required}"
   local pr_number="${2:?pr number required}"
   local labels_json
   local triggers_json
+  local actors_json
   local present
+  local trusted
   labels_json="$(gh api "repos/${repo}/pulls/${pr_number}" --jq '[.labels[].name]')" || {
     echo "Failed to list labels for ${repo}#${pr_number}." >&2
     return 1
@@ -92,9 +161,64 @@ automerge_pr_has_merge_ready_label() {
     echo "Failed to parse labels for ${repo}#${pr_number}." >&2
     return 1
   }
-  if [[ "${present}" == "true" ]]; then
+  if [[ "${present}" != "true" ]]; then
+    return 2
+  fi
+
+  actors_json="$(automerge_effective_label_actors_json)"
+  if [[ "$(jq -rn --argjson a "${actors_json}" '$a | length')" -eq 0 ]]; then
     return 0
   fi
+
+  local timeline_pages=""
+  local timeline_rc=0
+  set +e
+  timeline_pages="$(
+    gh api --paginate \
+      -H "Accept: application/vnd.github+json" \
+      "repos/${repo}/issues/${pr_number}/timeline" \
+      --jq '.'
+  )"
+  timeline_rc=$?
+  set -e
+  if [[ "${timeline_rc}" -ne 0 ]]; then
+    echo "Failed to read label timeline for ${repo}#${pr_number}." >&2
+    return 1
+  fi
+  # Feed the timeline through stdin — --argjson can exceed ARG_MAX on long PRs.
+  trusted="$(
+    printf '%s\n' "${timeline_pages}" | jq -s 'add // []' | jq -rn \
+      --argjson triggers "${triggers_json}" \
+      --argjson actors "${actors_json}" \
+      "${_AUTOMERGE_JQ_NORM_LOGIN}"'
+      input as $timeline |
+      if ($timeline | type) != "array" or ($triggers | type) != "array" or ($actors | type) != "array" then
+        error("expected timeline/trigger/actor arrays")
+      else
+        (reduce $timeline[] as $e ({};
+          if ($e.event == "labeled" or $e.event == "unlabeled")
+             and (($e.label.name | type) == "string") then
+            .[$e.label.name] =
+              (if $e.event == "unlabeled" then null else (($e.actor.login // "") | norm) end)
+          else . end
+        )) as $appliers
+        | any(
+            $triggers[];
+            . as $t
+            | ($appliers[$t] != null)
+              and ($appliers[$t] != "")
+              and (($actors | index($appliers[$t])) != null)
+          )
+      end
+      '
+  )" || {
+    echo "Failed to parse label timeline for ${repo}#${pr_number}." >&2
+    return 1
+  }
+  if [[ "${trusted}" == "true" ]]; then
+    return 0
+  fi
+  echo "No trusted trigger-label applier on ${repo}#${pr_number}." >&2
   return 2
 }
 
@@ -112,6 +236,7 @@ automerge_squash_merge_at_sha() {
   local merge_out
   local pr_state
   local label_rc
+  local day_rc
   local assert_out
   local assert_rc
 
@@ -134,7 +259,8 @@ automerge_squash_merge_at_sha() {
     return 1
   fi
 
-  # Revalidate approval: dismissals between assert-approved-review and merge must fail closed.
+  # Revalidate approval before weekday deferral: a dismissed review must fail closed
+  # even on a blocked day (do not arm / soft-defer without APPROVED).
   set +e
   assert_out="$(automerge_assert_pr_has_approved_review \
     "${repo}" "${pr_number}" "${author_login}" "${expected_sha}" 2>&1)"
@@ -149,6 +275,20 @@ automerge_squash_merge_at_sha() {
   if [[ "${assert_rc}" -ne 0 ]]; then
     echo "MERGE_RESULT=merge_failed"
     echo "Could not revalidate APPROVED review for ${repo}#${pr_number}; failing closed." >&2
+    return 1
+  fi
+
+  # Re-check UTC weekday immediately before merge (approve may have run earlier).
+  day_rc=0
+  automerge_utc_weekday_allowed || day_rc=$?
+  if [[ "${day_rc}" -eq 2 ]]; then
+    echo "MERGE_RESULT=not_ready"
+    echo "UTC weekday policy deferred merge on ${repo}#${pr_number}; arm for deferred retry." >&2
+    return 0
+  fi
+  if [[ "${day_rc}" -ne 0 ]]; then
+    echo "MERGE_RESULT=merge_failed"
+    echo "Could not evaluate allowed-days-of-week on ${repo}#${pr_number}; failing closed." >&2
     return 1
   fi
 
@@ -250,7 +390,7 @@ automerge_upsert_armed_comment() {
   local body
   body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
     "${marker}" \
-    "Automerge did not merge yet because this pull request is **not ready** (required status checks are still pending)." \
+    "Automerge did not merge yet because this pull request is **not ready** (required status checks still pending, and/or today is outside \`allowed-days-of-week\` in consumer policy)." \
     "${retry_blurb}" \
     "Armed by workflow run: ${run_url} (head \`${head_sha}\`)")"
   local comments_json

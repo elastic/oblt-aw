@@ -136,8 +136,15 @@
           }
         },
         "policy": {
-          "$ref": "#/$defs/automergePolicy",
-          "description": "Automerge-only consumer policy (trigger labels, authors, forks). Ignored for other workflow ids. oblt-aw/ai/merge-ready is always an effective trigger label."
+          "oneOf": [
+            {
+              "$ref": "#/$defs/automergePolicy"
+            },
+            {
+              "$ref": "#/$defs/dependencyReviewPolicy"
+            }
+          ],
+          "description": "Workflow-specific consumer policy. Under workflows.automerge use automergePolicy (trigger labels, label actors, authors, forks; oblt-aw/ai/merge-ready is always an effective trigger label). Under workflows.dependency-review use dependencyReviewPolicy (max-merge-ready-risk). Ignored for other workflow ids."
         },
         "inner-workflows": {
           "type": "object",
@@ -240,6 +247,21 @@
             "minLength": 1
           }
         },
+        "label-actors": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "When set, only listed actors may apply a trigger label (timeline labeled event). elastic-vault-github-plugin-prod[bot] is always included. Omitted disables the provenance gate.",
+          "properties": {
+            "allow": {
+              "type": "array",
+              "description": "Exact REST actor logins from the timeline labeled event. Include [bot] for GitHub Apps (for example nightshift-bot[bot]). Bare app slugs are not rewritten and do not match.",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
         "forks": {
           "type": "object",
           "additionalProperties": false,
@@ -286,6 +308,23 @@
             }
           }
         },
+        "allowed-days-of-week": {
+          "type": "array",
+          "description": "UTC weekdays when automerge may run. Omitted or empty means all days. Values are lowercase English names (monday … sunday).",
+          "items": {
+            "type": "string",
+            "enum": [
+              "friday",
+              "monday",
+              "saturday",
+              "sunday",
+              "thursday",
+              "tuesday",
+              "wednesday"
+            ]
+          },
+          "uniqueItems": true
+        },
         "paths": {
           "type": "object",
           "additionalProperties": false,
@@ -308,6 +347,19 @@
               }
             }
           }
+        }
+      }
+    },
+    "dependencyReviewPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max-merge-ready-risk"],
+      "description": "Optional dependency-review gates under workflows.dependency-review.policy. When the policy block is omitted, max-merge-ready-risk defaults to low-to-moderate. When the block is present, max-merge-ready-risk is required and must match the enum; invalid values fail resolve. high is never a valid value and never receives oblt-aw/ai/merge-ready.",
+      "properties": {
+        "max-merge-ready-risk": {
+          "type": "string",
+          "enum": ["low", "low-to-moderate", "moderate"],
+          "description": "Highest overall risk band that may receive oblt-aw/ai/merge-ready. Allowed values: low (strictest), low-to-moderate (default when policy is omitted), moderate (opt-in ceiling). high cannot be set."
         }
       }
     }

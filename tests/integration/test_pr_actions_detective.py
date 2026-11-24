@@ -107,12 +107,15 @@ class TestPrActionsWrapperLockWiring:
             "failure-issue policy belongs in obs-defaults / lock source, "
             "not as a wrapper lock input"
         )
-        assert "model" not in with_block
+        assert with_block.get("model") == (
+            "${{ fromJSON(needs.resolve-apm-assets.outputs.resolved-inputs-json)."
+            "model || 'gpt-5.3-codex' }}"
+        )
         assert "allowed-bot-users" not in with_block
         assert "messages-footer" not in with_block
 
         lock_inputs = _lock_workflow_call_inputs(lock)
-        for key in ("additional-instructions", "setup-commands"):
+        for key in ("additional-instructions", "model", "setup-commands"):
             assert key in lock_inputs, (
                 f"{LOCK_BASENAME} must declare workflow_call input {key!r}"
             )
@@ -120,7 +123,6 @@ class TestPrActionsWrapperLockWiring:
                 f"{WRAPPER_BASENAME} agent job must pass lock input {key!r}"
             )
         for dropped in (
-            "model",
             "allowed-bot-users",
             "messages-footer",
             "report-failure-as-issue",

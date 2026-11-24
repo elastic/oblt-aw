@@ -14,13 +14,16 @@
 # Importing workflows must set one of those env vars (workflow- or job-level)
 # and grant permissions.id-token: write.
 #
-# Author mixed github-token expressions in the importing workflow (gh-aw >= v0.89.21):
+# Author mixed github-token expressions on tools/checkout (gh-aw >= v0.89.21):
 #   ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-# (and the MCP chain for tools.github.github-token). make compile-aw still runs
-# scripts/wire_ephemeral_token.py for compiler-emitted env token bindings and to add
-# id-token: write on minting jobs.
+# (and the MCP chain for tools.github.github-token). For safe-outputs.github-token use
+# secrets.* only: conclusion shares that expression and cannot mint create-token
+# (gh-aw >= v1.3.x). make compile-aw still runs scripts/wire_ephemeral_token.py for
+# compiler-emitted env token bindings inside minting jobs and to add id-token: write.
 #
 # Resolve + create-token steps are defined once (YAML anchors) and reused per job.
+# Do not attach these steps to jobs.conclusion: gh-aw >= v1.3.x rejects user-provided
+# steps on conclusion (use a separate job or session grader if conclusion must mint).
 jobs:
   activation:
     pre-steps:
@@ -58,10 +61,6 @@ jobs:
       - *resolve-token-policy
       - *create-ephemeral-token
   safe_outputs:
-    pre-steps:
-      - *resolve-token-policy
-      - *create-ephemeral-token
-  conclusion:
     pre-steps:
       - *resolve-token-policy
       - *create-ephemeral-token
