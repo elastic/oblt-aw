@@ -30,7 +30,7 @@ The job `dependency-review` calls:
 uses: ./.github/workflows/gh-aw-dependency-review.lock.yml
 ```
 
-Edit the GH-AW source [`.github/workflows/gh-aw-dependency-review.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the lock). Source frontmatter prefers minted `create-token` outputs on tools and safe-outputs `github-token` fields; `make compile-aw` still runs `scripts/wire_ephemeral_token.py` for remaining env token bindings and `id-token: write` when `github-token-policy` is set.
+Edit the GH-AW source [`.github/workflows/gh-aw-dependency-review.md`](https://github.com/elastic/oblt-aw/blob/main/.github/workflows/gh-aw-dependency-review.md) and compile with `make compile-aw-check` from the repository root (do not hand-edit the lock). Source frontmatter prefers minted `create-token` outputs for tool/checkout tokens, but safe-outputs `github-token` is secrets-only (`secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN`) because conclusion shares that expression and cannot mint `create-token`. `make compile-aw` still runs `scripts/wire_ephemeral_token.py` to wire minted tokens into eligible compiled env bindings and add `id-token: write` when `github-token-policy` is set.
 
 ### Opinionated vs preserved
 
