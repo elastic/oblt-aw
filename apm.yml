@@ -1,0 +1,11 @@
+# Ephemeral consumer policy seeded onto the stacked E2E base branch only.
+# Trusted by Automerge verify at PR base SHA (never PR head).
+x-oblt-aw:
+  version: 1
+  obs:
+    common: {}
+    workflows:
+      automerge:
+        policy:
+          trigger-labels:
+            - e2e:automerge-all-files-ready
