@@ -17,6 +17,7 @@ _root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_root / "scripts"))
 
 import agentic_assets_resolver as resolver
+import estc_buildkite_log_tail as eblt
 
 WRAPPER_BASENAME = "obs-aw-estc-pr-buildkite-detective.yml"
 LOCK_BASENAME = "gh-aw-estc-pr-buildkite-detective.lock.yml"
@@ -104,10 +105,7 @@ class TestEstcWrapperLockWiring:
         )
         assert (
             with_block.get("buildkite-log-tail-lines")
-            == "${{ fromJSON(needs.resolve-apm-assets.outputs."
-            "resolved-inputs-json)['buildkite-log-tail-lines'] == null && 150 || "
-            "fromJSON(needs.resolve-apm-assets.outputs."
-            "resolved-inputs-json)['buildkite-log-tail-lines'] }}"
+            == eblt.WRAPPER_BUILDKITE_LOG_TAIL_LINES_EXPR
         )
         assert (
             with_block.get("setup-commands")

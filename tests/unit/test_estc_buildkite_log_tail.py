@@ -36,6 +36,32 @@ class TestParseBuildkiteLogTailLines:
             eblt.parse_buildkite_log_tail_lines(raw)
 
 
+class TestCoalesceResolvedLogTailLines:
+    """Evaluate wrapper default semantics (not only expression text)."""
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (None, 150),
+            ("", 150),
+            (0, 0),
+            (500, 500),
+            (1, 1),
+            (2000, 2000),
+        ],
+    )
+    def test_defaults_null_and_empty_preserves_zero(
+        self, value: object, expected: object
+    ) -> None:
+        assert eblt.coalesce_resolved_log_tail_lines(value) == expected
+
+    def test_zero_reaches_prefetch_rejection(self) -> None:
+        coalesced = eblt.coalesce_resolved_log_tail_lines(0)
+        assert coalesced == 0
+        with pytest.raises(eblt.BuildkiteLogTailError):
+            eblt.parse_buildkite_log_tail_lines(str(coalesced))
+
+
 class TestTakeLogTail:
     def test_default_and_override_slice(self) -> None:
         lines = [f"L{i}" for i in range(600)]
@@ -75,9 +101,10 @@ class TestPrefetchBindingContract:
         )
         assert "LOG_TAIL_MAX = 2000" in text
 
-    def test_wrapper_null_only_default_preserves_zero(self) -> None:
+    def test_wrapper_tojson_default_preserves_zero(self) -> None:
         data = yaml.safe_load(WRAPPER_YML.read_text(encoding="utf-8"))
         with_block = data["jobs"]["estc-pr-buildkite-detective"]["with"]
         expr = with_block["buildkite-log-tail-lines"]
-        assert "== null && 150 ||" in expr
+        assert expr == eblt.WRAPPER_BUILDKITE_LOG_TAIL_LINES_EXPR
+        assert "== null" not in expr
         assert "resolved-inputs-json)['buildkite-log-tail-lines'] || 150" not in expr

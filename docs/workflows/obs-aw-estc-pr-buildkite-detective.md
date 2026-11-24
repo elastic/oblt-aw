@@ -64,7 +64,7 @@ Wrapper `workflow_call` contract:
 Lock inputs passed by the wrapper:
 
 - `additional-instructions` — resolved framework + consumer instructions
-- `buildkite-log-tail-lines` — trailing Buildkite log lines per failed job. Wrapper uses a null-only default (`…['buildkite-log-tail-lines'] == null && 150 || …['buildkite-log-tail-lines']`) so an explicit `0` is not rewritten to `150`. Set under `x-oblt-aw.<org-key>.workflows.estc-pr-buildkite-detective.inputs` in consumer `apm.yml`. Allowed range is 1–2000; invalid values fail the prefetch step. See [Define local AI assets](../user-guide/local-ai-assets.md).
+- `buildkite-log-tail-lines` — trailing Buildkite log lines per failed job. Wrapper defaults only when the resolved value is JSON `null` or `""` via `toJSON(…) == 'null' || toJSON(…) == '""'` (GHA loose `== null` treats `0` as null). An explicit `0` reaches prefetch and fails closed. Set under `x-oblt-aw.<org-key>.workflows.estc-pr-buildkite-detective.inputs` in consumer `apm.yml`. Allowed range is 1–2000; invalid values fail the prefetch step. See [Define local AI assets](../user-guide/local-ai-assets.md).
 - `setup-commands` — `join(fromJSON(resolved-setup-commands-json), fromJSON('"\n"'))` from resolve (empty when the consumer has none; `fromJSON` supplies a real newline because expression string literals do not interpret `\n`)
 
 Migration note for consumers: if you previously configured the consumer-facing secret name as `BUILDKITE_API_TOKEN`, rename or duplicate it as `BUILDKITE_LOGS_API_TOKEN` in repository/organization secrets.

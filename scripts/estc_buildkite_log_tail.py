@@ -18,17 +18,49 @@
 
 The GH-AW prefetch step keeps a self-contained copy of this logic (consumer
 checkouts do not ship control-plane scripts). Unit tests cover this module;
-integration wiring asserts the lock env binding and wrapper null-only default.
+integration wiring asserts the lock env binding and wrapper toJSON default.
 """
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 LOG_TAIL_DEFAULT = 150
 LOG_TAIL_MAX = 2000
+
+# Wrapper expression: compare toJSON text so GHA loose ``== null`` does not
+# rewrite an explicit ``0`` to the default (null coerces to 0 in comparisons).
+WRAPPER_BUILDKITE_LOG_TAIL_LINES_EXPR = (
+    "${{ (toJSON(fromJSON(needs.resolve-apm-assets.outputs."
+    "resolved-inputs-json)['buildkite-log-tail-lines']) == 'null' || "
+    "toJSON(fromJSON(needs.resolve-apm-assets.outputs."
+    "resolved-inputs-json)['buildkite-log-tail-lines']) == '\"\"') && 150 || "
+    "fromJSON(needs.resolve-apm-assets.outputs."
+    "resolved-inputs-json)['buildkite-log-tail-lines'] }}"
+)
 
 
 class BuildkiteLogTailError(ValueError):
     """Invalid ``buildkite-log-tail-lines`` value."""
+
+
+def coalesce_resolved_log_tail_lines(
+    value: Any,
+    *,
+    default: int = LOG_TAIL_DEFAULT,
+) -> Any:
+    """Mirror the wrapper default using GHA ``toJSON`` string comparisons.
+
+    Returns ``default`` only when compact JSON is ``null`` or ``\"\"``. Numeric
+    ``0`` is preserved so prefetch can reject it. Do not model this with Python
+    ``value is None`` alone if you also need empty-string handling, and never
+    with GHA ``value == null`` (that is true for ``0``).
+    """
+    encoded = json.dumps(value, separators=(",", ":"))
+    if encoded in ("null", '""'):
+        return default
+    return value
 
 
 def parse_buildkite_log_tail_lines(
