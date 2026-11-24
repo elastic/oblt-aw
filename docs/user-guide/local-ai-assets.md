@@ -145,7 +145,7 @@ Under `x-oblt-aw.<org-key>.workflows.dependency-review.policy`, set **`max-merge
 | `low-to-moderate` | **Default** when policy is omitted — **low** or **low-to-moderate** |
 | `moderate` | **low**, **low-to-moderate**, or **moderate** may get the label |
 
-Do **not** set `high` — it is not a valid APM value and never receives the label. Hard blockers remain: risk above the ceiling, and breaking changes that affect this repository. Ecosystem check warnings stay in the analysis comment but do not withhold the label. Details: [obs-aw-dependency-review](../workflows/obs-aw-dependency-review.md#consumer-risk-ceiling-apmyml).
+Do **not** set `high` — it is not a valid APM value and never receives the label. A present `policy` block must set `max-merge-ready-risk` to an exact allowed value; typos, whitespace, or unknown values fail asset resolve (they do not silently widen to the default). Hard blockers remain: risk above the ceiling, and breaking changes that affect this repository. Ecosystem check warnings stay in the analysis comment but do not withhold the label. Details: [obs-aw-dependency-review](../workflows/obs-aw-dependency-review.md#consumer-risk-ceiling-apmyml).
 
 ### Buildkite detective log depth
 

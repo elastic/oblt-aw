@@ -339,7 +339,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["max-merge-ready-risk"],
-      "description": "Optional dependency-review gates under workflows.dependency-review.policy. When the policy block is omitted, max-merge-ready-risk defaults to low-to-moderate. high is never a valid value and never receives oblt-aw/ai/merge-ready.",
+      "description": "Optional dependency-review gates under workflows.dependency-review.policy. When the policy block is omitted, max-merge-ready-risk defaults to low-to-moderate. When the block is present, max-merge-ready-risk is required and must match the enum; invalid values fail resolve. high is never a valid value and never receives oblt-aw/ai/merge-ready.",
       "properties": {
         "max-merge-ready-risk": {
           "type": "string",

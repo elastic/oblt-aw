@@ -703,17 +703,33 @@ x-oblt-aw:
             assert f"`{level}`" in text
         assert "`high`" in text
 
-    def test_normalize_dependency_review_policy_rejects_high(
-        self,
-    ) -> None:
-        policy = aaa.normalize_dependency_review_policy(
-            {"max-merge-ready-risk": "high"}
-        )
-        assert policy["max-merge-ready-risk"] == aaa.DEFAULT_MAX_MERGE_READY_RISK
+    def test_normalize_dependency_review_policy_rejects_high(self) -> None:
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-risk": "high"})
 
     def test_normalize_dependency_review_policy_accepts_low(self) -> None:
         policy = aaa.normalize_dependency_review_policy({"max-merge-ready-risk": "low"})
         assert policy["max-merge-ready-risk"] == "low"
+
+    def test_normalize_dependency_review_policy_omitted_uses_default(self) -> None:
+        policy = aaa.normalize_dependency_review_policy(None)
+        assert policy == aaa.default_dependency_review_policy()
+
+    def test_normalize_dependency_review_policy_rejects_malformed(self) -> None:
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-risk": "low "})
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy(
+                {"max-merge-ready-risk": "low-to-modrate"}
+            )
+        with pytest.raises(ValueError, match="max-merge-ready-risk must be one of"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-risk": 1})
+        with pytest.raises(ValueError, match="max-merge-ready-risk is required"):
+            aaa.normalize_dependency_review_policy({})
+        with pytest.raises(ValueError, match="max-merge-ready-risk is required"):
+            aaa.normalize_dependency_review_policy({"max-merge-ready-riks": "low"})
+        with pytest.raises(TypeError, match="must be a mapping"):
+            aaa.normalize_dependency_review_policy("low")
 
     def test_dependency_review_policy_uses_checkout_root_not_sibling_head(
         self, tmp_path: pathlib.Path

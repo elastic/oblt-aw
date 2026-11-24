@@ -29,7 +29,7 @@ Each asset block (`common`, `workflows.<id>`, or `inner-workflows.<basename>`) m
 | `setup-commands-file` | Repo-relative path | Optional. UTF-8 file with one command per line; appended after `setup-commands`. Same line rules as multiline inline text. |
 | `additional-instructions-fragments` | List of ids | Ordered ids from `<org-key>.fragments`; materialized before inline `additional-instructions`. On `obs:repo-scheduled`, the same field is also allowed on each `automations[]` entry (appended for that matrix job only, after the wake-level resolve output). |
 | `inputs` | Mapping | Agentic workflow input overrides; `*-file` keys load repo file contents (see manifest example). |
-| `policy` | Mapping | Workflow-specific only. **`automerge`:** trigger labels, authors, forks. **`dependency-review`:** `max-merge-ready-risk` (`low` \| `low-to-moderate` \| `moderate`; default when omitted: `low-to-moderate`; `high` is not settable). Ignored for other workflow ids. |
+| `policy` | Mapping | Workflow-specific only. **`automerge`:** trigger labels, authors, forks. **`dependency-review`:** `max-merge-ready-risk` (`low` \| `low-to-moderate` \| `moderate`; default when the policy block is omitted: `low-to-moderate`; present but invalid/missing values fail resolve; `high` is not settable). Ignored for other workflow ids. |
 
 A repository in multiple org fleets may define separate `obs` and `docs` blocks with different `common` guidance.
 

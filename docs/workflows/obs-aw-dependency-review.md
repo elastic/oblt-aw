@@ -57,7 +57,7 @@ Optional under `x-oblt-aw.<org>.workflows.dependency-review.policy` (see [Define
 | `low-to-moderate` | **Default** when the policy block is omitted | **low** or **low-to-moderate** |
 | `moderate` | Opt-in higher ceiling | **low**, **low-to-moderate**, or **moderate** |
 
-**`high` cannot be set** in APM and never receives `oblt-aw/ai/merge-ready`. Resolve always injects an **Effective Dependency Review Policy** block so the agent sees the active ceiling. The wrapper passes `consumer-ref` as the PR **base** SHA (same trust model as automerge policy), so a dependency bump cannot raise its own risk ceiling from the PR head.
+**`high` cannot be set** in APM and never receives `oblt-aw/ai/merge-ready`. When `policy` is present, `max-merge-ready-risk` must be an exact allowed value; malformed or missing values fail resolve instead of falling back to a broader default. Resolve always injects an **Effective Dependency Review Policy** block so the agent sees the active ceiling. The wrapper passes `consumer-ref` as the PR **base** SHA (same trust model as automerge policy), so a dependency bump cannot raise its own risk ceiling from the PR head.
 
 ```yaml
 x-oblt-aw:

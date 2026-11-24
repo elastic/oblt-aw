@@ -880,16 +880,30 @@ def normalize_dependency_review_policy(raw: Any) -> dict[str, Any]:
     """
     Normalize ``workflows.dependency-review.policy`` (kebab-case).
 
-    Unknown or invalid ``max-merge-ready-risk`` values fall back to the default.
+    Omit the policy mapping (``None``) to keep control-plane defaults. A present
+    policy mapping must set ``max-merge-ready-risk`` to an exact allowed value;
+    missing or invalid values raise (fail closed — no silent broaden).
     """
-    base = default_dependency_review_policy()
+    if raw is None:
+        return default_dependency_review_policy()
     if not isinstance(raw, dict):
-        return base
-
-    ceiling = raw.get("max-merge-ready-risk")
-    if isinstance(ceiling, str) and ceiling in MERGE_READY_RISK_LEVELS:
-        return {"max-merge-ready-risk": ceiling}
-    return base
+        raise TypeError(
+            "workflows.dependency-review.policy must be a mapping with "
+            "max-merge-ready-risk"
+        )
+    if "max-merge-ready-risk" not in raw:
+        raise ValueError(
+            "workflows.dependency-review.policy.max-merge-ready-risk is required "
+            "when policy is set "
+            f"(allowed: {', '.join(MERGE_READY_RISK_LEVELS)})"
+        )
+    ceiling = raw["max-merge-ready-risk"]
+    if not isinstance(ceiling, str) or ceiling not in MERGE_READY_RISK_LEVELS:
+        raise ValueError(
+            "workflows.dependency-review.policy.max-merge-ready-risk must be one of "
+            f"{', '.join(MERGE_READY_RISK_LEVELS)}; got {ceiling!r}"
+        )
+    return {"max-merge-ready-risk": ceiling}
 
 
 def extract_dependency_review_policy_raw(
@@ -917,7 +931,8 @@ def resolve_dependency_review_policy(
     ``apm.yml``.
 
     Missing manifest / extension / policy yields control-plane defaults
-    (``max-merge-ready-risk: low-to-moderate``).
+    (``max-merge-ready-risk: low-to-moderate``). A present policy with a
+    missing or invalid ceiling raises (see ``normalize_dependency_review_policy``).
     """
     manifest, present = load_apm_manifest(repo_root)
     if not present or manifest is None:
