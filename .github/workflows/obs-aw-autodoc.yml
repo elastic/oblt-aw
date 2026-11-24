@@ -63,6 +63,8 @@ jobs:
       issues: write
       pull-requests: read
       copilot-requests: write
+      # Callee lock declares id-token: write (gh-aw >= v1.3.x activation/OIDC).
+      id-token: write
     # Relative so client @v0 / control-plane tip pins inherit the release train.
     uses: ./.github/workflows/gh-aw-docs-patrol.lock.yml
     with:
@@ -94,6 +96,8 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
+      # Callee lock declares id-token: write (gh-aw >= v1.3.x activation/OIDC).
+      id-token: write
     if: inputs.shared-proceed == 'true' && needs.audit.outputs.created_issue_number != ''
     # Relative so client @v0 / control-plane tip pins inherit the release train.
     uses: ./.github/workflows/gh-aw-create-pr-from-issue.lock.yml

@@ -134,6 +134,8 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
+      # Callee lock declares id-token: write (gh-aw >= v1.3.x activation/OIDC).
+      id-token: write
     uses: ./.github/workflows/gh-aw-repo-scheduled.lock.yml
     with:
       automation-id: ${{ matrix.id }}

@@ -31,6 +31,8 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
+      # Callee lock declares id-token: write (gh-aw >= v1.3.x activation/OIDC).
+      id-token: write
     uses: elastic/oblt-aw/.github/workflows/gh-aw-pr-actions-detective.lock.yml@main
     with:
       additional-instructions: ${{ needs.resolve-apm-assets.outputs.resolved-additional-instructions }}
