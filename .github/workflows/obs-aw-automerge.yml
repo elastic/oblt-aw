@@ -52,6 +52,7 @@ jobs:
       proceed: ${{ steps.validate.outputs.proceed }}
       trigger-labels-json: ${{ steps.validate.outputs.trigger-labels-json }}
       automerge-policy-json: ${{ steps.policy.outputs.automerge-policy-json }}
+      label-actors-json: ${{ steps.validate.outputs.label-actors-json }}
       allowed-days-json: ${{ steps.validate.outputs.allowed-days-json }}
     steps:
       - name: Checkout consumer repository (apm.yml for automerge policy)
@@ -133,7 +134,7 @@ jobs:
             rq('tsx/cjs/api').register();
             const { run } = rq('./scripts/obs/validateAutomergePr.ts');
             const prNumber = parseInt(process.env.PR_NUMBER || '', 10);
-            const { ok, triggerLabels, allowedDaysOfWeek } = await run({
+            const { ok, triggerLabels, labelActorsAllow, allowedDaysOfWeek } = await run({
               github,
               context,
               prNumber,
@@ -146,6 +147,10 @@ jobs:
             core.setOutput(
               'trigger-labels-json',
               JSON.stringify(Array.isArray(triggerLabels) ? triggerLabels : [])
+            );
+            core.setOutput(
+              'label-actors-json',
+              JSON.stringify(Array.isArray(labelActorsAllow) ? labelActorsAllow : [])
             );
             core.setOutput(
               'allowed-days-json',
@@ -407,6 +412,7 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           ASSERTED_SHA: ${{ needs.assert-approved-review.outputs.head_sha }}
           AUTOMERGE_TRIGGER_LABELS_JSON: ${{ needs.verify.outputs.trigger-labels-json }}
+          AUTOMERGE_LABEL_ACTORS_JSON: ${{ needs.verify.outputs.label-actors-json }}
           AUTOMERGE_ALLOWED_DAYS_JSON: ${{ needs.verify.outputs.allowed-days-json }}
         run: |
           set -euo pipefail
@@ -486,6 +492,7 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ needs.assert-approved-review.outputs.head_sha }}
           AUTOMERGE_TRIGGER_LABELS_JSON: ${{ needs.verify.outputs.trigger-labels-json }}
+          AUTOMERGE_LABEL_ACTORS_JSON: ${{ needs.verify.outputs.label-actors-json }}
           AUTOMERGE_ALLOWED_DAYS_JSON: ${{ needs.verify.outputs.allowed-days-json }}
         run: |
           set -euo pipefail

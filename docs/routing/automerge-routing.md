@@ -48,7 +48,7 @@ Both workflows require prelude to allow registry id `obs:automerge` (see `docs/w
 |---------------|---------|
 | Author | Control-plane bots ([allowed_pr_authors.json](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json)) always allowed; consumer `workflows.automerge.policy.authors` may use `allow-list` extras or `author-association`. GraphQL `app/<slug>` is normalized to `<slug>[bot]` before matching |
 | Token policy | Non-empty `shared-token-policy` required when author is `github-actions[bot]` |
-| Label | At least one effective trigger label (`oblt-aw/ai/merge-ready` always; plus optional `policy.trigger-labels`) |
+| Label | At least one effective trigger label (`oblt-aw/ai/merge-ready` always; plus optional `policy.trigger-labels`). When `policy.label-actors` is set, the latest timeline `labeled` event for that label must be from an allowed actor (`elastic-vault-github-plugin-prod[bot]` always included); timeline read failures fail closed |
 | PR state | Not a draft |
 | Branch origin | Default same-repo only; `policy.forks.mode: author-association` allows forks when `author_association` matches |
 | Refs | Head ref ≠ base ref |

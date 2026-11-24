@@ -144,7 +144,7 @@
               "$ref": "#/$defs/dependencyReviewPolicy"
             }
           ],
-          "description": "Workflow-specific consumer policy. Under workflows.automerge use automergePolicy (trigger labels, authors, forks; oblt-aw/ai/merge-ready is always an effective trigger). Under workflows.dependency-review use dependencyReviewPolicy (max-merge-ready-risk). Ignored for other workflow ids."
+          "description": "Workflow-specific consumer policy. Under workflows.automerge use automergePolicy (trigger labels, label actors, authors, forks; oblt-aw/ai/merge-ready is always an effective trigger label). Under workflows.dependency-review use dependencyReviewPolicy (max-merge-ready-risk). Ignored for other workflow ids."
         },
         "inner-workflows": {
           "type": "object",
@@ -245,6 +245,21 @@
           "items": {
             "type": "string",
             "minLength": 1
+          }
+        },
+        "label-actors": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "When set, only listed actors may apply a trigger label (timeline labeled event). elastic-vault-github-plugin-prod[bot] is always included. Omitted disables the provenance gate.",
+          "properties": {
+            "allow": {
+              "type": "array",
+              "description": "Exact REST actor logins from the timeline labeled event. Include [bot] for GitHub Apps (for example nightshift-bot[bot]). Bare app slugs are not rewritten and do not match.",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
           }
         },
         "forks": {

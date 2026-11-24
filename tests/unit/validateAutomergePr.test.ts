@@ -271,6 +271,179 @@ test('validateAutomergePr allows custom trigger label from policy', async () => 
   assert.equal(r.ok, true);
 });
 
+test('validateAutomergePr accepts trusted label actor from timeline', async () => {
+  const { core } = makeCore();
+  const github = {
+    paginate: async () => [
+      {
+        event: 'labeled',
+        label: { name: 'nightshift:risk-low' },
+        actor: { login: 'nightshift-bot[bot]' },
+      },
+    ],
+    rest: {
+      pulls: {
+        get: async () => ({
+          data: basePr({
+            labels: [{ name: 'nightshift:risk-low' }],
+          }),
+        }),
+      },
+      issues: { listEventsForTimeline: {} },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 30,
+    core,
+    policy: {
+      'trigger-labels': ['nightshift:risk-low'],
+      'label-actors': { allow: ['nightshift-bot[bot]'] },
+    },
+  });
+  assert.equal(r.ok, true);
+  assert.ok(r.labelActorsAllow.includes('elastic-vault-github-plugin-prod[bot]'));
+});
+
+test('validateAutomergePr rejects untrusted label actor', async () => {
+  const { core, infoMessages } = makeCore();
+  const github = {
+    paginate: async () => [
+      {
+        event: 'labeled',
+        label: { name: 'oblt-aw/ai/merge-ready' },
+        actor: { login: 'random-triager' },
+      },
+    ],
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr() }),
+      },
+      issues: { listEventsForTimeline: {} },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 31,
+    core,
+    policy: {
+      'label-actors': { allow: [] },
+    },
+  });
+  assert.equal(r.ok, false);
+  assert.match(infoMessages.join('\n'), /allowed actor/);
+});
+
+test('validateAutomergePr fails closed when timeline cannot be read', async () => {
+  const { core, infoMessages } = makeCore();
+  const github = {
+    paginate: async () => {
+      throw new Error('timeline boom');
+    },
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr() }),
+      },
+      issues: { listEventsForTimeline: {} },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 32,
+    core,
+    policy: {
+      'label-actors': { allow: ['nightshift-bot[bot]'] },
+    },
+  });
+  assert.equal(r.ok, false);
+  assert.match(infoMessages.join('\n'), /timeline/);
+});
+
+test('validateAutomergePr rejects when latest reapply is untrusted after trusted history', async () => {
+  const { core, infoMessages } = makeCore();
+  const label = 'oblt-aw/ai/merge-ready';
+  const github = {
+    paginate: async () => [
+      {
+        event: 'labeled',
+        label: { name: label },
+        actor: { login: 'nightshift-bot[bot]' },
+      },
+      {
+        event: 'unlabeled',
+        label: { name: label },
+        actor: { login: 'nightshift-bot[bot]' },
+      },
+      {
+        event: 'labeled',
+        label: { name: label },
+        actor: { login: 'random-triager' },
+      },
+    ],
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr() }),
+      },
+      issues: { listEventsForTimeline: {} },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 33,
+    core,
+    policy: {
+      'label-actors': { allow: ['nightshift-bot[bot]'] },
+    },
+  });
+  assert.equal(r.ok, false);
+  assert.match(infoMessages.join('\n'), /allowed actor/);
+});
+
+test('validateAutomergePr accepts when latest reapply is trusted after untrusted history', async () => {
+  const { core } = makeCore();
+  const label = 'oblt-aw/ai/merge-ready';
+  const github = {
+    // Simulate octokit.paginate flattening two timeline pages.
+    paginate: async () => [
+      {
+        event: 'labeled',
+        label: { name: label },
+        actor: { login: 'random-triager' },
+      },
+      {
+        event: 'unlabeled',
+        label: { name: label },
+        actor: { login: 'random-triager' },
+      },
+      {
+        event: 'labeled',
+        label: { name: label },
+        actor: { login: 'nightshift-bot[bot]' },
+      },
+    ],
+    rest: {
+      pulls: {
+        get: async () => ({ data: basePr() }),
+      },
+      issues: { listEventsForTimeline: {} },
+    },
+  };
+  const r = await run({
+    github,
+    context: { repo: { owner: 'elastic', repo: 'r' } },
+    prNumber: 34,
+    core,
+    policy: {
+      'label-actors': { allow: ['nightshift-bot[bot]'] },
+    },
+  });
+  assert.equal(r.ok, true);
+});
+
 test('validateAutomergePr allows MEMBER fork when forks.mode is author-association', async () => {
   const { core } = makeCore();
   const github = {
