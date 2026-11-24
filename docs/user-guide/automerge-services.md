@@ -100,6 +100,11 @@ x-oblt-aw:
             author-associations:
               - MEMBER
               - OWNER
+          allowed-days-of-week:        # optional; omit or [] = all UTC days
+            - monday
+            - tuesday
+            - wednesday
+            - thursday
           paths:                       # optional; only applies to all-files
             allow:
               - docs/**
@@ -111,8 +116,9 @@ x-oblt-aw:
 - **Trigger labels:** `oblt-aw/ai/merge-ready` is always effective. Listed labels are added; omitting merge-ready does not remove it. Who applies the label ([Dependency Review](dependency-review.md), a repository classifier / bridge, or a maintainer) is up to the repository.
 - **Authors:** Control-plane bots in [`allowed_pr_authors.json`](https://github.com/elastic/oblt-aw/blob/main/config/obs/allowed_pr_authors.json) are always allowed. `allow-list` adds logins; `author-association` allows non-bot authors whose GitHub `author_association` matches.
 - **Forks:** Default `disabled` keeps same-repo only. `author-association` allows forks when association matches (for example Elastic employee forks with `MEMBER` / `OWNER`).
+- **Allowed days of week:** Optional list of lowercase English weekday names (`monday` … `sunday`). Evaluated in **UTC** at merge time (and again on the deferred path). Omitted or empty means every day. Unknown names or a non-list value fail policy resolve closed. On a blocked day, Automerge can still approve and arm the PR; merge waits until an allowed UTC day.
 - **Paths (all-files only):** Optional `paths.allow` and `paths.deny` globs. When `all-files` is the matched collection, every changed file (and any rename `previous_filename`) must match `allow` (if set) and none may match `deny` (`deny` wins). Globs support only `*` and `**` (same as collection `file-glob`); `?` and character classes are rejected. Omitted or empty lists leave path scope unrestricted. An invalid `paths` block (unknown keys, blank entries, unsupported syntax) fails closed. Specific dependency collections ignore this block.
-- **Defaults when `policy` is omitted:** merge-ready only, forks disabled, authors allow-list with no extras (today’s bot path), no path restriction.
+- **Defaults when `policy` is omitted:** merge-ready only, forks disabled, authors allow-list with no extras (today’s bot path), no path restriction, all UTC weekdays allowed.
 - **CODEOWNERS / merge queue:** Automerge still squash-merges over REST as the Vault app when `shared-token-policy` is set (bypass classic BP / rulesets). It does not enqueue into a merge queue.
 
 See also [Local AI assets](local-ai-assets.md), [Non-dependency Automerge user journeys](automerge-user-journeys.md), and [Automerge routing](../routing/automerge-routing.md).

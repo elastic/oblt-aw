@@ -22,6 +22,10 @@ AUTOMERGE_MERGE_READY_LABEL='oblt-aw/ai/merge-ready'
 # Optional JSON array of trigger labels (from consumer automerge policy). Defaults to
 # merge-ready only when unset or invalid so older callers keep working.
 AUTOMERGE_TRIGGER_LABELS_JSON="${AUTOMERGE_TRIGGER_LABELS_JSON:-}"
+# Optional JSON array of allowed UTC weekdays (from consumer automerge policy).
+# Empty / unset / invalid ⇒ unrestricted. Production merge paths should pass the
+# trusted resolve output; AUTOMERGE_DISCOVER_UTC_WEEKDAY overrides "today" for tests.
+AUTOMERGE_ALLOWED_DAYS_JSON="${AUTOMERGE_ALLOWED_DAYS_JSON:-}"
 # HTML comment marker always includes the approved head SHA, e.g.
 # <!-- obs-aw-automerge:armed sha=0123…abcdef -->
 
@@ -68,6 +72,32 @@ automerge_effective_trigger_labels_json() {
   printf '%s\n' "${parsed}"
 }
 
+# True when AUTOMERGE_ALLOWED_DAYS_JSON is empty/unset (unrestricted) or contains
+# today's UTC weekday (lowercase English name). Exit 0 allowed; 2 disallowed.
+automerge_utc_weekday_allowed() {
+  local raw="${AUTOMERGE_ALLOWED_DAYS_JSON:-}"
+  local today
+  local allowed
+  today="${AUTOMERGE_DISCOVER_UTC_WEEKDAY:-$(date -u +%A | tr '[:upper:]' '[:lower:]')}"
+  if [[ -z "${raw}" || "${raw}" == '[]' || "${raw}" == 'null' ]]; then
+    return 0
+  fi
+  allowed="$(printf '%s' "${raw}" | jq -c '
+    if type == "array" then
+      [.[] | select(type == "string") | ascii_downcase]
+    else
+      []
+    end' 2>/dev/null)" || allowed='[]'
+  if [[ "$(printf '%s' "${allowed}" | jq 'length')" -eq 0 ]]; then
+    return 0
+  fi
+  if printf '%s' "${allowed}" | jq -e --arg day "${today}" 'index($day) != null' >/dev/null; then
+    return 0
+  fi
+  echo "UTC weekday '${today}' is not in allowed-days-of-week (${allowed})." >&2
+  return 2
+}
+
 # Live trigger-label check (any effective policy trigger label).
 # Exit 0 — at least one present; 2 — confirmed absent; 1 — API/parse error (not an opt-out).
 automerge_pr_has_merge_ready_label() {
@@ -112,6 +142,7 @@ automerge_squash_merge_at_sha() {
   local merge_out
   local pr_state
   local label_rc
+  local day_rc
   local assert_out
   local assert_rc
 
@@ -134,7 +165,8 @@ automerge_squash_merge_at_sha() {
     return 1
   fi
 
-  # Revalidate approval: dismissals between assert-approved-review and merge must fail closed.
+  # Revalidate approval before weekday deferral: a dismissed review must fail closed
+  # even on a blocked day (do not arm / soft-defer without APPROVED).
   set +e
   assert_out="$(automerge_assert_pr_has_approved_review \
     "${repo}" "${pr_number}" "${author_login}" "${expected_sha}" 2>&1)"
@@ -149,6 +181,20 @@ automerge_squash_merge_at_sha() {
   if [[ "${assert_rc}" -ne 0 ]]; then
     echo "MERGE_RESULT=merge_failed"
     echo "Could not revalidate APPROVED review for ${repo}#${pr_number}; failing closed." >&2
+    return 1
+  fi
+
+  # Re-check UTC weekday immediately before merge (approve may have run earlier).
+  day_rc=0
+  automerge_utc_weekday_allowed || day_rc=$?
+  if [[ "${day_rc}" -eq 2 ]]; then
+    echo "MERGE_RESULT=not_ready"
+    echo "UTC weekday policy deferred merge on ${repo}#${pr_number}; arm for deferred retry." >&2
+    return 0
+  fi
+  if [[ "${day_rc}" -ne 0 ]]; then
+    echo "MERGE_RESULT=merge_failed"
+    echo "Could not evaluate allowed-days-of-week on ${repo}#${pr_number}; failing closed." >&2
     return 1
   fi
 
@@ -250,7 +296,7 @@ automerge_upsert_armed_comment() {
   local body
   body="$(printf '%s\n\n%s\n\n%s\n\n%s' \
     "${marker}" \
-    "Automerge did not merge yet because this pull request is **not ready** (required status checks are still pending)." \
+    "Automerge did not merge yet because this pull request is **not ready** (required status checks still pending, and/or today is outside \`allowed-days-of-week\` in consumer policy)." \
     "${retry_blurb}" \
     "Armed by workflow run: ${run_url} (head \`${head_sha}\`)")"
   local comments_json
