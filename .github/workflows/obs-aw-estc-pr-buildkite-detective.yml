@@ -69,6 +69,8 @@ jobs:
       issues: write
       pull-requests: write
       copilot-requests: write
+      # Callee lock declares id-token: write (gh-aw >= v1.3.x activation/OIDC).
+      id-token: write
     # Relative so client @v0 / control-plane tip pins inherit the release train.
     uses: ./.github/workflows/gh-aw-estc-pr-buildkite-detective.lock.yml
     with:
