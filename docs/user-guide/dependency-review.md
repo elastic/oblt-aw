@@ -5,7 +5,7 @@
 **Dependency Review** (`obs:dependency-review`) analyzes bot dependency pull requests in your repository. On each matching PR it can:
 
 1. Post a structured **analysis comment** (changelog highlights, usage in this repo, compatibility, risk).
-2. Apply the **`oblt-aw/ai/merge-ready`** label when overall risk is **low** or **low-to-moderate** and the other merge-ready gates pass.
+2. Apply the **`oblt-aw/ai/merge-ready`** label when overall risk is at or below the effective `max-merge-ready-risk` ceiling and the other merge-ready gates pass (default: **low-to-moderate**; optional consumer override: **moderate**).
 
 You enable it from the Control Plane dashboard. The **framework** owns the route, agent lock, and labeling rules. The **control plane** only gates whether it runs for your repository.
 
@@ -18,7 +18,7 @@ flowchart TD
   C -->|no| Z[Skip]
   C -->|yes| D[Agent analyzes the PR]
   D --> E[Analysis comment on the PR]
-  D --> F{Low or low-to-moderate risk and gates pass?}
+  D --> F{Risk is at or below effective max-merge-ready-risk and gates pass?}
   F -->|yes| G[Apply the oblt-aw/ai/merge-ready label]
   F -->|no| H[No merge-ready label]
   G --> I[Optional: Automerge if parent and collection enabled]
@@ -67,7 +67,7 @@ If the PR has **no** dependency updates to review, the agent calls `noop` and do
 
 ### `oblt-aw/ai/merge-ready` label
 
-The agent applies the **`oblt-aw/ai/merge-ready`** label only when overall risk is **low** or **low-to-moderate** and the framework gates pass (for example no breaking change that affects this repo, Actions pins not failing commit verification, production workflows that cannot be validated on the PR do not block incorrectly). Risk **moderate** or **high** means no merge-ready label.
+The agent applies the **`oblt-aw/ai/merge-ready`** label only when overall risk is at or below the effective `max-merge-ready-risk` ceiling and the framework gates pass (for example no breaking change that affects this repo, Actions pins not failing commit verification, production workflows that cannot be validated on the PR do not block incorrectly). Default ceiling is **low-to-moderate**; when a consumer sets `x-oblt-aw.<org-key>.workflows.dependency-review.policy.max-merge-ready-risk: moderate`, **moderate** can also receive the label. **high** never receives the label. Configure the ceiling in [Local AI assets → Dependency Review policy (`max-merge-ready-risk`)](local-ai-assets.md#dependency-review-policy-max-merge-ready-risk).
 
 Missing upstream release notes alone must not raise risk above **low-to-moderate** or block the label when the other gates pass.
 
@@ -92,7 +92,7 @@ Dependency Review can label a PR even when Automerge is off. Automerge still nee
 | No Dependency Review job | Dashboard checkbox off, repo not onboarded, or PR author not on the allow list — [Workflows skipped or not running](../troubleshooting/common-problems/workflows-skipped-or-not-running.md) |
 | Job skipped on a human PR | Expected: only allow-listed bot authors are routed |
 | No analysis comment, only retry note | Empty safe outputs; push a commit or reopen the PR and re-check the Actions run |
-| Analysis comment but no `oblt-aw/ai/merge-ready` label | Risk above low-to-moderate, or a gate failed (breaking change, Actions verification, untestable production workflow impact). Read the comment’s Labels Applied section |
+| Analysis comment but no `oblt-aw/ai/merge-ready` label | Risk above the effective `max-merge-ready-risk` ceiling (default `low-to-moderate`), or a gate failed (breaking change, Actions verification, untestable production workflow impact). Read the comment’s Labels Applied section and policy docs: [Dependency Review policy (`max-merge-ready-risk`)](local-ai-assets.md#dependency-review-policy-max-merge-ready-risk) |
 | `oblt-aw/ai/merge-ready` label present but PR not merged | Enable Automerge parent + matching collection; Dependency Review does not merge |
 
 ## References
@@ -101,3 +101,4 @@ Dependency Review can label a PR even when Automerge is off. Automerge still nee
 - Routing: [Dependency Review routing](../routing/dependency-review-routing.md)
 - Catalog entry: [Agentic workflow catalog by outcome](../knowledge-base/agentic-workflows/by-outcome.md)
 - Automerge collections: [Choose Automerge dependency collections](automerge-services.md)
+- Local override contract: [Dependency Review policy (`max-merge-ready-risk`)](local-ai-assets.md#dependency-review-policy-max-merge-ready-risk)
