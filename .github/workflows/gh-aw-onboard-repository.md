@@ -72,24 +72,18 @@ steps:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
     run: |
       set -euo pipefail
+      # CRLF-safe field parse (blank lines after ### headings must not yield empty repo).
       body="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" --jq '.body // ""')"
-      repo="$(printf '%s\n' "$body" | awk '
-        BEGIN { grab=0 }
-        /^### Repository[[:space:]]*$/ { grab=1; next }
-        grab && /^### / { exit }
-        grab && NF { gsub(/\r/,""); print; exit }
-      ')"
-      if [[ ! "$repo" =~ ^elastic/[A-Za-z0-9._-]+$ ]]; then
+      eval "$(printf '%s\n' "$body" | python3 scripts/onboard_parse_issue_fields.py)"
+      repo="${repository:-}"
+      org_key="${org_key:-}"
+      phase="${phase:-1}"
+      phase2="${phase2_checked:-0}"
+      if [[ -z "$repo" ]]; then
         echo "::warning::Could not parse elastic/<repo> from issue body"
-        repo=""
       fi
-      phase2=0
-      if printf '%s\n' "$body" | grep -Eiq -- '^\s*-\s*\[x\]\s*\*\*Phase 2'; then
-        phase2=1
-      fi
-      phase=1
-      if [[ "$phase2" -eq 1 ]]; then
-        phase=2
+      if [[ -z "$org_key" ]]; then
+        echo "::warning::Could not parse Organization key (docs|obs|security) from issue body"
       fi
       # Platform repos always; append this issue's validated consumer only (never elastic/*).
       allowed_repos="elastic/catalog-info,elastic/oblt-aw,elastic/observability-github-secrets,elastic/observability-github-settings"
@@ -115,35 +109,51 @@ steps:
       allowed_sinks_json+="]"
       {
         echo "repository=${repo}"
+        echo "org_key=${org_key}"
         echo "phase=${phase}"
         echo "phase2_checked=${phase2}"
         echo "allowed_repos=${allowed_repos}"
         echo "allowed_repos_json=${allowed_repos_json}"
         echo "allowed_sinks_json=${allowed_sinks_json}"
       } >> "$GITHUB_OUTPUT"
-      echo "Parsed repository='${repo}' phase=${phase} phase2_checked=${phase2} allowed_repos=${allowed_repos}"
+      echo "Parsed repository='${repo}' org_key='${org_key}' phase=${phase} phase2_checked=${phase2} allowed_repos=${allowed_repos}"
   # Host owns Phase 2 abort uncheck (fresh issue body) so the agent never queues a
   # whole-body update-issue that can race with maintainer edits in safe_outputs.
   - name: Enforce Phase 2 catalog-merge gate
     id: phase2-gate
-    if: steps.onboard-phase.outputs.phase2_checked == '1' && steps.onboard-phase.outputs.repository != ''
+    if: >-
+      steps.onboard-phase.outputs.phase2_checked == '1' &&
+      steps.onboard-phase.outputs.repository != '' &&
+      steps.onboard-phase.outputs.org_key != ''
     env:
       GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       CONSUMER_REPO: ${{ steps.onboard-phase.outputs.repository }}
-      ONBOARD_POLICY: repos/catalog-info/resources/github-token-policies/token-policy-oblt-aw-onboard-repository.yaml
+      ORG_KEY: ${{ steps.onboard-phase.outputs.org_key }}
+      CATALOG_ROOT: repos/catalog-info
     run: |
       set -euo pipefail
+      # Trusted host writes must hit api.github.com directly. After Start DIFC Proxy,
+      # GITHUB_API_URL points at localhost and REST writes return github_api_write_denied.
+      gh_host_write() {
+        env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY \
+          -u https_proxy -u http_proxy -u all_proxy \
+          GITHUB_API_URL="https://api.github.com" \
+          GITHUB_GRAPHQL_URL="https://api.github.com/graphql" \
+          GH_HOST="github.com" \
+          "$@"
+      }
       ready=0
       reason=""
       open_pr_url=""
-      # Literal match via Python (dots in repo names must not become ERE wildcards).
-      if python3 scripts/onboard_policy_has_selector.py \
-        --policy "${ONBOARD_POLICY}" \
+      # Full Phase 1: onboard + sync + distribute + settings selectors (not onboard alone).
+      if python3 scripts/onboard_phase1_catalog_ready.py \
+        --catalog-root "${CATALOG_ROOT}" \
+        --org-key "${ORG_KEY}" \
         --repository "${CONSUMER_REPO}"; then
         ready=1
       else
-        reason="onboard TokenPolicy selector missing for ${CONSUMER_REPO} on catalog-info default branch"
+        reason="Phase 1 catalog incomplete for ${CONSUMER_REPO} (org-key=${ORG_KEY}) on catalog-info default branch"
       fi
       if [[ "${ready}" -eq 0 ]]; then
         printf 'aborted\n' > .onboard-phase2-host-aborted
@@ -164,14 +174,14 @@ steps:
             }
           ')"
           jq -n --arg body "${updated}" '{body:$body}' \
-            | gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" -X PATCH --input -
+            | gh_host_write gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" -X PATCH --input -
           comment="Phase 2 was aborted on the host: ${reason}."
           if [[ -n "${open_pr_url}" ]]; then
             comment+=" Open catalog PR: ${open_pr_url}."
           fi
-          comment+=" Merge the Phase 1 catalog-info PR (including the onboard TokenPolicy selector), wait for it to be active, then check Phase 2 again."
+          comment+=" Merge the Phase 1 catalog-info PR (onboard + org-scoped sync/distribute/settings TokenPolicy selectors), wait for it to be active, then check Phase 2 again."
           jq -n --arg body "${comment}" '{body:$body}' \
-            | gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" -X POST --input -
+            | gh_host_write gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" -X POST --input -
         else
           echo "Phase 2 already unchecked; skipping issue rewrite"
         fi
@@ -180,7 +190,7 @@ steps:
       else
         rm -f .onboard-phase2-host-aborted
         echo "aborted=false" >> "${GITHUB_OUTPUT}"
-        echo "Phase 2 gate passed for ${CONSUMER_REPO}"
+        echo "Phase 2 gate passed for ${CONSUMER_REPO} (org-key=${ORG_KEY})"
       fi
   # Do not use actions/checkout here: it suppresses gh-aw's default workflow-repo checkout.
   # Authenticated host clone keeps persist-credentials out of the agent sandbox.
@@ -297,12 +307,12 @@ If repository or org-key is missing/invalid, or the repository is already listed
 
 ## Phase 2 catalog-merge gate (fail closed)
 
-The **host** step `Enforce Phase 2 catalog-merge gate` already checks that `repos/catalog-info` lists this `elastic/<repo>` on `token-policy-oblt-aw-onboard-repository`. When that fails, the host unchecks Phase 2 on the **latest** issue body and comments — do **not** call any issue-body rewrite tool (avoids racing maintainer edits through delayed safe-outputs).
+The **host** step `Enforce Phase 2 catalog-merge gate` already checks that `repos/catalog-info` lists this `elastic/<repo>` on **all** Phase 1 TokenPolicy allowlists for the mapped org (onboard + sync + distribute + settings; see step **2e**). When that fails, the host unchecks Phase 2 on the **latest** issue body and comments via direct GitHub API (outside the DIFC write proxy) — do **not** call any issue-body rewrite tool (avoids racing maintainer edits through delayed safe-outputs).
 
 Before any Phase 2 PR work:
 
 1. If `.onboard-phase2-host-aborted` exists, or a re-fetch shows Phase 2 unchecked, call `noop` and stop (host already commented when it unchecked).
-2. Confirm the host gate passed: `repos/catalog-info/.../token-policy-oblt-aw-onboard-repository.yaml` lists this consumer, and `repos/consumer` exists when CODEOWNERS/Renovate work is needed.
+2. Confirm the host gate passed (full Phase 1 selectors present) and `repos/consumer` exists when CODEOWNERS/Renovate work is needed.
 3. If Phase 2 is still checked but the selector is missing or `repos/consumer` is absent (checkout soft-failed), call `add-comment` explaining the block and stop — do **not** attempt an agent-side `git clone` and do **not** rewrite the issue body.
 4. Prefer the host checkout at `repos/consumer` (authenticated host step; credentials never embedded in the remote URL).
 
