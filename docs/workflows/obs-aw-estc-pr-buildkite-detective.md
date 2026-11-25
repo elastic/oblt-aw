@@ -51,6 +51,8 @@ Permissions on the agent job:
 - `pull-requests: read`
 - `copilot-requests: write`
 
+The wrapper call requests `id-token: write` when invoking the gh-aw v1.3.x lock.
+
 Conclusion and safe-outputs jobs request `pull-requests: write` only (no `issues: write`); failure fallbacks do not create tracking issues.
 
 ## API / Interface

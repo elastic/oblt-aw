@@ -109,7 +109,7 @@ Secrets are **optional** on the schedule call chain. If an automation lists a ca
 
 ## Safe outputs and permissions
 
-Non-destructive safe-outputs on the generic AW: `create-issue`, `add-comment`, `add-labels`, plus system `noop` / `missing-*` / `report-incomplete` (issue creation off for those). Job permissions stay read-heavy with `issues: write` and `pull-requests: write` for comments/labels; no `contents: write`.
+Non-destructive safe-outputs on the generic AW: `create-issue`, `add-comment`, `add-labels`, plus system `noop` / `missing-*` / `report-incomplete` (issue creation off for those). Job permissions stay read-heavy with `issues: write` and `pull-requests: write` for comments/labels, plus `id-token: write` for gh-aw v1.3.x lock activation/OIDC; no `contents: write`.
 
 ## Migration notes (golang-crossbuild-style AWs)
 
