@@ -25,7 +25,7 @@ This workflow is **not** part of the consumer agentic catalog:
 Triggers:
 
 - `issues` `labeled` when the label is `oblt-aw/onboard/repository` (issue forms apply the label after create and emit this event) — **Phase 1**
-- `issues` `edited` when the issue still has that label (for example the human checks **Phase 2**) — **Phase 2** or no-op when nothing to do
+- `issues` `edited` when the issue still has that label (Phase 2 checkbox checked by the catalog-info merge bridge or by a human) — **Phase 2** or no-op when nothing to do
 
 There is **no** `workflow_dispatch` path: the agent requires the triggering issue for input parsing and `add-comment`.
 
@@ -33,10 +33,12 @@ There is **no** `workflow_dispatch` path: the agent requires the triggering issu
 
 | Phase | How it starts | What the agent opens |
 |-------|---------------|----------------------|
-| **1 — Catalog** | Phase 1 checkbox is checked on submit; label applied | `elastic/catalog-info` only (consumer TokenPolicy, step **2e** allowlists, **onboard agent TokenPolicy selector**) |
-| **2 — Remaining PRs** | Human checks Phase 2 after catalog merges | Registration, settings, secrets (when needed), consumer `CODEOWNERS`, Renovate ignore (when enabled) |
+| **1 — Catalog** | Phase 1 checkbox is checked on submit; label applied | `elastic/catalog-info` only (consumer TokenPolicy, step **2e** allowlists, **onboard agent TokenPolicy selector**, Phase 2 bridge platform files when missing) |
+| **2 — Remaining PRs** | Catalog-info merge bridge checks Phase 2 (or a human checks it) | Registration, settings, secrets (when needed), consumer `CODEOWNERS`, Renovate ignore (when enabled) |
 
-If Phase 2 is checked while the onboard TokenPolicy selector still omits the consumer on `catalog-info` default branch, a **host** step aborts: it unchecks Phase 2 on the latest issue body and comments why. The agent does not rewrite the issue body.
+**Phase 2 merge bridge** (lives in `elastic/catalog-info`; source under [`platform/catalog-info/`](../../platform/catalog-info/) in this repo): on `pull_request` `closed` + merged when the title starts with `[oblt-aw][onboard]`, mints an ephemeral token and checks Phase 2 on the linked onboard issue (`Related issue:` in the PR body). That produces the same `issues` `edited` path as a manual checkbox.
+
+If Phase 2 is checked while required Phase 1 TokenPolicy selectors still omit the consumer on `catalog-info` default branch, a **host** step aborts: it unchecks Phase 2 on the latest issue body and comments why. The agent does not rewrite the issue body.
 
 Behavior:
 

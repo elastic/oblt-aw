@@ -8,7 +8,7 @@ Use this guide when you want OBLT Agentic Workflows (`oblt-aw`) in a repository 
 flowchart TD
   A[Open onboard issue] --> B[Phase 1: agent opens catalog-info PR]
   B --> C[Merge catalog-info PR]
-  C --> D[Check Phase 2 on the issue]
+  C --> D[Bridge checks Phase 2 on the issue]
   D --> E[Phase 2: agent opens remaining PRs]
   E --> F[Merge registration settings secrets CODEOWNERS]
   F --> G[Merge client triggers PR in your repo]
@@ -33,7 +33,7 @@ Technical registration detail for maintainers and agents: [Registering resources
    :::
 
 2. **Fill the fields and keep the phase triggers**
-   - **Phase triggers** — Leave the pre-filled task list as-is on submit (**Phase 1** checked, **Phase 2** unchecked). Checking Phase 2 later (after catalog-info merges) starts the next phase.
+   - **Phase triggers** — Leave the pre-filled task list as-is on submit (**Phase 1** checked, **Phase 2** unchecked). Merging the Phase 1 catalog-info PR normally checks Phase 2 for you; you can still check it manually.
    - **Repository** — `elastic/<repo>` (example: `elastic/my-repo`).
    - **Organization key** — `docs`, `obs`, or `security` (matches a `config/<org-key>/` folder in `elastic/oblt-aw`).
 
@@ -48,9 +48,9 @@ Technical registration detail for maintainers and agents: [Registering resources
 
 4. **Phase 1 — wait for the catalog PR** — The agent opens **only** the `elastic/catalog-info` pull request (consumer TokenPolicy, org-scoped sync/distribute/settings allowlists, and the onboard agent TokenPolicy selector for your repository). It comments on the issue with the PR link.
 
-5. **Merge the catalog-info PR**, then **check Phase 2** on the same issue. Checking Phase 2 starts the agent again (`issues` `edited`).
+5. **Merge the catalog-info PR.** A catalog-info workflow (`oblt-aw-onboard-phase2-bridge`) checks **Phase 2** on this issue when that PR merges (title prefix `[oblt-aw][onboard]`, body must include `Related issue: …`). That edit starts the agent again (`issues` `edited`). You can also check Phase 2 yourself if the bridge did not run.
 
-   If you check Phase 2 before catalog-info is merged (or before the onboard TokenPolicy selector lists your repo), the workflow **aborts** on the host: it unchecks Phase 2 and comments with the reason. Merge catalog-info, then check Phase 2 again.
+   If Phase 2 runs before TokenPolicies are live on the catalog-info default branch, the workflow **aborts** on the host: it unchecks Phase 2 and comments with the reason. Wait a few minutes, then check Phase 2 again.
 
 6. **Phase 2 — wait for the remaining PRs** — The agent opens **separate, normal (non-draft) pull requests**, one concern per PR:
 

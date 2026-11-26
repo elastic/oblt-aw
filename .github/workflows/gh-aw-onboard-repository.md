@@ -17,7 +17,7 @@ engine:
 on:
   stale-check: false
   # labeled: issue-form applies the onboard label after create (Phase 1).
-  # edited: user toggles Phase 2 (or other body edits); agent is idempotent.
+  # edited: Phase 2 checkbox (human or catalog-info merge bridge); agent is idempotent.
   # No workflow_dispatch: this agent requires the triggering issue for parse/comment.
   issues:
     types: [labeled, edited]
@@ -324,7 +324,7 @@ Map each matching open PR to one inventory concern by repository (and title):
 
 | Concern | Allowlisted repo | Typical title contains | Phase |
 |---------|------------------|------------------------|-------|
-| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy + mapped org-scoped sync/distribute + settings selectors + **onboard agent TokenPolicy selector**) | 1 |
+| catalog | `elastic/catalog-info` | `Add token policy` (consumer TokenPolicy + mapped org-scoped sync/distribute + settings selectors + **onboard agent TokenPolicy selector** + Phase 2 bridge platform files when missing) | 1 |
 | catalog-settings-selector | `elastic/catalog-info` | `observability-github-settings token policy` / settings selector / allowlist | 1 (gap-fill) |
 | registration | `elastic/oblt-aw` | `Register` / `active repositories` | 2 |
 | settings | `elastic/observability-github-settings` | `branch protection` | 2 |
@@ -359,6 +359,20 @@ In the catalog concern PR: (1) add the consumer TokenPolicy for `trigger-<org>-a
 - `token-policy-oblt-aw-distribute-client-workflow-<suffix>.yaml`
 - `token-policy-observability-github-settings-<suffix>.yaml`
 - `token-policy-oblt-aw-onboard-repository.yaml` (onboard agent; required so Phase 2 can open consumer PRs)
+
+(4) **Phase 2 merge bridge (platform, once)** — If any of these are missing on `repos/catalog-info`, copy them from this repository’s `platform/catalog-info/` tree into the catalog PR (same relative paths):
+
+- `.github/workflows/oblt-aw-onboard-phase2-bridge.yml`
+- `.github/scripts/oblt-aw-onboard-phase2-bridge/check_phase2.py`
+- `resources/github-token-policies/token-policy-oblt-aw-onboard-phase2-bridge.yaml`
+
+Do **not** edit them when they already match. That bridge checks Phase 2 on this issue when an `[oblt-aw][onboard]` catalog PR merges.
+
+(5) **Related issue (required on every catalog PR body)** — Every `create-pull-request` targeting `elastic/catalog-info` must include a line exactly like:
+
+`Related issue: https://github.com/elastic/oblt-aw/issues/<N>`
+
+where `<N>` is this onboard issue number. The catalog-info merge bridge uses that line to find the issue.
 
 Run `python .github/scripts/update-token-policy-obs-repositories/update_token_policy.py --org <suffix>` (or append sorted selector rows) for the org-scoped policies. For the onboard policy, append a selector row for `elastic/<repo>` when missing (keep existing platform and consumer selectors). Prefer folding into `temporary_id` `aw_catalog`; on retry use `aw_catalog_settings` when the open catalog PR lacks allowlist or onboard-selector coverage. Do **not** invent `-docs` policies or use `ALWAYS_INCLUDE_REPOS`. Never rely on a later weekly job or on `active-repositories.json` alone.
 
@@ -402,7 +416,7 @@ On each `create-pull-request`, set a distinct `temporary_id` (`aw_catalog`, `aw_
 
 - Parsed repository, organization key, and which **phase** ran
 - Checklist of opened or skipped PRs for that phase
-- **Phase 1:** tell the human to merge the catalog-info PR, then check **Phase 2 — Remaining PRs** on this issue
+- **Phase 1:** tell the human to merge the catalog-info PR; Phase 2 normally starts automatically on that merge (manual Phase 2 check remains a fallback)
 - **Phase 2:** merge order (catalog already merged; then `elastic/oblt-aw`; settings and secrets before relying on automerge / secret-backed workflows; consumer CODEOWNERS and Renovate ignore before or with distribute)
 - That merges are **manual**
 - Pointer to `docs/user-guide/onboard-a-repository.md` for post-merge dashboard enablement
