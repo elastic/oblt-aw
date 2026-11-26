@@ -8,8 +8,10 @@
 # sha256("elastic/catalog-info/.github/workflows/oblt-aw-onboard-phase2-bridge.yml"),
 # matching fetch-github-token / create-token derivation.
 #
-# Lets catalog-info check Phase 2 on elastic/oblt-aw onboard issues after an
-# [oblt-aw][onboard] catalog PR merges (issues: write only).
+# Lets catalog-info check Phase 2 on elastic/oblt-aw onboard issues and send
+# repository_dispatch (oblt-aw-onboard-phase2) after an [oblt-aw][onboard]
+# catalog PR merges. contents: write is required for repository_dispatch;
+# issues: write for the Phase 2 checkbox PATCH / comment.
 
 apiVersion: backstage.io/v1alpha1
 kind: Resource
@@ -20,6 +22,7 @@ metadata:
       title: Definition
       icon: github
   tags:
+    - permission-contents-write
     - permission-issues-write
 spec:
   type: token-policy
@@ -41,6 +44,7 @@ spec:
       cached: false
       permissionset:
         additional_permissions:
+          contents: write
           issues: write
         selector:
           - kind: Resource

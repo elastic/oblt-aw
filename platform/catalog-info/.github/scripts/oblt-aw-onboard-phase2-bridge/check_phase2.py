@@ -23,11 +23,12 @@ catalog-info.
 
 Environment:
 
-- ``GH_TOKEN`` — token with ``issues: write`` on ``elastic/oblt-aw``
+- ``GH_TOKEN`` — token with ``issues: write`` and ``contents: write`` on ``elastic/oblt-aw``
 - ``PR_BODY`` — merged pull request body (Related issue link)
 - ``PR_TITLE`` — merged pull request title (``[oblt-aw][onboard] …``)
 - ``PR_URL`` — optional HTML URL for the comment
 - ``OBLT_AW_REPO`` — default ``elastic/oblt-aw``
+- ``DISPATCH_EVENT_TYPE`` — default ``oblt-aw-onboard-phase2``
 """
 
 from __future__ import annotations
@@ -127,52 +128,124 @@ def _gh_api(
     return json.loads(proc.stdout)
 
 
-def find_open_onboard_issue(
+def section_first_nonempty(body: str, heading: str) -> str:
+    """Return the first non-empty line under ``### <heading>`` (CRLF-safe)."""
+    normalized = normalize_newlines(body)
+    marker = f"### {heading}"
+    grab = False
+    for line in normalized.split("\n"):
+        if line.strip() == marker:
+            grab = True
+            continue
+        if grab:
+            if line.startswith("### "):
+                break
+            value = line.strip()
+            if value:
+                return value
+    return ""
+
+
+def issue_repository_field(body: str) -> str:
+    """Return the ``### Repository`` value from an onboard issue body."""
+    return section_first_nonempty(body, "Repository")
+
+
+def find_open_onboard_issue_exact(
     token: str, repo_full: str, consumer_repo: str
 ) -> int | None:
-    """Find an open onboard issue whose body mentions ``consumer_repo``."""
-    # Search is best-effort fallback when Related issue is missing.
+    """Find an open onboard issue whose ``### Repository`` equals ``consumer_repo``."""
     query = (
         f'repo:{repo_full} is:issue is:open label:"{_ONBOARD_LABEL}" "{consumer_repo}"'
     )
     result = _gh_api(
         token,
         "search/issues",
-        raw_fields={"q": query, "per_page": "5"},
+        raw_fields={"q": query, "per_page": "10"},
     )
     assert isinstance(result, dict)
     items = result.get("items")
     if not isinstance(items, list) or not items:
         return None
-    first = items[0]
-    if not isinstance(first, dict):
-        return None
-    number = first.get("number")
-    return int(number) if isinstance(number, int) else None
+    matches: list[int] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        number = item.get("number")
+        if not isinstance(number, int):
+            continue
+        issue = _gh_api(token, f"repos/{repo_full}/issues/{number}")
+        assert isinstance(issue, dict)
+        if issue_repository_field(str(issue.get("body") or "")) == consumer_repo:
+            matches.append(number)
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        raise SystemExit(
+            f"Multiple open onboard issues with Repository {consumer_repo}: {matches}; "
+            f"add an explicit Related issue line on the catalog PR"
+        )
+    return None
 
 
 def resolve_issue_number(
     token: str, repo_full: str, pr_body: str, pr_title: str
 ) -> int:
-    """Resolve the onboard issue from Related issue or title fallback search."""
+    """Resolve the onboard issue from Related issue or exact Repository match."""
     related = parse_related_issue_number(pr_body)
     if related is not None:
+        issue = _gh_api(token, f"repos/{repo_full}/issues/{related}")
+        assert isinstance(issue, dict)
+        consumer = extract_consumer_repo(pr_title)
+        if consumer:
+            field = issue_repository_field(str(issue.get("body") or ""))
+            if field and field != consumer:
+                raise SystemExit(
+                    f"Related issue #{related} Repository is {field!r}, "
+                    f"but catalog PR title points at {consumer!r}"
+                )
         return related
     consumer = extract_consumer_repo(pr_title)
     if not consumer:
         raise SystemExit(
             "Cannot resolve onboard issue: no Related issue line and no elastic/<repo> in title"
         )
-    found = find_open_onboard_issue(token, repo_full, consumer)
+    found = find_open_onboard_issue_exact(token, repo_full, consumer)
     if found is None:
         raise SystemExit(
             f"Cannot resolve onboard issue for {consumer}: add "
             f"'Related issue: https://github.com/{repo_full}/issues/<n>' to the catalog PR body"
         )
     print(
-        f"::warning::Related issue missing; using open onboard issue #{found} for {consumer}"
+        f"::warning::Related issue missing; using open onboard issue #{found} "
+        f"with exact Repository {consumer}"
     )
     return found
+
+
+def dispatch_phase2(
+    token: str, repo_full: str, issue_number: int, event_type: str
+) -> None:
+    """Wake onboard via repository_dispatch (App-safe vs issues edited admission)."""
+    aw_context = json.dumps(
+        {
+            "event_type": "issues",
+            "item_type": "issue",
+            "item_number": issue_number,
+        }
+    )
+    _gh_api(
+        token,
+        f"repos/{repo_full}/dispatches",
+        method="POST",
+        json_body={
+            "event_type": event_type,
+            "client_payload": {
+                "issue_number": issue_number,
+                "aw_context": aw_context,
+            },
+        },
+    )
 
 
 def main() -> int:
@@ -184,6 +257,7 @@ def main() -> int:
     pr_title = os.environ.get("PR_TITLE", "")
     pr_url = os.environ.get("PR_URL", "").strip()
     repo_full = os.environ.get("OBLT_AW_REPO", "elastic/oblt-aw")
+    event_type = os.environ.get("DISPATCH_EVENT_TYPE", "oblt-aw-onboard-phase2")
 
     issue_number = resolve_issue_number(token, repo_full, pr_body, pr_title)
     issue = _gh_api(token, f"repos/{repo_full}/issues/{issue_number}")
@@ -198,31 +272,33 @@ def main() -> int:
         )
     body = str(issue.get("body") or "")
     new_body, changed = check_phase2_box(body)
-    if not changed:
-        print(f"Phase 2 already checked on {repo_full}#{issue_number}; nothing to do")
-        return 0
+    if changed:
+        _gh_api(
+            token,
+            f"repos/{repo_full}/issues/{issue_number}",
+            method="PATCH",
+            json_body={"body": new_body},
+        )
+        comment = (
+            "Phase 1 catalog-info PR merged"
+            + (f" ({pr_url})" if pr_url else "")
+            + ". Checking **Phase 2 — Remaining PRs** and dispatching onboard Phase 2."
+            + "\n\n"
+            + "If Phase 2 aborts because TokenPolicies are not live yet, wait a few minutes "
+            + "and check Phase 2 again (or re-apply the onboard label after the gate passes)."
+        )
+        _gh_api(
+            token,
+            f"repos/{repo_full}/issues/{issue_number}/comments",
+            method="POST",
+            json_body={"body": comment},
+        )
+        print(f"Checked Phase 2 on {repo_full}#{issue_number}")
+    else:
+        print(f"Phase 2 already checked on {repo_full}#{issue_number}")
 
-    _gh_api(
-        token,
-        f"repos/{repo_full}/issues/{issue_number}",
-        method="PATCH",
-        json_body={"body": new_body},
-    )
-    comment = (
-        "Phase 1 catalog-info PR merged"
-        + (f" ({pr_url})" if pr_url else "")
-        + ". Checking **Phase 2 — Remaining PRs** so onboarding can continue."
-        + "\n\n"
-        + "If Phase 2 aborts because TokenPolicies are not live yet, wait a few minutes "
-        + "and check Phase 2 again (or re-apply the onboard label after the gate passes)."
-    )
-    _gh_api(
-        token,
-        f"repos/{repo_full}/issues/{issue_number}/comments",
-        method="POST",
-        json_body={"body": comment},
-    )
-    print(f"Checked Phase 2 on {repo_full}#{issue_number}")
+    dispatch_phase2(token, repo_full, issue_number, event_type)
+    print(f"Dispatched {event_type} to {repo_full} for issue #{issue_number}")
     return 0
 
 

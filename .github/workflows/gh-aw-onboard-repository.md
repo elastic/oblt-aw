@@ -22,13 +22,19 @@ on:
   issues:
     types: [labeled, edited]
     names: [oblt-aw/onboard/repository]
+  # catalog-info Phase 2 bridge: issue edit alone is not enough for App actors
+  # (collaborator check). Bridge checks Phase 2 then repository_dispatch.
+  repository_dispatch:
+    types: [oblt-aw-onboard-phase2]
   # Immediate 👀 on the issue so the requester sees the agent picked it up.
   reaction: eyes
   roles: [admin, maintainer, write]
   bots:
+    - "elastic-vault-github-plugin-prod[bot]"
     - "github-actions[bot]"
 concurrency:
-  group: ${{ github.workflow }}-onboard-repository-${{ github.event.issue.number }}
+  # issue events use github.event.issue.number; bridge dispatch uses client_payload.
+  group: ${{ github.workflow }}-onboard-repository-${{ github.event.issue.number || github.event.client_payload.issue_number }}
   # false: host Phase 2 abort uncheck emits edited; do not cancel the abort run.
   cancel-in-progress: false
 # Policy id lives in config/onboard-repository.json (same pattern as config/e2e.json).
@@ -69,9 +75,13 @@ steps:
     id: onboard-phase
     env:
       GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_NUMBER: ${{ github.event.issue.number || github.event.client_payload.issue_number }}
     run: |
       set -euo pipefail
+      if [[ -z "${ISSUE_NUMBER}" ]]; then
+        echo "::error::No issue number on event (issue or client_payload.issue_number required)"
+        exit 1
+      fi
       # CRLF-safe field parse (blank lines after ### headings must not yield empty repo).
       body="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" --jq '.body // ""')"
       eval "$(printf '%s\n' "$body" | python3 scripts/onboard_parse_issue_fields.py)"
@@ -127,7 +137,7 @@ steps:
       steps.onboard-phase.outputs.org_key != ''
     env:
       GH_TOKEN: ${{ steps.create-token.outputs.token || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_NUMBER: ${{ github.event.issue.number || github.event.client_payload.issue_number }}
       CONSUMER_REPO: ${{ steps.onboard-phase.outputs.repository }}
       ORG_KEY: ${{ steps.onboard-phase.outputs.org_key }}
       CATALOG_ROOT: repos/catalog-info
@@ -259,7 +269,8 @@ safe-outputs:
     issues: true
     pull-requests: false
     discussions: false
-    target: "triggering"
+    # triggering for issue events; "*" so repository_dispatch can pass item_number.
+    target: "*"
   create-pull-request:
     draft: false
     # Phase 1: catalog (+ optional allowlist gap-fill).
@@ -275,7 +286,7 @@ timeout-minutes: 90
 
 # Onboard a consumer repository
 
-You run **only** in `elastic/oblt-aw` when an issue labeled `oblt-aw/onboard/repository` is **labeled** or **edited**.
+You run **only** in `elastic/oblt-aw` when an issue labeled `oblt-aw/onboard/repository` is **labeled** or **edited**, or on `repository_dispatch` type `oblt-aw-onboard-phase2` (catalog-info merge bridge after Phase 2 is checked).
 You are **not** a consumer catalog workflow: do not touch `workflow-registry.json`, client templates, or Control Plane Dashboard checkbox definitions.
 
 ## Two phases (mandatory)

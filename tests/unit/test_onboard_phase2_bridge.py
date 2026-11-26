@@ -63,6 +63,11 @@ def test_parse_related_issue_missing() -> None:
     assert mod.parse_related_issue_number("no link here") is None
 
 
+def test_issue_repository_field() -> None:
+    body = "### Repository\n\nelastic/example.repo\n\n### Organization key\n\nobs\n"
+    assert mod.issue_repository_field(body) == "elastic/example.repo"
+
+
 def test_extract_consumer_repo_from_title() -> None:
     title = "[oblt-aw][onboard] Add token policy for elastic/example.repo"
     assert mod.extract_consumer_repo(title) == "elastic/example.repo"

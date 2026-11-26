@@ -25,9 +25,10 @@ This workflow is **not** part of the consumer agentic catalog:
 Triggers:
 
 - `issues` `labeled` when the label is `oblt-aw/onboard/repository` (issue forms apply the label after create and emit this event) — **Phase 1**
-- `issues` `edited` when the issue still has that label (Phase 2 checkbox checked by the catalog-info merge bridge or by a human) — **Phase 2** or no-op when nothing to do
+- `issues` `edited` when the issue still has that label (human checks Phase 2) — **Phase 2** or no-op when nothing to do
+- `repository_dispatch` type `oblt-aw-onboard-phase2` from the catalog-info merge bridge (`client_payload.issue_number`) — **Phase 2** after the bridge checks Phase 2 (App actors cannot reliably pass the issues `edited` collaborator check)
 
-There is **no** `workflow_dispatch` path: the agent requires the triggering issue for input parsing and `add-comment`.
+There is **no** `workflow_dispatch` path: the agent requires the onboard issue number (from the issue event or dispatch payload) for input parsing and `add-comment`.
 
 ### Two phases
 
