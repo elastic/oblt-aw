@@ -36,7 +36,7 @@ There is **no** `workflow_dispatch` path: the agent requires the triggering issu
 | **1 — Catalog** | Phase 1 checkbox is checked on submit; label applied | `elastic/catalog-info` only (consumer TokenPolicy, step **2e** allowlists, **onboard agent TokenPolicy selector**, Phase 2 bridge platform files when missing) |
 | **2 — Remaining PRs** | Catalog-info merge bridge checks Phase 2 (or a human checks it) | Registration, settings, secrets (when needed), consumer `CODEOWNERS`, Renovate ignore (when enabled) |
 
-**Phase 2 merge bridge** (lives in `elastic/catalog-info`; source under [`platform/catalog-info/`](../../platform/catalog-info/) in this repo): on `pull_request` `closed` + merged when the title starts with `[oblt-aw][onboard]`, mints an ephemeral token and checks Phase 2 on the linked onboard issue (`Related issue:` in the PR body). That produces the same `issues` `edited` path as a manual checkbox.
+**Phase 2 merge bridge** (lives in `elastic/catalog-info`; source under [`platform/catalog-info/`](https://github.com/elastic/oblt-aw/tree/main/platform/catalog-info) in this repo): on `pull_request` `closed` + merged when the title starts with `[oblt-aw][onboard]`, mints an ephemeral token and checks Phase 2 on the linked onboard issue (`Related issue:` in the PR body). That produces the same `issues` `edited` path as a manual checkbox.
 
 If Phase 2 is checked while required Phase 1 TokenPolicy selectors still omit the consumer on `catalog-info` default branch, a **host** step aborts: it unchecks Phase 2 on the latest issue body and comments why. The agent does not rewrite the issue body.
 
