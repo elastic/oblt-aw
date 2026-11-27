@@ -1,0 +1,46 @@
+# After an [oblt-aw][onboard] catalog-info PR merges, check Phase 2 on the
+# linked elastic/oblt-aw onboard issue so gh-aw-onboard-repository continues
+# via issues:edited (same path as a human checkbox).
+#
+# Source of truth: elastic/oblt-aw platform/catalog-info/ (keep in sync).
+
+name: oblt-aw-onboard-phase2-bridge
+
+on:
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  contents: read
+
+jobs:
+  check-phase2:
+    name: Check Phase 2 on onboard issue
+    if: >
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.title, '[oblt-aw][onboard]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout bridge script
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github/scripts/oblt-aw-onboard-phase2-bridge
+          sparse-checkout-cone-mode: true
+
+      - name: Create GitHub App token
+        id: fetch-token
+        uses: elastic/oblt-actions/github/create-token@v1
+
+      - name: Check Phase 2 on linked onboard issue
+        env:
+          GH_TOKEN: ${{ steps.fetch-token.outputs.token }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          OBLT_AW_REPO: elastic/oblt-aw
+        run: python3 .github/scripts/oblt-aw-onboard-phase2-bridge/check_phase2.py

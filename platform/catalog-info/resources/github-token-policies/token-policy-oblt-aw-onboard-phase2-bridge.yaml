@@ -1,0 +1,53 @@
+---
+# yaml-language-server: $schema=https://gist.githubusercontent.com/elasticmachine/988b80dae436cafea07d9a4a460a011d/raw/rre.schema.json
+
+# This entity registers the token-policy-oblt-aw-onboard-phase2-bridge GitHub Token Policy
+# in Backstage as a managed Resource.
+#
+# Role name token-policy-ba82e07d0a4c is the first 12 hex chars of
+# sha256("elastic/catalog-info/.github/workflows/oblt-aw-onboard-phase2-bridge.yml"),
+# matching fetch-github-token / create-token derivation.
+#
+# Lets catalog-info check Phase 2 on elastic/oblt-aw onboard issues and send
+# repository_dispatch (oblt-aw-onboard-phase2) after an [oblt-aw][onboard]
+# catalog PR merges. contents: write is required for repository_dispatch;
+# issues: write for the Phase 2 checkbox PATCH / comment.
+
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: token-policy-oblt-aw-onboard-phase2-bridge
+  links:
+    - url: https://github.com/elastic/catalog-info/tree/main/resources/github-token-policies/token-policy-oblt-aw-onboard-phase2-bridge.yaml
+      title: Definition
+      icon: github
+  tags:
+    - permission-contents-write
+    - permission-issues-write
+spec:
+  type: token-policy
+  owner: group:oblt-ephemeral-github-tokens
+  implementation:
+    apiVersion: github.elastic.dev/v1
+    kind: TokenPolicy
+    metadata:
+      # sha256("elastic/catalog-info/.github/workflows/oblt-aw-onboard-phase2-bridge.yml")[:12]
+      name: token-policy-ba82e07d0a4c
+    spec:
+      vault:
+        - ci-prod
+      auth:
+        type: oidc
+        identity_provider: github
+        bound_claims:
+          workflow_ref: elastic/catalog-info/.github/workflows/oblt-aw-onboard-phase2-bridge.yml@*
+      cached: false
+      permissionset:
+        additional_permissions:
+          contents: write
+          issues: write
+        selector:
+          - kind: Resource
+            spec.implementation.spec.repository: elastic/oblt-aw
+            spec.implementation.apiVersion: github.elastic.dev/v1
+            spec.type: github-repository

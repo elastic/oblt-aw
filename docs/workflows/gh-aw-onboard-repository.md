@@ -24,18 +24,31 @@ This workflow is **not** part of the consumer agentic catalog:
 
 Triggers:
 
-- `issues` `labeled` when the label is `oblt-aw/onboard/repository` (issue forms apply the label after create and emit this event)
+- `issues` `labeled` when the label is `oblt-aw/onboard/repository` (issue forms apply the label after create and emit this event) — **Phase 1**
+- `issues` `edited` when the issue still has that label (human checks Phase 2) — **Phase 2** or no-op when nothing to do
+- `repository_dispatch` type `oblt-aw-onboard-phase2` from the catalog-info merge bridge (`client_payload.issue_number`) — **Phase 2** after the bridge checks Phase 2 (App actors cannot reliably pass the issues `edited` collaborator check)
 
-There is **no** `workflow_dispatch` path: the agent requires the triggering issue for input parsing and `add-comment`. Retry by re-applying the onboard label (gap-fills missing inventory concerns; does not duplicate open `[oblt-aw][onboard]` PRs).
+There is **no** `workflow_dispatch` path: the agent requires the onboard issue number (from the issue event or dispatch payload) for input parsing and `add-comment`.
+
+### Two phases
+
+| Phase | How it starts | What the agent opens |
+|-------|---------------|----------------------|
+| **1 — Catalog** | Phase 1 checkbox is checked on submit; label applied | `elastic/catalog-info` only (consumer TokenPolicy, step **2e** allowlists, **onboard agent TokenPolicy selector**, Phase 2 bridge platform files when missing) |
+| **2 — Remaining PRs** | Catalog-info merge bridge checks Phase 2 (or a human checks it) | Registration, settings, secrets (when needed), consumer `CODEOWNERS`, Renovate ignore (when enabled) |
+
+**Phase 2 merge bridge** (lives in `elastic/catalog-info`; source under [`platform/catalog-info/`](https://github.com/elastic/oblt-aw/tree/main/platform/catalog-info) in this repo): on `pull_request` `closed` + merged when the title starts with `[oblt-aw][onboard]`, mints an ephemeral token and checks Phase 2 on the linked onboard issue (`Related issue:` in the PR body). That produces the same `issues` `edited` path as a manual checkbox.
+
+If Phase 2 is checked while required Phase 1 TokenPolicy selectors still omit the consumer on `catalog-info` default branch, a **host** step aborts: it unchecks Phase 2 on the latest issue body and comments why. The agent does not rewrite the issue body.
 
 Behavior:
 
 1. Add a 👀 reaction on the triggering issue as soon as pre-activation runs (`on.reaction: eyes`), so the requester can see the agent started.
-2. Read the triggering issue via GitHub MCP and parse **repository** (`elastic/<repo>`) and **org key** (`docs` / `obs` / `security`) from the body. Source sets `tools.github.min-integrity: none` (temporary DIFC workaround so human-authored onboard issues are readable under the default `approved` floor).
-3. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps including **2e** org-scoped sync/distribute **and** settings allowlists, appendix).
-4. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones (especially secrets after full registry-doc discovery, and catalog step **2e** when sync/distribute or `token-policy-observability-github-settings-<suffix>` coverage is missing). Stop with **exact PR URLs** only when the inventory is complete.
-5. Open up to five **normal (non-draft)** PRs (separate concerns; catalog may split into consumer TokenPolicy + allowlist gap-fill); do not merge them. The catalog PR must add the consumer TokenPolicy and apply step **2e** (mapped org-scoped sync/distribute **and** settings selectors; extend any pinned settings `repos` allowlist when present). Settings bypasser stacks use `resources/<settings-org>/branch-protections/<repo>/`. Discover secrets from **every** org registry doc’s **Prerequisites** (consumer-facing names), falling back to **API / Interface** `Secret:` lines — do **not** filter by `default_enabled`; then resolve shared modules in the secrets checkout. PR bodies must be valid Markdown (real newlines).
-6. Comment with required content (parsed inputs, PR checklist, merge order, user-guide pointer) in **valid Markdown** — real newlines; full PR URLs or `#aw_…` rewrite. Heading wording is not fixed.
+2. Read the triggering issue via GitHub MCP and parse **repository** (`elastic/<repo>`), **org key** (`docs` / `obs` / `security`), and phase checkboxes. Source sets `tools.github.min-integrity: none` (temporary DIFC workaround so human-authored onboard issues are readable under the default `approved` floor).
+3. Follow [Registering resources](../onboarding/registering-a-repository.md) ([pull request inventory](../onboarding/registering-a-repository.md#pull-request-inventory-separate-concerns), [consumer secrets discovery](../onboarding/registering-a-repository.md#consumer-secrets-discovery), [automation contract](../onboarding/registering-a-repository.md#automation-contract-gh-aw-onboard-repository), steps including **2e** and onboard TokenPolicy selector, appendix).
+4. Before opening PRs, search for existing open PRs with title-prefix `[oblt-aw][onboard]` for that repository; map them to inventory concerns. Do not duplicate covered concerns; **gap-fill** missing ones for the **active phase only**.
+5. Open up to seven **normal (non-draft)** PRs across both phases (phase-scoped; catalog may split into consumer TokenPolicy + allowlist gap-fill). Do not merge them. Host steps parse the issue, enforce the Phase 2 catalog gate, and (when the gate passes) check out `elastic/<repo>` into `repos/consumer` without embedding the token in the remote URL (`continue-on-error` so a soft-failed checkout does not fail the job).
+6. Comment with required content (parsed inputs, phase, PR checklist, next step) in **valid Markdown** — real newlines; full PR URLs or `#aw_…` rewrite. Heading wording is not fixed.
 
 User-facing steps: [Onboard a repository](../user-guide/onboard-a-repository.md).
 
@@ -44,12 +57,17 @@ User-facing steps: [Onboard a repository](../user-guide/onboard-a-repository.md)
 Permissions (source intent; lock expands job-level scopes):
 
 - Workflow: `id-token: write` for OIDC `create-token`; agent reads contents/issues/pull-requests; Copilot requests.
-- Safe outputs create comments and pull requests with the minted Vault-app token (policy id from `config/onboard-repository.json`).
+- Safe outputs create comments and pull requests with the minted Vault-app token (policy id from `config/onboard-repository.json`). Phase 2 abort uncheck is host-owned (not a safe-output).
+- GitHub MCP/DIFC read allowlist is platform repos at compile time; MCP is patched at runtime to platform plus the consumer parsed from the issue (not `elastic/*`). `create-pull-request` uses the same run-scoped allowlist.
 
 Safe outputs:
 
 - `add-comment` (issue)
-- `create-pull-request` with `draft: false`, `max: 5`, `auto-close-issue: false`, allowlisted repos above
+- `create-pull-request` with `draft: false`, `max: 7`, `auto-close-issue: false`, run-scoped `allowed-repos` (platform + parsed consumer)
+
+Concurrency uses `cancel-in-progress: false` so a host Phase 2 abort uncheck (which emits `edited`) does not cancel the abort run.
+
+`make compile-aw` runs `scripts/patch_aw_onboard_edited_label.py` so job `if:` conditions require **exact** label membership for `oblt-aw/onboard/repository` on `edited` (gh-aw’s `names` filter is labeled-only; do not use `join`+substring `contains`). A host step fails closed as defense in depth.
 
 ## Related exclusions
 
