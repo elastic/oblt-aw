@@ -312,6 +312,7 @@ The table below documents how each rule ID is currently represented in the detec
 
 - **Implementation:** Map each rule ID to a check in the detector scripts or job matrix. Complementary ingress workflows (for example `obs-aw-dependency-review`) may supplement dependency findings where SEC-033–SEC-035 reference PR-time review.
 - **False positives**: Expression-injection rules (SEC-010) may need triage tuning; during early rollout, triage may temporarily down-rank individual findings to Medium until confidence improves, while SEC-010 remains defined as High severity.
+- **Generated lock workflows:** The detector suppresses zizmor `template-injection` findings in `.github/workflows/*.lock.yml` and tracks SEC-010 remediation at source workflows/scripts to avoid duplicate lockfile noise.
 - **Dependency overlap**: For PR-time dependency review, prefer enabling `obs-aw-dependency-review` in ingress; SEC-033 remains for scheduled full-repo audits without a PR.
 
 ---
